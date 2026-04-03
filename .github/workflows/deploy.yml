@@ -1,0 +1,56 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to eterapy.com
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+            APP_DIR="/opt/eterapy"
+            ENV_FILE="$APP_DIR/.env"
+
+            echo "▶ Pulling latest code..."
+            git -C "$APP_DIR" fetch --all
+            git -C "$APP_DIR" reset --hard origin/main
+            git -C "$APP_DIR" clean -fd
+
+            echo "▶ Building and restarting services..."
+            cd "$APP_DIR"
+            docker compose --env-file "$ENV_FILE" build --pull
+            docker compose --env-file "$ENV_FILE" up -d --remove-orphans
+
+            echo "▶ Health check..."
+            sleep 10
+            curl -sf http://localhost:3000/api/health || (docker compose logs web --tail=30; exit 1)
+            echo "✓ Deploy complete"
+
+      - name: Notify success
+        if: success()
+        run: echo "✅ Deploy to eterapy.com succeeded"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Deploy to eterapy.com failed — check logs"

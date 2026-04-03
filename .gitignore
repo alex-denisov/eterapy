@@ -2,5 +2,8 @@ node_modules/
 .next/
 .env.local
 .env
+.env.deploy
 *.tsbuildinfo
 .DS_Store
+nginx/ssl/
+
