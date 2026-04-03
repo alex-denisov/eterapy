@@ -1,4 +1,6 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { buttonVariants } from "@/lib/button-variants";
+import { cn } from "@/lib/utils";
 
 export function CTASection() {
   return (
@@ -11,14 +13,13 @@ export function CTASection() {
           <span className="text-primary">осознанному выбору</span>
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Бесплатный AI check-in за 2 минуты. Без регистрации. Без привязки
-          карты.
+          Бесплатная рефлексия за 2 минуты. Без регистрации. Без привязки карты.
         </p>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button size="lg" className="min-w-[220px] text-base">
-            Попробовать AI бесплатно
-          </Button>
+          <Link href="/tools" className={cn(buttonVariants({ size: "lg" }), "min-w-[220px] text-base")}>
+            Попробовать бесплатно
+          </Link>
         </div>
 
         <p className="mt-8 text-xs text-muted-foreground/50">

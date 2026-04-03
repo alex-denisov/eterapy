@@ -7,14 +7,14 @@ const tools = [
     href: "/tools/tarot",
     icon: "🃏",
     title: "Расклад Таро",
-    description: "Три карты: Прошлое · Настоящее · Будущее. AI-интерпретация.",
+    description: "Три карты: Прошлое · Настоящее · Будущее. Развёрнутая интерпретация.",
     tag: "Популярное",
   },
   {
     href: "/tools/checkin",
     icon: "💬",
-    title: "AI Check-in",
-    description: "Рефлексивные вопросы → структурированный ответ за 2 минуты.",
+    title: "Рефлексия",
+    description: "Несколько вопросов о вашем состоянии → структурированный ответ за 2 минуты.",
     tag: "Наша разработка",
   },
   {
@@ -41,8 +41,8 @@ const tools = [
   {
     href: "/tools/guide",
     icon: "📖",
-    title: "AI Мини-гид",
-    description: "Персональный текстовый гид по теме вашего запроса.",
+    title: "Личный гид",
+    description: "Персональный текст по теме вашего запроса.",
     tag: "Наша разработка",
   },
 ];
@@ -51,10 +51,10 @@ export default function ToolsPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
       <h1 className="font-heading text-3xl font-bold md:text-4xl">
-        AI-инструменты
+        Инструменты самопознания
       </h1>
       <p className="mt-2 text-muted-foreground">
-        Бесплатные инструменты самопознания. 3 сессии в месяц.
+        Бесплатно · 3 сессии в месяц · Без регистрации
       </p>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -82,7 +82,7 @@ export default function ToolsPage() {
       </div>
 
       <p className="mt-8 text-xs text-muted-foreground/60">
-        Все AI-инструменты носят развлекательный и ознакомительный характер.
+        Все инструменты носят развлекательный и ознакомительный характер.
       </p>
     </div>
   );

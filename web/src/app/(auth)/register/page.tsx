@@ -35,6 +35,7 @@ export default function RegisterPage() {
       setError("Этот email уже зарегистрирован");
     } else {
       router.push("/tools");
+      router.refresh();
     }
   }
 
@@ -46,7 +47,7 @@ export default function RegisterPage() {
             Регистрация в ETerapy
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            3 бесплатных AI-сессии в месяц
+            3 бесплатных сессии в месяц
           </p>
         </CardHeader>
         <CardContent>

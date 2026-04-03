@@ -8,6 +8,8 @@ import { Providers } from "@/components/providers";
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin", "cyrillic"],
+  display: "swap",
+  preload: false,
 });
 
 const playfair = Playfair_Display({
@@ -15,12 +17,13 @@ const playfair = Playfair_Display({
   subsets: ["latin", "cyrillic"],
   weight: ["400", "600", "700"],
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
   title: "ETerapy — этичная эзотерическая платформа",
   description:
-    "Найди проверенного тарологa, астрологa или нумерологa. Фиксированная цена, AI-инструменты, международные платежи. Безопасно. Прозрачно. Онлайн.",
+    "Найди проверенного таролога, астролога или нумеролога. Фиксированная цена за сессию. Бесплатные инструменты самопознания. Безопасно. Прозрачно. Онлайн.",
   keywords: [
     "таролог онлайн",
     "астролог онлайн",
@@ -29,10 +32,15 @@ export const metadata: Metadata = {
     "натальная карта",
     "этичная эзотерика",
   ],
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+  },
   openGraph: {
     title: "ETerapy — этичная эзотерическая платформа",
     description:
-      "Найди проверенного практика. Фиксированная цена. AI-инструменты. Безопасно.",
+      "Найди проверенного практика. Фиксированная цена. Инструменты самопознания. Безопасно.",
     type: "website",
     locale: "ru_RU",
   },

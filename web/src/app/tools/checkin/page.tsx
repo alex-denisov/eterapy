@@ -26,7 +26,7 @@ export default function CheckinPage() {
     setAnswers(updated);
     setCurrentAnswer("");
 
-    if (step >= 2 && (step >= 4 || currentAnswer.trim() === "")) {
+    if (step >= 4) {
       submitAnswers(updated);
     } else {
       setStep(step + 1);
@@ -86,7 +86,7 @@ export default function CheckinPage() {
   if (result) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
-        <h1 className="font-heading text-3xl font-bold">💬 Ваш Check-in</h1>
+        <h1 className="font-heading text-3xl font-bold">💬 Ваше отражение</h1>
 
         <Card className="mt-8 border-primary/20 bg-card/30">
           <CardContent className="p-6">
@@ -103,8 +103,7 @@ export default function CheckinPage() {
         </div>
 
         <p className="mt-8 text-xs text-muted-foreground/60">
-          Check-in носит рефлексивный характер и не является психологической
-          консультацией.
+          Этот инструмент носит рефлексивный характер и не является психологической консультацией.
         </p>
       </div>
     );
@@ -113,14 +112,12 @@ export default function CheckinPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
       <h1 className="font-heading text-3xl font-bold md:text-4xl">
-        💬 AI Check-in
+        💬 Рефлексия
       </h1>
       <p className="mt-2 text-muted-foreground">
-        Ответьте на несколько рефлексивных вопросов — AI поможет
-        структурировать мысли.
+        Ответьте на несколько вопросов — получите структурированное отражение вашего состояния.
       </p>
 
-      {/* Прогресс */}
       <div className="mt-8 flex gap-1">
         {questions.map((_, i) => (
           <div
@@ -163,10 +160,7 @@ export default function CheckinPage() {
               </Button>
             )}
             <div className="ml-auto">
-              <Button
-                onClick={handleNext}
-                disabled={!currentAnswer.trim()}
-              >
+              <Button onClick={handleNext} disabled={!currentAnswer.trim()}>
                 {step >= 4 ? "Завершить" : "Далее →"}
               </Button>
             </div>

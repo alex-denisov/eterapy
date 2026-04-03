@@ -33,7 +33,7 @@ export default function GuidePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <h1 className="font-heading text-3xl font-bold">📖 AI Мини-гид</h1>
+      <h1 className="font-heading text-3xl font-bold">📖 Личный гид</h1>
       <p className="mt-2 text-muted-foreground">Персональный гид по теме вашего запроса. Глубже, чем гороскоп.</p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">

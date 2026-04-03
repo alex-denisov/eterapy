@@ -1,51 +1,60 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/lib/button-variants";
+import { cn } from "@/lib/utils";
 
 const tools = [
   {
     icon: "🃏",
-    title: "Таро RWS",
-    description: "Расклад на 3 карты, Карта дня или Кельтский крест. AI интерпретирует расклад в контексте вашего вопроса.",
+    title: "Расклад Таро",
+    description: "Три карты на ваш вопрос с развёрнутой интерпретацией. Классическая колода Райдера-Уэйта.",
     tag: "Популярное",
+    href: "/tools/tarot",
   },
   {
     icon: "⭐",
     title: "Натальная карта",
-    description: "Полная карта вашего рождения по западной астрологии. Планеты, дома, аспекты — всё с интерпретацией.",
+    description: "Полная карта вашего рождения по западной астрологии. Планеты, дома, аспекты — с описанием.",
     tag: "Астрология",
+    href: "/tools/natal",
   },
   {
     icon: "🔢",
     title: "Нумерология",
     description: "Число жизненного пути, число выражения и личности по системе Пифагора.",
     tag: "Быстро",
+    href: "/tools/numerology",
   },
   {
     icon: "🌙",
     title: "Гороскоп",
-    description: "Персонализированный ежедневный, недельный и месячный прогноз на основе транзитов.",
+    description: "Персонализированный прогноз на день, неделю или месяц на основе текущих транзитов.",
     tag: "Ежедневно",
+    href: "/tools/horoscope",
   },
   {
     icon: "💬",
-    title: "AI Check-in",
-    description: "3-5 рефлексивных вопросов → структурированный ответ. Инструмент самопознания за 2 минуты.",
+    title: "Рефлексия",
+    description: "3–5 вопросов → структурированный ответ о вашем состоянии. Инструмент самопознания за 2 минуты.",
     tag: "Наша разработка",
+    href: "/tools/checkin",
   },
   {
     icon: "📖",
-    title: "AI Мини-гид",
-    description: "Анкета → персональный текстовый гид по теме вашего запроса. Глубже, чем гороскоп.",
+    title: "Личный гид",
+    description: "Короткая анкета → персональный текст по теме вашего запроса. Глубже, чем стандартный гороскоп.",
     tag: "Наша разработка",
+    href: "/tools/guide",
   },
 ];
 
 export function AIToolsSection() {
   return (
-    <section id="ai-tools" className="bg-navy-light/50 px-4 py-20">
+    <section id="tools" className="bg-navy-light/50 px-4 py-20">
       <div className="mx-auto max-w-5xl">
         <h2 className="font-heading text-center text-3xl font-bold md:text-4xl">
-          AI-инструменты
+          Инструменты самопознания
         </h2>
         <p className="mt-3 text-center text-muted-foreground">
           Попробуй бесплатно — 3 сессии в месяц. Регистрация не нужна.
@@ -53,27 +62,32 @@ export function AIToolsSection() {
 
         <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => (
-            <Card
-              key={tool.title}
-              className="group border-border/40 bg-card/50 transition-colors hover:border-primary/30"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <span className="text-3xl">{tool.icon}</span>
-                  <Badge
-                    variant="secondary"
-                    className="bg-primary/10 text-xs text-primary"
-                  >
-                    {tool.tag}
-                  </Badge>
-                </div>
-                <h3 className="mt-4 text-lg font-semibold">{tool.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {tool.description}
-                </p>
-              </CardContent>
-            </Card>
+            <Link key={tool.title} href={tool.href}>
+              <Card className="group h-full cursor-pointer border-border/40 bg-card/50 transition-colors hover:border-primary/30">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <span className="text-3xl">{tool.icon}</span>
+                    <Badge
+                      variant="secondary"
+                      className="bg-primary/10 text-xs text-primary"
+                    >
+                      {tool.tag}
+                    </Badge>
+                  </div>
+                  <h3 className="mt-4 text-lg font-semibold">{tool.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {tool.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link href="/tools" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+            Все инструменты →
+          </Link>
         </div>
       </div>
     </section>

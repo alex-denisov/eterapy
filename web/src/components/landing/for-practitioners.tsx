@@ -1,4 +1,6 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { buttonVariants } from "@/lib/button-variants";
+import { cn } from "@/lib/utils";
 
 const benefits = [
   {
@@ -18,7 +20,7 @@ const benefits = [
   },
   {
     icon: "🤖",
-    title: "AI-ассистент",
+    title: "Умный ассистент",
     description: "Черновик отчёта по сессии, структура консультации, натальная карта клиента — автоматически.",
   },
   {
@@ -59,13 +61,12 @@ export function ForPractitionersSection() {
         </div>
 
         <div className="mt-12 text-center">
-          <Button
-            size="lg"
-            variant="outline"
-            className="border-primary/30 text-primary hover:bg-primary/10"
+          <Link
+            href="/register"
+            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "border-primary/30 text-primary hover:bg-primary/10")}
           >
             Стать практиком →
-          </Button>
+          </Link>
         </div>
       </div>
     </section>

@@ -1,0 +1,5 @@
+{
+  "name": "eterapy-monorepo",
+  "private": true,
+  "workspaces": ["web"]
+}
