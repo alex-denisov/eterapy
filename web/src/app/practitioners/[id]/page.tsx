@@ -2,29 +2,53 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { practitioners, SPECIALTY_LABELS } from "@/data/practitioners";
+import db from "@/lib/db";
+import { PractitionerStatus } from "@prisma/client";
+import { SPECIALTY_LABELS } from "@/lib/types";
 import { BookingButton } from "./booking-button";
 
-export function generateStaticParams() {
-  return practitioners.map((p) => ({ id: p.id }));
+async function getPractitioner(id: string) {
+  return db.practitioner.findFirst({
+    where: { id, status: PractitionerStatus.ACTIVE },
+    include: {
+      user: { select: { name: true } },
+      reviews: {
+        include: { author: { select: { name: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
+    },
+  });
 }
 
 function StarRating({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg" }) {
   const stars = Math.round(rating);
   return (
-    <span className={`flex items-center gap-1 ${size === "lg" ? "text-base" : "text-sm"}`}>
+    <span className={`flex items-center gap-0.5 ${size === "lg" ? "text-base" : "text-sm"}`}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={i <= stars ? "text-primary" : "text-border"}>★</span>
+        <span key={i} className={i <= stars ? "text-primary" : "text-border/60"}>★</span>
       ))}
       <span className="ml-1 font-medium">{rating.toFixed(1)}</span>
     </span>
   );
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const p = await getPractitioner(id);
+  if (!p) return { title: "Практик не найден" };
+  return {
+    title: `${p.user.name} — ETerapy`,
+    description: p.bio.slice(0, 160),
+  };
+}
+
 export default async function PractitionerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const p = practitioners.find((pr) => pr.id === id);
+  const p = await getPractitioner(id);
   if (!p) notFound();
+
+  const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
@@ -34,63 +58,44 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
         <span>/</span>
         <Link href="/practitioners" className="hover:text-foreground">Каталог</Link>
         <span>/</span>
-        <span className="text-foreground">{p.name}</span>
+        <span className="text-foreground">{p.user.name}</span>
       </nav>
 
       <div className="grid gap-8 md:grid-cols-[1fr_320px]">
-        {/* Левая колонка — основная информация */}
+        {/* Левая колонка */}
         <div>
-          {/* Шапка профиля */}
           <div className="flex items-start gap-5">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/10 text-5xl ring-2 ring-primary/20">
-              {p.avatar}
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/10 text-3xl font-bold text-primary ring-2 ring-primary/20">
+              {p.user.name.charAt(0)}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-heading text-2xl font-bold md:text-3xl">{p.name}</h1>
-                {p.verified && (
-                  <Badge className="bg-primary/10 text-primary">
-                    ✦ Проверен ETerapy
-                  </Badge>
-                )}
-                {p.founding && (
-                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 text-xs">
-                    Основатель
-                  </Badge>
-                )}
+                <h1 className="font-heading text-2xl font-bold md:text-3xl">{p.user.name}</h1>
+                {p.verified && <Badge className="bg-primary/10 text-primary">✦ Проверен ETerapy</Badge>}
+                {p.founding && <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 text-xs">Основатель</Badge>}
               </div>
               <p className="mt-1 text-muted-foreground">{p.title}</p>
               <div className="mt-2 flex flex-wrap items-center gap-4">
-                <StarRating rating={p.rating} size="lg" />
+                <StarRating rating={rating} size="lg" />
                 <span className="text-sm text-muted-foreground">{p.reviewCount} отзывов</span>
                 <span className="text-sm text-muted-foreground">{p.sessionCount} сессий</span>
                 <span className="text-sm text-muted-foreground">Опыт: {p.experience}</span>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {p.online && (
-                  <span className="flex items-center gap-1.5 text-sm text-green-400">
-                    <span className="h-2 w-2 rounded-full bg-green-500" />
-                    Онлайн сейчас
-                  </span>
-                )}
-                <span className="text-sm text-muted-foreground">
-                  Языки: {p.languages.join(", ")}
-                </span>
-              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Языки: {p.languages.join(", ")}
+              </p>
             </div>
           </div>
 
           {/* Специализации */}
           <div className="mt-6 flex flex-wrap gap-2">
-            {p.specialties.map((s) => (
+            {(p.specialties as string[]).map((s) => (
               <Badge key={s} variant="secondary" className="bg-primary/10 text-primary">
-                {SPECIALTY_LABELS[s]}
+                {SPECIALTY_LABELS[s] ?? s}
               </Badge>
             ))}
             {p.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-border/30 px-3 py-0.5 text-sm text-muted-foreground">
-                {tag}
-              </span>
+              <span key={tag} className="rounded-full bg-border/30 px-3 py-0.5 text-sm text-muted-foreground">{tag}</span>
             ))}
           </div>
 
@@ -123,35 +128,30 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
 
           {/* Отзывы */}
           <div className="mt-8">
-            <h2 className="font-heading text-xl font-semibold">
-              Отзывы ({p.reviewCount})
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Только от подтверждённых оплаченных сессий
-            </p>
-            <div className="mt-4 space-y-4">
-              {p.reviews.map((review, i) => (
-                <Card key={i} className="border-border/30 bg-card/30">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{review.author}</span>
-                      <div className="flex items-center gap-2">
-                        <StarRating rating={review.rating} />
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(review.date).toLocaleDateString("ru-RU", {
-                            day: "numeric",
-                            month: "long",
-                          })}
-                        </span>
+            <h2 className="font-heading text-xl font-semibold">Отзывы ({p.reviewCount})</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Только от подтверждённых оплаченных сессий</p>
+            {p.reviews.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground/60">Пока нет отзывов.</p>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {p.reviews.map((review) => (
+                  <Card key={review.id} className="border-border/30 bg-card/30">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{review.author.name}</span>
+                        <div className="flex items-center gap-2">
+                          <StarRating rating={review.rating} />
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(review.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {review.text}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      {review.text && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{review.text}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -166,29 +166,18 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
                 <p className="mt-1 text-sm text-muted-foreground">фиксированная цена за сессию</p>
               </div>
 
-              {p.nextSlot && (
-                <div className="mt-4 rounded-xl bg-green-500/10 p-3 text-center">
-                  <p className="text-sm font-medium text-green-400">
-                    Ближайший слот: {p.nextSlot}
-                  </p>
-                </div>
-              )}
-
-              <BookingButton practitionerName={p.name} practitionerId={p.id} nextSlot={p.nextSlot} />
+              <BookingButton practitionerName={p.user.name} practitionerId={p.id} nextSlot={null} />
 
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-                <p className="flex items-center gap-2">
-                  <span className="text-primary">✦</span>
-                  Деньги удерживаются до завершения сессии
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="text-primary">✦</span>
-                  Возврат при нарушении этического кодекса
-                </p>
-                <p className="flex items-center gap-2">
-                  <span className="text-primary">✦</span>
-                  Практик проверен ETerapy
-                </p>
+                {[
+                  "Деньги удерживаются до завершения сессии",
+                  "Возврат при нарушении этического кодекса",
+                  "Практик проверен ETerapy",
+                ].map((t) => (
+                  <p key={t} className="flex items-center gap-2">
+                    <span className="text-primary">✦</span> {t}
+                  </p>
+                ))}
               </div>
             </CardContent>
           </Card>
