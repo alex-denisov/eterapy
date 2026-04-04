@@ -172,6 +172,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
                 practitionerId={p.id}
                 practitionerName={p.user.name}
                 pricePerSession={p.pricePerSession}
+                sessionDuration={p.sessionDuration ?? 60}
               />
 
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">

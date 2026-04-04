@@ -1,12 +1,24 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import db from "@/lib/db";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookingStatus } from "@prisma/client";
+import { ReviewModal } from "@/components/review-modal";
 
-const STATUS_LABELS: Record<BookingStatus, { label: string; color: string }> = {
+interface Booking {
+  id: string;
+  status: string;
+  priceRub: number;
+  createdAt: string;
+  slot: { startAt: string; endAt: string } | null;
+  practitioner?: { name: string; id: string };
+  review?: { id: string } | null;
+}
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   PENDING:     { label: "Ожидает",       color: "bg-yellow-500/10 text-yellow-400" },
   CONFIRMED:   { label: "Подтверждено",  color: "bg-green-500/10 text-green-400" },
   IN_PROGRESS: { label: "Идёт сессия",   color: "bg-blue-500/10 text-blue-400" },
@@ -16,54 +28,138 @@ const STATUS_LABELS: Record<BookingStatus, { label: string; color: string }> = {
   REFUNDED:    { label: "Возврат",       color: "bg-muted/40 text-muted-foreground" },
 };
 
-export default async function ClientBookingsPage() {
-  const session = await auth();
-  if (!session) redirect("/login");
+export default function ClientBookingsPage() {
+  const searchParams = useSearchParams();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [cancelling, setCancelling] = useState<string | null>(null);
 
-  const bookings = await db.booking.findMany({
-    where: { clientId: session.user!.id },
-    orderBy: { createdAt: "desc" },
-    include: {
-      practitioner: { include: { user: { select: { name: true, email: true } } } },
-      slot: true,
-    },
-  });
+  useEffect(() => {
+    fetch("/api/bookings?role=client")
+      .then((r) => r.json())
+      .then((d) => {
+        const list = d.bookings ?? [];
+        setBookings(list);
+        setLoading(false);
+
+        // Автооткрытие модалки отзыва если ?review= в URL
+        const reviewId = searchParams.get("review");
+        if (reviewId) {
+          const b = list.find((b: Booking) => b.id === reviewId);
+          if (b && b.status === "COMPLETED") setReviewBooking(b);
+        }
+      })
+      .catch(() => setLoading(false));
+  }, [searchParams]);
+
+  async function handleCancel(bookingId: string) {
+    setCancelling(bookingId);
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "CANCELLED" }),
+      });
+      const data = await res.json();
+      if (data.booking) {
+        setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, status: "CANCELLED" } : b));
+        toast.success("Запись отменена");
+      } else {
+        toast.error(data.error ?? "Ошибка");
+      }
+    } catch { toast.error("Ошибка сети"); }
+    finally { setCancelling(null); }
+  }
 
   const grouped = {
-    upcoming: bookings.filter(b => ["PENDING", "CONFIRMED"].includes(b.status)),
-    past: bookings.filter(b => ["COMPLETED", "CANCELLED", "DISPUTED"].includes(b.status)),
+    upcoming: bookings.filter((b) => ["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(b.status)),
+    past: bookings.filter((b) => ["COMPLETED", "CANCELLED", "DISPUTED", "REFUNDED"].includes(b.status)),
   };
+
+  if (loading) {
+    return (
+      <div className="px-6 py-8">
+        <h1 className="font-heading text-2xl font-bold mb-6">Мои записи</h1>
+        <p className="text-sm text-muted-foreground animate-pulse">Загружаем записи...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="px-6 py-8 max-w-3xl">
+      {reviewBooking && (
+        <ReviewModal
+          bookingId={reviewBooking.id}
+          practitionerName={reviewBooking.practitioner?.name ?? "Практик"}
+          onSuccess={() => {
+            setReviewBooking(null);
+            // Помечаем что отзыв оставлен
+            setBookings((prev) => prev.map((b) =>
+              b.id === reviewBooking.id ? { ...b, review: { id: "done" } } : b
+            ));
+          }}
+          onClose={() => setReviewBooking(null)}
+        />
+      )}
+
       <h1 className="font-heading text-2xl font-bold mb-6">Мои записи</h1>
 
       {bookings.length === 0 && (
         <div className="rounded-xl border border-border/30 bg-card/20 py-12 text-center">
-          <p className="text-muted-foreground">Пока нет записей к практикам</p>
+          <p className="text-muted-foreground">Нет записей к практикам</p>
           <Link href="/practitioners" className="mt-4 inline-block text-sm text-primary hover:underline">
             Найти практика →
           </Link>
         </div>
       )}
 
+      {/* Предстоящие */}
       {grouped.upcoming.length > 0 && (
         <div className="mb-8">
-          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">Предстоящие</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Предстоящие
+          </h2>
           <div className="space-y-3">
-            {grouped.upcoming.map(b => {
-              const st = STATUS_LABELS[b.status as BookingStatus];
+            {grouped.upcoming.map((b) => {
+              const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "" };
               return (
                 <Card key={b.id} className="border-border/40 bg-card/40">
-                  <CardContent className="p-5 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{b.practitioner.user.name}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {b.slot ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : "Время не выбрано"}
-                      </p>
-                      <p className="text-sm font-medium text-primary mt-1">{b.priceRub.toLocaleString("ru")} ₽</p>
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium">{b.practitioner?.name}</p>
+                          <Badge className={st.color}>{st.label}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {b.slot
+                            ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", {
+                                weekday: "short", day: "numeric", month: "long",
+                                hour: "2-digit", minute: "2-digit",
+                              })
+                            : "Время уточняется"}
+                        </p>
+                        <p className="text-sm font-medium text-primary mt-1">
+                          {b.priceRub.toLocaleString("ru")} ₽
+                        </p>
+                      </div>
+                      {b.status === "PENDING" && (
+                        <button
+                          onClick={() => handleCancel(b.id)}
+                          disabled={cancelling === b.id}
+                          className="shrink-0 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50">
+                          {cancelling === b.id ? "..." : "Отменить"}
+                        </button>
+                      )}
                     </div>
-                    <Badge className={st.color}>{st.label}</Badge>
+                    {b.status === "CONFIRMED" && (
+                      <div className="mt-3 rounded-lg bg-green-500/5 border border-green-500/20 px-3 py-2">
+                        <p className="text-xs text-green-400">
+                          ✓ Практик подтвердил — ожидайте ссылку на сессию или сообщение
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -72,21 +168,38 @@ export default async function ClientBookingsPage() {
         </div>
       )}
 
+      {/* История */}
       {grouped.past.length > 0 && (
         <div>
-          <h2 className="font-semibold mb-3 text-sm text-muted-foreground uppercase tracking-wide">История</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            История
+          </h2>
           <div className="space-y-2">
-            {grouped.past.map(b => {
-              const st = STATUS_LABELS[b.status as BookingStatus];
+            {grouped.past.map((b) => {
+              const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "" };
+              const canReview = b.status === "COMPLETED" && !b.review;
               return (
-                <div key={b.id} className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
+                <div key={b.id}
+                  className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
                   <div>
-                    <p className="text-sm font-medium">{b.practitioner.user.name}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(b.createdAt).toLocaleDateString("ru-RU")}</p>
+                    <p className="text-sm font-medium">{b.practitioner?.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(b.createdAt).toLocaleDateString("ru-RU")}
+                    </p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex items-center gap-3">
                     <p className="text-sm text-primary">{b.priceRub.toLocaleString("ru")} ₽</p>
-                    <span className={`text-xs ${st.color.split(" ")[1]}`}>{st.label}</span>
+                    <Badge className={`text-xs ${st.color}`}>{st.label}</Badge>
+                    {canReview && (
+                      <button
+                        onClick={() => setReviewBooking(b)}
+                        className="text-xs text-primary hover:underline">
+                        Отзыв
+                      </button>
+                    )}
+                    {b.review && (
+                      <span className="text-xs text-muted-foreground/60">Отзыв оставлен</span>
+                    )}
                   </div>
                 </div>
               );
