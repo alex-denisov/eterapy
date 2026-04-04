@@ -55,14 +55,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     case "update_name": {
       if (!name?.trim()) return NextResponse.json({ error: "Имя обязательно" }, { status: 400 });
       await db.user.update({ where: { id }, data: { name: name.trim() } });
-      await logAudit({ userId: adminId, targetId: id, action: "PROFILE_UPDATE", details: { name } });
+      await logAudit(adminId, "PROFILE_UPDATE", id, String(name));
       return NextResponse.json({ ok: true });
     }
     case "set_password": {
       if (!newPassword || newPassword.length < 8) return NextResponse.json({ error: "Минимум 8 символов" }, { status: 400 });
       const hashed = await bcrypt.hash(newPassword, 10);
       await db.user.update({ where: { id }, data: { password: hashed } });
-      await logAudit({ userId: adminId, targetId: id, action: "PASSWORD_SET" });
+      await logAudit(adminId, "PASSWORD_SET", id);
       return NextResponse.json({ ok: true });
     }
     case "reset_password": {
@@ -72,17 +72,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         data: { resetToken: token, resetExpires: new Date(Date.now() + 3_600_000) },
       });
       await sendPasswordResetEmail(targetUser.email, targetUser.name, token);
-      await logAudit({ userId: adminId, targetId: id, action: "PASSWORD_RESET" });
+      await logAudit(adminId, "PASSWORD_RESET", id);
       return NextResponse.json({ ok: true });
     }
     case "block": {
       await db.user.update({ where: { id }, data: { blockedAt: new Date() } });
-      await logAudit({ userId: adminId, targetId: id, action: "ACCOUNT_BLOCK", details: { comment } });
+      await logAudit(adminId, "ACCOUNT_BLOCK", id, String(comment));
       return NextResponse.json({ ok: true });
     }
     case "unblock": {
       await db.user.update({ where: { id }, data: { blockedAt: null } });
-      await logAudit({ userId: adminId, targetId: id, action: "ACCOUNT_UNBLOCK" });
+      await logAudit(adminId, "ACCOUNT_UNBLOCK", id);
       return NextResponse.json({ ok: true });
     }
     case "set_free_limit": {

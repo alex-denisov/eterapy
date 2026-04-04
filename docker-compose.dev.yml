@@ -46,5 +46,27 @@ services:
       timeout: 5s
       retries: 3
 
+  # LiveKit Egress — запись видеосессий
+  # Требует: livekit-egress образ и Redis для координации
+  # Раскомментировать при наличии достаточных ресурсов
+  # egress:
+  #   image: livekit/egress:latest
+  #   container_name: eterapy-egress
+  #   restart: unless-stopped
+  #   environment:
+  #     EGRESS_CONFIG_BODY: |
+  #       api_key: devkey
+  #       api_secret: devsecret
+  #       ws_url: ws://livekit:7880
+  #       redis:
+  #         address: redis:6379
+  #       file_output:
+  #         local: true
+  #         local_directory: /recordings
+  #   volumes:
+  #     - ./web/public/uploads/recordings:/recordings
+  #   depends_on:
+  #     - livekit
+
 volumes:
   postgres_data:

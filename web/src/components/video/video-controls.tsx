@@ -32,6 +32,8 @@ export function VideoControls({
   const [summarizing, setSummarizing] = useState(false);
   const [bgBlur, setBgBlur] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [egressId, setEgressId] = useState<string | null>(null);
 
   function toggleMic() {
     localParticipant.setMicrophoneEnabled(!micEnabled);
@@ -131,6 +133,44 @@ export function VideoControls({
         title={isFullscreen ? "Выйти из полного экрана" : "Полный экран"}>
         {isFullscreen ? "⛶" : "⛶"}
       </button>
+
+      {/* Запись (только для практика) */}
+      {role === "practitioner" && (
+        <button onClick={async () => {
+          if (recording && egressId) {
+            await fetch("/api/video/recording", {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ egressId }),
+            });
+            setRecording(false);
+            setEgressId(null);
+            toast.success("Запись остановлена. Файл будет доступен 24 часа.");
+          } else {
+            const res = await fetch("/api/video/recording", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ bookingId }),
+            });
+            const d = await res.json();
+            if (d.ok) {
+              setRecording(true);
+              setEgressId(d.egressId);
+              toast.success("Запись начата");
+            } else {
+              toast.error(d.error ?? "Egress сервер недоступен");
+            }
+          }
+        }}
+          className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors ${
+            recording
+              ? "bg-red-500/80 text-white animate-pulse hover:bg-red-500"
+              : "bg-white/10 text-muted-foreground hover:bg-white/20"
+          }`}
+          title={recording ? "Остановить запись" : "Начать запись"}>
+          {recording ? "⏹ Стоп" : "⏺ Запись"}
+        </button>
+      )}
 
       {/* AI Резюме (только для практика) */}
       {role === "practitioner" && (

@@ -1,3 +1,4 @@
+import { logAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
 
   const hashed = await bcrypt.hash(newPassword, 10);
   await db.user.update({ where: { id: user.id }, data: { password: hashed } });
+  await logAudit(user.id, "PASSWORD_CHANGE");
 
   return NextResponse.json({ ok: true });
 }

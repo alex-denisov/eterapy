@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
       if (token) {
         try {
           await sendPasswordResetEmail(email, user.name, token);
+          await logAudit(user.id, "PASSWORD_RESET", undefined, "Запрошен сброс пароля");
         } catch (emailErr) {
           console.error("[forgot-password] email send failed:", emailErr);
         }

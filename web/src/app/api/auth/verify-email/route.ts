@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
       verificationExpires: null,
     });
 
+    await logAudit(user.id, "EMAIL_VERIFY", undefined, `Email подтверждён: ${user.email}`);
     return NextResponse.json({ ok: true, email: user.email });
   } catch (err) {
     console.error("[verify-email]", err);

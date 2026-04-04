@@ -1,3 +1,4 @@
+import { logAudit } from "@/lib/audit";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
@@ -22,6 +23,7 @@ export async function POST() {
       where: { id: userId },
       data: { deletedAt: new Date() },
     });
+    await logAudit(userId, "ACCOUNT_DELETE", undefined, "Практик деактивировал аккаунт");
     return NextResponse.json({ ok: true, message: "Аккаунт практика деактивирован" });
   }
 
@@ -30,6 +32,7 @@ export async function POST() {
     where: { id: userId },
     data: { deletedAt: new Date() },
   });
+  await logAudit(userId, "ACCOUNT_DELETE", undefined, "Клиент удалил аккаунт");
 
   return NextResponse.json({ ok: true, message: "Аккаунт деактивирован. Через 10 дней данные будут удалены." });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
+import { logAudit } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
       // Не блокируем регистрацию если email не отправился
     }
 
+    await logAudit(user.id, "REGISTER", undefined, `Регистрация: ${email}`);
     return NextResponse.json({ ok: true, emailSent: true });
   } catch (err) {
     console.error("[register]", err);

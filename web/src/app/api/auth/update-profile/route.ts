@@ -1,3 +1,4 @@
+import { logAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
   if (avatarUrl) data.avatarUrl = avatarUrl;
 
   await db.user.update({ where: { id: session.user!.id }, data });
+  await logAudit(session.user!.id!, "PROFILE_UPDATE", undefined, avatarUrl ? "Профиль + аватар" : "Профиль");
 
   return NextResponse.json({ ok: true, avatarUrl });
 }
