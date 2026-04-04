@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { VK } from "./auth-providers";
 import { usersDb } from "./users-db";
 import db from "./db";
 import bcrypt from "bcryptjs";
@@ -45,6 +46,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
 
+    // VK OAuth — приоритет (русская аудитория), только если ключи заданы
+    ...(process.env.VK_CLIENT_ID && process.env.VK_CLIENT_SECRET ? [
+      VK({
+        clientId: process.env.VK_CLIENT_ID,
+        clientSecret: process.env.VK_CLIENT_SECRET,
+      }),
+    ] : []),
+
     // Google OAuth — только если GOOGLE_CLIENT_ID задан
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       Google({
@@ -62,8 +71,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   callbacks: {
     async signIn({ user, account }) {
-      // Обработка OAuth входа
-      if (account?.provider === "google" && user.email) {
+      // Обработка OAuth входа (Google + VK)
+      if ((account?.provider === "google" || account?.provider === "vk") && user.email) {
         // Ищем или создаём пользователя
         let dbUser = await db.user.findUnique({ where: { email: user.email } });
 
@@ -73,13 +82,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             data: {
               email: user.email,
               name: user.name ?? user.email.split("@")[0],
-              password: `oauth:google:${Date.now()}`, // non-loginable password
+              password: `oauth:${account?.provider}:${Date.now()}`, // non-loginable password
               role: "CLIENT",
               emailVerified: true, // Google верифицирует email
               avatarUrl: user.image ?? null,
             },
           });
-          await logAudit(dbUser.id, "REGISTER", undefined, "OAuth: Google");
+          await logAudit(dbUser.id, "REGISTER", undefined, `OAuth: ${account?.provider}`);
         } else if (dbUser.blockedAt) {
           return false; // Blocked user cannot login via OAuth
         }
@@ -91,7 +100,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Сохраняем id для jwt callback
         user.id = dbUser.id;
-        await logAudit(dbUser.id, "LOGIN", undefined, "OAuth: Google");
+        const provider = account?.provider ?? "oauth";
+        await logAudit(dbUser.id, "LOGIN", undefined, `OAuth: ${provider}`);
       }
       return true;
     },
@@ -106,7 +116,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // При OAuth входе загружаем данные из БД
-      if (account?.provider === "google" && token.id) {
+      if ((account?.provider === "google" || account?.provider === "vk") && token.id) {
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
           select: { role: true, emailVerified: true },

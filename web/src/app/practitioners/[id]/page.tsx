@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { type Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,41 @@ import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
 import { SlotPicker } from "./slot-picker";
+
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> }
+): Promise<Metadata> {
+  const { id } = await params;
+  const p = await db.practitioner.findFirst({
+    where: { id, status: PractitionerStatus.ACTIVE },
+    include: { user: { select: { name: true, avatarUrl: true } } },
+  });
+  if (!p) return { title: "Практик — ETerapy" };
+
+  const avgRating = p.reviewCount > 0 ? (p.ratingSum / p.reviewCount).toFixed(1) : null;
+  const description = `${p.title}. ${avgRating ? `Рейтинг ${avgRating}/5.` : ""} ${p.bio.slice(0, 120)}...`;
+
+  return {
+    title: `${p.user.name} — ${p.title} | ETerapy`,
+    description,
+    openGraph: {
+      title: `${p.user.name} — ${p.title}`,
+      description,
+      url: `${BASE_URL}/practitioners/${id}`,
+      type: "profile",
+      ...(p.user.avatarUrl ? { images: [{ url: p.user.avatarUrl, width: 400, height: 400, alt: p.user.name }] } : {}),
+    },
+    twitter: {
+      card: "summary",
+      title: `${p.user.name} — ${p.title}`,
+      description,
+      ...(p.user.avatarUrl ? { images: [p.user.avatarUrl] } : {}),
+    },
+    alternates: { canonical: `${BASE_URL}/practitioners/${id}` },
+  };
+}
 
 async function getPractitioner(id: string) {
   return db.practitioner.findFirst({
@@ -34,15 +70,6 @@ function StarRating({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg
   );
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const p = await getPractitioner(id);
-  if (!p) return { title: "Практик не найден" };
-  return {
-    title: `${p.user.name} — ETerapy`,
-    description: p.bio.slice(0, 160),
-  };
-}
 
 export default async function PractitionerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

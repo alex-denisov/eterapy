@@ -1,11 +1,21 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { PractitionerData } from "@/lib/types";
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -29,9 +39,21 @@ function PractitionerCard({ p, specialtyLabels }: { p: PractitionerData; special
       <Card className="h-full border-border/40 bg-card/50 transition-all duration-200 group-hover:border-primary/40 group-hover:bg-card/70">
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary ring-1 ring-primary/20">
-              {p.name.charAt(0)}
-            </div>
+            {/* Аватар — с фото или инициал */}
+            {(p as unknown as { avatarUrl?: string }).avatarUrl ? (
+              <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden ring-1 ring-primary/20">
+                <Image
+                  src={(p as unknown as { avatarUrl: string }).avatarUrl}
+                  alt={p.name}
+                  width={56} height={56}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary ring-1 ring-primary/20">
+                {p.name.charAt(0)}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="font-heading font-semibold leading-tight">{p.name}</h3>
@@ -95,7 +117,8 @@ interface Props {
 }
 
 export function PractitionersCatalog({ initialPractitioners, specialtyLabels }: Props) {
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebounce(searchInput, 250); // 250ms debounce
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>("all");
   const [sortBy, setSortBy] = useState<"rating" | "price_asc" | "price_desc" | "reviews">("rating");
   const [onlineOnly, setOnlineOnly] = useState(false);
@@ -129,13 +152,22 @@ export function PractitionersCatalog({ initialPractitioners, specialtyLabels }: 
   return (
     <div className="space-y-6">
       {/* Поиск */}
-      <input
-        type="text"
-        placeholder="Поиск по имени, теме или специализации..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full rounded-lg border border-border/40 bg-card/50 px-4 py-2.5 text-sm focus:border-primary focus:outline-none"
-      />
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50">🔍</span>
+        <input
+          type="text"
+          placeholder="Поиск по имени, теме или специализации..."
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="w-full rounded-lg border border-border/40 bg-card/50 pl-9 pr-4 py-2.5 text-sm focus:border-primary focus:outline-none transition-colors"
+        />
+        {searchInput && (
+          <button onClick={() => setSearchInput("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors text-lg leading-none">
+            ×
+          </button>
+        )}
+      </div>
 
       {/* Специализация */}
       <div className="flex flex-wrap gap-2">
