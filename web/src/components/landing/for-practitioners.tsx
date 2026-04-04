@@ -62,7 +62,7 @@ export function ForPractitionersSection() {
 
         <div className="mt-12 text-center">
           <Link
-            href="/register"
+            href="/practitioners/apply"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "border-primary/30 text-primary hover:bg-primary/10")}
           >
             Стать практиком →

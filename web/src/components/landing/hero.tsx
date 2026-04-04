@@ -29,7 +29,7 @@ export function HeroSection() {
             Попробовать бесплатно
           </Link>
           <Link
-            href="#for-practitioners"
+            href="/practitioners/apply"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-w-[200px] border-primary/30 text-base text-primary hover:bg-primary/10")}
           >
             Стать практиком
