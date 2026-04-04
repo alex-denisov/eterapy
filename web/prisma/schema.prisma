@@ -26,6 +26,10 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
+  // Telegram
+  telegramId          String?   @unique  // Telegram chat_id (set via bot)
+  telegramUsername    String?             // @username
+
   // Relations
   practitioner        Practitioner?
   bookingsAsClient    Booking[]     @relation("BookingClient")
@@ -33,6 +37,7 @@ model User {
   reviewsWritten      Review[]      @relation("ReviewAuthor")
   storedFiles         StoredFile[]
   chatMessages        ChatMessage[]
+  notificationPrefs   NotificationPreference[]
 
   @@map("users")
 }
@@ -301,6 +306,41 @@ model ModeratorPermission {
 // blockedAt stored in User.deletedAt reuse OR separate field
 // Using a separate simple approach: add blocked flag to User
 
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+// Какие уведомления получать и через какой канал
+model NotificationPreference {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event       NotificationEvent
+  channel     NotificationChannel
+  enabled     Boolean             @default(true)
+  // Для событий типа "напомни за N часов"
+  remindBeforeHours Int?          // null = нет напоминания, 24 = за сутки, 1 = за час
+
+  @@unique([userId, event, channel])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+enum NotificationEvent {
+  BOOKING_REQUESTED      // Новое бронирование (для практика)
+  BOOKING_CONFIRMED      // Бронирование подтверждено (для клиента)
+  BOOKING_CANCELLED      // Бронирование отменено
+  BOOKING_REMINDER       // Напоминание о предстоящей сессии
+  SESSION_STARTED        // Сессия началась
+  SESSION_COMPLETED      // Сессия завершена
+  REVIEW_REQUESTED       // Просьба оставить отзыв
+  NEW_REVIEW             // Новый отзыв (для практика)
+  PAYMENT_RECEIVED       // Платёж получен
+}
+
+enum NotificationChannel {
+  EMAIL
+  TELEGRAM
+}
+
 // ─── Platform Settings ────────────────────────────────────────────────────────
 
 model PlatformSetting {
@@ -333,6 +373,19 @@ enum FileKind {
   AVATAR
   DOCUMENT      // chat attachments
   REPORT        // AI tool reports (human design, natal, etc.)
+}
+
+// ─── Telegram Link Tokens ─────────────────────────────────────────────────────
+
+model TelegramLinkToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("telegram_link_tokens")
 }
 
 // ─── Tool Sessions ────────────────────────────────────────────────────────────

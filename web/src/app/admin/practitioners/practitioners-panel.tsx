@@ -1,0 +1,223 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { PractitionerActionPanel } from "./practitioner-action-panel";
+import { CreatePractitionerForm } from "./create-practitioner-form";
+
+interface Practitioner {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  userBlockedAt: string | null;
+  status: string;
+  title: string;
+  bio: string;
+  experience: string;
+  specialties: string[];
+  tags: string[];
+  pricePerSession: number;
+  sessionDuration: number;
+  verified: boolean;
+  founding: boolean;
+  reviewCount: number;
+  sessionCount: number;
+  minRate: number | null;
+  minRateDuration: number | null;
+  createdAt: string;
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE:    "bg-green-500/10 text-green-400",
+  PENDING:   "bg-yellow-500/10 text-yellow-400",
+  SUSPENDED: "bg-destructive/10 text-destructive",
+  BLOCKED:   "bg-red-500/10 text-red-400",
+};
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Активен", PENDING: "На проверке", SUSPENDED: "Деактивирован", BLOCKED: "Заблокирован",
+};
+
+export function PractitionersPanel({ practitioners, adminRole }: { practitioners: Practitioner[]; adminRole: string }) {
+  const [list, setList] = useState(practitioners);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [sortField, setSortField] = useState<"name" | "createdAt" | "sessionCount">("createdAt");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    let arr = [...list];
+    const q = search.toLowerCase();
+    if (q) arr = arr.filter(p => p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q) || p.title.toLowerCase().includes(q));
+    if (filterStatus !== "all") arr = arr.filter(p => p.status === filterStatus);
+    arr.sort((a, b) => {
+      if (sortField === "name") return sortDir === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      if (sortField === "sessionCount") return sortDir === "asc" ? a.sessionCount - b.sessionCount : b.sessionCount - a.sessionCount;
+      return sortDir === "asc" ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt);
+    });
+    return arr;
+  }, [list, search, filterStatus, sortField, sortDir]);
+
+  function SortBtn({ field, label }: { field: typeof sortField; label: string }) {
+    const active = sortField === field;
+    return (
+      <button onClick={() => { if (active) setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField(field); setSortDir("asc"); } }}
+        className={`flex items-center gap-1 text-xs font-medium ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+        {label}{active && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
+      </button>
+    );
+  }
+
+  async function handleStatusChange(practitionerId: string, status: string) {
+    const res = await fetch(`/api/admin/practitioners/${practitionerId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      setList(prev => prev.map(p => p.id === practitionerId ? { ...p, status } : p));
+      toast.success("Статус обновлён");
+    } else toast.error(d.error ?? "Ошибка");
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Создать практика — только для суперадмина */}
+      {adminRole === "SUPERADMIN" && (
+        <button onClick={() => setShowCreate(!showCreate)}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-navy">
+          + Создать практика
+        </button>
+      )}
+
+      {showCreate && (
+        <CreatePractitionerForm
+          onClose={() => setShowCreate(false)}
+          onCreated={(p) => {
+            setList(prev => [p, ...prev]);
+            setShowCreate(false);
+          }}
+        />
+      )}
+
+      {/* Фильтры */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <Input placeholder="Поиск по имени, email, специализации..."
+          value={search} onChange={e => setSearch(e.target.value)}
+          className="bg-card/50 max-w-xs h-8 text-sm" />
+        <div className="flex gap-1">
+          {["all", "PENDING", "ACTIVE", "SUSPENDED", "BLOCKED"].map(s => (
+            <button key={s} onClick={() => setFilterStatus(s)}
+              className={`rounded-lg px-3 py-1 text-xs transition-colors ${
+                filterStatus === s ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {s === "all" ? "Все" : STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-3 ml-auto">
+          <SortBtn field="name" label="Имя" />
+          <SortBtn field="sessionCount" label="Сессии" />
+          <SortBtn field="createdAt" label="Дата" />
+        </div>
+      </div>
+
+      {/* Счётчик */}
+      <p className="text-xs text-muted-foreground">Показано: {filtered.length} из {list.length}</p>
+
+      {/* Таблица */}
+      <div className="rounded-xl border border-border/30 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-card/30 border-b border-border/20">
+            <tr>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Практик</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Статус</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Специализация</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Сессии</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Тариф (мин)</th>
+              <th className="p-3"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/10">
+            {filtered.map(p => (
+              <>
+                <tr key={p.id} className={`hover:bg-white/3 transition-colors ${expandedId === p.id ? "bg-white/3" : ""}`}>
+                  <td className="p-3">
+                    <div className="flex items-center gap-2">
+                      {p.avatarUrl ? (
+                        <img src={p.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover shrink-0" />
+                      ) : (
+                        <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          {p.name[0]}
+                        </div>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium">{p.name}</span>
+                          {p.verified && <span className="text-primary text-xs">✓</span>}
+                          {p.userBlockedAt && <Badge className="bg-red-500/15 text-red-400 text-[10px] py-0">заблок.</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{p.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <Badge className={`${STATUS_COLORS[p.status] ?? ""} text-xs`}>
+                      {STATUS_LABELS[p.status] ?? p.status}
+                    </Badge>
+                  </td>
+                  <td className="p-3 text-xs text-muted-foreground max-w-[180px]">
+                    <p className="truncate">{p.title}</p>
+                    <p className="text-[10px] opacity-60">{p.specialties.slice(0,2).join(", ")}</p>
+                  </td>
+                  <td className="p-3 text-center">
+                    <span className="text-sm font-medium">{p.sessionCount}</span>
+                    <p className="text-[10px] text-muted-foreground">{p.reviewCount} отзывов</p>
+                  </td>
+                  <td className="p-3 text-xs">
+                    {p.minRate != null ? (
+                      <span className="text-primary font-medium">{p.minRate.toLocaleString("ru")} ₽/{p.minRateDuration}мин</span>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex gap-2 items-center justify-end">
+                      <a href={`/practitioners/${p.id}`} target="_blank"
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors">
+                        Профиль ↗
+                      </a>
+                      <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                        className="rounded-lg border border-border/30 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+                        {expandedId === p.id ? "Скрыть" : "Управление"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                {expandedId === p.id && (
+                  <tr key={`${p.id}-panel`}>
+                    <td colSpan={6} className="bg-card/10 p-4 border-b border-border/20">
+                      <PractitionerActionPanel
+                        practitioner={p}
+                        adminRole={adminRole}
+                        onStatusChange={(s) => handleStatusChange(p.id, s)}
+                        onUpdate={(patch) => setList(prev => prev.map(x => x.id === p.id ? { ...x, ...patch } : x))}
+                      />
+                    </td>
+                  </tr>
+                )}
+              </>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div className="py-12 text-center text-muted-foreground text-sm">Нет практиков</div>
+        )}
+      </div>
+    </div>
+  );
+}

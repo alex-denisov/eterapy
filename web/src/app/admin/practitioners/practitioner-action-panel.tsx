@@ -1,0 +1,250 @@
+"use client";
+
+import { useState } from "react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+
+interface Practitioner {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  status: string;
+  title: string;
+  bio: string;
+  experience: string;
+  verified: boolean;
+  userBlockedAt: string | null;
+}
+
+const STATUSES = [
+  { value: "ACTIVE",    label: "Активен",       color: "text-green-400" },
+  { value: "PENDING",   label: "На проверке",   color: "text-yellow-400" },
+  { value: "SUSPENDED", label: "Деактивирован", color: "text-orange-400" },
+  { value: "BLOCKED",   label: "Заблокирован",  color: "text-red-400" },
+];
+
+export function PractitionerActionPanel({
+  practitioner: p,
+  adminRole,
+  onStatusChange,
+  onUpdate,
+}: {
+  practitioner: Practitioner;
+  adminRole: string;
+  onStatusChange: (status: string) => void;
+  onUpdate: (patch: Partial<Practitioner>) => void;
+}) {
+  const [tab, setTab] = useState<"actions" | "rates" | "schedule">("actions");
+  const [newPwd, setNewPwd] = useState("");
+  const [blockComment, setBlockComment] = useState("");
+  const [name, setName] = useState(p.name);
+  const [title, setTitle] = useState(p.title);
+  const [bio, setBio] = useState(p.bio);
+  const [experience, setExperience] = useState(p.experience);
+  const [rates, setRates] = useState<Array<{ durationMin: number; priceRub: number; enabled: boolean }>>([]);
+  const [ratesLoaded, setRatesLoaded] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  async function callUserAction(action: string, extra: Record<string, string> = {}) {
+    const res = await fetch(`/api/admin/users/${p.userId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...extra }),
+    });
+    const d = await res.json();
+    if (d.ok) { toast.success("Выполнено"); return true; }
+    toast.error(d.error ?? "Ошибка");
+    return false;
+  }
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    const res = await fetch(`/api/admin/practitioners/${p.id}/profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, title, bio, experience }),
+    });
+    const d = await res.json();
+    if (d.ok) { toast.success("Профиль обновлён"); onUpdate({ name, title, bio, experience }); }
+    else toast.error(d.error ?? "Ошибка");
+    setSavingProfile(false);
+  }
+
+  async function loadRates() {
+    const res = await fetch(`/api/rates?practitionerId=${p.id}`);
+    const d = await res.json();
+    setRates(d.rates ?? []);
+    setRatesLoaded(true);
+  }
+
+  async function saveRates() {
+    const res = await fetch(`/api/admin/practitioners/${p.id}/rates`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rates }),
+    });
+    const d = await res.json();
+    if (d.ok) toast.success("Тарифы обновлены");
+    else toast.error(d.error ?? "Ошибка");
+  }
+
+  return (
+    <div>
+      {/* Табы */}
+      <div className="flex gap-1 mb-4 border-b border-border/20 pb-2">
+        {(["actions", "rates", "schedule"] as const).map(t => (
+          <button key={t} onClick={() => {
+            setTab(t);
+            if (t === "rates" && !ratesLoaded) loadRates();
+          }}
+            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+              tab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}>
+            {{ actions: "⚙️ Действия", rates: "💰 Тарифы", schedule: "📅 Расписание" }[t]}
+          </button>
+        ))}
+      </div>
+
+      {tab === "actions" && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Имя */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Имя пользователя</p>
+            <div className="flex gap-2">
+              <Input value={name} onChange={e => setName(e.target.value)} className="bg-card/50 text-sm h-8" />
+              <button onClick={() => callUserAction("update_name", { name }).then(ok => ok && onUpdate({ name }))}
+                className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 shrink-0">
+                Сохранить
+              </button>
+            </div>
+          </div>
+
+          {/* Пароль */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
+            <div className="flex gap-2">
+              <Input type="password" placeholder="Новый пароль" value={newPwd}
+                onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
+              <button onClick={() => callUserAction("set_password", { newPassword: newPwd }).then(ok => ok && setNewPwd(""))}
+                disabled={newPwd.length < 8}
+                className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
+                Назначить
+              </button>
+            </div>
+            <button onClick={() => callUserAction("reset_password")}
+              className="text-xs text-primary hover:underline">
+              📧 Отправить ссылку сброса
+            </button>
+          </div>
+
+          {/* Статус профиля */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Статус практика</p>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUSES.map(s => (
+                <button key={s.value} onClick={() => onStatusChange(s.value)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                    p.status === s.value
+                      ? `border-current ${s.color} bg-current/5`
+                      : "border-border/30 text-muted-foreground hover:border-border/60"
+                  }`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Блокировка входа */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Вход в систему</p>
+            {p.userBlockedAt ? (
+              <button onClick={() => callUserAction("unblock").then(ok => ok && onUpdate({ userBlockedAt: null }))}
+                className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10">
+                ✓ Разблокировать вход
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <Input placeholder="Причина блокировки" value={blockComment}
+                  onChange={e => setBlockComment(e.target.value)} className="bg-card/50 text-sm h-8" />
+                <button onClick={() => callUserAction("block", { comment: blockComment }).then(ok => ok && onUpdate({ userBlockedAt: new Date().toISOString() }))}
+                  className="rounded-lg border border-red-500/30 px-3 text-xs text-red-400 hover:bg-red-500/10 shrink-0">
+                  🚫 Заблокировать
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Редактирование профиля */}
+          <div className="md:col-span-2 space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Профиль практика</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Заголовок</label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} className="bg-card/50 text-sm h-8" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Опыт</label>
+                <Input value={experience} onChange={e => setExperience(e.target.value)} className="bg-card/50 text-sm h-8" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs text-muted-foreground mb-1 block">Биография</label>
+                <textarea value={bio} onChange={e => setBio(e.target.value)}
+                  className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2 text-sm resize-none h-20 focus:outline-none focus:border-primary/50" />
+              </div>
+            </div>
+            <button onClick={saveProfile} disabled={savingProfile}
+              className="rounded-lg bg-primary/20 px-4 py-2 text-sm text-primary hover:bg-primary/30 disabled:opacity-50">
+              {savingProfile ? "Сохранение..." : "Сохранить профиль"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "rates" && (
+        <div className="space-y-3">
+          {!ratesLoaded ? (
+            <p className="text-xs text-muted-foreground animate-pulse">Загружаем тарифы...</p>
+          ) : (
+            <>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {rates.map((r, i) => (
+                  <div key={r.durationMin} className={`flex items-center gap-2 rounded-lg border p-2.5 ${
+                    r.enabled ? "border-primary/30 bg-primary/5" : "border-border/20"
+                  }`}>
+                    <input type="checkbox" checked={r.enabled}
+                      onChange={e => setRates(prev => prev.map((x, j) => j === i ? { ...x, enabled: e.target.checked } : x))}
+                      className="accent-primary shrink-0" />
+                    <span className="text-xs w-10 shrink-0">{r.durationMin} мин</span>
+                    <div className="flex items-center gap-1 flex-1">
+                      <Input type="number" min="0"
+                        value={r.priceRub}
+                        onChange={e => setRates(prev => prev.map((x, j) => j === i ? { ...x, priceRub: parseInt(e.target.value) || 0 } : x))}
+                        disabled={!r.enabled}
+                        className="h-6 text-xs bg-card/50 px-2" />
+                      <span className="text-xs text-muted-foreground shrink-0">₽</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={saveRates}
+                className="rounded-lg bg-primary/20 px-4 py-2 text-sm text-primary hover:bg-primary/30">
+                Сохранить тарифы
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === "schedule" && (
+        <div className="text-sm text-muted-foreground">
+          <p>Расписание практика редактируется в его кабинете.</p>
+          <a href={`/api/admin/users/${p.userId}/impersonate`} target="_blank"
+            className="mt-2 inline-block text-xs text-primary hover:underline">
+            → Войти в кабинет практика
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}

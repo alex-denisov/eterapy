@@ -42,7 +42,8 @@ async function checkViolations(text: string): Promise<string | null> {
       maxTokens: 150,
       temperature: 0,
     });
-    const parsed = JSON.parse(result.text.match(/\{.*\}/s)?.[0] ?? "{}");
+    // eslint-disable-next-line prefer-regex-literals
+    const parsed = JSON.parse(result.text.match(new RegExp("\\{[^]*\\}"))?.[0] ?? "{}");
     if (parsed.violation && parsed.reason) return String(parsed.reason);
   } catch { /* ignore */ }
 

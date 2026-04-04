@@ -8,8 +8,8 @@ interface User {
   id: string;
   name: string;
   email: string;
-  blockedAt: string | null;
-  deletedAt: string | null;
+  blockedAt: string | Date | null;
+  deletedAt: string | Date | null;
   freeToolsLimit: number | null;
 }
 

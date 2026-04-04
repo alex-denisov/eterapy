@@ -182,7 +182,7 @@ function VideoRoomInner({
   const remoteTracks = useTracks([Track.Source.Camera, Track.Source.Microphone], { onlySubscribed: true });
   const remoteVideoTrack = remoteTracks.find(t => t.source === Track.Source.Camera);
 
-  const localTracks = useTracks([Track.Source.Camera, Track.Source.Microphone], { local: true });
+  const localTracks = useTracks([Track.Source.Camera, Track.Source.Microphone], { onlySubscribed: false });
   const localVideoTrack = localTracks.find(t => t.source === Track.Source.Camera);
 
   return (

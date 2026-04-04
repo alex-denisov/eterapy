@@ -11,16 +11,16 @@ interface User {
   name: string;
   email: string;
   emailVerified: boolean;
-  createdAt: string;
-  blockedAt: string | null;
-  deletedAt: string | null;
+  createdAt?: string;
+  blockedAt: string | Date | null;
+  deletedAt: string | Date | null;
   freeToolsLimit: number | null;
   avatarUrl: string | null;
 }
 
 export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: string }) {
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState<"name" | "email" | "createdAt">("createdAt");
+  const [sortField, setSortField] = useState<"name" | "email">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "blocked" | "deleted">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -34,14 +34,14 @@ export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: s
     else if (filterStatus === "deleted") list = list.filter(u => !!u.deletedAt);
     else if (filterStatus === "active") list = list.filter(u => !u.blockedAt && !u.deletedAt);
     list.sort((a, b) => {
-      const va = (a as Record<string,string>)[sortField];
-      const vb = (b as Record<string,string>)[sortField];
+      const va = String(a[sortField] ?? "");
+      const vb = String(b[sortField] ?? "");
       return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
     });
     return list;
   }, [localUsers, search, sortField, sortDir, filterStatus]);
 
-  function SortBtn({ field, label }: { field: typeof sortField; label: string }) {
+  function SortBtn({ field, label }: { field: "name" | "email"; label: string }) {
     const active = sortField === field;
     return (
       <button onClick={() => { if (active) setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField(field); setSortDir("asc"); } }}
@@ -83,7 +83,7 @@ export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: s
               <th className="text-left p-3"><SortBtn field="name" label="Имя" /></th>
               <th className="text-left p-3"><SortBtn field="email" label="Email" /></th>
               <th className="text-left p-3 text-muted-foreground font-normal text-xs">Статус</th>
-              <th className="text-left p-3"><SortBtn field="createdAt" label="Регистрация" /></th>
+              <th className="text-left p-3 text-muted-foreground font-normal text-xs">Регистрация</th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -111,7 +111,7 @@ export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: s
                       : <Badge className="bg-yellow-500/15 text-yellow-400 text-xs">Не верифицирован</Badge>}
                   </td>
                   <td className="p-3 text-xs text-muted-foreground">
-                    {new Date(u.createdAt).toLocaleDateString("ru-RU")}
+                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ru-RU") : "—"}
                   </td>
                   <td className="p-3">
                     <button onClick={() => setExpandedId(expandedId === u.id ? null : u.id)}
