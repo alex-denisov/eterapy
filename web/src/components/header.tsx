@@ -15,17 +15,9 @@ const GUEST_NAV = [
   { href: "/#faq", label: "FAQ" },
 ];
 
-const CLIENT_NAV = [
-  { href: "/practitioners", label: "Найти практика" },
-  { href: "/tools", label: "Инструменты" },
-  { href: "/cabinet", label: "Кабинет" },
-];
-
-const PRACTITIONER_NAV = [
-  { href: "/cabinet/practitioner", label: "Мой кабинет" },
-  { href: "/practitioners", label: "Каталог" },
-];
-
+// Авторизованные пользователи — навигация только в sidebar кабинета
+const CLIENT_NAV: { href: string; label: string }[] = [];
+const PRACTITIONER_NAV: { href: string; label: string }[] = [];
 const ADMIN_NAV: { href: string; label: string }[] = [];
 
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {

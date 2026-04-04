@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { WeekCalendar } from "@/components/schedule/week-calendar";
 import { ScheduleSettings } from "@/components/schedule/schedule-settings";
-import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
+import { PriceRatesViewer } from "@/components/schedule/price-rates-viewer";
 
 interface Props {
   practitionerId: string;
@@ -58,10 +58,9 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
       {tab === "rates" && (
         <div>
           <p className="text-sm text-muted-foreground mb-4">
-            Настройте цены для разных длительностей сессий.
-            В каталоге будет показан минимальный активный тариф.
+            Ваши тарифы, назначенные администратором. В каталоге будет показан минимальный активный тариф.
           </p>
-          <PriceRatesEditor practitionerId={practitionerId} initialRates={initialRates} />
+          <PriceRatesViewer rates={initialRates} />
         </div>
       )}
     </div>

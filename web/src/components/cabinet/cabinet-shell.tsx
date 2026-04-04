@@ -8,6 +8,7 @@ interface NavItem { href: string; icon: string; label: string; }
 
 const CLIENT_NAV: NavItem[] = [
   { href: "/cabinet", icon: "🏠", label: "Обзор" },
+  { href: "/cabinet/practitioners", icon: "🔮", label: "Практики" },
   { href: "/cabinet/bookings", icon: "📅", label: "Мои записи" },
   { href: "/cabinet/tools", icon: "✦", label: "Инструменты" },
   { href: "/cabinet/billing", icon: "💳", label: "Оплата и тарифы" },
@@ -20,7 +21,6 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: "/cabinet/practitioner/clients", icon: "👤", label: "Клиенты" },
   { href: "/cabinet/practitioner/reviews", icon: "★", label: "Отзывы" },
   { href: "/cabinet/practitioner/earnings", icon: "💰", label: "Выплаты" },
-  { href: "/tools", icon: "✦", label: "Инструменты" },
   { href: "/cabinet/settings", icon: "⚙️", label: "Настройки" },
 ];
 

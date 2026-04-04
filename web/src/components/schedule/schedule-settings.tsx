@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+// П.6 — неделя с понедельника
 const DAYS = [
   { dow: 1, label: "Понедельник" },
   { dow: 2, label: "Вторник" },
@@ -12,6 +13,7 @@ const DAYS = [
   { dow: 6, label: "Суббота" },
   { dow: 0, label: "Воскресенье" },
 ];
+// Порядок соответствует DOW_ORDER в WeekCalendar
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
