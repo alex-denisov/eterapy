@@ -19,6 +19,7 @@ const BASE_NAV: NavItem[] = [
   { href: "/admin",              icon: "🏠", label: "Обзор" },
   { href: "/admin/clients",      icon: "👤", label: "Клиенты",      permission: "clients.view" },
   { href: "/admin/practitioners",icon: "🔮", label: "Практики",     permission: "practitioners.view" },
+  { href: "/admin/applications", icon: "📋", label: "Заявки",        permission: "practitioners.view" },
   { href: "/admin/bookings",     icon: "📅", label: "Бронирования" },
 ];
 

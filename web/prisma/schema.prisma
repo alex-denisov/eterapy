@@ -379,6 +379,28 @@ enum FileKind {
   REPORT        // AI tool reports (human design, natal, etc.)
 }
 
+// ─── Practitioner Applications ───────────────────────────────────────────────
+
+model PractitionerApplication {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  telegram    String?
+  specialties String[]
+  experience  String
+  formats     String[]
+  about       String
+  why         String?
+  portfolio   String?
+  status      String   @default("PENDING") // PENDING | REVIEWING | APPROVED | REJECTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@index([status, createdAt])
+  @@map("practitioner_applications")
+}
+
 // ─── Telegram Link Tokens ─────────────────────────────────────────────────────
 
 model TelegramLinkToken {
