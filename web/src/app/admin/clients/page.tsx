@@ -13,7 +13,7 @@ export default async function AdminClientsPage() {
     where: { role: "CLIENT" },
     select: {
       id: true, name: true, email: true, emailVerified: true,
-      blockedAt: true, deletedAt: true, freeToolsLimit: true, avatarUrl: true,
+      createdAt: true, blockedAt: true, deletedAt: true, freeToolsLimit: true, avatarUrl: true,
     },
     orderBy: { createdAt: "desc" } as const,
     take: 200,
