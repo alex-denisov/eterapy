@@ -6,7 +6,6 @@ import { checkAndRecordToolSession } from "@/lib/tool-limit";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   const userId = session?.user?.id ?? null;
   const limit = await checkAndRecordToolSession(userId, "TAROT");
   if (!limit.allowed) {

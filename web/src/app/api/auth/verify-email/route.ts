@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usersStore } from "@/lib/users-db";
+import { usersDb } from "@/lib/users-db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
 
     const user = await usersDb.getByVerificationToken(token);
     if (!user) return NextResponse.json({ error: "Ссылка недействительна" }, { status: 400 });
-    if (user.verificationExpires && Date.now() > user.verificationExpires) {
+    if (user.verificationExpires && Date.now() > new Date(user.verificationExpires).getTime()) {
       return NextResponse.json({ error: "Ссылка истекла. Запросите новую." }, { status: 400 });
     }
 

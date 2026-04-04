@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usersStore } from "@/lib/users-db";
+import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const token = crypto.randomUUID().replace(/-/g, "");
     await usersDb.update(email, {
       verificationToken: token,
-      verificationExpires: Date.now() + 24 * 60 * 60 * 1000,
+      verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     await sendVerificationEmail(email, user.name, token);

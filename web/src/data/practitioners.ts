@@ -29,7 +29,7 @@ export interface Practitioner {
   verified: boolean;
   founding: boolean; // founding cohort — 15% commission
   online: boolean;
-  nextSlot: string; // "Сегодня 18:00" | "Завтра 10:00" | null
+  nextSlot: string | null; // "Сегодня 18:00" | "Завтра 10:00" | null
   tags: string[];
   reviews: Review[];
 }

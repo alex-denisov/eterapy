@@ -6,7 +6,6 @@ import { lifePathNumber, lifePathMeanings } from "@/data/numerology";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   const userId = session?.user?.id ?? null;
   const toolLimit = await checkAndRecordToolSession(userId, "NUMEROLOGY");
   if (!toolLimit.allowed) {

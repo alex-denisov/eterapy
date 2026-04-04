@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usersStore } from "@/lib/users-db";
+import { usersDb } from "@/lib/users-db";
 import { sendPasswordResetEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
