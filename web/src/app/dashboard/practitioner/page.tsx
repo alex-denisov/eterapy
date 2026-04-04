@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SignOutButton } from "../signout-button";
+import { BookingsList } from "@/components/bookings-list";
+import { SlotManager } from "./slot-manager";
 
 // Мок данных практика
 const mockPractitioner = {
@@ -81,35 +83,10 @@ export default async function PractitionerDashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Ближайшие сессии */}
+        {/* Запросы на сессии */}
         <div>
-          <h2 className="mb-4 font-heading text-lg font-semibold">Ближайшие сессии</h2>
-          {p.upcomingSessions.length === 0 ? (
-            <div className="rounded-xl border border-border/30 py-8 text-center text-sm text-muted-foreground">
-              Нет запланированных сессий
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {p.upcomingSessions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-xl border border-border/30 bg-card/30 p-4">
-                  <div>
-                    <p className="font-medium">{s.client}</p>
-                    <p className="text-sm text-muted-foreground">{s.date}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className={
-                      s.status === "confirmed" ? "bg-green-500/10 text-green-400 text-xs" : "bg-yellow-500/10 text-yellow-400 text-xs"
-                    }>
-                      {s.status === "confirmed" ? "Подтверждена" : "Ожидает"}
-                    </Badge>
-                    <button className="rounded-lg border border-border/40 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                      Войти
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <h2 className="mb-4 font-heading text-lg font-semibold">Запросы на сессии</h2>
+          <BookingsList role="practitioner" />
         </div>
 
         {/* Последние отзывы */}
@@ -150,6 +127,12 @@ export default async function PractitionerDashboardPage() {
             </Link>
           ))}
         </div>
+      </div>
+
+      {/* Управление слотами */}
+      <div className="mt-8">
+        <h2 className="mb-4 font-heading text-lg font-semibold">Расписание</h2>
+        <SlotManager practitionerId="test-practitioner-001" />
       </div>
 
       {/* Навигация между кабинетами */}

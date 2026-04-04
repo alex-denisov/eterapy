@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
-import { BookingButton } from "./booking-button";
+import { SlotPicker } from "./slot-picker";
 
 async function getPractitioner(id: string) {
   return db.practitioner.findFirst({
@@ -166,7 +166,11 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
                 <p className="mt-1 text-sm text-muted-foreground">фиксированная цена за сессию</p>
               </div>
 
-              <BookingButton practitionerName={p.user.name} practitionerId={p.id} nextSlot={null} />
+              <SlotPicker
+                practitionerId={p.id}
+                practitionerName={p.user.name}
+                pricePerSession={p.pricePerSession}
+              />
 
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">
                 {[

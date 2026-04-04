@@ -79,3 +79,55 @@ export async function sendPasswordResetEmail(email: string, name: string, token:
 </html>`,
   });
 }
+
+export async function sendBookingConfirmation({
+  clientEmail,
+  clientName,
+  practitionerName,
+  practitionerId,
+  slot,
+  price,
+}: {
+  clientEmail: string;
+  clientName: string;
+  practitionerName: string;
+  practitionerId: string;
+  slot: string;
+  price: number;
+}) {
+  return resend.emails.send({
+    from: FROM,
+    to: clientEmail,
+    subject: `Запрос принят — ${practitionerName} · ETerapy`,
+    html: `
+<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#0D1B2A;font-family:Inter,sans-serif;color:#e2e8f0">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#0f2236;border-radius:12px;border:1px solid rgba(201,168,76,0.2);padding:40px">
+        <tr><td>
+          <p style="margin:0 0 8px;color:#C9A84C;font-size:22px;font-weight:700">ETerapy</p>
+          <h1 style="margin:0 0 24px;font-size:22px;font-weight:700;color:#f8fafc">Запрос на сессию принят!</h1>
+          <p style="color:#94a3b8;line-height:1.6;margin:0 0 16px">Привет, ${clientName}!</p>
+          <p style="color:#94a3b8;line-height:1.6;margin:0 0 24px">
+            Ваш запрос к <strong style="color:#f8fafc">${practitionerName}</strong> отправлен.<br>
+            Слот: <strong style="color:#f8fafc">${slot}</strong><br>
+            Стоимость: <strong style="color:#C9A84C">${price.toLocaleString("ru")} ₽</strong>
+          </p>
+          <p style="color:#94a3b8;line-height:1.6;margin:0 0 32px">
+            Деньги будут списаны только после завершения сессии. Практик свяжется с вами для подтверждения.
+          </p>
+          <a href="${APP_URL}/practitioners/${practitionerId}"
+             style="display:inline-block;background:#C9A84C;color:#0D1B2A;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">
+            Профиль практика
+          </a>
+          <p style="margin:32px 0 0;color:#475569;font-size:12px">
+            ETerapy · Все услуги носят развлекательный и ознакомительный характер
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`,
+  });
+}

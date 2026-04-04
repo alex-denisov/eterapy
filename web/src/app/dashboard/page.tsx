@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { SignOutButton } from "./signout-button";
+import { BookingsList } from "@/components/bookings-list";
 
 // Моковые данные истории
 const mockHistory = [
@@ -136,7 +137,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* История сессий */}
+      {/* Записи к практикам */}
+      <div className="mb-8">
+        <h2 className="mb-4 font-heading text-lg font-semibold">Записи к практикам</h2>
+        <BookingsList role="client" />
+      </div>
+
+      {/* История инструментов */}
       <div>
         <h2 className="mb-4 font-heading text-lg font-semibold">
           История инструментов
