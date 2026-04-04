@@ -7,3 +7,27 @@ node_modules/
 .DS_Store
 nginx/ssl/
 
+
+# ── GSD baseline (auto-generated) ──
+.gsd-id
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.code-workspace
+.env.*
+!.env.example
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+venv/
+target/
+vendor/
+*.log
+coverage/
+.cache/
+tmp/

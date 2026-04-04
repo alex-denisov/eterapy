@@ -21,6 +21,7 @@ const BASE_NAV: NavItem[] = [
   { href: "/admin/practitioners",icon: "🔮", label: "Практики",     permission: "practitioners.view" },
   { href: "/admin/applications", icon: "📋", label: "Заявки",        permission: "practitioners.view" },
   { href: "/admin/bookings",     icon: "📅", label: "Бронирования" },
+  { href: "/admin/complaints",   icon: "⚠️", label: "Жалобы" },
 ];
 
 const SUPERADMIN_EXTRA: NavItem[] = [

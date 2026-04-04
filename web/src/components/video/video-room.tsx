@@ -15,6 +15,7 @@ import { Track, RoomEvent } from "livekit-client";
 import { VideoChat } from "./video-chat";
 import { VideoControls } from "./video-controls";
 import { ViolationBanner } from "./violation-banner";
+import { SessionTimer } from "./session-timer";
 
 interface VideoRoomProps {
   bookingId: string;
@@ -123,12 +124,14 @@ function VideoRoomInner({
   const [violation, setViolation] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChat, setShowChat] = useState(true);
+  const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const transcriptBuffer = useRef<string>("");
   const transcriptTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Обновляем статус сессии
+  // Обновляем статус сессии + фиксируем время старта
   useEffect(() => {
+    setSessionStartedAt(new Date());
     fetch("/api/video/session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -202,6 +205,8 @@ function VideoRoomInner({
             <span className="text-sm font-medium">{otherPartyName}</span>
             <span className="text-xs text-muted-foreground">{priceRub.toLocaleString("ru")} ₽/сессия</span>
           </div>
+          {/* Таймер сессии */}
+          <SessionTimer startedAt={sessionStartedAt} durationMin={60} />
           <div className="flex gap-2">
             <button onClick={() => setShowChat(!showChat)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${

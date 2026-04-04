@@ -11,6 +11,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/cabinet/practitioners", icon: "🔮", label: "Практики" },
   { href: "/cabinet/bookings", icon: "📅", label: "Мои записи" },
   { href: "/cabinet/tools", icon: "✦", label: "Инструменты" },
+  { href: "/cabinet/ai-history", icon: "🗂️", label: "История AI" },
   { href: "/cabinet/billing", icon: "💳", label: "Оплата и тарифы" },
   { href: "/cabinet/settings", icon: "⚙️", label: "Настройки" },
 ];

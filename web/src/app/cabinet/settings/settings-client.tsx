@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 
-type Tab = "profile" | "security" | "notifications" | "danger";
+type Tab = "profile" | "extended" | "security" | "notifications" | "danger";
 
 interface TelegramStatus {
   linked: boolean;
@@ -109,9 +109,10 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
   const initial = currentName[0]?.toUpperCase() ?? "?";
 
   const TABS: Array<{ id: Tab; label: string; icon: string }> = [
-    { id: "profile", label: "Профиль", icon: "👤" },
-    { id: "security", label: "Безопасность", icon: "🔒" },
-    { id: "notifications", label: "Уведомления", icon: "🔔" },
+    { id: "profile",       label: "Профиль",       icon: "👤" },
+    ...(role === "CLIENT" ? [{ id: "extended" as Tab, label: "Для AI",   icon: "✦" }] : []),
+    { id: "security",      label: "Безопасность",  icon: "🔒" },
+    { id: "notifications", label: "Уведомления",   icon: "🔔" },
     ...(role !== "ADMIN" && role !== "SUPERADMIN" ? [{ id: "danger" as Tab, label: "Удаление", icon: "⚠️" }] : []),
   ];
 
@@ -190,6 +191,9 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
         </Card>
       )}
 
+      {/* Расширенный профиль для AI */}
+      {activeTab === "extended" && <ExtendedProfileTab />}
+
       {/* Безопасность */}
       {activeTab === "security" && (
         <Card className="border-border/40 bg-card/50">
@@ -255,5 +259,156 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
         </Card>
       )}
     </div>
+  );
+}
+
+const GOALS = [
+  { value: "relationships", label: "Отношения" },
+  { value: "career",        label: "Карьера" },
+  { value: "selfdev",       label: "Саморазвитие" },
+  { value: "health",        label: "Здоровье" },
+  { value: "finance",       label: "Финансы" },
+  { value: "family",        label: "Семья" },
+  { value: "creativity",    label: "Творчество" },
+  { value: "spirituality",  label: "Духовность" },
+];
+
+const MARITAL_OPTIONS = [
+  { value: "single",    label: "Не состою в отношениях" },
+  { value: "dating",    label: "В отношениях" },
+  { value: "married",   label: "Женат/замужем" },
+  { value: "divorced",  label: "В разводе" },
+  { value: "widowed",   label: "Вдовец/вдова" },
+];
+
+function ExtendedProfileTab() {
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
+  const [birthPlace, setBirthPlace] = useState("");
+  const [maritalStatus, setMaritalStatus] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [aiGoals, setAiGoals] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/extended-profile")
+      .then(r => r.json())
+      .then(d => {
+        const p = d.profile;
+        if (!p) return;
+        if (p.birthDate) setBirthDate(new Date(p.birthDate).toISOString().split("T")[0]);
+        if (p.birthTime) setBirthTime(p.birthTime);
+        if (p.birthPlace) setBirthPlace(p.birthPlace);
+        if (p.maritalStatus) setMaritalStatus(p.maritalStatus);
+        if (p.occupation) setOccupation(p.occupation);
+        if (p.aiGoals) setAiGoals(p.aiGoals);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true));
+  }, []);
+
+  function toggleGoal(v: string) {
+    setAiGoals(prev => prev.includes(v) ? prev.filter(g => g !== v) : [...prev, v]);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const res = await fetch("/api/auth/extended-profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ birthDate: birthDate || null, birthTime, birthPlace, maritalStatus, occupation, aiGoals }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      const { toast } = await import("sonner");
+      toast.success("Профиль обновлён — AI-инструменты станут точнее");
+    }
+    setSaving(false);
+  }
+
+  if (!loaded) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем...</div>;
+
+  return (
+    <Card className="border-border/40 bg-card/50">
+      <CardContent className="p-6 space-y-6">
+        <div>
+          <h2 className="font-semibold mb-1">Профиль для AI-инструментов</h2>
+          <p className="text-sm text-muted-foreground">
+            Эти данные используются только для персонализации результатов.
+            Они не передаются практикам и не отображаются публично.
+          </p>
+        </div>
+
+        {/* Дата и время рождения */}
+        <div>
+          <p className="text-sm font-medium mb-3">Дата и время рождения</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Дата рождения</label>
+              <Input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="bg-card/50" />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">Время рождения (необязательно)</label>
+              <Input type="time" value={birthTime} onChange={e => setBirthTime(e.target.value)} className="bg-card/50" />
+              <p className="text-xs text-muted-foreground/50 mt-1">Нужно для точной натальной карты</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Место рождения */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Место рождения</label>
+          <Input value={birthPlace} onChange={e => setBirthPlace(e.target.value)}
+            placeholder="Москва, Россия" className="bg-card/50" />
+        </div>
+
+        {/* Семейное положение */}
+        <div>
+          <label className="text-sm font-medium mb-2 block">Семейное положение</label>
+          <div className="flex flex-wrap gap-2">
+            {MARITAL_OPTIONS.map(opt => (
+              <button key={opt.value} type="button" onClick={() => setMaritalStatus(maritalStatus === opt.value ? "" : opt.value)}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  maritalStatus === opt.value
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border/30 text-muted-foreground hover:border-border/60"
+                }`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Деятельность */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Чем вы занимаетесь</label>
+          <Input value={occupation} onChange={e => setOccupation(e.target.value)}
+            placeholder="Предприниматель, дизайнер, менеджер..." className="bg-card/50" />
+        </div>
+
+        {/* Цели */}
+        <div>
+          <label className="text-sm font-medium mb-2 block">Что вас интересует больше всего</label>
+          <div className="flex flex-wrap gap-2">
+            {GOALS.map(g => (
+              <button key={g.value} type="button" onClick={() => toggleGoal(g.value)}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  aiGoals.includes(g.value)
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border/30 text-muted-foreground hover:border-border/60"
+                }`}>
+                {g.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground/50 mt-2">Выберите все что подходит — это помогает AI давать более точные ответы</p>
+        </div>
+
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? "Сохранение..." : "Сохранить"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

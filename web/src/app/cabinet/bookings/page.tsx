@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModal } from "@/components/review-modal";
+import { ComplaintModal } from "@/components/complaint-modal";
 
 interface Booking {
   id: string;
@@ -33,6 +34,7 @@ export default function ClientBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [complaintBooking, setComplaintBooking] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,6 +90,15 @@ export default function ClientBookingsPage() {
 
   return (
     <div className="px-6 py-8 max-w-3xl">
+      {complaintBooking && (
+        <ComplaintModal
+          bookingId={complaintBooking.id}
+          practitionerName={complaintBooking.practitioner?.name ?? "Практик"}
+          onClose={() => setComplaintBooking(null)}
+          onSubmitted={() => setComplaintBooking(null)}
+        />
+      )}
+
       {reviewBooking && (
         <ReviewModal
           bookingId={reviewBooking.id}
@@ -213,6 +224,13 @@ export default function ClientBookingsPage() {
                     )}
                     {b.review && (
                       <span className="text-xs text-muted-foreground/60">Отзыв оставлен</span>
+                    )}
+                    {b.status === "COMPLETED" && (
+                      <button
+                        onClick={() => setComplaintBooking(b)}
+                        className="text-xs text-muted-foreground/50 hover:text-red-400 transition-colors">
+                        Жалоба
+                      </button>
                     )}
                   </div>
                 </div>

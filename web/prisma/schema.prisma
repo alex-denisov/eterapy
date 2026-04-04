@@ -30,6 +30,14 @@ model User {
   telegramId          String?   @unique  // Telegram chat_id (set via bot)
   telegramUsername    String?             // @username
 
+  // Extended profile (for AI personalization)
+  birthDate           DateTime?
+  birthTime           String?             // "14:30" — for natal chart
+  birthPlace          String?             // city name
+  maritalStatus       String?             // single/married/divorced/etc
+  occupation          String?
+  aiGoals             String[]  @default([]) // career/relationships/selfdev/health/etc
+
   // Relations
   practitioner        Practitioner?
   bookingsAsClient    Booking[]     @relation("BookingClient")
@@ -38,6 +46,8 @@ model User {
   storedFiles         StoredFile[]
   chatMessages        ChatMessage[]
   notificationPrefs   NotificationPreference[]
+  complaints          Complaint[]           @relation("ComplaintReporter")
+  aiSessionLogs       AISessionLog[]
 
   @@map("users")
 }
@@ -197,6 +207,7 @@ model Booking {
 
   review         Review?
   videoSession   VideoSession?
+  complaints     Complaint[]
 
   @@index([clientId])
   @@index([practitionerId])
@@ -310,6 +321,38 @@ model ModeratorPermission {
 // blockedAt stored in User.deletedAt reuse OR separate field
 // Using a separate simple approach: add blocked flag to User
 
+// ─── Complaints ──────────────────────────────────────────────────────────────
+
+model Complaint {
+  id          String          @id @default(cuid())
+  bookingId   String
+  booking     Booking         @relation(fields: [bookingId], references: [id])
+  reportedBy  String
+  reporter    User            @relation("ComplaintReporter", fields: [reportedBy], references: [id])
+  reason      ComplaintReason
+  description String
+  status      String          @default("OPEN") // OPEN | REVIEWING | RESOLVED | CLOSED
+  resolution  String?
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([bookingId])
+  @@index([status, createdAt])
+  @@map("complaints")
+}
+
+enum ComplaintReason {
+  PRACTITIONER_NO_SHOW     // Практик не явился
+  ETHICAL_VIOLATION        // Нарушение этического кодекса
+  MANIPULATION             // Запугивание/манипуляции
+  TECHNICAL_ISSUE          // Технический сбой
+  EARLY_TERMINATION        // Сессия закончилась раньше времени
+  PAYMENT_ISSUE            // Проблема с оплатой
+  OTHER                    // Другое
+}
+
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 // Какие уведомления получать и через какой канал
@@ -412,6 +455,23 @@ model TelegramLinkToken {
 
   @@index([userId])
   @@map("telegram_link_tokens")
+}
+
+// ─── AI Session Log ───────────────────────────────────────────────────────────
+
+// Сохранённые результаты AI-инструментов для истории в кабинете
+model AISessionLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool      ToolType
+  title     String   // Краткий заголовок (генерируется AI или по первому вопросу)
+  prompt    String?  // Входные данные (вопрос, дата рождения и т.д.)
+  result    String   // Текст ответа AI
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("ai_session_logs")
 }
 
 // ─── Tool Sessions ────────────────────────────────────────────────────────────
