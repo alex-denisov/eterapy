@@ -11,7 +11,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const practitioner = await db.practitioner.findUnique({ where: { userId: session.user!.id } });
   if (!practitioner) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
-  const slot = await db.slot.findUnique({ where: { id } });
+  const slot = await db.timeSlot.findUnique({ where: { id } });
   if (!slot || slot.practitionerId !== practitioner.id) {
     return NextResponse.json({ error: "Слот не найден" }, { status: 404 });
   }
@@ -19,6 +19,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "Нельзя удалить занятый слот" }, { status: 400 });
   }
 
-  await db.slot.delete({ where: { id } });
+  await db.timeSlot.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

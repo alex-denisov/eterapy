@@ -1,0 +1,63 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import db from "@/lib/db";
+import { Badge } from "@/components/ui/badge";
+import { BookingStatus } from "@prisma/client";
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  PENDING:     { label: "Ожидает",      color: "bg-yellow-500/10 text-yellow-400" },
+  CONFIRMED:   { label: "Подтверждено", color: "bg-green-500/10 text-green-400" },
+  IN_PROGRESS: { label: "Идёт",         color: "bg-blue-500/10 text-blue-400" },
+  COMPLETED:   { label: "Завершено",    color: "bg-primary/10 text-primary" },
+  CANCELLED:   { label: "Отменено",     color: "bg-muted/40 text-muted-foreground" },
+  DISPUTED:    { label: "Спор",         color: "bg-destructive/10 text-destructive" },
+  REFUNDED:    { label: "Возврат",      color: "bg-muted/40 text-muted-foreground" },
+};
+
+export default async function AdminBookingsPage() {
+  const session = await auth();
+  // @ts-expect-error custom
+  if (!session || session.user?.role !== "ADMIN") redirect("/");
+
+  const bookings = await db.booking.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: {
+      client: { select: { name: true, email: true } },
+      practitioner: { include: { user: { select: { name: true } } } },
+      slot: true,
+    },
+  });
+
+  const total = await db.booking.count();
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="font-heading text-2xl font-bold">Бронирования</h1>
+        <span className="text-sm text-muted-foreground">Всего: {total}</span>
+      </div>
+
+      <div className="space-y-2">
+        {bookings.map((b) => {
+          const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "text-muted-foreground" };
+          return (
+            <div key={b.id} className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  {b.client.name} → {b.practitioner.user.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {b.priceRub.toLocaleString("ru")} ₽ ·{" "}
+                  {b.slot ? new Date(b.slot.startAt).toLocaleDateString("ru-RU") : "Слот не выбран"} ·{" "}
+                  {new Date(b.createdAt).toLocaleDateString("ru-RU")}
+                </p>
+              </div>
+              <Badge className={st.color}>{st.label}</Badge>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

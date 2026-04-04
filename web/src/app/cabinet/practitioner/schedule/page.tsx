@@ -15,7 +15,7 @@ export default async function PractitionerSchedulePage() {
   });
   if (!practitioner) redirect("/cabinet/practitioner");
 
-  const slots = await db.slot.findMany({
+  const slots = await db.timeSlot.findMany({
     where: { practitionerId: practitioner.id },
     orderBy: { startAt: "asc" },
     take: 50,

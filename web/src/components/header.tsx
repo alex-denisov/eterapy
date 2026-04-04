@@ -28,7 +28,6 @@ const PRACTITIONER_NAV = [
 
 const ADMIN_NAV = [
   { href: "/admin", label: "Администратор" },
-  { href: "/practitioners", label: "Каталог" },
 ];
 
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
@@ -48,7 +47,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
 
   const menuItems = role === "PRACTITIONER" ? [
     { href: "/cabinet/practitioner", label: "Мой кабинет" },
-    { href: "/cabinet/practitioner/profile", label: "Профиль практика" },
+    { href: "/cabinet/practitioner/schedule", label: "Расписание" },
     { href: "/cabinet/settings", label: "Настройки" },
   ] : role === "ADMIN" ? [
     { href: "/admin", label: "Панель администратора" },
