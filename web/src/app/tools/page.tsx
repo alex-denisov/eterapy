@@ -54,7 +54,7 @@ export default function ToolsPage() {
         Инструменты самопознания
       </h1>
       <p className="mt-2 text-muted-foreground">
-        Бесплатно · 3 сессии в месяц · Без регистрации
+        3 сессии в месяц бесплатно · Нужна регистрация
       </p>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">

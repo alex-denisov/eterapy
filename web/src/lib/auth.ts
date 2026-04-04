@@ -23,6 +23,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           emailVerified: user.emailVerified,
+          role: user.role,
         };
       },
     }),
@@ -35,16 +36,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        // @ts-expect-error custom field
+        // @ts-expect-error custom fields
         token.emailVerified = user.emailVerified;
+        // @ts-expect-error custom fields
+        token.role = user.role;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        // @ts-expect-error custom field
+        // @ts-expect-error custom fields
         session.user.emailVerified = token.emailVerified;
+        // @ts-expect-error custom fields
+        session.user.role = token.role;
       }
       return session;
     },

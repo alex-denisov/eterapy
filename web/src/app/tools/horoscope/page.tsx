@@ -1,9 +1,11 @@
 "use client";
+import { useSession } from "next-auth/react";
 import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
+import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
 
 const SIGNS = [
   { name: "Овен", emoji: "♈", dates: "21.03–19.04" },

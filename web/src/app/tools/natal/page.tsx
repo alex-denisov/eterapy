@@ -1,23 +1,101 @@
 "use client";
-import { sessionCounter } from "@/lib/session-counter";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
+import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
+import { sessionCounter } from "@/lib/session-counter";
+
+// Список популярных городов для автодополнения
+const CITIES = [
+  "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург", "Казань",
+  "Нижний Новгород", "Челябинск", "Самара", "Омск", "Ростов-на-Дону",
+  "Уфа", "Красноярск", "Воронеж", "Пермь", "Волгоград",
+  "Краснодар", "Саратов", "Тюмень", "Тольятти", "Ижевск",
+  "Барнаул", "Ульяновск", "Иркутск", "Хабаровск", "Ярославль",
+  "Владивосток", "Махачкала", "Томск", "Оренбург", "Кемерово",
+  "Новокузнецк", "Рязань", "Астрахань", "Пенза", "Липецк",
+  "Тула", "Киров", "Чебоксары", "Калининград", "Набережные Челны",
+  // СНГ
+  "Алматы", "Ташкент", "Баку", "Тбилиси", "Минск", "Киев",
+  "Бишкек", "Ереван", "Нур-Султан", "Астана",
+  // Зарубежье
+  "Лондон", "Берлин", "Париж", "Нью-Йорк", "Стамбул",
+];
+
+function CityAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  function handleInput(v: string) {
+    onChange(v);
+    if (v.length >= 2) {
+      const q = v.toLowerCase();
+      setSuggestions(CITIES.filter((c) => c.toLowerCase().startsWith(q)).slice(0, 6));
+      setOpen(true);
+    } else {
+      setSuggestions([]);
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <Input
+        placeholder="Город рождения (начните вводить...)"
+        value={value}
+        onChange={(e) => handleInput(e.target.value)}
+        onFocus={() => value.length >= 2 && setOpen(true)}
+        className="bg-card/50"
+      />
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-10 mt-1 w-full rounded-lg border border-border/40 bg-navy/95 shadow-xl backdrop-blur-sm">
+          {suggestions.map((city) => (
+            <li key={city}>
+              <button
+                type="button"
+                className="w-full px-4 py-2.5 text-left text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"
+                onClick={() => { onChange(city); setOpen(false); }}
+              >
+                {city}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function NatalPage() {
+  const { data: session, status } = useSession();
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ sunSign: string; interpretation: string } | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
   const [error, setError] = useState("");
+
+  if (status === "loading") return null;
+  if (!session) return <div className="mx-auto max-w-2xl px-4 py-12"><h1 className="font-heading text-3xl font-bold mb-8">⭐ Натальная карта</h1><AuthRequiredBlock toolName="Натальная карта" /></div>;
+  if (limitReached) return <div className="mx-auto max-w-2xl px-4 py-12"><h1 className="font-heading text-3xl font-bold mb-8">⭐ Натальная карта</h1><LimitExceededBlock /></div>;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!sessionCounter.increment()) { setError("Лимит сессий исчерпан на этот месяц."); return; }
+    if (!sessionCounter.increment()) { setLimitReached(true); return; }
     setLoading(true);
     setError("");
     try {
@@ -51,13 +129,13 @@ export default function NatalPage() {
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">
               Время рождения
-              <span className="ml-1 text-xs text-muted-foreground/60">(влияет на точность расчёта)</span>
+              <span className="ml-1 text-xs text-muted-foreground/60">(чем точнее, тем детальнее расчёт асцендента и домов)</span>
             </label>
             <Input type="time" value={birthTime} onChange={(e) => setBirthTime(e.target.value)} className="bg-card/50" />
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">Место рождения</label>
-            <Input placeholder="Город, страна" value={birthPlace} onChange={(e) => setBirthPlace(e.target.value)} className="bg-card/50" />
+            <CityAutocomplete value={birthPlace} onChange={setBirthPlace} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" disabled={!birthDate} className="w-full">Построить карту</Button>
@@ -71,7 +149,9 @@ export default function NatalPage() {
           <Card className="border-primary/20 bg-card/30">
             <CardContent className="p-6">
               <h2 className="font-heading text-xl font-semibold">☀️ Солнце в знаке {result.sunSign}</h2>
-              <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{result.interpretation}</div>
+              <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {result.interpretation.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
+              </div>
             </CardContent>
           </Card>
           <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"

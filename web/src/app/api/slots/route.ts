@@ -45,10 +45,14 @@ export async function POST(req: NextRequest) {
     const { startAt, endAt } = await req.json();
     if (!startAt || !endAt) return NextResponse.json({ error: "startAt и endAt обязательны" }, { status: 400 });
 
+    // @ts-expect-error custom field
+    if (session.user?.role !== "PRACTITIONER") {
+      return NextResponse.json({ error: "Доступно только для практиков" }, { status: 403 });
+    }
     const practitioner = await db.practitioner.findUnique({
       where: { userId: session.user.id },
     });
-    if (!practitioner) return NextResponse.json({ error: "Вы не практик" }, { status: 403 });
+    if (!practitioner) return NextResponse.json({ error: "Профиль практика не найден" }, { status: 404 });
 
     const slot = await db.timeSlot.create({
       data: {

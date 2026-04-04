@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";

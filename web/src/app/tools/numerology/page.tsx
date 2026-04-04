@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToolLoading } from "@/components/tool-loading";
+import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
 
 export default function NumerologyPage() {
   const [birthDate, setBirthDate] = useState("");

@@ -1,4 +1,5 @@
 "use client";
+import { useSession } from "next-auth/react";
 import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
+import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
 
 const TOPICS = [
   "Как справиться с неопределённостью",

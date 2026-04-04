@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const TEST_ACCOUNTS = [
   { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/dashboard" },
   { label: "Практик", email: "practitioner@test.eterapy.com", password: "test1234", href: "/dashboard/practitioner" },
+  { label: "Админ", email: "admin@test.eterapy.com", password: "admin1234", href: "/admin" },
 ];
 
 export default function LoginPage() {
