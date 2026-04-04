@@ -8,6 +8,7 @@ import {
   sendBookingCancelledPractitioner,
   sendReviewRequestClient,
 } from "@/lib/email";
+import { notify } from "@/lib/notifications";
 
 function fmtSlot(slot: { startAt: Date; endAt: Date } | null) {
   if (!slot) return "время уточняется";
@@ -78,14 +79,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     durationMin: 60,
   };
 
+  const slotDate = booking.slot ? new Date(booking.slot.startAt).toLocaleDateString("ru-RU") : "—";
+  const slotTime = booking.slot ? new Date(booking.slot.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "—";
+
   if (status === "CONFIRMED") {
     sendBookingConfirmedClient(emailData).catch(console.error);
+    notify({ userId: booking.clientId, event: "BOOKING_CONFIRMED", data: {
+      practitionerName: emailData.practitionerName, date: slotDate, time: slotTime,
+    }}).catch(console.error);
   } else if (status === "CANCELLED") {
     const cancelledBy = isClient ? "client" : "practitioner";
     sendBookingCancelledClient(emailData, cancelledBy).catch(console.error);
     if (!isClient) sendBookingCancelledPractitioner(emailData).catch(console.error);
+    // Уведомляем обе стороны об отмене
+    const otherId = isClient ? booking.practitioner?.userId : booking.clientId;
+    if (otherId) notify({ userId: otherId, event: "BOOKING_CANCELLED", data: { date: slotDate, time: slotTime } }).catch(console.error);
   } else if (status === "COMPLETED") {
     sendReviewRequestClient(emailData).catch(console.error);
+    const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/cabinet/bookings?review=${booking.id}`;
+    notify({ userId: booking.clientId, event: "REVIEW_REQUESTED", data: {
+      practitionerName: emailData.practitionerName, reviewUrl,
+    }}).catch(console.error);
   }
 
   return NextResponse.json({ booking: updated });
