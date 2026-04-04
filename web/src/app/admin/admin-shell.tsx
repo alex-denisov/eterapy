@@ -6,19 +6,21 @@ import { signOut } from "next-auth/react";
 
 const BASE_NAV = [
   { href: "/admin", icon: "🏠", label: "Обзор" },
+  { href: "/admin/clients", icon: "👤", label: "Клиенты" },
   { href: "/admin/practitioners", icon: "🔮", label: "Практики" },
-  { href: "/admin/users", icon: "👤", label: "Пользователи" },
   { href: "/admin/bookings", icon: "📅", label: "Бронирования" },
 ];
 
 const SUPERADMIN_EXTRA = [
-  { href: "/admin/metrics",  icon: "📊", label: "Метрики" },
-  { href: "/admin/pricing",  icon: "💰", label: "Цены и тарифы" },
-  { href: "/admin/payments", icon: "💳", label: "Выплаты" },
-  { href: "/admin/files",    icon: "📁", label: "Файлы" },
-  { href: "/admin/sessions", icon: "🔐", label: "Сессии" },
-  { href: "/admin/logs",     icon: "📋", label: "Логи" },
-  { href: "/admin/system",   icon: "⚙️", label: "Система" },
+  { href: "/admin/metrics",    icon: "📊", label: "Метрики" },
+  { href: "/admin/pricing",    icon: "💰", label: "Цены и тарифы" },
+  { href: "/admin/moderators", icon: "🛡️", label: "Модераторы" },
+  { href: "/admin/users",      icon: "🗂️", label: "Все пользователи" },
+  { href: "/admin/payments",   icon: "💳", label: "Выплаты" },
+  { href: "/admin/files",      icon: "📁", label: "Файлы" },
+  { href: "/admin/sessions",   icon: "🔐", label: "Сессии" },
+  { href: "/admin/logs",       icon: "📋", label: "Логи" },
+  { href: "/admin/system",     icon: "⚙️", label: "Система" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

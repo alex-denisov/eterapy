@@ -17,6 +17,7 @@ model User {
   emailVerified       Boolean   @default(false)
   avatarUrl           String?
   deletedAt           DateTime?          // deactivated at this time, purge after 10 days
+  blockedAt           DateTime?          // blocked by admin — cannot login
   freeToolsLimit      Int?               // null = plan default (3), 0 = unlimited
   verificationToken   String?   @unique
   verificationExpires DateTime?
@@ -266,6 +267,39 @@ model ChatMessage {
   @@index([videoSessionId, createdAt])
   @@map("chat_messages")
 }
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String                    // actor (who did it)
+  targetId    String?                   // target user id
+  action      String                    // LOGIN, LOGOUT, PROFILE_UPDATE, PASSWORD_RESET, etc.
+  details     String?                   // JSON details
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([targetId, createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Moderator Permissions ────────────────────────────────────────────────────
+
+model ModeratorPermission {
+  id           String  @id @default(cuid())
+  moderatorId  String
+  permission   String  // e.g. "clients.view", "clients.edit", "practitioners.create"
+  granted      Boolean @default(true)
+
+  @@unique([moderatorId, permission])
+  @@map("moderator_permissions")
+}
+
+// ─── User Block ───────────────────────────────────────────────────────────────
+
+// blockedAt stored in User.deletedAt reuse OR separate field
+// Using a separate simple approach: add blocked flag to User
 
 // ─── Platform Settings ────────────────────────────────────────────────────────
 
