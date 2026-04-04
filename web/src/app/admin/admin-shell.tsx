@@ -12,12 +12,13 @@ const BASE_NAV = [
 ];
 
 const SUPERADMIN_EXTRA = [
-  { href: "/admin/metrics", icon: "📊", label: "Метрики" },
+  { href: "/admin/metrics",  icon: "📊", label: "Метрики" },
+  { href: "/admin/pricing",  icon: "💰", label: "Цены и тарифы" },
   { href: "/admin/payments", icon: "💳", label: "Выплаты" },
-  { href: "/admin/files", icon: "📁", label: "Файлы" },
+  { href: "/admin/files",    icon: "📁", label: "Файлы" },
   { href: "/admin/sessions", icon: "🔐", label: "Сессии" },
-  { href: "/admin/logs", icon: "📋", label: "Логи" },
-  { href: "/admin/system", icon: "⚙️", label: "Система" },
+  { href: "/admin/logs",     icon: "📋", label: "Логи" },
+  { href: "/admin/system",   icon: "⚙️", label: "Система" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

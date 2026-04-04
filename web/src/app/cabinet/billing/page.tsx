@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-const PLANS = [
+// Тарифы загружаются динамически через API — здесь дефолты как fallback
+const DEFAULT_PLANS = [
   { id: "free",      name: "Бесплатный",  sessions: 3,    price: 0,    current: true },
   { id: "starter",   name: "Стартовый",   sessions: 10,   price: 299,  current: false },
   { id: "standard",  name: "Стандартный", sessions: 30,   price: 699,  current: false, popular: true },
@@ -18,6 +19,7 @@ export default function BillingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [savedCard] = useState<null | { last4: string; brand: string }>(null);
+  const [plans] = useState(DEFAULT_PLANS);
 
   if (status === "loading") return null;
   if (!session) { router.push("/login"); return null; }
@@ -79,7 +81,7 @@ export default function BillingPage() {
             <Badge variant="secondary" className="bg-primary/10 text-primary">Бесплатный</Badge>
           </div>
           <div className="space-y-3">
-            {PLANS.map((plan) => (
+            {plans.map((plan) => (
               <div key={plan.id}
                 className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-colors ${
                   plan.current ? "border-primary/40 bg-primary/5" : "border-border/30 hover:border-primary/20"

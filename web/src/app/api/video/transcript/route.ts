@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { aiComplete } from "@/lib/ai";
 
-const PLATFORM_RULES = `
-Правила платформы ETerapy:
+const PLATFORM_RULES = `Правила платформы ETerapy:
 1. Запрещено запугивание и угрозы
 2. Запрещены манипуляции и давление
 3. Запрещены гарантии результата ("это точно произойдёт", "100% гарантия")
 4. Запрещены агрессивные допродажи во время сессии
 5. Запрещены оскорбления и дискриминация
 6. Запрещён сбор личных данных клиента (адрес, паспорт и т.д.)
-7. Запрещены контакты вне платформы без явного согласия клиента
-`;
+7. Запрещены контакты вне платформы без явного согласия клиента`;
 
 const VIOLATION_PATTERNS = [
   /умрёшь|умрете|проклятие|порча|сглаз/i,
@@ -22,46 +21,29 @@ const VIOLATION_PATTERNS = [
 ];
 
 async function checkViolations(text: string): Promise<string | null> {
-  // Быстрая проверка по паттернам
+  // Быстрая проверка по паттернам — без API
   for (const pattern of VIOLATION_PATTERNS) {
     if (pattern.test(text)) {
-      return `Обнаружено потенциальное нарушение правил платформы. Убедитесь в этичности консультации.`;
+      return "Обнаружено потенциальное нарушение правил платформы. Убедитесь в этичности консультации.";
     }
   }
 
-  // GPT-проверка если есть API ключ
-  const apiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
-  if (!apiKey || text.length < 50) return null;
+  if (text.length < 50) return null;
 
   try {
-    const baseURL = process.env.OPENROUTER_API_KEY
-      ? "https://openrouter.ai/api/v1"
-      : "https://api.openai.com/v1";
-
-    const res = await fetch(`${baseURL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_API_KEY ? "openrouter/free" : "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `Ты модератор платформы онлайн-консультаций. Анализируй текст на нарушения правил.\n\n${PLATFORM_RULES}\n\nОтвечай ТОЛЬКО в формате JSON: {"violation": true/false, "reason": "краткое описание или null"}`,
-          },
-          { role: "user", content: `Транскрипт последних 30 секунд: "${text.slice(-500)}"` },
-        ],
-        max_tokens: 100,
-        temperature: 0,
-      }),
+    const result = await aiComplete({
+      messages: [
+        {
+          role: "system",
+          content: `Ты модератор платформы онлайн-консультаций. Анализируй текст на нарушения правил.\n\n${PLATFORM_RULES}\n\nОтвечай ТОЛЬКО в формате JSON: {"violation": true/false, "reason": "краткое описание или null"}`,
+        },
+        { role: "user", content: `Транскрипт последних 30 секунд: "${text.slice(-500)}"` },
+      ],
+      maxTokens: 150,
+      temperature: 0,
     });
-
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content ?? "";
-    const parsed = JSON.parse(content.match(/\{.*\}/s)?.[0] ?? "{}");
-    if (parsed.violation && parsed.reason) return parsed.reason;
+    const parsed = JSON.parse(result.text.match(/\{.*\}/s)?.[0] ?? "{}");
+    if (parsed.violation && parsed.reason) return String(parsed.reason);
   } catch { /* ignore */ }
 
   return null;
@@ -77,7 +59,6 @@ export async function POST(req: NextRequest) {
 
   const violation = await checkViolations(text);
 
-  // Если финальный транскрипт — сохраняем в БД
   if (isFinal) {
     await db.videoSession.update({
       where: { id: videoSessionId },
@@ -88,7 +69,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, violation });
 }
 
-/** POST /api/video/transcript/summarize — AI резюме для практика */
+/** PUT /api/video/transcript — AI резюме сессии для практика */
 export async function PUT(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
@@ -104,18 +85,8 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: "Транскрипт недоступен" }, { status: 404 });
   }
 
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "AI не настроен" }, { status: 503 });
-
-  const baseURL = process.env.OPENROUTER_API_KEY
-    ? "https://openrouter.ai/api/v1"
-    : "https://api.openai.com/v1";
-
-  const res = await fetch(`${baseURL}/chat/completions`, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: process.env.OPENROUTER_API_KEY ? "openrouter/free" : "gpt-4o-mini",
+  try {
+    const result = await aiComplete({
       messages: [
         {
           role: "system",
@@ -123,14 +94,14 @@ export async function PUT(req: NextRequest) {
         },
         { role: "user", content: vs.transcriptText },
       ],
-      max_tokens: 1000,
-    }),
-  });
+      maxTokens: 1500,
+    });
 
-  const data = await res.json();
-  const summary = data.choices?.[0]?.message?.content ?? "";
-
-  await db.videoSession.update({ where: { id: videoSessionId }, data: { summaryText: summary } });
-
-  return NextResponse.json({ ok: true, summary });
+    const summary = result.text;
+    await db.videoSession.update({ where: { id: videoSessionId }, data: { summaryText: summary } });
+    return NextResponse.json({ ok: true, summary });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Ошибка AI";
+    return NextResponse.json({ error: msg }, { status: 503 });
+  }
 }

@@ -10,6 +10,7 @@ import {
   sendBookingCancelledPractitioner,
   sendReviewRequestClient,
 } from "@/lib/email";
+import { getSetting } from "@/lib/platform-settings";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -112,13 +113,17 @@ export async function POST(req: NextRequest) {
       await db.timeSlot.update({ where: { id: slotId }, data: { available: false } });
     }
 
+    // В тестовом режиме цена = 0
+    const testMode = await getSetting("session.test_mode") === "true";
+    const priceRub = testMode ? 0 : practitioner.pricePerSession;
+
     const booking = await db.booking.create({
       data: {
         clientId: session.user.id,
         practitionerId,
         slotId: slotId ?? null,
         status: BookingStatus.PENDING,
-        priceRub: practitioner.pricePerSession,
+        priceRub,
       },
       include: {
         client: { select: { name: true, email: true } },

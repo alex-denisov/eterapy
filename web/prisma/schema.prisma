@@ -217,6 +217,17 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
+// ─── Platform Settings ────────────────────────────────────────────────────────
+
+model PlatformSetting {
+  key       String   @id  // e.g. "plan.starter.price", "plan.standard.sessions"
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String?  // userId
+
+  @@map("platform_settings")
+}
+
 // ─── File Storage ─────────────────────────────────────────────────────────────
 
 model StoredFile {
