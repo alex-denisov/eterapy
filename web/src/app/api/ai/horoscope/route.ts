@@ -1,3 +1,5 @@
+import { auth } from "@/lib/auth";
+import { checkAndRecordToolSession } from "@/lib/tool-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { aiComplete } from "@/lib/ai";
 
@@ -7,6 +9,14 @@ const zodiacSigns = [
 ] as const;
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  // @ts-expect-error custom
+  const userId = session?.user?.id ?? null;
+  const toolLimit = await checkAndRecordToolSession(userId, "HOROSCOPE");
+  if (!toolLimit.allowed) {
+    return NextResponse.json({ error: "Лимит инструментов исчерпан" }, { status: 429 });
+  }
+
   try {
     const { sign, period = "daily" } = await req.json();
 

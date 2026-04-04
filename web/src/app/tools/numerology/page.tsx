@@ -1,32 +1,29 @@
 "use client";
-import { useSession } from "next-auth/react";
-import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToolLoading } from "@/components/tool-loading";
-import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
+import { AuthModal } from "@/components/auth-modal";
 
 export default function NumerologyPage() {
+  const { data: session, status } = useSession();
   const [birthDate, setBirthDate] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
-    lifePathNumber: number;
-    archetype: string;
-    keywords: string[];
-    interpretation: string;
+    lifePathNumber: number; archetype: string; keywords: string[]; interpretation: string;
   } | null>(null);
   const [error, setError] = useState("");
+  const [showAuth, setShowAuth] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!sessionCounter.increment()) { setError("Лимит сессий исчерпан на этот месяц."); return; }
+  async function doSubmit() {
     setLoading(true);
     setError("");
+    setShowAuth(false);
     try {
       const res = await fetch("/api/ai/numerology", {
         method: "POST",
@@ -42,8 +39,16 @@ export default function NumerologyPage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session && status !== "loading") { setShowAuth(true); return; }
+    doSubmit();
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
+      {showAuth && <AuthModal toolName="Нумерология" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />}
+
       <h1 className="font-heading text-3xl font-bold">🔢 Нумерология</h1>
       <p className="mt-2 text-muted-foreground">Число жизненного пути по системе Пифагора.</p>
 
@@ -51,11 +56,10 @@ export default function NumerologyPage() {
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">Дата рождения *</label>
-            <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)}
-              required className="bg-card/50" />
+            <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required className="bg-card/50" />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-muted-foreground">Имя (необязательно)</label>
+            <label className="mb-1 block text-sm text-muted-foreground">Имя <span className="text-xs text-muted-foreground/60">(необязательно)</span></label>
             <Input placeholder="Ваше имя" value={name} onChange={(e) => setName(e.target.value)} className="bg-card/50" />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -84,7 +88,7 @@ export default function NumerologyPage() {
                 </div>
               </div>
               <div className="mt-6 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                {result.interpretation}
+                {result.interpretation.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
               </div>
             </CardContent>
           </Card>
@@ -92,9 +96,6 @@ export default function NumerologyPage() {
             onClick={() => { setResult(null); setBirthDate(""); setName(""); }}>
             Новый расчёт
           </Button>
-          <p className="mt-6 text-xs text-muted-foreground/50">
-            Расчёт носит развлекательный и ознакомительный характер.
-          </p>
         </div>
       )}
     </div>

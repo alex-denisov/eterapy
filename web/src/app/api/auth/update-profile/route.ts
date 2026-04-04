@@ -1,40 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { usersStore } from "@/lib/users-db";
+import db from "@/lib/db";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  if (!session) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+
+  const contentType = req.headers.get("content-type") ?? "";
+  let name: string | null = null;
+  let avatarUrl: string | null = null;
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await req.formData();
+    name = formData.get("name") as string | null;
+    const avatarFile = formData.get("avatar") as File | null;
+
+    if (avatarFile && avatarFile.size > 0) {
+      const bytes = await avatarFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      const ext = avatarFile.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const filename = `${session.user!.id}.${ext}`;
+      const dir = path.join(process.cwd(), "public", "avatars");
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, filename), buffer);
+      avatarUrl = `/avatars/${filename}`;
+    }
+  } else {
+    const body = await req.json();
+    name = body.name;
   }
 
-  try {
-    const { name, currentPassword, newPassword } = await req.json();
-    const user = await usersDb.get(session.user.email);
-    if (!user) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+  if (!name?.trim()) return NextResponse.json({ error: "Имя обязательно" }, { status: 400 });
 
-    const patch: Partial<typeof user> = {};
+  const data: Record<string, string> = { name: name.trim() };
+  if (avatarUrl) data.avatarUrl = avatarUrl;
 
-    if (name && name.trim() !== user.name) {
-      if (name.trim().length < 2) return NextResponse.json({ error: "Имя слишком короткое" }, { status: 400 });
-      patch.name = name.trim();
-    }
+  await db.user.update({ where: { id: session.user!.id }, data });
 
-    if (newPassword) {
-      if (!currentPassword) return NextResponse.json({ error: "Введите текущий пароль" }, { status: 400 });
-      if (user.password !== currentPassword) return NextResponse.json({ error: "Текущий пароль неверен" }, { status: 400 });
-      if (newPassword.length < 6) return NextResponse.json({ error: "Новый пароль минимум 6 символов" }, { status: 400 });
-      patch.password = newPassword;
-    }
-
-    if (Object.keys(patch).length === 0) {
-      return NextResponse.json({ error: "Нет изменений" }, { status: 400 });
-    }
-
-    await usersDb.update(session.user.email, patch);
-    return NextResponse.json({ ok: true, name: patch.name ?? user.name });
-  } catch (err) {
-    console.error("[update-profile]", err);
-    return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
-  }
+  return NextResponse.json({ ok: true });
 }

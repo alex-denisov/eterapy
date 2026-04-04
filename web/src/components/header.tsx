@@ -18,11 +18,11 @@ const GUEST_NAV = [
 const CLIENT_NAV = [
   { href: "/practitioners", label: "Найти практика" },
   { href: "/tools", label: "Инструменты" },
-  { href: "/dashboard", label: "Кабинет" },
+  { href: "/cabinet", label: "Кабинет" },
 ];
 
 const PRACTITIONER_NAV = [
-  { href: "/dashboard/practitioner", label: "Мой кабинет" },
+  { href: "/cabinet/practitioner", label: "Мой кабинет" },
   { href: "/practitioners", label: "Каталог" },
 ];
 
@@ -47,16 +47,16 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
   }, []);
 
   const menuItems = role === "PRACTITIONER" ? [
-    { href: "/dashboard/practitioner", label: "Мой кабинет" },
-    { href: "/dashboard/practitioner/profile", label: "Профиль практика" },
-    { href: "/dashboard/settings", label: "Настройки" },
+    { href: "/cabinet/practitioner", label: "Мой кабинет" },
+    { href: "/cabinet/practitioner/profile", label: "Профиль практика" },
+    { href: "/cabinet/settings", label: "Настройки" },
   ] : role === "ADMIN" ? [
     { href: "/admin", label: "Панель администратора" },
-    { href: "/dashboard/settings", label: "Настройки" },
+    { href: "/cabinet/settings", label: "Настройки" },
   ] : [
-    { href: "/dashboard", label: "Кабинет" },
-    { href: "/dashboard/billing", label: "Оплата и тарифы" },
-    { href: "/dashboard/settings", label: "Настройки и безопасность" },
+    { href: "/cabinet", label: "Кабинет" },
+    { href: "/cabinet/billing", label: "Оплата и тарифы" },
+    { href: "/cabinet/settings", label: "Настройки и безопасность" },
   ];
 
   return (
@@ -116,7 +116,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href={!session ? "/" : role === "PRACTITIONER" ? "/dashboard/practitioner" : role === "ADMIN" ? "/admin" : "/dashboard"}
+        <Link href={!session ? "/" : role === "PRACTITIONER" ? "/cabinet/practitioner" : role === "ADMIN" ? "/admin" : "/cabinet"}
           className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.svg" alt="ETerapy" width={28} height={28} />
           <span className="font-heading text-xl font-bold text-primary">ETerapy</span>

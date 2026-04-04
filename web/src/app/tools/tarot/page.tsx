@@ -7,21 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToolLoading } from "@/components/tool-loading";
-import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
-import { sessionCounter } from "@/lib/session-counter";
+import { AuthModal } from "@/components/auth-modal";
 
-interface TarotCard {
-  name: string;
-  nameEn: string;
-  position: string;
-  reversed: boolean;
-  keywords: string[];
-}
-
-interface TarotResult {
-  cards: TarotCard[];
-  interpretation: string;
-}
+interface TarotCard { name: string; nameEn: string; position: string; reversed: boolean; keywords: string[]; }
+interface TarotResult { cards: TarotCard[]; interpretation: string; }
 
 const POSITION_COLORS = ["text-blue-400", "text-primary", "text-purple-400"];
 const POSITION_ICONS = ["🌅", "🌕", "🌟"];
@@ -31,21 +20,14 @@ export default function TarotPage() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TarotResult | null>(null);
-  const [limitReached, setLimitReached] = useState(false);
   const [error, setError] = useState("");
+  const [showAuth, setShowAuth] = useState(false);
 
-  if (status === "loading") return null;
-  if (!session) return <div className="mx-auto max-w-3xl px-4 py-12"><h1 className="font-heading text-3xl font-bold mb-8">🃏 Расклад Таро</h1><AuthRequiredBlock toolName="Расклад Таро" /></div>;
-  if (limitReached) return <div className="mx-auto max-w-3xl px-4 py-12"><h1 className="font-heading text-3xl font-bold mb-8">🃏 Расклад Таро</h1><LimitExceededBlock /></div>;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!question.trim()) return;
-    if (!sessionCounter.increment()) { setLimitReached(true); return; }
-
+  async function doSubmit() {
     setLoading(true);
     setError("");
     setResult(null);
+    setShowAuth(false);
     try {
       const res = await fetch("/api/ai/tarot", {
         method: "POST",
@@ -61,21 +43,24 @@ export default function TarotPage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!question.trim()) return;
+    if (!session && status !== "loading") { setShowAuth(true); return; }
+    doSubmit();
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
+      {showAuth && <AuthModal toolName="Расклад Таро" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />}
+
       <h1 className="font-heading text-3xl font-bold md:text-4xl">🃏 Расклад Таро</h1>
-      <p className="mt-2 text-muted-foreground">
-        Три карты · Прошлое, Настоящее, Будущее · Колода Райдера-Уэйта
-      </p>
+      <p className="mt-2 text-muted-foreground">Три карты · Прошлое, Настоящее, Будущее · Колода Райдера-Уэйта</p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex gap-3">
-        <Input
-          placeholder="Ваш вопрос — чем конкретнее, тем точнее..."
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          maxLength={500}
-          className="flex-1 bg-card/50"
-        />
+        <Input placeholder="Ваш вопрос — чем конкретнее, тем точнее..."
+          value={question} onChange={(e) => setQuestion(e.target.value)}
+          maxLength={500} className="flex-1 bg-card/50" />
         <Button type="submit" disabled={loading || !question.trim()}>Разложить</Button>
       </form>
 
@@ -106,7 +91,6 @@ export default function TarotPage() {
               </Card>
             ))}
           </div>
-
           <Card className="border-primary/20 bg-card/30">
             <CardContent className="p-6">
               <h3 className="mb-4 font-heading text-lg font-semibold text-primary">✦ Интерпретация</h3>
@@ -115,15 +99,13 @@ export default function TarotPage() {
               </div>
             </CardContent>
           </Card>
-
           <Button variant="outline" className="border-border/40 text-muted-foreground"
             onClick={() => { setResult(null); setQuestion(""); }}>
             Новый расклад
           </Button>
         </div>
       )}
-
-      <p className="mt-8 text-xs text-muted-foreground/50">Расклад носит развлекательный и ознакомительный характер.</p>
+      <p className="mt-8 text-xs text-muted-foreground/50">Носит развлекательный и ознакомительный характер.</p>
     </div>
   );
 }

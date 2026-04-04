@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const TEST_ACCOUNTS = [
-  { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/dashboard" },
-  { label: "Практик", email: "practitioner@test.eterapy.com", password: "test1234", href: "/dashboard/practitioner" },
+  { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/cabinet" },
+  { label: "Практик", email: "practitioner@test.eterapy.com", password: "test1234", href: "/cabinet/practitioner" },
   { label: "Админ", email: "admin@test.eterapy.com", password: "admin1234", href: "/admin" },
 ];
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await doLogin(email, password, "/dashboard");
+    await doLogin(email, password, "/cabinet");
   }
 
   return (

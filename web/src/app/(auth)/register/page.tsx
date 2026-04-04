@@ -66,7 +66,7 @@ export default function RegisterPage() {
           <p className="text-sm text-muted-foreground">
             Не получили? Проверьте папку «Спам».
           </p>
-          <Link href="/dashboard" className="block text-sm text-primary hover:underline">
+          <Link href="/cabinet" className="block text-sm text-primary hover:underline">
             Перейти в кабинет →
           </Link>
         </div>

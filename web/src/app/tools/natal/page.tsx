@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
-import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
-import { sessionCounter } from "@/lib/session-counter";
+import { AuthModal } from "@/components/auth-modal";
 
 // Список популярных городов для автодополнения
 const CITIES = [
@@ -86,18 +85,13 @@ export default function NatalPage() {
   const [birthPlace, setBirthPlace] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ sunSign: string; interpretation: string } | null>(null);
-  const [limitReached, setLimitReached] = useState(false);
   const [error, setError] = useState("");
+  const [showAuth, setShowAuth] = useState(false);
 
-  if (status === "loading") return null;
-  if (!session) return <div className="mx-auto max-w-2xl px-4 py-12"><h1 className="font-heading text-3xl font-bold mb-8">⭐ Натальная карта</h1><AuthRequiredBlock toolName="Натальная карта" /></div>;
-  if (limitReached) return <div className="mx-auto max-w-2xl px-4 py-12"><h1 className="font-heading text-3xl font-bold mb-8">⭐ Натальная карта</h1><LimitExceededBlock /></div>;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!sessionCounter.increment()) { setLimitReached(true); return; }
+  async function doSubmit() {
     setLoading(true);
     setError("");
+    setShowAuth(false);
     try {
       const res = await fetch("/api/ai/natal", {
         method: "POST",
@@ -113,8 +107,15 @@ export default function NatalPage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session && status !== "loading") { setShowAuth(true); return; }
+    doSubmit();
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
+      {showAuth && <AuthModal toolName="Натальная карта" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />}
       <h1 className="font-heading text-3xl font-bold">⭐ Натальная карта</h1>
       <p className="mt-2 text-muted-foreground">
         Описание вашей натальной карты по дате, времени и месту рождения.

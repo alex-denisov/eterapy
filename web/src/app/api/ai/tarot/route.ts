@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aiComplete } from "@/lib/ai";
 import { drawCards } from "@/data/tarot-cards";
+import { auth } from "@/lib/auth";
+import { checkAndRecordToolSession } from "@/lib/tool-limit";
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  // @ts-expect-error custom
+  const userId = session?.user?.id ?? null;
+  const limit = await checkAndRecordToolSession(userId, "TAROT");
+  if (!limit.allowed) {
+    return NextResponse.json({ error: "Лимит инструментов исчерпан на этот месяц" }, { status: 429 });
+  }
   try {
     const { question } = await req.json();
 

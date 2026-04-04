@@ -44,22 +44,9 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold">Панель администратора</h1>
-          <p className="mt-1 text-muted-foreground">{session.user?.email}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/admin/practitioners" className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Практики
-          </Link>
-          <Link href="/admin/users" className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Пользователи
-          </Link>
-          <Link href="/dashboard/settings" className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Настройки
-          </Link>
-        </div>
+      <div className="mb-8">
+        <h1 className="font-heading text-2xl font-bold">Обзор</h1>
+        <p className="mt-1 text-sm text-muted-foreground">ETerapy · Панель администратора</p>
       </div>
 
       {/* Статистика */}

@@ -1,13 +1,12 @@
 "use client";
-import { useSession } from "next-auth/react";
-import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
-import { AuthRequiredBlock, LimitExceededBlock } from "@/components/tool-auth-gate";
+import { AuthModal } from "@/components/auth-modal";
 
 const TOPICS = [
   "Как справиться с неопределённостью",
@@ -19,17 +18,18 @@ const TOPICS = [
 ];
 
 export default function GuidePage() {
+  const { data: session, status } = useSession();
   const [topic, setTopic] = useState("");
   const [context, setContext] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [showAuth, setShowAuth] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!sessionCounter.increment()) { setError("Лимит сессий исчерпан на этот месяц."); return; }
+  async function doSubmit() {
     setLoading(true);
     setError("");
+    setShowAuth(false);
     try {
       const res = await fetch("/api/ai/guide", {
         method: "POST",
@@ -37,8 +37,7 @@ export default function GuidePage() {
         body: JSON.stringify({ topic, context }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      const data = await res.json();
-      setResult(data.guide);
+      setResult((await res.json()).guide);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -46,12 +45,18 @@ export default function GuidePage() {
     }
   }
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!session && status !== "loading") { setShowAuth(true); return; }
+    doSubmit();
+  }
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
+      {showAuth && <AuthModal toolName="Личный гид" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />}
+
       <h1 className="font-heading text-3xl font-bold">📖 Личный гид</h1>
-      <p className="mt-2 text-muted-foreground">
-        Персональный текст по теме вашего запроса. Глубже и конкретнее, чем гороскоп.
-      </p>
+      <p className="mt-2 text-muted-foreground">Персональный текст по теме вашего запроса.</p>
 
       {!result && !loading && (
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -62,28 +67,20 @@ export default function GuidePage() {
                 <button key={t} type="button" onClick={() => setTopic(t)}
                   className={`rounded-full border px-3 py-1 text-sm transition-colors ${
                     topic === t ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-primary/40"
-                  }`}>
-                  {t}
-                </button>
+                  }`}>{t}</button>
               ))}
             </div>
-            <Input value={topic} onChange={(e) => setTopic(e.target.value)}
-              placeholder="Или напишите свою тему..." maxLength={300} className="bg-card/50" />
+            <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Или напишите свою тему..." maxLength={300} className="bg-card/50" />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-muted-foreground">
-              Дополнительный контекст
-              <span className="ml-1 text-xs text-muted-foreground/60">(необязательно)</span>
-            </label>
+            <label className="mb-1 block text-sm text-muted-foreground">Дополнительный контекст <span className="text-xs text-muted-foreground/60">(необязательно)</span></label>
             <textarea value={context} onChange={(e) => setContext(e.target.value)}
               placeholder="Что именно вас беспокоит? Чем больше деталей — тем точнее гид."
               className="w-full resize-none rounded-lg border border-border/40 bg-card/50 p-3 text-sm focus:border-primary focus:outline-none"
               rows={3} maxLength={500} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={!topic.trim()} className="w-full">
-            Создать гид
-          </Button>
+          <Button type="submit" disabled={!topic.trim()} className="w-full">Создать гид</Button>
         </form>
       )}
 
@@ -94,7 +91,9 @@ export default function GuidePage() {
           <Card className="border-primary/20 bg-card/30">
             <CardContent className="p-6">
               <p className="mb-3 text-sm font-medium text-primary">✦ {topic}</p>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{result}</div>
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {result.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
+              </div>
             </CardContent>
           </Card>
           <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"

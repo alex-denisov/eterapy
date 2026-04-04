@@ -25,7 +25,7 @@ export function Footer() {
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">Практикам</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/register" className="hover:text-foreground">Стать практиком</Link></li>
+              <li><Link href="/practitioners/apply" className="hover:text-foreground">Стать практиком</Link></li>
               <li><Link href="/about#commission" className="hover:text-foreground">Условия и комиссия</Link></li>
               <li><Link href="/legal/ethics" className="hover:text-foreground">Этический кодекс</Link></li>
             </ul>

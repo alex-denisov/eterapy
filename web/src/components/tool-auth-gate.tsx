@@ -71,7 +71,7 @@ export function LimitExceededBlock() {
       </div>
 
       <div className="mt-6 flex flex-col items-center gap-3">
-        <Link href="/dashboard/billing" className={cn(buttonVariants())}>
+        <Link href="/cabinet/billing" className={cn(buttonVariants())}>
           Выбрать тариф
         </Link>
         <p className="text-xs text-muted-foreground">

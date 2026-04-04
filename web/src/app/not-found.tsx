@@ -8,9 +8,9 @@ export default async function NotFound() {
   // @ts-expect-error custom
   const role = session?.user?.role ?? "GUEST";
 
-  const homeHref = role === "PRACTITIONER" ? "/dashboard/practitioner"
+  const homeHref = role === "PRACTITIONER" ? "/cabinet/practitioner"
     : role === "ADMIN" ? "/admin"
-    : session ? "/dashboard"
+    : session ? "/cabinet"
     : "/";
 
   const homeLabel = role === "PRACTITIONER" ? "В кабинет" : session ? "В кабинет" : "На главную";
