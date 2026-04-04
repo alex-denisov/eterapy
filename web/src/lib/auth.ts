@@ -20,6 +20,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await usersDb.get(email);
         if (!user) return null;
 
+        // Blocked users cannot login
+        if (user.blockedAt) return null;
+
         // Support both bcrypt-hashed and plaintext passwords (test accounts)
         const isHashed = user.password.startsWith("$2");
         const valid = isHashed
