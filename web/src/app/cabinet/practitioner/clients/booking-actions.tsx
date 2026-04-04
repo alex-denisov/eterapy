@@ -1,11 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-export function BookingActions({ bookingId, compact = false }: { bookingId: string; compact?: boolean }) {
+export function BookingActions({
+  bookingId,
+  compact = false,
+  status,
+}: { bookingId: string; compact?: boolean; status?: string }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const router = useRouter();
 
   async function updateStatus(status: string) {
     setLoading(true);
@@ -32,15 +38,23 @@ export function BookingActions({ bookingId, compact = false }: { bookingId: stri
 
   if (compact) {
     return (
-      <button onClick={() => updateStatus("COMPLETED")} disabled={loading}
-        className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50">
-        Завершить
-      </button>
+      <div className="flex gap-2 items-center">
+        {(status === "CONFIRMED" || status === "IN_PROGRESS") && (
+          <a href={`/session/${bookingId}`}
+            className="text-xs text-primary hover:underline">
+            {status === "IN_PROGRESS" ? "В сессию →" : "Начать →"}
+          </a>
+        )}
+        <button onClick={() => updateStatus("COMPLETED")} disabled={loading}
+          className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50">
+          Завершить
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="flex gap-2 shrink-0">
+    <div className="flex gap-2 shrink-0 flex-wrap">
       <button onClick={() => updateStatus("CONFIRMED")} disabled={loading}
         className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10 transition-colors disabled:opacity-50">
         Подтвердить

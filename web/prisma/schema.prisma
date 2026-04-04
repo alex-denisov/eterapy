@@ -31,6 +31,7 @@ model User {
   toolSessions        ToolSession[]
   reviewsWritten      Review[]      @relation("ReviewAuthor")
   storedFiles         StoredFile[]
+  chatMessages        ChatMessage[]
 
   @@map("users")
 }
@@ -135,6 +136,7 @@ model Booking {
   updatedAt      DateTime      @updatedAt
 
   review         Review?
+  videoSession   VideoSession?
 
   @@index([clientId])
   @@index([practitionerId])
@@ -168,6 +170,51 @@ model Review {
 
   @@index([practitionerId])
   @@map("reviews")
+}
+
+// ─── Video Sessions & Chat ────────────────────────────────────────────────────
+
+model VideoSession {
+  id              String        @id @default(cuid())
+  bookingId       String        @unique
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  roomName        String        @unique  // LiveKit room name
+  status          VideoStatus   @default(WAITING)
+  startedAt       DateTime?
+  endedAt         DateTime?
+  recordingUrl    String?       // path to recording file
+  recordingExpiry DateTime?     // 24h TTL
+  transcriptText  String?       // full transcript after session
+  summaryText     String?       // AI summary for practitioner
+  createdAt       DateTime      @default(now())
+
+  messages        ChatMessage[]
+
+  @@index([bookingId])
+  @@map("video_sessions")
+}
+
+enum VideoStatus {
+  WAITING     // room created, not started
+  ACTIVE      // session in progress
+  ENDED       // session finished
+  RECORDING   // post-processing recording
+}
+
+model ChatMessage {
+  id            String       @id @default(cuid())
+  videoSessionId String
+  videoSession  VideoSession @relation(fields: [videoSessionId], references: [id], onDelete: Cascade)
+  senderId      String
+  sender        User         @relation(fields: [senderId], references: [id])
+  text          String?
+  fileUrl       String?      // uploaded file path
+  fileName      String?
+  fileMime      String?
+  createdAt     DateTime     @default(now())
+
+  @@index([videoSessionId, createdAt])
+  @@map("chat_messages")
 }
 
 // ─── File Storage ─────────────────────────────────────────────────────────────
