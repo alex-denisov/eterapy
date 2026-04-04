@@ -4,7 +4,6 @@ import "./globals.css";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { Providers } from "@/components/providers";
-import { EmailVerificationBanner } from "@/components/email-verification-banner";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -57,7 +56,6 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <Providers>
           <Header />
-          <EmailVerificationBanner />
           <main className="flex-1">{children}</main>
           <Footer />
         </Providers>
