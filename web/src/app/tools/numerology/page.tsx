@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
+import { AIShareButton } from "@/components/ai-share-button";
+import { PaywallScreen } from "@/components/paywall-screen";
 
 export default function NumerologyPage() {
   const { data: session, status } = useSession();
@@ -19,17 +21,20 @@ export default function NumerologyPage() {
   } | null>(null);
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
+  const [isLimited, setIsLimited] = useState(false);
 
   async function doSubmit() {
     setLoading(true);
     setError("");
     setShowAuth(false);
+    setIsLimited(false);
     try {
       const res = await fetch("/api/ai/numerology", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ birthDate, name }),
       });
+      if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error);
       setResult(await res.json());
     } catch (err) {
@@ -69,6 +74,8 @@ export default function NumerologyPage() {
 
       {loading && <ToolLoading message="Считаем число жизненного пути..." />}
 
+      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setBirthDate(""); setName(""); }} />}
+
       {result && (
         <div className="mt-8">
           <Card className="border-primary/20 bg-card/30">
@@ -92,6 +99,11 @@ export default function NumerologyPage() {
               </div>
             </CardContent>
           </Card>
+          <AIShareButton
+            tool="NUMEROLOGY"
+            title={`Нумерология — Число ${result.lifePathNumber} «${result.archetype}»`}
+            resultText={`Число жизненного пути: ${result.lifePathNumber}\n${result.archetype}\n\n${result.interpretation}`}
+          />
           <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"
             onClick={() => { setResult(null); setBirthDate(""); setName(""); }}>
             Новый расчёт

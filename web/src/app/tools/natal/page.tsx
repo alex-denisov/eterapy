@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
+import { AIShareButton } from "@/components/ai-share-button";
+import { PaywallScreen } from "@/components/paywall-screen";
 import { searchCities } from "@/lib/cities";
 
 
@@ -72,17 +74,20 @@ export default function NatalPage() {
   const [result, setResult] = useState<{ sunSign: string; interpretation: string } | null>(null);
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
+  const [isLimited, setIsLimited] = useState(false);
 
   async function doSubmit() {
     setLoading(true);
     setError("");
     setShowAuth(false);
+    setIsLimited(false);
     try {
       const res = await fetch("/api/ai/natal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ birthDate, birthTime, birthPlace }),
       });
+      if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error);
       setResult(await res.json());
     } catch (err) {
@@ -130,6 +135,8 @@ export default function NatalPage() {
 
       {loading && <ToolLoading message="Строим натальную карту..." />}
 
+      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setBirthDate(""); setBirthTime(""); setBirthPlace(""); }} />}
+
       {result && (
         <div className="mt-8">
           <Card className="border-primary/20 bg-card/30">
@@ -140,6 +147,11 @@ export default function NatalPage() {
               </div>
             </CardContent>
           </Card>
+          <AIShareButton
+            tool="NATAL"
+            title={`Натальная карта — Солнце в ${result.sunSign}`}
+            resultText={result.interpretation}
+          />
           <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"
             onClick={() => { setResult(null); setBirthDate(""); setBirthTime(""); setBirthPlace(""); }}>
             Новый расчёт

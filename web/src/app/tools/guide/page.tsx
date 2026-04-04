@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
+import { AIShareButton } from "@/components/ai-share-button";
+import { PaywallScreen } from "@/components/paywall-screen";
 
 const TOPICS = [
   "Как справиться с неопределённостью",
@@ -25,17 +27,20 @@ export default function GuidePage() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
+  const [isLimited, setIsLimited] = useState(false);
 
   async function doSubmit() {
     setLoading(true);
     setError("");
     setShowAuth(false);
+    setIsLimited(false);
     try {
       const res = await fetch("/api/ai/guide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, context }),
       });
+      if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error);
       setResult((await res.json()).guide);
     } catch (err) {
@@ -86,6 +91,8 @@ export default function GuidePage() {
 
       {loading && <ToolLoading message="Составляем персональный гид..." />}
 
+      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setTopic(""); setContext(""); }} />}
+
       {result && (
         <div className="mt-8">
           <Card className="border-primary/20 bg-card/30">
@@ -96,6 +103,7 @@ export default function GuidePage() {
               </div>
             </CardContent>
           </Card>
+          <AIShareButton tool="GUIDE" title={`Личный гид — ${topic}`} resultText={result} />
           <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"
             onClick={() => { setResult(null); setTopic(""); setContext(""); }}>
             Новый гид

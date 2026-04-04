@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
+import { AIShareButton } from "@/components/ai-share-button";
+import { PaywallScreen } from "@/components/paywall-screen";
 
 const SIGNS = [
   { name: "Овен",      emoji: "♈", dates: "21.03–19.04" },
@@ -36,18 +38,21 @@ export default function HoroscopePage() {
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
   const [pendingSign, setPendingSign] = useState<typeof SIGNS[0] | null>(null);
+  const [isLimited, setIsLimited] = useState(false);
 
   async function fetchHoroscope(s: typeof SIGNS[0], p: typeof period) {
     setLoading(true);
     setError("");
     setShowAuth(false);
     setResult(null);
+    setIsLimited(false);
     try {
       const res = await fetch("/api/ai/horoscope", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sign: s.name, period: p }),
       });
+      if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error);
       setResult((await res.json()).horoscope);
     } catch (err) {
@@ -110,6 +115,7 @@ export default function HoroscopePage() {
         ))}
       </div>
 
+      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setSign(null); setResult(null); }} />}
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {loading && sign && <ToolLoading message={`Составляем прогноз для ${sign.name}...`} />}
 
@@ -126,6 +132,13 @@ export default function HoroscopePage() {
             </div>
           </CardContent>
         </Card>
+      )}
+      {result && sign && !loading && (
+        <AIShareButton
+          tool="HOROSCOPE"
+          title={`Гороскоп для ${sign.name} ${PERIODS.find(p => p.key === period)?.label.toLowerCase() ?? ""}`}
+          resultText={result}
+        />
       )}
 
       {!sign && !loading && (

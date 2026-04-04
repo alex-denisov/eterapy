@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
+import { AIShareButton } from "@/components/ai-share-button";
+import { PaywallScreen } from "@/components/paywall-screen";
 
 interface TarotCard { name: string; nameEn: string; position: string; reversed: boolean; keywords: string[]; }
 interface TarotResult { cards: TarotCard[]; interpretation: string; }
@@ -22,18 +24,21 @@ export default function TarotPage() {
   const [result, setResult] = useState<TarotResult | null>(null);
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
+  const [isLimited, setIsLimited] = useState(false);
 
   async function doSubmit() {
     setLoading(true);
     setError("");
     setResult(null);
     setShowAuth(false);
+    setIsLimited(false);
     try {
       const res = await fetch("/api/ai/tarot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
+      if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error || "Ошибка сервера");
       setResult(await res.json());
     } catch (err) {
@@ -64,6 +69,7 @@ export default function TarotPage() {
         <Button type="submit" disabled={loading || !question.trim()}>Разложить</Button>
       </form>
 
+      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setQuestion(""); }} />}
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {loading && <ToolLoading message="Раскладываем карты..." />}
 
@@ -99,7 +105,12 @@ export default function TarotPage() {
               </div>
             </CardContent>
           </Card>
-          <Button variant="outline" className="border-border/40 text-muted-foreground"
+          <AIShareButton
+            tool="TAROT"
+            title="Расклад Таро"
+            resultText={result.cards.map((c) => `${c.position}: ${c.name}${c.reversed ? " (перевёрнута)" : ""}`).join("\n") + "\n\n" + result.interpretation}
+          />
+          <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"
             onClick={() => { setResult(null); setQuestion(""); }}>
             Новый расклад
           </Button>

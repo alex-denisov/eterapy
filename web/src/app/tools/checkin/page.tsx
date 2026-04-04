@@ -5,6 +5,8 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AuthModal } from "@/components/auth-modal";
+import { AIShareButton } from "@/components/ai-share-button";
+import { PaywallScreen } from "@/components/paywall-screen";
 
 const questions = [
   "Что сейчас занимает ваши мысли больше всего?",
@@ -24,17 +26,20 @@ export default function CheckinPage() {
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
   const [pendingAnswers, setPendingAnswers] = useState<string[] | null>(null);
+  const [isLimited, setIsLimited] = useState(false);
 
   const submitAnswers = useCallback(async (finalAnswers: string[]) => {
     setLoading(true);
     setError("");
     setShowAuth(false);
+    setIsLimited(false);
     try {
       const res = await fetch("/api/ai/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answers: finalAnswers }),
       });
+      if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error || "Ошибка сервера");
       const data = await res.json();
       setResult(data.result);
@@ -76,7 +81,7 @@ export default function CheckinPage() {
   }
 
   function reset() {
-    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setPendingAnswers(null);
+    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setPendingAnswers(null); setIsLimited(false);
   }
 
   if (loading) {
@@ -84,6 +89,15 @@ export default function CheckinPage() {
       <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-20 text-center">
         <div className="text-4xl animate-pulse">✦</div>
         <p className="mt-4 text-lg text-muted-foreground">Анализирую ваши ответы...</p>
+      </div>
+    );
+  }
+
+  if (isLimited) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-12">
+        <h1 className="font-heading text-3xl font-bold">💬 Рефлексия</h1>
+        <PaywallScreen onReset={reset} />
       </div>
     );
   }
@@ -99,6 +113,7 @@ export default function CheckinPage() {
             </div>
           </CardContent>
         </Card>
+        <AIShareButton tool="CHECKIN" title="Рефлексия" resultText={result} />
         <div className="mt-6 flex gap-3">
           <Button onClick={reset} variant="outline" className="border-border/40 text-muted-foreground">Пройти заново</Button>
         </div>
