@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import type { Permission } from "@/lib/moderator-permissions";
 
 interface User {
   id: string;
@@ -16,16 +17,28 @@ interface User {
 export function UserActionPanel({
   user,
   adminRole,
+  permissions,
   onUpdate,
 }: {
   user: User;
   adminRole: string;
+  permissions: Permission[];
   onUpdate: (patch: Partial<User>) => void;
 }) {
+  const can = (p: Permission) => permissions.includes(p);
+
+  // Compute visible tabs based on permissions
+  type TabId = "actions" | "sessions" | "events";
+  const visibleTabs: Array<{ id: TabId; label: string }> = [
+    { id: "actions", label: "⚙️ Действия" },
+    ...(can("clients.view_sessions") ? [{ id: "sessions" as TabId, label: "📅 Сессии" }] : []),
+    ...(can("clients.view_events")   ? [{ id: "events"   as TabId, label: "📋 События" }] : []),
+  ];
+
   const [name, setName] = useState(user.name);
   const [newPwd, setNewPwd] = useState("");
   const [blockComment, setBlockComment] = useState("");
-  const [tab, setTab] = useState<"actions" | "sessions" | "events">("actions");
+  const [tab, setTab] = useState<TabId>("actions");
   const [events, setEvents] = useState<Array<{ action: string; createdAt: string; details: string | null }>>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [sessions, setSessions] = useState<Array<{ id: string; status: string; priceRub: number; createdAt: string }>>([]);
@@ -38,10 +51,7 @@ export function UserActionPanel({
       body: JSON.stringify({ action, ...extra }),
     });
     const d = await res.json();
-    if (d.ok) {
-      toast.success("Выполнено");
-      return true;
-    }
+    if (d.ok) { toast.success("Выполнено"); return true; }
     toast.error(d.error ?? "Ошибка");
     return false;
   }
@@ -63,99 +73,124 @@ export function UserActionPanel({
   }
 
   const ACTION_LABELS: Record<string, string> = {
-    LOGIN: "Вход", LOGOUT: "Выход", PASSWORD_RESET: "Сброс пароля", PASSWORD_CHANGE: "Смена пароля",
-    PASSWORD_SET: "Пароль назначен", PROFILE_UPDATE: "Обновление профиля", AVATAR_ADD: "Добавлен аватар",
-    AVATAR_REMOVE: "Удалён аватар", ACCOUNT_BLOCK: "Аккаунт заблокирован", ACCOUNT_UNBLOCK: "Аккаунт разблокирован",
+    REGISTER: "Регистрация", LOGIN: "Вход", LOGOUT: "Выход",
+    PASSWORD_RESET: "Сброс пароля", PASSWORD_CHANGE: "Смена пароля",
+    PASSWORD_SET: "Пароль назначен", PROFILE_UPDATE: "Обновление профиля",
+    AVATAR_ADD: "Добавлен аватар", AVATAR_REMOVE: "Удалён аватар",
+    ACCOUNT_BLOCK: "Аккаунт заблокирован", ACCOUNT_UNBLOCK: "Аккаунт разблокирован",
     BOOKING_CREATE: "Создано бронирование", BOOKING_CANCEL: "Бронирование отменено",
+    EMAIL_VERIFY: "Email подтверждён", ACCOUNT_DELETE: "Аккаунт удалён",
   };
 
   return (
     <div>
-      {/* Табы */}
-      <div className="flex gap-1 mb-4 border-b border-border/20 pb-2">
-        {(["actions", "sessions", "events"] as const).map(t => (
-          <button key={t} onClick={() => {
-            setTab(t);
-            if (t === "events" && events.length === 0) loadEvents();
-            if (t === "sessions" && sessions.length === 0) loadSessions();
-          }}
-            className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
-              tab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}>
-            {{ actions: "⚙️ Действия", sessions: "📅 Сессии", events: "📋 События" }[t]}
-          </button>
-        ))}
-      </div>
+      {/* Табы — только разрешённые */}
+      {visibleTabs.length > 1 && (
+        <div className="flex gap-1 mb-4 border-b border-border/20 pb-2">
+          {visibleTabs.map(t => (
+            <button key={t.id} onClick={() => {
+              setTab(t.id);
+              if (t.id === "events" && events.length === 0) loadEvents();
+              if (t.id === "sessions" && sessions.length === 0) loadSessions();
+            }}
+              className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                tab === t.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Действия */}
       {tab === "actions" && (
         <div className="grid gap-4 md:grid-cols-2">
           {/* Имя */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Имя</p>
-            <div className="flex gap-2">
-              <Input value={name} onChange={e => setName(e.target.value)} className="bg-card/50 text-sm h-8" />
-              <button onClick={async () => { if (await callAction("update_name", { name })) onUpdate({ name }); }}
-                className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 shrink-0">
-                Сохранить
-              </button>
-            </div>
-          </div>
-
-          {/* Пароль */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
-            <div className="flex gap-2">
-              <Input type="password" placeholder="Новый пароль" value={newPwd}
-                onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
-              <button onClick={async () => { if (await callAction("set_password", { newPassword: newPwd })) setNewPwd(""); }}
-                disabled={newPwd.length < 8}
-                className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
-                Назначить
-              </button>
-            </div>
-            <button onClick={() => callAction("reset_password")}
-              className="text-xs text-primary hover:underline">
-              📧 Отправить ссылку сброса на email
-            </button>
-          </div>
-
-          {/* Блокировка */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Доступ</p>
-            {user.blockedAt ? (
-              <button onClick={async () => { if (await callAction("unblock")) onUpdate({ blockedAt: null }); }}
-                className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10">
-                ✓ Разблокировать
-              </button>
-            ) : (
+          {can("clients.edit") && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Имя</p>
               <div className="flex gap-2">
-                <Input placeholder="Причина блокировки" value={blockComment}
-                  onChange={e => setBlockComment(e.target.value)} className="bg-card/50 text-sm h-8" />
-                <button onClick={async () => {
-                  if (await callAction("block", { comment: blockComment }))
-                    onUpdate({ blockedAt: new Date().toISOString() });
-                }}
-                  className="rounded-lg border border-red-500/30 px-3 text-xs text-red-400 hover:bg-red-500/10 shrink-0">
-                  🚫 Заблокировать
+                <Input value={name} onChange={e => setName(e.target.value)} className="bg-card/50 text-sm h-8" />
+                <button onClick={async () => { if (await callAction("update_name", { name })) onUpdate({ name }); }}
+                  className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 shrink-0">
+                  Сохранить
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Войти в кабинет */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Прочее</p>
-            <a href={`/api/admin/impersonate?userId=${user.id}`} target="_blank"
-              className="inline-block rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              👤 Войти в кабинет пользователя
-            </a>
-          </div>
+          {/* Пароль */}
+          {(can("clients.set_password") || can("clients.reset_password")) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
+              {can("clients.set_password") && (
+                <div className="flex gap-2">
+                  <Input type="password" placeholder="Новый пароль" value={newPwd}
+                    onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
+                  <button onClick={async () => { if (await callAction("set_password", { newPassword: newPwd })) setNewPwd(""); }}
+                    disabled={newPwd.length < 8}
+                    className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
+                    Назначить
+                  </button>
+                </div>
+              )}
+              {can("clients.reset_password") && (
+                <button onClick={() => callAction("reset_password")}
+                  className="text-xs text-primary hover:underline">
+                  📧 Отправить ссылку сброса на email
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Блокировка */}
+          {can("clients.block") && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Доступ</p>
+              {user.blockedAt ? (
+                <button onClick={async () => { if (await callAction("unblock")) onUpdate({ blockedAt: null }); }}
+                  className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10">
+                  ✓ Разблокировать
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <Input placeholder="Причина блокировки" value={blockComment}
+                    onChange={e => setBlockComment(e.target.value)} className="bg-card/50 text-sm h-8" />
+                  <button onClick={async () => {
+                    if (await callAction("block", { comment: blockComment }))
+                      onUpdate({ blockedAt: new Date().toISOString() });
+                  }}
+                    className="rounded-lg border border-red-500/30 px-3 text-xs text-red-400 hover:bg-red-500/10 shrink-0">
+                    🚫 Заблокировать
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Войти в кабинет — только суперадмин */}
+          {adminRole === "SUPERADMIN" && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Прочее</p>
+              <a href={`/api/admin/impersonate?userId=${user.id}`} target="_blank"
+                className="inline-block rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                👤 Войти в кабинет пользователя
+              </a>
+            </div>
+          )}
+
+          {/* Если нет ни одного полномочия кроме view */}
+          {!can("clients.edit") && !can("clients.block") && !can("clients.set_password") &&
+           !can("clients.reset_password") && adminRole !== "SUPERADMIN" && (
+            <p className="text-xs text-muted-foreground col-span-2">
+              У вас нет полномочий для редактирования этого пользователя.
+            </p>
+          )}
         </div>
       )}
 
       {/* Сессии */}
-      {tab === "sessions" && (
+      {tab === "sessions" && can("clients.view_sessions") && (
         <div>
           {loadingSessions ? <p className="text-xs text-muted-foreground animate-pulse">Загружаем...</p>
             : sessions.length === 0 ? <p className="text-xs text-muted-foreground">Нет сессий</p>
@@ -176,7 +211,7 @@ export function UserActionPanel({
       )}
 
       {/* События */}
-      {tab === "events" && (
+      {tab === "events" && can("clients.view_events") && (
         <div>
           {loadingEvents ? <p className="text-xs text-muted-foreground animate-pulse">Загружаем...</p>
             : events.length === 0 ? <p className="text-xs text-muted-foreground">Нет событий</p>

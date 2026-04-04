@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { PractitionerActionPanel } from "./practitioner-action-panel";
 import { CreatePractitionerForm } from "./create-practitioner-form";
+import type { Permission } from "@/lib/moderator-permissions";
 
 interface Practitioner {
   id: string;
@@ -41,7 +42,8 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Активен", PENDING: "На проверке", SUSPENDED: "Деактивирован", BLOCKED: "Заблокирован",
 };
 
-export function PractitionersPanel({ practitioners, adminRole }: { practitioners: Practitioner[]; adminRole: string }) {
+export function PractitionersPanel({ practitioners, adminRole, permissions }: { practitioners: Practitioner[]; adminRole: string; permissions: Permission[] }) {
+  const can = (p: Permission) => permissions.includes(p);
   const [list, setList] = useState(practitioners);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -88,8 +90,8 @@ export function PractitionersPanel({ practitioners, adminRole }: { practitioners
 
   return (
     <div className="space-y-4">
-      {/* Создать практика — только для суперадмина */}
-      {adminRole === "SUPERADMIN" && (
+      {/* Создать практика — суперадмин или moderator с practitioners.create */}
+      {can("practitioners.create") && (
         <button onClick={() => setShowCreate(!showCreate)}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-navy">
           + Создать практика
@@ -191,10 +193,14 @@ export function PractitionersPanel({ practitioners, adminRole }: { practitioners
                         className="text-xs text-muted-foreground hover:text-primary transition-colors">
                         Профиль ↗
                       </a>
-                      <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
-                        className="rounded-lg border border-border/30 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
-                        {expandedId === p.id ? "Скрыть" : "Управление"}
-                      </button>
+                      {(can("practitioners.edit") || can("practitioners.block") ||
+                        can("practitioners.reset_password") || can("practitioners.set_password") ||
+                        can("practitioners.set_rates")) && (
+                        <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
+                          className="rounded-lg border border-border/30 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
+                          {expandedId === p.id ? "Скрыть" : "Управление"}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -204,6 +210,7 @@ export function PractitionersPanel({ practitioners, adminRole }: { practitioners
                       <PractitionerActionPanel
                         practitioner={p}
                         adminRole={adminRole}
+                        permissions={permissions}
                         onStatusChange={(s) => handleStatusChange(p.id, s)}
                         onUpdate={(patch) => setList(prev => prev.map(x => x.id === p.id ? { ...x, ...patch } : x))}
                       />

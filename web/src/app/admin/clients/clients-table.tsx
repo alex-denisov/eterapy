@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { UserActionPanel } from "./user-action-panel";
+import type { Permission } from "@/lib/moderator-permissions";
 
 interface User {
   id: string;
@@ -18,7 +19,8 @@ interface User {
   avatarUrl: string | null;
 }
 
-export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: string }) {
+export function ClientsTable({ users, adminRole, permissions }: { users: User[]; adminRole: string; permissions: Permission[] }) {
+  const can = (p: Permission) => permissions.includes(p);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<"name" | "email" | "createdAt">("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -114,10 +116,14 @@ export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: s
                     {new Date(u.createdAt).toLocaleDateString("ru-RU")}
                   </td>
                   <td className="p-3">
-                    <button onClick={() => setExpandedId(expandedId === u.id ? null : u.id)}
-                      className="rounded-lg border border-border/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                      {expandedId === u.id ? "Скрыть" : "Управление"}
-                    </button>
+                    {/* Показываем кнопку только если есть хотя бы одно полномочие кроме view */}
+                    {(can("clients.edit") || can("clients.block") || can("clients.reset_password") ||
+                      can("clients.set_password") || can("clients.view_sessions") || can("clients.view_events")) && (
+                      <button onClick={() => setExpandedId(expandedId === u.id ? null : u.id)}
+                        className="rounded-lg border border-border/30 px-3 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                        {expandedId === u.id ? "Скрыть" : "Управление"}
+                      </button>
+                    )}
                   </td>
                 </tr>
                 {expandedId === u.id && (
@@ -126,6 +132,7 @@ export function ClientsTable({ users, adminRole }: { users: User[]; adminRole: s
                       <UserActionPanel
                         user={u}
                         adminRole={adminRole}
+                        permissions={permissions}
                         onUpdate={patch => updateUser(u.id, patch)}
                       />
                     </td>

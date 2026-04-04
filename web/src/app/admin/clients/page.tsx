@@ -2,12 +2,16 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { ClientsTable } from "./clients-table";
+import { getUserPermissions } from "@/lib/moderator-permissions";
 
 export default async function AdminClientsPage() {
   const session = await auth();
   // @ts-expect-error custom
   const role = session?.user?.role;
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
+
+  const permissions = await getUserPermissions(session.user!.id!, role);
+  if (!permissions.includes("clients.view")) redirect("/admin");
 
   const users = await db.user.findMany({
     where: { role: "CLIENT" },
@@ -25,7 +29,7 @@ export default async function AdminClientsPage() {
         <h1 className="font-heading text-2xl font-bold">Клиенты</h1>
         <span className="text-sm text-muted-foreground">Всего: {users.length}</span>
       </div>
-      <ClientsTable users={users} adminRole={role} />
+      <ClientsTable users={users} adminRole={role} permissions={permissions} />
     </div>
   );
 }

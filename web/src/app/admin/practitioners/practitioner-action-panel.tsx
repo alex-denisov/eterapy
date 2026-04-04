@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import type { Permission } from "@/lib/moderator-permissions";
 
 interface Practitioner {
   id: string;
@@ -27,14 +28,17 @@ const STATUSES = [
 export function PractitionerActionPanel({
   practitioner: p,
   adminRole,
+  permissions,
   onStatusChange,
   onUpdate,
 }: {
   practitioner: Practitioner;
   adminRole: string;
+  permissions: Permission[];
   onStatusChange: (status: string) => void;
   onUpdate: (patch: Partial<Practitioner>) => void;
 }) {
+  const can = (perm: Permission) => permissions.includes(perm);
   const [tab, setTab] = useState<"actions" | "rates" | "schedule">("actions");
   const [newPwd, setNewPwd] = useState("");
   const [blockComment, setBlockComment] = useState("");
@@ -91,9 +95,11 @@ export function PractitionerActionPanel({
 
   return (
     <div>
-      {/* Табы */}
+      {/* Табы — только разрешённые */}
       <div className="flex gap-1 mb-4 border-b border-border/20 pb-2">
-        {(["actions", "rates", "schedule"] as const).map(t => (
+        {(["actions", "rates", "schedule"] as const)
+          .filter(t => t !== "rates" || can("practitioners.set_rates"))
+          .map(t => (
           <button key={t} onClick={() => {
             setTab(t);
             if (t === "rates" && !ratesLoaded) loadRates();
@@ -109,55 +115,66 @@ export function PractitionerActionPanel({
       {tab === "actions" && (
         <div className="grid gap-4 md:grid-cols-2">
           {/* Имя */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Имя пользователя</p>
-            <div className="flex gap-2">
-              <Input value={name} onChange={e => setName(e.target.value)} className="bg-card/50 text-sm h-8" />
-              <button onClick={() => callUserAction("update_name", { name }).then(ok => ok && onUpdate({ name }))}
-                className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 shrink-0">
-                Сохранить
-              </button>
+          {can("practitioners.edit") && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Имя пользователя</p>
+              <div className="flex gap-2">
+                <Input value={name} onChange={e => setName(e.target.value)} className="bg-card/50 text-sm h-8" />
+                <button onClick={() => callUserAction("update_name", { name }).then(ok => ok && onUpdate({ name }))}
+                  className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 shrink-0">
+                  Сохранить
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Пароль */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
-            <div className="flex gap-2">
-              <Input type="password" placeholder="Новый пароль" value={newPwd}
-                onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
-              <button onClick={() => callUserAction("set_password", { newPassword: newPwd }).then(ok => ok && setNewPwd(""))}
-                disabled={newPwd.length < 8}
-                className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
-                Назначить
-              </button>
+          {(can("practitioners.set_password") || can("practitioners.reset_password")) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
+              {can("practitioners.set_password") && (
+                <div className="flex gap-2">
+                  <Input type="password" placeholder="Новый пароль" value={newPwd}
+                    onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
+                  <button onClick={() => callUserAction("set_password", { newPassword: newPwd }).then(ok => ok && setNewPwd(""))}
+                    disabled={newPwd.length < 8}
+                    className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
+                    Назначить
+                  </button>
+                </div>
+              )}
+              {can("practitioners.reset_password") && (
+                <button onClick={() => callUserAction("reset_password")}
+                  className="text-xs text-primary hover:underline">
+                  📧 Отправить ссылку сброса
+                </button>
+              )}
             </div>
-            <button onClick={() => callUserAction("reset_password")}
-              className="text-xs text-primary hover:underline">
-              📧 Отправить ссылку сброса
-            </button>
-          </div>
+          )}
 
           {/* Статус профиля */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Статус практика</p>
-            <div className="flex flex-wrap gap-1.5">
-              {STATUSES.map(s => (
-                <button key={s.value} onClick={() => onStatusChange(s.value)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
-                    p.status === s.value
-                      ? `border-current ${s.color} bg-current/5`
-                      : "border-border/30 text-muted-foreground hover:border-border/60"
-                  }`}>
-                  {s.label}
-                </button>
-              ))}
+          {can("practitioners.block") && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Статус практика</p>
+              <div className="flex flex-wrap gap-1.5">
+                {STATUSES.map(s => (
+                  <button key={s.value} onClick={() => onStatusChange(s.value)}
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                      p.status === s.value
+                        ? `border-current ${s.color} bg-current/5`
+                        : "border-border/30 text-muted-foreground hover:border-border/60"
+                    }`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Блокировка входа */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Вход в систему</p>
+          {can("practitioners.block") && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Вход в систему</p>
             {p.userBlockedAt ? (
               <button onClick={() => callUserAction("unblock").then(ok => ok && onUpdate({ userBlockedAt: null }))}
                 className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10">
@@ -173,31 +190,34 @@ export function PractitionerActionPanel({
                 </button>
               </div>
             )}
-          </div>
+            </div>
+          )}
 
           {/* Редактирование профиля */}
-          <div className="md:col-span-2 space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Профиль практика</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Заголовок</label>
-                <Input value={title} onChange={e => setTitle(e.target.value)} className="bg-card/50 text-sm h-8" />
+          {can("practitioners.edit") && (
+            <div className="md:col-span-2 space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Профиль практика</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Заголовок</label>
+                  <Input value={title} onChange={e => setTitle(e.target.value)} className="bg-card/50 text-sm h-8" />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Опыт</label>
+                  <Input value={experience} onChange={e => setExperience(e.target.value)} className="bg-card/50 text-sm h-8" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs text-muted-foreground mb-1 block">Биография</label>
+                  <textarea value={bio} onChange={e => setBio(e.target.value)}
+                    className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2 text-sm resize-none h-20 focus:outline-none focus:border-primary/50" />
+                </div>
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Опыт</label>
-                <Input value={experience} onChange={e => setExperience(e.target.value)} className="bg-card/50 text-sm h-8" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="text-xs text-muted-foreground mb-1 block">Биография</label>
-                <textarea value={bio} onChange={e => setBio(e.target.value)}
-                  className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2 text-sm resize-none h-20 focus:outline-none focus:border-primary/50" />
-              </div>
+              <button onClick={saveProfile} disabled={savingProfile}
+                className="rounded-lg bg-primary/20 px-4 py-2 text-sm text-primary hover:bg-primary/30 disabled:opacity-50">
+                {savingProfile ? "Сохранение..." : "Сохранить профиль"}
+              </button>
             </div>
-            <button onClick={saveProfile} disabled={savingProfile}
-              className="rounded-lg bg-primary/20 px-4 py-2 text-sm text-primary hover:bg-primary/30 disabled:opacity-50">
-              {savingProfile ? "Сохранение..." : "Сохранить профиль"}
-            </button>
-          </div>
+          )}
         </div>
       )}
 

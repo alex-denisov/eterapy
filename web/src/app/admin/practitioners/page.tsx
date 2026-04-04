@@ -2,12 +2,16 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PractitionersPanel } from "./practitioners-panel";
+import { getUserPermissions } from "@/lib/moderator-permissions";
 
 export default async function AdminPractitionersPage() {
   const session = await auth();
   // @ts-expect-error custom
   const role = session?.user?.role;
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
+
+  const permissions = await getUserPermissions(session.user!.id!, role);
+  if (!permissions.includes("practitioners.view")) redirect("/admin");
 
   const practitioners = await db.practitioner.findMany({
     orderBy: { createdAt: "desc" },
@@ -50,7 +54,7 @@ export default async function AdminPractitionersPage() {
         </div>
         <span className="text-sm text-muted-foreground">Всего: {list.length}</span>
       </div>
-      <PractitionersPanel practitioners={list} adminRole={role} />
+      <PractitionersPanel practitioners={list} adminRole={role} permissions={permissions} />
     </div>
   );
 }
