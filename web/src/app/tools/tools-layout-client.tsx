@@ -60,8 +60,8 @@ export function ToolsLayoutClient({
 
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-52 shrink-0 flex-col border-r border-border/20 bg-card/20 px-3 py-6">
+      {/* Sidebar — sticky, own scroll */}
+      <aside className="hidden md:flex w-52 shrink-0 flex-col border-r border-border/20 bg-card/20 px-3 py-6 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
         <div className="mb-4 px-2">
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold text-sm">

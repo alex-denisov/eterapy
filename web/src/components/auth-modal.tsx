@@ -9,10 +9,11 @@ interface AuthModalProps {
   toolName: string;
   onSuccess: () => void;
   onClose: () => void;
+  initialMode?: "login" | "register";
 }
 
-export function AuthModal({ toolName, onSuccess, onClose }: AuthModalProps) {
-  const [mode, setMode] = useState<"login" | "register">("register");
+export function AuthModal({ toolName, onSuccess, onClose, initialMode = "register" }: AuthModalProps) {
+  const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -71,8 +72,12 @@ export function AuthModal({ toolName, onSuccess, onClose }: AuthModalProps) {
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {mode === "register"
-              ? `Чтобы получить результат «${toolName}», создайте бесплатный аккаунт. Это займёт 30 секунд.`
-              : "Войдите, чтобы получить результат."}
+              ? toolName === "записи к практику"
+                ? "Создайте аккаунт чтобы записаться. Это займёт 30 секунд."
+                : `Чтобы получить результат «${toolName}», создайте аккаунт. Это займёт 30 секунд.`
+              : toolName === "записи к практику"
+                ? "Войдите в аккаунт чтобы завершить запись."
+                : "Войдите, чтобы получить результат."}
           </p>
         </div>
 
@@ -103,9 +108,7 @@ export function AuthModal({ toolName, onSuccess, onClose }: AuthModalProps) {
           <button onClick={onClose} className="hover:text-foreground transition-colors">Закрыть</button>
         </div>
 
-        <p className="mt-3 text-center text-[10px] text-muted-foreground/50">
-          Карта не нужна · Без обязательств
-        </p>
+
       </div>
     </div>
   );

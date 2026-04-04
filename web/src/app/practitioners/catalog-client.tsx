@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,8 +17,15 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function PractitionerCard({ p, specialtyLabels }: { p: PractitionerData; specialtyLabels: Record<string, string> }) {
+  const router = useRouter();
+  const href = `/practitioners/${p.id}`;
+
   return (
-    <Link href={`/practitioners/${p.id}`} className="group block">
+    <div
+      role="article"
+      onClick={() => router.push(href)}
+      className="group block cursor-pointer"
+    >
       <Card className="h-full border-border/40 bg-card/50 transition-all duration-200 group-hover:border-primary/40 group-hover:bg-card/70">
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
@@ -67,19 +75,13 @@ function PractitionerCard({ p, specialtyLabels }: { p: PractitionerData; special
                   <p className="text-xs text-muted-foreground">ближайший слот</p>
                 </>
               ) : (
-                <Link
-                  href={`/practitioners/${p.id}`}
-                  className="text-sm text-primary hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Смотреть профиль →
-                </Link>
+                <span className="text-sm text-primary">Смотреть профиль →</span>
               )}
             </div>
           </div>
         </CardContent>
       </Card>
-    </Link>
+    </div>
   );
 }
 

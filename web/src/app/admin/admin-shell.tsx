@@ -45,7 +45,7 @@ export function AdminShell({
 
   return (
     <div className="min-h-screen flex">
-      <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border/20 bg-card/20 px-3 py-6">
+      <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-border/20 bg-card/20 px-3 py-6 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto">
         <div className="mb-6 px-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
             {ROLE_LABELS[role] ?? "Администратор"}
