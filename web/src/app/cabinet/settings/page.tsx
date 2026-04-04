@@ -33,6 +33,12 @@ export default function SettingsPage() {
 
   // @ts-expect-error custom
   const role = session.user?.role ?? "CLIENT";
+
+  // Admins have their own settings page
+  if (role === "ADMIN" || role === "SUPERADMIN") {
+    router.replace("/admin/settings");
+    return null;
+  }
   const email = session.user?.email ?? "";
   const currentName = session.user?.name ?? "";
   const [fn, ln] = currentName.includes(" ")

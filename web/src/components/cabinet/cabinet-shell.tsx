@@ -40,7 +40,10 @@ export function CabinetShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const nav = role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
+  // ADMIN и SUPERADMIN не должны видеть клиентскую навигацию — их страница /admin
+  const nav = (role === "ADMIN" || role === "SUPERADMIN")
+    ? []
+    : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
 
   function isActive(href: string) {

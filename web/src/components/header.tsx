@@ -50,6 +50,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
   ] : role === "SUPERADMIN" ? [
     { href: "/admin", label: "Панель управления" },
     { href: "/admin/metrics", label: "Метрики" },
+    { href: "/admin/pricing", label: "Цены и тарифы" },
     { href: "/admin/settings", label: "Настройки" },
   ] : role === "ADMIN" ? [
     { href: "/admin", label: "Панель администратора" },
