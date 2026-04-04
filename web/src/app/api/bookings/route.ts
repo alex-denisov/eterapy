@@ -11,6 +11,7 @@ import {
   sendReviewRequestClient,
 } from "@/lib/email";
 import { getSetting } from "@/lib/platform-settings";
+import { notify } from "@/lib/notifications";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,13 +146,19 @@ export async function POST(req: NextRequest) {
       durationMin: practitioner.sessionDuration ?? 60,
     };
 
-    // Отправляем письма параллельно — не блокируем ответ при ошибке
+    // Email + Telegram уведомления (параллельно, не блокируем ответ)
+    const slotDate = booking.slot ? new Date(booking.slot.startAt).toLocaleDateString("ru-RU") : "—";
+    const slotTime = booking.slot ? new Date(booking.slot.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "—";
     Promise.allSettled([
       sendBookingRequestedClient(emailData),
       sendBookingRequestedPractitioner(emailData),
+      // Telegram: новая запись — уведомить практика (userId, не practitionerId)
+      notify({ userId: practitioner.userId, event: "BOOKING_REQUESTED", data: {
+        clientName: booking.client.name, date: slotDate, time: slotTime,
+      }}),
     ]).then((results) => {
       results.forEach((r, i) => {
-        if (r.status === "rejected") console.error(`[booking email ${i}]`, r.reason);
+        if (r.status === "rejected") console.error(`[booking notify ${i}]`, r.reason);
       });
     });
 

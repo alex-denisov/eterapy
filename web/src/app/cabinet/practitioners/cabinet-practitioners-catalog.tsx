@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [deb, setDeb] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setDeb(value), delay); return () => clearTimeout(t); }, [value, delay]);
+  return deb;
+}
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
@@ -45,7 +51,8 @@ export function CabinetPractitionersCatalog({
   specialtyLabels: Record<string, string>;
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const search = useDebounce(searchInput, 250);
   const [specialty, setSpecialty] = useState("all");
   const [sortBy, setSortBy] = useState<"rating" | "price_asc" | "price_desc">("rating");
 
@@ -79,8 +86,8 @@ export function CabinetPractitionersCatalog({
       <div className="flex flex-wrap gap-3 mb-6 items-center">
         <Input
           placeholder="Поиск по имени, специализации..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
           className="bg-card/50 max-w-xs"
         />
         <select value={specialty} onChange={e => setSpecialty(e.target.value)}
@@ -150,7 +157,7 @@ export function CabinetPractitionersCatalog({
       {filtered.length === 0 && (
         <div className="py-12 text-center text-muted-foreground">
           <p>Практики не найдены</p>
-          <button onClick={() => { setSearch(""); setSpecialty("all"); }}
+          <button onClick={() => { setSearchInput(""); setSpecialty("all"); }}
             className="mt-2 text-sm text-primary hover:underline">
             Сбросить фильтры
           </button>
