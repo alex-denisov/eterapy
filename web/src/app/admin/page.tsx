@@ -38,7 +38,8 @@ async function getStats() {
 export default async function AdminPage() {
   const session = await auth();
   // @ts-expect-error custom
-  if (!session || session.user?.role !== "ADMIN") redirect("/");
+  const role = session?.user?.role;
+  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
 
   const stats = await getStats();
 

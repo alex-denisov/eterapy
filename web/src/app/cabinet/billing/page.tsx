@@ -109,7 +109,7 @@ export default function BillingPage() {
             ))}
           </div>
           <p className="mt-4 text-xs text-muted-foreground/60">
-            Оплата через ЮKassa (РФ) и Stripe (международные) — подключается в ближайшее время.
+            Система оплаты подключается в ближайшее время.
           </p>
         </CardContent>
       </Card>

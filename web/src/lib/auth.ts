@@ -1,8 +1,10 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { usersDb } from "./users-db";
+import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: "Email",
@@ -16,7 +18,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!email || !password) return null;
 
         const user = await usersDb.get(email);
-        if (!user || user.password !== password) return null;
+        if (!user) return null;
+
+        // Support both bcrypt-hashed and plaintext passwords (test accounts)
+        const isHashed = user.password.startsWith("$2");
+        const valid = isHashed
+          ? await bcrypt.compare(password, user.password)
+          : user.password === password;
+        if (!valid) return null;
 
         return {
           id: user.id,

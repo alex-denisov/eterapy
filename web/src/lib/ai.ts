@@ -56,7 +56,7 @@ interface AIResponse {
 export async function aiComplete(
   options: AIRequestOptions
 ): Promise<AIResponse> {
-  const { messages, maxTokens = 800, temperature = 0.7 } = options;
+  const { messages, maxTokens = 2000, temperature = 0.7 } = options;
   const errors: Array<{ model: string; error: string }> = [];
 
   // 1. OpenRouter: автороутер + конкретные модели

@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 **🌱 Совет дня:** [1 конкретный совет]`,
         },
       ],
-      maxTokens: 800,
+      maxTokens: 2000,
     });
 
     return NextResponse.json({

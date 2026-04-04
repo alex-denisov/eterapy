@@ -46,7 +46,7 @@ export default async function PractitionerEarningsPage() {
       </div>
 
       <div className="mb-4 rounded-xl border border-border/30 bg-card/20 p-4 text-sm text-muted-foreground">
-        💳 Система выплат через ЮKassa и Stripe подключается в ближайшее время. После подключения вы сможете привязать банковский счёт и настроить автоматические выплаты.
+        💳 Система выплат подключается в ближайшее время. После подключения вы сможете привязать банковский счёт и настроить автоматические выплаты.
       </div>
 
       <h2 className="font-semibold mb-3">История сессий</h2>

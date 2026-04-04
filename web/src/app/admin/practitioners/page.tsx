@@ -8,7 +8,8 @@ import { AdminActions } from "../admin-actions";
 export default async function AdminPractitionersPage() {
   const session = await auth();
   // @ts-expect-error custom
-  if (!session || session.user?.role !== "ADMIN") redirect("/");
+  const role = session?.user?.role;
+  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
 
   const practitioners = await db.practitioner.findMany({
     orderBy: { createdAt: "desc" },

@@ -41,8 +41,8 @@ export default function LoginPage() {
       toast.error("Неверный email или пароль");
     } else {
       toast.success("Добро пожаловать!");
-      router.push(redirectTo);
-      router.refresh();
+      // Hard navigate so server-side layout re-reads the new session cookie
+      window.location.href = redirectTo;
     }
   }
 
