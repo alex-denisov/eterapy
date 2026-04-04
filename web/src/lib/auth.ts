@@ -2,7 +2,27 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
 // MVP: in-memory users. Будет заменено на Prisma adapter когда Иван поднимет БД.
-const users = new Map<string, { id: string; email: string; name: string; password: string }>();
+const users = new Map<string, { id: string; email: string; name: string; password: string; role: string }>();
+
+// Тестовые аккаунты — доступны сразу без регистрации
+const TEST_ACCOUNTS = [
+  {
+    id: "test-client-001",
+    email: "client@test.eterapy.com",
+    name: "Тест Клиент",
+    password: "test1234",
+    role: "client",
+  },
+  {
+    id: "test-practitioner-001",
+    email: "practitioner@test.eterapy.com",
+    name: "Елена Морозова",
+    password: "test1234",
+    role: "practitioner",
+  },
+];
+
+TEST_ACCOUNTS.forEach((u) => users.set(u.email, u));
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -25,7 +45,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (action === "register") {
           if (users.has(email)) return null;
           const id = crypto.randomUUID();
-          users.set(email, { id, email, name: name || email, password });
+          users.set(email, { id, email, name: name || email, password, role: "client" });
           return { id, email, name: name || email };
         }
 

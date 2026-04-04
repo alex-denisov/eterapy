@@ -18,7 +18,7 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/practitioners" className="hover:text-foreground">Каталог практиков</Link></li>
               <li><Link href="/tools" className="hover:text-foreground">Инструменты</Link></li>
-              <li><Link href="/about" className="hover:text-foreground">Как выбрать практика</Link></li>
+              <li><Link href="/how-to-choose" className="hover:text-foreground">Как выбрать практика</Link></li>
             </ul>
           </div>
 
