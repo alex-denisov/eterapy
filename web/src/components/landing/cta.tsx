@@ -13,7 +13,7 @@ export function CTASection() {
           <span className="text-primary">осознанному выбору</span>
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Бесплатная рефлексия за 2 минуты. Без регистрации. Без привязки карты.
+          Бесплатная рефлексия за 2 минуты. Без привязки карты.
         </p>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">

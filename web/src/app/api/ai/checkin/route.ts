@@ -65,7 +65,7 @@ ${answersBlock}
 [1 конкретное действие, которое можно сделать сегодня]`,
         },
       ],
-      maxTokens: 600,
+      maxTokens: 1200,
     });
 
     return NextResponse.json({

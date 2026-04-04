@@ -5,7 +5,7 @@ import db from "@/lib/db";
 async function requireAdmin(req?: NextRequest) {
   const session = await auth();
   // @ts-expect-error custom
-  if (!session || session.user?.role !== "ADMIN") return null;
+  if (!session || !["ADMIN","SUPERADMIN"].includes(session.user?.role ?? "")) return null;
   return session;
 }
 

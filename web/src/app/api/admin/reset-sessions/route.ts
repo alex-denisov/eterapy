@@ -5,7 +5,7 @@ import db from "@/lib/db";
 export async function POST(req: NextRequest) {
   const session = await auth();
   // @ts-expect-error custom
-  if (!session || session.user?.role !== "ADMIN") {
+  if (!session || !["ADMIN","SUPERADMIN"].includes(session.user?.role ?? "")) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 

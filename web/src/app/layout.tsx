@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
+import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";
 
 const inter = Inter({
@@ -57,7 +57,7 @@ export default function RootLayout({
         <Providers>
           <Header />
           <main className="flex-1">{children}</main>
-          <Footer />
+          <FooterConditional />
         </Providers>
       </body>
     </html>

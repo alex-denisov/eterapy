@@ -30,6 +30,7 @@ model User {
   bookingsAsClient    Booking[]     @relation("BookingClient")
   toolSessions        ToolSession[]
   reviewsWritten      Review[]      @relation("ReviewAuthor")
+  storedFiles         StoredFile[]
 
   @@map("users")
 }
@@ -37,7 +38,8 @@ model User {
 enum Role {
   CLIENT
   PRACTITIONER
-  ADMIN
+  ADMIN        // Базовый администратор: одобрение практиков, работа с жалобами
+  SUPERADMIN   // Полный доступ: система, выплаты, все данные, метрики
 }
 
 // ─── Practitioners ────────────────────────────────────────────────────────────
@@ -51,8 +53,9 @@ model Practitioner {
   title           String              // "Таролог · Астролог"
   bio             String
   experience      String              // "5 лет"
-  pricePerSession Int                 // RUB
-  languages       String[]            @default(["Русский"])
+  pricePerSession   Int                 // RUB
+  sessionDuration   Int                 @default(60) // минут: 30, 45, 60, 90
+  languages         String[]            @default(["Русский"])
   verified        Boolean             @default(false)
   founding        Boolean             @default(false)
   specialties     Specialty[]
@@ -165,6 +168,29 @@ model Review {
 
   @@index([practitionerId])
   @@map("reviews")
+}
+
+// ─── File Storage ─────────────────────────────────────────────────────────────
+
+model StoredFile {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        FileKind
+  path        String   // /uploads/avatars/xxx.jpg  or  /uploads/docs/xxx.pdf
+  originalName String
+  mimeType    String
+  sizeBytes   Int
+  createdAt   DateTime @default(now())
+
+  @@index([userId, kind])
+  @@map("stored_files")
+}
+
+enum FileKind {
+  AVATAR
+  DOCUMENT      // chat attachments
+  REPORT        // AI tool reports (human design, natal, etc.)
 }
 
 // ─── Tool Sessions ────────────────────────────────────────────────────────────

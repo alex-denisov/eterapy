@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 Дай развёрнутую интерпретацию (5-7 предложений): что означает это число, какие сильные стороны, на что обратить внимание, как проявляется в жизни.`,
         },
       ],
-      maxTokens: 600,
+      maxTokens: 1200,
     });
 
     return NextResponse.json({

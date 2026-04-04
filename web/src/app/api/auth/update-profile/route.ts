@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { storeFile } from "@/lib/file-storage";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -18,14 +17,8 @@ export async function POST(req: NextRequest) {
     const avatarFile = formData.get("avatar") as File | null;
 
     if (avatarFile && avatarFile.size > 0) {
-      const bytes = await avatarFile.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const ext = avatarFile.name.split(".").pop()?.toLowerCase() ?? "jpg";
-      const filename = `${session.user!.id}.${ext}`;
-      const dir = path.join(process.cwd(), "public", "avatars");
-      await mkdir(dir, { recursive: true });
-      await writeFile(path.join(dir, filename), buffer);
-      avatarUrl = `/avatars/${filename}`;
+      const { url } = await storeFile(session.user!.id!, avatarFile, "AVATAR");
+      avatarUrl = url;
     }
   } else {
     const body = await req.json();
@@ -39,5 +32,5 @@ export async function POST(req: NextRequest) {
 
   await db.user.update({ where: { id: session.user!.id }, data });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, avatarUrl });
 }

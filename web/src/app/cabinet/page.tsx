@@ -11,7 +11,7 @@ export default async function ClientCabinetPage() {
   // @ts-expect-error custom
   const role = session.user?.role ?? "CLIENT";
   if (role === "PRACTITIONER") redirect("/cabinet/practitioner");
-  if (role === "ADMIN") redirect("/admin");
+  if (role === "ADMIN" || role === "SUPERADMIN") redirect("/admin");
 
   const userId = session.user?.id!;
 

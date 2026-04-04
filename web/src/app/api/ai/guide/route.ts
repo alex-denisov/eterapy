@@ -51,7 +51,7 @@ ${context ? `Дополнительный контекст: "${context}"` : ""}
 [2-3 рекомендации — книги, практики, медитации]`,
         },
       ],
-      maxTokens: 800,
+      maxTokens: 2000,
     });
 
     return NextResponse.json({

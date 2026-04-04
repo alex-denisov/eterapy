@@ -163,7 +163,9 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
                 <p className="font-heading text-3xl font-bold text-primary">
                   {p.pricePerSession.toLocaleString("ru")} ₽
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground">фиксированная цена за сессию</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  за сессию {p.sessionDuration ?? 60} мин
+                </p>
               </div>
 
               <SlotPicker

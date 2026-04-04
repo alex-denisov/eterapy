@@ -26,9 +26,7 @@ const PRACTITIONER_NAV = [
   { href: "/practitioners", label: "Каталог" },
 ];
 
-const ADMIN_NAV = [
-  { href: "/admin", label: "Администратор" },
-];
+const ADMIN_NAV: { href: string; label: string }[] = [];
 
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
   const [open, setOpen] = useState(false);
@@ -49,9 +47,13 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: "/cabinet/practitioner", label: "Мой кабинет" },
     { href: "/cabinet/practitioner/schedule", label: "Расписание" },
     { href: "/cabinet/settings", label: "Настройки" },
+  ] : role === "SUPERADMIN" ? [
+    { href: "/admin", label: "Панель управления" },
+    { href: "/admin/metrics", label: "Метрики" },
+    { href: "/admin/settings", label: "Настройки" },
   ] : role === "ADMIN" ? [
     { href: "/admin", label: "Панель администратора" },
-    { href: "/cabinet/settings", label: "Настройки" },
+    { href: "/admin/settings", label: "Настройки" },
   ] : [
     { href: "/cabinet", label: "Кабинет" },
     { href: "/cabinet/billing", label: "Оплата и тарифы" },
@@ -109,13 +111,13 @@ export function Header() {
   const role: string = session?.user?.role ?? "GUEST";
   const nav = !session ? GUEST_NAV
     : role === "PRACTITIONER" ? PRACTITIONER_NAV
-    : role === "ADMIN" ? ADMIN_NAV
+    : (role === "ADMIN" || role === "SUPERADMIN") ? ADMIN_NAV
     : CLIENT_NAV;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href={!session ? "/" : role === "PRACTITIONER" ? "/cabinet/practitioner" : role === "ADMIN" ? "/admin" : "/cabinet"}
+        <Link href={!session ? "/" : role === "PRACTITIONER" ? "/cabinet/practitioner" : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet"}
           className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.svg" alt="ETerapy" width={28} height={28} />
           <span className="font-heading text-xl font-bold text-primary">ETerapy</span>

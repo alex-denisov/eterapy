@@ -72,9 +72,17 @@ export async function aiComplete(
 
       const latencyMs = Date.now() - startTime;
       const text = response.choices?.[0]?.message?.content || "";
+      const finishReason = response.choices?.[0]?.finish_reason;
 
       if (!text.trim()) {
         errors.push({ model, error: "empty response" });
+        continue;
+      }
+
+      // finish_reason=length means truncation — skip this model
+      if (finishReason === "length") {
+        errors.push({ model, error: "response truncated (finish_reason=length)" });
+        console.warn(`[AI] ⚠️ ${model} truncated output — trying next model`);
         continue;
       }
 
@@ -83,7 +91,7 @@ export async function aiComplete(
         (response as unknown as { model?: string }).model || model;
 
       console.log(
-        `[AI] ✅ ${actualModel} | tokens_in=${response.usage?.prompt_tokens ?? "?"} tokens_out=${response.usage?.completion_tokens ?? "?"} latency=${latencyMs}ms`
+        `[AI] ✅ ${actualModel} | finish=${finishReason} | tokens_in=${response.usage?.prompt_tokens ?? "?"} tokens_out=${response.usage?.completion_tokens ?? "?"} latency=${latencyMs}ms`
       );
 
       return {

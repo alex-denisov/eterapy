@@ -115,6 +115,46 @@ export default function SettingsPage() {
   const displayAvatar = avatarPreview ?? (session.user?.image || null);
   const initial = currentName[0]?.toUpperCase() ?? email[0]?.toUpperCase() ?? "?";
 
+  // ADMIN: только безопасность — нет профиля, нет удаления
+  if (role === "ADMIN" || role === "SUPERADMIN") {
+    return (
+      <div className="px-6 py-8 max-w-2xl space-y-8">
+        <h1 className="font-heading text-2xl font-bold">Настройки</h1>
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-6">
+            <h2 className="font-semibold mb-2">Аккаунт</h2>
+            <p className="text-sm text-muted-foreground mb-4">{email}</p>
+            <p className="text-sm text-muted-foreground">
+              Для изменения данных администратора обратитесь к суперадминистратору.
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-6">
+            <h2 className="font-semibold mb-4">Безопасность</h2>
+            <form onSubmit={handleSavePassword} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm text-muted-foreground">Текущий пароль</label>
+                <Input type="password" value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)} autoComplete="current-password" className="bg-card/50" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-muted-foreground">Новый пароль</label>
+                <Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" className="bg-card/50" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-muted-foreground">Повторите</label>
+                <Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} autoComplete="new-password" className="bg-card/50" />
+              </div>
+              <Button type="submit" variant="outline" disabled={savingPwd || !currentPwd || !newPwd}>
+                {savingPwd ? "Сохранение..." : "Изменить пароль"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="px-6 py-8 max-w-2xl space-y-8">
       <h1 className="font-heading text-2xl font-bold">Настройки</h1>

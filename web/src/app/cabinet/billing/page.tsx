@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const PLANS = [
-  { id: "free", name: "Бесплатный", sessions: 3, price: 0, current: true },
-  { id: "starter", name: "Стартовый", sessions: 10, price: 299, current: false },
-  { id: "standard", name: "Стандартный", sessions: 30, price: 699, current: false, popular: true },
+  { id: "free",      name: "Бесплатный",  sessions: 3,    price: 0,    current: true },
+  { id: "starter",   name: "Стартовый",   sessions: 10,   price: 299,  current: false },
+  { id: "standard",  name: "Стандартный", sessions: 30,   price: 699,  current: false, popular: true },
   { id: "unlimited", name: "Безлимитный", sessions: null, price: 1299, current: false },
 ];
 
@@ -24,13 +23,7 @@ export default function BillingPage() {
   if (!session) { router.push("/login"); return null; }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
-      <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/cabinet" className="hover:text-foreground">← Кабинет</Link>
-        <span>/</span>
-        <span className="text-foreground">Оплата и тарифы</span>
-      </div>
-
+    <div className="px-6 py-8 max-w-2xl">
       <h1 className="font-heading text-2xl font-bold mb-8">Оплата и тарифы</h1>
 
       {/* Баланс */}
@@ -78,14 +71,13 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* Текущий тариф и доступные */}
+      {/* Тарифы */}
       <Card className="border-border/40 bg-card/50">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold">Тариф</h2>
             <Badge variant="secondary" className="bg-primary/10 text-primary">Бесплатный</Badge>
           </div>
-
           <div className="space-y-3">
             {PLANS.map((plan) => (
               <div key={plan.id}
@@ -107,8 +99,7 @@ export default function BillingPage() {
                     {plan.price === 0 ? "Бесплатно" : `${plan.price} ₽/мес`}
                   </p>
                   {!plan.current && (
-                    <button
-                      onClick={() => toast.info("Смена тарифа будет доступна после подключения платёжной системы")}
+                    <button onClick={() => toast.info("Смена тарифа будет доступна после подключения платёжной системы")}
                       className="mt-1 text-xs text-primary hover:underline">
                       Выбрать
                     </button>
@@ -117,7 +108,6 @@ export default function BillingPage() {
               </div>
             ))}
           </div>
-
           <p className="mt-4 text-xs text-muted-foreground/60">
             Оплата через ЮKassa (РФ) и Stripe (международные) — подключается в ближайшее время.
           </p>

@@ -7,23 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
+import { searchCities } from "@/lib/cities";
 
-// Список популярных городов для автодополнения
-const CITIES = [
-  "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург", "Казань",
-  "Нижний Новгород", "Челябинск", "Самара", "Омск", "Ростов-на-Дону",
-  "Уфа", "Красноярск", "Воронеж", "Пермь", "Волгоград",
-  "Краснодар", "Саратов", "Тюмень", "Тольятти", "Ижевск",
-  "Барнаул", "Ульяновск", "Иркутск", "Хабаровск", "Ярославль",
-  "Владивосток", "Махачкала", "Томск", "Оренбург", "Кемерово",
-  "Новокузнецк", "Рязань", "Астрахань", "Пенза", "Липецк",
-  "Тула", "Киров", "Чебоксары", "Калининград", "Набережные Челны",
-  // СНГ
-  "Алматы", "Ташкент", "Баку", "Тбилиси", "Минск", "Киев",
-  "Бишкек", "Ереван", "Нур-Султан", "Астана",
-  // Зарубежье
-  "Лондон", "Берлин", "Париж", "Нью-Йорк", "Стамбул",
-];
+
 
 function CityAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -41,8 +27,7 @@ function CityAutocomplete({ value, onChange }: { value: string; onChange: (v: st
   function handleInput(v: string) {
     onChange(v);
     if (v.length >= 2) {
-      const q = v.toLowerCase();
-      setSuggestions(CITIES.filter((c) => c.toLowerCase().startsWith(q)).slice(0, 6));
+      setSuggestions(searchCities(v, 8));
       setOpen(true);
     } else {
       setSuggestions([]);

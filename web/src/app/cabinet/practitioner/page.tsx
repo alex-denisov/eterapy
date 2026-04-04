@@ -59,18 +59,12 @@ export default async function PractitionerCabinetPage() {
   return (
     <div className="px-6 py-8 max-w-4xl">
       {/* Шапка */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="font-heading text-2xl font-bold">{practitioner.user.name}</h1>
-            <Badge className={st.color}>{st.label}</Badge>
-          </div>
-          <p className="mt-1 text-muted-foreground">{practitioner.title}</p>
+      <div className="mb-6">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="font-heading text-2xl font-bold">{practitioner.user.name}</h1>
+          <Badge className={st.color}>{st.label}</Badge>
         </div>
-        <Link href={profileUrl} target="_blank"
-          className="text-sm text-muted-foreground hover:text-primary transition-colors shrink-0">
-          Мой профиль ↗
-        </Link>
+        <p className="mt-1 text-muted-foreground">{practitioner.title}</p>
       </div>
 
       {/* Статистика */}

@@ -1,27 +1,15 @@
-"use client";
+import { auth } from "@/lib/auth";
+import { ToolsLayoutClient } from "./tools-layout-client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-export default function ToolsLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isHub = pathname === "/tools";
+export default async function ToolsLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  // @ts-expect-error custom
+  const role = session?.user?.role ?? null;
+  const user = session?.user ?? null;
 
   return (
-    <>
-      {!isHub && (
-        <div className="border-b border-border/30 bg-navy/50">
-          <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2.5">
-            <Link
-              href="/tools"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              ← Все инструменты
-            </Link>
-          </div>
-        </div>
-      )}
+    <ToolsLayoutClient role={role} user={user}>
       {children}
-    </>
+    </ToolsLayoutClient>
   );
 }

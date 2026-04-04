@@ -58,7 +58,7 @@ function PractitionerCard({ p, specialtyLabels }: { p: PractitionerData; special
           <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-4">
             <div>
               <p className="text-lg font-semibold text-primary">{p.pricePerSession.toLocaleString("ru")} ₽</p>
-              <p className="text-xs text-muted-foreground">за сессию</p>
+              <p className="text-xs text-muted-foreground">{(p as unknown as { sessionDuration?: number }).sessionDuration ?? 60} мин</p>
             </div>
             <div className="text-right">
               {p.nextSlot ? (

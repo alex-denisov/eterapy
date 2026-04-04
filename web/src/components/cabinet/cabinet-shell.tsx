@@ -20,6 +20,7 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: "/cabinet/practitioner/clients", icon: "👤", label: "Клиенты" },
   { href: "/cabinet/practitioner/reviews", icon: "★", label: "Отзывы" },
   { href: "/cabinet/practitioner/earnings", icon: "💰", label: "Выплаты" },
+  { href: "/tools", icon: "✦", label: "Инструменты" },
   { href: "/cabinet/settings", icon: "⚙️", label: "Настройки" },
 ];
 

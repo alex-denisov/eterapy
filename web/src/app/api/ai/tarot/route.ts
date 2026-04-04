@@ -65,7 +65,7 @@ ${cardsDescription}
 **Общий вывод:** ...`,
         },
       ],
-      maxTokens: 800,
+      maxTokens: 2000,
     });
 
     return NextResponse.json({
