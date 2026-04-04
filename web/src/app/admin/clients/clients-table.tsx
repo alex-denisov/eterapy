@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -91,7 +91,7 @@ export function ClientsTable({ users, adminRole, permissions }: { users: User[];
           </thead>
           <tbody className="divide-y divide-border/10">
             {filtered.map(u => (
-              <>
+              <React.Fragment key={u.id}>
                 <tr key={u.id} className={`hover:bg-white/3 transition-colors ${expandedId === u.id ? "bg-white/3" : ""}`}>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
@@ -138,7 +138,7 @@ export function ClientsTable({ users, adminRole, permissions }: { users: User[];
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </tbody>
         </table>

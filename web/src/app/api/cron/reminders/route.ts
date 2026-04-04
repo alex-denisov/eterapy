@@ -1,0 +1,143 @@
+/**
+ * GET /api/cron/reminders
+ *
+ * Отправляет напоминания о предстоящих сессиях.
+ * Вызывается внешним cron-сервисом (cron-job.org, GitHub Actions, systemd timer).
+ *
+ * Логика:
+ * - Ищет CONFIRMED бронирования у которых startAt через 24ч ± 15мин
+ * - Ищет CONFIRMED бронирования у которых startAt через 1ч ± 15мин
+ * - Отправляет уведомления клиенту и практику через notify()
+ * - Помечает как отправленные (reminderSent флаг)
+ *
+ * Защита: CRON_SECRET в заголовке Authorization
+ */
+import { NextRequest, NextResponse } from "next/server";
+import db from "@/lib/db";
+import { notify } from "@/lib/notifications";
+
+const CRON_SECRET = process.env.CRON_SECRET ?? "";
+
+export async function GET(req: NextRequest) {
+  // Verify cron secret
+  const auth = req.headers.get("authorization");
+  if (CRON_SECRET && auth !== `Bearer ${CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const now = new Date();
+  const WINDOW = 15 * 60 * 1000; // ±15 минут
+
+  // Временные метки для окон
+  const in24h = new Date(now.getTime() + 24 * 3600 * 1000);
+  const in1h  = new Date(now.getTime() + 1  * 3600 * 1000);
+
+  // Бронирования которые начинаются примерно через 24 часа
+  const bookings24h = await db.booking.findMany({
+    where: {
+      status: "CONFIRMED",
+      reminder24hSent: false,
+      startedAt: {
+        gte: new Date(in24h.getTime() - WINDOW),
+        lte: new Date(in24h.getTime() + WINDOW),
+      },
+    },
+    include: {
+      client: { select: { id: true, name: true, email: true } },
+      practitioner: { select: { id: true, userId: true, user: { select: { name: true } } } },
+    },
+  });
+
+  // Бронирования которые начинаются примерно через 1 час
+  const bookings1h = await db.booking.findMany({
+    where: {
+      status: "CONFIRMED",
+      reminder1hSent: false,
+      startedAt: {
+        gte: new Date(in1h.getTime() - WINDOW),
+        lte: new Date(in1h.getTime() + WINDOW),
+      },
+    },
+    include: {
+      client: { select: { id: true, name: true, email: true } },
+      practitioner: { select: { id: true, userId: true, user: { select: { name: true } } } },
+    },
+  });
+
+  let sent = 0;
+
+  // Обрабатываем 24h напоминания
+  for (const b of bookings24h) {
+    const startDate = b.startedAt ? new Date(b.startedAt).toLocaleDateString("ru-RU") : "—";
+    const startTime = b.startedAt ? new Date(b.startedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "—";
+
+    // Клиенту
+    await notify({
+      userId: b.clientId,
+      event: "BOOKING_REMINDER",
+      data: {
+        bookingId: b.id,
+        withName: b.practitioner.user.name,
+        date: startDate,
+        time: startTime,
+        in: "24 часа",
+      },
+    });
+
+    // Практику
+    await notify({
+      userId: b.practitioner.userId,
+      event: "BOOKING_REMINDER",
+      data: {
+        bookingId: b.id,
+        withName: b.client.name,
+        date: startDate,
+        time: startTime,
+        in: "24 часа",
+      },
+    });
+
+    await db.booking.update({ where: { id: b.id }, data: { reminder24hSent: true } });
+    sent++;
+  }
+
+  // Обрабатываем 1h напоминания
+  for (const b of bookings1h) {
+    const startDate = b.startedAt ? new Date(b.startedAt).toLocaleDateString("ru-RU") : "—";
+    const startTime = b.startedAt ? new Date(b.startedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "—";
+
+    await notify({
+      userId: b.clientId,
+      event: "BOOKING_REMINDER",
+      data: {
+        bookingId: b.id,
+        withName: b.practitioner.user.name,
+        date: startDate,
+        time: startTime,
+        in: "1 час",
+      },
+    });
+
+    await notify({
+      userId: b.practitioner.userId,
+      event: "BOOKING_REMINDER",
+      data: {
+        bookingId: b.id,
+        withName: b.client.name,
+        date: startDate,
+        time: startTime,
+        in: "1 час",
+      },
+    });
+
+    await db.booking.update({ where: { id: b.id }, data: { reminder1hSent: true } });
+    sent++;
+  }
+
+  return NextResponse.json({
+    ok: true,
+    sent,
+    processed: { "24h": bookings24h.length, "1h": bookings1h.length },
+    timestamp: now.toISOString(),
+  });
+}

@@ -17,6 +17,7 @@ const CLIENT_NAV: NavItem[] = [
 
 const PRACTITIONER_NAV: NavItem[] = [
   { href: "/cabinet/practitioner", icon: "🏠", label: "Обзор" },
+  { href: "/cabinet/practitioner/profile", icon: "✏️", label: "Мой профиль" },
   { href: "/cabinet/practitioner/schedule", icon: "📅", label: "Расписание" },
   { href: "/cabinet/practitioner/clients", icon: "👤", label: "Клиенты" },
   { href: "/cabinet/practitioner/reviews", icon: "★", label: "Отзывы" },
