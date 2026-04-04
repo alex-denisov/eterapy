@@ -1,4 +1,5 @@
 "use client";
+import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,10 @@ export default function CheckinPage() {
   }
 
   async function submitAnswers(finalAnswers: string[]) {
+    if (!sessionCounter.increment()) {
+      setError("Лимит сессий исчерпан на этот месяц.");
+      return;
+    }
     setLoading(true);
     setError("");
 

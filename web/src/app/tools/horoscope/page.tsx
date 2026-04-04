@@ -1,4 +1,5 @@
 "use client";
+import { sessionCounter } from "@/lib/session-counter";
 
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +36,10 @@ export default function HoroscopePage() {
   async function handleSelect(s: typeof SIGNS[0]) {
     setSign(s);
     setResult(null);
+    if (!sessionCounter.increment()) {
+      setError("Лимит сессий исчерпан на этот месяц.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {

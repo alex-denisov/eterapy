@@ -55,7 +55,13 @@ export default async function DashboardPage() {
           </h1>
           <p className="mt-1 text-muted-foreground">{session.user?.email}</p>
         </div>
-        <SignOutButton />
+        <div className="flex gap-2">
+          <Link href="/dashboard/settings"
+            className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            ⚙️ Настройки
+          </Link>
+          <SignOutButton />
+        </div>
       </div>
 
       {/* Статистика */}

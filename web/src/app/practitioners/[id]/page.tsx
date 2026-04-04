@@ -174,7 +174,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
                 </div>
               )}
 
-              <BookingButton practitionerName={p.name} nextSlot={p.nextSlot} />
+              <BookingButton practitionerName={p.name} practitionerId={p.id} nextSlot={p.nextSlot} />
 
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">
                 <p className="flex items-center gap-2">

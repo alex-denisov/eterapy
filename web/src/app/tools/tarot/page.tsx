@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToolLoading } from "@/components/tool-loading";
+import { sessionCounter } from "@/lib/session-counter";
 
 interface TarotCard {
   name: string;
@@ -31,6 +32,11 @@ export default function TarotPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!question.trim()) return;
+    // Проверяем лимит
+    if (!sessionCounter.increment()) {
+      setError("Лимит сессий исчерпан на этот месяц. Зарегистрируйтесь чтобы продолжить.");
+      return;
+    }
     setLoading(true);
     setError("");
     setResult(null);
