@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,52 +17,36 @@ const TEST_ACCOUNTS = [
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const err = searchParams.get("error");
-    if (err === "CredentialsSignin") setError("Неверный email или пароль");
+    if (err === "CredentialsSignin") toast.error("Неверный email или пароль");
   }, [searchParams]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  async function doLogin(loginEmail: string, loginPassword: string, redirectTo: string) {
     setLoading(true);
-
     const result = await signIn("credentials", {
-      email,
-      password,
+      email: loginEmail,
+      password: loginPassword,
       redirect: false,
     });
-
     setLoading(false);
 
     if (result?.error) {
-      setError("Неверный email или пароль");
+      toast.error("Неверный email или пароль");
     } else {
-      router.push("/dashboard");
+      toast.success("Добро пожаловать!");
+      router.push(redirectTo);
       router.refresh();
     }
   }
 
-  async function loginAs(account: typeof TEST_ACCOUNTS[0]) {
-    setError("");
-    setLoading(true);
-    const result = await signIn("credentials", {
-      email: account.email,
-      password: account.password,
-      redirect: false,
-    });
-    setLoading(false);
-    if (result?.error) {
-      setError("Ошибка входа в тест-аккаунт");
-    } else {
-      router.push(account.href);
-      router.refresh();
-    }
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await doLogin(email, password, "/dashboard");
   }
 
   return (
@@ -79,8 +64,8 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-background/50"
                 autoComplete="email"
+                className="bg-background/50"
               />
               <Input
                 type="password"
@@ -88,20 +73,27 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-background/50"
                 autoComplete="current-password"
+                className="bg-background/50"
               />
-              {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Входим..." : "Войти"}
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Входим...
+                  </span>
+                ) : "Войти"}
               </Button>
             </form>
-            <p className="mt-4 text-center text-sm text-muted-foreground">
-              Нет аккаунта?{" "}
-              <Link href="/register" className="text-primary hover:underline">
-                Зарегистрироваться
+
+            <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+              <Link href="/auth/forgot-password" className="hover:text-foreground transition-colors">
+                Забыли пароль?
               </Link>
-            </p>
+              <Link href="/register" className="text-primary hover:underline">
+                Создать аккаунт
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
@@ -113,16 +105,18 @@ export default function LoginPage() {
               {TEST_ACCOUNTS.map((acc) => (
                 <button
                   key={acc.email}
-                  onClick={() => loginAs(acc)}
+                  onClick={() => doLogin(acc.email, acc.password, acc.href)}
                   disabled={loading}
                   className="rounded-lg border border-primary/30 bg-background/50 px-3 py-2 text-left text-sm transition-colors hover:border-primary/60 hover:bg-primary/10 disabled:opacity-50"
                 >
                   <p className="font-medium text-primary">{acc.label}</p>
-                  <p className="text-xs text-muted-foreground">{acc.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{acc.email}</p>
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">Пароль для обоих: <code className="text-primary">test1234</code></p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Пароль: <code className="text-primary">test1234</code>
+            </p>
           </div>
         )}
       </div>
