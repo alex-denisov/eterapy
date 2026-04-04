@@ -8,28 +8,36 @@ import { SPECIALTY_LABELS } from "@/lib/types";
 async function getPractitioners() {
   const practitioners = await db.practitioner.findMany({
     where: { status: PractitionerStatus.ACTIVE },
-    include: { user: { select: { name: true } } },
+    include: {
+      user: { select: { name: true } },
+      priceRates: { where: { enabled: true }, orderBy: { priceRub: "asc" }, take: 1 },
+    },
     orderBy: { reviewCount: "desc" },
   });
 
-  return practitioners.map((p) => ({
-    id: p.id,
-    name: p.user.name,
-    title: p.title,
-    bio: p.bio,
-    specialties: p.specialties as string[],
-    tags: p.tags,
-    experience: p.experience,
-    pricePerSession: p.pricePerSession,
-    languages: p.languages,
-    verified: p.verified,
-    founding: p.founding,
-    rating: p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0,
-    reviewCount: p.reviewCount,
-    sessionCount: p.sessionCount,
-    online: false,
-    nextSlot: null as string | null,
-  }));
+  return practitioners.map((p) => {
+    // Минимальный активный тариф или базовая цена
+    const minRate = p.priceRates[0];
+    return {
+      id: p.id,
+      name: p.user.name,
+      title: p.title,
+      bio: p.bio,
+      specialties: p.specialties as string[],
+      tags: p.tags,
+      experience: p.experience,
+      pricePerSession: minRate?.priceRub ?? p.pricePerSession,
+      minDuration: minRate?.durationMin ?? 60,
+      languages: p.languages,
+      verified: p.verified,
+      founding: p.founding,
+      rating: p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0,
+      reviewCount: p.reviewCount,
+      sessionCount: p.sessionCount,
+      online: false,
+      nextSlot: null as string | null,
+    };
+  });
 }
 
 export const metadata = {

@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { practitionerId, slotId } = await req.json();
+    const { practitionerId, slotId, durationMin, priceOverride } = await req.json();
     if (!practitionerId) return NextResponse.json({ error: "practitionerId обязателен" }, { status: 400 });
 
     const practitioner = await db.practitioner.findUnique({
@@ -113,9 +113,10 @@ export async function POST(req: NextRequest) {
       await db.timeSlot.update({ where: { id: slotId }, data: { available: false } });
     }
 
-    // В тестовом режиме цена = 0
+    // Цена: priceOverride (из тарифной сетки) или базовая цена практика
     const testMode = await getSetting("session.test_mode") === "true";
-    const priceRub = testMode ? 0 : practitioner.pricePerSession;
+    let priceRub = priceOverride ?? practitioner.pricePerSession;
+    if (testMode) priceRub = 0;
 
     const booking = await db.booking.create({
       data: {

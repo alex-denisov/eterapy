@@ -12,6 +12,7 @@ async function getPractitioner(id: string) {
     where: { id, status: PractitionerStatus.ACTIVE },
     include: {
       user: { select: { name: true } },
+      priceRates: { where: { enabled: true }, orderBy: { priceRub: "asc" } },
       reviews: {
         include: { author: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
@@ -160,19 +161,28 @@ export default async function PractitionerPage({ params }: { params: Promise<{ i
           <Card className="border-primary/20 bg-card/50">
             <CardContent className="p-6">
               <div className="text-center">
-                <p className="font-heading text-3xl font-bold text-primary">
-                  {p.pricePerSession.toLocaleString("ru")} ₽
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  за сессию {p.sessionDuration ?? 60} мин
-                </p>
+                {p.priceRates.length > 0 ? (
+                  <>
+                    <p className="font-heading text-3xl font-bold text-primary">
+                      {p.priceRates[0].priceRub.toLocaleString("ru")} ₽
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      от {p.priceRates[0].durationMin} минут
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-heading text-3xl font-bold text-primary">
+                      {p.pricePerSession.toLocaleString("ru")} ₽
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">за сессию</p>
+                  </>
+                )}
               </div>
 
               <SlotPicker
                 practitionerId={p.id}
                 practitionerName={p.user.name}
-                pricePerSession={p.pricePerSession}
-                sessionDuration={p.sessionDuration ?? 60}
               />
 
               <div className="mt-4 space-y-2 text-xs text-muted-foreground">

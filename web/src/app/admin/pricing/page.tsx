@@ -12,7 +12,10 @@ export default async function AdminPricingPage() {
   const [settings, practitioners] = await Promise.all([
     getAllSettings(),
     db.practitioner.findMany({
-      include: { user: { select: { name: true, email: true } } },
+      include: {
+        user: { select: { name: true, email: true } },
+        priceRates: { orderBy: { durationMin: "asc" } },
+      },
       orderBy: { createdAt: "asc" },
     }),
   ]);

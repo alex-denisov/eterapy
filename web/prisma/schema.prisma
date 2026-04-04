@@ -74,8 +74,58 @@ model Practitioner {
   slots           TimeSlot[]
   bookings        Booking[]           @relation("BookingPractitioner")
   reviews         Review[]            @relation("ReviewPractitioner")
+  scheduleRules   ScheduleRule[]
+  blockedSlots    BlockedSlot[]
+  priceRates      PriceRate[]
 
   @@map("practitioners")
+}
+
+// ─── Practitioner Schedule ────────────────────────────────────────────────────
+
+// Стандартное расписание: когда практик работает по умолчанию
+model ScheduleRule {
+  id              String       @id @default(cuid())
+  practitionerId  String
+  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  dayOfWeek       Int          // 0=вс, 1=пн, ... 6=сб
+  startHour       Int          // 0-23
+  startMinute     Int          @default(0)
+  endHour         Int
+  endMinute       Int          @default(0)
+  enabled         Boolean      @default(true)
+
+  @@unique([practitionerId, dayOfWeek])
+  @@index([practitionerId])
+  @@map("schedule_rules")
+}
+
+// Заблокированные слоты (практик закрыл время)
+model BlockedSlot {
+  id              String       @id @default(cuid())
+  practitionerId  String
+  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  startAt         DateTime
+  endAt           DateTime
+
+  @@index([practitionerId, startAt])
+  @@map("blocked_slots")
+}
+
+// ─── Price Rates ──────────────────────────────────────────────────────────────
+
+// Тарифная сетка практика
+model PriceRate {
+  id              String       @id @default(cuid())
+  practitionerId  String
+  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  durationMin     Int          // 15, 30, 45, 60, 90, 120
+  priceRub        Int
+  enabled         Boolean      @default(true)
+
+  @@unique([practitionerId, durationMin])
+  @@index([practitionerId])
+  @@map("price_rates")
 }
 
 enum PractitionerStatus {
