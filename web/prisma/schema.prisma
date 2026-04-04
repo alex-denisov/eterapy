@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String
+  password            String
+  role                Role      @default(CLIENT)
+  emailVerified       Boolean   @default(false)
+  verificationToken   String?   @unique
+  verificationExpires DateTime?
+  resetToken          String?   @unique
+  resetExpires        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  practitioner        Practitioner?
+  bookingsAsClient    Booking[]     @relation("BookingClient")
+  toolSessions        ToolSession[]
+  reviewsWritten      Review[]      @relation("ReviewAuthor")
+
+  @@map("users")
+}
+
+enum Role {
+  CLIENT
+  PRACTITIONER
+  ADMIN
+}
+
+// ─── Practitioners ────────────────────────────────────────────────────────────
+
+model Practitioner {
+  id              String              @id @default(cuid())
+  userId          String              @unique
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status          PractitionerStatus  @default(PENDING)
+  title           String              // "Таролог · Астролог"
+  bio             String
+  experience      String              // "5 лет"
+  pricePerSession Int                 // RUB
+  languages       String[]            @default(["Русский"])
+  verified        Boolean             @default(false)
+  founding        Boolean             @default(false)
+  specialties     Specialty[]
+  tags            String[]            @default([])
+
+  // Рейтинг (денормализован для скорости)
+  ratingSum       Float               @default(0)
+  reviewCount     Int                 @default(0)
+  sessionCount    Int                 @default(0)
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  slots           TimeSlot[]
+  bookings        Booking[]           @relation("BookingPractitioner")
+  reviews         Review[]            @relation("ReviewPractitioner")
+
+  @@map("practitioners")
+}
+
+enum PractitionerStatus {
+  PENDING      // Заявка подана
+  ACTIVE       // Активен
+  SUSPENDED    // Приостановлен
+  BLOCKED      // Заблокирован
+}
+
+enum Specialty {
+  TAROT
+  ASTROLOGY
+  NUMEROLOGY
+  PSYCHIC
+  RUNES
+  DREAMS
+}
+
+// ─── Time Slots ───────────────────────────────────────────────────────────────
+
+model TimeSlot {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+
+  startAt        DateTime
+  endAt          DateTime
+  available      Boolean      @default(true)
+
+  booking        Booking?
+
+  @@index([practitionerId, startAt])
+  @@map("time_slots")
+}
+
+// ─── Bookings ─────────────────────────────────────────────────────────────────
+
+model Booking {
+  id             String        @id @default(cuid())
+  clientId       String
+  client         User          @relation("BookingClient", fields: [clientId], references: [id])
+  practitionerId String
+  practitioner   Practitioner  @relation("BookingPractitioner", fields: [practitionerId], references: [id])
+  slotId         String?       @unique
+  slot           TimeSlot?     @relation(fields: [slotId], references: [id])
+
+  status         BookingStatus @default(PENDING)
+  priceRub       Int
+  paymentId      String?       // ЮKassa / Stripe payment ID
+  paymentMethod  String?       // "yukassa" | "stripe"
+
+  // Видеосессия
+  roomId         String?       // LiveKit room ID
+  startedAt      DateTime?
+  endedAt        DateTime?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  review         Review?
+
+  @@index([clientId])
+  @@index([practitionerId])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING      // Ожидает подтверждения
+  CONFIRMED    // Подтверждена
+  IN_PROGRESS  // Сессия идёт
+  COMPLETED    // Завершена, деньги удержаны
+  CANCELLED    // Отменена
+  DISPUTED     // Жалоба подана
+  REFUNDED     // Возврат
+}
+
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id             String       @id @default(cuid())
+  bookingId      String       @unique
+  booking        Booking      @relation(fields: [bookingId], references: [id])
+  authorId       String
+  author         User         @relation("ReviewAuthor", fields: [authorId], references: [id])
+  practitionerId String
+  practitioner   Practitioner @relation("ReviewPractitioner", fields: [practitionerId], references: [id])
+
+  rating         Int          // 1-5
+  text           String?
+  createdAt      DateTime     @default(now())
+
+  @@index([practitionerId])
+  @@map("reviews")
+}
+
+// ─── Tool Sessions ────────────────────────────────────────────────────────────
+
+model ToolSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool      ToolType
+  month     String   // "2026-04"
+  createdAt DateTime @default(now())
+
+  @@index([userId, month])
+  @@map("tool_sessions")
+}
+
+enum ToolType {
+  TAROT
+  CHECKIN
+  NATAL
+  NUMEROLOGY
+  HOROSCOPE
+  GUIDE
+}

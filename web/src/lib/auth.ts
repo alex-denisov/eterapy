@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { usersStore } from "./users-store";
+import { usersDb } from "./users-db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -15,7 +15,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const password = credentials?.password as string;
         if (!email || !password) return null;
 
-        const user = usersStore.get(email);
+        const user = await usersDb.get(email);
         if (!user || user.password !== password) return null;
 
         return {

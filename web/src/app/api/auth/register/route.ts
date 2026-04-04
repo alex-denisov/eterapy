@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usersStore } from "@/lib/users-store";
+import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
@@ -12,11 +12,11 @@ export async function POST(req: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json({ error: "Пароль минимум 6 символов" }, { status: 400 });
     }
-    if (usersStore.get(email)) {
+    if (await usersDb.get(email)) {
       return NextResponse.json({ error: "Email уже зарегистрирован" }, { status: 409 });
     }
 
-    const user = usersStore.create({ email, name, password });
+    const user = await usersDb.create({ email, name, password });
 
     // Отправляем письмо подтверждения
     try {

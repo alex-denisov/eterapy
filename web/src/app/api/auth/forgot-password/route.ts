@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { usersStore } from "@/lib/users-store";
+import { usersStore } from "@/lib/users-db";
 import { sendPasswordResetEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
@@ -8,9 +8,9 @@ export async function POST(req: NextRequest) {
     if (!email) return NextResponse.json({ error: "Email обязателен" }, { status: 400 });
 
     // Всегда 200 — не раскрываем есть ли такой email
-    const user = usersStore.get(email);
+    const user = await usersDb.get(email);
     if (user) {
-      const token = usersStore.setResetToken(email);
+      const token = await usersDb.setResetToken(email);
       if (token) {
         try {
           await sendPasswordResetEmail(email, user.name, token);
