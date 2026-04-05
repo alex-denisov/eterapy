@@ -15,8 +15,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Пароль", type: "password" },
+        impersonateToken: { label: "Impersonate Token", type: "text" },
       },
       async authorize(credentials) {
+        // ── Impersonation path: SUPERADMIN one-time token ─────────────────────
+        const impToken = credentials?.impersonateToken as string | undefined;
+        if (impToken) {
+          const record = await db.telegramLinkToken.findUnique({
+            where: { token: `imp:${impToken}` },
+          });
+          if (!record || record.expiresAt < new Date()) return null;
+          // Delete immediately — one-time use
+          await db.telegramLinkToken.delete({ where: { token: `imp:${impToken}` } });
+          const target = await db.user.findUnique({
+            where: { id: record.userId },
+            select: { id: true, email: true, name: true, role: true, emailVerified: true, blockedAt: true },
+          });
+          if (!target || target.blockedAt) return null;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return {
+            id: target.id,
+            email: target.email,
+            name: target.name,
+            emailVerified: target.emailVerified,
+            role: target.role,
+          } as any;
+        }
+
+        // ── Normal email/password path ─────────────────────────────────────────
         const email = credentials?.email as string;
         const password = credentials?.password as string;
         if (!email || !password) return null;
