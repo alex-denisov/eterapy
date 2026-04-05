@@ -46,12 +46,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 
   const cabinet = user.role === "PRACTITIONER" ? "/cabinet/practitioner" : "/cabinet";
 
-  // CSRF token нужен для NextAuth credentials signIn.
-  // Получаем через GET /api/auth/csrf.
-  const baseUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
-  const csrfRes = await fetch(`${baseUrl}/api/auth/csrf`, { cache: "no-store" });
-  const csrfData = await csrfRes.json().catch(() => ({ csrfToken: "" }));
-  const csrfToken: string = csrfData.csrfToken ?? "";
+  // CSRF token — читаем из cookie запроса.
+  // NextAuth v5 использует __Host- префикс на HTTPS, authjs.csrf-token на HTTP (dev).
+  const rawCsrf =
+    req.cookies.get("__Host-authjs.csrf-token")?.value ??
+    req.cookies.get("authjs.csrf-token")?.value ??
+    "";
+  const csrfToken: string = decodeURIComponent(rawCsrf).split("|")[0] ?? "";
 
   // Авто-сабмит формы — NextAuth обрабатывает POST /api/auth/callback/credentials
   // и устанавливает session cookie, затем редиректит на callbackUrl.
