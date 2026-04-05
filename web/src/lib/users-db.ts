@@ -4,6 +4,7 @@
  */
 
 import db from "./db";
+import bcrypt from "bcryptjs";
 import type { User } from "@prisma/client";
 
 export type { User };
@@ -27,11 +28,12 @@ export const usersDb = {
 
   async create(data: { email: string; name: string; password: string }): Promise<User> {
     const token = crypto.randomUUID().replace(/-/g, "");
+    const hashedPassword = await bcrypt.hash(data.password, 10);
     return db.user.create({
       data: {
         email: data.email.toLowerCase(),
         name: data.name,
-        password: data.password,
+        password: hashedPassword,
         emailVerified: false,
         verificationToken: token,
         verificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
