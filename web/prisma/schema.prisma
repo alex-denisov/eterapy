@@ -93,6 +93,8 @@ model Practitioner {
   scheduleRules   ScheduleRule[]
   blockedSlots    BlockedSlot[]
   priceRates      PriceRate[]
+  payouts         Payout[]
+  payoutDetails   PayoutDetails?
 
   @@map("practitioners")
 }
@@ -190,7 +192,7 @@ model Booking {
 
   status         BookingStatus @default(PENDING)
   priceRub       Int
-  paymentId      String?       // ЮKassa / Stripe payment ID
+  paymentId      String?       @unique  // ЮKassa / Stripe payment ID
   paymentMethod  String?       // "yukassa" | "stripe"
 
   // Видеосессия
@@ -208,6 +210,7 @@ model Booking {
   review         Review?
   videoSession   VideoSession?
   complaints     Complaint[]
+  payment        Payment?
 
   @@index([clientId])
   @@index([practitionerId])
@@ -455,6 +458,51 @@ model TelegramLinkToken {
 
   @@index([userId])
   @@map("telegram_link_tokens")
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id            String    @id @default(cuid())
+  bookingId     String    @unique
+  booking       Booking   @relation(fields: [bookingId], references: [id])
+  externalId    String?   // ЮKassa payment ID
+  amountKopecks Int       // в копейках
+  currency      String    @default("RUB")
+  status        String    // PENDING / PAID / CANCELLED / REFUNDED
+  refundedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@map("payments")
+}
+
+// ─── Payouts ──────────────────────────────────────────────────────────────────
+
+model Payout {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
+  amountKopecks  Int
+  status         String       // PENDING / PROCESSING / DONE / FAILED
+  initiatedBy    String       // adminUserId
+  externalId     String?      // ЮKassa payout ID
+  createdAt      DateTime     @default(now())
+  processedAt    DateTime?
+
+  @@index([practitionerId])
+  @@map("payouts")
+}
+
+model PayoutDetails {
+  id             String       @id @default(cuid())
+  practitionerId String       @unique
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
+  type           String       // CARD / SBP
+  accountNumber  String       // номер карты или телефон
+  bankName       String?
+  updatedAt      DateTime     @updatedAt
+
+  @@map("payout_details")
 }
 
 // ─── AI Session Log ───────────────────────────────────────────────────────────
