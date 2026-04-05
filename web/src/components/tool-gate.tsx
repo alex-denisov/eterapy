@@ -21,12 +21,15 @@ interface ToolGateProps {
  * - При исчерпании — показывает paywall с регистрацией
  */
 export function ToolGate({ onStart, children, showCounter = true }: ToolGateProps) {
-  const [remaining, setRemaining] = useState(sessionCounter.limit);
+  // Инициализируем null чтобы избежать hydration mismatch:
+  // localStorage недоступен при SSR, читаем только в useEffect.
+  const [remaining, setRemaining] = useState<number | null>(null);
   const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
-    setRemaining(sessionCounter.getRemaining());
-    setBlocked(sessionCounter.getRemaining() === 0);
+    const r = sessionCounter.getRemaining();
+    setRemaining(r);
+    setBlocked(r === 0);
   }, []);
 
   const handleStart = useCallback(async () => {
@@ -63,7 +66,7 @@ export function ToolGate({ onStart, children, showCounter = true }: ToolGateProp
 
   return (
     <div>
-      {showCounter && remaining < sessionCounter.limit && (
+      {showCounter && remaining !== null && remaining < sessionCounter.limit && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-border/30 bg-card/20 px-4 py-2.5 text-sm text-muted-foreground">
           <span>Осталось сессий в этом месяце:</span>
           <span className={cn(

@@ -9,6 +9,22 @@ import { logAudit } from "./audit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
+  // Cloudflare Flexible terminates TLS — Next.js receives plain HTTP.
+  // Force Secure cookies so __Host- prefix works correctly across the proxy.
+  cookies: {
+    sessionToken: {
+      name: `__Secure-authjs.session-token`,
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    callbackUrl: {
+      name: `__Secure-authjs.callback-url`,
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+    csrfToken: {
+      name: `__Host-authjs.csrf-token`,
+      options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
+    },
+  },
   providers: [
     Credentials({
       name: "Email",
