@@ -166,12 +166,13 @@ export function ModeratorsManager() {
 
       {/* Форма создания */}
       {showCreate && (
-        <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 space-y-4">
+        <form autoComplete="off" onSubmit={e => e.preventDefault()} className="rounded-xl border border-primary/20 bg-primary/5 p-5 space-y-4">
           <h3 className="font-semibold">Новый модератор</h3>
           <div className="grid gap-3 sm:grid-cols-3">
-            <Input placeholder="Имя" value={newName} onChange={e => setNewName(e.target.value)} className="bg-card/50" />
-            <Input placeholder="Email" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="bg-card/50" />
-            <Input placeholder="Пароль (мин. 8)" type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} className="bg-card/50" />
+            <Input placeholder="Имя" value={newName} onChange={e => setNewName(e.target.value)} className="bg-card/50" autoComplete="off" name="mod-name" data-form-type="other" />
+            <Input placeholder="Email" type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} className="bg-card/50" autoComplete="off" name="mod-email" data-form-type="other" />
+            <Input placeholder="Пароль (мин. 8)" type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+              className="bg-card/50" autoComplete="new-password" name="mod-pwd" id="mod-pwd" data-form-type="other" />
           </div>
           <PermMatrix permissions={newPerms} onChange={setNewPerms} />
           <div className="flex gap-2">
@@ -184,7 +185,7 @@ export function ModeratorsManager() {
               Отмена
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Список */}

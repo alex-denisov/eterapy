@@ -39,12 +39,23 @@ export async function PATCH(req: NextRequest) {
 
   const VALID_DURATIONS = [15, 30, 45, 60, 90, 120];
 
+  // Fetch existing rates to preserve prices when practitioner toggles without price
+  const existingRates = await db.priceRate.findMany({
+    where: { practitionerId },
+  });
+  const existingMap = new Map(existingRates.map(r => [r.durationMin, r]));
+
   for (const rate of rates) {
     if (!VALID_DURATIONS.includes(rate.durationMin)) continue;
+
+    const existing = existingMap.get(rate.durationMin);
+    // If practitioner didn't send a price (0), use existing price
+    const priceRub = rate.priceRub > 0 ? rate.priceRub : (existing?.priceRub ?? 0);
+
     await db.priceRate.upsert({
       where: { practitionerId_durationMin: { practitionerId, durationMin: rate.durationMin } },
-      create: { practitionerId, durationMin: rate.durationMin, priceRub: rate.priceRub, enabled: rate.enabled },
-      update: { priceRub: rate.priceRub, enabled: rate.enabled },
+      create: { practitionerId, durationMin: rate.durationMin, priceRub, enabled: rate.enabled },
+      update: { priceRub, enabled: rate.enabled },
     });
   }
 

@@ -17,6 +17,7 @@ async function getPractitioners() {
     const minRate = p.priceRates[0];
     return {
       id: p.id,
+      slug: p.slug,
       name: p.user.name,
       title: p.title,
       bio: p.bio,

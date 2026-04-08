@@ -16,7 +16,7 @@ export default async function AdminComplaintsPage() {
       booking: {
         include: {
           client: { select: { name: true, email: true } },
-          practitioner: { select: { id: true, user: { select: { name: true } } } },
+          practitioner: { select: { id: true, slug: true, user: { select: { name: true } } } },
         },
       },
       reporter: { select: { name: true, email: true } },
@@ -53,6 +53,7 @@ export default async function AdminComplaintsPage() {
         clientEmail: c.reporter.email,
         practitionerName: c.booking.practitioner.user.name,
         practitionerId: c.booking.practitioner.id,
+        practitionerSlug: c.booking.practitioner.slug,
         bookingId: c.bookingId,
         priceRub: c.booking.priceRub,
       }))} />

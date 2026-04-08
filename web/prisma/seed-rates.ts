@@ -1,57 +1,50 @@
+/**
+ * Seed missing price rates for existing practitioners.
+ * Ensures all 6 durations (15, 30, 45, 60, 90, 120) exist.
+ * Run: npx tsx prisma/seed-rates.ts
+ */
 import db from "../src/lib/db";
 
-const DURATIONS = [
-  { durationMin: 15,  priceRub: 800  },
-  { durationMin: 30,  priceRub: 1500 },
-  { durationMin: 45,  priceRub: 2000 },
-  { durationMin: 60,  priceRub: 2500 },
-  { durationMin: 90,  priceRub: 3500 },
-  { durationMin: 120, priceRub: 4500 },
-];
-
-// Стандартное расписание: пн-пт 10:00-20:00, сб 11:00-17:00
-const SCHEDULE = [
-  { dayOfWeek: 1, startHour: 10, endHour: 20 }, // пн
-  { dayOfWeek: 2, startHour: 10, endHour: 20 }, // вт
-  { dayOfWeek: 3, startHour: 10, endHour: 20 }, // ср
-  { dayOfWeek: 4, startHour: 10, endHour: 20 }, // чт
-  { dayOfWeek: 5, startHour: 10, endHour: 20 }, // пт
-  { dayOfWeek: 6, startHour: 11, endHour: 17 }, // сб
-];
+const ALL_DURATIONS = [15, 30, 45, 60, 90, 120];
+// Default prices (can be adjusted)
+const DEFAULT_PRICES: Record<number, number> = {
+  15: 1500,
+  30: 2500,
+  45: 3500,
+  60: 4500,
+  90: 6000,
+  120: 8000,
+};
 
 async function main() {
-  const practitioners = await db.practitioner.findMany({ select: { id: true, pricePerSession: true } });
-  console.log(`Seeding ${practitioners.length} practitioners...`);
+  const practitioners = await db.practitioner.findMany({
+    include: { priceRates: true },
+  });
 
+  let created = 0;
   for (const p of practitioners) {
-    // Тарифы — цены пропорционально pricePerSession (цена за 60 мин)
-    const base = p.pricePerSession;
-    const rates = DURATIONS.map(d => ({
-      practitionerId: p.id,
-      durationMin: d.durationMin,
-      // Пропорционально + небольшой дисконт за короткие
-      priceRub: d.durationMin === 60 ? base
-        : Math.round(base * d.durationMin / 60 / 100) * 100,
-      enabled: true,
-    }));
-
-    for (const rate of rates) {
-      await db.priceRate.upsert({
-        where: { practitionerId_durationMin: { practitionerId: p.id, durationMin: rate.durationMin } },
-        create: rate,
-        update: { priceRub: rate.priceRub, enabled: true },
-      });
+    const existingDurations = new Set(p.priceRates.map(r => r.durationMin));
+    for (const dur of ALL_DURATIONS) {
+      if (!existingDurations.has(dur)) {
+        // Use first existing rate price as fallback, or default
+        const firstRate = p.priceRates[0];
+        const priceRub = firstRate?.priceRub ?? DEFAULT_PRICES[dur];
+        await db.priceRate.upsert({
+          where: {
+            practitionerId_durationMin: { practitionerId: p.id, durationMin: dur },
+          },
+          create: { practitionerId: p.id, durationMin: dur, priceRub, enabled: false },
+          update: {},
+        });
+        created++;
+        console.log(`Created ${dur}min rate for practitioner ${p.id} at ${priceRub}₽`);
+      }
     }
-
-    // Расписание
-    for (const rule of SCHEDULE) {
-      await db.scheduleRule.upsert({
-        where: { practitionerId_dayOfWeek: { practitionerId: p.id, dayOfWeek: rule.dayOfWeek } },
-        create: { practitionerId: p.id, ...rule, startMinute: 0, endMinute: 0, enabled: true },
-        update: { startHour: rule.startHour, endHour: rule.endHour, enabled: true },
-      });
-    }
-    console.log(`  ✓ ${p.id}: ${rates.length} rates, ${SCHEDULE.length} schedule rules`);
   }
+
+  console.log(`Done. Created ${created} missing rate(s) for ${practitioners.length} practitioner(s).`);
 }
-main().catch(console.error);
+
+main()
+  .catch(e => { console.error(e); process.exit(1); })
+  .finally(() => db.$disconnect());

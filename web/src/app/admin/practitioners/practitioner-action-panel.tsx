@@ -78,7 +78,14 @@ export function PractitionerActionPanel({
   async function loadRates() {
     const res = await fetch(`/api/rates?practitionerId=${p.id}`);
     const d = await res.json();
-    setRates(d.rates ?? []);
+    const ALL_DURATIONS = [15, 30, 45, 60, 90, 120];
+    const existing = d.rates ?? [];
+    // Дополняем все длительности, даже если их нет в БД
+    const fullRates = ALL_DURATIONS.map(dur => {
+      const found = existing.find((r: any) => r.durationMin === dur);
+      return found ?? { durationMin: dur, priceRub: 0, enabled: false };
+    });
+    setRates(fullRates);
     setRatesLoaded(true);
   }
 
@@ -135,7 +142,8 @@ export function PractitionerActionPanel({
               {can("practitioners.set_password") && (
                 <div className="flex gap-2">
                   <Input type="password" autoComplete="new-password" placeholder="Новый пароль" value={newPwd}
-                    onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
+                    onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8"
+                    name="practitioner-new-pwd" id="practitioner-new-pwd" data-form-type="other" />
                   <button onClick={() => callUserAction("set_password", { newPassword: newPwd }).then(ok => ok && setNewPwd(""))}
                     disabled={newPwd.length < 8}
                     className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
@@ -259,7 +267,7 @@ export function PractitionerActionPanel({
       {tab === "schedule" && (
         <div className="text-sm text-muted-foreground">
           <p>Расписание практика редактируется в его кабинете.</p>
-          <a href={`/api/admin/users/${p.userId}/impersonate`} target="_blank"
+          <a href={`/api/admin/impersonate?userId=${p.userId}`} target="_blank"
             className="mt-2 inline-block text-xs text-primary hover:underline">
             → Войти в кабинет практика
           </a>

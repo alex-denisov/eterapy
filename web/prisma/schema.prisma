@@ -71,6 +71,7 @@ enum Role {
 
 model Practitioner {
   id              String              @id @default(cuid())
+  slug            String              @unique @default("pending")  // "anna-ivanova", "elena-petrova-2"
   userId          String              @unique
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 

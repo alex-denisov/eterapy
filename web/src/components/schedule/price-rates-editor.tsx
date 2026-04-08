@@ -4,12 +4,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 const DURATION_LABELS: Record<number, string> = {
-  15:  "15 минут",
-  30:  "30 минут",
-  45:  "45 минут",
-  60:  "1 час",
-  90:  "1.5 часа",
-  120: "2 часа",
+  15:  "15 мин",
+  30:  "30 мин",
+  45:  "45 мин",
+  60:  "1 ч",
+  90:  "1.5 ч",
+  120: "2 ч",
 };
 
 interface Rate {
@@ -58,6 +58,11 @@ export function PriceRatesEditor({ practitionerId, initialRates, onSaved }: Prop
 
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-xs text-muted-foreground">
+        Выберите формат сессии, который будет доступен для записи. 
+        Цены установлены платформой и не могут быть изменены.
+      </div>
+
       {minRate && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-2 text-xs text-muted-foreground">
           В каталоге будет показан минимальный тариф:{" "}
@@ -65,43 +70,33 @@ export function PriceRatesEditor({ practitionerId, initialRates, onSaved }: Prop
         </div>
       )}
 
-      {ALL_DURATIONS.map(dur => {
-        const rate = rates.find(r => r.durationMin === dur)!;
-        return (
-          <div key={dur} className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${
-            rate.enabled ? "border-primary/20 bg-card/40" : "border-border/20 bg-card/10"
-          }`}>
-            <div className="flex items-center gap-3 w-28 shrink-0">
-              <button
-                onClick={() => updateRate(dur, { enabled: !rate.enabled })}
-                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${rate.enabled ? "bg-primary" : "bg-muted/40"}`}>
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rate.enabled ? "translate-x-5" : "translate-x-1"}`} />
-              </button>
-              <span className="text-sm font-medium">{DURATION_LABELS[dur]}</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="number" min={0} step={50}
-                value={rate.priceRub}
-                onChange={e => updateRate(dur, { priceRub: Number(e.target.value) })}
-                disabled={!rate.enabled}
-                className="w-28 rounded border border-border/30 bg-background/50 px-3 py-1.5 text-sm focus:border-primary focus:outline-none disabled:opacity-40"
-              />
-              <span className="text-sm text-muted-foreground">₽</span>
-            </div>
-
-            {rate.enabled && rate.priceRub > 0 && (
-              <span className="ml-auto text-xs text-muted-foreground">
-                {rate.priceRub.toLocaleString("ru")} ₽ / {DURATION_LABELS[dur]}
-              </span>
-            )}
-            {!rate.enabled && (
-              <span className="ml-auto text-xs text-muted-foreground/40">Отключён</span>
-            )}
+      {rates.map(rate => (
+        <div key={rate.durationMin} className={`flex items-center gap-4 rounded-xl border px-4 py-3 transition-colors ${
+          rate.enabled ? "border-primary/20 bg-card/40" : "border-border/20 bg-card/10"
+        }`}>
+          <div className="flex items-center gap-3 w-24 shrink-0">
+            <button
+              onClick={() => updateRate(rate.durationMin, { enabled: !rate.enabled })}
+              className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${rate.enabled ? "bg-primary" : "bg-muted/40"}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rate.enabled ? "translate-x-5" : "translate-x-1"}`} />
+            </button>
+            <span className="text-sm font-medium">{DURATION_LABELS[rate.durationMin]}</span>
           </div>
-        );
-      })}
+
+          {rate.priceRub > 0 ? (
+            <span className="text-sm font-semibold text-primary">{rate.priceRub.toLocaleString("ru")} ₽</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Цена не установлена</span>
+          )}
+
+          {rate.enabled && rate.priceRub > 0 && (
+            <span className="ml-auto text-xs text-green-600">Доступен для записи</span>
+          )}
+          {!rate.enabled && (
+            <span className="ml-auto text-xs text-muted-foreground/40">Отключён</span>
+          )}
+        </div>
+      ))}
 
       <button onClick={handleSave} disabled={saving}
         className="mt-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-navy disabled:opacity-50">

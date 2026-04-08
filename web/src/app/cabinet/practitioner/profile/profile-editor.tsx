@@ -193,7 +193,7 @@ export function PractitionerProfileEditor({
           <p className="text-sm font-medium">Публичный профиль</p>
           <p className="text-xs text-muted-foreground">Клиенты видят ваш профиль по этой ссылке</p>
         </div>
-        <a href={`/practitioners/${practitionerId}`} target="_blank"
+        <a href={`/cabinet/practitioners/${practitionerId}`} target="_blank"
           className="text-xs text-primary hover:underline">
           Открыть ↗
         </a>

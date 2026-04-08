@@ -119,7 +119,7 @@ export default function ClientBookingsPage() {
       {bookings.length === 0 && (
         <div className="rounded-xl border border-border/30 bg-card/20 py-12 text-center">
           <p className="text-muted-foreground">Нет записей к практикам</p>
-          <Link href="/practitioners" className="mt-4 inline-block text-sm text-primary hover:underline">
+          <Link href="/cabinet/practitioners" className="mt-4 inline-block text-sm text-primary hover:underline">
             Найти практика →
           </Link>
         </div>

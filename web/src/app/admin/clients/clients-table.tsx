@@ -18,6 +18,7 @@ interface User {
   freeToolsLimit: number | null;
   avatarUrl: string | null;
   provider?: string | null;
+  registrationChannel?: string | null;
 }
 
 function SortBtn({
@@ -94,10 +95,11 @@ export function ClientsTable({
   return (
     <div>
       {/* Фильтры */}
-      <div className="flex flex-wrap gap-3 mb-4 items-center">
+      <form autoComplete="off" onSubmit={e => e.preventDefault()} className="flex flex-wrap gap-3 mb-4 items-center">
         <Input placeholder="Поиск по имени или email..." value={search}
           onChange={e => setSearch(e.target.value)} className="bg-card/50 max-w-xs"
-          autoComplete="off" spellCheck={false} type="search" key="search-input" />
+          autoComplete="off" spellCheck={false} type="search"
+          name="client-search" id="client-search" data-form-type="other" />
         <div className="flex gap-1">
           {(["all", "active", "blocked", "deleted"] as const).map(f => (
             <button key={f} onClick={() => setFilterStatus(f)}
@@ -109,7 +111,7 @@ export function ClientsTable({
           ))}
         </div>
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} из {localUsers.length}</span>
-      </div>
+      </form>
 
       {/* Таблица */}
       <div className="rounded-xl border border-border/30 overflow-hidden">

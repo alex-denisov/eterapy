@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import type { Permission } from "@/lib/moderator-permissions";
 interface Practitioner {
   id: string;
   userId: string;
+  slug: string;
   name: string;
   email: string;
   avatarUrl: string | null;
@@ -160,7 +161,8 @@ export function PractitionersPanel({
       <form autoComplete="off" onSubmit={e => e.preventDefault()} className="flex flex-wrap gap-3 items-center">
         <Input placeholder="Поиск по имени, email, специализации..."
           value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-card/50 max-w-xs h-8 text-sm" />
+          className="bg-card/50 max-w-xs h-8 text-sm"
+          name="practitioner-search" id="practitioner-search" autoComplete="off" data-form-type="other" />
         <div className="flex gap-1">
           {["all", "PENDING", "ACTIVE", "SUSPENDED", "BLOCKED"].map(s => (
             <button key={s} onClick={() => setFilterStatus(s)}
@@ -255,7 +257,11 @@ export function PractitionersPanel({
                   </td>
                   <td className="p-3">
                     <div className="flex gap-2 items-center justify-end">
-                      <a href={`/practitioners/${p.id}`} target="_blank"
+                      <a href={`/api/admin/impersonate?userId=${p.userId}`} target="_blank"
+                        className="text-xs text-primary hover:underline font-medium">
+                        Войти как практик ↗
+                      </a>
+                      <a href={`/practitioners/${p.slug}`} target="_blank"
                         className="text-xs text-muted-foreground hover:text-primary transition-colors">
                         Профиль ↗
                       </a>
@@ -285,7 +291,6 @@ export function PractitionersPanel({
                 )}
               </React.Fragment>
             ))}
-          </tbody>
           </tbody>
         </table>
         {filtered.length === 0 && (

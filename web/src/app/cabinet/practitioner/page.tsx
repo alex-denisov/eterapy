@@ -46,7 +46,7 @@ export default async function PractitionerCabinetPage() {
 
   const rating = practitioner.reviewCount > 0 ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1) : "—";
   const st = STATUS_LABELS[practitioner.status as keyof typeof STATUS_LABELS] ?? STATUS_LABELS.ACTIVE;
-  const profileUrl = `/practitioners/${practitioner.id}`;
+  const profileUrl = `/practitioners/${practitioner.slug}`;
 
   // Pending bookings
   const pendingBookings = await db.booking.findMany({

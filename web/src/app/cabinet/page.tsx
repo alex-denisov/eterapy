@@ -69,7 +69,7 @@ export default async function ClientCabinetPage() {
         {recentBookings.length === 0 ? (
           <div className="rounded-xl border border-border/30 bg-card/20 p-6 text-center">
             <p className="text-muted-foreground text-sm">Нет предстоящих записей</p>
-            <Link href="/practitioners" className="mt-3 inline-block text-sm text-primary hover:underline">
+            <Link href="/cabinet/practitioners" className="mt-3 inline-block text-sm text-primary hover:underline">
               Найти практика →
             </Link>
           </div>

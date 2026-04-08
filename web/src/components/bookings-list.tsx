@@ -78,7 +78,7 @@ export function BookingsList({ role = "client" }: { role?: "client" | "practitio
         {role === "client" ? (
           <>
             <p>Нет записей к практикам.</p>
-            <Link href="/practitioners" className="mt-2 block text-sm text-primary hover:underline">
+            <Link href="/cabinet/practitioners" className="mt-2 block text-sm text-primary hover:underline">
               Найти практика →
             </Link>
           </>

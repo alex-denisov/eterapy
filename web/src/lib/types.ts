@@ -1,6 +1,7 @@
 /** Тип практика из API — используется на клиентских страницах */
 export interface PractitionerData {
   id: string;
+  slug: string;
   name: string;
   title: string;
   bio: string;

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   <p><strong>Практик:</strong> ${practitionerName}</p>
   <p><strong>Слот:</strong> ${slot}</p>
   <p><strong>Клиент:</strong> ${clientName} (${clientEmail})</p>
-  <p><a href="${APP_URL}/practitioners/${practitionerId}" style="color:#C9A84C">Профиль практика →</a></p>
+  <p><a href="${APP_URL}/cabinet/practitioner" style="color:#C9A84C">Кабинет практика →</a></p>
   <hr style="border-color:#e2e8f0;margin:16px 0">
   <p style="color:#64748b;font-size:12px">ETerapy · ${new Date().toLocaleString("ru-RU")}</p>
 </div>`,
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
           <p style="color:#94a3b8;line-height:1.6;margin:0 0 24px">
             Практик свяжется с вами для подтверждения. Стоимость будет списана только после завершения сессии.
           </p>
-          <a href="${APP_URL}/practitioners/${practitionerId}" 
+          <a href="${APP_URL}/cabinet/practitioners" 
              style="display:inline-block;background:#C9A84C;color:#0D1B2A;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600">
             Профиль практика
           </a>

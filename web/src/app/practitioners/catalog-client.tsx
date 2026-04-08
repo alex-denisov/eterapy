@@ -28,7 +28,7 @@ function StarRating({ rating }: { rating: number }) {
 
 function PractitionerCard({ p, specialtyLabels }: { p: PractitionerData; specialtyLabels: Record<string, string> }) {
   const router = useRouter();
-  const href = `/practitioners/${p.id}`;
+  const href = `/practitioners/${p.slug}`;
 
   return (
     <div

@@ -24,6 +24,7 @@ export default async function AdminPractitionersPage() {
   const list = practitioners.map(p => ({
     id: p.id,
     userId: p.userId,
+    slug: p.slug,
     name: p.user.name,
     email: p.user.email,
     avatarUrl: p.user.avatarUrl,

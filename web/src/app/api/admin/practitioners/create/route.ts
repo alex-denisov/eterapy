@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
+import { generateUniqueSlug } from "@/lib/slug";
 
 const DURATIONS = [15, 30, 45, 60, 90, 120];
 
@@ -36,6 +37,12 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10);
 
+    // Generate unique slug
+    const slug = await generateUniqueSlug(name, async (s) => {
+      const exists = await db.practitioner.findUnique({ where: { slug: s } });
+      return !!exists;
+    });
+
     // Transaction: User + Practitioner + PriceRates
     const result = await db.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -60,6 +67,7 @@ export async function POST(req: NextRequest) {
       const practitioner = await tx.practitioner.create({
         data: {
           userId: user.id,
+          slug,
           status: "ACTIVE", // Admin-created practitioners are immediately active
           title,
           bio,

@@ -11,11 +11,11 @@ import { SlotPicker } from "./slot-picker";
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
 
 export async function generateMetadata(
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
-  const { id } = await params;
+  const { slug } = await params;
   const p = await db.practitioner.findFirst({
-    where: { id, status: PractitionerStatus.ACTIVE },
+    where: { slug, status: PractitionerStatus.ACTIVE },
     include: { user: { select: { name: true, avatarUrl: true } } },
   });
   if (!p) return { title: "Практик — ETerapy" };
@@ -29,7 +29,7 @@ export async function generateMetadata(
     openGraph: {
       title: `${p.user.name} — ${p.title}`,
       description,
-      url: `${BASE_URL}/practitioners/${id}`,
+      url: `${BASE_URL}/practitioners/${slug}`,
       type: "profile",
       ...(p.user.avatarUrl ? { images: [{ url: p.user.avatarUrl, width: 400, height: 400, alt: p.user.name }] } : {}),
     },
@@ -39,13 +39,13 @@ export async function generateMetadata(
       description,
       ...(p.user.avatarUrl ? { images: [p.user.avatarUrl] } : {}),
     },
-    alternates: { canonical: `${BASE_URL}/practitioners/${id}` },
+    alternates: { canonical: `${BASE_URL}/practitioners/${slug}` },
   };
 }
 
-async function getPractitioner(id: string) {
+async function getPractitioner(slug: string) {
   return db.practitioner.findFirst({
-    where: { id, status: PractitionerStatus.ACTIVE },
+    where: { slug, status: PractitionerStatus.ACTIVE },
     include: {
       user: { select: { name: true } },
       priceRates: { where: { enabled: true }, orderBy: { priceRub: "asc" } },
@@ -71,9 +71,9 @@ function StarRating({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg
 }
 
 
-export default async function PractitionerPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const p = await getPractitioner(id);
+export default async function PractitionerPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const p = await getPractitioner(slug);
   if (!p) notFound();
 
   const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;

@@ -58,9 +58,9 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
       {tab === "rates" && (
         <div>
           <p className="text-sm text-muted-foreground mb-4">
-            Ваши тарифы, назначенные администратором. В каталоге будет показан минимальный активный тариф.
+            Включайте форматы сессий, которые хотите предлагать. Цены установлены платформой.
           </p>
-          <PriceRatesViewer rates={initialRates} />
+          <PriceRatesViewer rates={initialRates} practitionerId={practitionerId} />
         </div>
       )}
     </div>

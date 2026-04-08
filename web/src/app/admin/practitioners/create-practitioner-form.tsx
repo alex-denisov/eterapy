@@ -147,7 +147,8 @@ export function CreatePractitionerForm({
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Пароль (мин. 8 символов)</label>
-              <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="bg-card/50" />
+              <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)}
+                className="bg-card/50" autoComplete="new-password" name="create-practitioner-pwd" data-form-type="other" />
             </div>
           </div>
           <button onClick={() => {

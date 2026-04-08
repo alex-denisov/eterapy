@@ -80,17 +80,17 @@ export function AdminSettingsClient({
             <div>
               <label className="mb-1 block text-sm text-muted-foreground">Текущий пароль</label>
               <Input type="password" value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)}
-                autoComplete="current-password" className="bg-card/50" />
+                autoComplete="current-password" className="bg-card/50" name="settings-curr-pwd" data-form-type="other" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-muted-foreground">Новый пароль</label>
               <Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)}
-                autoComplete="new-password" className="bg-card/50" />
+                autoComplete="new-password" className="bg-card/50" name="settings-new-pwd" data-form-type="other" />
             </div>
             <div>
               <label className="mb-1 block text-sm text-muted-foreground">Повторите</label>
               <Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
-                autoComplete="new-password" className="bg-card/50" />
+                autoComplete="new-password" className="bg-card/50" name="settings-confirm-pwd" data-form-type="other" />
             </div>
             <Button type="submit" variant="outline" disabled={savingPwd || !currentPwd || !newPwd}>
               {savingPwd ? "Сохранение..." : "Изменить пароль"}

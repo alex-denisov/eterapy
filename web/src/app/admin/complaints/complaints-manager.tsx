@@ -17,6 +17,7 @@ interface Complaint {
   clientEmail: string;
   practitionerName: string;
   practitionerId: string;
+  practitionerSlug?: string;
   bookingId: string;
   priceRub: number;
 }
@@ -135,7 +136,7 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-0.5">Практик</p>
-                        <a href={`/practitioners/${c.practitionerId}`} target="_blank"
+                        <a href={`/practitioners/${c.practitionerSlug ?? c.practitionerId}`} target="_blank"
                           className="text-sm text-primary hover:underline">{c.practitionerName} ↗</a>
                       </div>
                     </div>

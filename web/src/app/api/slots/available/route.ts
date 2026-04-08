@@ -28,9 +28,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ slots: [] }); // выходной
   }
 
-  // Все слоты рабочего дня с шагом durationMin
-  const dayStart = new Date(dateStr + `T${String(rule.startHour).padStart(2, "0")}:${String(rule.startMinute).padStart(2, "0")}:00`);
-  const dayEnd   = new Date(dateStr + `T${String(rule.endHour).padStart(2, "0")}:${String(rule.endMinute).padStart(2, "0")}:00`);
+  // Все слоты рабочего дня с шагом durationMin, выровненные по интервалам
+  // 15 мин → :00, :15, :30, :45 | 30 мин → :00, :30 | 60 мин → :00
+  const ruleStartHour = rule.startHour;
+  const ruleStartMin = rule.startMinute;
+  const ruleEndHour = rule.endHour;
+  const ruleEndMin = rule.endMinute;
+
+  // Вычисляем выровненное время начала (округляем startMinute вверх до ближайшего интервала)
+  const alignedStartMin = Math.ceil(ruleStartMin / durationMin) * durationMin;
+  const alignedStartHour = alignedStartMin >= 60 ? ruleStartHour + 1 : ruleStartHour;
+  const finalStartMin = alignedStartMin >= 60 ? 0 : alignedStartMin;
+
+  const dayStart = new Date(dateStr + `T${String(alignedStartHour).padStart(2, "0")}:${String(finalStartMin).padStart(2, "0")}:00`);
+  const dayEnd   = new Date(dateStr + `T${String(ruleEndHour).padStart(2, "0")}:${String(ruleEndMin).padStart(2, "0")}:00`);
 
   const potentialSlots: Array<{ startAt: Date; endAt: Date }> = [];
   let cur = new Date(dayStart);

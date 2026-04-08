@@ -12,6 +12,8 @@ interface User {
   blockedAt: string | Date | null;
   deletedAt: string | Date | null;
   freeToolsLimit: number | null;
+  provider?: string | null;
+  registrationChannel?: string | null;
 }
 
 export function UserActionPanel({
@@ -104,6 +106,7 @@ export function UserActionPanel({
 
       {/* Действия */}
       {tab === "actions" && (
+        <form autoComplete="off" onSubmit={e => e.preventDefault()}>
         <div className="grid gap-4 md:grid-cols-2">
           {/* Имя */}
           {can("clients.edit") && (
@@ -119,6 +122,24 @@ export function UserActionPanel({
             </div>
           )}
 
+          {/* Канал регистрации */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Регистрация</p>
+            <div className="rounded-lg border border-border/20 bg-card/30 px-3 py-2 text-xs text-foreground">
+              <p className="text-muted-foreground">Канал: <span className="text-foreground font-medium">{
+                user.registrationChannel === "site" ? "Сайт" :
+                user.registrationChannel === "google" ? "Google" :
+                user.registrationChannel === "vk" ? "VK" :
+                user.registrationChannel === "telegram" ? "Telegram" :
+                user.registrationChannel === "referral" ? "Реферал" :
+                user.registrationChannel || "Не указан"
+              }</span></p>
+              {user.provider && (
+                <p className="text-muted-foreground mt-1">Провайдер: <span className="text-foreground font-medium">{user.provider}</span></p>
+              )}
+            </div>
+          </div>
+
           {/* Пароль */}
           {(can("clients.set_password") || can("clients.reset_password")) && (
             <div className="space-y-2">
@@ -126,7 +147,8 @@ export function UserActionPanel({
               {can("clients.set_password") && (
                 <div className="flex gap-2">
                   <Input type="password" autoComplete="new-password" placeholder="Новый пароль" value={newPwd}
-                    onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
+                    onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8"
+                    name="admin-new-password-unique" id="admin-new-password-unique" data-form-type="other" />
                   <button onClick={async () => { if (await callAction("set_password", { newPassword: newPwd })) setNewPwd(""); }}
                     disabled={newPwd.length < 8}
                     className="rounded-lg bg-primary/20 px-3 text-xs text-primary hover:bg-primary/30 disabled:opacity-40 shrink-0">
@@ -187,6 +209,7 @@ export function UserActionPanel({
             </p>
           )}
         </div>
+        </form>
       )}
 
       {/* Сессии */}

@@ -3,6 +3,7 @@ import { db } from "../src/lib/db";
 import { usersDb } from "../src/lib/users-db";
 import bcrypt from "bcryptjs";
 import { Specialty } from "@prisma/client";
+import { generateUniqueSlug } from "../src/lib/slug";
 
 async function main() {
   console.log("🌱 Seeding test accounts...");
@@ -15,10 +16,16 @@ async function main() {
   const practitionerEmail = "practitioner@test.eterapy.com";
   const user = await db.user.findUnique({ where: { email: practitionerEmail } });
   if (user) {
+    const slug = await generateUniqueSlug(user.name, async (s) => {
+      const exists = await db.practitioner.findUnique({ where: { slug: s } });
+      return !!exists;
+    });
+
     const practitioner = await db.practitioner.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
+        slug,
         status: "ACTIVE",
         title: "Астролог, нумеролог",
         bio: "Опытный практик с более чем 10-летним стажем.",
@@ -93,9 +100,14 @@ async function main() {
           provider: "web",
         },
       });
+      const practSlug = await generateUniqueSlug(newUser.name, async (s) => {
+        const exists = await db.practitioner.findUnique({ where: { slug: s } });
+        return !!exists;
+      });
       const pract = await db.practitioner.create({
         data: {
           userId: newUser.id,
+          slug: practSlug,
           status: "ACTIVE",
           title: p.specialties.includes(Specialty.ASTROLOGY) ? "Астролог" : p.specialties.includes(Specialty.TAROT) ? "Таролог" : "Эзотерик",
           bio: "Опытный практик.",
@@ -129,10 +141,41 @@ async function main() {
         });
       }
       console.log(`✅ Created practitioner: ${p.email}`);
+    } else {
+      // Fix slug for existing practitioners that still have 'pending'
+      const existingPract = await db.practitioner.findUnique({ where: { userId: existing.id } });
+      if (existingPract && (existingPract.slug === "pending" || !existingPract.slug)) {
+        const newSlug = await generateUniqueSlug(existing.name, async (s) => {
+          const ex = await db.practitioner.findUnique({ where: { slug: s } });
+          return !!ex;
+        });
+        await db.practitioner.update({
+          where: { id: existingPract.id },
+          data: { slug: newSlug },
+        });
+        console.log(`✅ Fixed slug for ${existing.name}: ${newSlug}`);
+      }
     }
   }
 
   // Админы
+
+  // Fix ALL practitioners with pending/empty slugs
+  const pendingPracts = await db.practitioner.findMany({
+    where: { OR: [{ slug: "pending" }, { slug: "" }] },
+    include: { user: { select: { name: true } } },
+  });
+  for (const pp of pendingPracts) {
+    const newSlug = await generateUniqueSlug(pp.user.name, async (s) => {
+      const ex = await db.practitioner.findUnique({ where: { slug: s } });
+      return !!ex;
+    });
+    await db.practitioner.update({
+      where: { id: pp.id },
+      data: { slug: newSlug },
+    });
+    console.log(`✅ Fixed slug for ${pp.user.name}: ${newSlug}`);
+  }
   const adminEmail = "admin@test.eterapy.com";
   const adminUser = await db.user.findFirst({ where: { email: adminEmail } });
   if (!adminUser) {
