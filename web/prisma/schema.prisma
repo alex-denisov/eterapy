@@ -26,6 +26,14 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
+  // Identity
+  provider            String?   @default("web") // "vk", "google", "web", "mobile_web", "ios", "android", "manual", "telegram", "max"
+  providerId          String?   // ID from provider (e.g., VK user_id, Google sub)
+  registrationChannel String?   // "site", "google", "vk", "telegram", "referral" — откуда пришёл
+
+  @@index([provider, providerId])
+  @@index([email, provider])
+
   // Telegram
   telegramId          String?   @unique  // Telegram chat_id (set via bot)
   telegramUsername    String?             // @username

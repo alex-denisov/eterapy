@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   LiveKitRoom,
@@ -8,10 +8,8 @@ import {
   useRoomContext,
   useTracks,
   VideoTrack,
-  useParticipants,
 } from "@livekit/components-react";
-// @livekit/components-styles — установить отдельно если нужны дефолтные стили
-import { Track, RoomEvent } from "livekit-client";
+import { Track } from "livekit-client";
 import { VideoChat } from "./video-chat";
 import { VideoControls } from "./video-controls";
 import { ViolationBanner } from "./violation-banner";
@@ -120,18 +118,16 @@ function VideoRoomInner({
   const router = useRouter();
   const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
-  const participants = useParticipants();
   const [violation, setViolation] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChat, setShowChat] = useState(true);
-  const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
+  const sessionStartedAt = useMemo(() => new Date(), []); // фиксируем время при монтировании
   const containerRef = useRef<HTMLDivElement>(null);
   const transcriptBuffer = useRef<string>("");
   const transcriptTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Обновляем статус сессии + фиксируем время старта
+  // Отправляем запрос об активации сессии один раз при монтировании
   useEffect(() => {
-    setSessionStartedAt(new Date());
     fetch("/api/video/session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

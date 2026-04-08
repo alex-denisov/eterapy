@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useState, useEffect } from "react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { VKIDButton } from "@/components/vkid-button";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -14,13 +16,21 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Редирект, если уже залогинен
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/cabinet");
+    }
+  }, [status, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // 1. Создаём аккаунт через API
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -33,7 +43,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2. Автоматически входим
       const result = await signIn("credentials", {
         email,
         password,
@@ -135,13 +144,7 @@ export default function RegisterPage() {
               <div className="flex-1 border-t border-border/30" />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => signIn("vk", { callbackUrl: "/cabinet" })}
-                className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-[#0077FF]/10 px-3 py-2.5 text-sm font-medium text-[#0077FF] transition-colors hover:bg-[#0077FF]/20">
-                <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M13.162 18.994c.609 0 .858-.406.851-1.008-.03-1.765 1.01-2.701 1.01-2.701s1.378 1.945 2.047 2.843c.465.628.863.866 1.5.866h2.462c.756 0 .997-.343.747-.961-.267-.617-.963-1.61-1.882-2.619-1.18-1.367-1.208-1.425-.34-2.717.851-1.263 2.395-3.398 2.395-3.398.465-.718.24-1.148-.628-1.148h-2.462c-.703 0-.992.375-1.214.849-1.02 2.013-2.85 4.099-3.548 3.638-.673-.43-.518-2.19-.518-2.19 0-2.252.643-3.198-.624-3.5-1.113-.252-1.977-.27-3.092-.027-1.42.317-1.5 1.196-.84 1.298.852.14 1.126.69 1.183 1.637.153 2.44-.464 3.47-1.174 3.068-1.06-.607-2.297-3.003-3.25-5.407-.253-.646-.583-.857-1.255-.857H2.69c-.756 0-.998.408-.748 1.001 2.302 5.45 5.012 8.742 9.213 8.742l1.007-.01z"/>
-                </svg>
-                ВКонтакте
-              </button>
+              <VKIDButton />
               <button type="button" onClick={() => signIn("google", { callbackUrl: "/cabinet" })}
                 className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">

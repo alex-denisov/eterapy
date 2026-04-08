@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
+import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
 
 type Tab = "profile" | "extended" | "security" | "notifications" | "danger";
 
@@ -290,6 +291,10 @@ function ExtendedProfileTab() {
   const [aiGoals, setAiGoals] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [dateError, setDateError] = useState("");
+
+  const currentYear = new Date().getFullYear();
+
 
   useEffect(() => {
     fetch("/api/auth/extended-profile")
@@ -297,7 +302,11 @@ function ExtendedProfileTab() {
       .then(d => {
         const p = d.profile;
         if (!p) return;
-        if (p.birthDate) setBirthDate(new Date(p.birthDate).toISOString().split("T")[0]);
+        if (p.birthDate) {
+          // birthDate в YYYY-MM-DD (локальное). Конвертируем в DD.MM.YYYY для отображения
+          const [year, month, day] = p.birthDate.split("-");
+          setBirthDate(`${day}.${month}.${year}`);
+        }
         if (p.birthTime) setBirthTime(p.birthTime);
         if (p.birthPlace) setBirthPlace(p.birthPlace);
         if (p.maritalStatus) setMaritalStatus(p.maritalStatus);
@@ -313,16 +322,27 @@ function ExtendedProfileTab() {
   }
 
   async function handleSave() {
+    if (birthDate) {
+      const err = validateBirthDate(birthDate);
+      if (err) {
+        setDateError(err);
+        toast.error("Исправьте дату рождения");
+        setSaving(false);
+        return;
+      }
+    }
     setSaving(true);
     const res = await fetch("/api/auth/extended-profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ birthDate: birthDate || null, birthTime, birthPlace, maritalStatus, occupation, aiGoals }),
+      body: JSON.stringify({ birthDate: formatDateForServer(birthDate), birthTime, birthPlace, maritalStatus, occupation, aiGoals }),
     });
     const d = await res.json();
     if (d.ok) {
       const { toast } = await import("sonner");
       toast.success("Профиль обновлён — AI-инструменты станут точнее");
+    } else {
+      toast.error(d.error || "Ошибка");
     }
     setSaving(false);
   }
@@ -346,7 +366,26 @@ function ExtendedProfileTab() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Дата рождения</label>
-              <Input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="bg-card/50" />
+              <Input
+                placeholder="ДД.ММ.ГГГГ"
+                value={birthDate}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+                  let formatted = "";
+                  if (digits.length > 0) formatted += digits.slice(0, 2);
+                  if (digits.length > 2) formatted += "." + digits.slice(2, 4);
+                  if (digits.length > 4) formatted += "." + digits.slice(4, 8);
+                  setBirthDate(formatted);
+                  if (formatted.length === 10) {
+                    const err = validateBirthDate(formatted);
+                    setDateError(err || "");
+                  } else {
+                    setDateError("");
+                  }
+                }}
+                className={`bg-card/50 ${dateError ? "border-destructive" : ""}`}
+              />
+              {dateError && <p className="text-xs text-destructive mt-1">{dateError}</p>}
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Время рождения (необязательно)</label>

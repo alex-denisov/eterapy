@@ -1,6 +1,6 @@
 /**
  * HTTPS reverse proxy: 443 → localhost:3000
- * Использует существующий сертификат eterapy.com
+ * Использует реальные сертификаты eterapy.com из certificates/
  * Запуск: sudo node https-proxy.js
  */
 const https = require("https");
@@ -9,10 +9,10 @@ const fs    = require("fs");
 const path  = require("path");
 const net   = require("net");
 
-const CERT_DIR = path.join(__dirname, "certs");
+const CERT_DIR = path.join(__dirname, "certificates");
 const options = {
-  key:  fs.readFileSync(path.join(CERT_DIR, "key.pem")),
-  cert: fs.readFileSync(path.join(CERT_DIR, "cert.pem")),
+  key:  fs.readFileSync(path.join(CERT_DIR, "eterapy_com.key")),
+  cert: fs.readFileSync(path.join(CERT_DIR, "eterapy_com.crt")),
 };
 
 const TARGET_HOST = "127.0.0.1";

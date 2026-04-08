@@ -192,11 +192,11 @@ export function NotificationSettings({ telegramStatus }: { telegramStatus: Teleg
                   {/* Email toggle */}
                   <div className="w-20 flex items-center justify-center">
                     <button onClick={() => updatePref(event, "EMAIL", { enabled: !emailEnabled })}
-                      className={`relative inline-flex h-5 w-9 cursor-pointer rounded-full transition-colors ${
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                         emailEnabled ? "bg-primary" : "bg-border/40"
                       }`}>
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${
-                        emailEnabled ? "translate-x-4" : "translate-x-0.5"
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        emailEnabled ? "translate-x-4" : "translate-x-1"
                       }`} />
                     </button>
                   </div>
@@ -209,11 +209,11 @@ export function NotificationSettings({ telegramStatus }: { telegramStatus: Teleg
                       }
                       updatePref(event, "TELEGRAM", { enabled: !tgEnabled });
                     }}
-                      className={`relative inline-flex h-5 w-9 cursor-pointer rounded-full transition-colors ${
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                         tgEnabled ? "bg-blue-500" : "bg-border/40"
                       } ${!tgStatus.linked ? "opacity-40" : ""}`}>
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${
-                        tgEnabled ? "translate-x-4" : "translate-x-0.5"
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        tgEnabled ? "translate-x-4" : "translate-x-1"
                       }`} />
                     </button>
                   </div>

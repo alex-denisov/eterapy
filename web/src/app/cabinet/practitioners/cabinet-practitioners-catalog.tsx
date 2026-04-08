@@ -110,7 +110,7 @@ export function CabinetPractitionersCatalog({
       <div className="grid gap-4 md:grid-cols-2">
         {filtered.map(p => (
           <div key={p.id}
-            onClick={() => router.push(`/practitioners/${p.id}`)}
+            onClick={() => router.push(`/cabinet/practitioners/${p.id}`)}
             className="group cursor-pointer rounded-xl border border-border/40 bg-card/40 p-5 transition-all hover:border-primary/40 hover:bg-card/60">
             <div className="flex items-start gap-3">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary ring-1 ring-primary/20">

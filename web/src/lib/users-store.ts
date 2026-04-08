@@ -15,6 +15,8 @@ export interface User {
   resetToken: string | null;
   resetExpires: number | null;
   createdAt: number;
+  provider?: string;
+  providerId?: string;
 }
 
 const store = new Map<string, User>(); // keyed by email

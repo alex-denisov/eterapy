@@ -74,8 +74,8 @@ export function PriceRatesEditor({ practitionerId, initialRates, onSaved }: Prop
             <div className="flex items-center gap-3 w-28 shrink-0">
               <button
                 onClick={() => updateRate(dur, { enabled: !rate.enabled })}
-                className={`relative h-5 w-10 rounded-full transition-colors ${rate.enabled ? "bg-primary" : "bg-muted/40"}`}>
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rate.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${rate.enabled ? "bg-primary" : "bg-muted/40"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rate.enabled ? "translate-x-5" : "translate-x-1"}`} />
               </button>
               <span className="text-sm font-medium">{DURATION_LABELS[dur]}</span>
             </div>

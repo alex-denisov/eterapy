@@ -42,12 +42,47 @@ const STATUS_LABELS: Record<string, string> = {
   ACTIVE: "Активен", PENDING: "На проверке", SUSPENDED: "Деактивирован", BLOCKED: "Заблокирован",
 };
 
-export function PractitionersPanel({ practitioners, adminRole, permissions }: { practitioners: Practitioner[]; adminRole: string; permissions: Permission[] }) {
+function SortBtn({
+  field,
+  label,
+  active,
+  sortDir,
+  onSort,
+}: {
+  field: "name" | "createdAt" | "sessionCount";
+  label: string;
+  active: boolean;
+  sortDir: "asc" | "desc";
+  onSort: (field: "name" | "createdAt" | "sessionCount") => void;
+}) {
+  return (
+    <button
+      onClick={() => onSort(field)}
+      className={`flex items-center gap-1 text-xs font-medium ${
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+      {active && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
+}
+
+export function PractitionersPanel({
+  practitioners,
+  adminRole,
+  permissions,
+}: {
+  practitioners: Practitioner[];
+  adminRole: string;
+  permissions: Permission[];
+}) {
   const can = (p: Permission) => permissions.includes(p);
   const [list, setList] = useState(practitioners);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [sortField, setSortField] = useState<"name" | "createdAt" | "sessionCount">("createdAt");
+  const [sortField, setSortField] =
+    useState<"name" | "createdAt" | "sessionCount">("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -55,24 +90,37 @@ export function PractitionersPanel({ practitioners, adminRole, permissions }: { 
   const filtered = useMemo(() => {
     let arr = [...list];
     const q = search.toLowerCase();
-    if (q) arr = arr.filter(p => p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q) || p.title.toLowerCase().includes(q));
+    if (q)
+      arr = arr.filter(
+        p =>
+          p.name.toLowerCase().includes(q) ||
+          p.email.toLowerCase().includes(q) ||
+          p.title.toLowerCase().includes(q)
+      );
     if (filterStatus !== "all") arr = arr.filter(p => p.status === filterStatus);
     arr.sort((a, b) => {
-      if (sortField === "name") return sortDir === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
-      if (sortField === "sessionCount") return sortDir === "asc" ? a.sessionCount - b.sessionCount : b.sessionCount - a.sessionCount;
-      return sortDir === "asc" ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt);
+      if (sortField === "name")
+        return sortDir === "asc"
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      if (sortField === "sessionCount")
+        return sortDir === "asc"
+          ? a.sessionCount - b.sessionCount
+          : b.sessionCount - a.sessionCount;
+      return sortDir === "asc"
+        ? a.createdAt.localeCompare(b.createdAt)
+        : b.createdAt.localeCompare(a.createdAt);
     });
     return arr;
   }, [list, search, filterStatus, sortField, sortDir]);
 
-  function SortBtn({ field, label }: { field: typeof sortField; label: string }) {
-    const active = sortField === field;
-    return (
-      <button onClick={() => { if (active) setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField(field); setSortDir("asc"); } }}
-        className={`flex items-center gap-1 text-xs font-medium ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-        {label}{active && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
-      </button>
-    );
+  function handleSort(field: "name" | "createdAt" | "sessionCount") {
+    if (sortField === field) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
   }
 
   async function handleStatusChange(practitionerId: string, status: string) {
@@ -109,7 +157,7 @@ export function PractitionersPanel({ practitioners, adminRole, permissions }: { 
       )}
 
       {/* Фильтры */}
-      <div className="flex flex-wrap gap-3 items-center">
+      <form autoComplete="off" onSubmit={e => e.preventDefault()} className="flex flex-wrap gap-3 items-center">
         <Input placeholder="Поиск по имени, email, специализации..."
           value={search} onChange={e => setSearch(e.target.value)}
           className="bg-card/50 max-w-xs h-8 text-sm" />
@@ -124,11 +172,29 @@ export function PractitionersPanel({ practitioners, adminRole, permissions }: { 
           ))}
         </div>
         <div className="flex gap-3 ml-auto">
-          <SortBtn field="name" label="Имя" />
-          <SortBtn field="sessionCount" label="Сессии" />
-          <SortBtn field="createdAt" label="Дата" />
+          <SortBtn
+            field="name"
+            label="Имя"
+            active={sortField === "name"}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
+          <SortBtn
+            field="sessionCount"
+            label="Сессии"
+            active={sortField === "sessionCount"}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
+          <SortBtn
+            field="createdAt"
+            label="Дата"
+            active={sortField === "createdAt"}
+            sortDir={sortDir}
+            onSort={handleSort}
+          />
         </div>
-      </div>
+      </form>
 
       {/* Счётчик */}
       <p className="text-xs text-muted-foreground">Показано: {filtered.length} из {list.length}</p>
@@ -148,8 +214,8 @@ export function PractitionersPanel({ practitioners, adminRole, permissions }: { 
           </thead>
           <tbody className="divide-y divide-border/10">
             {filtered.map(p => (
-              <>
-                <tr key={p.id} className={`hover:bg-white/3 transition-colors ${expandedId === p.id ? "bg-white/3" : ""}`}>
+              <React.Fragment key={p.id}>
+                <tr className={`hover:bg-white/3 transition-colors ${expandedId === p.id ? "bg-white/3" : ""}`}>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       {p.avatarUrl ? (
@@ -205,7 +271,7 @@ export function PractitionersPanel({ practitioners, adminRole, permissions }: { 
                   </td>
                 </tr>
                 {expandedId === p.id && (
-                  <tr key={`${p.id}-panel`}>
+                  <tr>
                     <td colSpan={6} className="bg-card/10 p-4 border-b border-border/20">
                       <PractitionerActionPanel
                         practitioner={p}
@@ -217,8 +283,9 @@ export function PractitionersPanel({ practitioners, adminRole, permissions }: { 
                     </td>
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
+          </tbody>
           </tbody>
         </table>
         {filtered.length === 0 && (

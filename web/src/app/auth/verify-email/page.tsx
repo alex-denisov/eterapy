@@ -9,15 +9,11 @@ import { cn } from "@/lib/utils";
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<"loading" | "success" | "error">(!token ? "error" : "loading");
+  const [message, setMessage] = useState(!token ? "Ссылка недействительна." : "");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("Ссылка недействительна.");
-      return;
-    }
+    if (!token) return; // already set to error
 
     fetch("/api/auth/verify-email", {
       method: "POST",

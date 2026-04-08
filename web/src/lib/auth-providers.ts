@@ -1,74 +1,80 @@
 /**
- * Кастомный VK ID OAuth 2.1 провайдер для NextAuth v5
+ * Классический VK OAuth провайдер для NextAuth v5
  *
- * VK ID (id.vk.ru) — новый стандарт, заменяет vk.com/editapp.
- * Использует OAuth 2.1 с обязательным PKCE.
+ * Приложение создаётся на vk.com/apps?act=manage → Website
+ * Redirect URI: https://eterapy.com/api/auth/callback/vk
  *
- * Создание приложения:
- * 1. id.vk.ru → «Создать приложение» → Веб-приложение
- * 2. Redirect URI: https://eterapy.com/api/auth/callback/vk
- * 3. Скопировать App ID → VK_CLIENT_ID, Secure key → VK_CLIENT_SECRET
- *
- * Эндпоинты VK ID OAuth 2.1:
- * - authorize: https://id.vk.com/authorize (с PKCE)
- * - token:     https://oauth.vk.com/access_token (поддерживает code_verifier)
- * - userinfo:  https://id.vk.com/oauth2/user_info (POST, Bearer token + client_id)
- *
- * NextAuth v5 генерирует PKCE автоматически при checks: ["pkce", "state"].
- * device_id из callback VK ID не обязателен для server-side web flow.
+ * Эндпоинты:
+ * - authorize: https://oauth.vk.com/authorize
+ * - token:     https://oauth.vk.com/access_token
+ * - userinfo:  VK API users.get через https://api.vk.com/method/
  */
 
-export function VK({ clientId, clientSecret }: { clientId: string; clientSecret: string }) {
+import type { OAuthConfig } from "next-auth/providers";
+
+interface VKProfile {
+  id: number;
+  first_name: string;
+  last_name: string;
+  photo_200?: string;
+  email?: string;
+}
+
+export function VK(config: { clientId: string; clientSecret: string }): OAuthConfig<VKProfile> {
+  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/callback/vk`;
+
   return {
-    id: "vk" as const,
-    name: "VK ID",
-    type: "oauth" as const,
-    clientId,
-    clientSecret,
-    checks: ["pkce", "state"] as const,
+    id: "vk",
+    name: "VK",
+    type: "oauth",
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    checks: ["state"] as const,
     authorization: {
-      url: "https://id.vk.com/authorize",
+      url: "https://oauth.vk.com/authorize",
       params: {
-        scope: "email vkid.personal_info",
+        scope: "email",
         response_type: "code",
+        redirect_uri: redirectUri,
       },
-    },
-    client: {
-      token_endpoint_auth_method: "client_secret_post" as const,
     },
     token: {
       url: "https://oauth.vk.com/access_token",
     },
     userinfo: {
-      url: "https://id.vk.com/oauth2/user_info",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async request({ tokens, provider }: { tokens: any; provider: any }) {
-        // VK ID userinfo требует client_id в теле запроса
-        const res = await fetch(provider.userinfo.url as string, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Bearer ${tokens.access_token}`,
-          },
-          body: new URLSearchParams({ client_id: provider.clientId }),
-        });
+      url: "https://api.vk.com/method/users.get",
+      async request({ tokens }: { tokens: Record<string, unknown> }) {
+        const accessToken = tokens.access_token as string | undefined;
+        if (!accessToken) throw new Error("No access token");
+        const url = new URL("https://api.vk.com/method/users.get");
+        url.searchParams.set("fields", "photo_200");
+        url.searchParams.set("access_token", accessToken);
+        url.searchParams.set("v", "5.199");
+
+        const res = await fetch(url.toString());
         const data = await res.json();
-        // VK ID возвращает user объект напрямую (не обёрнут в response[])
-        return {
-          ...data,
-          email: data.email ?? tokens.email ?? null,
-        };
+        const user = data.response?.[0];
+
+        if (!user) {
+          throw new Error("VK userinfo: empty response");
+        }
+
+        // VK API возвращает email только если он был запрошен в scope
+        const email = tokens.email as string | undefined;
+        if (email) {
+          user.email = email;
+        }
+
+        return user;
       },
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    profile(profile: any) {
+    profile(profile: VKProfile & { email?: string }) {
       return {
-        id: String(profile.user_id ?? profile.id),
-        name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || `vk_${profile.user_id ?? profile.id}`,
+        id: String(profile.id),
+        name: [profile.first_name, profile.last_name].filter(Boolean).join(" ") || `vk_${profile.id}`,
         email: profile.email ?? null,
-        image: profile.avatar ?? profile.photo_200 ?? null,
+        image: profile.photo_200 ?? null,
       };
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any; // NextAuth v5 не имеет типизированного VK ID провайдера
+  };
 }

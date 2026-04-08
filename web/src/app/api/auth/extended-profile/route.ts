@@ -25,10 +25,17 @@ export async function PATCH(req: NextRequest) {
 
   const { birthDate, birthTime, birthPlace, maritalStatus, occupation, aiGoals } = await req.json();
 
+  // birthDate приходит как "ДД.ММ.ГГГГ". Конвертируем в UTC midnight.
+  let utcBirthDate: Date | null = null;
+  if (birthDate) {
+    const [day, month, year] = birthDate.split(".").map(Number);
+    utcBirthDate = new Date(Date.UTC(year, month - 1, day));
+  }
+
   await db.user.update({
     where: { id: session.user.id },
     data: {
-      ...(birthDate !== undefined ? { birthDate: birthDate ? new Date(birthDate) : null } : {}),
+      ...(birthDate !== undefined ? { birthDate: utcBirthDate } : {}),
       ...(birthTime !== undefined ? { birthTime } : {}),
       ...(birthPlace !== undefined ? { birthPlace } : {}),
       ...(maritalStatus !== undefined ? { maritalStatus } : {}),

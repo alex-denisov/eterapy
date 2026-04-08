@@ -134,7 +134,7 @@ export function PractitionerActionPanel({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
               {can("practitioners.set_password") && (
                 <div className="flex gap-2">
-                  <Input type="password" placeholder="Новый пароль" value={newPwd}
+                  <Input type="password" autoComplete="new-password" placeholder="Новый пароль" value={newPwd}
                     onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
                   <button onClick={() => callUserAction("set_password", { newPassword: newPwd }).then(ok => ok && setNewPwd(""))}
                     disabled={newPwd.length < 8}

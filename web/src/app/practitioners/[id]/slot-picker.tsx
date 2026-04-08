@@ -22,9 +22,6 @@ const DURATION_LABELS: Record<number, string> = {
   60: "1 час", 90: "1.5 часа", 120: "2 часа",
 };
 
-const MONTHS = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
-
-function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -37,7 +34,10 @@ function getAvailableDates(month: number, year: number): Date[] {
   const start = new Date(year, month, 1);
   const end = new Date(year, month + 1, 0);
   for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-    if (d > now) result.push(new Date(d));
+    // Включаем сегодня и будущие даты (время не важно, сравниваем только даты)
+    if (d >= new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      result.push(new Date(d));
+    }
   }
   return result;
 }
@@ -82,9 +82,19 @@ export function SlotPicker({
     if (!selectedDate || !selectedDuration) return;
     setLoadingSlots(true);
     setSelectedSlot(null);
+    const isToday = selectedDate === new Date().toISOString().split("T")[0];
     fetch(`/api/slots/available?practitionerId=${practitionerId}&date=${selectedDate}&durationMin=${selectedDuration}`)
       .then(r => r.json())
-      .then(d => { setSlots(d.slots ?? []); setLoadingSlots(false); })
+      .then(d => {
+        let slots = d.slots ?? [];
+        // Если выбрана сегодняшняя дата, фильтруем прошедшие времена
+        if (isToday) {
+          const now = new Date();
+          slots = slots.filter((slot: AvailableSlot) => new Date(slot.startAt) > now);
+        }
+        setSlots(slots);
+        setLoadingSlots(false);
+      })
       .catch(() => setLoadingSlots(false));
   }, [practitionerId, selectedDate, selectedDuration]);
 
@@ -136,13 +146,34 @@ export function SlotPicker({
 
   const monthDates = useMemo(() => getAvailableDates(selectedMonth, selectedYear), [selectedMonth, selectedYear]);
 
-  // Генерируем месяцы для селектора (текущий + 3)
-  const monthOptions = useMemo(() => {
-    return Array.from({ length: 4 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      return { month: d.getMonth(), year: d.getFullYear(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
-    });
-  }, []);
+  // Календарь: дни выбранного месяца
+  const calendarDays = useMemo(() => {
+    const first = new Date(selectedYear, selectedMonth, 1);
+    const last = new Date(selectedYear, selectedMonth + 1, 0);
+    const startDay = first.getDay(); // 0=вс
+    const days: Array<{ date: Date; isAvailable: boolean; isToday: boolean }> = [];
+    // Предыдущий месяц (неактивные)
+    for (let i = startDay - 1; i >= 0; i--) {
+      const d = new Date(first);
+      d.setDate(d.getDate() - i);
+      days.push({ date: d, isAvailable: false, isToday: false });
+    }
+    // Текущий месяц
+    for (let d = 1; d <= last.getDate(); d++) {
+      const date = new Date(selectedYear, selectedMonth, d);
+      const isAvail = monthDates.some(ad => ad.getDate() === d && ad.getMonth() === selectedMonth && ad.getFullYear() === selectedYear);
+      const isToday = date.toDateString() === new Date().toDateString();
+      days.push({ date, isAvailable: isAvail, isToday });
+    }
+    // Следующий месяц (заполняем до 42 cells = 6 weeks)
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      const d = new Date(last);
+      d.setDate(d.getDate() + i);
+      days.push({ date: d, isAvailable: false, isToday: false });
+    }
+    return days;
+  }, [selectedYear, selectedMonth, monthDates]);
 
   const selectedRate = rates.find(r => r.durationMin === selectedDuration);
 
@@ -192,37 +223,78 @@ export function SlotPicker({
           </div>
         </div>
 
-        {/* Шаг 2: Месяц + День */}
+        {/* Шаг 2: Календарь */}
         {selectedDuration && (
-          <div className="flex gap-3 flex-wrap items-end">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Месяц</p>
-              <select
-                value={`${selectedMonth}-${selectedYear}`}
-                onChange={e => {
-                  const [m, y] = e.target.value.split("-").map(Number);
-                  setSelectedMonth(m); setSelectedYear(y);
-                  setSelectedDate(null); setSlots([]);
-                }}
-                className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                {monthOptions.map(o => (
-                  <option key={o.label} value={`${o.month}-${o.year}`}>{o.label}</option>
-                ))}
-              </select>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-muted-foreground">Выберите день</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const newMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
+                    const newYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
+                    setSelectedMonth(newMonth);
+                    setSelectedYear(newYear);
+                    setSelectedDate(null); setSlots([]);
+                  }}
+                  className="rounded-lg border border-border/40 px-2 py-1 text-xs hover:border-primary/40"
+                >
+                  ◀
+                </button>
+                <button
+                  onClick={() => {
+                    const newMonth = selectedMonth === 11 ? 0 : selectedMonth + 1;
+                    const newYear = selectedMonth === 11 ? selectedYear + 1 : selectedYear;
+                    setSelectedMonth(newMonth);
+                    setSelectedYear(newYear);
+                    setSelectedDate(null); setSlots([]);
+                  }}
+                  className="rounded-lg border border-border/40 px-2 py-1 text-xs hover:border-primary/40"
+                >
+                  ▶
+                </button>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">День</p>
-              <select
-                value={selectedDate ?? ""}
-                onChange={e => { setSelectedDate(e.target.value); setSelectedSlot(null); }}
-                className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none">
-                <option value="">Выберите день</option>
-                {monthDates.map(d => (
-                  <option key={isoDate(d)} value={isoDate(d)}>
-                    {d.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric" })}
-                  </option>
+            <div className="rounded-lg border border-border/20 bg-card/10 p-3">
+              {/* Дни недели */}
+              <div className="grid grid-cols-7 gap-1 mb-2 text-center">
+                {["Вс","Пн","Вт","Ср","Чт","Пт","Сб"].map(day => (
+                  <div key={day} className="text-xs text-muted-foreground py-1">{day}</div>
                 ))}
-              </select>
+              </div>
+              {/* Сетка дней */}
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((day, idx) => {
+                  const isSelected = selectedDate === day.date.toISOString().split("T")[0];
+                  const isPast = day.date < new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate(), 0, 0, 0);
+                  return (
+                    <button
+                      key={idx}
+                      disabled={!day.isAvailable || isPast || day.date.getMonth() !== selectedMonth}
+                      onClick={() => {
+                        if (day.isAvailable && !isPast && day.date.getMonth() === selectedMonth) {
+                          setSelectedDate(day.date.toISOString().split("T")[0]);
+                          setSelectedSlot(null);
+                          setSlots([]);
+                        }
+                      }}
+                      className={`rounded-lg p-2 text-sm transition-colors ${
+                        day.date.getMonth() !== selectedMonth
+                          ? "text-muted-foreground/30"
+                          : !day.isAvailable
+                          ? "text-muted-foreground/20 cursor-not-allowed"
+                          : isSelected
+                          ? "bg-primary text-primary-foreground"
+                          : day.isToday
+                          ? "border border-primary/50 text-primary hover:bg-primary/10"
+                          : "text-foreground hover:bg-primary/5"
+                      }`}
+                    >
+                      {day.date.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

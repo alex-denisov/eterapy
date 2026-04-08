@@ -21,16 +21,22 @@ interface ToolGateProps {
  * - При исчерпании — показывает paywall с регистрацией
  */
 export function ToolGate({ onStart, children, showCounter = true }: ToolGateProps) {
-  // Инициализируем null чтобы избежать hydration mismatch:
-  // localStorage недоступен при SSR, читаем только в useEffect.
-  const [remaining, setRemaining] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(() => {
+    // Ленивая инициализация — выполняется один раз при монтировании
+    if (typeof window !== "undefined") {
+      return sessionCounter.getRemaining();
+    }
+    return null;
+  });
   const [blocked, setBlocked] = useState(false);
 
+  // После монтирования синхронизируем blocked
   useEffect(() => {
-    const r = sessionCounter.getRemaining();
-    setRemaining(r);
-    setBlocked(r === 0);
-  }, []);
+    if (remaining !== null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setBlocked(remaining === 0);
+    }
+  }, [remaining]);
 
   const handleStart = useCallback(async () => {
     const ok = sessionCounter.increment();

@@ -10,6 +10,7 @@ import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
+import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
 
 export default function NumerologyPage() {
   const { data: session, status } = useSession();
@@ -20,19 +21,34 @@ export default function NumerologyPage() {
     lifePathNumber: number; archetype: string; keywords: string[]; interpretation: string;
   } | null>(null);
   const [error, setError] = useState("");
+  const [dateError, setDateError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
   const [isLimited, setIsLimited] = useState(false);
 
+  const currentYear = new Date().getFullYear();
+
+
   async function doSubmit() {
+    // Валидация даты
+    if (birthDate) {
+      const error = validateBirthDate(birthDate);
+      if (error) {
+        setDateError(error);
+        setError("Исправьте дату рождения");
+        return;
+      }
+    }
+
     setLoading(true);
     setError("");
     setShowAuth(false);
     setIsLimited(false);
     try {
+      const isoDate = formatDateForServer(birthDate);
       const res = await fetch("/api/ai/numerology", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ birthDate, name }),
+        body: JSON.stringify({ birthDate: isoDate, name }),
       });
       if (res.status === 429) { setIsLimited(true); return; }
       if (!res.ok) throw new Error((await res.json()).error);
@@ -61,14 +77,35 @@ export default function NumerologyPage() {
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">Дата рождения *</label>
-            <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required className="bg-card/50" />
+            <Input
+              placeholder="ДД.ММ.ГГГГ"
+              value={birthDate}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "").slice(0, 8);
+                let formatted = "";
+                if (digits.length > 0) formatted += digits.slice(0, 2);
+                if (digits.length > 2) formatted += "." + digits.slice(2, 4);
+                if (digits.length > 4) formatted += "." + digits.slice(4, 8);
+                setBirthDate(formatted);
+                if (formatted.length === 10) {
+                  const err = validateBirthDate(formatted);
+                  setDateError(err || "");
+                } else {
+                  setDateError("");
+                }
+                setError("");
+              }}
+              required
+              className={`bg-card/50 ${dateError ? "border-destructive" : ""}`}
+            />
+            {dateError && <p className="text-xs text-destructive mt-1">{dateError}</p>}
           </div>
           <div>
             <label className="mb-1 block text-sm text-muted-foreground">Имя <span className="text-xs text-muted-foreground/60">(необязательно)</span></label>
             <Input placeholder="Ваше имя" value={name} onChange={(e) => setName(e.target.value)} className="bg-card/50" />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button type="submit" disabled={!birthDate} className="w-full">Рассчитать</Button>
+          <Button type="submit" disabled={!birthDate || !!dateError} className="w-full">Рассчитать</Button>
         </form>
       )}
 

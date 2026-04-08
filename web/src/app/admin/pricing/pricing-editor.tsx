@@ -130,9 +130,13 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                 В тестовом режиме стоимость сессий = 0 ₽. Для тестирования видеочата.
               </p>
             </div>
-            <button onClick={() => setTestMode(!testMode)}
-              className={`relative h-7 w-14 rounded-full transition-colors ${testMode ? "bg-yellow-500" : "bg-muted/40"}`}>
-              <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${testMode ? "translate-x-7" : "translate-x-0.5"}`} />
+            <button
+              onClick={() => setTestMode(!testMode)}
+              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${testMode ? "bg-yellow-500" : "bg-muted/40"}`}
+            >
+              <span
+                className={`h-6 w-6 transform rounded-full bg-white shadow transition-transform ${testMode ? "translate-x-7" : "translate-x-1"}`}
+              />
             </button>
           </div>
         </CardContent>

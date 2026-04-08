@@ -1,5 +1,18 @@
 {
   "name": "eterapy-monorepo",
   "private": true,
-  "workspaces": ["web"]
+  "workspaces": [
+    "web"
+  ],
+  "dependencies": {
+    "@prisma/client": "^7.7.0",
+    "prisma": "^7.7.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.2",
+    "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "^7.28.5",
+    "babel-jest": "^30.3.0"
+  }
 }

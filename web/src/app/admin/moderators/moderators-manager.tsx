@@ -35,6 +35,52 @@ interface Moderator {
   permissions: string[];
 }
 
+const groups = ["Клиенты", "Практики"];
+
+interface PermMatrixProps {
+  permissions: string[];
+  onChange: (p: string[]) => void;
+}
+
+function PermMatrix({ permissions, onChange }: PermMatrixProps) {
+  return (
+    <div className="space-y-4">
+      {groups.map(group => (
+        <div key={group}>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group}</p>
+            <div className="flex gap-2">
+              <button onClick={() => {
+                const groupKeys = ALL_PERMISSIONS.filter(p => p.group === group).map(p => p.key);
+                onChange([...new Set([...permissions, ...groupKeys])]);
+              }} className="text-[11px] text-primary hover:underline">Все</button>
+              <button onClick={() => {
+                const groupKeys = ALL_PERMISSIONS.filter(p => p.group === group).map(p => p.key);
+                onChange(permissions.filter(p => !groupKeys.includes(p)));
+              }} className="text-[11px] text-muted-foreground hover:text-foreground">Сбросить</button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {ALL_PERMISSIONS.filter(p => p.group === group).map(perm => {
+              const checked = permissions.includes(perm.key);
+              return (
+                <label key={perm.key} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
+                  checked ? "border-primary/30 bg-primary/5" : "border-border/20 hover:border-border/40"
+                }`}>
+                  <input type="checkbox" checked={checked}
+                    onChange={e => onChange(e.target.checked ? [...permissions, perm.key] : permissions.filter(p => p !== perm.key))}
+                    className="accent-primary" />
+                  <span className="text-xs">{perm.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ModeratorsManager() {
   const [moderators, setModerators] = useState<Moderator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,15 +92,15 @@ export function ModeratorsManager() {
   const [newPerms, setNewPerms] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => { load(); }, []);
-
-  async function load() {
+  const load = async () => {
     setLoading(true);
     const res = await fetch("/api/admin/moderators");
     const d = await res.json();
     setModerators(d.moderators ?? []);
     setLoading(false);
-  }
+  };
+
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/set-state-in-effect
 
   async function handleCreate() {
     if (!newName || !newEmail || !newPwd) { toast.error("Заполните все поля"); return; }
@@ -107,47 +153,6 @@ export function ModeratorsManager() {
       body: JSON.stringify({ moderatorId: id }),
     });
     if ((await res.json()).ok) { toast.success("Удалён"); await load(); }
-  }
-
-  const groups = ["Клиенты", "Практики"];
-
-  function PermMatrix({ permissions, onChange }: { permissions: string[]; onChange: (p: string[]) => void }) {
-    return (
-      <div className="space-y-4">
-        {groups.map(group => (
-          <div key={group}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group}</p>
-              <div className="flex gap-2">
-                <button onClick={() => {
-                  const groupKeys = ALL_PERMISSIONS.filter(p => p.group === group).map(p => p.key);
-                  onChange([...new Set([...permissions, ...groupKeys])]);
-                }} className="text-[11px] text-primary hover:underline">Все</button>
-                <button onClick={() => {
-                  const groupKeys = ALL_PERMISSIONS.filter(p => p.group === group).map(p => p.key);
-                  onChange(permissions.filter(p => !groupKeys.includes(p)));
-                }} className="text-[11px] text-muted-foreground hover:text-foreground">Сбросить</button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {ALL_PERMISSIONS.filter(p => p.group === group).map(perm => {
-                const checked = permissions.includes(perm.key);
-                return (
-                  <label key={perm.key} className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer transition-colors ${
-                    checked ? "border-primary/30 bg-primary/5" : "border-border/20 hover:border-border/40"
-                  }`}>
-                    <input type="checkbox" checked={checked}
-                      onChange={e => onChange(e.target.checked ? [...permissions, perm.key] : permissions.filter(p => p !== perm.key))}
-                      className="accent-primary" />
-                    <span className="text-xs">{perm.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
   }
 
   if (loading) return <p className="text-muted-foreground animate-pulse text-sm">Загружаем...</p>;

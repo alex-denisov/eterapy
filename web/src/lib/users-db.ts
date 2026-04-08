@@ -62,6 +62,7 @@ export const usersDb = {
 
   /** Seed тест-аккаунтов при старте (идемпотентно) */
   async seedTestAccounts() {
+    const bcrypt = await import("bcryptjs");
     const testUsers = [
       {
         id: "test-client-001",
@@ -82,10 +83,24 @@ export const usersDb = {
     ];
 
     for (const u of testUsers) {
+      const hashed = await bcrypt.hash(u.password, 10);
       await db.user.upsert({
         where: { email: u.email },
-        create: u,
-        update: { name: u.name, role: u.role, emailVerified: u.emailVerified },
+        create: {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          password: hashed,
+          role: u.role,
+          emailVerified: u.emailVerified,
+          provider: "web",
+        },
+        update: {
+          name: u.name,
+          role: u.role,
+          emailVerified: u.emailVerified,
+          password: hashed,
+        },
       });
     }
   },

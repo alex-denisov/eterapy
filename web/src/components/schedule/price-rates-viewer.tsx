@@ -51,7 +51,7 @@ export function PriceRatesViewer({ rates }: Props) {
                 <div className={`relative h-5 w-10 rounded-full transition-colors pointer-events-none ${
                   enabled ? "bg-primary/70" : "bg-muted/40"
                 }`}>
-                  <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                  <span className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
                     enabled ? "translate-x-5" : "translate-x-0"
                   }`} />
                 </div>

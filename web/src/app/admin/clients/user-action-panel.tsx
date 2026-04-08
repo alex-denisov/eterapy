@@ -125,7 +125,7 @@ export function UserActionPanel({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Пароль</p>
               {can("clients.set_password") && (
                 <div className="flex gap-2">
-                  <Input type="password" placeholder="Новый пароль" value={newPwd}
+                  <Input type="password" autoComplete="new-password" placeholder="Новый пароль" value={newPwd}
                     onChange={e => setNewPwd(e.target.value)} className="bg-card/50 text-sm h-8" />
                   <button onClick={async () => { if (await callAction("set_password", { newPassword: newPwd })) setNewPwd(""); }}
                     disabled={newPwd.length < 8}

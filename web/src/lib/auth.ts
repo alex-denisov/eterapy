@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
-import { VK } from "./auth-providers";
 import { usersDb } from "./users-db";
 import db from "./db";
 import bcrypt from "bcryptjs";
@@ -9,6 +8,7 @@ import { logAudit } from "./audit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
+  debug: process.env.NODE_ENV !== "production",
   providers: [
     Credentials({
       name: "Email",
@@ -32,14 +32,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             select: { id: true, email: true, name: true, role: true, emailVerified: true, blockedAt: true },
           });
           if (!target || target.blockedAt) return null;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return {
             id: target.id,
             email: target.email,
             name: target.name,
             emailVerified: target.emailVerified,
             role: target.role,
-          } as any;
+          };
         }
 
         // ── Normal email/password path ─────────────────────────────────────────
@@ -72,14 +71,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
 
-    // VK OAuth — приоритет (русская аудитория), только если ключи заданы
-    ...(process.env.VK_CLIENT_ID && process.env.VK_CLIENT_SECRET ? [
-      VK({
-        clientId: process.env.VK_CLIENT_ID,
-        clientSecret: process.env.VK_CLIENT_SECRET,
-      }),
-    ] : []),
-
     // Google OAuth — только если GOOGLE_CLIENT_ID задан
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
       Google({
@@ -97,8 +88,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   callbacks: {
     async signIn({ user, account }) {
-      // Обработка OAuth входа (Google + VK)
-      if ((account?.provider === "google" || account?.provider === "vk") && user.email) {
+      // Обработка OAuth входа (Google)
+      if (account?.provider === "google" && user.email) {
         // Ищем или создаём пользователя
         let dbUser = await db.user.findUnique({ where: { email: user.email } });
 
@@ -142,7 +133,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // При OAuth входе загружаем данные из БД
-      if ((account?.provider === "google" || account?.provider === "vk") && token.id) {
+      if (account?.provider === "google" && token.id) {
         const dbUser = await db.user.findUnique({
           where: { id: token.id as string },
           select: { role: true, emailVerified: true },

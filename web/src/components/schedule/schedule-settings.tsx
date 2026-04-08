@@ -70,8 +70,8 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
             <div className="flex items-center gap-3 w-36 shrink-0">
               <button
                 onClick={() => updateRule(dow, { enabled: !rule.enabled })}
-                className={`relative h-5 w-10 rounded-full transition-colors ${rule.enabled ? "bg-primary" : "bg-muted/40"}`}>
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rule.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${rule.enabled ? "bg-primary" : "bg-muted/40"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rule.enabled ? "translate-x-5" : "translate-x-1"}`} />
               </button>
               <span className="text-sm font-medium">{label}</span>
             </div>

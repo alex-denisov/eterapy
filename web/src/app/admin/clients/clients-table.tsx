@@ -17,9 +17,44 @@ interface User {
   deletedAt: string | Date | null;
   freeToolsLimit: number | null;
   avatarUrl: string | null;
+  provider?: string | null;
 }
 
-export function ClientsTable({ users, adminRole, permissions }: { users: User[]; adminRole: string; permissions: Permission[] }) {
+function SortBtn({
+  field,
+  label,
+  active,
+  sortDir,
+  onSort,
+}: {
+  field: "name" | "email" | "createdAt";
+  label: string;
+  active: boolean;
+  sortDir: "asc" | "desc";
+  onSort: (field: "name" | "email" | "createdAt") => void;
+}) {
+  return (
+    <button
+      onClick={() => onSort(field)}
+      className={`flex items-center gap-1 text-xs font-medium ${
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {label}
+      {active && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
+}
+
+export function ClientsTable({
+  users,
+  adminRole,
+  permissions,
+}: {
+  users: User[];
+  adminRole: string;
+  permissions: Permission[];
+}) {
   const can = (p: Permission) => permissions.includes(p);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<"name" | "email" | "createdAt">("createdAt");
@@ -43,15 +78,13 @@ export function ClientsTable({ users, adminRole, permissions }: { users: User[];
     return list;
   }, [localUsers, search, sortField, sortDir, filterStatus]);
 
-  function SortBtn({ field, label }: { field: "name" | "email" | "createdAt"; label: string }) {
-    const active = sortField === field;
-    return (
-      <button onClick={() => { if (active) setSortDir(d => d === "asc" ? "desc" : "asc"); else { setSortField(field); setSortDir("asc"); } }}
-        className={`flex items-center gap-1 text-xs font-medium ${active ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-        {label}
-        {active && <span>{sortDir === "asc" ? "↑" : "↓"}</span>}
-      </button>
-    );
+  function handleSort(field: "name" | "email" | "createdAt") {
+    if (sortField === field) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
   }
 
   function updateUser(id: string, patch: Partial<User>) {
@@ -63,7 +96,8 @@ export function ClientsTable({ users, adminRole, permissions }: { users: User[];
       {/* Фильтры */}
       <div className="flex flex-wrap gap-3 mb-4 items-center">
         <Input placeholder="Поиск по имени или email..." value={search}
-          onChange={e => setSearch(e.target.value)} className="bg-card/50 max-w-xs" />
+          onChange={e => setSearch(e.target.value)} className="bg-card/50 max-w-xs"
+          autoComplete="off" spellCheck={false} type="search" key="search-input" />
         <div className="flex gap-1">
           {(["all", "active", "blocked", "deleted"] as const).map(f => (
             <button key={f} onClick={() => setFilterStatus(f)}
@@ -82,10 +116,36 @@ export function ClientsTable({ users, adminRole, permissions }: { users: User[];
         <table className="w-full text-sm">
           <thead className="bg-card/50 border-b border-border/20">
             <tr>
-              <th className="text-left p-3"><SortBtn field="name" label="Имя" /></th>
-              <th className="text-left p-3"><SortBtn field="email" label="Email" /></th>
-              <th className="text-left p-3 text-muted-foreground font-normal text-xs">Статус</th>
-              <th className="text-left p-3"><SortBtn field="createdAt" label="Регистрация" /></th>
+              <th className="text-left p-3">
+                <SortBtn
+                  field="name"
+                  label="Имя"
+                  active={sortField === "name"}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
+              </th>
+              <th className="text-left p-3">
+                <SortBtn
+                  field="email"
+                  label="Email"
+                  active={sortField === "email"}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
+              </th>
+              <th className="text-left p-3 text-muted-foreground font-normal text-xs">
+                Провайдер
+              </th>
+              <th className="text-left p-3">
+                <SortBtn
+                  field="createdAt"
+                  label="Регистрация"
+                  active={sortField === "createdAt"}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
+              </th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -106,6 +166,11 @@ export function ClientsTable({ users, adminRole, permissions }: { users: User[];
                     </div>
                   </td>
                   <td className="p-3 text-muted-foreground">{u.email}</td>
+                  <td className="p-3 text-xs">
+                    <Badge variant="outline" className="text-xs">
+                      {u.provider ?? "email"}
+                    </Badge>
+                  </td>
                   <td className="p-3">
                     {u.blockedAt ? <Badge className="bg-red-500/15 text-red-400 text-xs">Заблокирован</Badge>
                       : u.deletedAt ? <Badge className="bg-muted/30 text-muted-foreground text-xs">Деактивирован</Badge>
