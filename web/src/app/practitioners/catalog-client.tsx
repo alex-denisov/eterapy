@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import type { PractitionerData } from "@/lib/types";
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -70,20 +71,19 @@ function PractitionerCard({ p, specialtyLabels }: { p: PractitionerData; special
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {p.specialties.map((s) => (
+            {p.specialties.slice(0, 2).map((s) => (
               <Badge key={s} variant="secondary" className="bg-primary/10 text-xs text-primary">
                 {specialtyLabels[s] ?? s}
               </Badge>
             ))}
+            {p.specialties.length > 2 && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                +{p.specialties.length - 2}
+              </span>
+            )}
           </div>
 
           <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{p.bio}</p>
-
-          <div className="mt-3 flex flex-wrap gap-1">
-            {p.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-border/30 px-2 py-0.5 text-xs text-muted-foreground">{tag}</span>
-            ))}
-          </div>
 
           <div className="mt-4 flex items-center justify-between border-t border-border/30 pt-4">
             <div>
@@ -227,6 +227,7 @@ export function PractitionersCatalog({ initialPractitioners, specialtyLabels }: 
           ))}
         </div>
       )}
+      <ScrollToTop />
     </div>
   );
 }
