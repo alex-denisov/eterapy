@@ -14,17 +14,74 @@ export type NotifEvent =
   | "NEW_REVIEW"
   | "PAYMENT_RECEIVED";
 
-export const ALL_EVENTS: Array<{ event: NotifEvent; label: string; description: string }> = [
-  { event: "BOOKING_REQUESTED", label: "Новая запись",             description: "Когда клиент запросил сессию (для практика)" },
-  { event: "BOOKING_CONFIRMED", label: "Запись подтверждена",      description: "Когда практик подтвердил запись (для клиента)" },
-  { event: "BOOKING_CANCELLED", label: "Запись отменена",          description: "Когда сессия была отменена любой стороной" },
-  { event: "BOOKING_REMINDER",  label: "Напоминание о сессии",     description: "За N часов до начала сессии" },
-  { event: "SESSION_STARTED",   label: "Сессия началась",          description: "Когда открыт видеочат" },
-  { event: "SESSION_COMPLETED", label: "Сессия завершена",         description: "После окончания сессии" },
-  { event: "REVIEW_REQUESTED",  label: "Просьба оставить отзыв",  description: "После завершённой сессии (для клиента)" },
-  { event: "NEW_REVIEW",        label: "Новый отзыв",              description: "Когда клиент оставил отзыв (для практика)" },
-  { event: "PAYMENT_RECEIVED",  label: "Платёж получен",           description: "Подтверждение оплаты" },
+export type UserRole = "CLIENT" | "PRACTITIONER";
+
+export const ALL_EVENTS: Array<{
+  event: NotifEvent;
+  label: string;
+  description: string;
+  roles: UserRole[];
+}> = [
+  {
+    event: "BOOKING_REQUESTED",
+    label: "Новая запись",
+    description: "Когда клиент запросил сессию",
+    roles: ["PRACTITIONER"],
+  },
+  {
+    event: "BOOKING_CONFIRMED",
+    label: "Запись подтверждена",
+    description: "Когда практик подтвердил запись",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "BOOKING_CANCELLED",
+    label: "Запись отменена",
+    description: "Когда сессия была отменена любой стороной",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "BOOKING_REMINDER",
+    label: "Напоминание о сессии",
+    description: "До начала сессии",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "SESSION_STARTED",
+    label: "Сессия началась",
+    description: "Когда открыт видеочат",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "SESSION_COMPLETED",
+    label: "Сессия завершена",
+    description: "После окончания сессии",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "REVIEW_REQUESTED",
+    label: "Просьба оставить отзыв",
+    description: "После завершённой сессии",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "NEW_REVIEW",
+    label: "Новый отзыв",
+    description: "Когда клиент оставил отзыв",
+    roles: ["PRACTITIONER"],
+  },
+  {
+    event: "PAYMENT_RECEIVED",
+    label: "Платёж получен",
+    description: "Подтверждение оплаты",
+    roles: ["PRACTITIONER"],
+  },
 ];
+
+/** Фильтрация событий по роли пользователя */
+export function getEventsForRole(role: UserRole) {
+  return ALL_EVENTS.filter((e) => e.roles.includes(role));
+}
 
 export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
   "BOOKING_REQUESTED",

@@ -222,7 +222,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
 
       {/* Уведомления */}
       {activeTab === "notifications" && (
-        <NotificationSettings telegramStatus={telegramStatus} />
+        <NotificationSettings telegramStatus={telegramStatus} role={role as "CLIENT" | "PRACTITIONER"} />
       )}
 
       {/* Удаление */}
