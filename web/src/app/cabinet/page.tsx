@@ -14,7 +14,7 @@ export default async function ClientCabinetPage() {
   if (role === "ADMIN" || role === "SUPERADMIN") redirect("/admin");
 
   if (!session.user?.id) {
-    throw new Error("User ID is required");
+    redirect("/login");
   }
   const userId = session.user.id;
 
