@@ -99,7 +99,7 @@ export function VideoControls({
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 px-6 py-3 bg-[#0f1e30] border-t border-white/10">
+    <div className="flex items-center justify-center gap-3 px-6 py-3 bg-video-surface border-t border-white/10">
       {/* Громкость */}
       <div className="relative">
         <button
@@ -111,7 +111,7 @@ export function VideoControls({
           {volume === 0 ? <VolumeX className="h-5 w-5" /> : volume < 50 ? <Volume1 className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
         </button>
         {showVolume && (
-          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-[#0f1e30] border border-white/20 rounded-xl p-3 shadow-xl">
+          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-video-surface border border-white/20 rounded-xl p-3 shadow-xl">
             <input type="range" min={0} max={100} value={volume}
               onChange={(e) => handleVolume(Number(e.target.value))}
               className="w-24 accent-primary" />

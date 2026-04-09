@@ -18,6 +18,12 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  /* Header height — used by sidebar sticky positioning */
+  --header-height: 4rem;
+  /* Video room colors */
+  --color-video-bg: #0a1520;
+  --color-video-surface: #0f1e30;
+  --color-video-loading: #0D1B2A;
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);

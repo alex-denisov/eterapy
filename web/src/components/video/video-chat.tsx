@@ -149,7 +149,7 @@ export function VideoChat({ videoSessionId, participantName, role }: VideoChatPr
 
       {/* Emoji picker */}
       {showEmoji && (
-        <div className="px-3 py-2 border-t border-white/10 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto bg-[#0a1520]">
+        <div className="px-3 py-2 border-t border-white/10 flex flex-wrap gap-1.5 max-h-28 overflow-y-auto bg-video-bg">
           {EMOJIS.map(e => (
             <button key={e} onClick={() => { setText(prev => prev + e); setShowEmoji(false); }}
               className="text-xl hover:scale-110 transition-transform">
@@ -160,7 +160,7 @@ export function VideoChat({ videoSessionId, participantName, role }: VideoChatPr
       )}
 
       {/* Ввод */}
-      <div className="px-3 py-2 border-t border-white/10 bg-[#0a1520]">
+      <div className="px-3 py-2 border-t border-white/10 bg-video-bg">
         <div className="flex items-end gap-2">
           <textarea
             value={text}

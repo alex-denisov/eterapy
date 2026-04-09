@@ -54,7 +54,7 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
 
   if (connecting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0D1B2A]">
+      <div className="flex min-h-screen items-center justify-center bg-video-loading">
         <div className="text-center">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent" />
           <p className="mt-4 text-muted-foreground">Подключение к сессии...</p>
@@ -65,7 +65,7 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
 
   if (error || !token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0D1B2A] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-video-loading px-4">
         <div className="text-center max-w-sm">
           <p className="text-4xl mb-4">⚠️</p>
           <h1 className="font-heading text-xl font-bold mb-2">Не удалось подключиться</h1>
@@ -185,7 +185,7 @@ function VideoRoomInner({
   const localVideoTrack = localTracks.find(t => t.source === Track.Source.Camera);
 
   return (
-    <div ref={containerRef} className="flex h-screen bg-[#0a1520] overflow-hidden">
+    <div ref={containerRef} className="flex h-screen bg-video-bg overflow-hidden">
       {/* Уведомление о нарушении */}
       {violation && (
         <ViolationBanner message={violation} onClose={() => setViolation(null)} />
@@ -195,7 +195,7 @@ function VideoRoomInner({
       <div className={`flex flex-col flex-1 min-w-0 transition-all ${showChat ? "mr-80" : ""}`}>
 
         {/* Шапка */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0f1e30] border-b border-white/10">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-video-surface border-b border-white/10">
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-sm font-medium">{otherPartyName}</span>
@@ -234,7 +234,7 @@ function VideoRoomInner({
             {localVideoTrack ? (
               <VideoTrack trackRef={localVideoTrack} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full bg-[#0f1e30] flex items-center justify-center text-2xl font-bold text-primary">
+              <div className="w-full h-full bg-video-surface flex items-center justify-center text-2xl font-bold text-primary">
                 {participantName?.[0]?.toUpperCase() ?? "?"}
               </div>
             )}
@@ -261,7 +261,7 @@ function VideoRoomInner({
 
       {/* Правая панель — чат */}
       {showChat && (
-        <div className="fixed right-0 top-0 bottom-0 w-80 border-l border-white/10 bg-[#0f1e30] flex flex-col z-10">
+        <div className="fixed right-0 top-0 bottom-0 w-80 border-l border-white/10 bg-video-surface flex flex-col z-10">
           <VideoChat
             videoSessionId={videoSessionId}
             participantName={participantName}
