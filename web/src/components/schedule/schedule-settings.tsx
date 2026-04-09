@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 // П.6 — неделя с понедельника
 const DAYS = [
@@ -68,11 +69,11 @@ export function ScheduleSettings({ initialRules, onSaved }: Props) {
             rule.enabled ? "border-primary/20 bg-card/40" : "border-border/20 bg-card/10 opacity-60"
           }`}>
             <div className="flex items-center gap-3 w-36 shrink-0">
-              <button
-                onClick={() => updateRule(dow, { enabled: !rule.enabled })}
-                className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${rule.enabled ? "bg-primary" : "bg-muted/40"}`}>
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${rule.enabled ? "translate-x-5" : "translate-x-1"}`} />
-              </button>
+              <ToggleSwitch
+                enabled={rule.enabled}
+                onToggle={() => updateRule(dow, { enabled: !rule.enabled })}
+                label={`${label} — ${rule.enabled ? "включено" : "выключено"}`}
+              />
               <span className="text-sm font-medium">{label}</span>
             </div>
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { DURATION_LABELS } from "@/lib/duration-labels";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 interface Rate {
   durationMin: number;
@@ -96,16 +97,12 @@ export function PriceRatesViewer({ rates, practitionerId }: Props) {
                 enabled ? "border-primary/15 bg-card/40" : "border-border/15 bg-card/10"
               }`}>
               {/* Toggle */}
-              <button
-                onClick={() => toggleRate(rate.durationMin, !enabled)}
+              <ToggleSwitch
+                enabled={enabled}
+                onToggle={() => toggleRate(rate.durationMin, !enabled)}
                 disabled={saving}
-                className={`relative inline-flex h-5 w-10 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-                  enabled ? "bg-primary" : "bg-muted/40"
-                }`}>
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                  enabled ? "translate-x-5" : "translate-x-1"
-                }`} />
-              </button>
+                label={`${DURATION_LABELS[rate.durationMin]} — ${enabled ? "включено" : "выключено"}`}
+              />
 
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <span className="text-sm font-medium w-20 shrink-0">{DURATION_LABELS[rate.durationMin]}</span>
