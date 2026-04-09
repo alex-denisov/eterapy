@@ -110,7 +110,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
 
   const TABS: Array<{ id: Tab; label: string; icon: string }> = [
     { id: "profile",       label: "Профиль",       icon: "👤" },
-    ...(role === "CLIENT" ? [{ id: "extended" as Tab, label: "Для AI",   icon: "✦" }] : []),
+    ...(role === "CLIENT" ? [{ id: "extended" as Tab, label: "О себе",   icon: "✦" }] : []),
     { id: "security",      label: "Безопасность",  icon: "🔒" },
     { id: "notifications", label: "Уведомления",   icon: "🔔" },
     ...(role !== "ADMIN" && role !== "SUPERADMIN" ? [{ id: "danger" as Tab, label: "Удаление", icon: "⚠️" }] : []),
@@ -191,7 +191,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
         </Card>
       )}
 
-      {/* Расширенный профиль для AI */}
+      {/* Расширенный профиль */}
       {activeTab === "extended" && <ExtendedProfileTab />}
 
       {/* Безопасность */}
@@ -339,7 +339,7 @@ function ExtendedProfileTab() {
     const d = await res.json();
     if (d.ok) {
       const { toast } = await import("sonner");
-      toast.success("Профиль обновлён — AI-инструменты станут точнее");
+      toast.success("Профиль обновлён — результаты станут точнее");
     } else {
       toast.error(d.error || "Ошибка");
     }
@@ -352,7 +352,7 @@ function ExtendedProfileTab() {
     <Card className="border-border/40 bg-card/50">
       <CardContent className="p-6 space-y-6">
         <div>
-          <h2 className="font-semibold mb-1">Профиль для AI-инструментов</h2>
+          <h2 className="font-semibold mb-1">Профиль</h2>
           <p className="text-sm text-muted-foreground">
             Эти данные используются только для персонализации результатов.
             Они не передаются практикам и не отображаются публично.
@@ -398,7 +398,7 @@ function ExtendedProfileTab() {
         <div>
           <label className="text-sm font-medium mb-1 block">Место рождения</label>
           <Input value={birthPlace} onChange={e => setBirthPlace(e.target.value)}
-            placeholder="Москва, Россия" className="bg-card/50" />
+            placeholder="Город" className="bg-card/50" />
         </div>
 
         {/* Семейное положение */}
@@ -440,7 +440,7 @@ function ExtendedProfileTab() {
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground/50 mt-2">Выберите все что подходит — это помогает AI давать более точные ответы</p>
+          <p className="text-xs text-muted-foreground/50 mt-2">Выберите все что подходит — это помогает давать более точные результаты</p>
         </div>
 
         <Button onClick={handleSave} disabled={saving}>

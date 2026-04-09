@@ -40,10 +40,7 @@ export default async function CabinetPractitionersPage() {
   const practitioners = await getPractitioners();
   return (
     <div className="px-6 py-8 max-w-5xl">
-      <h1 className="font-heading text-2xl font-bold mb-2">Найти практика</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        {practitioners.length} верифицированных специалиста
-      </p>
+      <h1 className="font-heading text-2xl font-bold mb-6">Найти практика</h1>
       <CabinetPractitionersCatalog
         practitioners={practitioners}
         specialtyLabels={SPECIALTY_LABELS}

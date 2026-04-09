@@ -30,32 +30,72 @@ export default async function ClientCabinetPage() {
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
 
+  // Прогресс-бар бесплатных сессий: 3 включено, сколько использовано
+  const FREE_LIMIT = 3;
+  const usedSessions = Math.min(bookingCount, FREE_LIMIT);
+  const remainingSessions = Math.max(FREE_LIMIT - bookingCount, 0);
+  const progressPct = Math.min((bookingCount / FREE_LIMIT) * 100, 100);
+
   return (
     <PageContainer>
       <h1 className="font-heading text-2xl font-bold mb-1">Привет, {firstName} 👋</h1>
       <p className="text-muted-foreground text-sm mb-8">{session.user?.email}</p>
 
       {/* Статистика */}
-      <div className="grid gap-4 sm:grid-cols-3 mb-8">
-        <Card className="border-border/40 bg-card/50">
+      <div className="grid gap-4 sm:grid-cols-2 mb-8">
+        {/* Бесплатные сессии — прогресс-бар */}
+        <Card className="border-border/40 bg-card/50 sm:col-span-2">
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Сессий с практиками</p>
-            <p className="mt-1 font-heading text-3xl font-bold text-primary">{bookingCount}</p>
-            <p className="mt-1 text-xs text-muted-foreground">всего</p>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Бесплатные сессии</p>
+                <p className="mt-1 font-heading text-3xl font-bold text-primary">
+                  {remainingSessions} из {FREE_LIMIT}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground text-right">
+                Использовано: {usedSessions}
+              </p>
+            </div>
+            <div className="h-3 w-full rounded-full bg-muted/50 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  progressPct >= 100 ? "bg-destructive" : progressPct >= 66 ? "bg-yellow-500" : "bg-primary"
+                }`}
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            {remainingSessions > 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Осталось {remainingSessions} бесплатн{remainingSessions === 1 ? "ая" : remainingSessions < 5 ? "ые" : "ых"} сесси{remainingSessions === 1 ? "я" : remainingSessions < 5 ? "и" : "й"} в этом месяце
+              </p>
+            ) : (
+              <Link href="/cabinet/billing" className="mt-2 inline-block text-xs text-primary hover:underline">
+                Купить дополнительные сессии →
+              </Link>
+            )}
           </CardContent>
         </Card>
-        <Card className="border-border/40 bg-card/50">
-          <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Инструментов</p>
-            <p className="mt-1 font-heading text-3xl font-bold">6</p>
-            <Link href="/cabinet/tools" className="mt-1 block text-xs text-primary hover:underline">Открыть →</Link>
-          </CardContent>
-        </Card>
+
+        {/* Баланс */}
         <Card className="border-border/40 bg-card/50">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Баланс</p>
             <p className="mt-1 font-heading text-3xl font-bold">0 ₽</p>
-            <Link href="/cabinet/billing" className="mt-1 block text-xs text-primary hover:underline">Пополнить →</Link>
+            <Link href="/cabinet/billing" className="mt-1 block text-xs text-primary hover:underline">
+              Пополнить →
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Направления */}
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Направления</p>
+            <p className="mt-1 font-heading text-3xl font-bold">6</p>
+            <Link href="/cabinet/modalities" className="mt-1 block text-xs text-primary hover:underline">
+              Открыть →
+            </Link>
           </CardContent>
         </Card>
       </div>

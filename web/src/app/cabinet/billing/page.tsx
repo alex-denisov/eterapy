@@ -26,7 +26,7 @@ export default function BillingPage() {
 
   return (
     <div className="px-6 py-8 max-w-2xl">
-      <h1 className="font-heading text-2xl font-bold mb-8">Оплата и тарифы</h1>
+      <h1 className="font-heading text-2xl font-bold mb-8">Баланс и оплата</h1>
 
       {/* Баланс */}
       <Card className="mb-6 border-border/40 bg-card/50">
