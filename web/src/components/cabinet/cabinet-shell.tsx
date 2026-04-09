@@ -3,27 +3,42 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import {
+  LayoutDashboard,
+  Users,
+  CalendarDays,
+  Compass,
+  History,
+  Wallet,
+  Settings,
+  UserPen,
+  Star,
+  Banknote,
+  LogOut,
+} from "lucide-react";
 
-interface NavItem { href: string; icon: string; label: string; }
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+}
 
 const CLIENT_NAV: NavItem[] = [
-  { href: "/cabinet", icon: "🏠", label: "Обзор" },
-  { href: "/cabinet/practitioners", icon: "🔮", label: "Практики" },
-  { href: "/cabinet/bookings", icon: "📅", label: "Мои записи" },
-  { href: "/cabinet/tools", icon: "✦", label: "Инструменты" },
-  { href: "/cabinet/ai-history", icon: "🗂️", label: "История AI" },
-  { href: "/cabinet/billing", icon: "💳", label: "Оплата и тарифы" },
-  { href: "/cabinet/settings", icon: "⚙️", label: "Настройки" },
+  { href: "/cabinet", icon: LayoutDashboard, label: "Обзор" },
+  { href: "/cabinet/practitioners", icon: Users, label: "Практики" },
+  { href: "/cabinet/bookings", icon: CalendarDays, label: "Мои записи" },
+  { href: "/cabinet/modalities", icon: Compass, label: "Направления" },
+  { href: "/cabinet/action-history", icon: History, label: "История действий" },
+  { href: "/cabinet/billing", icon: Wallet, label: "Баланс и оплата" },
 ];
 
 const PRACTITIONER_NAV: NavItem[] = [
-  { href: "/cabinet/practitioner", icon: "🏠", label: "Обзор" },
-  { href: "/cabinet/practitioner/profile", icon: "✏️", label: "Мой профиль" },
-  { href: "/cabinet/practitioner/schedule", icon: "📅", label: "Расписание" },
-  { href: "/cabinet/practitioner/clients", icon: "👤", label: "Клиенты" },
-  { href: "/cabinet/practitioner/reviews", icon: "★", label: "Отзывы" },
-  { href: "/cabinet/practitioner/earnings", icon: "💰", label: "Выплаты" },
-  { href: "/cabinet/settings", icon: "⚙️", label: "Настройки" },
+  { href: "/cabinet/practitioner", icon: LayoutDashboard, label: "Обзор" },
+  { href: "/cabinet/practitioner/profile", icon: UserPen, label: "Мой профиль" },
+  { href: "/cabinet/practitioner/schedule", icon: CalendarDays, label: "Расписание" },
+  { href: "/cabinet/practitioner/clients", icon: Users, label: "Клиенты" },
+  { href: "/cabinet/practitioner/reviews", icon: Star, label: "Отзывы" },
+  { href: "/cabinet/practitioner/earnings", icon: Banknote, label: "Выплаты" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -42,7 +57,6 @@ export function CabinetShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  // ADMIN и SUPERADMIN не должны видеть клиентскую навигацию — их страница /admin
   const nav = (role === "ADMIN" || role === "SUPERADMIN")
     ? []
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
@@ -52,6 +66,9 @@ export function CabinetShell({
     if (href === "/cabinet" || href === "/cabinet/practitioner") return pathname === href;
     return pathname.startsWith(href);
   }
+
+  // Для мобильного навигации — первые 4 пункта + Баланс (5)
+  const mobileNav = nav.slice(0, 4);
 
   return (
     <div className="min-h-screen flex">
@@ -72,39 +89,59 @@ export function CabinetShell({
 
         {/* Nav */}
         <nav className="flex-1 space-y-0.5">
-          {nav.map((item) => (
-            <Link key={item.href} href={item.href}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                isActive(item.href)
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-              }`}>
-              <span className="text-base">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+          {nav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  isActive(item.href)
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                }`}>
+                <Icon className="h-4 w-4 shrink-0" />
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
-        {/* Sign out */}
-        <button
-          onClick={() => signOut({ callbackUrl: "/" })}
-          className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors mt-2">
-          <span className="text-base">🚪</span>
-          Выйти
-        </button>
+        {/* Divider + Settings + Sign out */}
+        <div className="mt-2 border-t border-border/20 pt-2">
+          <Link
+            href="/cabinet/settings"
+            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors w-full ${
+              isActive("/cabinet/settings")
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+            }`}
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            Настройки
+          </Link>
+          <button
+            onClick={() => signOut({ callbackUrl: "/" })}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors w-full"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            Выйти
+          </button>
+        </div>
       </aside>
 
       {/* Mobile nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/20 bg-navy/95 backdrop-blur-sm">
-        {nav.slice(0, 4).map((item) => (
-          <Link key={item.href} href={item.href}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
-              isActive(item.href) ? "text-primary" : "text-muted-foreground"
-            }`}>
-            <span className="text-lg">{item.icon}</span>
-            {item.label.split(" ")[0]}
-          </Link>
-        ))}
+        {mobileNav.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
+                isActive(item.href) ? "text-primary" : "text-muted-foreground"
+              }`}>
+              <Icon className="h-5 w-5" />
+              {item.label.split(" ")[0]}
+            </Link>
+          );
+        })}
       </div>
 
       {/* Main */}
