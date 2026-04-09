@@ -55,7 +55,8 @@ export function CabinetPractitionersCatalog({
   const [searchInput, setSearchInput] = useState("");
   const search = useDebounce(searchInput, 250);
   const [specialty, setSpecialty] = useState("all");
-  const [sortBy, setSortBy] = useState<"rating" | "price_asc" | "price_desc">("rating");
+  const [sortBy, setSortBy] = useState<"rating" | "reviews">("rating");
+  const [sortPrice, setSortPrice] = useState<"default" | "asc" | "desc">("default");
 
   const allSpecialties = useMemo(() => {
     const s = new Set<string>();
@@ -75,11 +76,14 @@ export function CabinetPractitionersCatalog({
       );
     }
     if (specialty !== "all") list = list.filter(p => p.specialties.includes(specialty));
-    if (sortBy === "price_asc") list.sort((a, b) => a.pricePerSession - b.pricePerSession);
-    else if (sortBy === "price_desc") list.sort((a, b) => b.pricePerSession - a.pricePerSession);
+    // Сортировка по рейтингу / отзывам
+    if (sortBy === "reviews") list.sort((a, b) => b.reviewCount - a.reviewCount);
     else list.sort((a, b) => b.rating - a.rating);
+    // Сортировка по цене
+    if (sortPrice === "asc") list.sort((a, b) => a.pricePerSession - b.pricePerSession);
+    else if (sortPrice === "desc") list.sort((a, b) => b.pricePerSession - a.pricePerSession);
     return list;
-  }, [practitioners, search, specialty, sortBy]);
+  }, [practitioners, search, specialty, sortBy, sortPrice]);
 
   return (
     <div>
@@ -99,10 +103,17 @@ export function CabinetPractitionersCatalog({
           ))}
         </select>
         <select value={sortBy} onChange={e => setSortBy(e.target.value as typeof sortBy)}
-          className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none">
+          className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          aria-label="Сортировка по рейтингу">
           <option value="rating">По рейтингу</option>
-          <option value="price_asc">Сначала дешевле</option>
-          <option value="price_desc">Сначала дороже</option>
+          <option value="reviews">По отзывам</option>
+        </select>
+        <select value={sortPrice} onChange={e => setSortPrice(e.target.value as typeof sortPrice)}
+          className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none"
+          aria-label="Сортировка по стоимости">
+          <option value="default">По стоимости</option>
+          <option value="asc">Сначала дешевле</option>
+          <option value="desc">Сначала дороже</option>
         </select>
         <span className="text-xs text-muted-foreground ml-auto">{filtered.length} практиков</span>
       </div>
