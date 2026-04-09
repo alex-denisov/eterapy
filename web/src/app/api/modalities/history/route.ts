@@ -1,6 +1,6 @@
 /**
- * GET  /api/ai/history — список сохранённых AI-сессий текущего пользователя
- * DELETE /api/ai/history/[id] — удалить запись
+ * GET  /api/modalities/history — список сохранённых AI-сессий текущего пользователя
+ * DELETE /api/modalities/history/[id] — удалить запись
  */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";

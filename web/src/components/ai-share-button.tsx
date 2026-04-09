@@ -32,7 +32,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   async function saveToHistory() {
     if (saved) return;
     try {
-      const res = await fetch("/api/ai/history/save", {
+      const res = await fetch("/api/modalities/history/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tool, title, result: resultText }),

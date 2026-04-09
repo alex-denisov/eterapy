@@ -1,0 +1,14 @@
+services:
+  nginx:
+    image: nginx:1.29-alpine
+    container_name: eterapy-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./nginx/conf.d/eterapy-https.conf:/etc/nginx/nginx.conf:ro
+      - ./certificates/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
+      - ./certificates/eterapy_private_key.key:/etc/nginx/certs/eterapy_private_key.key:ro
+    command: nginx -g 'daemon off;'

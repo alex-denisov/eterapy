@@ -1,4 +1,4 @@
-/** POST /api/ai/history/save — сохранить результат AI-сессии */
+/** POST /api/modalities/history/save — сохранить результат AI-сессии */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";

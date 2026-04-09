@@ -35,7 +35,7 @@ export default function AIHistoryPage() {
   const [selected, setSelected] = useState<{ tool: string; title: string; prompt: string | null; result: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/ai/history?limit=50")
+    fetch("/api/modalities/history?limit=50")
       .then(r => r.json())
       .then(d => { setLogs(d.logs ?? []); setLoading(false); })
       .catch(() => setLoading(false));

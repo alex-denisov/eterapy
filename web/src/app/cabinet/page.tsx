@@ -138,10 +138,10 @@ export default async function ClientCabinetPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { href: "/tools/tarot", icon: "🃏", label: "Расклад Таро", desc: "Расклад на три карты" },
-            { href: "/tools/checkin", icon: "💬", label: "Рефлексия", desc: "5 вопросов о состоянии" },
-            { href: "/tools/horoscope", icon: "🌙", label: "Гороскоп", desc: "Ежедневный / недельный" },
-            { href: "/tools/numerology", icon: "🔢", label: "Нумерология", desc: "Число жизненного пути" },
+            { href: "/modalities/tarot", icon: "🃏", label: "Расклад Таро", desc: "Расклад на три карты" },
+            { href: "/modalities/checkin", icon: "💬", label: "Рефлексия", desc: "5 вопросов о состоянии" },
+            { href: "/modalities/horoscope", icon: "🌙", label: "Гороскоп", desc: "Ежедневный / недельный" },
+            { href: "/modalities/numerology", icon: "🔢", label: "Нумерология", desc: "Число жизненного пути" },
           ].map((item) => (
             <Link key={item.href} href={item.href}
               className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/30 p-4 transition-colors hover:border-primary/40 hover:bg-card/50">

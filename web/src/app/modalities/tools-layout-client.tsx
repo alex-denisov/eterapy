@@ -5,19 +5,19 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const TOOLS_NAV = [
-  { href: "/tools", icon: "✦", label: "Все инструменты" },
-  { href: "/tools/tarot", icon: "🃏", label: "Расклад Таро" },
-  { href: "/tools/checkin", icon: "💬", label: "Рефлексия" },
-  { href: "/tools/horoscope", icon: "🌙", label: "Гороскоп" },
-  { href: "/tools/numerology", icon: "🔢", label: "Нумерология" },
-  { href: "/tools/natal", icon: "⭐", label: "Натальная карта" },
-  { href: "/tools/guide", icon: "📖", label: "Личный гид" },
+  { href: "/cabinet/modalities", icon: "✦", label: "Все направления" },
+  { href: "/modalities/tarot", icon: "🃏", label: "Расклад Таро" },
+  { href: "/modalities/checkin", icon: "💬", label: "Рефлексия" },
+  { href: "/modalities/horoscope", icon: "🌙", label: "Гороскоп" },
+  { href: "/modalities/numerology", icon: "🔢", label: "Нумерология" },
+  { href: "/modalities/natal", icon: "⭐", label: "Натальная карта" },
+  { href: "/modalities/guide", icon: "📖", label: "Личный гид" },
 ];
 
 const CLIENT_LINKS = [
   { href: "/cabinet", icon: "🏠", label: "Кабинет" },
   { href: "/cabinet/bookings", icon: "📅", label: "Мои записи" },
-  { href: "/cabinet/billing", icon: "💳", label: "Тарифы" },
+  { href: "/cabinet/billing", icon: "💳", label: "Баланс и оплата" },
 ];
 
 export function ToolsLayoutClient({
@@ -33,7 +33,7 @@ export function ToolsLayoutClient({
   const isLoggedIn = !!user;
 
   function isActive(href: string) {
-    if (href === "/tools") return pathname === "/tools";
+    if (href === "/cabinet/modalities") return pathname === "/cabinet/modalities";
     return pathname.startsWith(href);
   }
 
@@ -41,10 +41,10 @@ export function ToolsLayoutClient({
   if (!isLoggedIn || role === "ADMIN") {
     return (
       <>
-        {pathname !== "/tools" && (
+        {pathname !== "/cabinet/modalities" && (
           <div className="border-b border-border/30 bg-navy/50">
             <div className="mx-auto flex max-w-6xl items-center px-4 py-2.5">
-              <Link href="/tools" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link href="/cabinet/modalities" className="text-sm text-muted-foreground hover:text-foreground">
                 ← Все инструменты
               </Link>
             </div>
@@ -126,7 +126,7 @@ export function ToolsLayoutClient({
       {/* Mobile: top back link */}
       <div className="md:hidden fixed top-16 left-0 right-0 z-30 border-b border-border/20 bg-navy/90 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4 py-2">
-          <Link href="/tools" className="text-sm text-muted-foreground hover:text-foreground">← Инструменты</Link>
+          <Link href="/cabinet/modalities" className="text-sm text-muted-foreground hover:text-foreground">← Инструменты</Link>
           <span className="text-muted-foreground/30">|</span>
           <Link href={cabinetHref} className="text-sm text-muted-foreground hover:text-foreground">Кабинет</Link>
         </div>

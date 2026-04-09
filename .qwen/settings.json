@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(openssl *)",
+      "Bash(docker ps *)",
+      "Bash(docker logs *)",
+      "Bash(lsof *)",
+      "Bash(docker compose *)",
+      "Bash(curl *)",
+      "Bash(dig *)",
+      "Bash(docker exec *)",
+      "Bash(chmod *)",
+      "Bash(bash *)",
+      "Bash(cat *)",
+      "Bash(tr *)",
+      "Bash(npm *)",
+      "Bash(python3 *)",
+      "Bash(sleep *)",
+      "Bash(grep *)",
+      "Bash(xargs *)",
+      "Bash(kill *)",
+      "Bash(mkdir *)",
+      "Bash(rm *)",
+      "Bash(ls *)",
+      "Bash(npx *)",
+      "Bash(sed *)",
+      "Bash(do *)",
+      "Bash(done)",
+      "Bash(mv *)"
+    ]
+  },
+  "$version": 3
+}
