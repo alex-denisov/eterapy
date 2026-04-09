@@ -23,16 +23,11 @@ const ADMIN_NAV: { href: string; label: string }[] = [];
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const role: string = session.user?.role ?? "CLIENT";
   const name = session.user?.name?.split(" ")[0] ?? session.user?.email ?? "Пользователь";
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
 
   const menuItems = role === "PRACTITIONER" ? [
     { href: "/cabinet/practitioner", label: "Мой кабинет" },
@@ -52,38 +47,121 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: "/cabinet/settings", label: "Настройки и безопасность" },
   ];
 
+  const allItems = [...menuItems, { href: "#signout", label: "Выйти из аккаунта" } as const];
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    if (open) {
+      document.addEventListener("keydown", handleKey);
+      return () => document.removeEventListener("keydown", handleKey);
+    }
+  }, [open]);
+
+  // Arrow key navigation
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!open) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev + 1) % allItems.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedIndex((prev) => (prev - 1 + allItems.length) % allItems.length);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setFocusedIndex(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setFocusedIndex(allItems.length - 1);
+    }
+  }
+
+  // Focus management
+  useEffect(() => {
+    if (open) {
+      setFocusedIndex(0);
+    } else {
+      setFocusedIndex(-1);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (open && focusedIndex >= 0) {
+      const links = menuRef.current?.querySelectorAll("a, button") as NodeListOf<HTMLElement> | undefined;
+      links?.[focusedIndex]?.focus();
+    }
+  }, [focusedIndex, open]);
+
+  function closeAndFocus() {
+    setOpen(false);
+    setTimeout(() => triggerRef.current?.focus(), 0);
+  }
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" onKeyDown={handleKeyDown}>
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Меню пользователя"
         className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
           {name.charAt(0).toUpperCase()}
         </span>
         <span className="hidden md:block">{name}</span>
-        <span className="text-xs text-muted-foreground/60">{open ? "▲" : "▼"}</span>
+        <span className="text-xs text-muted-foreground/60" aria-hidden="true">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 min-w-[200px] rounded-xl border border-border/40 bg-navy/95 shadow-xl backdrop-blur-xl">
+        <div
+          ref={menuRef}
+          role="menu"
+          aria-orientation="vertical"
+          aria-labelledby="user-menu"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[200px] rounded-xl border border-border/40 bg-navy/95 shadow-xl outline-none backdrop-blur-xl"
+        >
           <div className="border-b border-border/30 px-4 py-3">
             <p className="text-sm font-medium">{session.user?.name}</p>
             <p className="text-xs text-muted-foreground">{session.user?.email}</p>
           </div>
           <div className="py-1">
-            {menuItems.map((item) => (
-              <Link key={item.href} href={item.href}
-                onClick={() => setOpen(false)}
-                className="block px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground">
+            {menuItems.map((item, i) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                tabIndex={focusedIndex === i ? 0 : -1}
+                onClick={() => closeAndFocus()}
+                onFocus={() => setFocusedIndex(i)}
+                className="block min-h-[44px] px-4 py-2.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-white/5 hover:text-foreground focus:bg-white/5 focus:text-foreground"
+              >
                 {item.label}
               </Link>
             ))}
           </div>
           <div className="border-t border-border/30 py-1">
             <button
-              onClick={() => { setOpen(false); signOut({ callbackUrl: "/" }); }}
-              className="w-full px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+              role="menuitem"
+              tabIndex={focusedIndex === allItems.length - 1 ? 0 : -1}
+              onClick={() => { closeAndFocus(); signOut({ callbackUrl: "/" }); }}
+              onFocus={() => setFocusedIndex(allItems.length - 1)}
+              className="w-full min-h-[44px] px-4 py-2.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-white/5 hover:text-foreground focus:bg-white/5 focus:text-foreground"
             >
               Выйти из аккаунта
             </button>
