@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Wallet, Plus, ArrowUpRight, Clock, Shield } from "lucide-react";
+import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const FEATURES = [
   "3 бесплатных сессии в месяц",
@@ -16,7 +17,50 @@ const FEATURES = [
 export default function BillingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [balanceRub, setBalanceRub] = useState("0.00");
   const [topUpAmount, setTopUpAmount] = useState(500);
+  const [creatingPayment, setCreatingPayment] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+
+  // Загрузка баланса
+  useEffect(() => {
+    if (!session) return;
+    fetch("/api/billing/balance")
+      .then(r => r.json())
+      .then(d => { setBalanceRub(d.balanceRub); })
+      .catch(() => {});
+
+    // Загрузка истории
+    fetch("/api/billing/transactions")
+      .then(r => r.json())
+      .then(d => { setTransactions(d.transactions ?? []); })
+      .catch(() => {});
+  }, [session]);
+
+  // Создание платежа → редирект на ЮKassa
+  async function handleTopUp() {
+    setCreatingPayment(true);
+    try {
+      const res = await fetch("/api/billing/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountKopecks: topUpAmount * 100,
+          description: `Пополнение баланса ${topUpAmount} ₽`,
+        }),
+      });
+      const data = await res.json();
+      if (data.confirmationUrl) {
+        window.location.href = data.confirmationUrl;
+      } else {
+        toast.error(data.error || "Ошибка создания платежа");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setCreatingPayment(false);
+    }
+  }
 
   if (status === "loading") return null;
   if (!session) { router.push("/login"); return null; }
@@ -34,14 +78,15 @@ export default function BillingPage() {
                 <Wallet className="h-4 w-4" />
                 Баланс
               </div>
-              <p className="font-heading text-4xl font-bold text-primary">0 ₽</p>
+              <p className="font-heading text-4xl font-bold text-primary">{Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽</p>
             </div>
             <button
-              onClick={() => router.push("/cabinet/billing/top-up")}
-              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors"
+              onClick={handleTopUp}
+              disabled={creatingPayment}
+              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" />
-              Пополнить
+              {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {creatingPayment ? "Создание платежа..." : "Пополнить"}
             </button>
           </div>
         </CardContent>
@@ -97,17 +142,40 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* История операций — заглушка */}
+      {/* История операций */}
       <Card className="border-border/40 bg-card/50">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <h2 className="font-semibold">История операций</h2>
           </div>
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            <p>Операций пока нет</p>
-            <p className="text-xs mt-1 text-muted-foreground/70">Здесь будут отображаться ваши платежи и списания</p>
-          </div>
+          {transactions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              <p>Операций пока нет</p>
+              <p className="text-xs mt-1 text-muted-foreground/70">Здесь будут отображаться ваши платежи и списания</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {transactions.slice(0, 10).map((t) => (
+                <div key={t.id} className="flex items-center justify-between rounded-lg border border-border/20 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium">{t.description || "Пополнение"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(t.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold ${Number(t.amountRub) > 0 ? "text-green-400" : "text-destructive"}`}>
+                      {Number(t.amountRub) > 0 ? "+" : ""}{Number(t.amountRub).toFixed(2)} ₽
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">
+                      {t.status === "SUCCEEDED" ? "✓ Выполнен" : t.status === "PENDING" ? "⏳ Ожидание" : "✕ Отменён"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
