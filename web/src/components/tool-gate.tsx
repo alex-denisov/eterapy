@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { sessionCounter } from "@/lib/session-counter";
@@ -28,20 +28,14 @@ export function ToolGate({ onStart, children, showCounter = true }: ToolGateProp
     }
     return null;
   });
-  const [blocked, setBlocked] = useState(false);
 
-  // После монтирования синхронизируем blocked
-  useEffect(() => {
-    if (remaining !== null) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBlocked(remaining === 0);
-    }
-  }, [remaining]);
+  // blocked вычисляется напрямую из remaining — нет race condition
+  const blocked = remaining === 0;
 
   const handleStart = useCallback(async () => {
     const ok = sessionCounter.increment();
     if (!ok) {
-      setBlocked(true);
+      setRemaining(0);
       toast.error("Лимит сессий исчерпан. Зарегистрируйтесь для продолжения.");
       return;
     }
