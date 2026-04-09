@@ -56,6 +56,8 @@ model User {
   notificationPrefs   NotificationPreference[]
   complaints          Complaint[]           @relation("ComplaintReporter")
   aiSessionLogs       AISessionLog[]
+  balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
+  transactions        Transaction[]
 
   @@map("users")
 }
@@ -552,4 +554,31 @@ enum ToolType {
   NUMEROLOGY
   HOROSCOPE
   GUIDE
+}
+
+// ─── Transactions ─────────────────────────────────────────────────────────────
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int                // positive = top-up, negative = charge
+  currency    String   @default("RUB")
+  status      TransactionStatus @default(PENDING)
+  provider    String   @default("yookassa")  // "yookassa", "internal", "manual"
+  providerPaymentId String?    // YooKassa payment ID
+  description String?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([providerPaymentId])
+  @@map("transactions")
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCEEDED
+  CANCELLED
+  REFUNDED
 }
