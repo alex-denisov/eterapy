@@ -2,17 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
-import { BookingStatus } from "@prisma/client";
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PENDING:     { label: "Ожидает",      color: "bg-yellow-500/10 text-yellow-400" },
-  CONFIRMED:   { label: "Подтверждено", color: "bg-green-500/10 text-green-400" },
-  IN_PROGRESS: { label: "Идёт",         color: "bg-blue-500/10 text-blue-400" },
-  COMPLETED:   { label: "Завершено",    color: "bg-primary/10 text-primary" },
-  CANCELLED:   { label: "Отменено",     color: "bg-muted/40 text-muted-foreground" },
-  DISPUTED:    { label: "Спор",         color: "bg-destructive/10 text-destructive" },
-  REFUNDED:    { label: "Возврат",      color: "bg-muted/40 text-muted-foreground" },
-};
+import { getBookingStatus } from "@/lib/booking-status";
 
 export default async function AdminBookingsPage() {
   const session = await auth();
@@ -40,7 +30,7 @@ export default async function AdminBookingsPage() {
 
       <div className="space-y-2">
         {bookings.map((b) => {
-          const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "text-muted-foreground" };
+          const st = getBookingStatus(b.status);
           return (
             <div key={b.id} className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
               <div className="min-w-0 flex-1">

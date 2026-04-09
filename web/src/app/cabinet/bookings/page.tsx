@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModal } from "@/components/review-modal";
 import { ComplaintModal } from "@/components/complaint-modal";
+import { getBookingStatus } from "@/lib/booking-status";
 import {
   Dialog,
   DialogContent,
@@ -26,16 +27,6 @@ interface Booking {
   practitioner?: { name: string; id: string };
   review?: { id: string } | null;
 }
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PENDING:     { label: "Ожидает",       color: "bg-yellow-500/10 text-yellow-400" },
-  CONFIRMED:   { label: "Подтверждено",  color: "bg-green-500/10 text-green-400" },
-  IN_PROGRESS: { label: "Идёт сессия",   color: "bg-blue-500/10 text-blue-400" },
-  COMPLETED:   { label: "Завершено",     color: "bg-primary/10 text-primary" },
-  CANCELLED:   { label: "Отменено",      color: "bg-muted/40 text-muted-foreground" },
-  DISPUTED:    { label: "Спор",          color: "bg-destructive/10 text-destructive" },
-  REFUNDED:    { label: "Возврат",       color: "bg-muted/40 text-muted-foreground" },
-};
 
 export default function ClientBookingsPage() {
   const searchParams = useSearchParams();
@@ -181,7 +172,7 @@ export default function ClientBookingsPage() {
           </h2>
           <div className="space-y-3">
             {grouped.upcoming.map((b) => {
-              const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "" };
+              const st = getBookingStatus(b.status);
               return (
                 <Card key={b.id} className="border-border/40 bg-card/40">
                   <CardContent className="p-5">
@@ -249,7 +240,7 @@ export default function ClientBookingsPage() {
           </h2>
           <div className="space-y-2">
             {grouped.past.map((b) => {
-              const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "" };
+              const st = getBookingStatus(b.status);
               const canReview = b.status === "COMPLETED" && !b.review;
               return (
                 <div key={b.id}

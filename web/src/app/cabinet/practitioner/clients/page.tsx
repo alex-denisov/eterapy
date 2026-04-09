@@ -3,18 +3,8 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BookingStatus } from "@prisma/client";
+import { getBookingStatus } from "@/lib/booking-status";
 import { BookingActions } from "./booking-actions";
-
-const STATUS_LABELS: Record<BookingStatus, { label: string; color: string }> = {
-  PENDING:     { label: "Ожидает",      color: "bg-yellow-500/10 text-yellow-400" },
-  CONFIRMED:   { label: "Подтверждено", color: "bg-green-500/10 text-green-400" },
-  IN_PROGRESS: { label: "Идёт",         color: "bg-blue-500/10 text-blue-400" },
-  COMPLETED:   { label: "Завершено",    color: "bg-primary/10 text-primary" },
-  CANCELLED:   { label: "Отменено",     color: "bg-muted/40 text-muted-foreground" },
-  DISPUTED:    { label: "Спор",         color: "bg-destructive/10 text-destructive" },
-  REFUNDED:    { label: "Возврат",      color: "bg-muted/40 text-muted-foreground" },
-};
 
 export default async function PractitionerClientsPage() {
   const session = await auth();
@@ -101,7 +91,7 @@ export default async function PractitionerClientsPage() {
           <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">История</h2>
           <div className="space-y-1.5">
             {rest.map((b) => {
-              const st = STATUS_LABELS[b.status as BookingStatus];
+              const st = getBookingStatus(b.status);
               return (
                 <div key={b.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-card/10 px-4 py-2.5">
                   <p className="text-sm">{b.client.name}</p>

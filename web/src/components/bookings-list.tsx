@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { getBookingStatus } from "@/lib/booking-status";
 
 interface Booking {
   id: string;
@@ -14,16 +15,6 @@ interface Booking {
   practitioner?: { name: string };
   client?: { name: string; email: string };
 }
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PENDING:     { label: "Ожидает", color: "bg-yellow-500/10 text-yellow-400" },
-  CONFIRMED:   { label: "Подтверждена", color: "bg-green-500/10 text-green-400" },
-  IN_PROGRESS: { label: "Идёт сессия", color: "bg-blue-500/10 text-blue-400" },
-  COMPLETED:   { label: "Завершена", color: "bg-primary/10 text-primary" },
-  CANCELLED:   { label: "Отменена", color: "bg-border/30 text-muted-foreground" },
-  DISPUTED:    { label: "Жалоба", color: "bg-destructive/10 text-destructive" },
-  REFUNDED:    { label: "Возврат", color: "bg-orange-500/10 text-orange-400" },
-};
 
 export function BookingsList({ role = "client" }: { role?: "client" | "practitioner" }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -112,7 +103,7 @@ export function BookingsList({ role = "client" }: { role?: "client" | "practitio
   return (
     <div className="space-y-3">
       {bookings.map((b) => {
-        const st = STATUS_LABELS[b.status] ?? { label: b.status, color: "bg-border/20 text-muted-foreground" };
+        const st = getBookingStatus(b.status);
         const slotStr = b.slot
           ? new Date(b.slot.startAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
           : "Слот уточняется";
