@@ -8,6 +8,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ReviewModal } from "@/components/review-modal";
 import { ComplaintModal } from "@/components/complaint-modal";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface Booking {
   id: string;
@@ -36,6 +44,7 @@ export default function ClientBookingsPage() {
   const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
   const [complaintBooking, setComplaintBooking] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelConfirm, setCancelConfirm] = useState<Booking | null>(null);
 
   useEffect(() => {
     fetch("/api/bookings?role=client")
@@ -55,7 +64,14 @@ export default function ClientBookingsPage() {
       .catch(() => setLoading(false));
   }, [searchParams]);
 
-  async function handleCancel(bookingId: string) {
+  function requestCancel(bookingId: string) {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (booking) setCancelConfirm(booking);
+  }
+
+  async function confirmCancel() {
+    if (!cancelConfirm) return;
+    const bookingId = cancelConfirm.id;
     setCancelling(bookingId);
     try {
       const res = await fetch(`/api/bookings/${bookingId}`, {
@@ -71,7 +87,7 @@ export default function ClientBookingsPage() {
         toast.error(data.error ?? "Ошибка");
       }
     } catch { toast.error("Ошибка сети"); }
-    finally { setCancelling(null); }
+    finally { setCancelling(null); setCancelConfirm(null); }
   }
 
   const grouped = {
@@ -98,6 +114,36 @@ export default function ClientBookingsPage() {
           onClose={() => setComplaintBooking(null)}
           onSubmitted={() => setComplaintBooking(null)}
         />
+      )}
+
+      {cancelConfirm && (
+        <Dialog open={!!cancelConfirm} onOpenChange={(isOpen) => { if (!isOpen) setCancelConfirm(null); }}>
+          <DialogContent className="max-w-sm" showCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Отменить запись?</DialogTitle>
+              <DialogDescription>
+                Вы собираетесь отменить запись {cancelConfirm.practitioner?.name}. Это действие нельзя отменить.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <button
+                type="button"
+                onClick={() => setCancelConfirm(null)}
+                className="rounded-lg border border-border/40 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground"
+              >
+                Оставить
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancel}
+                disabled={cancelling === cancelConfirm.id}
+                className="rounded-lg bg-destructive px-4 py-2.5 text-sm font-semibold text-white hover:bg-destructive/90 disabled:opacity-50"
+              >
+                {cancelling === cancelConfirm.id ? "Отмена..." : "Да, отменить"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {reviewBooking && (
@@ -159,7 +205,7 @@ export default function ClientBookingsPage() {
                       </div>
                       {b.status === "PENDING" && (
                         <button
-                          onClick={() => handleCancel(b.id)}
+                          onClick={() => requestCancel(b.id)}
                           disabled={cancelling === b.id}
                           className="shrink-0 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50">
                           {cancelling === b.id ? "..." : "Отменить"}
