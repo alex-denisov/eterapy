@@ -138,7 +138,7 @@ export function VideoChat({ videoSessionId, participantName, role }: VideoChatPr
                   </a>
                 )}
               </div>
-              <span className="text-[10px] text-muted-foreground/40 mt-0.5">
+              <span className="text-[10px] text-muted-foreground/70 mt-0.5">
                 {new Date(m.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
               </span>
             </div>
@@ -192,7 +192,7 @@ export function VideoChat({ videoSessionId, participantName, role }: VideoChatPr
         <input ref={fileRef} type="file"
           accept="image/*,application/pdf,audio/*,text/plain,.pdf,.txt,.jpg,.jpeg,.png,.gif,.webp,.mp3,.wav,.ogg,.m4a"
           className="hidden" onChange={handleFile} />
-        <p className="text-[10px] text-muted-foreground/40 mt-1 text-right">
+        <p className="text-[10px] text-muted-foreground/70 mt-1 text-right">
           Enter — отправить · Shift+Enter — новая строка
         </p>
       </div>

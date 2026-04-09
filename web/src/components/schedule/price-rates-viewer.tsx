@@ -113,7 +113,7 @@ export function PriceRatesViewer({ rates, practitionerId }: Props) {
                 )}
               </div>
 
-              <span className={`text-xs ${enabled ? "text-green-600" : "text-muted-foreground/40"}`}>
+              <span className={`text-xs ${enabled ? "text-green-600" : "text-muted-foreground/70"}`}>
                 {enabled ? "Доступен" : "Отключён"}
               </span>
             </div>

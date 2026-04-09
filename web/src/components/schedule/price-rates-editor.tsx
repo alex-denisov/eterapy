@@ -86,7 +86,7 @@ export function PriceRatesEditor({ practitionerId, initialRates, onSaved }: Prop
             <span className="ml-auto text-xs text-green-600">Доступен для записи</span>
           )}
           {!rate.enabled && (
-            <span className="ml-auto text-xs text-muted-foreground/40">Отключён</span>
+            <span className="ml-auto text-xs text-muted-foreground/70">Отключён</span>
           )}
         </div>
       ))}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import { ReviewModal } from "@/components/review-modal";
 import { ComplaintModal } from "@/components/complaint-modal";
 import { getBookingStatus } from "@/lib/booking-status";
@@ -90,7 +91,11 @@ export default function ClientBookingsPage() {
     return (
       <div className="px-6 py-8">
         <h1 className="font-heading text-2xl font-bold mb-6">Мои записи</h1>
-        <p className="text-sm text-muted-foreground animate-pulse">Загружаем записи...</p>
+        <div className="space-y-3">
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={2} />
+        </div>
       </div>
     );
   }

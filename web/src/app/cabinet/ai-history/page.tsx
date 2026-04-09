@@ -10,6 +10,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
   TAROT:      { label: "Таро",         icon: "🃏" },
@@ -61,17 +63,19 @@ export default function AIHistoryPage() {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground animate-pulse">Загружаем...</p>
-      ) : logs.length === 0 ? (
-        <div className="rounded-xl border border-border/30 bg-card/20 py-16 text-center">
-          <p className="text-4xl mb-4">✦</p>
-          <p className="text-muted-foreground mb-2">Нет сохранённых сессий</p>
-          <p className="text-sm text-muted-foreground/60">Результаты инструментов сохраняются автоматически</p>
-          <Link href="/tools"
-            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-navy">
-            Попробовать инструменты
-          </Link>
+        <div className="space-y-2">
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={2} />
+          <SkeletonCard lines={2} />
         </div>
+      ) : logs.length === 0 ? (
+        <EmptyState
+          icon="✦"
+          title="Нет сохранённых сессий"
+          description="Результаты направлений сохраняются автоматически"
+          actionHref="/cabinet/modalities"
+          actionLabel="Попробовать направления"
+        />
       ) : (
         <div className="space-y-2">
           {logs.map(l => {
