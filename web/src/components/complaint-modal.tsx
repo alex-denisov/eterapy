@@ -2,6 +2,14 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const REASONS = [
   { value: "PRACTITIONER_NO_SHOW", label: "Практик не явился на сессию" },
@@ -18,9 +26,10 @@ interface Props {
   practitionerName: string;
   onClose: () => void;
   onSubmitted: () => void;
+  open: boolean;
 }
 
-export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitted }: Props) {
+export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitted, open }: Props) {
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -40,6 +49,7 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
       if (d.ok) {
         toast.success("Жалоба принята. Мы рассмотрим её в течение 24 часов.");
         onSubmitted();
+        onClose();
       } else {
         toast.error(d.error ?? "Ошибка");
       }
@@ -48,18 +58,14 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg rounded-2xl border border-red-500/20 bg-navy shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/20 px-6 py-4">
-          <div>
-            <h2 className="font-heading font-semibold">Подать жалобу</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Сессия с {practitionerName}</p>
-          </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-2xl leading-none">×</button>
-        </div>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <DialogContent className="max-w-lg" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Подать жалобу</DialogTitle>
+          <DialogDescription>Сессия с {practitionerName}</DialogDescription>
+        </DialogHeader>
 
-        <div className="p-6 space-y-5">
+        <div className="space-y-5">
           {/* Причина */}
           <div>
             <label className="text-sm font-medium mb-3 block">Причина жалобы *</label>
@@ -68,10 +74,14 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
                 <label key={r.value} className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
                   reason === r.value ? "border-red-500/40 bg-red-500/5" : "border-border/20 hover:border-border/40"
                 }`}>
-                  <input type="radio" name="reason" value={r.value}
+                  <input
+                    type="radio"
+                    name="complaint-reason"
+                    value={r.value}
                     checked={reason === r.value}
                     onChange={() => setReason(r.value)}
-                    className="accent-red-400" />
+                    className="accent-red-400"
+                  />
                   <span className="text-sm">{r.label}</span>
                 </label>
               ))}
@@ -80,8 +90,9 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
 
           {/* Описание */}
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Опишите ситуацию *</label>
+            <label htmlFor="complaint-desc" className="text-sm font-medium mb-1.5 block">Опишите ситуацию *</label>
             <textarea
+              id="complaint-desc"
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Что именно произошло? Чем больше деталей, тем быстрее мы разберёмся..."
@@ -94,20 +105,24 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
           <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-xs text-yellow-400/80">
             ℹ️ Мы рассмотрим жалобу в течение 24 часов. Чат сессии и логи сохранены и будут использованы при разборе.
           </div>
-
-          {/* Кнопки */}
-          <div className="flex gap-3">
-            <button onClick={onClose}
-              className="flex-1 rounded-lg border border-border/40 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Отмена
-            </button>
-            <button onClick={handleSubmit} disabled={submitting}
-              className="flex-1 rounded-lg bg-red-500/80 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50">
-              {submitting ? "Отправка..." : "Подать жалобу"}
-            </button>
-          </div>
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-border/40 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Отмена
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="flex-1 rounded-lg bg-red-500/80 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+          >
+            {submitting ? "Отправка..." : "Подать жалобу"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

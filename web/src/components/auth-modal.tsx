@@ -4,15 +4,23 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface AuthModalProps {
   toolName: string;
   onSuccess: () => void;
   onClose: () => void;
   initialMode?: "login" | "register";
+  open: boolean;
 }
 
-export function AuthModal({ toolName, onSuccess, onClose, initialMode = "register" }: AuthModalProps) {
+export function AuthModal({ toolName, onSuccess, onClose, initialMode = "register", open }: AuthModalProps) {
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +42,6 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || "Ошибка регистрации"); return; }
 
-      // Auto-login after registration
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.ok) {
         toast.success("Аккаунт создан! Продолжаем...");
@@ -62,54 +69,94 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-navy p-6 shadow-2xl">
-        {/* Header */}
-        <div className="mb-5 text-center">
-          <p className="text-2xl mb-2">🔐</p>
-          <h2 className="font-heading text-xl font-bold">
-            {mode === "register" ? "Создайте аккаунт" : "Войдите"}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "register"
-              ? toolName === "записи к практику"
-                ? "Создайте аккаунт чтобы записаться. Это займёт 30 секунд."
-                : `Чтобы получить результат «${toolName}», создайте аккаунт. Это займёт 30 секунд.`
-              : toolName === "записи к практику"
-                ? "Войдите в аккаунт чтобы завершить запись."
-                : "Войдите, чтобы получить результат."}
-          </p>
-        </div>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <DialogContent className="max-w-sm" showCloseButton={false}>
+        <DialogHeader>
+          <div className="text-center">
+            <p className="text-2xl mb-2">🔐</p>
+            <DialogTitle>
+              {mode === "register" ? "Создайте аккаунт" : "Войдите"}
+            </DialogTitle>
+            <DialogDescription className="mt-1">
+              {mode === "register"
+                ? toolName === "записи к практику"
+                  ? "Создайте аккаунт чтобы записаться. Это займёт 30 секунд."
+                  : `Чтобы получить результат «${toolName}», создайте аккаунт. Это займёт 30 секунд.`
+                : toolName === "записи к практику"
+                  ? "Войдите в аккаунт чтобы завершить запись."
+                  : "Войдите, чтобы получить результат."}
+            </DialogDescription>
+          </div>
+        </DialogHeader>
 
         <form onSubmit={mode === "register" ? handleRegister : handleLogin} className="space-y-3">
           {mode === "register" && (
-            <input value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="Ваше имя" required
-              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
+            <div>
+              <label htmlFor="auth-name" className="sr-only">Имя</label>
+              <input
+                id="auth-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ваше имя"
+                required
+                className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+              />
+            </div>
           )}
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email" required autoComplete="email"
-            className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder="Пароль" required minLength={8} autoComplete={mode === "register" ? "new-password" : "current-password"}
-            className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
+          <div>
+            <label htmlFor="auth-email" className="sr-only">Email</label>
+            <input
+              id="auth-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              required
+              autoComplete="email"
+              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
+          <div>
+            <label htmlFor="auth-password" className="sr-only">Пароль</label>
+            <input
+              id="auth-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Пароль"
+              required
+              minLength={8}
+              autoComplete={mode === "register" ? "new-password" : "current-password"}
+              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+            />
+          </div>
 
-          <button type="submit" disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-primary/90 disabled:opacity-50">
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
             {loading ? "..." : mode === "register" ? "Создать аккаунт и продолжить" : "Войти и продолжить"}
           </button>
         </form>
 
-        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-          <button onClick={() => setMode(mode === "register" ? "login" : "register")}
-            className="text-primary hover:underline">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setMode(mode === "register" ? "login" : "register")}
+            className="text-primary hover:underline"
+          >
             {mode === "register" ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Регистрация"}
           </button>
-          <button onClick={onClose} className="hover:text-foreground transition-colors">Закрыть</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="hover:text-foreground transition-colors"
+          >
+            Закрыть
+          </button>
         </div>
-
-
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

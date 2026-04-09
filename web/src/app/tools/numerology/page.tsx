@@ -68,7 +68,7 @@ export default function NumerologyPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
-      {showAuth && <AuthModal toolName="Нумерология" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />}
+      <AuthModal open={showAuth} toolName="Нумерология" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />
 
       <h1 className="font-heading text-3xl font-bold">🔢 Нумерология</h1>
       <p className="mt-2 text-muted-foreground">Число жизненного пути по системе Пифагора.</p>

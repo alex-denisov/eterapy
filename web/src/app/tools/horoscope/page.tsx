@@ -80,13 +80,12 @@ export default function HoroscopePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      {showAuth && pendingSign && (
-        <AuthModal
-          toolName="Гороскоп"
-          onSuccess={() => fetchHoroscope(pendingSign, period)}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
+      <AuthModal
+        open={showAuth}
+        toolName="Гороскоп"
+        onSuccess={() => pendingSign && fetchHoroscope(pendingSign, period)}
+        onClose={() => setShowAuth(false)}
+      />
 
       <h1 className="font-heading text-3xl font-bold">🌙 Гороскоп</h1>
       <p className="mt-2 text-muted-foreground">Персонализированный прогноз для вашего знака.</p>

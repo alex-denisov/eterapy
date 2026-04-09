@@ -196,9 +196,7 @@ export function SlotPicker({
 
   return (
     <>
-      {showAuth && (
-        <AuthModal toolName="записи к практику" initialMode="login" onSuccess={doBook} onClose={() => setShowAuth(false)} />
-      )}
+      <AuthModal toolName="записи к практику" initialMode="login" open={showAuth} onSuccess={doBook} onClose={() => setShowAuth(false)} />
 
       <div className="mt-4 space-y-5">
         {/* Шаг 1: Длительность — компактные чипы */}

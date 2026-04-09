@@ -2,15 +2,24 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface ReviewModalProps {
   bookingId: string;
   practitionerName: string;
   onSuccess: () => void;
   onClose: () => void;
+  open: boolean;
 }
 
-export function ReviewModal({ bookingId, practitionerName, onSuccess, onClose }: ReviewModalProps) {
+export function ReviewModal({ bookingId, practitionerName, onSuccess, onClose, open }: ReviewModalProps) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [text, setText] = useState("");
@@ -31,6 +40,7 @@ export function ReviewModal({ bookingId, practitionerName, onSuccess, onClose }:
       if (data.ok) {
         toast.success("Спасибо за отзыв!");
         onSuccess();
+        onClose();
       } else {
         toast.error(data.error ?? "Ошибка");
       }
@@ -39,10 +49,12 @@ export function ReviewModal({ bookingId, practitionerName, onSuccess, onClose }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-border/40 bg-navy p-6 shadow-2xl">
-        <h2 className="font-heading text-xl font-bold mb-1">Оставить отзыв</h2>
-        <p className="text-sm text-muted-foreground mb-5">Сессия с {practitionerName}</p>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <DialogContent className="max-w-sm" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Оставить отзыв</DialogTitle>
+          <DialogDescription>Сессия с {practitionerName}</DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Stars */}
@@ -50,12 +62,16 @@ export function ReviewModal({ bookingId, practitionerName, onSuccess, onClose }:
             <p className="text-sm text-muted-foreground mb-2">Оценка *</p>
             <div className="flex gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
-                <button key={star} type="button"
+                <button
+                  key={star}
+                  type="button"
                   onClick={() => setRating(star)}
                   onMouseEnter={() => setHover(star)}
                   onMouseLeave={() => setHover(0)}
-                  className="text-3xl transition-transform hover:scale-110">
-                  <span className={(hover || rating) >= star ? "text-primary" : "text-muted-foreground/30"}>★</span>
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center transition-transform hover:scale-110"
+                  aria-label={`Оценка ${star} из 5`}
+                >
+                  <span className={`text-3xl ${(hover || rating) >= star ? "text-primary" : "text-muted-foreground/30"}`}>★</span>
                 </button>
               ))}
             </div>
@@ -68,27 +84,38 @@ export function ReviewModal({ bookingId, practitionerName, onSuccess, onClose }:
 
           {/* Text */}
           <div>
-            <label className="text-sm text-muted-foreground mb-1 block">
+            <label htmlFor="review-text" className="text-sm text-muted-foreground mb-1 block">
               Комментарий <span className="text-muted-foreground/50">(необязательно)</span>
             </label>
-            <textarea value={text} onChange={(e) => setText(e.target.value)}
+            <textarea
+              id="review-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
               placeholder="Расскажите о своём опыте..."
-              rows={3} maxLength={1000}
-              className="w-full resize-none rounded-lg border border-border/40 bg-card/50 p-3 text-sm focus:border-primary focus:outline-none" />
+              rows={3}
+              maxLength={1000}
+              className="w-full resize-none rounded-lg border border-border/40 bg-card/50 p-3 text-sm focus:border-primary focus:outline-none"
+            />
           </div>
 
-          <div className="flex gap-2">
-            <button type="submit" disabled={loading || !rating}
-              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-navy disabled:opacity-50">
-              {loading ? "Отправка..." : "Отправить отзыв"}
-            </button>
-            <button type="button" onClick={onClose}
-              className="rounded-lg border border-border/40 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground">
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-border/40 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground"
+            >
               Отмена
             </button>
-          </div>
+            <button
+              type="submit"
+              disabled={loading || !rating}
+              className="flex-1 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-navy disabled:opacity-50"
+            >
+              {loading ? "Отправка..." : "Отправить отзыв"}
+            </button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -3,6 +3,13 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
   TAROT:      { label: "Таро",         icon: "🃏" },
@@ -92,17 +99,13 @@ export default function AIHistoryPage() {
 
       {/* Модальное окно просмотра */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4"
-          onClick={e => e.target === e.currentTarget && setSelected(null)}>
-          <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl border border-border/40 bg-navy shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border/20 px-6 py-4 sticky top-0 bg-navy z-10">
-              <div>
-                <h2 className="font-semibold">{selected.title}</h2>
-                <p className="text-xs text-muted-foreground">{TOOL_LABELS[selected.tool]?.label}</p>
-              </div>
-              <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground text-2xl leading-none">×</button>
-            </div>
-            <div className="p-6 space-y-4">
+        <Dialog open={!!selected} onOpenChange={(isOpen) => { if (!isOpen) setSelected(null); }}>
+          <DialogContent className="max-w-2xl max-h-[80vh]" showCloseButton>
+            <DialogHeader>
+              <DialogTitle>{selected.title}</DialogTitle>
+              <DialogDescription>{TOOL_LABELS[selected.tool]?.label}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
               {selected.prompt && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Запрос</p>
@@ -114,8 +117,8 @@ export default function AIHistoryPage() {
                 <div className="text-sm leading-relaxed whitespace-pre-wrap">{selected.result}</div>
               </div>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

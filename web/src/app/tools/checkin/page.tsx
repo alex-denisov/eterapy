@@ -124,13 +124,12 @@ export default function CheckinPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
-      {showAuth && pendingAnswers && (
-        <AuthModal
-          toolName="Рефлексия"
-          onSuccess={() => submitAnswers(pendingAnswers)}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
+      <AuthModal
+        open={showAuth}
+        toolName="Рефлексия"
+        onSuccess={() => pendingAnswers && submitAnswers(pendingAnswers)}
+        onClose={() => setShowAuth(false)}
+      />
 
       <h1 className="font-heading text-3xl font-bold md:text-4xl">💬 Рефлексия</h1>
       <p className="mt-2 text-muted-foreground">Ответьте на несколько вопросов — получите структурированное отражение вашего состояния.</p>

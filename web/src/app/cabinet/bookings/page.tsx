@@ -92,6 +92,7 @@ export default function ClientBookingsPage() {
     <div className="px-6 py-8 max-w-3xl">
       {complaintBooking && (
         <ComplaintModal
+          open={!!complaintBooking}
           bookingId={complaintBooking.id}
           practitionerName={complaintBooking.practitioner?.name ?? "Практик"}
           onClose={() => setComplaintBooking(null)}
@@ -101,6 +102,7 @@ export default function ClientBookingsPage() {
 
       {reviewBooking && (
         <ReviewModal
+          open={!!reviewBooking}
           bookingId={reviewBooking.id}
           practitionerName={reviewBooking.practitioner?.name ?? "Практик"}
           onSuccess={() => {
