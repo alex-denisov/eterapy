@@ -6,7 +6,6 @@ import { PricingEditor } from "./pricing-editor";
 
 export default async function AdminPricingPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (!session || session.user?.role !== "SUPERADMIN") redirect("/admin");
 
   const [settings, practitioners] = await Promise.all([

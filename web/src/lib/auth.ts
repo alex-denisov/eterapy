@@ -126,9 +126,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
-        // @ts-expect-error custom fields
         token.emailVerified = user.emailVerified;
-        // @ts-expect-error custom fields
         token.role = user.role;
       }
 
@@ -150,9 +148,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        // @ts-expect-error custom fields
         session.user.emailVerified = token.emailVerified;
-        // @ts-expect-error custom fields
         session.user.role = token.role;
       }
       return session;

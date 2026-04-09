@@ -9,7 +9,6 @@ function requireAdmin(role: string | undefined) {
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!requireAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const status = req.nextUrl.searchParams.get("status") as PractitionerStatus | null;
@@ -24,7 +23,6 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!requireAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { practitionerId, status } = await req.json();

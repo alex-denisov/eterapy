@@ -11,7 +11,6 @@ export function EmailVerificationBanner() {
   const [dismissed, setDismissed] = useState(false);
   const pathname = usePathname();
 
-  // @ts-expect-error custom field
   const emailVerified = session?.user?.emailVerified;
 
   // Не показываем на auth-страницах

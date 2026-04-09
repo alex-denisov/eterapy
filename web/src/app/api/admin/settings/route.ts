@@ -8,7 +8,6 @@ function isSuperAdmin(role: string | undefined) {
 
 export async function GET() {
   const session = await auth();
-  // @ts-expect-error custom
   if (!isSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const settings = await getAllSettings();
@@ -17,7 +16,6 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!isSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { settings } = await req.json() as { settings: Record<string, string> };

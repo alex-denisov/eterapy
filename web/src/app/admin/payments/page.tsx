@@ -5,7 +5,6 @@ import { PaymentsPanel } from "./payments-panel";
 
 export default async function AdminPaymentsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (!session || session.user?.role !== "SUPERADMIN") redirect("/admin");
 
   // Все практики с их статистикой заработка

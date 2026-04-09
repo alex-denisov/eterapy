@@ -23,7 +23,6 @@ const ADMIN_NAV: { href: string; label: string }[] = [];
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  // @ts-expect-error custom
   const role: string = session.user?.role ?? "CLIENT";
   const name = session.user?.name?.split(" ")[0] ?? session.user?.email ?? "Пользователь";
 
@@ -100,7 +99,6 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // @ts-expect-error custom
   const role: string = session?.user?.role ?? "GUEST";
   const nav = !session ? GUEST_NAV
     : role === "PRACTITIONER" ? PRACTITIONER_NAV

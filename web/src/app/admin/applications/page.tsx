@@ -5,7 +5,6 @@ import { ApplicationsManager } from "./applications-manager";
 
 export default async function AdminApplicationsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   const role = session?.user?.role;
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 

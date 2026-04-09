@@ -15,7 +15,6 @@ import { logAudit } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!["ADMIN", "SUPERADMIN"].includes(session?.user?.role)) {
     return NextResponse.json({ error: "Только администратор и выше" }, { status: 403 });
   }
@@ -50,7 +49,6 @@ export async function GET(req: NextRequest) {
     req.cookies.get("authjs.session-token")?.value ??
     "";
   
-  // @ts-expect-error custom
   await logAudit(session.user.id, "IMPERSONATE", userId, `Вход как ${target.name} (${target.email})`);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

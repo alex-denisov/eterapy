@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default async function AdminMetricsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (!session || session.user?.role !== "SUPERADMIN") redirect("/admin");
 
   const now = new Date();

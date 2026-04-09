@@ -7,7 +7,6 @@ export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  // @ts-expect-error custom
   const role = session.user?.role ?? "CLIENT";
   if (role === "ADMIN" || role === "SUPERADMIN") redirect("/admin/settings");
 

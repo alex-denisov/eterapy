@@ -9,7 +9,6 @@ const DURATIONS = [15, 30, 45, 60, 90, 120];
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (session?.user?.role !== "SUPERADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   try {
@@ -98,7 +97,6 @@ export async function POST(req: NextRequest) {
       return { user, practitioner };
     });
 
-    // @ts-expect-error custom
     await logAudit(session.user.id, "PRACTITIONER_CREATE", result.user.id, `Создан практик: ${name} (${email})`);
 
     const minEnabledRate = rates.find((r: { enabled: boolean }) => r.enabled);

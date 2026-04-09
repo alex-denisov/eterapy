@@ -9,7 +9,6 @@ import { SchedulePageTabs } from "./schedule-tabs";
 export default async function PractitionerSchedulePage() {
   const session = await auth();
   if (!session) redirect("/login");
-  // @ts-expect-error custom
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({

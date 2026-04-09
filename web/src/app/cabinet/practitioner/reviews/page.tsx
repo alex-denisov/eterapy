@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 export default async function PractitionerReviewsPage() {
   const session = await auth();
   if (!session) redirect("/login");
-  // @ts-expect-error custom
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({

@@ -4,7 +4,6 @@ import { ModeratorsManager } from "./moderators-manager";
 
 export default async function AdminModeratorsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
   return (

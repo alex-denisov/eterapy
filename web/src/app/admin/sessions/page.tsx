@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 
 export default async function AdminSessionsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
   const videoSessions = await db.videoSession.findMany({

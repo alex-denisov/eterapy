@@ -19,7 +19,6 @@ const STATUS_LABELS: Record<BookingStatus, { label: string; color: string }> = {
 export default async function PractitionerClientsPage() {
   const session = await auth();
   if (!session) redirect("/login");
-  // @ts-expect-error custom
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({ where: { userId: session.user!.id } });

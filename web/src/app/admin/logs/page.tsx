@@ -5,7 +5,6 @@ import { LogsViewer } from "./logs-viewer";
 
 export default async function AdminLogsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
   const logs = await db.auditLog.findMany({

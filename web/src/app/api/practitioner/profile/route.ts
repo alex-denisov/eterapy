@@ -11,7 +11,6 @@ import { logAudit } from "@/lib/audit";
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  // @ts-expect-error custom
   if (session.user?.role !== "PRACTITIONER") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const contentType = req.headers.get("content-type") ?? "";

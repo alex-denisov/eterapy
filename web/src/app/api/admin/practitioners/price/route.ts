@@ -4,7 +4,6 @@ import db from "@/lib/db";
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   const role = session?.user?.role;
   if (!["ADMIN", "SUPERADMIN"].includes(role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 

@@ -41,7 +41,6 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
   if (status === "loading") return null;
   if (!session) { router.push("/login"); return null; }
 
-  // @ts-expect-error custom
   const role = session.user?.role ?? "CLIENT";
   const email = session.user?.email ?? "";
   const currentName = session.user?.name ?? "";

@@ -30,7 +30,6 @@ const STATUS_LABELS = {
 export default async function PractitionerCabinetPage() {
   const session = await auth();
   if (!session) redirect("/login");
-  // @ts-expect-error custom
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await getPractitionerData(session.user!.id!);

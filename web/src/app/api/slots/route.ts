@@ -45,7 +45,6 @@ export async function POST(req: NextRequest) {
     const { startAt, endAt } = await req.json();
     if (!startAt || !endAt) return NextResponse.json({ error: "startAt и endAt обязательны" }, { status: 400 });
 
-    // @ts-expect-error custom field
     if (session.user?.role !== "PRACTITIONER") {
       return NextResponse.json({ error: "Доступно только для практиков" }, { status: 403 });
     }

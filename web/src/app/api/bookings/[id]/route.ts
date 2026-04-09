@@ -36,7 +36,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
   if (!booking) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
 
-  // @ts-expect-error custom
   const userRole = session.user?.role;
   const isAdmin = userRole === "ADMIN" || userRole === "SUPERADMIN";
   const isClient = booking.clientId === session.user!.id;

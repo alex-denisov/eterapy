@@ -75,7 +75,6 @@ export async function PUT(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
-  // @ts-expect-error custom
   if (session.user?.role !== "PRACTITIONER") {
     return NextResponse.json({ error: "Только для практиков" }, { status: 403 });
   }

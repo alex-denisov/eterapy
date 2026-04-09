@@ -6,7 +6,6 @@ import { getUserPermissions } from "@/lib/moderator-permissions";
 
 export default async function AdminClientsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   const role = session?.user?.role;
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 

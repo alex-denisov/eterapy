@@ -20,7 +20,6 @@ export type Permission = typeof ALL_PERMISSIONS[number];
 
 export async function GET() {
   const session = await auth();
-  // @ts-expect-error custom
   if (!requireSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const moderators = await db.user.findMany({
@@ -46,7 +45,6 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!requireSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { name, email, password, permissions } = await req.json();
@@ -70,7 +68,6 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!requireSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { moderatorId, permissions, name, blockedAt } = await req.json();
@@ -98,7 +95,6 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!requireSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { moderatorId } = await req.json();

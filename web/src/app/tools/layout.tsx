@@ -3,7 +3,6 @@ import { ToolsLayoutClient } from "./tools-layout-client";
 
 export default async function ToolsLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  // @ts-expect-error custom
   const role = session?.user?.role ?? null;
   const user = session?.user ?? null;
 

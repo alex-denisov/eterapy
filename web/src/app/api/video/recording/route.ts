@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
   });
   if (!booking) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
 
-  // @ts-expect-error custom
   const role = session.user?.role;
   const isPractitioner = booking.practitioner.userId === session.user.id;
   const isAdmin = ["ADMIN", "SUPERADMIN"].includes(role);

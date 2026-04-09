@@ -49,7 +49,6 @@ export async function GET(req: NextRequest) {
     let bookings;
 
     if (role === "practitioner") {
-      // @ts-expect-error custom
       if (session.user?.role !== "PRACTITIONER") return NextResponse.json({ bookings: [] });
       const prac = await db.practitioner.findUnique({ where: { userId: session.user.id } });
       if (!prac) return NextResponse.json({ bookings: [] });
@@ -85,7 +84,6 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
-  // @ts-expect-error custom
   const userRole = session.user?.role;
   if (userRole === "PRACTITIONER" || userRole === "ADMIN" || userRole === "SUPERADMIN") {
     return NextResponse.json({ error: "Только клиенты могут создавать бронирования" }, { status: 403 });
@@ -189,7 +187,6 @@ export async function PATCH(req: NextRequest) {
     });
     if (!booking) return NextResponse.json({ error: "Бронирование не найдено" }, { status: 404 });
 
-    // @ts-expect-error custom
     const userRole = session.user?.role;
     const isPractitioner = booking.practitioner.userId === session.user.id
       || (userRole === "PRACTITIONER" && booking.practitioner.userId === session.user.id);

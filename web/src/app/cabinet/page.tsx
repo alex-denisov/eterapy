@@ -8,7 +8,6 @@ import { BookingsList } from "@/components/bookings-list";
 export default async function ClientCabinetPage() {
   const session = await auth();
   if (!session) redirect("/login");
-  // @ts-expect-error custom field
   const role = session.user?.role ?? "CLIENT";
   if (role === "PRACTITIONER") redirect("/cabinet/practitioner");
   if (role === "ADMIN" || role === "SUPERADMIN") redirect("/admin");

@@ -20,7 +20,6 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
-  // @ts-expect-error custom
   const role = session.user?.role;
   const { practitionerId, rates } = await req.json() as {
     practitionerId: string;

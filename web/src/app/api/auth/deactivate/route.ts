@@ -7,7 +7,6 @@ export async function POST() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
-  // @ts-expect-error custom
   const role = session.user?.role;
   if (role === "ADMIN") return NextResponse.json({ error: "Администратор не может быть деактивирован" }, { status: 403 });
 

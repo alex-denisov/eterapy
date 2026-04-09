@@ -16,7 +16,6 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 export default async function AdminBookingsPage() {
   const session = await auth();
-  // @ts-expect-error custom
   const role = session?.user?.role;
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
 

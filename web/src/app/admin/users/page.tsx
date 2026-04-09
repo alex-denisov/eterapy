@@ -6,7 +6,6 @@ import { UserLimitControl } from "./user-limit-control";
 
 export default async function AdminUsersPage() {
   const session = await auth();
-  // @ts-expect-error custom
   const role = session?.user?.role;
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
 

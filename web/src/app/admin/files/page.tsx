@@ -4,7 +4,6 @@ import db from "@/lib/db";
 
 export default async function AdminFilesPage() {
   const session = await auth();
-  // @ts-expect-error custom
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
   const files = await db.storedFile.findMany({

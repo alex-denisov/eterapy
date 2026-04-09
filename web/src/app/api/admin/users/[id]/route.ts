@@ -14,7 +14,6 @@ type Params = { params: Promise<{ id: string }> };
 // GET — детали пользователя
 export async function GET(req: NextRequest, { params }: Params) {
   const session = await auth();
-  // @ts-expect-error custom
   if (!isAdminOrSuper(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { id } = await params;
@@ -33,7 +32,6 @@ export async function GET(req: NextRequest, { params }: Params) {
 // PATCH — обновить данные пользователя
 export async function PATCH(req: NextRequest, { params }: Params) {
   const session = await auth();
-  // @ts-expect-error custom
   const adminRole = session?.user?.role;
   if (!isAdminOrSuper(adminRole)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
