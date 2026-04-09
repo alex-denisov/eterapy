@@ -28,7 +28,7 @@ export function StatCard({
       className
     )}>
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-3xl font-bold font-heading">{value}</p>
+      <p className="mt-1 text-3xl font-bold font-heading tabular-nums">{value}</p>
       {subtext && (
         <p className="mt-0.5 text-xs text-muted-foreground">{subtext}</p>
       )}

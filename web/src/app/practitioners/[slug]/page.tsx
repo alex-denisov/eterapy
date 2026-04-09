@@ -190,7 +190,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
               <div className="text-center">
                 {p.priceRates.length > 0 ? (
                   <>
-                    <p className="font-heading text-3xl font-bold text-primary">
+                    <p className="font-heading text-3xl font-bold text-primary tabular-nums">
                       {p.priceRates[0].priceRub.toLocaleString("ru")} ₽
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -199,7 +199,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
                   </>
                 ) : (
                   <>
-                    <p className="font-heading text-3xl font-bold text-primary">
+                    <p className="font-heading text-3xl font-bold text-primary tabular-nums">
                       {p.pricePerSession.toLocaleString("ru")} ₽
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">за сессию</p>

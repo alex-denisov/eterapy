@@ -78,7 +78,7 @@ export default function BillingPage() {
                 <Wallet className="h-4 w-4" />
                 Баланс
               </div>
-              <p className="font-heading text-4xl font-bold text-primary">{Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽</p>
+              <p className="font-heading text-4xl font-bold text-primary tabular-nums">{Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽</p>
             </div>
             <button
               onClick={handleTopUp}

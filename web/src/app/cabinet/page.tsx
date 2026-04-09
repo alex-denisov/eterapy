@@ -49,7 +49,7 @@ export default async function ClientCabinetPage() {
             <div className="flex items-center justify-between mb-3">
               <div>
                 <p className="text-sm text-muted-foreground">Бесплатные сессии</p>
-                <p className="mt-1 font-heading text-3xl font-bold text-primary">
+                <p className="mt-1 font-heading text-3xl font-bold text-primary tabular-nums">
                   {remainingSessions} из {FREE_LIMIT}
                 </p>
               </div>
@@ -81,7 +81,7 @@ export default async function ClientCabinetPage() {
         <Card className="border-border/40 bg-card/50">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Баланс</p>
-            <p className="mt-1 font-heading text-3xl font-bold">0 ₽</p>
+            <p className="mt-1 font-heading text-3xl font-bold tabular-nums">0 ₽</p>
             <Link href="/cabinet/billing" className="mt-1 block text-xs text-primary hover:underline">
               Пополнить →
             </Link>
@@ -92,7 +92,7 @@ export default async function ClientCabinetPage() {
         <Card className="border-border/40 bg-card/50">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Направления</p>
-            <p className="mt-1 font-heading text-3xl font-bold">6</p>
+            <p className="mt-1 font-heading text-3xl font-bold tabular-nums">6</p>
             <Link href="/cabinet/modalities" className="mt-1 block text-xs text-primary hover:underline">
               Открыть →
             </Link>

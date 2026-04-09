@@ -66,7 +66,7 @@ export default async function AdminMetricsPage() {
                 <p className="text-sm text-muted-foreground">{m.label}</p>
                 <span className="text-xl">{m.icon}</span>
               </div>
-              <p className="mt-1 font-heading text-2xl font-bold text-primary">{m.value}</p>
+              <p className="mt-1 font-heading text-2xl font-bold text-primary tabular-nums">{m.value}</p>
               <div className="mt-0.5 flex items-center gap-2">
                 <p className="text-xs text-muted-foreground">{m.sub}</p>
                 {m.delta && (

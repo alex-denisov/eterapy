@@ -63,7 +63,7 @@ export default async function AdminPaymentsPage() {
           { label: "К выплате практикам", value: totals.practitioners, color: "text-green-400" },
         ].map(item => (
           <div key={item.label} className="rounded-xl border border-border/30 bg-card/20 px-5 py-4">
-            <p className={`text-2xl font-bold ${item.color}`}>
+            <p className={`text-2xl font-bold tabular-nums ${item.color}`}>
               {item.value.toLocaleString("ru")} ₽
             </p>
             <p className="text-xs text-muted-foreground mt-1">{item.label}</p>

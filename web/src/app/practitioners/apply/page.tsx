@@ -54,7 +54,7 @@ export default function PractitionerApplyPage() {
         <div className="grid sm:grid-cols-2 gap-4">
           {STEPS.map(s => (
             <div key={s.n} className="flex gap-4 items-start rounded-xl border border-border/20 bg-card/10 p-5">
-              <span className="font-heading text-3xl font-bold text-primary/25 shrink-0">{s.n}</span>
+              <span className="font-heading text-3xl font-bold text-primary/25 tabular-nums shrink-0">{s.n}</span>
               <div>
                 <p className="font-semibold">{s.title}</p>
                 <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{s.desc}</p>
