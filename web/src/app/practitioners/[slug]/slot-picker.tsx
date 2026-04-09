@@ -27,6 +27,11 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
+/** "YYYY-MM-DD" in local timezone — avoids UTC off-by-one near midnight. */
+function localDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getAvailableDates(month: number, year: number): Date[] {
   const now = new Date();
   const result: Date[] = [];
@@ -89,8 +94,7 @@ export function SlotPicker({
       .then(r => r.json())
       .then(d => {
         let slots = d.slots ?? [];
-        const todayStr = new Date().toISOString().split("T")[0];
-        if (selectedDate === todayStr) {
+        if (selectedDate === localDateStr()) {
           const nowTime = Date.now();
           slots = slots.filter((slot: AvailableSlot) => new Date(slot.startAt).getTime() > nowTime);
         }
@@ -171,8 +175,8 @@ export function SlotPicker({
   }, [selectedYear, selectedMonth, monthDates]);
 
   const selectedRate = rates.find(r => r.durationMin === selectedDuration);
-  const todayStr = new Date().toISOString().split("T")[0];
-  const isTodaySelected = selectedDate === todayStr;
+  const todayDateStr = localDateStr();
+  const isTodaySelected = selectedDate === todayDateStr;
 
   if (booked) {
     return (
@@ -257,7 +261,7 @@ export function SlotPicker({
               </div>
               <div className="grid grid-cols-7 gap-1">
                 {calendarDays.map((day, idx) => {
-                  const isSelected = selectedDate === day.date.toISOString().split("T")[0];
+                  const isSelected = selectedDate === localDateStr(day.date);
                   const thisMonth = day.date.getMonth() === selectedMonth;
                   return (
                     <button
@@ -265,7 +269,7 @@ export function SlotPicker({
                       disabled={!day.isAvailable || !thisMonth}
                       onClick={() => {
                         if (day.isAvailable && thisMonth) {
-                          setSelectedDate(day.date.toISOString().split("T")[0]);
+                          setSelectedDate(localDateStr(day.date));
                           setSelectedSlot(null);
                           setSlots([]);
                         }

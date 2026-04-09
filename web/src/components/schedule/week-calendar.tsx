@@ -39,7 +39,10 @@ function addDays(d: Date, n: number) {
   return r;
 }
 
-function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
+/** Returns "YYYY-MM-DD" in the browser's LOCAL timezone — avoids UTC off-by-one near midnight. */
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 function todayStr() { return isoDate(new Date()); }
 function pad2(n: number) { return String(n).padStart(2, "0"); }
 

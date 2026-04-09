@@ -17,7 +17,7 @@ export function CTASection() {
         </p>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link href="/tools" className={cn(buttonVariants({ size: "lg" }), "min-w-[220px] text-base")}>
+          <Link href="/modalities" className={cn(buttonVariants({ size: "lg" }), "min-w-[220px] text-base")}>
             Попробовать бесплатно
           </Link>
         </div>

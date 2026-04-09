@@ -54,10 +54,10 @@ export function AIToolsSection() {
     <section id="tools" className="bg-navy-light/50 px-4 py-20">
       <div className="mx-auto max-w-5xl">
         <h2 className="font-heading text-center text-3xl font-bold md:text-4xl">
-          Инструменты самопознания
+          Направления самопознания
         </h2>
         <p className="mt-3 text-center text-muted-foreground">
-          Попробуй бесплатно — 3 сессии в месяц. Регистрация не нужна.
+          Попробуй бесплатно — 3 расклада в месяц. Регистрация не нужна.
         </p>
 
         <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -85,8 +85,8 @@ export function AIToolsSection() {
         </div>
 
         <div className="mt-10 text-center">
-          <Link href="/tools" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
-            Все инструменты →
+          <Link href="/modalities" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+            Все направления →
           </Link>
         </div>
       </div>

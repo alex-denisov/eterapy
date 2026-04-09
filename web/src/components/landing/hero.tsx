@@ -20,24 +20,24 @@ export function HeroSection() {
 
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
           Найди проверенного таролога, астролога или нумеролога.
-          Фиксированная цена за сессию. Бесплатные инструменты
-          для самопознания.
+          Фиксированная цена за сессию. Бесплатные направления
+          самопознания.
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link href="/tools" className={cn(buttonVariants({ size: "lg" }), "min-w-[200px] text-base")}>
-            Попробовать бесплатно
+          <Link href="/practitioners" className={cn(buttonVariants({ size: "lg" }), "min-w-[200px] text-base")}>
+            Найти практика
           </Link>
           <Link
-            href="/practitioners/apply"
+            href="/modalities"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-w-[200px] border-primary/30 text-base text-primary hover:bg-primary/10")}
           >
-            Стать практиком
+            Направления →
           </Link>
         </div>
 
         <p className="mt-6 text-sm text-muted-foreground/60">
-          3 бесплатных сессии в месяц · Без привязки карты
+          3 бесплатных расклада в месяц · Без привязки карты
         </p>
       </div>
     </section>

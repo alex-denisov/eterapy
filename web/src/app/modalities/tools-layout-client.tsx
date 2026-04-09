@@ -6,12 +6,12 @@ import { signOut } from "next-auth/react";
 
 const TOOLS_NAV = [
   { href: "/cabinet/modalities", icon: "✦", label: "Все направления" },
-  { href: "/modalities/tarot", icon: "🃏", label: "Расклад Таро" },
-  { href: "/modalities/checkin", icon: "💬", label: "Рефлексия" },
-  { href: "/modalities/horoscope", icon: "🌙", label: "Гороскоп" },
-  { href: "/modalities/numerology", icon: "🔢", label: "Нумерология" },
-  { href: "/modalities/natal", icon: "⭐", label: "Натальная карта" },
-  { href: "/modalities/guide", icon: "📖", label: "Личный гид" },
+  { href: "/cabinet/modalities/tarot", icon: "🃏", label: "Расклад Таро" },
+  { href: "/cabinet/modalities/checkin", icon: "💬", label: "Рефлексия" },
+  { href: "/cabinet/modalities/horoscope", icon: "🌙", label: "Гороскоп" },
+  { href: "/cabinet/modalities/numerology", icon: "🔢", label: "Нумерология" },
+  { href: "/cabinet/modalities/natal", icon: "⭐", label: "Натальная карта" },
+  { href: "/cabinet/modalities/guide", icon: "📖", label: "Личный гид" },
 ];
 
 const CLIENT_LINKS = [
@@ -45,7 +45,7 @@ export function ToolsLayoutClient({
           <div className="border-b border-border/30 bg-navy/50">
             <div className="mx-auto flex max-w-6xl items-center px-4 py-2.5">
               <Link href="/cabinet/modalities" className="text-sm text-muted-foreground hover:text-foreground">
-                ← Все инструменты
+                ← Все направления
               </Link>
             </div>
           </div>
@@ -76,7 +76,7 @@ export function ToolsLayoutClient({
         {/* Tool nav */}
         <div className="mb-4">
           <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
-            Инструменты
+            Направления
           </p>
           <nav className="space-y-0.5">
             {TOOLS_NAV.map((item) => (
@@ -126,7 +126,7 @@ export function ToolsLayoutClient({
       {/* Mobile: top back link */}
       <div className="md:hidden fixed top-16 left-0 right-0 z-30 border-b border-border/20 bg-navy/90 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4 py-2">
-          <Link href="/cabinet/modalities" className="text-sm text-muted-foreground hover:text-foreground">← Инструменты</Link>
+          <Link href="/cabinet/modalities" className="text-sm text-muted-foreground hover:text-foreground">← Направления</Link>
           <span className="text-muted-foreground/30">|</span>
           <Link href={cabinetHref} className="text-sm text-muted-foreground hover:text-foreground">Кабинет</Link>
         </div>

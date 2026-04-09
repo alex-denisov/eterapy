@@ -114,15 +114,15 @@ export default function HowToChoosePage() {
           </div>
         </section>
 
-        {/* Инструменты */}
+        {/* Направления */}
         <section className="rounded-xl border border-primary/20 bg-primary/5 p-6">
-          <h2 className="font-heading text-lg font-semibold mb-3">💡 Сначала попробуйте AI-инструменты</h2>
+          <h2 className="font-heading text-lg font-semibold mb-3">💡 Сначала попробуйте направления самопознания</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Не уверены нужен ли вам практик? Начните с наших бесплатных инструментов:
-            таро, натальная карта, нумерология — без регистрации, 3 раза в месяц.
+            Не уверены нужен ли вам практик? Начните с наших бесплатных направлений:
+            таро, натальная карта, нумерология — без регистрации, 3 расклада в месяц.
           </p>
-          <Link href="/tools" className={cn(buttonVariants(), "text-sm")}>
-            Открыть инструменты →
+          <Link href="/modalities" className={cn(buttonVariants(), "text-sm")}>
+            Открыть направления →
           </Link>
         </section>
 

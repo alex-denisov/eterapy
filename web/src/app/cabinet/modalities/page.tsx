@@ -10,12 +10,12 @@ import {
 } from "lucide-react";
 
 const MODALITIES = [
-  { href: "/modalities/tarot",      icon: Sparkles,   label: "Расклад Таро",     desc: "Расклад на три карты: прошлое, настоящее, будущее" },
-  { href: "/modalities/checkin",    icon: MessageCircle, label: "Рефлексия",     desc: "5 вопросов о вашем состоянии прямо сейчас" },
-  { href: "/modalities/horoscope",  icon: Moon,       label: "Гороскоп",          desc: "Персонализированный прогноз на день / неделю / месяц" },
-  { href: "/modalities/numerology", icon: Hash,       label: "Нумерология",       desc: "Число жизненного пути по Пифагору" },
-  { href: "/modalities/natal",      icon: Star,       label: "Натальная карта",   desc: "Описание вашей карты по дате и месту рождения" },
-  { href: "/modalities/guide",      icon: BookOpen,   label: "Личный гид",        desc: "Персональный текст на тему вашего запроса" },
+  { href: "/cabinet/modalities/tarot",      icon: Sparkles,   label: "Расклад Таро",     desc: "Расклад на три карты: прошлое, настоящее, будущее" },
+  { href: "/cabinet/modalities/checkin",    icon: MessageCircle, label: "Рефлексия",     desc: "5 вопросов о вашем состоянии прямо сейчас" },
+  { href: "/cabinet/modalities/horoscope",  icon: Moon,       label: "Гороскоп",          desc: "Персонализированный прогноз на день / неделю / месяц" },
+  { href: "/cabinet/modalities/numerology", icon: Hash,       label: "Нумерология",       desc: "Число жизненного пути по Пифагору" },
+  { href: "/cabinet/modalities/natal",      icon: Star,       label: "Натальная карта",   desc: "Описание вашей карты по дате и месту рождения" },
+  { href: "/cabinet/modalities/guide",      icon: BookOpen,   label: "Личный гид",        desc: "Персональный текст на тему вашего запроса" },
 ];
 
 export default function ClientModalitiesPage() {
