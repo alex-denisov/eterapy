@@ -91,7 +91,7 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
             placeholder="Email" required autoComplete="email"
             className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder="Пароль" required autoComplete={mode === "register" ? "new-password" : "current-password"}
+            placeholder="Пароль" required minLength={8} autoComplete={mode === "register" ? "new-password" : "current-password"}
             className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none" />
 
           <button type="submit" disabled={loading}
