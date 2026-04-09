@@ -21,10 +21,28 @@ const MODALITIES = [
 export default function ClientModalitiesPage() {
   return (
     <PageContainer>
-      <h1 className="font-heading text-2xl font-bold mb-2">Направления самопознания</h1>
-      <p className="text-sm text-muted-foreground mb-8">
+      <h1 className="font-heading text-2xl font-bold mb-1">Направления самопознания</h1>
+      <p className="text-sm text-muted-foreground mb-6">
         3 сессии в месяц включены в бесплатный план. Результаты носят ознакомительный характер.
       </p>
+
+      {/* Горизонтальные табы-подуровни */}
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+        {MODALITIES.map((t) => {
+          const Icon = t.icon;
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              className="flex items-center gap-2 shrink-0 rounded-lg border border-border/30 bg-card/30 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary hover:bg-card/50"
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+            </Link>
+          );
+        })}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         {MODALITIES.map((t) => {
           const Icon = t.icon;

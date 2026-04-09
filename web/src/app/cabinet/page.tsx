@@ -130,11 +130,11 @@ export default async function ClientCabinetPage() {
         )}
       </div>
 
-      {/* Инструменты самопознания */}
+      {/* Направления самопознания */}
       <div>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-heading text-lg font-semibold">Инструменты</h2>
-          <Link href="/cabinet/tools" className="text-sm text-primary hover:underline">Все →</Link>
+          <h2 className="font-heading text-lg font-semibold">Направления</h2>
+          <Link href="/cabinet/modalities" className="text-sm text-primary hover:underline">Все →</Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
