@@ -27,13 +27,18 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 export function BookingsList({ role = "client" }: { role?: "client" | "practitioner" }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/bookings?role=${role}`)
       .then((r) => r.json())
-      .then((d) => { setBookings(d.bookings || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then((d) => {
+        if (d.error) { setError(d.error); }
+        else { setBookings(d.bookings || []); }
+        setLoaded(true);
+      })
+      .catch(() => { setError("Не удалось загрузить записи"); setLoaded(true); });
   }, [role]);
 
   async function cancelBooking(bookingId: string) {
@@ -70,7 +75,22 @@ export function BookingsList({ role = "client" }: { role?: "client" | "practitio
     } catch { toast.error("Ошибка сети"); }
   }
 
-  if (loading) return <p className="text-sm text-muted-foreground animate-pulse">Загружаем...</p>;
+  // Трёхсостояние: loading → error | empty | data
+  if (!loaded) return <p className="text-sm text-muted-foreground animate-pulse">Загружаем записи...</p>;
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/30 py-12 text-center">
+        <p className="text-destructive text-sm">⚠️ {error}</p>
+        <button
+          onClick={() => { setLoaded(false); setError(null); }}
+          className="mt-3 text-sm text-primary hover:underline"
+        >
+          Попробовать снова →
+        </button>
+      </div>
+    );
+  }
 
   if (bookings.length === 0) {
     return (
