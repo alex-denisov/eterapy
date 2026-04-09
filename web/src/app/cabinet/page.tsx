@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { PageContainer } from "@/components/ui/page-container";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingsList } from "@/components/bookings-list";
 
@@ -30,7 +31,7 @@ export default async function ClientCabinetPage() {
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
 
   return (
-    <div className="px-6 py-8 max-w-3xl">
+    <PageContainer>
       <h1 className="font-heading text-2xl font-bold mb-1">Привет, {firstName} 👋</h1>
       <p className="text-muted-foreground text-sm mb-8">{session.user?.email}</p>
 
@@ -113,6 +114,6 @@ export default async function ClientCabinetPage() {
           ))}
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
