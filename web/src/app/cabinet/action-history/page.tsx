@@ -20,6 +20,7 @@ const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
   NUMEROLOGY: { label: "Нумерология",  icon: "🔢" },
   HOROSCOPE:  { label: "Гороскоп",     icon: "♈" },
   GUIDE:      { label: "Личный гид",   icon: "🧭" },
+  BOOKING:    { label: "Запись к практику", icon: "📅" },
 };
 
 interface LogEntry {
