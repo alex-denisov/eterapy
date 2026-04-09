@@ -92,27 +92,38 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              type="text"
-              placeholder="Ваше имя"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoComplete="name"
-              className="bg-background/50"
-            />
-            <Input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="bg-background/50"
-            />
-            <Input
-              type="password"
-              placeholder="Пароль (мин. 8 символов)"
+            <div>
+              <label htmlFor="reg-name" className="sr-only">Имя</label>
+              <Input
+                id="reg-name"
+                type="text"
+                placeholder="Ваше имя"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoComplete="name"
+                className="bg-background/50"
+              />
+            </div>
+            <div>
+              <label htmlFor="reg-email" className="sr-only">Email</label>
+              <Input
+                id="reg-email"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="bg-background/50"
+              />
+            </div>
+            <div>
+              <label htmlFor="reg-password" className="sr-only">Пароль</label>
+              <Input
+                id="reg-password"
+                type="password"
+                placeholder="Пароль (мин. 8 символов)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -120,6 +131,7 @@ export default function RegisterPage() {
               autoComplete="new-password"
               className="bg-background/50"
             />
+            </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <span className="flex items-center gap-2">
