@@ -231,7 +231,7 @@ export function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border/40 bg-navy/95 px-4 py-4 md:hidden">
+        <div className="border-t border-border/40 bg-navy/95 px-4 py-4 md:hidden animate-in slide-in-from-top-2 duration-200">
           <nav className="flex flex-col gap-1">
             {nav.map((item) => (
               <Link key={item.href} href={item.href}

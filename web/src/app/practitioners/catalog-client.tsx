@@ -216,7 +216,7 @@ export function PractitionersCatalog({ initialPractitioners, specialtyLabels }: 
       </div>
 
       {/* Результаты */}
-      <p className="text-sm text-muted-foreground">Найдено: {filtered.length}</p>
+      <p className="text-sm text-muted-foreground" aria-live="polite">Найдено: {filtered.length}</p>
 
       {filtered.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground">Никого не найдено. Попробуйте изменить фильтры.</div>

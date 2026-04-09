@@ -56,7 +56,7 @@ export function FAQSection() {
                 </span>
               </button>
               {openIndex === i && (
-                <p className="pb-5 text-sm leading-relaxed text-muted-foreground">
+                <p className="pb-5 text-sm leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-top-1 duration-200">
                   {faq.a}
                 </p>
               )}
