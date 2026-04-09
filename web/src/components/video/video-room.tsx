@@ -222,7 +222,7 @@ function VideoRoomInner({
             ) : (
               <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center text-4xl font-bold text-primary">
-                  {otherPartyName[0]}
+                  {otherPartyName?.[0]?.toUpperCase() ?? "?"}
                 </div>
                 <p className="text-sm">{otherPartyName} подключается...</p>
               </div>
@@ -235,7 +235,7 @@ function VideoRoomInner({
               <VideoTrack trackRef={localVideoTrack} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-[#0f1e30] flex items-center justify-center text-2xl font-bold text-primary">
-                {participantName[0]}
+                {participantName?.[0]?.toUpperCase() ?? "?"}
               </div>
             )}
           </div>
