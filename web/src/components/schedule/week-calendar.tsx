@@ -283,7 +283,7 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
       )}
 
       {/* Сетка — П.2 видимые границы */}
-      <div className="overflow-auto rounded-xl border border-border/30 bg-card/20">
+      <div suppressHydrationWarning className="overflow-auto rounded-xl border border-border/30 bg-card/20">
         <table className="w-full text-xs border-collapse min-w-[580px]">
           <thead>
             <tr className="bg-[#0f2236]">

@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { WeekCalendar } from "@/components/schedule/week-calendar";
+import { useState, useEffect } from "react";
 import { ScheduleSettings } from "@/components/schedule/schedule-settings";
 import { PriceRatesViewer } from "@/components/schedule/price-rates-viewer";
+
+// WeekCalendar загружается только на клиенте — устраняет hydration mismatch
+import dynamic from "next/dynamic";
+const WeekCalendar = dynamic(() => import("@/components/schedule/week-calendar").then(m => m.WeekCalendar), {
+  ssr: false,
+  loading: () => <div className="h-96 animate-pulse rounded-xl bg-card/30" />,
+});
 
 interface Props {
   practitionerId: string;
