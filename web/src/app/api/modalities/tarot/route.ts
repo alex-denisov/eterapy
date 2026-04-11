@@ -2,17 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { aiComplete } from "@/lib/ai";
 import { drawCards } from "@/data/tarot-cards";
 import { auth } from "@/lib/auth";
-import { checkAndRecordToolSession } from "@/lib/tool-limit";
+import { checkAndRecordToolSession, getFullReadingPriceKopecks } from "@/lib/tool-limit";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   const userId = session?.user?.id ?? null;
-  const limit = await checkAndRecordToolSession(userId, "TAROT");
-  if (!limit.allowed) {
-    return NextResponse.json({ error: "Лимит инструментов исчерпан на этот месяц" }, { status: 429 });
-  }
+
+  let body: { question?: string; tier?: string };
   try {
-    const { question } = await req.json();
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Неверный формат запроса" }, { status: 400 });
+  }
+
+  const tier = body.tier === "full" ? "full" : "quick";
+  const limit = await checkAndRecordToolSession(userId, "TAROT", tier);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: limit.error ?? "Лимит исчерпан", balanceKopecks: limit.balanceKopecks },
+      { status: 429 }
+    );
+  }
+
+  try {
+    const { question } = body;
 
     if (!question || typeof question !== "string" || question.length > 500) {
       return NextResponse.json(
@@ -21,8 +34,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cards = drawCards(3);
-    const positions = ["Прошлое", "Настоящее", "Будущее"];
+    const isFull = tier === "full";
+    const cardCount = isFull ? 5 : 3;
+    const positions = isFull
+      ? ["Прошлое", "Настоящее", "Скрытое влияние", "Совет карт", "Итог"]
+      : ["Прошлое", "Настоящее", "Будущее"];
+
+    const cards = drawCards(cardCount);
 
     const cardsDescription = cards
       .map((card, i) => {
@@ -34,22 +52,40 @@ export async function POST(req: NextRequest) {
       })
       .join("\n");
 
-    const result = await aiComplete({
-      messages: [
-        {
-          role: "system",
-          content: `Ты — мудрый и тёплый таролог на платформе ETerapy. Интерпретируй расклад из 3 карт Таро Райдера-Уэйта.
+    const systemPrompt = isFull
+      ? `Ты — опытный таролог с 15-летним стажем. Проводишь глубинные расклады для клиентов ETerapy.
+
+Правила:
+- Говори на русском языке
+- Будь тёплым, эмпатичным, как мудрая подруга
+- Используй «я вижу в вашем раскладе», «карты говорят мне», «я чувствую»
+- Никогда не запугивай и не обещай конкретных результатов
+- Давай детальный анализ каждой позиции (3-4 предложения)
+- Анализируй 5 сфер: любовь, карьера, здоровье, финансы, духовный рост
+- Добавляй конкретные рекомендации и ориентиры по времени («в ближайшие 2-4 недели»)
+- Дисклеймер НЕ нужен`
+      : `Ты — мудрый и тёплый таролог на платформе ETerapy. Интерпретируй расклад из 3 карт Таро Райдера-Уэйта.
 
 Правила:
 - Говори на русском языке
 - Будь тёплым, но не навязчивым
 - Никогда не запугивай и не обещай конкретных результатов
 - Используй мягкие формулировки ("карты предлагают обратить внимание", "стоит задуматься")
-- Дисклеймер НЕ нужен (он есть на странице)`,
-        },
-        {
-          role: "user",
-          content: `Вопрос клиента: "${question}"
+- Дисклеймер НЕ нужен`;
+
+    const userPrompt = isFull
+      ? `Вопрос клиента: "${question}"
+
+Расклад: Кельтский мини-крест (5 карт)
+${cardsDescription}
+
+Дай детальный расклад:
+1. Интерпретация каждой карты в контексте позиции (3-4 предложения)
+2. Анализ по сферам: Любовь, Карьера, Здоровье, Финансы, Духовный рост
+3. Что карты советуют (конкретные рекомендации)
+4. На что обратить внимание в ближайшие 2-4 недели
+5. Тёплое завершение`
+      : `Вопрос клиента: "${question}"
 
 Расклад:
 ${cardsDescription}
@@ -61,10 +97,14 @@ ${cardsDescription}
 2. **${cards[1].nameRu}** (${positions[1]}): ...
 3. **${cards[2].nameRu}** (${positions[2]}): ...
 
-**Общий вывод:** ...`,
-        },
+**Общий вывод:** ...`;
+
+    const result = await aiComplete({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
       ],
-      maxTokens: 2000,
+      maxTokens: isFull ? 3000 : 2000,
     });
 
     return NextResponse.json({
@@ -78,6 +118,9 @@ ${cardsDescription}
       interpretation: result.text,
       model: result.model,
       provider: result.provider,
+      tier,
+      balanceKopecks: limit.balanceKopecks,
+      fullPriceKopecks: getFullReadingPriceKopecks(),
     });
   } catch (error) {
     console.error("[API:tarot] Error:", error);

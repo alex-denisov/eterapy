@@ -541,6 +541,7 @@ model ToolSession {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tool      ToolType
   month     String   // "2026-04"
+  tier      String   @default("quick") // "quick" (бесплатно, 3/мес) или "full" (платно)
   createdAt DateTime @default(now())
 
   @@index([userId, month])

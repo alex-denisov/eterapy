@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { checkAndRecordToolSession } from "@/lib/tool-limit";
+import { checkAndRecordToolSession, getFullReadingPriceKopecks } from "@/lib/tool-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { aiComplete } from "@/lib/ai";
 
@@ -34,13 +34,25 @@ function getSunSign(month: number, day: number): string {
 export async function POST(req: NextRequest) {
   const session = await auth();
   const userId = session?.user?.id ?? null;
-  const toolLimit = await checkAndRecordToolSession(userId, "NATAL");
+
+  let body: { birthDate?: string; birthTime?: string; birthPlace?: string; tier?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Неверный формат запроса" }, { status: 400 });
+  }
+
+  const tier = body.tier === "full" ? "full" : "quick";
+  const toolLimit = await checkAndRecordToolSession(userId, "NATAL", tier);
   if (!toolLimit.allowed) {
-    return NextResponse.json({ error: "Лимит инструментов исчерпан" }, { status: 429 });
+    return NextResponse.json(
+      { error: toolLimit.error ?? "Лимит исчерпан", balanceKopecks: toolLimit.balanceKopecks },
+      { status: 429 }
+    );
   }
 
   try {
-    const { birthDate, birthTime, birthPlace } = await req.json();
+    const { birthDate, birthTime, birthPlace } = body;
 
     if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
       return NextResponse.json(
@@ -54,15 +66,40 @@ export async function POST(req: NextRequest) {
     const day = parseInt(dayStr);
     const sunSign = getSunSign(month, day);
 
-    const result = await aiComplete({
-      messages: [
-        {
-          role: "system",
-          content: `Ты — профессиональный астролог на платформе ETerapy. Составь описание натальной карты (упрощённую версию на основе солнечного знака и даты рождения). Русский язык. Тёплый тон. Честно скажи, что для полной натальной карты нужно точное время и место рождения.`,
-        },
-        {
-          role: "user",
-          content: `Дата рождения: ${birthDate}
+    const isFull = tier === "full";
+
+    const systemPrompt = isFull
+      ? `Ты — профессиональный астролог с 15-летним стажем на платформе ETerapy. Составляешь глубокий анализ натальной карты. Русский язык. Тёплый тон. Даёшь детальный разбор по 5 сферам: личность, эмоции, коммуникация, карьера, отношения. Честно говоришь о пределах расчёта без точного времени.`
+      : `Ты — профессиональный астролог на платформе ETerapy. Составь описание натальной карты (упрощённую версию на основе солнечного знака и даты рождения). Русский язык. Тёплый тон. Честно скажи, что для полной натальной карты нужно точное время и место рождения.`;
+
+    const userContent = isFull
+      ? `Дата рождения: ${birthDate}
+${birthTime ? `Время рождения: ${birthTime}` : "Время не указано"}
+${birthPlace ? `Место рождения: ${birthPlace}` : "Место не указано"}
+Солнечный знак: ${sunSign}
+
+Проведи детальный анализ натальной карты по 5 сферам:
+
+**☀️ Личность (Ядро):**
+[3-4 предложения — солнечный знак, основные черты характера, самооценка]
+
+**🌙 Эмоциональная природа:**
+[3-4 предложения — эмоциональные паттерны, интуиция, подсознательные реакции]
+
+**💬 Коммуникация и мышление:**
+[2-3 предложения — стиль общения, принятие решений, обучение]
+
+**💼 Карьера и реализация:**
+[3-4 предложения — профессиональные склонности, амбиции, стиль работы]
+
+**❤️ Отношения и партнёрство:**
+[3-4 предложения — потребности в отношениях, совместимость, паттерны привязанности]
+
+**🌱 Зоны роста:**
+[2-3 конкретных рекомендации]
+
+${!birthTime ? "\n⚠️ *Для точного расчёта асцендента, лунного знака и домов необходимо точное время рождения. Данный анализ основан на солнечном знаке.*" : ""}`
+      : `Дата рождения: ${birthDate}
 ${birthTime ? `Время рождения: ${birthTime}` : "Время не указано"}
 ${birthPlace ? `Место рождения: ${birthPlace}` : "Место не указано"}
 Солнечный знак: ${sunSign}
@@ -84,10 +121,14 @@ ${birthPlace ? `Место рождения: ${birthPlace}` : "Место не �
 **🔮 Общая рекомендация:**
 [2-3 предложения]
 
-${!birthTime ? "\n⚠️ *Для точного расчёта асцендента, лунного знака и домов необходимо точное время рождения. Данное описание основано на солнечном знаке.*" : ""}`,
-        },
+${!birthTime ? "\n⚠️ *Для точного расчёта асцендента, лунного знака и домов необходимо точное время рождения. Данное описание основано на солнечном знаке.*" : ""}`;
+
+    const result = await aiComplete({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent },
       ],
-      maxTokens: 2000,
+      maxTokens: isFull ? 3000 : 2000,
     });
 
     return NextResponse.json({
@@ -98,6 +139,9 @@ ${!birthTime ? "\n⚠️ *Для точного расчёта асценден�
       interpretation: result.text,
       model: result.model,
       provider: result.provider,
+      tier,
+      balanceKopecks: toolLimit.balanceKopecks,
+      fullPriceKopecks: getFullReadingPriceKopecks(),
     });
   } catch (error) {
     console.error("[API:natal] Error:", error);
