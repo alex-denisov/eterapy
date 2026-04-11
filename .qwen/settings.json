@@ -50,7 +50,25 @@
       "Bash(order *)",
       "Bash(limit *)",
       "Bash(eof)",
-      "Bash(docker run *)"
+      "Bash(docker run *)",
+      "Bash(-- *)",
+      "Bash(where *)",
+      "Bash(insert *)",
+      "Bash(id, *)",
+      "Bash(select)",
+      "Bash(gen_random_uuid()::text,)",
+      "Bash(p.id,)",
+      "Bash('2026-04-11t14:00:00.000z',)",
+      "Bash('2026-04-11t15:00:00.000z',)",
+      "Bash(false)",
+      "Bash(join *)",
+      "Bash(returning *)",
+      "Bash(update *)",
+      "Bash(set *)",
+      "Bash(and *)",
+      "Bash(md5)",
+      "Bash(clock_timestamp)",
+      "Bash(sqleof)"
     ]
   },
   "$version": 3

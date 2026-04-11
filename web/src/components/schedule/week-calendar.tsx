@@ -94,9 +94,8 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
     const bookData = await bookRes.json();
     setRules(sched.rules ?? []);
     setBlocked(sched.blocked ?? []);
-    // Transform bookings into the Booking interface
     const bks: Booking[] = (bookData.bookings ?? [])
-      .filter((b: any) => b.slot?.startAt && ["PENDING", "CONFIRMED"].includes(b.status))
+      .filter((b: any) => b.slot?.startAt && ["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(b.status))
       .map((b: any) => ({
         id: b.id,
         clientName: b.client?.name ?? "Клиент",
@@ -119,12 +118,15 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
   }
 
   // Check if an hour is currently booked (has an active booking)
-  function getBookingAt(date: Date, hour: number): Booking | null {
-    const dateStr = isoDate(date);
+  function getBookingAt(dateStr: string, hour: number): Booking | null {
+    // dateStr is "YYYY-MM-DD" in LOCAL time (from isoDate which uses getFullYear/getMonth/getDate)
+    const targetLocalStart = new Date(`${dateStr}T${pad2(hour)}:00:00`);
+    const targetLocalEnd = new Date(`${dateStr}T${pad2(hour + 1)}:00:00`);
     return bookings.find(b => {
-      const bDate = new Date(b.startAt);
-      // Compare in local timezone
-      return isoDate(bDate) === dateStr && bDate.getHours() === hour;
+      const bStart = new Date(b.startAt);
+      const bEnd = new Date(b.startAt);
+      bEnd.setHours(bEnd.getHours() + 1);
+      return bStart < targetLocalEnd && bEnd > targetLocalStart;
     }) ?? null;
   }
 
@@ -148,7 +150,7 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
     if (!working) return "unavailable";
 
     // Check if there's an active booking at this slot
-    const booking = getBookingAt(date, hour);
+    const booking = getBookingAt(dateStr, hour);
     if (booking) return "booked";
 
     const serverBlocks = isBlockedServer(date, hour);
@@ -329,7 +331,7 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                     (isoDate(date) === todayStr() && hour < new Date().getHours());
 
                   // Get booking info for this cell
-                  const booking = getBookingAt(date, hour);
+                  const booking = getBookingAt(dateStr, hour);
 
                   const cellStyle = {
                     "unavailable":     "bg-[#080f18] cursor-default",
