@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/header";
 import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";
+import { Analytics } from "@/components/analytics";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -59,6 +60,7 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <FooterConditional />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
