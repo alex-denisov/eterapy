@@ -20,6 +20,12 @@ interface Complaint {
   practitionerSlug?: string;
   bookingId: string;
   priceRub: number;
+  // VideoSession artifacts
+  transcriptText: string | null;
+  recordingUrl: string | null;
+  recordingExpiry: string | null;
+  summaryText: string | null;
+  sessionMessages: Array<{ text: string | null; fileName: string | null; fileUrl: string | null; senderName: string; createdAt: string }>;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -126,6 +132,42 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Описание</p>
                       <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{c.description}</p>
                     </div>
+
+                    {/* Артефакты сессии */}
+                    {(c.transcriptText || c.recordingUrl || (c.sessionMessages?.length ?? 0) > 0 || c.summaryText) && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Артефакты сессии</p>
+                        {c.recordingUrl && (
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">🎬 Запись сессии</p>
+                            <a href={c.recordingUrl} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline">
+                              Открыть запись {c.recordingExpiry ? `(до ${new Date(c.recordingExpiry).toLocaleDateString("ru-RU")})` : ""}
+                            </a>
+                          </div>
+                        )}
+                        {c.summaryText && (
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">📝 AI-резюме</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-line bg-card/30 rounded-lg p-3 max-h-40 overflow-auto">{c.summaryText}</p>
+                          </div>
+                        )}
+                        {c.transcriptText && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">💬 Чат сессии ({c.sessionMessages.length} сообщений)</p>
+                            <div className="bg-card/30 rounded-lg p-3 max-h-60 overflow-auto space-y-1">
+                              {c.sessionMessages.map((m, i) => (
+                                <div key={i} className="text-xs">
+                                  <span className="text-muted-foreground/50">[{new Date(m.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}]</span>{" "}
+                                  <span className="font-medium">{m.senderName}:</span>{" "}
+                                  <span className="text-muted-foreground">{m.text ?? (m.fileName ? `📎 ${m.fileName}` : "")}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Контакт */}
                     <div className="grid sm:grid-cols-2 gap-3">

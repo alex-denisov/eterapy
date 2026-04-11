@@ -16,6 +16,17 @@ export default async function AdminComplaintsPage() {
         include: {
           client: { select: { name: true, email: true } },
           practitioner: { select: { id: true, slug: true, user: { select: { name: true } } } },
+          videoSession: {
+            include: {
+              messages: {
+                orderBy: { createdAt: "asc" },
+                select: {
+                  id: true, text: true, fileName: true, fileUrl: true, fileMime: true, createdAt: true,
+                  sender: { select: { name: true } },
+                },
+              },
+            },
+          },
         },
       },
       reporter: { select: { name: true, email: true } },
@@ -55,6 +66,21 @@ export default async function AdminComplaintsPage() {
         practitionerSlug: c.booking.practitioner.slug,
         bookingId: c.bookingId,
         priceRub: c.booking.priceRub,
+        // Artefacts from VideoSession
+        transcriptText: c.booking.videoSession?.messages
+          .filter(m => m.text)
+          .map(m => `[${new Date(m.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}] ${m.sender.name}: ${m.text}`)
+          .join("\n") ?? null,
+        recordingUrl: c.booking.videoSession?.recordingUrl ?? null,
+        recordingExpiry: c.booking.videoSession?.recordingExpiry?.toISOString() ?? null,
+        summaryText: c.booking.videoSession?.summaryText ?? null,
+        sessionMessages: c.booking.videoSession?.messages.map(m => ({
+          text: m.text,
+          fileName: m.fileName,
+          fileUrl: m.fileUrl,
+          senderName: m.sender.name,
+          createdAt: m.createdAt.toISOString(),
+        })) ?? [],
       }))} />
     </div>
   );
