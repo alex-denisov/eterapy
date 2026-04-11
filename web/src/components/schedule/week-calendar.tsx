@@ -18,6 +18,15 @@ interface BlockedSlot {
   endAt: string;
 }
 
+interface Booking {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  priceRub: number;
+  startAt: string;
+  status: string;
+}
+
 // П.6 — неделя с понедельника: 1=пн, 2=вт, ... 0=вс
 const DOW_ORDER = [1, 2, 3, 4, 5, 6, 0]; // mon first
 const DAY_LABELS: Record<number, string> = {
@@ -62,6 +71,7 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
   const [weekStart, setWeekStart] = useState(() => mondayOfWeek(new Date()));
   const [rules, setRules] = useState<ScheduleRule[]>([]);
   const [blocked, setBlocked] = useState<BlockedSlot[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState<PendingChange[]>([]);
   const [saving, setSaving] = useState(false);
@@ -76,10 +86,26 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
   const displayHours = Array.from({ length: maxHour - minHour }, (_, i) => minHour + i);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/schedule?practitionerId=${practitionerId}`);
-    const d = await res.json();
-    setRules(d.rules ?? []);
-    setBlocked(d.blocked ?? []);
+    const [schedRes, bookRes] = await Promise.all([
+      fetch(`/api/schedule?practitionerId=${practitionerId}`),
+      fetch(`/api/bookings?role=practitioner`),
+    ]);
+    const sched = await schedRes.json();
+    const bookData = await bookRes.json();
+    setRules(sched.rules ?? []);
+    setBlocked(sched.blocked ?? []);
+    // Transform bookings into the Booking interface
+    const bks: Booking[] = (bookData.bookings ?? [])
+      .filter((b: any) => b.slot?.startAt && ["PENDING", "CONFIRMED"].includes(b.status))
+      .map((b: any) => ({
+        id: b.id,
+        clientName: b.client?.name ?? "Клиент",
+        clientEmail: b.client?.email ?? "",
+        priceRub: b.priceRub ?? 0,
+        startAt: b.slot.startAt,
+        status: b.status,
+      }));
+    setBookings(bks);
   }, [practitionerId]);
 
   useEffect(() => { load(); }, [load]);
@@ -90,6 +116,16 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
     const rule = getRuleForDay(dow);
     if (!rule || !rule.enabled) return false;
     return hour >= rule.startHour && hour < rule.endHour;
+  }
+
+  // Check if an hour is currently booked (has an active booking)
+  function getBookingAt(date: Date, hour: number): Booking | null {
+    const dateStr = isoDate(date);
+    return bookings.find(b => {
+      const bDate = new Date(b.startAt);
+      // Compare in local timezone
+      return isoDate(bDate) === dateStr && bDate.getHours() === hour;
+    }) ?? null;
   }
 
   // Check if an hour is currently blocked (committed to server)
@@ -103,13 +139,17 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
   }
 
   // Merge server state with pending changes
-  function getCellState(dateStr: string, hour: number, dow: number): "unavailable" | "free" | "blocked" | "pending-block" | "pending-unblock" {
+  function getCellState(dateStr: string, hour: number, dow: number): "unavailable" | "free" | "blocked" | "pending-block" | "pending-unblock" | "booked" {
     const date = weekDays[DOW_ORDER.indexOf(dow)];
     const rule = getRuleForDay(dow);
     const working = rule?.enabled && hour >= rule.startHour && hour < rule.endHour;
 
     // П.5 — нерабочие часы = недоступны (not blocked, just unavailable)
     if (!working) return "unavailable";
+
+    // Check if there's an active booking at this slot
+    const booking = getBookingAt(date, hour);
+    if (booking) return "booked";
 
     const serverBlocks = isBlockedServer(date, hour);
     const pendingEntry = pending.find(p => p.date === dateStr && p.hour === hour);
@@ -127,6 +167,9 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
     const rule = getRuleForDay(dow);
     const working = rule?.enabled && hour >= rule.startHour && hour < rule.endHour;
     if (!working) return; // can't toggle unavailable
+
+    // Prevent blocking a slot that has an active booking
+    if (getCellState(dateStr, hour, dow) === "booked") return;
 
     const serverBlocks = isBlockedServer(date, hour);
     const isBlockedNow = serverBlocks.length > 0;
@@ -281,8 +324,12 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                   const date = weekDays[idx];
                   const dateStr = isoDate(date);
                   const state = getCellState(dateStr, hour, dow);
-                  const isPast = date < new Date(new Date().setHours(0,0,0,0)) ||
+                  const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+                  const isPast = date < todayMidnight ||
                     (isoDate(date) === todayStr() && hour < new Date().getHours());
+
+                  // Get booking info for this cell
+                  const booking = getBookingAt(date, hour);
 
                   const cellStyle = {
                     "unavailable":     "bg-[#080f18] cursor-default",
@@ -294,25 +341,33 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                                         : "bg-red-950/50",
                     "pending-block":   "bg-yellow-900/50 cursor-pointer border-yellow-700/40",
                     "pending-unblock": "bg-teal-900/50 cursor-pointer border-teal-700/40",
+                    "booked":          "bg-blue-900/60 cursor-not-allowed border-blue-700/40",
                   }[state];
 
                   return (
                     <td key={dow}
                       className={`border-r border-b border-border/10 h-8 relative transition-colors ${cellStyle} ${isPast ? "opacity-40" : ""}`}
-                      onClick={!isPast ? () => toggleCell(dateStr, hour, dow) : undefined}
+                      onClick={!isPast && state !== "booked" ? () => toggleCell(dateStr, hour, dow) : undefined}
                       title={
                         state === "unavailable" ? "Нерабочее время"
                         : state === "blocked" ? (editing ? "Нажмите чтобы разблокировать" : "Заблокировано")
                         : state === "free" ? (editing ? "Нажмите чтобы заблокировать" : "Свободно")
                         : state === "pending-block" ? "Будет заблокировано"
-                        : "Будет разблокировано"
+                        : state === "pending-unblock" ? "Будет разблокировано"
+                        : state === "booked" && booking ? `${booking.clientName} — ${booking.priceRub.toLocaleString("ru-RU")} ₽ (${booking.status})`
+                        : "Забронировано"
                       }
                     >
-                      {(state === "blocked" || state === "pending-block") && (
+                      {state === "booked" && booking ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-0.5">
+                          <span className="text-[9px] font-medium text-blue-300 truncate w-full text-center leading-tight">{booking.clientName.split(" ")[0]}</span>
+                          <span className="text-[8px] text-blue-400/70">{booking.priceRub.toLocaleString("ru-RU")} ₽</span>
+                        </div>
+                      ) : (state === "blocked" || state === "pending-block") ? (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className={`text-[10px] ${state === "pending-block" ? "text-yellow-400" : "text-red-400/60"}`}>✕</span>
                         </div>
-                      )}
+                      ) : null}
                       {state === "pending-unblock" && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-[10px] text-teal-400">✓</span>
@@ -331,6 +386,9 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-5 rounded-sm bg-green-950/70 border border-green-900/50 inline-block" />Рабочее время
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-5 rounded-sm bg-blue-900/60 border border-blue-700/40 inline-block" />Забронировано
         </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-5 rounded-sm bg-red-950/60 border border-red-900/40 inline-block" />Заблокировано
