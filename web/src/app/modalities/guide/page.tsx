@@ -9,6 +9,8 @@ import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
+import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
+import { Badge } from "@/components/ui/badge";
 
 const TOPICS = [
   "Как справиться с неопределённостью",
@@ -28,6 +30,11 @@ export default function GuidePage() {
   const [error, setError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
   const [isLimited, setIsLimited] = useState(false);
+  const [tier, setTier] = useState<"quick" | "full">("quick");
+  const [balanceKopecks, setBalanceKopecks] = useState<number | null>(null);
+  const [guideResult, setGuideResult] = useState<{ guide: string; tier?: string; balanceKopecks?: number } | null>(null);
+
+  const FULL_PRICE_KOPECKS = getFullReadingPriceKopecks();
 
   async function doSubmit() {
     setLoading(true);
@@ -38,11 +45,14 @@ export default function GuidePage() {
       const res = await fetch("/api/modalities/guide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic, context }),
+        body: JSON.stringify({ topic, context, tier }),
       });
-      if (res.status === 429) { setIsLimited(true); return; }
-      if (!res.ok) throw new Error((await res.json()).error);
-      setResult((await res.json()).guide);
+      const data = await res.json();
+      if (res.status === 429) { setBalanceKopecks(data.balanceKopecks ?? null); setIsLimited(true); return; }
+      if (!res.ok) throw new Error(data.error);
+      setGuideResult(data);
+      setResult(data.guide);
+      if (data.balanceKopecks != null) setBalanceKopecks(data.balanceKopecks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -61,7 +71,40 @@ export default function GuidePage() {
       <AuthModal open={showAuth} toolName="Личный гид" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />
 
       <h1 className="font-heading text-3xl font-bold">📖 Личный гид</h1>
-      <p className="mt-2 text-muted-foreground">Персональный текст по теме вашего запроса.</p>
+
+      {/* Быстрый / Полный переключатель */}
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTier("quick")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "quick"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">⚡ Быстрый</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Бесплатно · 3/мес</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTier("full")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "full"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">🔮 Полный</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{FULL_PRICE_KOPECKS / 100} ₽ · Детальный анализ</div>
+        </button>
+      </div>
+
+      <p className="mt-3 text-muted-foreground">
+        {tier === "quick"
+          ? "Краткий персональный текст по теме вашего запроса."
+          : "Подробный гид с глубинным разбором и практическими рекомендациями."}
+      </p>
 
       {!result && !loading && (
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -89,12 +132,15 @@ export default function GuidePage() {
         </form>
       )}
 
-      {loading && <ToolLoading message="Составляем персональный гид..." />}
+      {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный анализ и составляем гид..." : "Составляем персональный гид..."} />}
 
-      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setTopic(""); setContext(""); }} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={() => { setIsLimited(false); setTopic(""); setContext(""); setTier("quick"); setBalanceKopecks(null); }} />}
 
       {result && (
         <div className="mt-8">
+          {guideResult?.tier === "full" && (
+            <Badge className="mb-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
+          )}
           <Card className="border-primary/20 bg-card/30">
             <CardContent className="p-6">
               <p className="mb-3 text-sm font-medium text-primary">✦ {topic}</p>
@@ -105,7 +151,7 @@ export default function GuidePage() {
           </Card>
           <AIShareButton tool="GUIDE" title={`Личный гид — ${topic}`} resultText={result} />
           <Button variant="outline" className="mt-4 border-border/40 text-muted-foreground"
-            onClick={() => { setResult(null); setTopic(""); setContext(""); }}>
+            onClick={() => { setResult(null); setGuideResult(null); setTopic(""); setContext(""); }}>
             Новый гид
           </Button>
         </div>

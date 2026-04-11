@@ -11,6 +11,8 @@ import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
 import { searchCities } from "@/lib/cities";
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
+import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
+import { Badge } from "@/components/ui/badge";
 
 
 
@@ -72,11 +74,15 @@ export default function NatalPage() {
   const [birthTime, setBirthTime] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ sunSign: string; interpretation: string } | null>(null);
+  const [result, setResult] = useState<{ sunSign: string; interpretation: string; tier?: string; balanceKopecks?: number } | null>(null);
   const [error, setError] = useState("");
   const [dateError, setDateError] = useState("");
   const [showAuth, setShowAuth] = useState(false);
   const [isLimited, setIsLimited] = useState(false);
+  const [tier, setTier] = useState<"quick" | "full">("quick");
+  const [balanceKopecks, setBalanceKopecks] = useState<number | null>(null);
+
+  const FULL_PRICE_KOPECKS = getFullReadingPriceKopecks();
 
   const currentYear = new Date().getFullYear();
 
@@ -105,11 +111,14 @@ export default function NatalPage() {
           birthDate: isoDate,
           birthTime,
           birthPlace,
+          tier,
         }),
       });
-      if (res.status === 429) { setIsLimited(true); return; }
-      if (!res.ok) throw new Error((await res.json()).error);
-      setResult(await res.json());
+      const data = await res.json();
+      if (res.status === 429) { setBalanceKopecks(data.balanceKopecks ?? null); setIsLimited(true); return; }
+      if (!res.ok) throw new Error(data.error);
+      setResult(data);
+      if (data.balanceKopecks != null) setBalanceKopecks(data.balanceKopecks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -127,8 +136,39 @@ export default function NatalPage() {
     <div className="mx-auto max-w-2xl px-4 py-12">
       <AuthModal open={showAuth} toolName="Натальная карта" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />
       <h1 className="font-heading text-3xl font-bold">⭐ Натальная карта</h1>
-      <p className="mt-2 text-muted-foreground">
-        Описание вашей натальной карты по дате, времени и месту рождения.
+
+      {/* Быстрый / Полный переключатель */}
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTier("quick")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "quick"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">⚡ Быстрый</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Бесплатно · 3/мес</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTier("full")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "full"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">🔮 Полный</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{FULL_PRICE_KOPECKS / 100} ₽ · Детальный анализ</div>
+        </button>
+      </div>
+
+      <p className="mt-3 text-muted-foreground">
+        {tier === "quick"
+          ? "Краткий расчёт по дате рождения — знак Солнца и базовое описание."
+          : "Полная натальная карта с планетами, домами и аспектами."}
       </p>
 
       {!result && !loading && (
@@ -174,12 +214,15 @@ export default function NatalPage() {
         </form>
       )}
 
-      {loading && <ToolLoading message="Строим натальную карту..." />}
+      {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный расчёт натальной карты..." : "Строим натальную карту..."} />}
 
-      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setBirthDate(""); setBirthTime(""); setBirthPlace(""); }} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={() => { setIsLimited(false); setBirthDate(""); setBirthTime(""); setBirthPlace(""); setTier("quick"); setBalanceKopecks(null); }} />}
 
       {result && (
         <div className="mt-8">
+          {result.tier === "full" && (
+            <Badge className="mb-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
+          )}
           <Card className="border-primary/20 bg-card/30">
             <CardContent className="p-6">
               <h2 className="font-heading text-xl font-semibold">☀️ Солнце в знаке {result.sunSign}</h2>

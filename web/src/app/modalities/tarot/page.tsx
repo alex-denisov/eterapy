@@ -113,7 +113,7 @@ export default function TarotPage() {
         </Button>
       </form>
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKokecks ?? undefined} fullPriceKopecks={FULL_PRICE_RUB * 100} onReset={() => { setIsLimited(false); setQuestion(""); }} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_RUB * 100} onReset={() => { setIsLimited(false); setQuestion(""); }} />}
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный расклад..." : "Раскладываем карты..."} />}
 

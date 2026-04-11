@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   try {
     const { sign, period = "daily" } = body;
 
-    if (!sign || !zodiacSigns.includes(sign)) {
+    if (!sign || !zodiacSigns.includes(sign as (typeof zodiacSigns)[number])) {
       return NextResponse.json(
         { error: `Укажите знак зодиака: ${zodiacSigns.join(", ")}` },
         { status: 400 }

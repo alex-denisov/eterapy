@@ -4,9 +4,11 @@ import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
+import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
 
 const questions = [
   "Что сейчас занимает ваши мысли больше всего?",
@@ -27,6 +29,10 @@ export default function CheckinPage() {
   const [showAuth, setShowAuth] = useState(false);
   const [pendingAnswers, setPendingAnswers] = useState<string[] | null>(null);
   const [isLimited, setIsLimited] = useState(false);
+  const [tier, setTier] = useState<"quick" | "full">("quick");
+  const [balanceKopecks, setBalanceKopecks] = useState<number | null>(null);
+
+  const FULL_PRICE_KOPECKS = getFullReadingPriceKopecks();
 
   const submitAnswers = useCallback(async (finalAnswers: string[]) => {
     setLoading(true);
@@ -37,12 +43,13 @@ export default function CheckinPage() {
       const res = await fetch("/api/modalities/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers: finalAnswers }),
+        body: JSON.stringify({ answers: finalAnswers, tier }),
       });
-      if (res.status === 429) { setIsLimited(true); return; }
-      if (!res.ok) throw new Error((await res.json()).error || "Ошибка сервера");
       const data = await res.json();
+      if (res.status === 429) { setBalanceKopecks(data.balanceKopecks ?? null); setIsLimited(true); return; }
+      if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       setResult(data.result);
+      if (data.balanceKopecks != null) setBalanceKopecks(data.balanceKopecks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -81,14 +88,16 @@ export default function CheckinPage() {
   }
 
   function reset() {
-    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setPendingAnswers(null); setIsLimited(false);
+    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setPendingAnswers(null); setIsLimited(false); setTier("quick"); setBalanceKopecks(null);
   }
 
   if (loading) {
     return (
       <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-20 text-center">
         <div className="text-4xl animate-pulse">✦</div>
-        <p className="mt-4 text-lg text-muted-foreground">Анализирую ваши ответы...</p>
+        <p className="mt-4 text-lg text-muted-foreground">
+          {tier === "full" ? "Проводим глубинный анализ..." : "Анализирую ваши ответы..."}
+        </p>
       </div>
     );
   }
@@ -97,7 +106,7 @@ export default function CheckinPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
         <h1 className="font-heading text-3xl font-bold">💬 Рефлексия</h1>
-        <PaywallScreen onReset={reset} />
+        <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={reset} />
       </div>
     );
   }
@@ -106,6 +115,9 @@ export default function CheckinPage() {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
         <h1 className="font-heading text-3xl font-bold">💬 Ваше отражение</h1>
+        {tier === "full" && (
+          <Badge className="mt-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
+        )}
         <Card className="mt-8 border-primary/20 bg-card/30">
           <CardContent className="p-6">
             <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
@@ -132,7 +144,40 @@ export default function CheckinPage() {
       />
 
       <h1 className="font-heading text-3xl font-bold md:text-4xl">💬 Рефлексия</h1>
-      <p className="mt-2 text-muted-foreground">Ответьте на несколько вопросов — получите структурированное отражение вашего состояния.</p>
+
+      {/* Быстрый / Полный переключатель */}
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTier("quick")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "quick"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">⚡ Быстрый</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Бесплатно · 3/мес</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTier("full")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "full"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">🔮 Полный</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{FULL_PRICE_KOPECKS / 100} ₽ · Детальный анализ</div>
+        </button>
+      </div>
+
+      <p className="mt-3 text-muted-foreground">
+        {tier === "quick"
+          ? "Ответьте на 5 вопросов — получите краткое отражение вашего состояния."
+          : "Развёрнутый анализ с рекомендациями и глубинными инсайтами."}
+      </p>
 
       <div className="mt-8 flex gap-1">
         {questions.map((_, i) => (

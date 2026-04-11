@@ -7,6 +7,8 @@ import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
+import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
+import { Badge } from "@/components/ui/badge";
 
 const SIGNS = [
   { name: "Овен",      emoji: "♈", dates: "21.03–19.04" },
@@ -39,6 +41,11 @@ export default function HoroscopePage() {
   const [showAuth, setShowAuth] = useState(false);
   const [pendingSign, setPendingSign] = useState<typeof SIGNS[0] | null>(null);
   const [isLimited, setIsLimited] = useState(false);
+  const [tier, setTier] = useState<"quick" | "full">("quick");
+  const [balanceKopecks, setBalanceKopecks] = useState<number | null>(null);
+  const [horoscopeResult, setHoroscopeResult] = useState<{ horoscope: string; tier?: string; balanceKopecks?: number } | null>(null);
+
+  const FULL_PRICE_KOPECKS = getFullReadingPriceKopecks();
 
   async function fetchHoroscope(s: typeof SIGNS[0], p: typeof period) {
     setLoading(true);
@@ -50,11 +57,14 @@ export default function HoroscopePage() {
       const res = await fetch("/api/modalities/horoscope", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sign: s.name, period: p }),
+        body: JSON.stringify({ sign: s.name, period: p, tier }),
       });
-      if (res.status === 429) { setIsLimited(true); return; }
-      if (!res.ok) throw new Error((await res.json()).error);
-      setResult((await res.json()).horoscope);
+      const data = await res.json();
+      if (res.status === 429) { setBalanceKopecks(data.balanceKopecks ?? null); setIsLimited(true); return; }
+      if (!res.ok) throw new Error(data.error);
+      setHoroscopeResult(data);
+      setResult(data.horoscope);
+      if (data.balanceKopecks != null) setBalanceKopecks(data.balanceKopecks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
     } finally {
@@ -88,7 +98,40 @@ export default function HoroscopePage() {
       />
 
       <h1 className="font-heading text-3xl font-bold">🌙 Гороскоп</h1>
-      <p className="mt-2 text-muted-foreground">Персонализированный прогноз для вашего знака.</p>
+
+      {/* Быстрый / Полный переключатель */}
+      <div className="mt-4 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTier("quick")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "quick"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">⚡ Быстрый</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">Бесплатно · 3/мес</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTier("full")}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm font-medium transition-all ${
+            tier === "full"
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-border/40 bg-card/30 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <div className="text-base font-semibold">🔮 Полный</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{FULL_PRICE_KOPECKS / 100} ₽ · Детальный анализ</div>
+        </button>
+      </div>
+
+      <p className="mt-3 text-muted-foreground">
+        {tier === "quick"
+          ? "Краткий прогноз для вашего знака зодиака."
+          : "Подробный астрологический анализ с рекомендациями по сферам жизни."}
+      </p>
 
       <div className="mt-6 inline-flex rounded-xl border border-border/40 bg-card/30 p-1 gap-1">
         {PERIODS.map((p) => (
@@ -114,9 +157,9 @@ export default function HoroscopePage() {
         ))}
       </div>
 
-      {isLimited && <PaywallScreen onReset={() => { setIsLimited(false); setSign(null); setResult(null); }} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={() => { setIsLimited(false); setSign(null); setResult(null); setHoroscopeResult(null); setTier("quick"); setBalanceKopecks(null); }} />}
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
-      {loading && sign && <ToolLoading message={`Составляем прогноз для ${sign.name}...`} />}
+      {loading && sign && <ToolLoading message={tier === "full" ? "Проводим глубинный астрологический анализ..." : `Составляем прогноз для ${sign.name}...`} />}
 
       {result && sign && !loading && (
         <Card className="mt-8 border-primary/20 bg-card/30">
@@ -126,6 +169,9 @@ export default function HoroscopePage() {
               <h2 className="font-heading text-xl font-semibold">{sign.name}</h2>
               <span className="text-sm text-muted-foreground">{PERIODS.find(p => p.key === period)?.label.toLowerCase()}</span>
             </div>
+            {horoscopeResult?.tier === "full" && (
+              <Badge className="mb-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
+            )}
             <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
               {result.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
             </div>
