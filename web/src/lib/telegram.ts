@@ -15,14 +15,21 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
     console.warn("[Telegram] TELEGRAM_BOT_TOKEN not set, skipping");
     return;
   }
-  const res = await fetch(`${API_BASE}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown", disable_web_page_preview: false }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Telegram API error: ${err}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  try {
+    const res = await fetch(`${API_BASE}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Telegram API error: ${err}`);
+    }
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

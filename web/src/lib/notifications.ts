@@ -75,23 +75,23 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
   switch (event) {
     case "BOOKING_REQUESTED":
-      return `📅 *Новая запись*\nКлиент ${data.clientName} хочет записаться на ${data.date} в ${data.time}.\n[Подтвердить →](${baseUrl}/cabinet/practitioner/clients)`;
+      return `📅 Новая запись\nКлиент ${data.clientName} хочет записаться на ${data.date} в ${data.time}.\n<a href="${baseUrl}/cabinet/practitioner/clients">Подтвердить →</a>`;
     case "BOOKING_CONFIRMED":
-      return `✅ *Запись подтверждена*\nВаша сессия с ${data.practitionerName} подтверждена на ${data.date} в ${data.time}.\n[Перейти к записям →](${baseUrl}/cabinet/bookings)`;
+      return `✅ Запись подтверждена\nВаша сессия с ${data.practitionerName} подтверждена на ${data.date} в ${data.time}.\n<a href="${baseUrl}/cabinet/bookings">Перейти к записям →</a>`;
     case "BOOKING_CANCELLED":
-      return `❌ *Запись отменена*\nСессия на ${data.date} отменена${data.reason ? `: ${data.reason}` : ""}.`;
+      return `❌ Запись отменена\nСессия на ${data.date} отменена${data.reason ? `: ${data.reason}` : ""}.`;
     case "BOOKING_REMINDER":
-      return `⏰ *Напоминание о сессии*\nВаша сессия ${data.withName ? `с ${data.withName} ` : ""}начнётся ${data.in}.\n[Открыть видеочат →](${baseUrl}/session/${data.bookingId})`;
+      return `⏰ Напоминание о сессии\nВаша сессия ${data.withName ? `с ${data.withName} ` : ""}начнётся ${data.in}.\n<a href="${baseUrl}/session/${data.bookingId}">Открыть видеочат →</a>`;
     case "SESSION_STARTED":
-      return `🎥 *Сессия началась*\n[Войти в видеочат →](${baseUrl}/session/${data.bookingId})`;
+      return `🎥 Сессия началась\n<a href="${baseUrl}/session/${data.bookingId}">Войти в видеочат →</a>`;
     case "SESSION_COMPLETED":
-      return `🏁 *Сессия завершена*\nСпасибо за сессию! ${data.reviewUrl ? `[Оставить отзыв →](${data.reviewUrl})` : ""}`;
+      return `🏁 Сессия завершена\nСпасибо за сессию! ${data.reviewUrl ? `<a href="${data.reviewUrl}">Оставить отзыв →</a>` : ""}`;
     case "REVIEW_REQUESTED":
-      return `⭐ *Оставьте отзыв*\nКак прошла сессия с ${data.practitionerName}?\n[Написать отзыв →](${data.reviewUrl})`;
+      return `⭐ Оставьте отзыв\nКак прошла сессия с ${data.practitionerName}?\n<a href="${data.reviewUrl}">Написать отзыв →</a>`;
     case "NEW_REVIEW":
-      return `⭐ *Новый отзыв*\nКлиент ${data.clientName} оставил отзыв ${data.rating}/5.\n"${data.text}"`;
+      return `⭐ Новый отзыв\nКлиент ${data.clientName} оставил отзыв ${data.rating}/5.\n"${data.text}"`;
     case "PAYMENT_RECEIVED":
-      return `💰 *Платёж получен*\n${data.amountRub} ₽ за сессию ${data.date}.`;
+      return `💰 Платёж получен\n${data.amountRub} ₽ за сессию ${data.date}.`;
     default:
       return `ETerapy: уведомление`;
   }
