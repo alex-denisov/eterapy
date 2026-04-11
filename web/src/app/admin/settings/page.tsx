@@ -4,8 +4,8 @@ import { AdminSettingsClient } from "./admin-settings-client";
 
 export default async function AdminSettingsPage() {
   const session = await auth();
-  const role = session?.user?.role;
-  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
+  const role = session?.user?.role ?? "";
+  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   return (
     <div className="px-6 py-8 max-w-2xl">

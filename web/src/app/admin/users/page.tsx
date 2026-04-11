@@ -6,8 +6,8 @@ import { UserLimitControl } from "./user-limit-control";
 
 export default async function AdminUsersPage() {
   const session = await auth();
-  const role = session?.user?.role;
-  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
+  const role = session?.user?.role ?? "";
+  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const users = await db.user.findMany({
     select: {

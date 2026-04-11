@@ -5,7 +5,7 @@ import { ApplicationsManager } from "./applications-manager";
 
 export default async function AdminApplicationsPage() {
   const session = await auth();
-  const role = session?.user?.role;
+  const role = session?.user?.role ?? "";
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const applications = await db.practitionerApplication.findMany({

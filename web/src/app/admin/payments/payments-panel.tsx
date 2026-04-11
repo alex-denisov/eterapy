@@ -12,6 +12,7 @@ interface Practitioner {
   email: string;
   sessionCount: number;
   totalRevenue: number;
+  commissionPercent: number;
   platformFee: number;
   practitionerEarnings: number;
   lastPayout: string | null;
@@ -90,7 +91,7 @@ export function PaymentsPanel({ practitioners }: { practitioners: Practitioner[]
               <th className="text-left p-3 text-xs text-muted-foreground font-medium">Практик</th>
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">Сессий</th>
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">Оборот</th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Комиссия 15%</th>
+              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Комиссия</th>
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">К выплате</th>
               <th className="p-3"></th>
             </tr>
@@ -108,7 +109,7 @@ export function PaymentsPanel({ practitioners }: { practitioners: Practitioner[]
                 </td>
                 <td className="p-3 text-right text-muted-foreground">{p.sessionCount}</td>
                 <td className="p-3 text-right">{p.totalRevenue.toLocaleString("ru")} ₽</td>
-                <td className="p-3 text-right text-primary">{p.platformFee.toLocaleString("ru")} ₽</td>
+                <td className="p-3 text-right text-primary">{p.platformFee.toLocaleString("ru")} ₽ <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
                 <td className="p-3 text-right font-semibold text-green-400">
                   {p.practitionerEarnings.toLocaleString("ru")} ₽
                 </td>

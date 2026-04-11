@@ -6,7 +6,7 @@ import { getUserPermissions } from "@/lib/moderator-permissions";
 
 export default async function AdminClientsPage() {
   const session = await auth();
-  const role = session?.user?.role;
+  const role = session?.user?.role ?? "";
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const permissions = await getUserPermissions(session.user!.id!, role);
@@ -17,6 +17,7 @@ export default async function AdminClientsPage() {
     select: {
       id: true, name: true, email: true, emailVerified: true,
       createdAt: true, blockedAt: true, deletedAt: true, freeToolsLimit: true, avatarUrl: true, provider: true,
+      registrationChannel: true, balance: true,
     },
     orderBy: { createdAt: "desc" } as const,
     take: 200,

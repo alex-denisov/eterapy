@@ -6,8 +6,8 @@ import { getBookingStatus } from "@/lib/booking-status";
 
 export default async function AdminBookingsPage() {
   const session = await auth();
-  const role = session?.user?.role;
-  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
+  const role = session?.user?.role ?? "";
+  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const bookings = await db.booking.findMany({
     orderBy: { createdAt: "desc" },

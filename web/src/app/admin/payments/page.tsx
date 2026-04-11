@@ -20,11 +20,10 @@ export default async function AdminPaymentsPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const COMMISSION = 0.15; // 15%
-
   const list = practitioners.map(p => {
+    const commission = (p.commissionPercent ?? 25) / 100;
     const totalRevenue = p.bookings.reduce((s, b) => s + b.priceRub, 0);
-    const platformFee = Math.round(totalRevenue * COMMISSION);
+    const platformFee = Math.round(totalRevenue * commission);
     const practitionerEarnings = totalRevenue - platformFee;
     const lastPayout = null; // TODO: PayoutRecord model
     return {
@@ -34,6 +33,7 @@ export default async function AdminPaymentsPage() {
       email: p.user.email,
       sessionCount: p.bookings.length,
       totalRevenue,
+      commissionPercent: p.commissionPercent ?? 25,
       platformFee,
       practitionerEarnings,
       lastPayout,

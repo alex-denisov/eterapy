@@ -83,6 +83,7 @@ model Practitioner {
   experience      String              // "5 лет"
   pricePerSession   Int                 // RUB
   sessionDuration   Int                 @default(60) // минут: 30, 45, 60, 90
+  commissionPercent Int                 @default(25) // % комиссии платформы
   languages         String[]            @default(["Русский"])
   verified        Boolean             @default(false)
   founding        Boolean             @default(false)

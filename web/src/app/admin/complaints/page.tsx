@@ -5,7 +5,7 @@ import { ComplaintsManager } from "./complaints-manager";
 
 export default async function AdminComplaintsPage() {
   const session = await auth();
-  const role = session?.user?.role;
+  const role = session?.user?.role ?? "";
   if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const complaints = await db.complaint.findMany({

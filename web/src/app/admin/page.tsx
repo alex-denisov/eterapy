@@ -37,8 +37,8 @@ async function getStats() {
 
 export default async function AdminPage() {
   const session = await auth();
-  const role = session?.user?.role;
-  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
+  const role = session?.user?.role ?? "";
+  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const stats = await getStats();
 
