@@ -13,7 +13,7 @@ import {
   VideoOff,
   Maximize2,
   Minimize2,
-  BlurOff,
+  Eye,
   Dot,
   StopCircle,
   Circle,
@@ -153,7 +153,7 @@ export function VideoControls({
         aria-label="Размытие фона"
         title="Размытие фона"
       >
-        <BlurOff className="h-5 w-5" />
+        <Eye className="h-5 w-5" />
       </button>
 
       {/* Полный экран */}

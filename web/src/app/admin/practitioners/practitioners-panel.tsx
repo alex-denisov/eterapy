@@ -151,7 +151,7 @@ export function PractitionersPanel({
         <CreatePractitionerForm
           onClose={() => setShowCreate(false)}
           onCreated={(p) => {
-            setList(prev => [p, ...prev]);
+            setList(prev => [...prev, { ...p } as Practitioner]);
             setShowCreate(false);
           }}
         />

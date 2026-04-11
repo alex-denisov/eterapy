@@ -17,7 +17,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Пароль", type: "password" },
         impersonateToken: { label: "Impersonate Token", type: "text" },
       },
-      async authorize(credentials) {
+      // @ts-expect-error NextAuth v5 Credentials authorize type mismatch
+      async authorize(credentials, _request: Request) {
         // ── Impersonation path: SUPERADMIN one-time token ─────────────────────
         const impToken = credentials?.impersonateToken as string | undefined;
         if (impToken) {
@@ -125,9 +126,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async jwt({ token, user, account }) {
       if (user) {
-        token.id = user.id;
-        token.emailVerified = user.emailVerified;
-        token.role = user.role;
+        (token as any).id = user.id;
+        (token as any).emailVerified = user.emailVerified ? String(user.emailVerified) : undefined;
+        (token as any).role = user.role;
       }
 
       // При OAuth входе загружаем данные из БД
@@ -147,9 +148,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
-        session.user.emailVerified = token.emailVerified;
-        session.user.role = token.role;
+        session.user.id = (token as any).id as string;
+        // @ts-expect-error NextAuth v5 impossible emailVerified type (Date & string)
+        session.user.emailVerified = (token as any).emailVerified ? new Date((token as any).emailVerified) : null;
+        session.user.role = (token as any).role;
       }
       return session;
     },

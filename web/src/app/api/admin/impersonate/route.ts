@@ -15,7 +15,8 @@ import { logAudit } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!["ADMIN", "SUPERADMIN"].includes(session?.user?.role)) {
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!["ADMIN", "SUPERADMIN"].includes(session.user.role ?? "")) {
     return NextResponse.json({ error: "Только администратор и выше" }, { status: 403 });
   }
 

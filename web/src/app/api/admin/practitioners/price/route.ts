@@ -4,7 +4,7 @@ import db from "@/lib/db";
 
 export async function PATCH(req: NextRequest) {
   const session = await auth();
-  const role = session?.user?.role;
+  const role = session?.user?.role ?? "";
   if (!["ADMIN", "SUPERADMIN"].includes(role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { practitionerId, pricePerSession, sessionDuration } = await req.json();

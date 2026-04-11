@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest) {
   if (role === "PRACTITIONER") {
     const prac = await db.practitioner.findUnique({ where: { userId: session.user.id } });
     if (!prac || prac.id !== practitionerId) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
-  } else if (!["ADMIN", "SUPERADMIN"].includes(role)) {
+  } else if (!["ADMIN", "SUPERADMIN"].includes(role ?? "")) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 

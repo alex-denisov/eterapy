@@ -4,7 +4,7 @@ import db from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!["ADMIN", "SUPERADMIN"].includes(session?.user?.role)) {
+  if (!["ADMIN", "SUPERADMIN"].includes(session?.user?.role ?? "")) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 

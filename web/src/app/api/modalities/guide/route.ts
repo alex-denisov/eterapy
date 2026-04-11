@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
-import { checkAndRecordToolSession, getFullReadingPriceKopecks } from "@/lib/tool-limit";
+import { checkAndRecordToolSession } from "@/lib/tool-limit-server";
+import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { aiComplete } from "@/lib/ai";
 
