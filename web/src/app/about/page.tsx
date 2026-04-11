@@ -71,7 +71,7 @@ export default function AboutPage() {
               {
                 icon: "✦",
                 title: "Развитие",
-                text: "AI-инструменты для самопознания доступны бесплатно — 3 раза в месяц без регистрации.",
+                text: "Направления для самопознания доступны бесплатно — 3 раза в месяц без регистрации.",
               },
             ].map(item => (
               <div key={item.title} className="rounded-xl border border-border/30 bg-card/20 p-5">

@@ -25,7 +25,7 @@ export function PaywallScreen({ onReset }: PaywallScreenProps) {
           499&nbsp;<span className="text-base font-normal text-muted-foreground">₽/мес</span>
         </p>
         <ul className="mt-3 space-y-1.5 text-left text-sm text-muted-foreground">
-          <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✓</span>Неограниченные AI-инструменты</li>
+          <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✓</span>Неограниченные направления самопознания</li>
           <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✓</span>Скидка 10% на все сессии</li>
           <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✓</span>Персональный AI-дайджест</li>
           <li className="flex items-start gap-2"><span className="mt-0.5 text-primary">✓</span>Приоритетная поддержка</li>

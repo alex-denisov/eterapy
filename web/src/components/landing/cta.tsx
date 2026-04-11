@@ -9,8 +9,7 @@ export function CTASection() {
 
       <div className="relative mx-auto max-w-2xl text-center">
         <h2 className="font-heading text-3xl font-bold md:text-4xl">
-          Начни путь к{" "}
-          <span className="text-primary">осознанному выбору</span>
+          Начни путь к <span className="text-primary">осознанному выбору</span>
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
           Бесплатная рефлексия за 2 минуты. Без привязки карты.
