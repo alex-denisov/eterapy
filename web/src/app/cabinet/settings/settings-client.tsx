@@ -302,8 +302,9 @@ function ExtendedProfileTab() {
         const p = d.profile;
         if (!p) return;
         if (p.birthDate) {
-          // birthDate в YYYY-MM-DD (локальное). Конвертируем в DD.MM.YYYY для отображения
-          const [year, month, day] = p.birthDate.split("-");
+          // birthDate in YYYY-MM-DD format. Convert to DD.MM.YYYY for display
+          const dateStr = p.birthDate.split("T")[0]; // strip time if present
+          const [year, month, day] = dateStr.split("-");
           setBirthDate(`${day}.${month}.${year}`);
         }
         if (p.birthTime) setBirthTime(p.birthTime);

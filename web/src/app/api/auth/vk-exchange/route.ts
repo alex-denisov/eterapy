@@ -146,11 +146,10 @@ export async function GET(request: NextRequest) {
         try {
           const parts = birthDateStr.split(".");
           if (parts.length === 3) {
-            createData.birthDate = new Date(
-              parseInt(parts[2], 10),
-              parseInt(parts[1], 10) - 1,
-              parseInt(parts[0], 10)
-            );
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            createData.birthDate = new Date(Date.UTC(year, month, day));
           }
         } catch { /* ignore */ }
       }
@@ -166,11 +165,10 @@ export async function GET(request: NextRequest) {
         try {
           const parts = birthDateStr.split(".");
           if (parts.length === 3) {
-            updateData.birthDate = new Date(
-              parseInt(parts[2], 10),
-              parseInt(parts[1], 10) - 1,
-              parseInt(parts[0], 10)
-            );
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            updateData.birthDate = new Date(Date.UTC(year, month, day));
           }
         } catch { /* ignore */ }
       }

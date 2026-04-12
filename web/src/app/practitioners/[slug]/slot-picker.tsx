@@ -111,20 +111,13 @@ export function SlotPicker({
 
     const rate = rates.find(r => r.durationMin === selectedDuration);
     try {
-      const slotRes = await fetch("/api/slots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ startAt: selectedSlot.startAt, endAt: selectedSlot.endAt }),
-      });
-      const slotData = await slotRes.json();
-      const slotId = slotData.slot?.id;
-
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           practitionerId,
-          slotId,
+          slotStartAt: selectedSlot.startAt,
+          slotEndAt: selectedSlot.endAt,
           durationMin: selectedDuration,
           priceOverride: rate?.priceRub,
         }),

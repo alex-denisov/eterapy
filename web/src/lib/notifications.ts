@@ -77,7 +77,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "BOOKING_REQUESTED":
       return `📅 Новая запись\nКлиент ${data.clientName} хочет записаться на ${data.date} в ${data.time}.\n<a href="${baseUrl}/cabinet/practitioner/clients">Подтвердить →</a>`;
     case "BOOKING_CONFIRMED":
-      return `✅ Запись подтверждена\nВаша сессия с ${data.practitionerName} подтверждена на ${data.date} в ${data.time}.\n<a href="${baseUrl}/cabinet/bookings">Перейти к записям →</a>`;
+      return `✅ Запись подтверждена\nВаша сессия${data.clientName ? ` с ${data.clientName}` : ""} подтверждена на ${data.date} в ${data.time}.\n${data.sessionUrl ? `<a href="${data.sessionUrl}">Войти в видеочат →</a>` : `<a href="${baseUrl}/cabinet/bookings">Перейти к записям →</a>`}`;
     case "BOOKING_CANCELLED":
       return `❌ Запись отменена\nСессия на ${data.date} отменена${data.reason ? `: ${data.reason}` : ""}.`;
     case "BOOKING_REMINDER":

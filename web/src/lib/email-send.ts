@@ -82,7 +82,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
           "rgba(34,197,94,0.2)"
         )}
         <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Мы пришлём напоминание за 24 часа.</p>
-        ${btn(`${BASE_URL}/cabinet/bookings`, "Мои записи")}
+        ${data.sessionUrl ? btn(data.sessionUrl, "Войти в видеочат") : btn(`${BASE_URL}/cabinet/bookings`, "Мои записи")}
       `;
     case "BOOKING_CANCELLED":
       return `
@@ -102,7 +102,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
           row("Время", data.time).replace("margin:0 0 16px", "margin:0")
         )}
         <p style="margin:0 0 28px;color:#94a3b8">Сессия начнётся через <strong style="color:#f8fafc">${data.in}</strong>.</p>
-        ${btn(`${BASE_URL}/session/${data.bookingId}`, "Открыть видеочат")}
+        ${data.sessionUrl ? btn(data.sessionUrl, "Открыть видеочат") : btn(`${BASE_URL}/session/${data.bookingId}`, "Открыть видеочат")}
       `;
     case "SESSION_STARTED":
       return `

@@ -16,7 +16,17 @@ export async function GET() {
     select: { birthDate: true, birthTime: true, birthPlace: true, maritalStatus: true, occupation: true, aiGoals: true },
   });
 
-  return NextResponse.json({ profile: user });
+  // Serialize birthDate as YYYY-MM-DD string instead of full ISO
+  const profile = user
+    ? {
+        ...user,
+        birthDate: user.birthDate
+          ? user.birthDate.toISOString().split("T")[0]
+          : null,
+      }
+    : null;
+
+  return NextResponse.json({ profile });
 }
 
 export async function PATCH(req: NextRequest) {

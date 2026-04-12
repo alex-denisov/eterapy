@@ -45,7 +45,7 @@ export default async function AdminMetricsPage() {
     db.toolSession.count({ where: { month: startOfPrevMonth.toISOString().slice(0, 7) } }),
     db.toolSession.count({ where: { tier: "quick" } }),
     db.toolSession.count({ where: { tier: "full" } }),
-    db.booking.aggregate({ _sum: { priceRub: true }, where: { status: "COMPLETED" } }),
+    db.booking.aggregate({ _sum: { priceRub: true }, where: { status: "COMPLETED", priceRub: { gt: 0 } } }),
     db.user.aggregate({ _sum: { balance: true } }),
     db.complaint.count(),
     db.complaint.count({ where: { status: "OPEN" } }),

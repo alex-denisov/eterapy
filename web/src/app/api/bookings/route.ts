@@ -6,6 +6,7 @@ import {
   sendBookingRequestedClient,
   sendBookingRequestedPractitioner,
   sendBookingConfirmedClient,
+  sendBookingConfirmedPractitioner,
   sendBookingCancelledClient,
   sendBookingCancelledPractitioner,
   sendReviewRequestClient,
@@ -25,6 +26,8 @@ function fmtSlot(slot: { startAt: Date; endAt: Date } | null): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatBooking(b: any) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const showVideo = ["CONFIRMED", "IN_PROGRESS"].includes(b.status);
   return {
     id: b.id,
     status: b.status,
@@ -32,6 +35,7 @@ function formatBooking(b: any) {
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
     slot: b.slot ? { startAt: b.slot.startAt, endAt: b.slot.endAt } : null,
+    sessionUrl: showVideo ? `${appUrl}/session/${b.id}` : null,
     client:      b.client      ? { name: b.client.name,           email: b.client.email }           : undefined,
     practitioner: b.practitioner ? { name: b.practitioner.user?.name, id: b.practitioner.id }       : undefined,
   };
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { practitionerId, slotId, durationMin, priceOverride } = await req.json();
+    const { practitionerId, slotId, slotStartAt, slotEndAt, durationMin, priceOverride } = await req.json();
     if (!practitionerId) return NextResponse.json({ error: "practitionerId обязателен" }, { status: 400 });
 
     const practitioner = await db.practitioner.findUnique({
@@ -102,14 +106,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Практик временно недоступен" }, { status: 409 });
     }
 
-    // Валидация слота
+    let resolvedSlotId: string | null = null;
+
+    // Вариант 1: слот уже есть в TimeSlot (создан практиком)
     if (slotId) {
       const slot = await db.timeSlot.findUnique({ where: { id: slotId } });
       if (!slot || !slot.available) {
         return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
       }
-      // Резервируем слот
       await db.timeSlot.update({ where: { id: slotId }, data: { available: false } });
+      resolvedSlotId = slotId;
+    }
+    // Вариант 2: клиент выбрал сгенерированный слот — создаём TimeSlot на сервере
+    else if (slotStartAt && slotEndAt) {
+      // Проверяем, нет ли уже активного бронирования на это время
+      const existingBooking = await db.booking.findFirst({
+        where: {
+          practitionerId,
+          status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
+          slot: {
+            startAt: { lte: new Date(slotEndAt) },
+            endAt: { gte: new Date(slotStartAt) },
+          },
+        },
+      });
+      if (existingBooking) {
+        return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
+      }
+
+      const createdSlot = await db.timeSlot.create({
+        data: {
+          practitionerId,
+          startAt: new Date(slotStartAt),
+          endAt: new Date(slotEndAt),
+          available: false, // сразу резервируем
+        },
+      });
+      resolvedSlotId = createdSlot.id;
     }
 
     // Цена: priceOverride (из тарифной сетки) или базовая цена практика
@@ -121,7 +154,7 @@ export async function POST(req: NextRequest) {
       data: {
         clientId: session.user.id,
         practitionerId,
-        slotId: slotId ?? null,
+        slotId: resolvedSlotId,
         status: BookingStatus.PENDING,
         priceRub,
       },
@@ -220,6 +253,7 @@ export async function PATCH(req: NextRequest) {
       }).catch(() => {});
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
     const emailData = {
       bookingId,
       clientName: booking.client.name,
@@ -230,11 +264,29 @@ export async function PATCH(req: NextRequest) {
       slotStr: fmtSlot(booking.slot),
       priceRub: booking.priceRub,
       durationMin: 60, // TODO: from practitioner.sessionDuration
+      sessionUrl: `${appUrl}/session/${bookingId}`,
     };
 
-    // Email по статусу
+    // Email + Telegram по статусу
     if (status === "CONFIRMED") {
-      sendBookingConfirmedClient(emailData).catch((e) => console.error("[email confirmed]", e));
+      const slotDate = booking.slot ? new Date(booking.slot.startAt).toLocaleDateString("ru-RU") : "—";
+      const slotTime = booking.slot ? new Date(booking.slot.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "—";
+      Promise.allSettled([
+        sendBookingConfirmedClient(emailData),
+        sendBookingConfirmedPractitioner(emailData),
+        // Практик: Telegram
+        notify({ userId: booking.practitioner.userId, event: "BOOKING_CONFIRMED", data: {
+          clientName: booking.client.name,
+          practitionerName: booking.practitioner.user.name,
+          date: slotDate,
+          time: slotTime,
+          sessionUrl: emailData.sessionUrl,
+        }}),
+      ]).then((results) => {
+        results.forEach((r, i) => {
+          if (r.status === "rejected") console.error(`[booking notify ${i}]`, r.reason);
+        });
+      });
     } else if (status === "CANCELLED") {
       const cancelledBy = isClient ? "client" : "practitioner";
       Promise.allSettled([

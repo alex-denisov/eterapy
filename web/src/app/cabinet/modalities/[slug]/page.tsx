@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 
 // Tool pages rendered within the cabinet layout so the sidebar stays intact.
 // These are client components — importing them here is valid in Next.js App Router.
-import TarotPage from "@/app/modalities/tarot/page";
-import CheckinPage from "@/app/modalities/checkin/page";
-import HoroscopePage from "@/app/modalities/horoscope/page";
-import NumerologyPage from "@/app/modalities/numerology/page";
-import NatalPage from "@/app/modalities/natal/page";
-import GuidePage from "@/app/modalities/guide/page";
+import TarotPage from "@/app/all-modalities/tarot/page";
+import CheckinPage from "@/app/all-modalities/checkin/page";
+import HoroscopePage from "@/app/all-modalities/horoscope/page";
+import NumerologyPage from "@/app/all-modalities/numerology/page";
+import NatalPage from "@/app/all-modalities/natal/page";
+import GuidePage from "@/app/all-modalities/guide/page";
 
 const SLUG_MAP: Record<string, React.ComponentType> = {
   tarot: TarotPage,

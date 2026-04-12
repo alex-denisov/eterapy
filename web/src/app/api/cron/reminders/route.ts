@@ -64,7 +64,8 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  let sent = 0;
+  let remindersSent = 0;
+  let autoCompleted = 0;
 
   // Обрабатываем 24h напоминания
   for (const b of bookings24h) {
@@ -98,7 +99,7 @@ export async function GET(req: NextRequest) {
     });
 
     await db.booking.update({ where: { id: b.id }, data: { reminder24hSent: true } });
-    sent++;
+    remindersSent++;
   }
 
   // Обрабатываем 1h напоминания
@@ -131,13 +132,58 @@ export async function GET(req: NextRequest) {
     });
 
     await db.booking.update({ where: { id: b.id }, data: { reminder1hSent: true } });
-    sent++;
+    remindersSent++;
+  }
+
+  // Автозавершение истёкших сессий (IN_PROGRESS или CONFIRMED, где endAt уже прошёл)
+  const expiredBookings = await db.booking.findMany({
+    where: {
+      status: { in: ["IN_PROGRESS", "CONFIRMED"] },
+      slot: {
+        endAt: { lte: now },
+      },
+    },
+    include: {
+      slot: true,
+      practitioner: { select: { id: true } },
+      client: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  for (const b of expiredBookings) {
+    await db.booking.update({ where: { id: b.id }, data: { status: "COMPLETED" } });
+    await db.practitioner.update({
+      where: { id: b.practitioner.id },
+      data: { sessionCount: { increment: 1 } },
+    }).catch(() => {});
+    // Запрос отзыва
+    const { sendReviewRequestClient } = await import("@/lib/email");
+    sendReviewRequestClient({
+      bookingId: b.id,
+      clientName: b.client.name,
+      clientEmail: b.client.email,
+      practitionerName: "",
+      practitionerEmail: "",
+      practitionerId: b.practitioner.id,
+      slotStr: fmtSlotCron(b.slot),
+      priceRub: 0,
+      durationMin: 60,
+    }).catch(() => {});
+    autoCompleted++;
   }
 
   return NextResponse.json({
     ok: true,
-    sent,
-    processed: { "24h": bookings24h.length, "1h": bookings1h.length },
+    remindersSent,
+    autoCompleted,
+    processed: { "24h": bookings24h.length, "1h": bookings1h.length, "expired": expiredBookings.length },
     timestamp: now.toISOString(),
+  });
+}
+
+function fmtSlotCron(slot: { startAt: Date; endAt: Date } | null): string {
+  if (!slot) return "—";
+  return new Date(slot.startAt).toLocaleString("ru-RU", {
+    day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
   });
 }

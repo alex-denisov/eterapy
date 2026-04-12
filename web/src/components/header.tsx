@@ -177,6 +177,9 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Скрываем header на странице видеосессии
+  if (pathname.startsWith("/session")) return null;
+
   const role: string = session?.user?.role ?? "GUEST";
   const nav = !session ? GUEST_NAV
     : role === "PRACTITIONER" ? PRACTITIONER_NAV

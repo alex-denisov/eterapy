@@ -3,8 +3,8 @@
 import { usePathname } from "next/navigation";
 import { Footer } from "./footer";
 
-// Маршруты где footer не нужен (кабинеты, инструменты для авторизованных)
-const HIDDEN_PREFIXES = ["/cabinet", "/admin"];
+// Маршруты где footer не нужен (кабинеты, инструменты для авторизованных, видеосессии)
+const HIDDEN_PREFIXES = ["/cabinet", "/admin", "/session"];
 
 export function FooterConditional() {
   const pathname = usePathname();

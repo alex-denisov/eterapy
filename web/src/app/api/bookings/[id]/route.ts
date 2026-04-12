@@ -51,6 +51,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 
+  // Practitioner cannot complete session before 75% of duration has passed
+  if (status === "COMPLETED" && userRole === "PRACTITIONER") {
+    if (booking.slot?.startAt) {
+      const durationMinutes = (booking.slot.endAt
+        ? (booking.slot.endAt.getTime() - booking.slot.startAt.getTime()) / 60000
+        : 60);
+      const sessionStartedAt = booking.startedAt ?? booking.slot.startAt;
+      const elapsed = Date.now() - new Date(sessionStartedAt).getTime();
+      const required = durationMinutes * 0.75 * 60 * 1000;
+      if (elapsed < required) {
+        return NextResponse.json(
+          { error: "Сессию можно завершить после 75% времени" },
+          { status: 400 },
+        );
+      }
+    }
+  }
+
   const updated = await db.booking.update({ where: { id }, data: { status } });
 
   // Освобождаем слот при отмене

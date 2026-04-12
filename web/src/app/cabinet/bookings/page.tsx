@@ -25,6 +25,7 @@ interface Booking {
   priceRub: number;
   createdAt: string;
   slot: { startAt: string; endAt: string } | null;
+  sessionUrl: string | null;
   practitioner?: { name: string; id: string };
   review?: { id: string } | null;
 }
@@ -199,7 +200,7 @@ export default function ClientBookingsPage() {
                           {b.priceRub.toLocaleString("ru")} ₽
                         </p>
                       </div>
-                      {b.status === "PENDING" && (
+                      {(b.status === "PENDING" || (b.status === "CONFIRMED" && b.slot && new Date(b.slot.startAt) > new Date())) && (
                         <button
                           onClick={() => requestCancel(b.id)}
                           disabled={cancelling === b.id}
@@ -211,7 +212,7 @@ export default function ClientBookingsPage() {
                     {b.status === "CONFIRMED" && (
                       <div className="mt-3 rounded-lg bg-green-500/5 border border-green-500/20 px-3 py-2 flex items-center justify-between">
                         <p className="text-xs text-green-400">✓ Сессия подтверждена</p>
-                        <a href={`/session/${b.id}`}
+                        <a href={b.sessionUrl ?? `/session/${b.id}`}
                           className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-navy hover:bg-primary/90 transition-colors">
                           Войти в сессию →
                         </a>
@@ -223,7 +224,7 @@ export default function ClientBookingsPage() {
                           <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
                           <p className="text-xs text-blue-400">Сессия идёт</p>
                         </div>
-                        <a href={`/session/${b.id}`}
+                        <a href={b.sessionUrl ?? `/session/${b.id}`}
                           className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition-colors animate-pulse">
                           Подключиться →
                         </a>

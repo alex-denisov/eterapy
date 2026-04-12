@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   LiveKitRoom,
@@ -21,12 +21,14 @@ interface VideoRoomProps {
   participantName: string;
   otherPartyName: string;
   priceRub: number;
+  sessionDurationMin: number;
 }
 
-export function VideoRoom({ bookingId, role, participantName, otherPartyName, priceRub }: VideoRoomProps) {
+export function VideoRoom({ bookingId, role, participantName, otherPartyName, priceRub, sessionDurationMin }: VideoRoomProps) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [videoSessionId, setVideoSessionId] = useState<string | null>(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
 
@@ -46,10 +48,13 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
       })
       .catch(() => { setError("Ошибка подключения"); setConnecting(false); });
 
-    // Получаем videoSessionId
+    // Получаем videoSessionId и startedAt
     fetch(`/api/video/session?bookingId=${bookingId}`)
       .then(r => r.json())
-      .then(d => { if (d.session?.id) setVideoSessionId(d.session.id); });
+      .then(d => {
+        if (d.session?.id) setVideoSessionId(d.session.id);
+        if (d.session?.startedAt) setSessionStartedAt(new Date(d.session.startedAt));
+      });
   }, [bookingId]);
 
   if (connecting) {
@@ -91,10 +96,13 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
       <VideoRoomInner
         bookingId={bookingId}
         videoSessionId={videoSessionId}
+        sessionStartedAt={sessionStartedAt}
+        setSessionStartedAt={setSessionStartedAt}
         role={role}
         participantName={participantName}
         otherPartyName={otherPartyName}
         priceRub={priceRub}
+        sessionDurationMin={sessionDurationMin}
       />
     </LiveKitRoom>
   );
@@ -103,17 +111,23 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
 function VideoRoomInner({
   bookingId,
   videoSessionId,
+  sessionStartedAt,
+  setSessionStartedAt,
   role,
   participantName,
   otherPartyName,
   priceRub,
+  sessionDurationMin,
 }: {
   bookingId: string;
   videoSessionId: string | null;
+  sessionStartedAt: Date | null;
+  setSessionStartedAt: (d: Date | null) => void;
   role: "client" | "practitioner";
   participantName: string;
   otherPartyName: string;
   priceRub: number;
+  sessionDurationMin: number;
 }) {
   const router = useRouter();
   const room = useRoomContext();
@@ -121,10 +135,14 @@ function VideoRoomInner({
   const [violation, setViolation] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showChat, setShowChat] = useState(true);
-  const sessionStartedAt = useMemo(() => new Date(), []); // фиксируем время при монтировании
+  const [bgBlur, setBgBlur] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const transcriptBuffer = useRef<string>("");
   const transcriptTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Отправляем запрос об активации сессии один раз при монтировании
   useEffect(() => {
@@ -132,8 +150,62 @@ function VideoRoomInner({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bookingId, status: "ACTIVE" }),
-    }).catch(() => {});
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.session?.startedAt) setSessionStartedAt(new Date(d.session.startedAt));
+      })
+      .catch(() => {});
   }, [bookingId]);
+
+  async function handleSessionEnd() {
+    if (sessionEnded) return;
+    setSessionEnded(true);
+
+    await fetch("/api/video/session", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId, status: "ENDED" }),
+    }).catch(() => {});
+
+    room.disconnect();
+    setShowEndModal(true);
+  }
+
+  // Таймер ограничения длительности сессии
+  useEffect(() => {
+    if (!sessionStartedAt || sessionDurationMin <= 0 || sessionEnded) return;
+
+    const endTime = sessionStartedAt.getTime() + sessionDurationMin * 60 * 1000;
+    const warningTime = endTime - 60 * 1000; // за 1 минуту до конца
+    const now = Date.now();
+
+    // Если время уже вышло
+    if (now >= endTime) {
+      handleSessionEnd();
+      return;
+    }
+
+    // Показать предупреждение за 1 минуту
+    if (now >= warningTime) {
+      setShowEndModal(true);
+    } else {
+      warningTimer.current = setTimeout(() => {
+        setShowEndModal(true);
+      }, warningTime - now);
+    }
+
+    // Завершить сессию по окончании
+    endTimer.current = setTimeout(() => {
+      handleSessionEnd();
+    }, endTime - now);
+
+    return () => {
+      if (warningTimer.current) clearTimeout(warningTimer.current);
+      if (endTimer.current) clearTimeout(endTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionStartedAt, sessionDurationMin, sessionEnded]);
 
   // Периодическая проверка транскрипта на нарушения (каждые 30 сек)
   useEffect(() => {
@@ -202,7 +274,7 @@ function VideoRoomInner({
             <span className="text-xs text-muted-foreground">{priceRub.toLocaleString("ru")} ₽/сессия</span>
           </div>
           {/* Таймер сессии */}
-          <SessionTimer startedAt={sessionStartedAt} durationMin={60} />
+          <SessionTimer startedAt={sessionStartedAt} durationMin={sessionDurationMin} />
           <div className="flex gap-2">
             <button onClick={() => setShowChat(!showChat)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -216,7 +288,7 @@ function VideoRoomInner({
         {/* Видео */}
         <div className="flex-1 relative bg-black">
           {/* Удалённое видео (большое) */}
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className={`absolute inset-0 flex items-center justify-center ${bgBlur ? "[&>video]:blur-xl [&>video]:scale-105" : ""}`}>
             {remoteVideoTrack ? (
               <VideoTrack trackRef={remoteVideoTrack} className="w-full h-full object-cover" />
             ) : (
@@ -256,6 +328,8 @@ function VideoRoomInner({
           role={role}
           videoSessionId={videoSessionId}
           bookingId={bookingId}
+          bgBlur={bgBlur}
+          onBgBlurChange={() => setBgBlur(!bgBlur)}
         />
       </div>
 
@@ -267,6 +341,27 @@ function VideoRoomInner({
             participantName={participantName}
             role={role}
           />
+        </div>
+      )}
+
+      {/* Модальное окно завершения сессии */}
+      {showEndModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-video-surface p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
+              <span className="text-3xl">⏱️</span>
+            </div>
+            <h2 className="mb-2 text-xl font-bold font-heading">Сессия завершена</h2>
+            <p className="mb-6 text-sm text-muted-foreground">
+              Время вашей сессии истекло. Спасибо за использование eTerapy!
+            </p>
+            <button
+              onClick={() => router.push(role === "client" ? "/cabinet/bookings" : "/cabinet/practitioner/clients")}
+              className="rounded-lg bg-primary px-8 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-primary/90"
+            >
+              Перейти к бронированиям
+            </button>
+          </div>
         </div>
       )}
     </div>

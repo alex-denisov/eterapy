@@ -146,10 +146,36 @@ export async function sendBookingConfirmedClient(d: BookingEmailData) {
           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:18px">${d.priceRub.toLocaleString("ru")} ₽</p>
         </td></tr>
       </table>
-      <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">
-        Практик свяжется с вами для уточнения деталей сессии. Мы пришлём напоминание за 24 часа.
+      <p style="margin:0 0 16px;color:#94a3b8;line-height:1.6">
+        Ссылка на видеосессию станет доступна в вашей записи. Мы пришлём напоминание за 24 часа.
       </p>
       ${btn(`${APP_URL}/cabinet/bookings`, "Мои записи")}
+    `),
+  });
+}
+
+/** Практику: запись подтверждена (ссылка на видеочат) */
+export async function sendBookingConfirmedPractitioner(d: BookingEmailData & { sessionUrl?: string }) {
+  const sessionUrl = d.sessionUrl || `${APP_URL}/session/${d.bookingId}`;
+  return resend.emails.send({
+    from: FROM, to: d.practitionerEmail,
+    subject: `Запись подтверждена — ${d.clientName} · ETerapy`,
+    html: emailWrapper(`
+      <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#f8fafc">✅ Запись подтверждена!</h1>
+      <p style="margin:0 0 16px;color:#94a3b8;line-height:1.6">Привет, ${d.practitionerName}!</p>
+      <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:20px;width:100%">
+        <tr><td>
+          <p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Клиент</p>
+          <p style="margin:0 0 16px;color:#f8fafc;font-weight:600;font-size:16px">${d.clientName}</p>
+          <p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Время</p>
+          <p style="margin:0 0 16px;color:#f8fafc;font-weight:600">${d.slotStr}</p>
+          <p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Стоимость</p>
+          <p style="margin:0;color:#C9A84C;font-weight:700;font-size:18px">${d.priceRub.toLocaleString("ru")} ₽</p>
+        </td></tr>
+      </table>
+      <p style="margin:0 0 16px;color:#94a3b8;line-height:1.6">Используйте ссылку ниже для подключения к видеосессии.</p>
+      ${btn(sessionUrl, "Войти в видеочат")}
+      <p style="margin:16px 0 0;color:#475569;font-size:12px">Ссылка также доступна в вашем кабинете в карточке записи.</p>
     `),
   });
 }

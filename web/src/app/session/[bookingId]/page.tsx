@@ -12,6 +12,7 @@ export default async function SessionPage({ params }: { params: Promise<{ bookin
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
     include: {
+      slot: true,
       practitioner: { include: { user: { select: { id: true, name: true } } } },
       client: { select: { id: true, name: true } },
     },
@@ -32,6 +33,11 @@ export default async function SessionPage({ params }: { params: Promise<{ bookin
   const participantName = isClient ? booking.client.name : booking.practitioner.user.name;
   const otherPartyName = isClient ? booking.practitioner.user.name : booking.client.name;
 
+  // Вычисляем длительность из слота бронирования
+  const sessionDurationMin = booking.slot
+    ? Math.round((new Date(booking.slot.endAt).getTime() - new Date(booking.slot.startAt).getTime()) / 60000)
+    : 60;
+
   return (
     <VideoRoom
       bookingId={bookingId}
@@ -39,6 +45,7 @@ export default async function SessionPage({ params }: { params: Promise<{ bookin
       participantName={participantName}
       otherPartyName={otherPartyName}
       priceRub={booking.priceRub}
+      sessionDurationMin={sessionDurationMin}
     />
   );
 }

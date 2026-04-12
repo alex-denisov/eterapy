@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -8,10 +8,37 @@ export function BookingActions({
   bookingId,
   compact = false,
   status,
-}: { bookingId: string; compact?: boolean; status?: string }) {
+  sessionStartedAt,
+  durationMinutes,
+}: {
+  bookingId: string;
+  compact?: boolean;
+  status?: string;
+  sessionStartedAt?: string | null;
+  durationMinutes?: number;
+}) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [canComplete, setCanComplete] = useState(false);
   const router = useRouter();
+
+  // Check 75% threshold client-side
+  useEffect(() => {
+    if (!sessionStartedAt || !durationMinutes) {
+      setCanComplete(true);
+      return;
+    }
+    const startedAt = new Date(sessionStartedAt).getTime();
+    const required = durationMinutes * 0.75 * 60 * 1000;
+    const elapsed = Date.now() - startedAt;
+    setCanComplete(elapsed >= required);
+
+    const interval = setInterval(() => {
+      const elapsedNow = Date.now() - startedAt;
+      setCanComplete(elapsedNow >= required);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [sessionStartedAt, durationMinutes]);
 
   async function updateStatus(status: string) {
     setLoading(true);
@@ -25,6 +52,7 @@ export function BookingActions({
       if (data.booking) {
         setDone(status);
         toast.success(status === "CONFIRMED" ? "Запись подтверждена" : status === "COMPLETED" ? "Завершено" : "Обновлено");
+        router.refresh();
       } else {
         toast.error(data.error || "Ошибка");
       }
@@ -45,8 +73,12 @@ export function BookingActions({
             {status === "IN_PROGRESS" ? "В сессию →" : "Начать →"}
           </a>
         )}
-        <button onClick={() => updateStatus("COMPLETED")} disabled={loading}
-          className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50">
+        <button
+          onClick={() => updateStatus("COMPLETED")}
+          disabled={loading || !canComplete}
+          title={!canComplete ? "Сессию можно завершить после 75% времени" : undefined}
+          className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           Завершить
         </button>
       </div>

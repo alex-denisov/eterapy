@@ -30,6 +30,8 @@ interface VideoControlsProps {
   role: "client" | "practitioner";
   videoSessionId: string | null;
   bookingId: string;
+  bgBlur: boolean;
+  onBgBlurChange: () => void;
 }
 
 export function VideoControls({
@@ -41,13 +43,14 @@ export function VideoControls({
   role,
   videoSessionId,
   bookingId,
+  bgBlur,
+  onBgBlurChange,
 }: VideoControlsProps) {
   const [micEnabled, setMicEnabled] = useState(true);
   const [camEnabled, setCamEnabled] = useState(true);
   const [volume, setVolume] = useState(100);
   const [showVolume, setShowVolume] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
-  const [bgBlur, setBgBlur] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [recording, setRecording] = useState(false);
   const [egressId, setEgressId] = useState<string | null>(null);
@@ -146,7 +149,7 @@ export function VideoControls({
 
       {/* Фон (блюр) */}
       <button
-        onClick={() => { setBgBlur(!bgBlur); toast.info(bgBlur ? "Блюр фона выключен" : "Блюр фона включён"); }}
+        onClick={() => { onBgBlurChange(); toast.info(bgBlur ? "Блюр фона выключен" : "Блюр фона включён"); }}
         className={`flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors ${
           bgBlur ? "bg-primary/30 text-primary" : "bg-white/10 hover:bg-white/20 text-muted-foreground"
         }`}
