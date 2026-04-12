@@ -4,6 +4,15 @@ import { PractitionerStatus } from "@prisma/client";
 import { PractitionersCatalog } from "./catalog-client";
 import { SPECIALTY_LABELS } from "@/lib/types";
 
+function pluralize(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod100 >= 11 && mod100 <= 19) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
+}
+
 // Серверная загрузка — быстрый SSR без клиентского fetch
 async function getPractitioners() {
   const practitioners = await db.practitioner.findMany({
@@ -54,7 +63,7 @@ export default async function PractitionersPage() {
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold md:text-4xl">Каталог практиков</h1>
         <p className="mt-2 text-muted-foreground">
-          {practitioners.length} верифицированных специалиста · Фиксированная цена · Реальные отзывы
+          {practitioners.length} {pluralize(practitioners.length, "верифицированный специалист", "верифицированных специалиста", "верифицированных специалистов")} · Фиксированная цена · Реальные отзывы
         </p>
       </div>
 

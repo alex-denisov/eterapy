@@ -42,7 +42,9 @@ export default function TarotPage() {
         body: JSON.stringify({ question, tier }),
       });
       const data = await res.json();
+      console.log("[tarot] response:", res.status, data.error, data.balanceKopecks);
       if (res.status === 429) {
+        console.log("[tarot] Setting isLimited=true");
         setBalanceKopecks(data.balanceKopecks ?? null);
         setIsLimited(true);
         return;
@@ -113,7 +115,6 @@ export default function TarotPage() {
         </Button>
       </form>
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_RUB * 100} onReset={() => { setIsLimited(false); setQuestion(""); }} />}
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный расклад..." : "Раскладываем карты..."} />}
 

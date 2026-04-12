@@ -49,7 +49,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
 
     const preview = resultText.slice(0, 200).replace(/\n/g, " ");
     const text = `${emoji} ${label} на ETerapy\n\n${preview}...\n\nПопробуй сам: ${APP_URL}/modalities`;
-    const url = `https://t.me/share/url?url=${encodeURIComponent(APP_URL + "/modalities")}&text=${encodeURIComponent(text)}`;
+    const url = `https://t.me/share/url?url=${encodeURIComponent(APP_URL + "/all-modalities")}&text=${encodeURIComponent(text)}`;
     window.open(url, "_blank", "noopener,noreferrer");
     setSharing(false);
     toast.success("Ссылка для Telegram открыта!");
@@ -61,7 +61,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
     await saveToHistory();
 
     const preview = resultText.slice(0, 200);
-    const url = `https://vk.com/share.php?url=${encodeURIComponent(APP_URL + "/modalities")}&title=${encodeURIComponent(`${emoji} ${label}`)}&description=${encodeURIComponent(preview)}`;
+    const url = `https://vk.com/share.php?url=${encodeURIComponent(APP_URL + "/all-modalities")}&title=${encodeURIComponent(`${emoji} ${label}`)}&description=${encodeURIComponent(preview)}`;
     window.open(url, "_blank", "noopener,noreferrer");
     setSharing(false);
   }

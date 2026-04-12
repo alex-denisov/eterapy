@@ -1,1 +1,1 @@
-import { redirect } from "next/navigation"; export default function R() { redirect("/modalities"); }
+import { redirect } from "next/navigation"; export default function R() { redirect("/all-modalities"); }

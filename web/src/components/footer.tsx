@@ -17,7 +17,7 @@ export function Footer() {
             <h4 className="mb-3 text-sm font-semibold text-foreground">Клиентам</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/practitioners" className="hover:text-foreground">Каталог практиков</Link></li>
-              <li><Link href="/modalities" className="hover:text-foreground">Направления</Link></li>
+              <li><Link href="/#modalities" className="hover:text-foreground">Направления</Link></li>
               <li><Link href="/how-to-choose" className="hover:text-foreground">Как выбрать практика</Link></li>
             </ul>
           </div>

@@ -134,7 +134,7 @@ export default function GuidePage() {
 
       {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный анализ и составляем гид..." : "Составляем персональный гид..."} />}
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={() => { setIsLimited(false); setTopic(""); setContext(""); setTier("quick"); setBalanceKopecks(null); }} />}
+      <PaywallScreen open={isLimited} balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onReset={() => { setIsLimited(false); }} />
 
       {result && (
         <div className="mt-8">

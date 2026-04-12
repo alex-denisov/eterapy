@@ -10,48 +10,48 @@ const tools = [
     title: "Расклад Таро",
     description: "Три карты на ваш вопрос с развёрнутой интерпретацией. Классическая колода Райдера-Уэйта.",
     tag: "Популярное",
-    href: "/modalities/tarot",
+    href: "/all-modalities/tarot",
   },
   {
     icon: "⭐",
     title: "Натальная карта",
     description: "Полная карта вашего рождения по западной астрологии. Планеты, дома, аспекты — с описанием.",
     tag: "Астрология",
-    href: "/modalities/natal",
+    href: "/all-modalities/natal",
   },
   {
     icon: "🔢",
     title: "Нумерология",
     description: "Число жизненного пути, число выражения и личности по системе Пифагора.",
     tag: "Быстро",
-    href: "/modalities/numerology",
+    href: "/all-modalities/numerology",
   },
   {
     icon: "🌙",
     title: "Гороскоп",
     description: "Персонализированный прогноз на день, неделю или месяц на основе текущих транзитов.",
     tag: "Ежедневно",
-    href: "/modalities/horoscope",
+    href: "/all-modalities/horoscope",
   },
   {
     icon: "💬",
     title: "Рефлексия",
     description: "3–5 вопросов → структурированный ответ о вашем состоянии. Инструмент самопознания за 2 минуты.",
     tag: "Наша разработка",
-    href: "/modalities/checkin",
+    href: "/all-modalities/checkin",
   },
   {
     icon: "📖",
     title: "Личный гид",
     description: "Короткая анкета → персональный текст по теме вашего запроса. Глубже, чем стандартный гороскоп.",
     tag: "Наша разработка",
-    href: "/modalities/guide",
+    href: "/all-modalities/guide",
   },
 ];
 
 export function AIToolsSection() {
   return (
-    <section id="tools" className="bg-navy-light/50 px-4 py-20">
+    <section id="modalities" className="bg-navy-light/50 px-4 py-20">
       <div className="mx-auto max-w-5xl">
         <h2 className="font-heading text-center text-3xl font-bold md:text-4xl">
           Направления самопознания
@@ -60,7 +60,13 @@ export function AIToolsSection() {
           Попробуй бесплатно — 3 расклада в месяц. Регистрация не нужна.
         </p>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 text-center">
+          <Link href="/all-modalities" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+            Все направления →
+          </Link>
+        </div>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {tools.map((tool) => (
             <Link key={tool.title} href={tool.href}>
               <Card className="group h-full cursor-pointer border-border/40 bg-card/50 transition-colors hover:border-primary/30">
@@ -82,12 +88,6 @@ export function AIToolsSection() {
               </Card>
             </Link>
           ))}
-        </div>
-
-        <div className="mt-10 text-center">
-          <Link href="/modalities" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
-            Все направления →
-          </Link>
         </div>
       </div>
     </section>

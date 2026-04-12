@@ -41,10 +41,10 @@ export function ToolsLayoutClient({
   if (!isLoggedIn || role === "ADMIN") {
     return (
       <>
-        {pathname !== "/modalities" && (
+        {pathname !== "/all-modalities" && (
           <div className="border-b border-border/30 bg-navy/50">
             <div className="mx-auto flex max-w-6xl items-center px-4 py-2.5">
-              <Link href="/modalities" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link href="/all-modalities" className="text-sm text-muted-foreground hover:text-foreground">
                 ← Все направления
               </Link>
             </div>

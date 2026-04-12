@@ -157,7 +157,7 @@ export default function HoroscopePage() {
         ))}
       </div>
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={() => { setIsLimited(false); setSign(null); setResult(null); setHoroscopeResult(null); setTier("quick"); setBalanceKopecks(null); }} />}
+      <PaywallScreen open={isLimited} balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onReset={() => { setIsLimited(false); }} />
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {loading && sign && <ToolLoading message={tier === "full" ? "Проводим глубинный астрологический анализ..." : `Составляем прогноз для ${sign.name}...`} />}
 

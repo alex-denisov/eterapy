@@ -102,38 +102,6 @@ export default function CheckinPage() {
     );
   }
 
-  if (isLimited) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-12">
-        <h1 className="font-heading text-3xl font-bold">💬 Рефлексия</h1>
-        <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onReset={reset} />
-      </div>
-    );
-  }
-
-  if (result) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-12">
-        <h1 className="font-heading text-3xl font-bold">💬 Ваше отражение</h1>
-        {tier === "full" && (
-          <Badge className="mt-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
-        )}
-        <Card className="mt-8 border-primary/20 bg-card/30">
-          <CardContent className="p-6">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-              {result.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
-            </div>
-          </CardContent>
-        </Card>
-        <AIShareButton tool="CHECKIN" title="Рефлексия" resultText={result} />
-        <div className="mt-6 flex gap-3">
-          <Button onClick={reset} variant="outline" className="border-border/40 text-muted-foreground">Пройти заново</Button>
-        </div>
-        <p className="mt-8 text-xs text-muted-foreground/60">Носит рефлексивный характер, не является психологической консультацией.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
       <AuthModal
@@ -142,6 +110,8 @@ export default function CheckinPage() {
         onSuccess={() => pendingAnswers && submitAnswers(pendingAnswers)}
         onClose={() => setShowAuth(false)}
       />
+
+      <PaywallScreen open={isLimited} balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onReset={() => { setIsLimited(false); }} />
 
       <h1 className="font-heading text-3xl font-bold md:text-4xl">💬 Рефлексия</h1>
 
@@ -207,6 +177,27 @@ export default function CheckinPage() {
       </Card>
 
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+
+      {result && (
+        <div className="mt-8">
+          <h1 className="font-heading text-3xl font-bold">💬 Ваше отражение</h1>
+          {tier === "full" && (
+            <Badge className="mt-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
+          )}
+          <Card className="mt-8 border-primary/20 bg-card/30">
+            <CardContent className="p-6">
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {result.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")}
+              </div>
+            </CardContent>
+          </Card>
+          <AIShareButton tool="CHECKIN" title="Рефлексия" resultText={result} />
+          <div className="mt-6 flex gap-3">
+            <Button onClick={reset} variant="outline" className="border-border/40 text-muted-foreground">Пройти заново</Button>
+          </div>
+          <p className="mt-8 text-xs text-muted-foreground/60">Носит рефлексивный характер, не является психологической консультацией.</p>
+        </div>
+      )}
     </div>
   );
 }

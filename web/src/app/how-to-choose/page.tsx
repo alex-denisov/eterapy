@@ -121,7 +121,7 @@ export default function HowToChoosePage() {
             Не уверены нужен ли вам практик? Начните с наших бесплатных направлений:
             таро, натальная карта, нумерология — без регистрации, 3 расклада в месяц.
           </p>
-          <Link href="/modalities" className={cn(buttonVariants(), "text-sm")}>
+          <Link href="/all-modalities" className={cn(buttonVariants(), "text-sm")}>
             Открыть направления →
           </Link>
         </section>

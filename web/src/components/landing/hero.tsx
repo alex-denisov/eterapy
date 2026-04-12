@@ -29,7 +29,7 @@ export function HeroSection() {
             Найти практика
           </Link>
           <Link
-            href="/#tools"
+            href="/#modalities"
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-w-[200px] border-primary/30 text-base text-primary hover:bg-primary/10")}
           >
             Направления →

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 const GUEST_NAV = [
   { href: "/practitioners", label: "Найти практика" },
-  { href: "/modalities", label: "Направления" },
+  { href: "/#modalities", label: "Направления" },
   { href: "/#for-practitioners", label: "Для практиков" },
   { href: "/#faq", label: "FAQ" },
 ];

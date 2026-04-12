@@ -68,7 +68,11 @@
       "Bash(and *)",
       "Bash(md5)",
       "Bash(clock_timestamp)",
-      "Bash(sqleof)"
+      "Bash(sqleof)",
+      "Bash(then)",
+      "Bash(fi)",
+      "Bash(perl *)",
+      "Bash(true)"
     ]
   },
   "$version": 3
