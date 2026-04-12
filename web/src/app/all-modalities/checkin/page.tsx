@@ -104,12 +104,14 @@ export default function CheckinPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
-      <AuthModal
-        open={showAuth}
-        toolName="Рефлексия"
-        onSuccess={() => pendingAnswers && submitAnswers(pendingAnswers)}
-        onClose={() => setShowAuth(false)}
-      />
+      {showAuth && (
+        <AuthModal
+          open={showAuth}
+          toolName="Рефлексия"
+          onSuccess={() => pendingAnswers && submitAnswers(pendingAnswers)}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
 
       {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onClose={() => setIsLimited(false)} />}
 

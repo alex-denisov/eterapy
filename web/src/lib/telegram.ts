@@ -55,3 +55,28 @@ export async function getBotUpdates(offset?: number) {
   const d = await res.json();
   return d.result ?? [];
 }
+
+/** Регистрирует webhook URL в Telegram */
+export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
+  if (!BOT_TOKEN) {
+    console.warn("[Telegram] TELEGRAM_BOT_TOKEN not set, skipping webhook setup");
+    return false;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: webhookUrl, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET || undefined }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      console.log("[Telegram] Webhook registered:", webhookUrl);
+    } else {
+      console.error("[Telegram] setWebhook failed:", d);
+    }
+    return d.ok;
+  } catch (err) {
+    console.error("[Telegram] setWebhook error:", err);
+    return false;
+  }
+}

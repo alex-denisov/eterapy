@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { yukassaFetch, createPayment as ykCreatePayment } from "@/lib/yukassa";
+import { yukassaFetch } from "@/lib/yukassa";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -19,26 +19,41 @@ export async function POST(req: NextRequest) {
   const description = body.description || `Пополнение баланса на сайте ETerapy`;
 
   if (!amountKopecks || amountKopecks < 100) {
-    return NextResponse.json({ error: "Минимальная сумма 100 ₽ (10000 копеек)" }, { status: 400 });
+    return NextResponse.json({ error: "Минимальная сумма 100 копеек (1 ₽)" }, { status: 400 });
   }
 
+  // Valid return URL — always a full absolute URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
+
   try {
-    // Создаём платёж в ЮKassa
-    const payment = await ykCreatePayment({
-      amount: { value: (amountKopecks / 100).toFixed(2), currency: "RUB" },
-      confirmation: {
-        type: "redirect",
-        return_url: process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/cabinet/billing?payment=success`
-          : "http://localhost:3000/cabinet/billing?payment=success",
-      },
-      capture: true,
-      description,
-      metadata: {
-        userId: session.user.id,
-        amountKopecks: String(amountKopecks),
+    // Создаём платёж в ЮKassa напрямую через yukassaFetch
+    const payment = await yukassaFetch<{
+      id: string;
+      status: string;
+      paid: boolean;
+      amount: { value: string; currency: string };
+      confirmation?: { confirmation_url?: string };
+    }>("/payments", {
+      method: "POST",
+      body: {
+        amount: { value: (amountKopecks / 100).toFixed(2), currency: "RUB" },
+        confirmation: {
+          type: "redirect",
+          return_url: returnUrl,
+        },
+        capture: true,
+        description,
+        metadata: {
+          userId: session.user.id,
+          amountKopecks: String(amountKopecks),
+        },
       },
     });
+
+    if (!payment.confirmation?.confirmation_url) {
+      throw new Error("ЮKassa не вернула confirmation_url");
+    }
 
     // Сохраняем транзакцию в БД
     await db.transaction.create({
@@ -55,7 +70,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       paymentId: payment.id,
-      confirmationUrl: payment.confirmation?.confirmation_url,
+      confirmationUrl: payment.confirmation.confirmation_url,
     });
   } catch (err: any) {
     console.error("YuKassa create payment error:", err);

@@ -56,7 +56,7 @@ function kopecksToRUB(kopecks: number): string {
   return (amount / 100).toFixed(2);
 }
 
-async function yukassaFetch<T>(
+export async function yukassaFetch<T>(
   endpoint: string,
   {
     method = "GET",

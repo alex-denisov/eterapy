@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2 } from "lucide-react";
+import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2, CreditCard, Trash2, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -14,6 +14,20 @@ const FEATURES = [
   "Без привязки карты",
 ];
 
+interface LinkedCard {
+  id: string;
+  last4: string;
+  brand: string;
+  expiryMonth: number;
+  expiryYear: number;
+  isDefault: boolean;
+}
+
+const MOCK_CARDS: LinkedCard[] = [
+  { id: "card_1", last4: "4242", brand: "Visa", expiryMonth: 12, expiryYear: 2027, isDefault: true },
+  { id: "card_2", last4: "5555", brand: "Mastercard", expiryMonth: 8, expiryYear: 2028, isDefault: false },
+];
+
 export default function BillingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -21,6 +35,11 @@ export default function BillingPage() {
   const [topUpAmount, setTopUpAmount] = useState(500);
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
+
+  // Cards
+  const [linkedCards, setLinkedCards] = useState<LinkedCard[]>(MOCK_CARDS);
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [cardForm, setCardForm] = useState({ number: "", expiry: "", cvv: "" });
 
   // Загрузка баланса
   useEffect(() => {
@@ -60,6 +79,43 @@ export default function BillingPage() {
     } finally {
       setCreatingPayment(false);
     }
+  }
+
+  // Cards
+  function handleLinkCard() {
+    const num = cardForm.number.replace(/\s/g, "");
+    if (num.length < 13 || num.length > 19) {
+      toast.error("Введите корректный номер карты");
+      return;
+    }
+    if (!/^\d{2}\/\d{2}$/.test(cardForm.expiry)) {
+      toast.error("Введите срок в формате ММ/ГГ");
+      return;
+    }
+    if (cardForm.cvv.length < 3) {
+      toast.error("Введите CVV");
+      return;
+    }
+    // Placeholder: no real tokenization yet
+    const last4 = num.slice(-4);
+    const [mm, yy] = cardForm.expiry.split("/").map(Number);
+    const newCard: LinkedCard = {
+      id: `card_${Date.now()}`,
+      last4,
+      brand: num.startsWith("4") ? "Visa" : "Mastercard",
+      expiryMonth: mm,
+      expiryYear: 2000 + yy,
+      isDefault: linkedCards.length === 0,
+    };
+    setLinkedCards((prev) => [...prev, newCard]);
+    setCardForm({ number: "", expiry: "", cvv: "" });
+    setShowCardForm(false);
+    toast.success(`Карта ••••${last4} привязана`);
+  }
+
+  function handleRemoveCard(cardId: string) {
+    setLinkedCards((prev) => prev.filter((c) => c.id !== cardId));
+    toast.success("Карта удалена");
   }
 
   if (status === "loading") return null;
@@ -138,6 +194,126 @@ export default function BillingPage() {
           <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground/70">
             <Shield className="h-3 w-3" />
             Безопасная оплата через ЮKassa
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Банковские карты */}
+      <Card className="border-border/40 bg-card/50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <h2 className="font-semibold">Банковские карты</h2>
+            </div>
+            <button
+              onClick={() => setShowCardForm(!showCardForm)}
+              className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Привязать карту
+            </button>
+          </div>
+
+          {/* Форма привязки карты */}
+          {showCardForm && (
+            <div className="mb-4 rounded-lg border border-border/30 bg-muted/30 p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs text-muted-foreground mb-1">Номер карты</label>
+                  <input
+                    type="text"
+                    placeholder="0000 0000 0000 0000"
+                    maxLength={19}
+                    value={cardForm.number}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim();
+                      setCardForm({ ...cardForm, number: v });
+                    }}
+                    className="w-full rounded-md border border-border/40 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Срок действия</label>
+                  <input
+                    type="text"
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    value={cardForm.expiry}
+                    onChange={(e) => {
+                      let v = e.target.value.replace(/\D/g, "");
+                      if (v.length >= 2) v = v.slice(0, 2) + "/" + v.slice(2);
+                      setCardForm({ ...cardForm, expiry: v });
+                    }}
+                    className="w-full rounded-md border border-border/40 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">CVV</label>
+                  <input
+                    type="password"
+                    placeholder="•••"
+                    maxLength={3}
+                    value={cardForm.cvv}
+                    onChange={(e) => setCardForm({ ...cardForm, cvv: e.target.value.replace(/\D/g, "") })}
+                    className="w-full rounded-md border border-border/40 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleLinkCard}
+                  className="flex-1 rounded-md bg-primary py-2 text-sm font-medium text-navy hover:bg-primary/90 transition-colors"
+                >
+                  Привязать
+                </button>
+                <button
+                  onClick={() => { setShowCardForm(false); setCardForm({ number: "", expiry: "", cvv: "" }); }}
+                  className="rounded-md border border-border/30 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Отмена
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Список карт */}
+          {linkedCards.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <p>Нет привязанных карт</p>
+              <p className="text-xs mt-1 text-muted-foreground/70">Привяжите карту для быстрых платежей</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {linkedCards.map((card) => (
+                <div key={card.id} className="flex items-center justify-between rounded-lg border border-border/20 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-12 items-center justify-center rounded bg-gradient-to-br from-primary/20 to-primary/5">
+                      <CreditCard className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{card.brand} •••• {card.last4}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {String(card.expiryMonth).padStart(2, "0")}/{String(card.expiryYear).slice(-2)}
+                        {card.isDefault && <span className="ml-2 text-primary">По умолчанию</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveCard(card.id)}
+                    className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Удалить карту"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground/70">
+            <Lock className="h-3 w-3" />
+            Карта будет использоваться для быстрых платежей. Данные защищены шифрованием.
           </div>
         </CardContent>
       </Card>
