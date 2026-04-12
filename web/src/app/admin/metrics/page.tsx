@@ -161,7 +161,7 @@ export default async function AdminMetricsPage() {
   }
 
   // ─── Revenue by modality ───
-  // Join booking → practitioner → specialties, aggregate revenue
+  // Use practitioner's PRIMARY (first) specialty to avoid double-counting
   const bookingsWithPractitioner = await db.booking.findMany({
     where: { status: "COMPLETED", priceRub: { gt: 0 } },
     select: {
@@ -171,9 +171,10 @@ export default async function AdminMetricsPage() {
   });
   const revenueByModality: Record<string, number> = {};
   for (const b of bookingsWithPractitioner) {
-    for (const spec of b.practitioner.specialties) {
-      if (!revenueByModality[spec]) revenueByModality[spec] = 0;
-      revenueByModality[spec] += b.priceRub;
+    const primarySpec = b.practitioner.specialties[0];
+    if (primarySpec) {
+      if (!revenueByModality[primarySpec]) revenueByModality[primarySpec] = 0;
+      revenueByModality[primarySpec] += b.priceRub;
     }
   }
   const modalityRevenue = Object.entries(revenueByModality)

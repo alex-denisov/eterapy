@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2, CreditCard, Trash2, Lock } from "lucide-react";
+import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2, CreditCard, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -23,10 +23,7 @@ interface LinkedCard {
   isDefault: boolean;
 }
 
-const MOCK_CARDS: LinkedCard[] = [
-  { id: "card_1", last4: "4242", brand: "Visa", expiryMonth: 12, expiryYear: 2027, isDefault: true },
-  { id: "card_2", last4: "5555", brand: "Mastercard", expiryMonth: 8, expiryYear: 2028, isDefault: false },
-];
+const MOCK_CARDS: LinkedCard[] = [];
 
 export default function BillingPage() {
   const { data: session, status } = useSession();
@@ -39,7 +36,6 @@ export default function BillingPage() {
   // Cards
   const [linkedCards, setLinkedCards] = useState<LinkedCard[]>(MOCK_CARDS);
   const [showCardForm, setShowCardForm] = useState(false);
-  const [cardForm, setCardForm] = useState({ number: "", expiry: "", cvv: "" });
 
   // Загрузка баланса
   useEffect(() => {
@@ -79,38 +75,6 @@ export default function BillingPage() {
     } finally {
       setCreatingPayment(false);
     }
-  }
-
-  // Cards
-  function handleLinkCard() {
-    const num = cardForm.number.replace(/\s/g, "");
-    if (num.length < 13 || num.length > 19) {
-      toast.error("Введите корректный номер карты");
-      return;
-    }
-    if (!/^\d{2}\/\d{2}$/.test(cardForm.expiry)) {
-      toast.error("Введите срок в формате ММ/ГГ");
-      return;
-    }
-    if (cardForm.cvv.length < 3) {
-      toast.error("Введите CVV");
-      return;
-    }
-    // Placeholder: no real tokenization yet
-    const last4 = num.slice(-4);
-    const [mm, yy] = cardForm.expiry.split("/").map(Number);
-    const newCard: LinkedCard = {
-      id: `card_${Date.now()}`,
-      last4,
-      brand: num.startsWith("4") ? "Visa" : "Mastercard",
-      expiryMonth: mm,
-      expiryYear: 2000 + yy,
-      isDefault: linkedCards.length === 0,
-    };
-    setLinkedCards((prev) => [...prev, newCard]);
-    setCardForm({ number: "", expiry: "", cvv: "" });
-    setShowCardForm(false);
-    toast.success(`Карта ••••${last4} привязана`);
   }
 
   function handleRemoveCard(cardId: string) {
@@ -186,10 +150,11 @@ export default function BillingPage() {
             ))}
           </div>
           <button
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+            onClick={handleTopUp}
+            disabled={creatingPayment || !topUpAmount}
+            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            Пополнить на {topUpAmount} ₽
-            <ArrowUpRight className="h-4 w-4" />
+            {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount} ₽<ArrowUpRight className="h-4 w-4" /></>}
           </button>
           <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground/70">
             <Shield className="h-3 w-3" />
@@ -215,65 +180,18 @@ export default function BillingPage() {
             </button>
           </div>
 
-          {/* Форма привязки карты */}
+          {/* Форма привязки карты — заглушка */}
           {showCardForm && (
             <div className="mb-4 rounded-lg border border-border/30 bg-muted/30 p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs text-muted-foreground mb-1">Номер карты</label>
-                  <input
-                    type="text"
-                    placeholder="0000 0000 0000 0000"
-                    maxLength={19}
-                    value={cardForm.number}
-                    onChange={(e) => {
-                      const v = e.target.value.replace(/\D/g, "").replace(/(.{4})/g, "$1 ").trim();
-                      setCardForm({ ...cardForm, number: v });
-                    }}
-                    className="w-full rounded-md border border-border/40 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">Срок действия</label>
-                  <input
-                    type="text"
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    value={cardForm.expiry}
-                    onChange={(e) => {
-                      let v = e.target.value.replace(/\D/g, "");
-                      if (v.length >= 2) v = v.slice(0, 2) + "/" + v.slice(2);
-                      setCardForm({ ...cardForm, expiry: v });
-                    }}
-                    className="w-full rounded-md border border-border/40 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-muted-foreground mb-1">CVV</label>
-                  <input
-                    type="password"
-                    placeholder="•••"
-                    maxLength={3}
-                    value={cardForm.cvv}
-                    onChange={(e) => setCardForm({ ...cardForm, cvv: e.target.value.replace(/\D/g, "") })}
-                    className="w-full rounded-md border border-border/40 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleLinkCard}
-                  className="flex-1 rounded-md bg-primary py-2 text-sm font-medium text-navy hover:bg-primary/90 transition-colors"
-                >
-                  Привязать
-                </button>
-                <button
-                  onClick={() => { setShowCardForm(false); setCardForm({ number: "", expiry: "", cvv: "" }); }}
-                  className="rounded-md border border-border/30 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Отмена
-                </button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Привязка карт скоро будет доступна через ЮKassa. Пока используйте оплату по QR-коду.
+              </p>
+              <button
+                onClick={() => setShowCardForm(false)}
+                className="rounded-md border border-border/30 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Закрыть
+              </button>
             </div>
           )}
 
@@ -311,10 +229,9 @@ export default function BillingPage() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 mt-4 text-xs text-muted-foreground/70">
-            <Lock className="h-3 w-3" />
-            Карта будет использоваться для быстрых платежей. Данные защищены шифрованием.
-          </div>
+          <p className="text-xs text-muted-foreground/70 mt-4">
+            Привязка карт скоро будет доступна через ЮKassa. Пока используйте оплату по QR-коду.
+          </p>
         </CardContent>
       </Card>
 
