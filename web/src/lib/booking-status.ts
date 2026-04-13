@@ -16,6 +16,7 @@ export const BOOKING_STATUS: Record<string, BookingStatusConfig> = {
   CANCELLED:   { label: "Отменена",         color: "bg-border/30 text-muted-foreground" },
   DISPUTED:    { label: "Жалоба",           color: "bg-destructive/10 text-destructive" },
   REFUNDED:    { label: "Возврат",          color: "bg-orange-500/10 text-orange-400" },
+  EXPIRED:     { label: "Истекло",          color: "bg-border/30 text-muted-foreground" },
 };
 
 export function getBookingStatus(status: string): BookingStatusConfig {

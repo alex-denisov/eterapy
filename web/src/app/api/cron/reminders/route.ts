@@ -135,10 +135,11 @@ export async function GET(req: NextRequest) {
     remindersSent++;
   }
 
-  // Автозавершение истёкших сессий (IN_PROGRESS или CONFIRMED, где endAt уже прошёл)
-  const expiredBookings = await db.booking.findMany({
+  // Автозавершение истёкших сессий:
+  // IN_PROGRESS + endAt прошёл → COMPLETED
+  const completedBookings = await db.booking.findMany({
     where: {
-      status: { in: ["IN_PROGRESS", "CONFIRMED"] },
+      status: "IN_PROGRESS",
       slot: {
         endAt: { lte: now },
       },
@@ -150,13 +151,12 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  for (const b of expiredBookings) {
+  for (const b of completedBookings) {
     await db.booking.update({ where: { id: b.id }, data: { status: "COMPLETED" } });
     await db.practitioner.update({
       where: { id: b.practitioner.id },
       data: { sessionCount: { increment: 1 } },
     }).catch(() => {});
-    // Запрос отзыва
     const { sendReviewRequestClient } = await import("@/lib/email");
     sendReviewRequestClient({
       bookingId: b.id,
@@ -172,11 +172,35 @@ export async function GET(req: NextRequest) {
     autoCompleted++;
   }
 
+  // Авто-истечение подтверждённых сессий:
+  // CONFIRMED + endAt + 15min прошёл → EXPIRED
+  const fifteenMin = 15 * 60 * 1000;
+  const expiredCutoff = new Date(now.getTime() - fifteenMin);
+  const expiredBookings = await db.booking.findMany({
+    where: {
+      status: "CONFIRMED",
+      slot: {
+        endAt: { lte: expiredCutoff },
+      },
+    },
+    include: {
+      slot: true,
+      practitioner: { select: { id: true } },
+      client: { select: { id: true, name: true } },
+    },
+  });
+
+  for (const b of expiredBookings) {
+    await db.booking.update({ where: { id: b.id }, data: { status: "EXPIRED" } });
+    autoCompleted++;
+  }
+
   return NextResponse.json({
     ok: true,
     remindersSent,
     autoCompleted,
-    processed: { "24h": bookings24h.length, "1h": bookings1h.length, "expired": expiredBookings.length },
+    autoExpired: expiredBookings.length,
+    processed: { "24h": bookings24h.length, "1h": bookings1h.length, "completed": completedBookings.length, "expired": expiredBookings.length },
     timestamp: now.toISOString(),
   });
 }

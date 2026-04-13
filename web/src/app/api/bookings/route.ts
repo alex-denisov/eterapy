@@ -70,8 +70,11 @@ export async function GET(req: NextRequest) {
           practitioner: { include: { user: { select: { name: true } } } },
           slot: true,
         },
-        orderBy: { createdAt: "desc" },
-        take: 50,
+        orderBy: [
+          { slot: { startAt: "desc" } },
+          { createdAt: "desc" },
+        ],
+        take: 100,
       });
     }
 

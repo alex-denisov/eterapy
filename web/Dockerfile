@@ -7,7 +7,7 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -15,11 +15,17 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Generate Prisma client before build
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+
 # Build args for non-secret build-time env
 ARG AUTH_TRUST_HOST=true
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV AUTH_TRUST_HOST=${AUTH_TRUST_HOST}
+ENV RESEND_API_KEY="re_dummy_for_build"
+ENV YUKASSA_SHOP_ID="dummy_shop"
+ENV YUKASSA_SECRET_KEY="dummy_key"
 
 RUN npm run build
 

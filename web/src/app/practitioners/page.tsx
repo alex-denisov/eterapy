@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";

@@ -238,6 +238,7 @@ enum BookingStatus {
   CANCELLED    // Отменена
   DISPUTED     // Жалоба подана
   REFUNDED     // Возврат
+  EXPIRED      // Пропущена (не явился)
 }
 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
@@ -575,7 +576,7 @@ model Transaction {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
-  @@index([providerPaymentId])
+  @@unique([providerPaymentId])
   @@map("transactions")
 }
 

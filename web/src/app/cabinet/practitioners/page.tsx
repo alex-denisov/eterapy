@@ -3,6 +3,8 @@ import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
 import { CabinetPractitionersCatalog } from "./cabinet-practitioners-catalog";
 
+export const dynamic = "force-dynamic";
+
 async function getPractitioners() {
   const practitioners = await db.practitioner.findMany({
     where: { status: PractitionerStatus.ACTIVE },
