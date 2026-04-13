@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
           slot: true,
         },
         orderBy: [
-          { slot: { startAt: "desc" } },
+          { slot: { startAt: "asc" } },
           { createdAt: "desc" },
         ],
         take: 100,
@@ -135,6 +135,19 @@ export async function POST(req: NextRequest) {
         },
       });
       if (existingBooking) {
+        return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
+      }
+
+      // Также проверяем, нет ли уже занятого TimeSlot на это время
+      const existingSlot = await db.timeSlot.findFirst({
+        where: {
+          practitionerId,
+          available: false,
+          startAt: { lte: new Date(slotEndAt) },
+          endAt: { gte: new Date(slotStartAt) },
+        },
+      });
+      if (existingSlot) {
         return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
       }
 

@@ -152,11 +152,13 @@ export async function GET(req: NextRequest) {
   });
 
   for (const b of completedBookings) {
-    await db.booking.update({ where: { id: b.id }, data: { status: "COMPLETED" } });
-    await db.practitioner.update({
-      where: { id: b.practitioner.id },
-      data: { sessionCount: { increment: 1 } },
-    }).catch(() => {});
+    await db.$transaction([
+      db.booking.update({ where: { id: b.id }, data: { status: "COMPLETED" } }),
+      db.practitioner.update({
+        where: { id: b.practitioner.id },
+        data: { sessionCount: { increment: 1 } },
+      }),
+    ]);
     const { sendReviewRequestClient } = await import("@/lib/email");
     sendReviewRequestClient({
       bookingId: b.id,
@@ -192,6 +194,10 @@ export async function GET(req: NextRequest) {
 
   for (const b of expiredBookings) {
     await db.booking.update({ where: { id: b.id }, data: { status: "EXPIRED" } });
+    // Освобождаем слот
+    if (b.slotId) {
+      await db.timeSlot.update({ where: { id: b.slotId }, data: { available: true } }).catch(() => {});
+    }
     autoCompleted++;
   }
 

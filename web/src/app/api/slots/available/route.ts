@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
   const dayStartFull = new Date(dateStr + "T00:00:00");
   const dayEndFull   = new Date(dateStr + "T23:59:59");
 
-  const [blocked, bookedSlots] = await Promise.all([
+  const [blocked, bookedSlots, unavailableSlots] = await Promise.all([
     db.blockedSlot.findMany({
       where: { practitionerId, startAt: { lte: dayEndFull }, endAt: { gte: dayStartFull } },
     }),
@@ -69,6 +69,14 @@ export async function GET(req: NextRequest) {
         slot: { startAt: { gte: dayStartFull, lte: dayEndFull } },
       },
       include: { slot: true },
+    }),
+    // TimeSlot которые уже помечены как unavailable (заняты, но могут не иметь активного booking)
+    db.timeSlot.findMany({
+      where: {
+        practitionerId,
+        available: false,
+        startAt: { gte: dayStartFull, lte: dayEndFull },
+      },
     }),
   ]);
 
@@ -84,6 +92,8 @@ export async function GET(req: NextRequest) {
     if (blocked.some(b => isOverlapping(slot.startAt, slot.endAt, b.startAt, b.endAt))) return false;
     // Занят бронированием
     if (bookedSlots.some(b => b.slot && isOverlapping(slot.startAt, slot.endAt, b.slot.startAt, b.slot.endAt))) return false;
+    // Помечен как unavailable ( TimeSlot.available === false )
+    if (unavailableSlots.some(u => isOverlapping(slot.startAt, slot.endAt, u.startAt, u.endAt))) return false;
     return true;
   });
 

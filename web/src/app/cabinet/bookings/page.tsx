@@ -89,12 +89,28 @@ export default function ClientBookingsPage() {
   }
 
   // Определяем, является ли запись "предстоящей"
+  // Предстоящие: CONFIRMED/IN_PROGRESS с будущим временем слота
   function isUpcoming(b: Booking): boolean {
-    return ["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(b.status);
+    if (!["CONFIRMED", "IN_PROGRESS"].includes(b.status)) return false;
+    if (b.slot?.startAt) {
+      return new Date(b.slot.startAt) > new Date();
+    }
+    // Если слота нет, но статус PENDING — считаем предстоящей
+    if (b.status === "PENDING") return true;
+    return false;
+  }
+
+  // Прошедшие: COMPLETED/CANCELLED/EXPIRED или CONFIRMED/IN_PROGRESS с прошедшим временем
+  function isPast(b: Booking): boolean {
+    if (["COMPLETED", "CANCELLED", "EXPIRED"].includes(b.status)) return true;
+    if (["CONFIRMED", "IN_PROGRESS"].includes(b.status) && b.slot?.startAt) {
+      return new Date(b.slot.startAt) <= new Date();
+    }
+    return false;
   }
 
   const upcoming = bookings.filter(isUpcoming);
-  const past = bookings.filter((b) => !isUpcoming(b));
+  const past = bookings.filter(isPast);
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
     { key: "upcoming", label: "Предстоящие", count: upcoming.length },
