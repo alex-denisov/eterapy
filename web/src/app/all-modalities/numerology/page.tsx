@@ -151,7 +151,7 @@ export default function NumerologyPage() {
 
       {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный нумерологический анализ..." : "Считаем число жизненного пути..."} />}
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onClose={() => setIsLimited(false)} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onClose={() => setIsLimited(false)} />}
 
       {result && (
         <div className="mt-8">

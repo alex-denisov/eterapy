@@ -118,6 +118,14 @@ export default function TarotPage() {
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный расклад..." : "Раскладываем карты..."} />}
 
+      {isLimited && (
+        <PaywallScreen
+          balanceKopecks={balanceKopecks ?? undefined}
+          fullPriceKopecks={29900}
+          onClose={() => setIsLimited(false)}
+        />
+      )}
+
       {result && (
         <div className="mt-10 space-y-6">
           {result.tier === "full" && (

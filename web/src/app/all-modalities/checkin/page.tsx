@@ -113,7 +113,7 @@ export default function CheckinPage() {
         />
       )}
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onClose={() => setIsLimited(false)} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onClose={() => setIsLimited(false)} />}
 
       <h1 className="font-heading text-3xl font-bold md:text-4xl">💬 Рефлексия</h1>
 

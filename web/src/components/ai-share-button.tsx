@@ -25,7 +25,12 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const emoji = TOOL_EMOJIS[tool] ?? "✦";
   const label = TOOL_LABELS[tool] ?? tool;
@@ -108,7 +113,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
     <div className="relative mt-4 pt-4 border-t border-border/20" ref={ref}>
       {/* Floating Action Button */}
       <div className="flex items-center justify-end gap-2">
-        {saved && (
+        {saved && mounted && (
           <span className="text-xs text-green-400 flex items-center gap-1">
             <span className="text-[10px]">✓</span> Сохранено
           </span>
@@ -135,8 +140,8 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
         </div>
       </div>
 
-      {/* Popover */}
-      {open && (
+      {/* Popover — only render client-side to avoid hydration mismatch */}
+      {open && mounted && (
         <div className="absolute right-0 bottom-full mb-3 w-64 rounded-xl border border-border/40 bg-popover text-popover-foreground shadow-2xl shadow-black/20 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <div className="p-2 space-y-1">
             {/* Telegram */}

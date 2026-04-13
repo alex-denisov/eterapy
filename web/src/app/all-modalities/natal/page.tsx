@@ -216,7 +216,7 @@ export default function NatalPage() {
 
       {loading && <ToolLoading message={tier === "full" ? "Проводим глубинный расчёт натальной карты..." : "Строим натальную карту..."} />}
 
-      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={29900} onClose={() => setIsLimited(false)} />}
+      {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onClose={() => setIsLimited(false)} />}
 
       {result && (
         <div className="mt-8">
