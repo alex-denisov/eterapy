@@ -17,7 +17,6 @@ import {
   LogOut,
   HelpCircle,
 } from "lucide-react";
-import { NotificationBell } from "@/components/notification-bell";
 
 interface NavItem {
   href: string;
@@ -83,17 +82,14 @@ export function CabinetShell({
       >
         {/* User badge + Notifications */}
         <div className="mb-6 px-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold text-sm">
-                {initial}
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
-                <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold text-sm">
+              {initial}
             </div>
-            <NotificationBell variant="cabinet" />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
+              <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
+            </div>
           </div>
         </div>
 
