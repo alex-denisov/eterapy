@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/notification-bell";
 
 const GUEST_NAV = [
   { href: "/practitioners", label: "Найти практика" },
@@ -16,9 +17,15 @@ const GUEST_NAV = [
 ];
 
 // Авторизованные пользователи — навигация только в sidebar кабинета
-const CLIENT_NAV: { href: string; label: string }[] = [];
-const PRACTITIONER_NAV: { href: string; label: string }[] = [];
-const ADMIN_NAV: { href: string; label: string }[] = [];
+const CLIENT_NAV: { href: string; label: string }[] = [
+  { href: "/help", label: "Помощь" },
+];
+const PRACTITIONER_NAV: { href: string; label: string }[] = [
+  { href: "/help", label: "Помощь" },
+];
+const ADMIN_NAV: { href: string; label: string }[] = [
+  { href: "/help", label: "Помощь" },
+];
 
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
   const [open, setOpen] = useState(false);
@@ -210,6 +217,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {session && <NotificationBell variant="header" />}
           {session ? (
             <UserMenu session={session} />
           ) : (

@@ -15,7 +15,9 @@ import {
   Star,
   Banknote,
   LogOut,
+  HelpCircle,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface NavItem {
   href: string;
@@ -30,6 +32,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: "/cabinet/modalities", icon: Compass, label: "Направления" },
   { href: "/cabinet/action-history", icon: History, label: "История действий" },
   { href: "/cabinet/billing", icon: Wallet, label: "Баланс и оплата" },
+  { href: "/help", icon: HelpCircle, label: "Помощь" },
 ];
 
 const PRACTITIONER_NAV: NavItem[] = [
@@ -39,6 +42,7 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: "/cabinet/practitioner/clients", icon: Users, label: "Клиенты" },
   { href: "/cabinet/practitioner/reviews", icon: Star, label: "Отзывы" },
   { href: "/cabinet/practitioner/earnings", icon: Banknote, label: "Выплаты" },
+  { href: "/help", icon: HelpCircle, label: "Помощь" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -77,16 +81,19 @@ export function CabinetShell({
         className="hidden md:flex w-56 shrink-0 flex-col border-r border-border/20 bg-card/20 px-3 py-6 sticky h-[calc(100vh-var(--header-height))] overflow-y-auto"
         style={{ top: "var(--header-height)" }}
       >
-        {/* User badge */}
+        {/* User badge + Notifications */}
         <div className="mb-6 px-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold text-sm">
-              {initial}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold text-sm">
+                {initial}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
+                <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
-              <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
-            </div>
+            <NotificationBell variant="cabinet" />
           </div>
         </div>
 
