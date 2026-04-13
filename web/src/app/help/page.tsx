@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
 import { PageContainer } from "@/components/ui/page-container";
 import { Accordion } from "@/components/ui/accordion";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Rocket,
@@ -16,8 +15,6 @@ import {
   Send,
   Search,
   Mail,
-  MessageSquare,
-  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -25,7 +22,6 @@ interface FAQCategory {
   id: string;
   label: string;
   icon: React.ElementType;
-  color: string;
   items: { title: string; content: React.ReactNode }[];
 }
 
@@ -34,7 +30,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     id: "getting-started",
     label: "Начало работы",
     icon: Rocket,
-    color: "text-blue-400",
     items: [
       {
         title: "Как зарегистрироваться?",
@@ -76,7 +71,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     id: "modalities",
     label: "Направления",
     icon: Sparkles,
-    color: "text-purple-400",
     items: [
       {
         title: "Что такое быстрые расклады?",
@@ -125,7 +119,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     id: "booking",
     label: "Бронирование",
     icon: Calendar,
-    color: "text-green-400",
     items: [
       {
         title: "Как записаться к практику?",
@@ -169,7 +162,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     id: "payment",
     label: "Оплата",
     icon: CreditCard,
-    color: "text-yellow-400",
     items: [
       {
         title: "Как пополнить баланс?",
@@ -207,7 +199,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     id: "video",
     label: "Видеосессии",
     icon: Video,
-    color: "text-red-400",
     items: [
       {
         title: "Как подключиться к видеосессии?",
@@ -248,7 +239,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
     id: "telegram",
     label: "Telegram бот",
     icon: Send,
-    color: "text-sky-400",
     items: [
       {
         title: "Как привязать Telegram бот?",
@@ -288,16 +278,6 @@ const FAQ_CATEGORIES: FAQCategory[] = [
   },
 ];
 
-function HelpIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <path d="M12 17h.01" />
-    </svg>
-  );
-}
-
 function SearchFAQs() {
   const [query, setQuery] = useState("");
 
@@ -317,89 +297,50 @@ function SearchFAQs() {
   }, [query]);
 
   return (
-    <>
-      {/* Search */}
-      <div className="relative mb-8">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="space-y-6">
+      {/* Search — clean input with icon properly positioned */}
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Поиск по вопросам..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="pl-10 bg-card/30 border-border/30 focus-visible:ring-primary/50"
+          className="h-10 rounded-xl border-border/40 bg-muted/30 pl-10 pr-4 text-sm transition-colors focus-visible:border-ring focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring/20"
         />
       </div>
 
       {filteredCategories.length === 0 ? (
-        <div className="rounded-xl border border-border/30 bg-card/20 p-8 text-center">
-          <HelpIcon />
-          <p className="mt-3 text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 py-10 text-center">
+          <p className="text-sm text-muted-foreground">
             Ничего не найдено по запросу «{query}»
           </p>
-          <p className="mt-1 text-sm text-muted-foreground/70">
-            Попробуйте изменить запрос или свяжитесь с поддержкой
+          <p className="mt-1 text-xs text-muted-foreground/70">
+            Попробуйте изменить запрос или напишите нам на{" "}
+            <a href="mailto:support@eterapy.com" className="text-primary hover:underline">
+              support&#64;eterapy.com
+            </a>
           </p>
         </div>
       ) : (
-        <div className="space-y-8">
-          {filteredCategories.map((cat) => {
-            const Icon = cat.icon;
-            return (
-              <section key={cat.id}>
-                <div className="mb-4 flex items-center gap-2">
-                  <Icon className={`h-5 w-5 ${cat.color}`} />
-                  <h2 className="font-heading text-lg font-semibold">{cat.label}</h2>
-                </div>
-                <Card className="border-border/30 bg-card/20">
-                  <CardContent className="p-0">
-                    <Accordion items={cat.items} />
-                  </CardContent>
-                </Card>
-              </section>
-            );
-          })}
-        </div>
+        filteredCategories.map((cat) => {
+          const Icon = cat.icon;
+          return (
+            <section key={cat.id} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <Icon className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  {cat.label}
+                </h2>
+              </div>
+              <div className="overflow-hidden rounded-xl border border-border/30 bg-muted/10">
+                <Accordion items={cat.items} />
+              </div>
+            </section>
+          );
+        })
       )}
-    </>
-  );
-}
-
-function ContactSupport() {
-  return (
-    <section className="mt-12">
-      <h2 className="font-heading text-lg font-semibold mb-4">Не нашли ответ?</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="border-border/30 bg-card/20">
-          <CardContent className="p-5">
-            <Mail className="h-6 w-6 text-primary mb-3" />
-            <h3 className="font-medium mb-1">Написать в поддержку</h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              Ответим в течение 24 часов
-            </p>
-            <a
-              href="mailto:support@eterapy.com"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              support&#64;eterapy.com
-              <ChevronRight className="h-3.5 w-3.5" />
-            </a>
-          </CardContent>
-        </Card>
-        <Card className="border-border/30 bg-card/20">
-          <CardContent className="p-5">
-            <MessageSquare className="h-6 w-6 text-primary mb-3" />
-            <h3 className="font-medium mb-1">Онлайн-чат</h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              Быстрые ответы в реальном времени
-            </p>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/50 px-3 py-1.5 text-xs text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-              Скоро появится
-            </span>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+    </div>
   );
 }
 
@@ -409,17 +350,35 @@ export default function HelpPage() {
   const role = session?.user?.role ?? "CLIENT";
 
   const content = (
-    <PageContainer>
+    <PageContainer maxWidth="3xl" className="py-12">
       {/* Hero */}
       <div className="mb-8">
-        <h1 className="font-heading text-2xl font-bold mb-2">Чем мы можем помочь?</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight">Чем мы можем помочь?</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Ответы на частые вопросы о платформе eTerapy
         </p>
       </div>
 
       <SearchFAQs />
-      <ContactSupport />
+
+      {/* Contact support — email only */}
+      <div className="mt-12 rounded-xl border border-border/30 bg-muted/10 px-5 py-4 flex items-center gap-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <Mail className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-medium">Не нашли ответ?</p>
+          <p className="text-xs text-muted-foreground">
+            Напишите нам — ответим в течение 24 часов
+          </p>
+        </div>
+        <a
+          href="mailto:support@eterapy.com"
+          className="ml-auto shrink-0 text-sm font-medium text-primary hover:underline"
+        >
+          support&#64;eterapy.com
+        </a>
+      </div>
     </PageContainer>
   );
 
@@ -431,7 +390,6 @@ export default function HelpPage() {
     );
   }
 
-  // Guest: standalone with minimal layout
   return (
     <div className="min-h-screen">
       {content}
