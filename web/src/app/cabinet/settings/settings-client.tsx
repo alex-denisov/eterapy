@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -285,6 +285,7 @@ function ExtendedProfileTab() {
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
+  const [timezone, setTimezone] = useState("");
   const [maritalStatus, setMaritalStatus] = useState("");
   const [occupation, setOccupation] = useState("");
   const [aiGoals, setAiGoals] = useState<string[]>([]);
@@ -294,6 +295,14 @@ function ExtendedProfileTab() {
 
   const currentYear = new Date().getFullYear();
 
+  // Auto-detect timezone on mount
+  const detectedTimezone = useMemo(() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return "";
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/auth/extended-profile")
@@ -309,13 +318,15 @@ function ExtendedProfileTab() {
         }
         if (p.birthTime) setBirthTime(p.birthTime);
         if (p.birthPlace) setBirthPlace(p.birthPlace);
+        if (p.timezone) setTimezone(p.timezone);
+        else if (detectedTimezone) setTimezone(detectedTimezone);
         if (p.maritalStatus) setMaritalStatus(p.maritalStatus);
         if (p.occupation) setOccupation(p.occupation);
         if (p.aiGoals) setAiGoals(p.aiGoals);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
-  }, []);
+  }, [detectedTimezone]);
 
   function toggleGoal(v: string) {
     setAiGoals(prev => prev.includes(v) ? prev.filter(g => g !== v) : [...prev, v]);
@@ -335,7 +346,7 @@ function ExtendedProfileTab() {
     const res = await fetch("/api/auth/extended-profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ birthDate: formatDateForServer(birthDate), birthTime, birthPlace, maritalStatus, occupation, aiGoals }),
+      body: JSON.stringify({ birthDate: formatDateForServer(birthDate), birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals }),
     });
     const d = await res.json();
     if (d.ok) {
@@ -400,6 +411,46 @@ function ExtendedProfileTab() {
           <label className="text-sm font-medium mb-1 block">Место рождения</label>
           <Input value={birthPlace} onChange={e => setBirthPlace(e.target.value)}
             placeholder="Город" className="bg-card/50" />
+        </div>
+
+        {/* Часовой пояс */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Часовой пояс</label>
+          <select
+            value={timezone}
+            onChange={e => setTimezone(e.target.value)}
+            className="w-full rounded-lg border border-border/30 bg-card/50 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+          >
+            <option value="">Не выбран</option>
+            <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
+            <option value="Europe/Moscow">Москва (UTC+3)</option>
+            <option value="Europe/Samara">Самара (UTC+4)</option>
+            <option value="Asia/Yekaterinburg">Екатеринбург (UTC+5)</option>
+            <option value="Asia/Omsk">Омск (UTC+6)</option>
+            <option value="Asia/Krasnoyarsk">Красноярск (UTC+7)</option>
+            <option value="Asia/Irkutsk">Иркутск (UTC+8)</option>
+            <option value="Asia/Yakutsk">Якутск (UTC+9)</option>
+            <option value="Asia/Vladivostok">Владивосток (UTC+10)</option>
+            <option value="Asia/Kamchatka">Камчатка (UTC+12)</option>
+            <option value="Europe/London">Лондон (UTC+0)</option>
+            <option value="Europe/Berlin">Берлин (UTC+1)</option>
+            <option value="Europe/Paris">Париж (UTC+1)</option>
+            <option value="Europe/Helsinki">Хельсинки (UTC+2)</option>
+            <option value="Asia/Dubai">Дубай (UTC+4)</option>
+            <option value="Asia/Tashkent">Ташкент (UTC+5)</option>
+            <option value="Asia/Almaty">Алматы (UTC+6)</option>
+            <option value="Asia/Bangkok">Бангкок (UTC+7)</option>
+            <option value="Asia/Shanghai">Шанхай (UTC+8)</option>
+            <option value="Asia/Tokyo">Токио (UTC+9)</option>
+            <option value="America/New_York">Нью-Йорк (UTC-5)</option>
+            <option value="America/Chicago">Чикаго (UTC-6)</option>
+            <option value="America/Los_Angeles">Лос-Анджелес (UTC-8)</option>
+          </select>
+          {detectedTimezone && !timezone && (
+            <p className="text-xs text-muted-foreground/50 mt-1">
+              Определён автоматически: {detectedTimezone}
+            </p>
+          )}
         </div>
 
         {/* Семейное положение */}

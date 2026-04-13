@@ -13,7 +13,7 @@ export async function GET() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { birthDate: true, birthTime: true, birthPlace: true, maritalStatus: true, occupation: true, aiGoals: true },
+    select: { birthDate: true, birthTime: true, birthPlace: true, timezone: true, maritalStatus: true, occupation: true, aiGoals: true },
   });
 
   // Serialize birthDate as YYYY-MM-DD string instead of full ISO
@@ -33,7 +33,7 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { birthDate, birthTime, birthPlace, maritalStatus, occupation, aiGoals } = await req.json();
+  const { birthDate, birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals } = await req.json();
 
   // birthDate приходит как "ДД.ММ.ГГГГ". Конвертируем в UTC midnight.
   let utcBirthDate: Date | null = null;
@@ -48,6 +48,7 @@ export async function PATCH(req: NextRequest) {
       ...(birthDate !== undefined ? { birthDate: utcBirthDate } : {}),
       ...(birthTime !== undefined ? { birthTime } : {}),
       ...(birthPlace !== undefined ? { birthPlace } : {}),
+      ...(timezone !== undefined ? { timezone } : {}),
       ...(maritalStatus !== undefined ? { maritalStatus } : {}),
       ...(occupation !== undefined ? { occupation } : {}),
       ...(aiGoals !== undefined ? { aiGoals } : {}),

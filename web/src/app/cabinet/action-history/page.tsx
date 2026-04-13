@@ -30,16 +30,37 @@ interface LogEntry {
   createdAt: string;
 }
 
+interface FullReading {
+  id: string;
+  tool: string;
+  title: string;
+  createdAt: string;
+  costKopecks: number;
+  prompt: string | null;
+  result: string;
+}
+
 export default function AIHistoryPage() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fullReadings, setFullReadings] = useState<FullReading[]>([]);
+  const [loadingReadings, setLoadingReadings] = useState(true);
   const [selected, setSelected] = useState<{ tool: string; title: string; prompt: string | null; result: string } | null>(null);
+  const [expandedReading, setExpandedReading] = useState<FullReading | null>(null);
+  const [activeTab, setActiveTab] = useState<"all" | "readings">("all");
 
   useEffect(() => {
     fetch("/api/modalities/history?limit=50")
       .then(r => r.json())
       .then(d => { setLogs(d.logs ?? []); setLoading(false); })
       .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/cabinet/full-readings")
+      .then(r => r.json())
+      .then(d => { setFullReadings(d.readings ?? []); setLoadingReadings(false); })
+      .catch(() => setLoadingReadings(false));
   }, []);
 
   async function openLog(id: string) {
@@ -63,43 +84,125 @@ export default function AIHistoryPage() {
         </Link>
       </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          <SkeletonCard lines={2} />
-          <SkeletonCard lines={2} />
-          <SkeletonCard lines={2} />
-        </div>
-      ) : logs.length === 0 ? (
-        <EmptyState
-          icon="✦"
-          title="Нет сохранённых сессий"
-          description="Результаты направлений сохраняются автоматически"
-          actionHref="/cabinet/modalities"
-          actionLabel="Попробовать направления"
-        />
-      ) : (
-        <div className="space-y-2">
-          {logs.map(l => {
-            const meta = TOOL_LABELS[l.tool] ?? { label: l.tool, icon: "✦" };
-            return (
-              <div key={l.id} className="flex items-center gap-3 rounded-xl border border-border/20 bg-card/20 px-4 py-3 hover:bg-card/30 transition-colors">
-                <span className="text-2xl shrink-0">{meta.icon}</span>
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openLog(l.id)}>
-                  <p className="text-sm font-medium truncate">{l.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {meta.label} · {new Date(l.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                  </p>
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === "all"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Все действия
+        </button>
+        <button
+          onClick={() => setActiveTab("readings")}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            activeTab === "readings"
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          История раскладов
+        </button>
+      </div>
+
+      {activeTab === "all" && (
+        loading ? (
+          <div className="space-y-2">
+            <SkeletonCard lines={2} />
+            <SkeletonCard lines={2} />
+            <SkeletonCard lines={2} />
+          </div>
+        ) : logs.length === 0 ? (
+          <EmptyState
+            icon="✦"
+            title="Нет сохранённых сессий"
+            description="Результаты направлений сохраняются автоматически"
+            actionHref="/cabinet/modalities"
+            actionLabel="Попробовать направления"
+          />
+        ) : (
+          <div className="space-y-2">
+            {logs.map(l => {
+              const meta = TOOL_LABELS[l.tool] ?? { label: l.tool, icon: "✦" };
+              return (
+                <div key={l.id} className="flex items-center gap-3 rounded-xl border border-border/20 bg-card/20 px-4 py-3 hover:bg-card/30 transition-colors">
+                  <span className="text-2xl shrink-0">{meta.icon}</span>
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openLog(l.id)}>
+                    <p className="text-sm font-medium truncate">{l.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {meta.label} · {new Date(l.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button onClick={() => openLog(l.id)}
+                      className="text-xs text-primary hover:underline">Открыть</button>
+                    <button onClick={() => deleteLog(l.id)}
+                      className="text-xs text-muted-foreground/50 hover:text-red-400 transition-colors">×</button>
+                  </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button onClick={() => openLog(l.id)}
-                    className="text-xs text-primary hover:underline">Открыть</button>
-                  <button onClick={() => deleteLog(l.id)}
-                    className="text-xs text-muted-foreground/50 hover:text-red-400 transition-colors">×</button>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {activeTab === "readings" && (
+        loadingReadings ? (
+          <div className="space-y-2">
+            <SkeletonCard lines={2} />
+            <SkeletonCard lines={2} />
+          </div>
+        ) : fullReadings.length === 0 ? (
+          <EmptyState
+            icon="🃏"
+            title="Нет полных раскладов"
+            description="Полные расклады появляются здесь после оплаты"
+            actionHref="/cabinet/modalities"
+            actionLabel="Перейти к инструментам"
+          />
+        ) : (
+          <div className="space-y-2">
+            {fullReadings.map(r => {
+              const meta = TOOL_LABELS[r.tool] ?? { label: r.tool, icon: "✦" };
+              const isExpanded = expandedReading?.id === r.id;
+              return (
+                <div key={r.id} className="rounded-xl border border-border/20 bg-card/20 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl shrink-0">{meta.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{r.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {meta.label} · {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })} · {(r.costKopecks / 100).toLocaleString("ru-RU")} ₽
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setExpandedReading(isExpanded ? null : r)}
+                      className="text-xs text-primary hover:underline shrink-0"
+                    >
+                      {isExpanded ? "Свернуть" : "Посмотреть результат"}
+                    </button>
+                  </div>
+                  {isExpanded && expandedReading && (
+                    <div className="mt-4 pt-4 border-t border-border/20 space-y-3">
+                      {expandedReading.prompt && (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Запрос</p>
+                          <p className="text-sm text-muted-foreground bg-card/30 rounded-lg px-3 py-2">{expandedReading.prompt}</p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Результат</p>
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap">{expandedReading.result}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )
       )}
 
       {/* Модальное окно просмотра */}

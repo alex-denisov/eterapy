@@ -275,6 +275,11 @@ export function SlotPicker({
                         "text-foreground hover:bg-primary/5"
                       }`}>
                       {day.date.getDate()}
+                      {day.isToday && thisMonth && (
+                        <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[8px] text-primary/70 font-medium leading-none whitespace-nowrap">
+                          сегодня
+                        </span>
+                      )}
                     </button>
                   );
                 })}

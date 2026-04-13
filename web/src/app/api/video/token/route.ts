@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     where: { id: bookingId },
     include: {
       practitioner: { include: { user: { select: { id: true, name: true } } } },
-      client: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true, balance: true } },
     },
   });
   if (!booking) return NextResponse.json({ error: "Бронирование не найдено" }, { status: 404 });
@@ -34,17 +34,36 @@ export async function GET(req: NextRequest) {
   const participantName = isClient ? booking.client.name : booking.practitioner.user.name;
   const role = isClient ? "client" : "practitioner";
 
+  // Меняем статус бронирования на IN_PROGRESS при первом входе и списываем баланс
+  if (booking.status === "CONFIRMED") {
+    const client = await db.user.findUnique({ where: { id: booking.clientId }, select: { balance: true } });
+    if (!client) {
+      return NextResponse.json({ error: "Клиент не найден" }, { status: 404 });
+    }
+    if (client.balance < booking.priceRub) {
+      return NextResponse.json({ error: "Недостаточно средств на балансе" }, { status: 402 });
+    }
+
+    await db.$transaction([
+      db.booking.update({ where: { id: bookingId }, data: { status: "IN_PROGRESS" } }),
+      db.user.update({ where: { id: booking.clientId }, data: { balance: { decrement: booking.priceRub } } }),
+      db.payment.create({
+        data: {
+          bookingId,
+          amountKopecks: booking.priceRub,
+          currency: "RUB",
+          status: "PAID",
+        },
+      }),
+    ]);
+  }
+
   // Создаём или обновляем VideoSession
   await db.videoSession.upsert({
     where: { bookingId },
     create: { bookingId, roomName, status: "WAITING" },
     update: {},
   });
-
-  // Меняем статус бронирования на IN_PROGRESS при первом входе
-  if (booking.status === "CONFIRMED") {
-    await db.booking.update({ where: { id: bookingId }, data: { status: "IN_PROGRESS" } }).catch(() => {});
-  }
 
   const token = await generateToken({
     roomName,

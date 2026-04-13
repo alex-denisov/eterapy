@@ -42,6 +42,7 @@ model User {
   birthDate           DateTime?
   birthTime           String?             // "14:30" — for natal chart
   birthPlace          String?             // city name
+  timezone            String?             // e.g. "Europe/Moscow"
   maritalStatus       String?             // single/married/divorced/etc
   occupation          String?
   aiGoals             String[]  @default([]) // career/relationships/selfdev/health/etc

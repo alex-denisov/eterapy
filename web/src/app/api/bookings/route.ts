@@ -234,6 +234,92 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Клиент может только отменить запись" }, { status: 403 });
     }
 
+    // При переходе в IN_PROGRESS — списываем баланс клиента
+    if (status === "IN_PROGRESS" && booking.status === "CONFIRMED") {
+      const client = await db.user.findUnique({ where: { id: booking.clientId }, select: { balance: true } });
+      if (!client) {
+        return NextResponse.json({ error: "Клиент не найден" }, { status: 404 });
+      }
+      if (client.balance < booking.priceRub) {
+        return NextResponse.json({ error: "Недостаточно средств на балансе" }, { status: 402 });
+      }
+
+      await db.$transaction([
+        db.booking.update({ where: { id: bookingId }, data: { status: "IN_PROGRESS" } }),
+        db.user.update({ where: { id: booking.clientId }, data: { balance: { decrement: booking.priceRub } } }),
+        db.payment.create({
+          data: {
+            bookingId,
+            amountKopecks: booking.priceRub,
+            currency: "RUB",
+            status: "PAID",
+          },
+        }),
+      ]);
+
+      const updatedBooking = await db.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          practitioner: { include: { user: { select: { name: true, email: true } } } },
+          client: { select: { name: true, email: true } },
+          slot: true,
+        },
+      });
+      return NextResponse.json({ booking: formatBooking({ ...updatedBooking, client: booking.client, practitioner: booking.practitioner }) });
+    }
+
+    // При переходе в COMPLETED — создаём выплату практику и обновляем счётчик
+    if (status === "COMPLETED") {
+      const practitioner = await db.practitioner.findUnique({
+        where: { id: booking.practitioner.id },
+        select: { id: true, commissionPercent: true, userId: true },
+      });
+      if (!practitioner) {
+        return NextResponse.json({ error: "Практик не найден" }, { status: 404 });
+      }
+
+      const payoutAmount = Math.round(booking.priceRub * (1 - practitioner.commissionPercent / 100));
+
+      await db.$transaction([
+        db.booking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } }),
+        db.payout.create({
+          data: {
+            practitionerId: practitioner.id,
+            amountKopecks: payoutAmount,
+            status: "PENDING",
+            initiatedBy: session.user.id,
+          },
+        }),
+        db.practitioner.update({
+          where: { id: practitioner.id },
+          data: { sessionCount: { increment: 1 } },
+        }),
+      ]);
+
+      // Отправляем запрос на отзыв
+      sendReviewRequestClient({
+        bookingId,
+        clientName: booking.client.name,
+        clientEmail: booking.client.email,
+        practitionerName: booking.practitioner.user.name,
+        practitionerEmail: booking.practitioner.user.email,
+        practitionerId: booking.practitioner.id,
+        slotStr: fmtSlot(booking.slot),
+        priceRub: booking.priceRub,
+        durationMin: 60,
+      }).catch((e) => console.error("[email review]", e));
+
+      const updatedBooking = await db.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          practitioner: { include: { user: { select: { name: true, email: true } } } },
+          client: { select: { name: true, email: true } },
+          slot: true,
+        },
+      });
+      return NextResponse.json({ booking: formatBooking({ ...updatedBooking, client: booking.client, practitioner: booking.practitioner }) });
+    }
+
     const updated = await db.booking.update({
       where: { id: bookingId },
       data: { status },
@@ -243,14 +329,6 @@ export async function PATCH(req: NextRequest) {
     // Освобождаем слот если бронирование отменено
     if (status === "CANCELLED" && booking.slotId) {
       await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
-    }
-
-    // Обновляем счётчик завершённых сессий практика
-    if (status === "COMPLETED") {
-      await db.practitioner.update({
-        where: { id: booking.practitioner.id },
-        data: { sessionCount: { increment: 1 } },
-      }).catch(() => {});
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
@@ -293,8 +371,6 @@ export async function PATCH(req: NextRequest) {
         sendBookingCancelledClient(emailData, cancelledBy),
         isClient ? sendBookingCancelledPractitioner(emailData) : Promise.resolve(),
       ]).catch(() => {});
-    } else if (status === "COMPLETED") {
-      sendReviewRequestClient(emailData).catch((e) => console.error("[email review]", e));
     }
 
     return NextResponse.json({ booking: formatBooking({ ...updated, client: booking.client, practitioner: booking.practitioner }) });
