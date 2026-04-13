@@ -16,18 +16,26 @@ const GUEST_NAV = [
   { href: "/#faq", label: "FAQ" },
 ];
 
-// Авторизованные пользователи — навигация только в sidebar кабинета
-const CLIENT_NAV: { href: string; label: string }[] = [
-  { href: "/help", label: "Помощь" },
-];
-const PRACTITIONER_NAV: { href: string; label: string }[] = [
-  { href: "/help", label: "Помощь" },
-];
-const ADMIN_NAV: { href: string; label: string }[] = [
-  { href: "/help", label: "Помощь" },
-];
+function useBalance(userId: string | null | undefined) {
+  const [balanceKopecks, setBalanceKopecks] = useState(0);
 
-function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
+  useEffect(() => {
+    if (!userId) {
+      setBalanceKopecks(0);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/billing/balance")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !cancelled) setBalanceKopecks(d.balanceKopecks ?? 0); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  return balanceKopecks;
+}
+
+function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; balanceKopecks: number }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -35,6 +43,8 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
   const role: string = session.user?.role ?? "CLIENT";
   const name = session.user?.name?.split(" ")[0] ?? session.user?.email ?? "Пользователь";
   const [focusedIndex, setFocusedIndex] = useState(-1);
+
+  const rub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   const menuItems = role === "PRACTITIONER" ? [
     { href: "/cabinet/practitioner", label: "Мой кабинет" },
@@ -146,6 +156,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
           <div className="border-b border-border/30 px-4 py-3">
             <p className="text-sm font-medium">{session.user?.name}</p>
             <p className="text-xs text-muted-foreground">{session.user?.email}</p>
+            <p className="text-xs text-primary mt-1">💰 {rub} ₽</p>
           </div>
           <div className="py-1">
             {menuItems.map((item, i) => (
@@ -180,28 +191,33 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
 }
 
 export function Header() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Скрываем header на странице видеосессии
   if (pathname.startsWith("/session")) return null;
 
+  const isAuthenticated = status === "authenticated" && !!session;
+  const isLoading = status === "loading";
+  const balanceKopecks = useBalance(session?.user?.id ?? null);
   const role: string = session?.user?.role ?? "GUEST";
-  const nav = !session ? GUEST_NAV
-    : role === "PRACTITIONER" ? PRACTITIONER_NAV
-    : (role === "ADMIN" || role === "SUPERADMIN") ? ADMIN_NAV
-    : CLIENT_NAV;
+
+  // Пока загружается — показываем пустой хедер без навигации (без мигания гостевых ссылок)
+  const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
+
+  const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href={!session ? "/" : role === "PRACTITIONER" ? "/cabinet/practitioner" : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet"}
+        <Link href={!isAuthenticated ? "/" : role === "PRACTITIONER" ? "/cabinet/practitioner" : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet"}
           className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.svg" alt="ETerapy" width={28} height={28} />
           <span className="font-heading text-xl font-bold text-primary">ETerapy</span>
         </Link>
 
+        {/* Guest navigation — NEVER shown to authenticated users */}
         <nav className="hidden items-center gap-1 md:flex">
           {nav.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -216,11 +232,31 @@ export function Header() {
           })}
         </nav>
 
+        {/* Right side: authenticated actions or guest auth buttons */}
         <div className="flex items-center gap-2">
-          {session && <NotificationBell variant="header" />}
-          {session ? (
-            <UserMenu session={session} />
-          ) : (
+          {isAuthenticated && session ? (
+            <>
+              {/* Help link */}
+              <Link
+                href="/help"
+                className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5"
+              >
+                Помощь
+              </Link>
+
+              {/* Balance */}
+              <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground">
+                <span>💰</span>
+                <span className="tabular-nums">{balanceRub} ₽</span>
+              </div>
+
+              {/* Notification bell */}
+              <NotificationBell variant="header" />
+
+              {/* User menu */}
+              <UserMenu session={session} balanceKopecks={balanceKopecks} />
+            </>
+          ) : !isLoading ? (
             <>
               <Link href="/login"
                 className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden text-muted-foreground md:inline-flex")}>
@@ -230,6 +266,12 @@ export function Header() {
                 Начать бесплатно
               </Link>
             </>
+          ) : (
+            /* Loading skeleton — invisible spacer to prevent layout shift */
+            <div className="hidden md:flex items-center gap-2" aria-hidden="true">
+              <div className="w-16 h-8 rounded-lg bg-white/5" />
+              <div className="w-16 h-8 rounded-lg bg-white/5" />
+            </div>
           )}
           <button
             className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg border border-border/40 text-muted-foreground transition-colors hover:text-foreground md:hidden"
@@ -253,19 +295,26 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            {session ? (
-              <button onClick={() => { setMobileOpen(false); signOut({ callbackUrl: "/" }); }}
-                className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
-                Выйти
-              </button>
-            ) : (
+            {isAuthenticated && session ? (
+              <>
+                <Link href="/help" onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                  Помощь
+                </Link>
+                <div className="px-3 py-2 text-sm text-primary">💰 {balanceRub} ₽</div>
+                <button onClick={() => { setMobileOpen(false); signOut({ callbackUrl: "/" }); }}
+                  className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
+                  Выйти
+                </button>
+              </>
+            ) : !isLoading ? (
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
                 <Link href="/login" onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
                 <Link href="/register" onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Регистрация</Link>
               </div>
-            )}
+            ) : null}
           </nav>
         </div>
       )}
