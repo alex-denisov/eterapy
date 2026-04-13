@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
+import { sanitizeName, getNameError, sanitizeText } from "@/lib/validation";
 
 type Tab = "profile" | "extended" | "security" | "notifications" | "danger";
 
@@ -26,6 +27,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -62,6 +64,9 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
     e.preventDefault();
     const name = `${firstName || fn} ${lastName || ln}`.trim();
     if (!name) { toast.error("Заполните имя"); return; }
+    const nErr = getNameError(name);
+    if (nErr) { setNameError(nErr); toast.error(nErr); return; }
+    setNameError(null);
     setSaving(true);
     try {
       const formData = new FormData();
@@ -167,13 +172,14 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Имя</label>
-                  <Input value={firstName || fn} onChange={e => setFirstName(e.target.value)} placeholder="Имя" className="bg-card/50" />
+                  <Input value={firstName || fn} onChange={e => { setFirstName(sanitizeName(e.target.value)); setNameError(null); }} placeholder="Имя" className={`bg-card/50 ${nameError ? "border-destructive" : ""}`} />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Фамилия</label>
-                  <Input value={lastName || ln} onChange={e => setLastName(e.target.value)} placeholder="Фамилия" className="bg-card/50" />
+                  <Input value={lastName || ln} onChange={e => { setLastName(sanitizeName(e.target.value)); setNameError(null); }} placeholder="Фамилия" className={`bg-card/50 ${nameError ? "border-destructive" : ""}`} />
                 </div>
               </div>
+              {nameError && <p className="text-xs text-destructive -mt-3">{nameError}</p>}
 
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">Email</label>
@@ -431,7 +437,7 @@ function ExtendedProfileTab() {
         {/* Место рождения */}
         <div>
           <label className="text-sm font-medium mb-1 block">Место рождения</label>
-          <Input value={birthPlace} onChange={e => setBirthPlace(e.target.value)}
+          <Input value={birthPlace} onChange={e => setBirthPlace(sanitizeName(e.target.value))}
             placeholder="Город" className="bg-card/50" />
         </div>
 
@@ -495,8 +501,9 @@ function ExtendedProfileTab() {
         {/* Деятельность */}
         <div>
           <label className="text-sm font-medium mb-1 block">Чем вы занимаетесь</label>
-          <Input value={occupation} onChange={e => setOccupation(e.target.value)}
+          <Input value={occupation} onChange={e => setOccupation(sanitizeText(e.target.value, 100))}
             placeholder="Предприниматель, дизайнер, менеджер..." className="bg-card/50" />
+          <p className="text-xs text-muted-foreground/50 mt-1">{occupation.length} / 100 символов</p>
         </div>
 
         {/* Цели */}

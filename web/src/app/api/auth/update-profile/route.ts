@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { storeFile } from "@/lib/file-storage";
+import { validateName } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -27,8 +28,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!name?.trim()) return NextResponse.json({ error: "Имя обязательно" }, { status: 400 });
+  if (!validateName(name.trim())) return NextResponse.json({ error: "Имя может содержать только буквы, пробелы и дефисы (макс. 50 символов)" }, { status: 400 });
 
-  const data: Record<string, string> = { name: name.trim() };
+  const sanitized = name.trim().slice(0, 50);
+  const data: Record<string, string> = { name: sanitized };
   if (avatarUrl) data.avatarUrl = avatarUrl;
 
   await db.user.update({ where: { id: session.user!.id }, data });

@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
+import { sanitizeName, sanitizeEmail, validateName, validateEmail, getNameError, getEmailError } from "@/lib/validation";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const { data: session, status } = useSession();
@@ -28,6 +31,15 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const nErr = getNameError(name);
+    setNameError(nErr);
+    if (nErr) { toast.error(nErr); return; }
+
+    const eErr = getEmailError(email);
+    setEmailError(eErr);
+    if (eErr) { toast.error(eErr); return; }
+
     setLoading(true);
 
     try {
@@ -99,11 +111,12 @@ export default function RegisterPage() {
                 type="text"
                 placeholder="Ваше имя"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => { setName(sanitizeName(e.target.value)); setNameError(null); }}
                 required
                 autoComplete="name"
-                className="bg-background/50"
+                className={`bg-background/50 ${nameError ? "border-destructive" : ""}`}
               />
+              {nameError && <p className="text-xs text-destructive mt-1">{nameError}</p>}
             </div>
             <div>
               <label htmlFor="reg-email" className="sr-only">Email</label>
@@ -112,11 +125,12 @@ export default function RegisterPage() {
                 type="email"
                 placeholder="Email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(sanitizeEmail(e.target.value)); setEmailError(null); }}
                 required
                 autoComplete="email"
-                className="bg-background/50"
+                className={`bg-background/50 ${emailError ? "border-destructive" : ""}`}
               />
+              {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             </div>
             <div>
               <label htmlFor="reg-password" className="sr-only">Пароль</label>

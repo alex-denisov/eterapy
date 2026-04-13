@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { sanitizeName, sanitizeText } from "@/lib/validation";
 
 export async function GET() {
   const session = await auth();
@@ -33,7 +34,11 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { birthDate, birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals } = await req.json();
+  let { birthDate, birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals } = await req.json();
+
+  // Sanitize text fields
+  if (birthPlace !== undefined) birthPlace = sanitizeName(birthPlace).slice(0, 100);
+  if (occupation !== undefined) occupation = sanitizeText(occupation, 100);
 
   // birthDate приходит как "ДД.ММ.ГГГГ". Конвертируем в Date, сохраняя как UTC-дату.
   // Используем 23:59:59 UTC (конец дня) чтобы ни один часовой пояс не сдвинул дату назад.

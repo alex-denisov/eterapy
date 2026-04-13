@@ -13,6 +13,7 @@ import {
 } from "@/lib/email";
 import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
+import { sanitizeText } from "@/lib/validation";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,12 @@ export async function PATCH(req: NextRequest) {
   try {
     const { bookingId, status } = await req.json() as { bookingId: string; status: BookingStatus };
     if (!bookingId || !status) return NextResponse.json({ error: "bookingId и status обязательны" }, { status: 400 });
+
+    // Validate status is a valid enum value
+    const validStatuses = Object.values(BookingStatus);
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json({ error: "Недопустимый статус бронирования" }, { status: 400 });
+    }
 
     const booking = await db.booking.findUnique({
       where: { id: bookingId },

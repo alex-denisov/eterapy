@@ -4,6 +4,18 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  sanitizeName,
+  sanitizeEmail,
+  sanitizeUsername,
+  sanitizeText,
+  validateEmail,
+  validateName,
+  validateTelegramUsername,
+  getNameError,
+  getEmailError,
+  getTelegramError,
+} from "@/lib/validation";
 
 const SPECIALTIES = [
   { value: "TAROT",      label: "Таро" },
@@ -40,6 +52,9 @@ export function ApplyForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [telegram, setTelegram] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
 
   // Шаг 2 — Практика
   const [specialties, setSpecialties] = useState<string[]>([]);
@@ -48,6 +63,7 @@ export function ApplyForm() {
 
   // Шаг 3 — О себе
   const [about, setAbout] = useState("");
+  const [aboutError, setAboutError] = useState<string | null>(null);
   const [why, setWhy] = useState("");
   const [portfolio, setPortfolio] = useState("");
 
@@ -59,8 +75,19 @@ export function ApplyForm() {
   }
 
   function validateStep1() {
-    if (!name.trim()) { toast.error("Введите имя"); return false; }
-    if (!email.trim() || !email.includes("@")) { toast.error("Введите корректный email"); return false; }
+    const nameErr = getNameError(name);
+    setNameError(nameErr);
+    if (nameErr) { toast.error(nameErr); return false; }
+
+    const emailErr = getEmailError(email);
+    setEmailError(emailErr);
+    if (emailErr) { toast.error(emailErr); return false; }
+
+    if (telegram.trim()) {
+      const tgErr = getTelegramError(telegram);
+      setTelegramError(tgErr);
+      if (tgErr) { toast.error(tgErr); return false; }
+    }
     return true;
   }
   function validateStep2() {
@@ -69,7 +96,25 @@ export function ApplyForm() {
     return true;
   }
   function validateStep3() {
-    if (about.trim().length < 50) { toast.error("Расскажите о себе подробнее (минимум 50 символов)"); return false; }
+    if (about.trim().length < 50) {
+      setAboutError("Расскажите о себе подробнее (минимум 50 символов)");
+      toast.error("Расскажите о себе подробнее (минимум 50 символов)");
+      return false;
+    }
+    if (about.length > 500) {
+      setAboutError("Текст слишком длинный (макс. 500 символов)");
+      toast.error("Текст слишком длинный (макс. 500 символов)");
+      return false;
+    }
+    if (why.length > 100) {
+      toast.error("Текст слишком длинный (макс. 100 символов)");
+      return false;
+    }
+    if (portfolio.length > 500) {
+      toast.error("Ссылки слишком длинные (макс. 500 символов)");
+      return false;
+    }
+    setAboutError(null);
     return true;
   }
 
@@ -141,19 +186,22 @@ export function ApplyForm() {
           <h3 className="font-semibold text-lg">Контактные данные</h3>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Имя *</label>
-            <Input value={name} onChange={e => setName(e.target.value)}
-              placeholder="Мария Иванова" className="bg-card/50" />
+            <Input value={name} onChange={e => { setName(sanitizeName(e.target.value)); setNameError(null); }}
+              placeholder="Мария Иванова" className={`bg-card/50 ${nameError ? "border-destructive" : ""}`} />
+            {nameError && <p className="text-xs text-destructive mt-1">{nameError}</p>}
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Email *</label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="your@email.com" className="bg-card/50" />
+            <Input type="email" value={email} onChange={e => { setEmail(sanitizeEmail(e.target.value)); setEmailError(null); }}
+              placeholder="your@email.com" className={`bg-card/50 ${emailError ? "border-destructive" : ""}`} />
+            {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             <p className="text-xs text-muted-foreground/60 mt-1">На этот email придёт ответ по заявке</p>
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Telegram (необязательно)</label>
-            <Input value={telegram} onChange={e => setTelegram(e.target.value)}
-              placeholder="@username" className="bg-card/50" />
+            <Input value={telegram} onChange={e => { setTelegram(sanitizeUsername(e.target.value)); setTelegramError(null); }}
+              placeholder="username" className={`bg-card/50 ${telegramError ? "border-destructive" : ""}`} />
+            {telegramError && <p className="text-xs text-destructive mt-1">{telegramError}</p>}
           </div>
           <Button className="w-full" onClick={() => validateStep1() && setStep(2)}>
             Далее →
@@ -223,21 +271,26 @@ export function ApplyForm() {
           <h3 className="font-semibold text-lg">Расскажите о себе</h3>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">О себе и своём подходе *</label>
-            <textarea value={about} onChange={e => setAbout(e.target.value)}
+            <textarea value={about} onChange={e => { setAbout(sanitizeText(e.target.value, 500)); setAboutError(null); }}
               placeholder="Расскажите о вашей практике, методах работы, образовании или пути в эзотерике. Что отличает вас от других? Как проходят ваши сессии?"
-              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm resize-none h-36 focus:outline-none focus:border-primary/50" />
-            <p className="text-xs text-muted-foreground/60 mt-1">{about.length} / минимум 50 символов</p>
+              className={`w-full rounded-lg border bg-card/50 px-3 py-2.5 text-sm resize-none h-36 focus:outline-none focus:border-primary/50 ${aboutError ? "border-destructive" : "border-border/40"}`} />
+            <p className={`text-xs mt-1 ${aboutError ? "text-destructive" : "text-muted-foreground/60"}`}>
+              {about.length} / 500 символов (мин. 50)
+              {aboutError && ` — ${aboutError}`}
+            </p>
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Почему ETerapy? (необязательно)</label>
-            <textarea value={why} onChange={e => setWhy(e.target.value)}
+            <textarea value={why} onChange={e => setWhy(sanitizeText(e.target.value, 100))}
               placeholder="Что привлекает вас именно в нашей платформе?"
               className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:border-primary/50" />
+            <p className="text-xs text-muted-foreground/60 mt-1">{why.length} / 100 символов</p>
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Ссылки / портфолио (необязательно)</label>
-            <Input value={portfolio} onChange={e => setPortfolio(e.target.value)}
+            <Input value={portfolio} onChange={e => setPortfolio(sanitizeText(e.target.value, 500))}
               placeholder="Сайт, Instagram, VK, отзывы клиентов..." className="bg-card/50" />
+            <p className="text-xs text-muted-foreground/60 mt-1">{portfolio.length} / 500 символов</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>← Назад</Button>

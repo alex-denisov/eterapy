@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { encode as jwtEncode } from "next-auth/jwt";
+import { sanitizeName, sanitizeEmail } from "@/lib/validation";
 
 interface VKTokenData {
   access_token: string;
@@ -146,14 +147,16 @@ export async function POST(request: NextRequest) {
     }
 
     const name = `${firstName || ""} ${lastName || ""}`.trim() || `VK User ${userId || ""}`;
+    // Sanitize the name
+    const sanitizedName = sanitizeName(name).trim() || `VK User ${userId || ""}`;
 
     // Находим или создаём пользователя
     let dbUser = await db.user.findUnique({ where: { email } });
 
     if (!dbUser) {
       const createData: any = {
-        email,
-        name,
+        email: sanitizeEmail(email),
+        name: sanitizedName,
         password: `oauth:vk:${Date.now()}`,
         role: "CLIENT",
         emailVerified: true,
@@ -178,7 +181,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Account blocked" }, { status: 403 });
     } else {
       const updateData: any = {};
-      if (name && dbUser.name !== name) updateData.name = name;
+      if (sanitizedName && dbUser.name !== sanitizedName) updateData.name = sanitizedName;
       if (avatarUrl && !dbUser.avatarUrl) updateData.avatarUrl = avatarUrl;
       if (birthDateStr && !dbUser.birthDate) {
         try {

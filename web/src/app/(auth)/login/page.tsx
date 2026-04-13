@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
+import { sanitizeEmail, validateEmail, getEmailError } from "@/lib/validation";
 
 const TEST_ACCOUNTS = [
   { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/cabinet" },
@@ -21,6 +22,7 @@ const TEST_ACCOUNTS = [
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,6 +60,9 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const err = getEmailError(email);
+    setEmailError(err);
+    if (err) { toast.error(err); return; }
     await doLogin(email, password, "/cabinet");
   }
 
@@ -77,11 +82,12 @@ export default function LoginPage() {
                   type="email"
                   placeholder="Email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(sanitizeEmail(e.target.value)); setEmailError(null); }}
                   required
                   autoComplete="email"
-                  className="bg-background/50"
+                  className={`bg-background/50 ${emailError ? "border-destructive" : ""}`}
                 />
+                {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
               </div>
               <div>
                 <label htmlFor="login-password" className="sr-only">Пароль</label>

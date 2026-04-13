@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { Resend } from "resend";
+import { validateName, validateEmail, validateTelegramUsername } from "@/lib/validation";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? "admin@eterapy.com";
@@ -16,12 +17,37 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { name, email, telegram, specialties, experience, formats, about, why, portfolio } = body;
 
+  // Required fields
   if (!name?.trim() || !email?.trim() || !about?.trim()) {
     return NextResponse.json({ error: "Заполните обязательные поля" }, { status: 400 });
   }
-  if (!email.includes("@")) {
-    return NextResponse.json({ error: "Некорректный email" }, { status: 400 });
+
+  // Name validation
+  if (!validateName(name.trim())) {
+    return NextResponse.json({ error: "Имя может содержать только буквы, пробелы и дефисы (макс. 50 символов)" }, { status: 400 });
   }
+
+  // Email validation
+  if (!validateEmail(email.trim())) {
+    return NextResponse.json({ error: "Введите корректный email (без символа '+', макс. 50 символов)" }, { status: 400 });
+  }
+
+  // Telegram username validation (optional but if provided, must be valid)
+  if (telegram?.trim() && !validateTelegramUsername(telegram.trim())) {
+    return NextResponse.json({ error: "Telegram может содержать только латинские буквы, цифры и подчёркивание (макс. 50 символов)" }, { status: 400 });
+  }
+
+  // Text length validation
+  if (about.trim().length < 50 || about.trim().length > 500) {
+    return NextResponse.json({ error: "Расскажите о себе (от 50 до 500 символов)" }, { status: 400 });
+  }
+  if (why && why.length > 100) {
+    return NextResponse.json({ error: "Текст слишком длинный (макс. 100 символов)" }, { status: 400 });
+  }
+  if (portfolio && portfolio.length > 500) {
+    return NextResponse.json({ error: "Ссылки слишком длинные (макс. 500 символов)" }, { status: 400 });
+  }
+
   if (specialties?.length === 0) {
     return NextResponse.json({ error: "Выберите специализацию" }, { status: 400 });
   }
