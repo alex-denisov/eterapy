@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "./search-input";
 
 const STATUSES = [
   { value: "", label: "Все" },
@@ -60,16 +60,7 @@ export default async function AdminBookingsPage(props: {
 
       {/* Фильтры */}
       <div className="mb-4 flex flex-wrap gap-3">
-        <Input placeholder="Поиск по имени..."
-          defaultValue={search}
-          className="bg-card/50 max-w-xs h-8 text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              const val = (e.target as HTMLInputElement).value;
-              window.location.href = `/admin/bookings?${new URLSearchParams({ status: statusFilter, search: val })}`;
-            }
-          }}
-        />
+        <SearchInput defaultValue={search} statusFilter={statusFilter} />
         <div className="flex gap-1.5 flex-wrap">
           {STATUSES.map(s => (
             <a key={s.value}
@@ -90,6 +81,9 @@ export default async function AdminBookingsPage(props: {
           <p className="py-12 text-center text-sm text-muted-foreground">Нет бронирований</p>
         ) : bookings.map((b) => {
           const st = getBookingStatus(b.status);
+          const durationMinutes = b.slot
+            ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
+            : 60;
           return (
             <div key={b.id} className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
               <div className="min-w-0 flex-1">
@@ -98,6 +92,7 @@ export default async function AdminBookingsPage(props: {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {b.priceRub.toLocaleString("ru-RU")} ₽ ·{" "}
+                  {durationMinutes} мин ·{" "}
                   {b.slot ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Слот не выбран"} ·{" "}
                   {new Date(b.createdAt).toLocaleDateString("ru-RU")}
                 </p>

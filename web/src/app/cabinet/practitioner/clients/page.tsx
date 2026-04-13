@@ -119,9 +119,20 @@ export default async function PractitionerClientsPage() {
           <div className="space-y-1.5">
             {rest.map((b) => {
               const st = getBookingStatus(b.status);
+              const durationMinutes = b.slot
+                ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
+                : 60;
               return (
                 <div key={b.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-card/10 px-4 py-2.5">
-                  <p className="text-sm">{b.client.name}</p>
+                  <div>
+                    <p className="text-sm">{b.client.name}</p>
+                    {b.slot && (
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        {" · "}{durationMinutes} мин
+                      </p>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</span>
                     <Badge className={st.color}>{st.label}</Badge>

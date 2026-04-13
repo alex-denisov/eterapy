@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getBookingStatus } from "@/lib/booking-status";
 
 async function getPractitionerData(userId: string) {
   return db.practitioner.findUnique({
@@ -52,9 +53,17 @@ export default async function PractitionerCabinetPage() {
   // Pending bookings
   const pendingBookings = await db.booking.findMany({
     where: { practitionerId: practitioner.id, status: "PENDING" },
-    include: { client: { select: { name: true, email: true } } },
+    include: { client: { select: { name: true, email: true } }, slot: true },
     orderBy: { createdAt: "desc" },
     take: 5,
+  });
+
+  // Confirmed / upcoming sessions
+  const upcomingBookings = await db.booking.findMany({
+    where: { practitionerId: practitioner.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] } },
+    include: { client: { select: { name: true, email: true } }, slot: true },
+    orderBy: { createdAt: "desc" },
+    take: 10,
   });
 
   return (
@@ -104,15 +113,66 @@ export default async function PractitionerCabinetPage() {
             <p className="text-sm text-muted-foreground">Нет новых запросов</p>
           ) : (
             <div className="space-y-2">
-              {pendingBookings.map((b) => (
-                <div key={b.id} className="flex items-center justify-between rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium">{b.client.name}</p>
-                    <p className="text-xs text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
+              {pendingBookings.map((b) => {
+                const durationMinutes = b.slot
+                  ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
+                  : 60;
+                return (
+                  <div key={b.id} className="flex items-center justify-between rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{b.client.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {b.slot
+                          ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                          : "Время не указано"}
+                        {" · "}{durationMinutes} мин
+                      </p>
+                      <p className="text-xs text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
+                    </div>
+                    <PendingActions bookingId={b.id} />
                   </div>
-                  <PendingActions bookingId={b.id} />
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Подтверждённые сессии */}
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-heading text-lg font-semibold">Подтверждённые</h2>
+            <Link href="/cabinet/practitioner/clients" className="text-sm text-primary hover:underline">Все →</Link>
+          </div>
+          {upcomingBookings.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Нет подтверждённых сессий</p>
+          ) : (
+            <div className="space-y-2">
+              {upcomingBookings.map((b) => {
+                const durationMinutes = b.slot
+                  ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
+                  : 60;
+                const st = getBookingStatus(b.status);
+                return (
+                  <div key={b.id} className="flex items-center justify-between rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{b.client.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {b.slot
+                          ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                          : "Время не указано"}
+                        {" · "}{durationMinutes} мин
+                      </p>
+                      <p className="text-xs text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={st.color}>{st.label}</Badge>
+                      {(b.status === "CONFIRMED" || b.status === "IN_PROGRESS") && (
+                        <a href={`/session/${b.id}`} className="text-xs text-green-400 hover:underline">Войти →</a>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
