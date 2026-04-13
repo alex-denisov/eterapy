@@ -333,22 +333,24 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                   // Get booking info for this cell
                   const booking = getBookingAt(dateStr, hour);
 
-                  const cellStyle = {
-                    "unavailable":     "bg-[#080f18] cursor-default",
+                  // Clear, high-contrast colors: green=available, red=blocked, blue=booked
+                  const cellClassMap: Record<string, string> = {
+                    "unavailable":     "bg-[#0b1016] cursor-default",
                     "free":            editing
-                                        ? "bg-green-950/50 hover:bg-green-900/60 cursor-pointer border-green-900/30"
-                                        : "bg-green-950/30",
+                                        ? "bg-emerald-900/60 border border-emerald-600/40 hover:bg-emerald-800/70 cursor-pointer"
+                                        : "bg-emerald-900/50 border border-emerald-600/25",
                     "blocked":         editing
-                                        ? "bg-red-950/70 hover:bg-red-900/80 cursor-pointer border-red-900/40"
-                                        : "bg-red-950/50",
-                    "pending-block":   "bg-yellow-900/50 cursor-pointer border-yellow-700/40",
-                    "pending-unblock": "bg-teal-900/50 cursor-pointer border-teal-700/40",
-                    "booked":          "bg-blue-900/60 cursor-not-allowed border-blue-700/40",
-                  }[state];
+                                        ? "bg-red-900/60 border border-red-600/40 hover:bg-red-800/70 cursor-pointer"
+                                        : "bg-red-900/50 border border-red-600/30",
+                    "pending-block":   "bg-amber-900/60 border border-amber-500/50 cursor-pointer",
+                    "pending-unblock": "bg-sky-900/60 border border-sky-500/50 cursor-pointer",
+                    "booked":          "bg-blue-800/70 border border-blue-500/50 cursor-not-allowed",
+                  };
+                  const cellStyle = cellClassMap[state] ?? "";
 
                   return (
                     <td key={dow}
-                      className={`border-r border-b border-border/10 h-8 relative transition-colors ${cellStyle} ${isPast ? "opacity-40" : ""}`}
+                      className={`border-r border-b border-border/10 h-8 relative transition-colors ${cellStyle} ${isPast ? "opacity-50" : ""}`}
                       onClick={!isPast && state !== "booked" ? () => toggleCell(dateStr, hour, dow) : undefined}
                       title={
                         state === "unavailable" ? "Нерабочее время"
@@ -361,18 +363,18 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                       }
                     >
                       {state === "booked" && booking ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-0.5">
-                          <span className="text-[9px] font-medium text-blue-300 truncate w-full text-center leading-tight">{booking.clientName.split(" ")[0]}</span>
-                          <span className="text-[8px] text-blue-400/70">{booking.priceRub.toLocaleString("ru-RU")} ₽</span>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
+                          <span className="text-[9px] font-semibold text-white truncate w-full text-center leading-tight drop-shadow">{booking.clientName.split(" ")[0]}</span>
+                          <span className="text-[8px] text-blue-100 font-medium">{booking.priceRub.toLocaleString("ru-RU")} ₽</span>
                         </div>
                       ) : (state === "blocked" || state === "pending-block") ? (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className={`text-[10px] ${state === "pending-block" ? "text-yellow-400" : "text-red-400/60"}`}>✕</span>
+                          <span className={`text-[11px] font-bold ${state === "pending-block" ? "text-amber-400" : "text-red-400"}`}>✕</span>
                         </div>
                       ) : null}
                       {state === "pending-unblock" && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-[10px] text-teal-400">✓</span>
+                          <span className="text-[11px] text-sky-400 font-bold">✓</span>
                         </div>
                       )}
                     </td>
@@ -386,24 +388,18 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
 
       {/* Легенда */}
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-5 rounded-sm bg-green-950/70 border border-green-900/50 inline-block" />Рабочее время
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-5 rounded-sm bg-blue-900/60 border border-blue-700/40 inline-block" />Забронировано
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-5 rounded-sm bg-red-950/60 border border-red-900/40 inline-block" />Заблокировано
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-5 rounded-sm bg-[#080f18] border border-border/20 inline-block" />Недоступно
+        <span>🟢 Свободно</span>
+        <span>🔴 Заблокировано</span>
+        <span>🔵 Забронировано</span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2 h-2 rounded-full bg-[#0b1016] border border-border/30" />
+          Недоступно
         </span>
         {editing && <>
-          <span className="flex items-center gap-1.5">
-            <span className="h-3 w-5 rounded-sm bg-yellow-900/50 border border-yellow-700/40 inline-block" />Будет заблокировано
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-3 w-5 rounded-sm bg-teal-900/50 border border-teal-700/40 inline-block" />Будет разблокировано
+          <span>🟡 Будет заблокировано</span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-sky-600" />
+            Будет разблокировано
           </span>
         </>}
       </div>

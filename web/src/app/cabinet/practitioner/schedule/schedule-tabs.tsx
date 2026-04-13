@@ -43,9 +43,8 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
       {tab === "calendar" && (
         <div>
           <div className="mb-4 rounded-lg border border-border/30 bg-card/20 p-3 text-xs text-muted-foreground">
-            💡 Перетащите мышь по ячейкам чтобы заблокировать время.
-            Зелёное = рабочие часы, красное = заблокировано.
-            Клик по красной ячейке снимает блок.
+            💡 Нажмите на ячейку чтобы заблокировать/разблокировать время.
+            🟢 Зелёное = свободно, 🔴 красное = заблокировано, 🔵 синее = забронировано.
           </div>
           <WeekCalendar practitionerId={practitionerId} />
         </div>
