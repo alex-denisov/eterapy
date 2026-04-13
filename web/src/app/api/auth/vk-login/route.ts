@@ -116,10 +116,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Получаем профиль через VK API
-    let firstName = body.first_name;
-    let lastName = body.last_name;
-    let birthDateStr = body.birthday;
-    let avatarUrl = body.avatar;
+    let firstName = body.first_name as string | undefined;
+    let lastName = body.last_name as string | undefined;
+    let birthDateStr = body.birthday as string | undefined;
+    let avatarUrl = body.avatar as string | undefined;
 
     if (userId && (!firstName || !lastName)) {
       try {
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10) - 1;
             const year = parseInt(parts[2], 10);
-            createData.birthDate = new Date(Date.UTC(year, month, day));
+            createData.birthDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
           }
         } catch { /* ignore */ }
       }
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
             const day = parseInt(parts[0], 10);
             const month = parseInt(parts[1], 10) - 1;
             const year = parseInt(parts[2], 10);
-            updateData.birthDate = new Date(Date.UTC(year, month, day));
+            updateData.birthDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
           }
         } catch { /* ignore */ }
       }

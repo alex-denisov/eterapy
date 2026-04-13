@@ -311,10 +311,32 @@ function ExtendedProfileTab() {
         const p = d.profile;
         if (!p) return;
         if (p.birthDate) {
-          // birthDate in YYYY-MM-DD format. Convert to DD.MM.YYYY for display
-          const dateStr = p.birthDate.split("T")[0]; // strip time if present
-          const [year, month, day] = dateStr.split("-");
-          setBirthDate(`${day}.${month}.${year}`);
+          // birthDate from API should be "YYYY-MM-DD", but handle full ISO too.
+          const raw = typeof p.birthDate === "string" ? p.birthDate.trim() : "";
+          let year: string, month: string, day: string;
+          if (raw.includes("T")) {
+            // Full ISO string like "1988-03-03T12:00:00.000Z"
+            const datePart = raw.split("T")[0];
+            [year, month, day] = datePart.split("-");
+          } else if (raw.includes("-")) {
+            // "YYYY-MM-DD" format
+            [year, month, day] = raw.split("-");
+          } else if (raw.includes(".")) {
+            // "DD.MM.YYYY" format (already formatted)
+            const parts = raw.split(".");
+            if (parts.length === 3) {
+              day = parts[0];
+              month = parts[1];
+              year = parts[2];
+            } else {
+              return;
+            }
+          } else {
+            return;
+          }
+          if (year && month && day) {
+            setBirthDate(`${day.padStart(2, "0")}.${month.padStart(2, "0")}.${year}`);
+          }
         }
         if (p.birthTime) setBirthTime(p.birthTime);
         if (p.birthPlace) setBirthPlace(p.birthPlace);

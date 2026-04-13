@@ -101,6 +101,18 @@ export default function ClientBookingsPage() {
     );
   }
 
+  function formatSlotDate(startAt: string | null | undefined): string {
+    if (!startAt) return "Время уточняется";
+    const d = new Date(startAt);
+    if (isNaN(d.getTime())) return "Время уточняется";
+    return d.toLocaleDateString("ru-RU", {
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   return (
     <div className="px-6 py-8 max-w-3xl">
       {complaintBooking && (
@@ -189,12 +201,7 @@ export default function ClientBookingsPage() {
                           <Badge className={st.color}>{st.label}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          {b.slot
-                            ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", {
-                                weekday: "short", day: "numeric", month: "long",
-                                hour: "2-digit", minute: "2-digit",
-                              })
-                            : "Время уточняется"}
+                          {formatSlotDate(b.slot?.startAt)}
                         </p>
                         <p className="text-sm font-medium text-primary mt-1">
                           {b.priceRub.toLocaleString("ru")} ₽
