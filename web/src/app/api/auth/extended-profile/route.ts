@@ -35,13 +35,12 @@ export async function PATCH(req: NextRequest) {
 
   const { birthDate, birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals } = await req.json();
 
-  // birthDate приходит как "ДД.ММ.ГГГГ". Конвертируем в Date, сохраняя как локальную дату.
-  // Используем полдень UTC чтобы избежать сдвига дня из-за часовых поясов.
+  // birthDate приходит как "ДД.ММ.ГГГГ". Конвертируем в Date, сохраняя как UTC-дату.
+  // Используем 23:59:59 UTC (конец дня) чтобы ни один часовой пояс не сдвинул дату назад.
   let utcBirthDate: Date | null = null;
   if (birthDate) {
     const [day, month, year] = birthDate.split(".").map(Number);
-    // Store at noon UTC to avoid day shift from timezone offsets
-    utcBirthDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    utcBirthDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
   }
 
   await db.user.update({
