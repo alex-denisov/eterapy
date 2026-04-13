@@ -7,7 +7,7 @@ set -euo pipefail
 DOMAIN="eterapy.com"
 EMAIL="890525@gmail.com"
 APP_DIR="/opt/eterapy"
-REPO_URL="https://github.com/IvanKovdryn/eterapy.git"
+REPO_URL="https://github.com/alex-denisov/eterapy.git"
 COMPOSE_FILE="$APP_DIR/docker-compose.yml"
 ENV_FILE="$APP_DIR/.env"
 SKIP_SSL="${1:-}"
