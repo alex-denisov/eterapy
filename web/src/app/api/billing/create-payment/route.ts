@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
   // Valid return URL — always a full absolute URL
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
   const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
+  const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
 
   try {
     // Создаём платёж в ЮKassa напрямую через yukassaFetch
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
           type: "redirect",
           return_url: returnUrl,
         },
+        notification_url: notificationUrl,
         capture: true,
         description,
         metadata: {

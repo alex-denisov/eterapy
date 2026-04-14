@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
   const returnUrl = `${baseUrl}/cabinet/billing?payment=card-saved`;
+  const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
 
   try {
     const payment = await yukassaFetch<{
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
           type: "redirect",
           return_url: returnUrl,
         },
+        notification_url: notificationUrl,
         capture: true,
         save_payment_method: true,
         customer_id: session.user.id,
