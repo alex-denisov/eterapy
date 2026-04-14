@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
 
   await logAudit(dbUser.id, "LOGIN", undefined, "OAuth: vk");
 
+  const cookieName = process.env.NODE_ENV === "production"
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
   const token = await jwtEncode({
     token: {
       name: dbUser.name,
@@ -57,18 +61,19 @@ export async function GET(request: NextRequest) {
       role: dbUser.role,
     },
     secret: process.env.AUTH_SECRET!,
-    salt: "authjs.session-token",
+    salt: cookieName,
     maxAge: 60 * 60 * 24 * 30,
   });
 
   const response = NextResponse.redirect(new URL(callbackUrl, url.origin));
   response.cookies.set({
-    name: "authjs.session-token",
+    name: cookieName,
     value: token,
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
+    domain: process.env.NODE_ENV === "production" ? ".eterapy.com" : undefined,
     maxAge: 60 * 60 * 24 * 30,
   });
 

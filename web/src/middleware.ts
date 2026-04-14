@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 /** Determine which subdomain is handling this request */
 function getSubdomain(host: string | null): "app" | "admin" | "main" {
@@ -11,18 +12,20 @@ function getSubdomain(host: string | null): "app" | "admin" | "main" {
   return "main";
 }
 
-/** Extract session role from cookie (same logic as before) */
-function getRoleFromSession(request: NextRequest): string | null {
-  const sessionCookie =
-    request.cookies.get("authjs.session-token") ||
-    request.cookies.get("__Secure-authjs.session-token") ||
-    request.cookies.get("next-auth.session-token");
-
-  if (!sessionCookie) return null;
-  const [, payloadBase64] = sessionCookie.value.split(".");
+/** Extract session role using NextAuth JWT (handles JWE encrypted tokens) */
+async function getRoleFromSession(request: NextRequest): Promise<string | null> {
   try {
-    const payload = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf-8"));
-    return (payload.role as string) || null;
+    const secureCookie = process.env.NODE_ENV === "production";
+    const cookieName = secureCookie
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET!,
+      cookieName,
+      salt: cookieName,
+    });
+    return (token?.role as string) || null;
   } catch {
     return null;
   }
@@ -38,9 +41,10 @@ function url(path: string, domain: string) {
 }
 
 export async function middleware(request: NextRequest) {
-  const subdomain = getSubdomain(request.headers.get("host") ?? request.headers.get("x-forwarded-host"));
+  const host = request.headers.get("host") ?? request.headers.get("x-forwarded-host");
+  const subdomain = getSubdomain(host);
   const pathname = request.nextUrl.pathname;
-  const role = getRoleFromSession(request);
+  const role = await getRoleFromSession(request);
 
   // ─── app.eterapy.com ─────────────────────────────────────────────
   if (subdomain === "app") {
@@ -66,7 +70,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ─── eterapy.com (main domain) ───────────────────────────────────
+  // ─── eterapy.com (main domain) — enforce subdomain routing ───────
   if (subdomain === "main") {
     // Redirect logged-in users from guest landing page to app subdomain
     if (pathname === "/" && role) {
@@ -88,15 +92,24 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url(dest, APP_DOMAIN));
     }
 
-    // If logged-in admin tries to access /admin — redirect to admin subdomain
-    if (pathname.startsWith("/admin") && (role === "ADMIN" || role === "SUPERADMIN")) {
-      const adminPath = pathname === "/admin" ? "/" : pathname.replace("/admin", "");
-      return NextResponse.redirect(`${PROTOCOL}${ADMIN_DOMAIN}${adminPath}`);
+    // If user accesses /cabinet/* on main domain → redirect to app subdomain
+    if (pathname.startsWith("/cabinet")) {
+      if (!role) {
+        return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+      }
+      return NextResponse.redirect(url(pathname, APP_DOMAIN));
     }
 
-    // If logged-in user tries to access /cabinet — redirect to app subdomain
-    if (pathname.startsWith("/cabinet") && role) {
-      return NextResponse.redirect(`${PROTOCOL}${APP_DOMAIN}${pathname}`);
+    // If user accesses /admin/* on main domain → redirect to admin subdomain
+    if (pathname.startsWith("/admin")) {
+      if (!role) {
+        return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+      }
+      if (role !== "ADMIN" && role !== "SUPERADMIN") {
+        return NextResponse.redirect(url("/", MAIN_DOMAIN));
+      }
+      const adminPath = pathname === "/admin" ? "/" : pathname;
+      return NextResponse.redirect(url(adminPath, ADMIN_DOMAIN));
     }
 
     return NextResponse.next();

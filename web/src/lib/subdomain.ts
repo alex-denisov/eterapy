@@ -10,7 +10,8 @@
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
 const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
-const PROTOCOL = process.env.NODE_ENV === "development" ? "http://" : "https://";
+// Always use HTTPS in production and when behind Nginx proxy
+const PROTOCOL = "https://";
 
 /** Paths that belong on the main (guest) domain */
 const MAIN_PATHS = ["/", "/login", "/register", "/practitioners", "/about", "/help",

@@ -9,6 +9,6 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./nginx/conf.d/eterapy-https.conf:/etc/nginx/nginx.conf:ro
-      - ./certificates/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
-      - ./certificates/eterapy_private_key.key:/etc/nginx/certs/eterapy_private_key.key:ro
+      - ./nginx/ssl/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
+      - ./nginx/ssl/eterapy_private_key.key:/etc/nginx/certs/eterapy_private_key.key:ro
     command: nginx -g 'daemon off;'
