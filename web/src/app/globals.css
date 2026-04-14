@@ -125,3 +125,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Popover entrance animation */
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
