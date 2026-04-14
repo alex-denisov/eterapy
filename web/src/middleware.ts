@@ -1,31 +1,27 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 
 /** Determine which subdomain is handling this request */
 function getSubdomain(host: string | null): "app" | "admin" | "main" {
   if (!host) return "main";
-  // Strip port (e.g. localhost:3000)
   const clean = host.split(":")[0].toLowerCase();
   if (clean === "app.eterapy.com") return "app";
   if (clean === "admin.eterapy.com") return "admin";
   return "main";
 }
 
-/** Extract session role using NextAuth JWT (handles JWE encrypted tokens) */
-async function getRoleFromSession(request: NextRequest): Promise<string | null> {
+/** Extract session role from cookie */
+function getRoleFromSession(request: NextRequest): string | null {
+  const sessionCookie =
+    request.cookies.get("authjs.session-token") ||
+    request.cookies.get("__Secure-authjs.session-token") ||
+    request.cookies.get("next-auth.session-token");
+
+  if (!sessionCookie) return null;
+  const [, payloadBase64] = sessionCookie.value.split(".");
   try {
-    const secureCookie = process.env.NODE_ENV === "production";
-    const cookieName = secureCookie
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token";
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET!,
-      cookieName,
-      salt: cookieName,
-    });
-    return (token?.role as string) || null;
+    const payload = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf-8"));
+    return (payload.role as string) || null;
   } catch {
     return null;
   }
@@ -36,6 +32,9 @@ const APP_DOMAIN = "app.eterapy.com";
 const ADMIN_DOMAIN = "admin.eterapy.com";
 const PROTOCOL = "https://";
 
+// Use subdomains only in production (VPS). In local dev, everything stays on eterapy.com.
+const USE_SUBDOMAINS = process.env.NODE_ENV === "production";
+
 function url(path: string, domain: string) {
   return `${PROTOCOL}${domain}${path}`;
 }
@@ -44,72 +43,49 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") ?? request.headers.get("x-forwarded-host");
   const subdomain = getSubdomain(host);
   const pathname = request.nextUrl.pathname;
-  const role = await getRoleFromSession(request);
+  const role = getRoleFromSession(request);
 
-  // ─── app.eterapy.com ─────────────────────────────────────────────
+  // ─── app.eterapy.com (production only) ─────────────────────────
   if (subdomain === "app") {
-    // Not logged in → redirect to login on main domain
-    if (!role) {
-      return NextResponse.redirect(url("/login", MAIN_DOMAIN));
-    }
-    // Logged in — allow access (cabinet pages)
+    if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
     return NextResponse.next();
   }
 
-  // ─── admin.eterapy.com ───────────────────────────────────────────
+  // ─── admin.eterapy.com (production only) ───────────────────────
   if (subdomain === "admin") {
-    // Not logged in → redirect to login
-    if (!role) {
-      return NextResponse.redirect(url("/login", MAIN_DOMAIN));
-    }
-    // Not admin/superadmin → redirect to main domain
-    if (role !== "ADMIN" && role !== "SUPERADMIN") {
-      return NextResponse.redirect(url("/", MAIN_DOMAIN));
-    }
-    // Admin/superadmin — allow access
+    if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+    if (role !== "ADMIN" && role !== "SUPERADMIN") return NextResponse.redirect(url("/", MAIN_DOMAIN));
     return NextResponse.next();
   }
 
-  // ─── eterapy.com (main domain) — enforce subdomain routing ───────
+  // ─── eterapy.com (main domain — all local dev, guest pages) ────
   if (subdomain === "main") {
-    // Redirect logged-in users from guest landing page to app subdomain
-    if (pathname === "/" && role) {
-      const dest = role === "PRACTITIONER"
-        ? "/cabinet/practitioner"
-        : (role === "ADMIN" || role === "SUPERADMIN")
-          ? "/admin"
-          : "/cabinet";
+    // In production: redirect logged-in users to app subdomain
+    // In local dev: allow access to /cabinet and /admin on main domain
+    if (pathname === "/" && role && USE_SUBDOMAINS) {
+      const dest = role === "PRACTITIONER" ? "/cabinet/practitioner"
+        : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet";
       return NextResponse.redirect(url(dest, APP_DOMAIN));
     }
 
-    // If logged-in user tries to access /login or /register — redirect to app
+    // Always redirect logged-in users from /login and /register to /cabinet
     if ((pathname === "/login" || pathname === "/register") && role) {
-      const dest = role === "PRACTITIONER"
-        ? "/cabinet/practitioner"
-        : (role === "ADMIN" || role === "SUPERADMIN")
-          ? "/admin"
-          : "/cabinet";
-      return NextResponse.redirect(url(dest, APP_DOMAIN));
+      return NextResponse.redirect(url("/cabinet", MAIN_DOMAIN));
     }
 
-    // If user accesses /cabinet/* on main domain → redirect to app subdomain
-    if (pathname.startsWith("/cabinet")) {
-      if (!role) {
-        return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+    // In production: redirect /cabinet → app subdomain, /admin → admin subdomain
+    // In local dev: allow /cabinet and /admin on main domain
+    if (USE_SUBDOMAINS) {
+      if (pathname.startsWith("/cabinet")) {
+        if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+        return NextResponse.redirect(url(pathname, APP_DOMAIN));
       }
-      return NextResponse.redirect(url(pathname, APP_DOMAIN));
-    }
-
-    // If user accesses /admin/* on main domain → redirect to admin subdomain
-    if (pathname.startsWith("/admin")) {
-      if (!role) {
-        return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+      if (pathname.startsWith("/admin")) {
+        if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+        if (role !== "ADMIN" && role !== "SUPERADMIN") return NextResponse.redirect(url("/", MAIN_DOMAIN));
+        const adminPath = pathname === "/admin" ? "/" : pathname;
+        return NextResponse.redirect(url(adminPath, ADMIN_DOMAIN));
       }
-      if (role !== "ADMIN" && role !== "SUPERADMIN") {
-        return NextResponse.redirect(url("/", MAIN_DOMAIN));
-      }
-      const adminPath = pathname === "/admin" ? "/" : pathname;
-      return NextResponse.redirect(url(adminPath, ADMIN_DOMAIN));
     }
 
     return NextResponse.next();

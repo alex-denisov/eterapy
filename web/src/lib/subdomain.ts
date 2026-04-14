@@ -1,16 +1,15 @@
 /**
  * Subdomain-aware URL helpers for eTerapy routing.
  *
- * Domains:
- *   eterapy.com        — guest landing, login, register, public pages
- *   app.eterapy.com    — client & practitioner cabinet
- *   admin.eterapy.com  — admin panel
+ * In production (VPS): uses app.eterapy.com / admin.eterapy.com
+ * In local dev: uses eterapy.com for everything (Docker Desktop TLS limitation)
  */
 
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
 const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
-// Always use HTTPS in production and when behind Nginx proxy
+// Use subdomains only in production
+const USE_SUBDOMAINS = process.env.NODE_ENV === "production";
 const PROTOCOL = "https://";
 
 /** Paths that belong on the main (guest) domain */
@@ -27,6 +26,7 @@ const ADMIN_PATHS = ["/admin"];
  * Return the correct domain for a given pathname.
  */
 function domainForPath(pathname: string, role?: string): string {
+  if (!USE_SUBDOMAINS) return MAIN_DOMAIN;
   if (ADMIN_PATHS.some(p => pathname.startsWith(p))) {
     return ADMIN_DOMAIN;
   }
@@ -41,11 +41,13 @@ function domainForPath(pathname: string, role?: string): string {
  * using the correct subdomain based on the path pattern.
  */
 export function appUrl(pathname: string): string {
-  return `${PROTOCOL}${APP_DOMAIN}${pathname}`;
+  const domain = USE_SUBDOMAINS ? APP_DOMAIN : MAIN_DOMAIN;
+  return `${PROTOCOL}${domain}${pathname}`;
 }
 
 export function adminUrl(pathname: string): string {
-  return `${PROTOCOL}${ADMIN_DOMAIN}${pathname}`;
+  const domain = USE_SUBDOMAINS ? ADMIN_DOMAIN : MAIN_DOMAIN;
+  return `${PROTOCOL}${domain}${pathname}`;
 }
 
 export function mainUrl(pathname: string): string {
@@ -62,20 +64,22 @@ export function subdomainUrl(pathname: string, role?: string): string {
 }
 
 /**
- * Cabinet-specific helper — always returns app.eterapy.com URL.
- * Use this in components that are already on the app subdomain.
+ * Cabinet-specific helper — always returns app.eterapy.com URL in production,
+ * eterapy.com in local dev.
  */
 export function cabinetUrl(pathname: string): string {
-  if (pathname.startsWith("/")) return `${PROTOCOL}${APP_DOMAIN}${pathname}`;
-  return `${PROTOCOL}${APP_DOMAIN}/${pathname}`;
+  const domain = USE_SUBDOMAINS ? APP_DOMAIN : MAIN_DOMAIN;
+  if (pathname.startsWith("/")) return `${PROTOCOL}${domain}${pathname}`;
+  return `${PROTOCOL}${domain}/${pathname}`;
 }
 
 /**
- * Admin-specific helper — always returns admin.eterapy.com URL.
+ * Admin-specific helper
  */
 export function adminPanelUrl(pathname: string): string {
-  if (pathname.startsWith("/")) return `${PROTOCOL}${ADMIN_DOMAIN}${pathname}`;
-  return `${PROTOCOL}${ADMIN_DOMAIN}/${pathname}`;
+  const domain = USE_SUBDOMAINS ? ADMIN_DOMAIN : MAIN_DOMAIN;
+  if (pathname.startsWith("/")) return `${PROTOCOL}${domain}${pathname}`;
+  return `${PROTOCOL}${domain}/${pathname}`;
 }
 
 /**
