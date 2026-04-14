@@ -21,7 +21,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [bookingCount, recentBookings] = await Promise.all([
+  const [bookingCount, recentBookings, userData] = await Promise.all([
     db.booking.count({ where: { clientId: userId } }),
     db.booking.findMany({
       where: { clientId: userId },
@@ -29,7 +29,10 @@ export default async function ClientCabinetPage() {
       take: 3,
       include: { practitioner: { include: { user: { select: { name: true } } } } },
     }),
+    db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
   ]);
+
+  const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
 
@@ -84,7 +87,7 @@ export default async function ClientCabinetPage() {
         <Card className="border-border/40 bg-card/50">
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Баланс</p>
-            <p className="mt-1 font-heading text-3xl font-bold tabular-nums">0 ₽</p>
+            <p className="mt-1 font-heading text-3xl font-bold tabular-nums">{balanceRub.toLocaleString("ru")} ₽</p>
             <Link href={appUrl("/cabinet/billing")} className="mt-1 block text-xs text-primary hover:underline">
               Пополнить →
             </Link>
