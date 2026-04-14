@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
 import { sanitizeName, sanitizeEmail, validateName, validateEmail, getNameError, getEmailError } from "@/lib/validation";
+import { appUrl } from "@/lib/subdomain";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -87,7 +88,7 @@ export default function RegisterPage() {
           <p className="text-sm text-muted-foreground">
             Не получили? Проверьте папку «Спам».
           </p>
-          <Link href="/cabinet" className="block text-sm text-primary hover:underline">
+          <Link href={appUrl("/cabinet")} className="block text-sm text-primary hover:underline">
             Перейти в кабинет →
           </Link>
         </div>

@@ -3,21 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { appUrl } from "@/lib/subdomain";
 
 const TOOLS_NAV = [
-  { href: "/cabinet/modalities", icon: "✦", label: "Все направления" },
-  { href: "/cabinet/modalities/tarot", icon: "🃏", label: "Расклад Таро" },
-  { href: "/cabinet/modalities/checkin", icon: "💬", label: "Рефлексия" },
-  { href: "/cabinet/modalities/horoscope", icon: "🌙", label: "Гороскоп" },
-  { href: "/cabinet/modalities/numerology", icon: "🔢", label: "Нумерология" },
-  { href: "/cabinet/modalities/natal", icon: "⭐", label: "Натальная карта" },
-  { href: "/cabinet/modalities/guide", icon: "📖", label: "Личный гид" },
+  { href: appUrl("/cabinet/modalities"), icon: "✦", label: "Все направления" },
+  { href: appUrl("/cabinet/modalities/tarot"), icon: "🃏", label: "Расклад Таро" },
+  { href: appUrl("/cabinet/modalities/checkin"), icon: "💬", label: "Рефлексия" },
+  { href: appUrl("/cabinet/modalities/horoscope"), icon: "🌙", label: "Гороскоп" },
+  { href: appUrl("/cabinet/modalities/numerology"), icon: "🔢", label: "Нумерология" },
+  { href: appUrl("/cabinet/modalities/natal"), icon: "⭐", label: "Натальная карта" },
+  { href: appUrl("/cabinet/modalities/guide"), icon: "📖", label: "Личный гид" },
 ];
 
 const CLIENT_LINKS = [
-  { href: "/cabinet", icon: "🏠", label: "Кабинет" },
-  { href: "/cabinet/bookings", icon: "📅", label: "Мои записи" },
-  { href: "/cabinet/billing", icon: "💳", label: "Баланс и оплата" },
+  { href: appUrl("/cabinet"), icon: "🏠", label: "Кабинет" },
+  { href: appUrl("/cabinet/bookings"), icon: "📅", label: "Мои записи" },
+  { href: appUrl("/cabinet/billing"), icon: "💳", label: "Баланс и оплата" },
 ];
 
 export function ToolsLayoutClient({
@@ -126,7 +127,7 @@ export function ToolsLayoutClient({
       {/* Mobile: top back link */}
       <div className="md:hidden fixed top-16 left-0 right-0 z-30 border-b border-border/20 bg-navy/90 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-4 py-2">
-          <Link href="/cabinet/modalities" className="text-sm text-muted-foreground hover:text-foreground">← Направления</Link>
+          <Link href={appUrl("/cabinet/modalities")} className="text-sm text-muted-foreground hover:text-foreground">← Направления</Link>
           <span className="text-muted-foreground/30">|</span>
           <Link href={cabinetHref} className="text-sm text-muted-foreground hover:text-foreground">Кабинет</Link>
         </div>

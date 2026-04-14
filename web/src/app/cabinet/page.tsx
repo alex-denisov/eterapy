@@ -7,6 +7,7 @@ import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookingsList } from "@/components/bookings-list";
+import { appUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
   const session = await auth();
@@ -72,7 +73,7 @@ export default async function ClientCabinetPage() {
                 Осталось {remainingSessions} бесплатн{remainingSessions === 1 ? "ая" : remainingSessions < 5 ? "ые" : "ых"} сесси{remainingSessions === 1 ? "я" : remainingSessions < 5 ? "и" : "й"} в этом месяце
               </p>
             ) : (
-              <Link href="/cabinet/billing" className="mt-2 inline-block text-xs text-primary hover:underline">
+              <Link href={appUrl("/cabinet/billing")} className="mt-2 inline-block text-xs text-primary hover:underline">
                 Купить дополнительные сессии →
               </Link>
             )}
@@ -84,7 +85,7 @@ export default async function ClientCabinetPage() {
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Баланс</p>
             <p className="mt-1 font-heading text-3xl font-bold tabular-nums">0 ₽</p>
-            <Link href="/cabinet/billing" className="mt-1 block text-xs text-primary hover:underline">
+            <Link href={appUrl("/cabinet/billing")} className="mt-1 block text-xs text-primary hover:underline">
               Пополнить →
             </Link>
           </CardContent>
@@ -95,7 +96,7 @@ export default async function ClientCabinetPage() {
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">Направления</p>
             <p className="mt-1 font-heading text-3xl font-bold tabular-nums">6</p>
-            <Link href="/cabinet/modalities" className="mt-1 block text-xs text-primary hover:underline">
+            <Link href={appUrl("/cabinet/modalities")} className="mt-1 block text-xs text-primary hover:underline">
               Открыть →
             </Link>
           </CardContent>
@@ -106,12 +107,12 @@ export default async function ClientCabinetPage() {
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold">Ближайшие записи</h2>
-          <Link href="/cabinet/bookings" className="text-sm text-primary hover:underline">Все записи →</Link>
+          <Link href={appUrl("/cabinet/bookings")} className="text-sm text-primary hover:underline">Все записи →</Link>
         </div>
         {recentBookings.length === 0 ? (
           <div className="rounded-xl border border-border/30 bg-card/20 p-6 text-center">
             <p className="text-muted-foreground text-sm">Нет предстоящих записей</p>
-            <Link href="/cabinet/practitioners" className="mt-3 inline-block text-sm text-primary hover:underline">
+            <Link href={appUrl("/cabinet/practitioners")} className="mt-3 inline-block text-sm text-primary hover:underline">
               Найти практика →
             </Link>
           </div>
@@ -136,7 +137,7 @@ export default async function ClientCabinetPage() {
       <div>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-heading text-lg font-semibold">Направления</h2>
-          <Link href="/cabinet/modalities" className="text-sm text-primary hover:underline">Все →</Link>
+          <Link href={appUrl("/cabinet/modalities")} className="text-sm text-primary hover:underline">Все →</Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[

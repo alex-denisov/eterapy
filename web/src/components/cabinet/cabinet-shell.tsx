@@ -17,6 +17,7 @@ import {
   LogOut,
   HelpCircle,
 } from "lucide-react";
+import { appUrl, mainUrl } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -25,23 +26,23 @@ interface NavItem {
 }
 
 const CLIENT_NAV: NavItem[] = [
-  { href: "/cabinet", icon: LayoutDashboard, label: "Обзор" },
-  { href: "/cabinet/practitioners", icon: Users, label: "Практики" },
-  { href: "/cabinet/bookings", icon: CalendarDays, label: "Мои записи" },
-  { href: "/cabinet/modalities", icon: Compass, label: "Направления" },
-  { href: "/cabinet/action-history", icon: History, label: "История действий" },
-  { href: "/cabinet/billing", icon: Wallet, label: "Баланс и оплата" },
-  { href: "/help", icon: HelpCircle, label: "Помощь" },
+  { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Обзор" },
+  { href: appUrl("/cabinet/practitioners"), icon: Users, label: "Практики" },
+  { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Мои записи" },
+  { href: appUrl("/cabinet/modalities"), icon: Compass, label: "Направления" },
+  { href: appUrl("/cabinet/action-history"), icon: History, label: "История действий" },
+  { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Баланс и оплата" },
+  { href: mainUrl("/help"), icon: HelpCircle, label: "Помощь" },
 ];
 
 const PRACTITIONER_NAV: NavItem[] = [
-  { href: "/cabinet/practitioner", icon: LayoutDashboard, label: "Обзор" },
-  { href: "/cabinet/practitioner/profile", icon: UserPen, label: "Мой профиль" },
-  { href: "/cabinet/practitioner/schedule", icon: CalendarDays, label: "Расписание" },
-  { href: "/cabinet/practitioner/clients", icon: Users, label: "Клиенты" },
-  { href: "/cabinet/practitioner/reviews", icon: Star, label: "Отзывы" },
-  { href: "/cabinet/practitioner/earnings", icon: Banknote, label: "Выплаты" },
-  { href: "/help", icon: HelpCircle, label: "Помощь" },
+  { href: appUrl("/cabinet/practitioner"), icon: LayoutDashboard, label: "Обзор" },
+  { href: appUrl("/cabinet/practitioner/profile"), icon: UserPen, label: "Мой профиль" },
+  { href: appUrl("/cabinet/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
+  { href: appUrl("/cabinet/practitioner/clients"), icon: Users, label: "Клиенты" },
+  { href: appUrl("/cabinet/practitioner/reviews"), icon: Star, label: "Отзывы" },
+  { href: appUrl("/cabinet/practitioner/earnings"), icon: Banknote, label: "Выплаты" },
+  { href: mainUrl("/help"), icon: HelpCircle, label: "Помощь" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -66,8 +67,10 @@ export function CabinetShell({
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
 
   function isActive(href: string) {
-    if (href === "/cabinet" || href === "/cabinet/practitioner") return pathname === href;
-    return pathname.startsWith(href);
+    // Extract pathname from the full URL
+    const itemPath = new URL(href).pathname;
+    if (itemPath === "/cabinet" || itemPath === "/cabinet/practitioner") return pathname === itemPath;
+    return pathname.startsWith(itemPath);
   }
 
   // Для мобильного навигации — первые 4 пункта + Баланс (5)
@@ -114,9 +117,9 @@ export function CabinetShell({
         {/* Divider + Settings + Sign out */}
         <div className="mt-2 border-t border-border/20 pt-2">
           <Link
-            href="/cabinet/settings"
+            href={appUrl("/cabinet/settings")}
             className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors w-full ${
-              isActive("/cabinet/settings")
+              isActive(appUrl("/cabinet/settings"))
                 ? "bg-primary/10 text-primary font-medium"
                 : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
             }`}
@@ -125,7 +128,7 @@ export function CabinetShell({
             Настройки
           </Link>
           <button
-            onClick={() => signOut({ callbackUrl: "/" })}
+            onClick={() => signOut({ callbackUrl: mainUrl("/") })}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors w-full"
           >
             <LogOut className="h-4 w-4 shrink-0" />

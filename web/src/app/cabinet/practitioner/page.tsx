@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { PageContainer } from "@/components/ui/page-container";
+import { appUrl } from "@/lib/subdomain";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
@@ -107,7 +109,7 @@ export default async function PractitionerCabinetPage() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-heading text-lg font-semibold">Новые запросы</h2>
-            <Link href="/cabinet/practitioner/clients" className="text-sm text-primary hover:underline">Все →</Link>
+            <Link href={appUrl("/cabinet/practitioner/clients")} className="text-sm text-primary hover:underline">Все →</Link>
           </div>
           {pendingBookings.length === 0 ? (
             <p className="text-sm text-muted-foreground">Нет новых запросов</p>
@@ -141,7 +143,7 @@ export default async function PractitionerCabinetPage() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-heading text-lg font-semibold">Подтверждённые</h2>
-            <Link href="/cabinet/practitioner/clients" className="text-sm text-primary hover:underline">Все →</Link>
+            <Link href={appUrl("/cabinet/practitioner/clients")} className="text-sm text-primary hover:underline">Все →</Link>
           </div>
           {upcomingBookings.length === 0 ? (
             <p className="text-sm text-muted-foreground">Нет подтверждённых сессий</p>
@@ -181,12 +183,12 @@ export default async function PractitionerCabinetPage() {
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-heading text-lg font-semibold">Ближайшие слоты</h2>
-            <Link href="/cabinet/practitioner/schedule" className="text-sm text-primary hover:underline">Расписание →</Link>
+            <Link href={appUrl("/cabinet/practitioner/schedule")} className="text-sm text-primary hover:underline">Расписание →</Link>
           </div>
           {practitioner.slots.length === 0 ? (
             <div>
               <p className="text-sm text-muted-foreground">Нет свободных слотов</p>
-              <Link href="/cabinet/practitioner/schedule" className="mt-2 inline-block text-sm text-primary hover:underline">
+              <Link href={appUrl("/cabinet/practitioner/schedule")} className="mt-2 inline-block text-sm text-primary hover:underline">
                 Добавить слоты →
               </Link>
             </div>

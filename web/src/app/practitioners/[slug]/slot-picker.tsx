@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/auth-modal";
+import { appUrl } from "@/lib/subdomain";
 
 interface PriceRate {
   durationMin: number;
@@ -177,7 +178,7 @@ export function SlotPicker({
         <p className="text-3xl mb-2">✅</p>
         <p className="font-heading text-lg font-semibold text-green-400">Запись оформлена!</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Статус в <a href="/cabinet/bookings" className="text-primary hover:underline">кабинете</a>.
+          Статус в <a href={appUrl("/cabinet/bookings")} className="text-primary hover:underline">кабинете</a>.
         </p>
       </div>
     );

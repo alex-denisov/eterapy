@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { appUrl } from "@/lib/subdomain";
 import {
   Dialog,
   DialogContent,
@@ -79,7 +80,7 @@ export default function AIHistoryPage() {
     <div className="px-6 py-8 max-w-3xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-heading text-2xl font-bold">История действий</h1>
-        <Link href="/cabinet/modalities" className="text-sm text-primary hover:underline">
+        <Link href={appUrl("/cabinet/modalities")} className="text-sm text-primary hover:underline">
           Открыть направления →
         </Link>
       </div>
@@ -119,7 +120,7 @@ export default function AIHistoryPage() {
             icon="✦"
             title="Нет сохранённых сессий"
             description="Результаты направлений сохраняются автоматически"
-            actionHref="/cabinet/modalities"
+            actionHref={appUrl("/cabinet/modalities")}
             actionLabel="Попробовать направления"
           />
         ) : (
@@ -159,7 +160,7 @@ export default function AIHistoryPage() {
             icon="🃏"
             title="Нет полных раскладов"
             description="Полные расклады появляются здесь после оплаты"
-            actionHref="/cabinet/modalities"
+            actionHref={appUrl("/cabinet/modalities")}
             actionLabel="Перейти к инструментам"
           />
         ) : (

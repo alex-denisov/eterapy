@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { appUrl } from "@/lib/subdomain";
 
 interface BreadcrumbItem {
   label: string;
@@ -18,7 +19,7 @@ interface BreadcrumbProps {
 export function Breadcrumb({ items, className }: BreadcrumbProps) {
   return (
     <nav aria-label="Навигация" className={cn("flex items-center gap-1 text-sm text-muted-foreground mb-6", className)}>
-      <Link href="/cabinet" className="hover:text-foreground transition-colors">
+      <Link href={appUrl("/cabinet")} className="hover:text-foreground transition-colors">
         <Home className="h-4 w-4" />
         <span className="sr-only">Главная</span>
       </Link>

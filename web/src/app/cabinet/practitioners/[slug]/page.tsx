@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
 import { SlotPicker } from "@/app/practitioners/[slug]/slot-picker";
+import { appUrl } from "@/lib/subdomain";
 
 async function getPractitioner(slug: string) {
   return db.practitioner.findFirst({
@@ -47,9 +48,9 @@ export default async function CabinetPractitionerPage({ params }: { params: Prom
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumbs */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/cabinet" className="hover:text-foreground">Кабинет</Link>
+        <Link href={appUrl("/cabinet")} className="hover:text-foreground">Кабинет</Link>
         <span>/</span>
-        <Link href="/cabinet/practitioners" className="hover:text-foreground">Практики</Link>
+        <Link href={appUrl("/cabinet/practitioners")} className="hover:text-foreground">Практики</Link>
         <span>/</span>
         <span className="text-foreground">{p.user.name}</span>
       </nav>

@@ -7,6 +7,7 @@ import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { sessionCounter } from "@/lib/session-counter";
+import { appUrl } from "@/lib/subdomain";
 
 /**
  * Проверяет авторизацию и лимит сессий перед запуском инструмента.
@@ -71,7 +72,7 @@ export function LimitExceededBlock() {
       </div>
 
       <div className="mt-6 flex flex-col items-center gap-3">
-        <Link href="/cabinet/billing" className={cn(buttonVariants())}>
+        <Link href={appUrl("/cabinet/billing")} className={cn(buttonVariants())}>
           Выбрать тариф
         </Link>
         <p className="text-xs text-muted-foreground">

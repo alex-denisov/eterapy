@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
+import { appUrl } from "@/lib/subdomain";
 
 interface Booking {
   id: string;
@@ -89,7 +90,7 @@ export function BookingsList({ role = "client" }: { role?: "client" | "practitio
         {role === "client" ? (
           <>
             <p>Нет записей к практикам.</p>
-            <Link href="/cabinet/practitioners" className="mt-2 block text-sm text-primary hover:underline">
+            <Link href={appUrl("/cabinet/practitioners")} className="mt-2 block text-sm text-primary hover:underline">
               Найти практика →
             </Link>
           </>

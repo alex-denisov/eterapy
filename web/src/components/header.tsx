@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
+import { appUrl, adminUrl, mainUrl } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 
 const GUEST_NAV = [
@@ -47,21 +48,21 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
   const rub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   const menuItems = role === "PRACTITIONER" ? [
-    { href: "/cabinet/practitioner", label: "Мой кабинет" },
-    { href: "/cabinet/practitioner/schedule", label: "Расписание" },
-    { href: "/cabinet/settings", label: "Настройки" },
+    { href: appUrl("/cabinet/practitioner"), label: "Мой кабинет" },
+    { href: appUrl("/cabinet/practitioner/schedule"), label: "Расписание" },
+    { href: appUrl("/cabinet/settings"), label: "Настройки" },
   ] : role === "SUPERADMIN" ? [
-    { href: "/admin", label: "Панель управления" },
-    { href: "/admin/metrics", label: "Метрики" },
-    { href: "/admin/pricing", label: "Цены и тарифы" },
-    { href: "/admin/settings", label: "Настройки" },
+    { href: adminUrl("/admin"), label: "Панель управления" },
+    { href: adminUrl("/admin/metrics"), label: "Метрики" },
+    { href: adminUrl("/admin/pricing"), label: "Цены и тарифы" },
+    { href: adminUrl("/admin/settings"), label: "Настройки" },
   ] : role === "ADMIN" ? [
-    { href: "/admin", label: "Панель администратора" },
-    { href: "/admin/settings", label: "Настройки" },
+    { href: adminUrl("/admin"), label: "Панель администратора" },
+    { href: adminUrl("/admin/settings"), label: "Настройки" },
   ] : [
-    { href: "/cabinet", label: "Кабинет" },
-    { href: "/cabinet/billing", label: "Оплата и тарифы" },
-    { href: "/cabinet/settings", label: "Настройки и безопасность" },
+    { href: appUrl("/cabinet"), label: "Кабинет" },
+    { href: appUrl("/cabinet/billing"), label: "Оплата и тарифы" },
+    { href: appUrl("/cabinet/settings"), label: "Настройки и безопасность" },
   ];
 
   const allItems = [...menuItems, { href: "#signout", label: "Выйти из аккаунта" } as const];
@@ -177,7 +178,7 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
             <button
               role="menuitem"
               tabIndex={focusedIndex === allItems.length - 1 ? 0 : -1}
-              onClick={() => { closeAndFocus(); signOut({ callbackUrl: "/" }); }}
+              onClick={() => { closeAndFocus(); signOut({ callbackUrl: mainUrl("/") }); }}
               onFocus={() => setFocusedIndex(allItems.length - 1)}
               className="w-full min-h-[44px] px-4 py-2.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-white/5 hover:text-foreground focus:bg-white/5 focus:text-foreground"
             >
@@ -211,7 +212,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href={!isAuthenticated ? "/" : role === "PRACTITIONER" ? "/cabinet/practitioner" : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet"}
+        <Link href={!isAuthenticated ? mainUrl("/") : role === "PRACTITIONER" ? appUrl("/cabinet/practitioner") : (role === "ADMIN" || role === "SUPERADMIN") ? adminUrl("/admin") : appUrl("/cabinet")}
           className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.svg" alt="ETerapy" width={28} height={28} />
           <span className="font-heading text-xl font-bold text-primary">ETerapy</span>
@@ -238,7 +239,7 @@ export function Header() {
             <>
               {/* Help link */}
               <Link
-                href="/help"
+                href={mainUrl("/help")}
                 className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5"
               >
                 Помощь
@@ -258,11 +259,11 @@ export function Header() {
             </>
           ) : !isLoading ? (
             <>
-              <Link href="/login"
+              <Link href={mainUrl("/login")}
                 className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden text-muted-foreground md:inline-flex")}>
                 Войти
               </Link>
-              <Link href="/register" className={cn(buttonVariants({ size: "sm" }))}>
+              <Link href={mainUrl("/register")} className={cn(buttonVariants({ size: "sm" }))}>
                 Начать бесплатно
               </Link>
             </>
@@ -297,21 +298,21 @@ export function Header() {
             ))}
             {isAuthenticated && session ? (
               <>
-                <Link href="/help" onClick={() => setMobileOpen(false)}
+                <Link href={mainUrl("/help")} onClick={() => setMobileOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   Помощь
                 </Link>
                 <div className="px-3 py-2 text-sm text-primary">💰 {balanceRub} ₽</div>
-                <button onClick={() => { setMobileOpen(false); signOut({ callbackUrl: "/" }); }}
+                <button onClick={() => { setMobileOpen(false); signOut({ callbackUrl: mainUrl("/") }); }}
                   className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
                   Выйти
                 </button>
               </>
             ) : !isLoading ? (
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
-                <Link href="/login" onClick={() => setMobileOpen(false)}
+                <Link href={mainUrl("/login")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
-                <Link href="/register" onClick={() => setMobileOpen(false)}
+                <Link href={mainUrl("/register")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Регистрация</Link>
               </div>
             ) : null}

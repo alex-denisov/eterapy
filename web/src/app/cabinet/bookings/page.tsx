@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { ReviewModal } from "@/components/review-modal";
+import { appUrl } from "@/lib/subdomain";
 import { ComplaintModal } from "@/components/complaint-modal";
 import { getBookingStatus } from "@/lib/booking-status";
 import {
@@ -306,7 +307,7 @@ export default function ClientBookingsPage() {
       {bookings.length === 0 && (
         <div className="rounded-xl border border-border/30 bg-card/20 py-12 text-center">
           <p className="text-muted-foreground">Нет записей к практикам</p>
-          <Link href="/cabinet/practitioners" className="mt-4 inline-block text-sm text-primary hover:underline">
+          <Link href={appUrl("/cabinet/practitioners")} className="mt-4 inline-block text-sm text-primary hover:underline">
             Найти практика →
           </Link>
         </div>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { toast } from "sonner";
+import { appUrl, mainUrl } from "@/lib/subdomain";
 
 interface PaywallScreenProps {
   balanceKopecks?: number;
@@ -96,13 +97,13 @@ export function PaywallScreen({ balanceKopecks, fullPriceKopecks, onClose }: Pay
             {/* Кнопки действий */}
             <div className="mt-4 flex flex-col gap-2">
               {isBalancePaywall ? (
-                <Link href="/cabinet/billing">
+                <Link href={appUrl("/cabinet/billing")}>
                   <Button className="w-full" variant="default">
                     Пополнить на {deficitRub} ₽
                   </Button>
                 </Link>
               ) : (
-                <Link href="/register">
+                <Link href={mainUrl("/register")}>
                   <Button className="w-full" variant="default">
                     Зарегистрироваться бесплатно
                   </Button>

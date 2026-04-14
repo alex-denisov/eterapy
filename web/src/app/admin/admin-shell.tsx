@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type { Permission } from "@/lib/moderator-permissions";
+import { adminUrl, mainUrl } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -16,24 +17,24 @@ interface NavItem {
 }
 
 const BASE_NAV: NavItem[] = [
-  { href: "/admin",              icon: "🏠", label: "Обзор" },
-  { href: "/admin/clients",      icon: "👤", label: "Клиенты",      permission: "clients.view" },
-  { href: "/admin/practitioners",icon: "🔮", label: "Практики",     permission: "practitioners.view" },
-  { href: "/admin/applications", icon: "📋", label: "Заявки",        permission: "practitioners.view" },
-  { href: "/admin/bookings",     icon: "📅", label: "Бронирования" },
-  { href: "/admin/complaints",   icon: "⚠️", label: "Жалобы" },
+  { href: adminUrl("/admin"),              icon: "🏠", label: "Обзор" },
+  { href: adminUrl("/admin/clients"),      icon: "👤", label: "Клиенты",      permission: "clients.view" },
+  { href: adminUrl("/admin/practitioners"),icon: "🔮", label: "Практики",     permission: "practitioners.view" },
+  { href: adminUrl("/admin/applications"), icon: "📋", label: "Заявки",        permission: "practitioners.view" },
+  { href: adminUrl("/admin/bookings"),     icon: "📅", label: "Бронирования" },
+  { href: adminUrl("/admin/complaints"),   icon: "⚠️", label: "Жалобы" },
 ];
 
 const SUPERADMIN_EXTRA: NavItem[] = [
-  { href: "/admin/metrics",    icon: "📊", label: "Метрики",          superadminOnly: true },
-  { href: "/admin/pricing",    icon: "💰", label: "Цены и тарифы",    superadminOnly: true },
-  { href: "/admin/moderators", icon: "🛡️", label: "Модераторы",       superadminOnly: true },
-  { href: "/admin/users",      icon: "🗂️", label: "Все пользователи", superadminOnly: true },
-  { href: "/admin/payments",   icon: "💳", label: "Выплаты",          superadminOnly: true },
-  { href: "/admin/files",      icon: "📁", label: "Файлы",            superadminOnly: true },
-  { href: "/admin/sessions",   icon: "🔐", label: "Сессии",           superadminOnly: true },
-  { href: "/admin/logs",       icon: "📋", label: "Логи",             superadminOnly: true },
-  { href: "/admin/system",     icon: "⚙️", label: "Система",          superadminOnly: true },
+  { href: adminUrl("/admin/metrics"),    icon: "📊", label: "Метрики",          superadminOnly: true },
+  { href: adminUrl("/admin/pricing"),    icon: "💰", label: "Цены и тарифы",    superadminOnly: true },
+  { href: adminUrl("/admin/moderators"), icon: "🛡️", label: "Модераторы",       superadminOnly: true },
+  { href: adminUrl("/admin/users"),      icon: "🗂️", label: "Все пользователи", superadminOnly: true },
+  { href: adminUrl("/admin/payments"),   icon: "💳", label: "Выплаты",          superadminOnly: true },
+  { href: adminUrl("/admin/files"),      icon: "📁", label: "Файлы",            superadminOnly: true },
+  { href: adminUrl("/admin/sessions"),   icon: "🔐", label: "Сессии",           superadminOnly: true },
+  { href: adminUrl("/admin/logs"),       icon: "📋", label: "Логи",             superadminOnly: true },
+  { href: adminUrl("/admin/system"),     icon: "⚙️", label: "Система",          superadminOnly: true },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -65,8 +66,9 @@ export function AdminShell({
   });
 
   function isActive(href: string) {
-    if (href === "/admin") return pathname === "/admin";
-    return pathname.startsWith(href);
+    const itemPath = new URL(href).pathname;
+    if (itemPath === "/admin") return pathname === itemPath;
+    return pathname.startsWith(itemPath);
   }
 
   return (
@@ -98,12 +100,12 @@ export function AdminShell({
         </nav>
 
         <div className="border-t border-border/20 pt-2 mt-2">
-          <Link href="/admin/settings"
+          <Link href={adminUrl("/admin/settings")}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors">
             <span className="text-base">⚙️</span>
             Настройки
           </Link>
-          <button onClick={() => signOut({ callbackUrl: "/" })}
+          <button onClick={() => signOut({ callbackUrl: mainUrl("/") })}
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors">
             <span className="text-base">🚪</span>
             Выйти

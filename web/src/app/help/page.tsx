@@ -6,6 +6,7 @@ import { CabinetShell } from "@/components/cabinet/cabinet-shell";
 import { PageContainer } from "@/components/ui/page-container";
 import { Accordion } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
+import { appUrl, mainUrl } from "@/lib/subdomain";
 import {
   Rocket,
   Sparkles,
@@ -108,7 +109,7 @@ const FAQ_CATEGORIES: FAQCategory[] = [
           <p>
             На платформе доступны: Таро, Астрология (натальная карта), Нумерология, Гороскопы,
             Рефлексия и другие направления. Полный список — в разделе
-            <Link href="/cabinet/modalities" className="text-primary hover:underline"> «Направления»</Link>
+            <Link href={appUrl("/cabinet/modalities")} className="text-primary hover:underline"> «Направления»</Link>
             {" "}в вашем кабинете.
           </p>
         ),
@@ -139,7 +140,7 @@ const FAQ_CATEGORIES: FAQCategory[] = [
         title: "Как отменить бронирование?",
         content: (
           <p>
-            Отменить бронирование можно в разделе <Link href="/cabinet/bookings" className="text-primary hover:underline">«Мои записи»</Link>.
+            Отменить бронирование можно в разделе <Link href={appUrl("/cabinet/bookings")} className="text-primary hover:underline">«Мои записи»</Link>.
             Нажмите на бронирование и выберите «Отменить». Обратите внимание: отмена возможна
             не позднее чем за 24 часа до начала сессии. При отмене менее чем за 24 часа
             стоимость сессии может быть удержана.
@@ -167,7 +168,7 @@ const FAQ_CATEGORIES: FAQCategory[] = [
         title: "Как пополнить баланс?",
         content: (
           <p>
-            Пополнить баланс можно в разделе <Link href="/cabinet/billing" className="text-primary hover:underline">«Баланс и оплата»</Link>.
+            Пополнить баланс можно в разделе <Link href={appUrl("/cabinet/billing")} className="text-primary hover:underline">«Баланс и оплата»</Link>.
             Доступные способы оплаты: банковская карта, СБП. После оплаты средства зачисляются
             на внутренний баланс и могут быть использованы для оплаты сессий.
           </p>
