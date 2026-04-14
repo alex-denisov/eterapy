@@ -59,6 +59,7 @@ model User {
   aiSessionLogs       AISessionLog[]
   balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
   transactions        Transaction[]
+  savedCards          SavedCard[]
 
   @@map("users")
 }
@@ -558,6 +559,25 @@ enum ToolType {
   NUMEROLOGY
   HOROSCOPE
   GUIDE
+}
+
+// ─── Saved Cards (YooKassa Payment Methods) ───────────────────────────────────
+
+model SavedCard {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentMethodId String   @unique  // YooKassa payment_method.id
+  last4           String            // last 4 digits
+  brand           String            // "visa", "mastercard", "mir"
+  expiryMonth     String            // "01"–"12"
+  expiryYear      String            // "2026"
+  cardholderName  String?           // optional, from user input
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@map("saved_cards")
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

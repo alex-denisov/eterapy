@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2, CreditCard, Trash2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Wallet, Plus, ArrowUpRight, Clock, Shield, Loader2, CreditCard, Trash2, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -14,45 +14,89 @@ const FEATURES = [
   "Без привязки карты",
 ];
 
-interface LinkedCard {
+interface SavedCard {
   id: string;
+  paymentMethodId: string;
   last4: string;
   brand: string;
-  expiryMonth: number;
-  expiryYear: number;
+  expiryMonth: string;
+  expiryYear: string;
+  cardholderName: string | null;
   isDefault: boolean;
+  createdAt: string;
 }
 
-const MOCK_CARDS: LinkedCard[] = [];
+function getBrandIcon(brand: string) {
+  const b = brand.toLowerCase();
+  if (b.includes("visa")) return "VISA";
+  if (b.includes("master")) return "MC";
+  if (b.includes("mir")) return "МИР";
+  return "CARD";
+}
+
+function getBrandGradient(brand: string) {
+  const b = brand.toLowerCase();
+  if (b.includes("visa")) return "from-blue-500/20 to-blue-600/5";
+  if (b.includes("master")) return "from-orange-500/20 to-red-600/5";
+  if (b.includes("mir")) return "from-green-500/20 to-emerald-600/5";
+  return "from-primary/20 to-primary/5";
+}
 
 export default function BillingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [balanceRub, setBalanceRub] = useState("0.00");
   const [topUpAmount, setTopUpAmount] = useState(500);
   const [creatingPayment, setCreatingPayment] = useState(false);
+  const [savingCard, setSavingCard] = useState(false);
+  const [payingWithSaved, setPayingWithSaved] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
 
   // Cards
-  const [linkedCards, setLinkedCards] = useState<LinkedCard[]>(MOCK_CARDS);
-  const [showCardForm, setShowCardForm] = useState(false);
+  const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
+  const [loadingCards, setLoadingCards] = useState(true);
 
-  // Загрузка баланса
-  useEffect(() => {
+  // Load balance, cards, transactions
+  const loadData = useCallback(() => {
     if (!session) return;
+
     fetch("/api/billing/balance")
       .then(r => r.json())
       .then(d => { setBalanceRub(d.balanceRub); })
       .catch(() => {});
 
-    // Загрузка истории
+    fetch("/api/billing/cards")
+      .then(r => r.json())
+      .then(d => { setLinkedCards(d.cards ?? []); })
+      .catch(() => {})
+      .finally(() => { setLoadingCards(false); });
+
     fetch("/api/billing/transactions")
       .then(r => r.json())
       .then(d => { setTransactions(d.transactions ?? []); })
       .catch(() => {});
   }, [session]);
 
-  // Создание платежа → редирект на ЮKassa
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Check for payment result from URL params
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payment = searchParams?.get("payment");
+    if (payment === "success") {
+      toast.success("Баланс успешно пополнен!");
+      loadData();
+      router.replace("/cabinet/billing");
+    } else if (payment === "card-saved") {
+      toast.success("Карта успешно привязана!");
+      loadData();
+      router.replace("/cabinet/billing");
+    }
+  }, [searchParams, loadData, router]);
+
+  // Standard top-up (redirect to YooKassa)
   async function handleTopUp() {
     setCreatingPayment(true);
     try {
@@ -77,9 +121,78 @@ export default function BillingPage() {
     }
   }
 
-  function handleRemoveCard(cardId: string) {
-    setLinkedCards((prev) => prev.filter((c) => c.id !== cardId));
-    toast.success("Карта удалена");
+  // Link a new card (create payment with save_payment_method)
+  async function handleLinkCard() {
+    setSavingCard(true);
+    try {
+      const res = await fetch("/api/billing/save-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountKopecks: 100, // 1 ₽ for card linking
+          description: "Привязка банковской карты",
+        }),
+      });
+      const data = await res.json();
+      if (data.confirmationUrl) {
+        window.location.href = data.confirmationUrl;
+      } else {
+        toast.error(data.error || "Ошибка привязки карты");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setSavingCard(false);
+    }
+  }
+
+  // Remove a saved card
+  async function handleRemoveCard(cardId: string) {
+    try {
+      const res = await fetch(`/api/billing/cards?cardId=${cardId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setLinkedCards(prev => prev.filter(c => c.id !== cardId));
+        toast.success("Карта удалена");
+      } else {
+        toast.error(data.error || "Ошибка удаления карты");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    }
+  }
+
+  // Quick top-up with saved card
+  async function handlePayWithSavedCard(cardId: string) {
+    setPayingWithSaved(true);
+    try {
+      const res = await fetch("/api/billing/pay-with-saved-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId,
+          amountKopecks: topUpAmount * 100,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        if (data.paid) {
+          toast.success(`Баланс пополнен на ${topUpAmount} ₽`);
+          loadData();
+        } else {
+          toast.success("Платёж обрабатывается");
+          loadData();
+        }
+      } else {
+        toast.error(data.error || "Ошибка платежа");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setPayingWithSaved(false);
+    }
   }
 
   if (status === "loading") return null;
@@ -89,7 +202,7 @@ export default function BillingPage() {
     <div className="px-4 py-8 sm:px-6 max-w-3xl mx-auto space-y-6">
       <h1 className="font-heading text-2xl font-bold">Баланс и оплата</h1>
 
-      {/* Баланс — крупно, сверху */}
+      {/* Баланс */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
@@ -112,7 +225,7 @@ export default function BillingPage() {
         </CardContent>
       </Card>
 
-      {/* Что включено в бесплатный план */}
+      {/* План */}
       <Card className="border-border/40 bg-card/50">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -127,6 +240,85 @@ export default function BillingPage() {
               </li>
             ))}
           </ul>
+        </CardContent>
+      </Card>
+
+      {/* Привязанные карты */}
+      <Card className="border-border/40 bg-card/50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <h2 className="font-semibold">Банковские карты</h2>
+              {linkedCards.length > 0 && (
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  {linkedCards.length}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleLinkCard}
+              disabled={savingCard}
+              className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+            >
+              {savingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              Привязать карту
+            </button>
+          </div>
+
+          {/* Список карт */}
+          {loadingCards ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : linkedCards.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              <p>Нет привязанных карт</p>
+              <p className="text-xs mt-1 text-muted-foreground/70">Привяжите карту для быстрых платежей</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {linkedCards.map((card) => (
+                <div key={card.id} className="flex items-center justify-between rounded-lg border border-border/20 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-9 w-12 items-center justify-center rounded bg-gradient-to-br ${getBrandGradient(card.brand)} border border-border/20`}>
+                      <span className="text-[10px] font-bold text-muted-foreground tracking-wider">{getBrandIcon(card.brand)}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">•••• {card.last4}</p>
+                        {card.isDefault && (
+                          <span className="flex items-center gap-1 text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            <Check className="h-3 w-3" />
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {card.expiryMonth}/{card.expiryYear.slice(-2)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handlePayWithSavedCard(card.id)}
+                      disabled={payingWithSaved}
+                      className="rounded-md px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+                    >
+                      {payingWithSaved ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Пополнить"}
+                    </button>
+                    <button
+                      onClick={() => handleRemoveCard(card.id)}
+                      className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Удалить карту"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -149,89 +341,43 @@ export default function BillingPage() {
               </button>
             ))}
           </div>
-          <button
-            onClick={handleTopUp}
-            disabled={creatingPayment || !topUpAmount}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount} ₽<ArrowUpRight className="h-4 w-4" /></>}
-          </button>
+
+          {/* Если есть привязанные карты — показать кнопку быстрой оплаты */}
+          {linkedCards.length > 0 ? (
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  const defaultCard = linkedCards.find(c => c.isDefault) ?? linkedCards[0];
+                  handlePayWithSavedCard(defaultCard.id);
+                }}
+                disabled={payingWithSaved}
+                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {payingWithSaved ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount} ₽ с •••• {linkedCards.find(c => c.isDefault)?.last4 ?? linkedCards[0].last4}<ArrowUpRight className="h-4 w-4" /></>}
+              </button>
+              <button
+                onClick={handleTopUp}
+                disabled={creatingPayment}
+                className="w-full rounded-xl border border-border/30 py-3 text-sm font-medium hover:border-primary/30 transition-colors disabled:opacity-50"
+              >
+                {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : null}
+                Другой способ оплаты
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleTopUp}
+              disabled={creatingPayment || !topUpAmount}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount} ₽<ArrowUpRight className="h-4 w-4" /></>}
+            </button>
+          )}
+
           <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground/70">
             <Shield className="h-3 w-3" />
             Безопасная оплата через ЮKassa
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Банковские карты */}
-      <Card className="border-border/40 bg-card/50">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              <h2 className="font-semibold">Банковские карты</h2>
-            </div>
-            <button
-              onClick={() => setShowCardForm(!showCardForm)}
-              className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs text-primary hover:bg-primary/20 transition-colors"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Привязать карту
-            </button>
-          </div>
-
-          {/* Форма привязки карты — заглушка */}
-          {showCardForm && (
-            <div className="mb-4 rounded-lg border border-border/30 bg-muted/30 p-4 space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Привязка карт скоро будет доступна через ЮKassa. Пока используйте оплату по QR-коду.
-              </p>
-              <button
-                onClick={() => setShowCardForm(false)}
-                className="rounded-md border border-border/30 px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Закрыть
-              </button>
-            </div>
-          )}
-
-          {/* Список карт */}
-          {linkedCards.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground text-sm">
-              <p>Нет привязанных карт</p>
-              <p className="text-xs mt-1 text-muted-foreground/70">Привяжите карту для быстрых платежей</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {linkedCards.map((card) => (
-                <div key={card.id} className="flex items-center justify-between rounded-lg border border-border/20 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-12 items-center justify-center rounded bg-gradient-to-br from-primary/20 to-primary/5">
-                      <CreditCard className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{card.brand} •••• {card.last4}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {String(card.expiryMonth).padStart(2, "0")}/{String(card.expiryYear).slice(-2)}
-                        {card.isDefault && <span className="ml-2 text-primary">По умолчанию</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveCard(card.id)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    title="Удалить карту"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground/70 mt-4">
-            Привязка карт скоро будет доступна через ЮKassa. Пока используйте оплату по QR-коду.
-          </p>
         </CardContent>
       </Card>
 

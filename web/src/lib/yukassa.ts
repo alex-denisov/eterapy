@@ -35,6 +35,35 @@ export interface CreateRefundOptions {
   amountKopecks: number;
 }
 
+export interface CreatePaymentWithSaveMethodOptions {
+  amountKopecks: number;
+  customerId: string; // user id to link saved payment method
+  returnUrl: string;
+  description: string;
+}
+
+export interface YooKassaPaymentMethod {
+  id: string;
+  saved: boolean;
+  title: string; // e.g. "Bank card *1234"
+  status: "waiting_for_capture" | "succeeded" | "canceled";
+  card?: {
+    first6: string;
+    last4: string;
+    expiry_month: string;
+    expiry_year: string;
+    card_type: string; // "Visa", "MasterCard", "Mir"
+    card_product?: {
+      code: string;
+      name: string;
+    };
+    issuer_country?: string;
+    issuer_name?: string;
+  };
+  customer_id: string;
+  metadata?: Record<string, string>;
+}
+
 // ─── Config ────────────────────────────────────────────────────────────────────
 
 const SHOP_ID = process.env.YUKASSA_SHOP_ID;
@@ -160,5 +189,90 @@ export async function createRefund({
         currency: "RUB",
       },
     },
+  });
+}
+
+/**
+ * Create a payment with save_payment_method=true.
+ * After successful payment, the payment method is saved and can be reused.
+ * Returns payment with confirmationUrl for redirect.
+ */
+export async function createPaymentWithSaveMethod({
+  amountKopecks,
+  customerId,
+  returnUrl,
+  description,
+}: CreatePaymentWithSaveMethodOptions): Promise<YukassaPayment> {
+  const amountValue = kopecksToRUB(amountKopecks);
+
+  return yukassaFetch<YukassaPayment>("/payments", {
+    method: "POST",
+    body: {
+      amount: {
+        value: amountValue,
+        currency: "RUB",
+      },
+      confirmation: {
+        type: "redirect",
+        return_url: returnUrl,
+      },
+      capture: true,
+      save_payment_method: true,
+      customer_id: customerId,
+      description,
+      metadata: {
+        customerId,
+        saveMethod: "true",
+      },
+    },
+  });
+}
+
+/**
+ * Create a payment using a previously saved payment method.
+ * This is a quick charge without redirect — the payment is captured immediately.
+ */
+export async function createPaymentFromSavedMethod(
+  paymentMethodId: string,
+  amountKopecks: number,
+  customerId: string,
+  description: string
+): Promise<YukassaPayment> {
+  const amountValue = kopecksToRUB(amountKopecks);
+
+  return yukassaFetch<YukassaPayment>("/payments", {
+    method: "POST",
+    body: {
+      amount: {
+        value: amountValue,
+        currency: "RUB",
+      },
+      capture: true,
+      payment_method_id: paymentMethodId,
+      customer_id: customerId,
+      description,
+    },
+  });
+}
+
+/**
+ * List saved payment methods for a customer.
+ */
+export async function listSavedPaymentMethods(
+  customerId: string
+): Promise<{ payment_methods: YooKassaPaymentMethod[] }> {
+  return yukassaFetch<{ payment_methods: YooKassaPaymentMethod[] }>(
+    `/payment_methods?customer_id=${encodeURIComponent(customerId)}`
+  );
+}
+
+/**
+ * Delete (unbind) a saved payment method.
+ */
+export async function deleteSavedPaymentMethod(
+  paymentMethodId: string
+): Promise<{ status: string }> {
+  return yukassaFetch<{ status: string }>(`/payment_methods/${paymentMethodId}`, {
+    method: "DELETE",
   });
 }

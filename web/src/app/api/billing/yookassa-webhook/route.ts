@@ -26,18 +26,43 @@ export async function POST(req: NextRequest) {
 
   switch (event) {
     case "payment.succeeded":
-      await db.$transaction([
+      await db.$transaction(async (tx) => {
         // Обновляем статус транзакции
-        db.transaction.update({
+        await tx.transaction.update({
           where: { id: transaction.id },
           data: { status: "SUCCEEDED" },
-        }),
+        });
         // Начисляем баланс пользователю
-        db.user.update({
+        await tx.user.update({
           where: { id: transaction.userId },
           data: { balance: { increment: transaction.amount } },
-        }),
-      ]);
+        });
+
+        // Если платёж был с сохранением карты — сохраняем payment method
+        const pm = payment.payment_method;
+        if (pm?.saved && pm.card) {
+          const existing = await tx.savedCard.findUnique({
+            where: { paymentMethodId: pm.id },
+          });
+          if (!existing) {
+            // Если это первая карта — делаем её default
+            const existingCardsCount = await tx.savedCard.count({
+              where: { userId: transaction.userId },
+            });
+            await tx.savedCard.create({
+              data: {
+                userId: transaction.userId,
+                paymentMethodId: pm.id,
+                last4: pm.card.last4,
+                brand: normalizeBrand(pm.card.card_type),
+                expiryMonth: pm.card.expiry_month,
+                expiryYear: pm.card.expiry_year,
+                isDefault: existingCardsCount === 0,
+              },
+            });
+          }
+        }
+      });
       break;
 
     case "payment.canceled":
@@ -52,4 +77,12 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+function normalizeBrand(cardType: string): string {
+  const t = cardType.toLowerCase();
+  if (t.includes("visa")) return "Visa";
+  if (t.includes("master")) return "MasterCard";
+  if (t.includes("mir")) return "Mir";
+  return cardType;
 }
