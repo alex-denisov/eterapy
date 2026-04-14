@@ -17,6 +17,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         sameSite: "lax" as const,
         path: "/",
         secure: process.env.NODE_ENV === "production",
+        // Share across subdomains in production; in dev use current domain
         domain: process.env.NODE_ENV === "production" ? ".eterapy.com" : undefined,
       },
     },

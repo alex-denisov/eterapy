@@ -8,8 +8,9 @@
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
 const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
-// Use subdomains only in production
-const USE_SUBDOMAINS = process.env.NODE_ENV === "production";
+// Use subdomains only when explicitly enabled via env var.
+// Set NEXT_PUBLIC_USE_SUBDOMAINS=true on VPS; leave unset for local dev.
+const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
 const PROTOCOL = "https://";
 
 /** Paths that belong on the main (guest) domain */

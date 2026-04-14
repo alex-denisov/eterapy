@@ -32,8 +32,9 @@ const APP_DOMAIN = "app.eterapy.com";
 const ADMIN_DOMAIN = "admin.eterapy.com";
 const PROTOCOL = "https://";
 
-// Use subdomains only in production (VPS). In local dev, everything stays on eterapy.com.
-const USE_SUBDOMAINS = process.env.NODE_ENV === "production";
+// Use subdomains only when explicitly enabled via env var.
+// Set NEXT_PUBLIC_USE_SUBDOMAINS=true on VPS; leave unset for local dev.
+const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
 
 function url(path: string, domain: string) {
   return `${PROTOCOL}${domain}${path}`;

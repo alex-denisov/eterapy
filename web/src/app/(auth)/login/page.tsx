@@ -33,12 +33,30 @@ export default function LoginPage() {
     if (err === "CredentialsSignin") toast.error("Неверный email или пароль");
   }, [searchParams]);
 
-  // Редирект, если уже залогинен
+  // Редирект, если уже залогинен — ОДИН РАЗ при монтировании
   useEffect(() => {
+    let cancelled = false;
     if (status === "authenticated") {
       router.replace("/cabinet");
+      return;
     }
-  }, [status, router]);
+    // Fallback: always check session via fetch — works even when useSession is stale
+    fetch("/api/auth/session")
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled && data.user?.id) {
+          const role = data.user.role;
+          const dest = role === "PRACTITIONER" ? "/cabinet/practitioner"
+            : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet";
+          // Only redirect if we're still on login/register page
+          if (window.location.pathname === "/login" || window.location.pathname === "/register") {
+            window.location.href = dest;
+          }
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []); // empty deps — run only once on mount
 
   async function doLogin(loginEmail: string, loginPassword: string, redirectTo: string) {
     setLoading(true);
