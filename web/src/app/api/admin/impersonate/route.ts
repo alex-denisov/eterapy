@@ -2,10 +2,8 @@
  * GET /api/admin/impersonate?userId=xxx
  *
  * Войти в кабинет как другой пользователь (только SUPERADMIN).
- * Использует NextAuth signIn с специальным флагом в сессии.
- * Открывает /api/admin/impersonate-session → устанавливает cookie с временной сессией.
- *
- * Реализация: генерируем одноразовый токен в БД, открываем /api/auth/impersonate/[token].
+ * Генерирует одноразовый токен и перенаправляет на страницу имперсонации.
+ * Сессия суперадмина НЕ затрагивается — кабинет открывается в новой вкладке.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -44,27 +42,10 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Сохраняем текущую сессию администратора в backup cookie
-  const sessionCookie =
-    req.cookies.get("__Secure-authjs.session-token")?.value ??
-    req.cookies.get("authjs.session-token")?.value ??
-    "";
-  
   await logAudit(session.user.id, "IMPERSONATE", userId, `Вход как ${target.name} (${target.email})`);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
   const redirectUrl = `${baseUrl}/api/admin/impersonate/${token}`;
 
-  const response = NextResponse.redirect(redirectUrl);
-  
-  // Сохраняем backup session cookie для последующего восстановления
-  response.cookies.set("admin-session-backup", sessionCookie, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 2, // 2 часа — достаточно для имперсонации
-  });
-  
-  return response;
+  return NextResponse.redirect(redirectUrl);
 }

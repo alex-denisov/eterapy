@@ -1,23 +1,30 @@
 /**
  * GET /api/admin/impersonate/[token]
  *
- * Принимает одноразовый токен, рендерит HTML-страницу с авто-POST формой
- * на /api/auth/callback/credentials — NextAuth создаёт реальную JWT-сессию
- * от имени целевого пользователя.
+ * Принимает одноразовый токен имперсонации.
+ * Создаёт JWT-сессию для целевого пользователя и устанавливает её
+ * ТОЛЬКО для app.eterapy.com — сессия суперадмина на admin.eterapy.com
+ * остаётся нетронутой.
  *
  * Безопасность:
- * - Токен удаляется при первом открытии страницы (в authorize callback)
+ * - Токен удаляется при первом открытии (one-time use)
  * - TTL: 5 минут
- * - Только суперадмин может сгенерировать токен (проверяется в /api/admin/impersonate GET)
- * - AuditLog записан при генерации токена
+ * - AuditLog записан при генерации
  */
 import { NextRequest, NextResponse } from "next/server";
+import { encode } from "next-auth/jwt";
 import db from "@/lib/db";
+
+const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
+const APP_DOMAIN = "app.eterapy.com";
+const COOKIE_NAME =
+  process.env.NODE_ENV === "production"
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
-  // Проверяем что токен существует и не истёк (не удаляем — это делает authorize callback)
   const record = await db.telegramLinkToken.findUnique({
     where: { token: `imp:${token}` },
   });
@@ -35,66 +42,61 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     );
   }
 
+  // One-time use: delete immediately
+  await db.telegramLinkToken.delete({ where: { token: `imp:${token}` } });
+
   const user = await db.user.findUnique({
     where: { id: record.userId },
     select: { id: true, name: true, email: true, role: true },
   });
 
   if (!user) {
-    return NextResponse.redirect(new URL("/admin/clients", req.url));
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+    return NextResponse.redirect(new URL("/admin/clients", baseUrl));
   }
 
   const cabinet = user.role === "PRACTITIONER" ? "/cabinet/practitioner" : "/cabinet";
+  const appUrl = USE_SUBDOMAINS ? `https://${APP_DOMAIN}` : (process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com");
 
-  // CSRF token — читаем из cookie запроса.
-  // NextAuth v5 использует __Host- префикс на HTTPS, authjs.csrf-token на HTTP (dev).
-  const rawCsrf =
-    req.cookies.get("__Host-authjs.csrf-token")?.value ??
-    req.cookies.get("authjs.csrf-token")?.value ??
-    "";
-  const csrfToken: string = decodeURIComponent(rawCsrf).split("|")[0] ?? "";
-
-  // Авто-сабмит формы — NextAuth обрабатывает POST /api/auth/callback/credentials
-  // и устанавливает session cookie, затем редиректит на callbackUrl.
-  const html = `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <title>Вход как ${user.name}</title>
-  <style>
-    body{font-family:sans-serif;background:#0e1628;color:#e8e0d4;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
-    .card{background:#1a2438;border:1px solid #2a3448;border-radius:16px;padding:40px;max-width:440px;text-align:center}
-    h2{color:#c9a96e;margin-bottom:8px}
-    p{color:#8899aa;font-size:14px;margin:8px 0}
-    .email{background:#0e1628;border-radius:8px;padding:12px;font-family:monospace;font-size:13px;margin:16px 0;color:#e8e0d4}
-    .spinner{display:inline-block;width:24px;height:24px;border:3px solid #2a3448;border-top-color:#c9a96e;border-radius:50%;animation:spin 0.8s linear infinite;margin:16px 0}
-    @keyframes spin{to{transform:rotate(360deg)}}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>👤 Вход как пользователь</h2>
-    <div class="email">
-      <strong>${user.name}</strong><br>
-      ${user.email}<br>
-      <small style="color:#556677">роль: ${user.role}</small>
-    </div>
-    <div class="spinner"></div>
-    <p>Переключаем сессию...</p>
-    <form id="f" method="POST" action="/api/auth/callback/credentials" style="display:none">
-      <input name="csrfToken" value="${csrfToken}">
-      <input name="impersonateToken" value="${token}">
-      <input name="callbackUrl" value="${cabinet}">
-    </form>
-  </div>
-  <script>
-    // Небольшая задержка чтобы страница успела отрисоваться
-    setTimeout(() => document.getElementById('f').submit(), 300);
-  </script>
-</body>
-</html>`;
-
-  return new NextResponse(html, {
-    headers: { "Content-Type": "text/html; charset=utf-8" },
+  // Build the JWT payload in the same shape NextAuth v5 uses
+  const now = Math.floor(Date.now() / 1000);
+  const sessionToken = await encode({
+    token: {
+      sub: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      iat: now,
+      exp: now + 60 * 60 * 2, // 2 hours
+      jti: crypto.randomUUID(),
+    },
+    secret: process.env.AUTH_SECRET!,
+    salt: COOKIE_NAME,
   });
+
+  const response = NextResponse.redirect(new URL(cabinet, appUrl));
+
+  // Set session cookie scoped only to app.eterapy.com (not .eterapy.com)
+  // This preserves the superadmin's session on admin.eterapy.com
+  response.cookies.set(COOKIE_NAME, sessionToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 2,
+    // Only set domain when using subdomains; otherwise use current domain
+    ...(USE_SUBDOMAINS ? { domain: APP_DOMAIN } : {}),
+  });
+
+  // Flag for impersonation banner in cabinet layout
+  response.cookies.set("admin-impersonating", "1", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 2,
+    ...(USE_SUBDOMAINS ? { domain: APP_DOMAIN } : {}),
+  });
+
+  return response;
 }

@@ -1,63 +1,51 @@
 /**
  * GET /api/admin/stop-impersonate
- * 
- * Восстанавливает оригинальную сессию администратора из backup cookie.
- * Удаляет backup cookie после восстановления.
+ *
+ * Завершает режим имперсонации:
+ * - Удаляет session cookie для app.eterapy.com
+ * - Удаляет флаг admin-impersonating
+ * - Перенаправляет обратно в админ-панель
+ *
+ * Сессия суперадмина на admin.eterapy.com никогда не трогалась, поэтому
+ * восстановление не требуется.
  */
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  const backupCookie = req.cookies.get("admin-session-backup");
+const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
+const APP_DOMAIN = "app.eterapy.com";
+const ADMIN_DOMAIN = "admin.eterapy.com";
+const COOKIE_NAME =
+  process.env.NODE_ENV === "production"
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+export async function GET(_req: NextRequest) {
+  const adminUrl = USE_SUBDOMAINS
+    ? `https://${ADMIN_DOMAIN}/admin`
+    : (process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com") + "/admin";
 
-  if (!backupCookie) {
-    return NextResponse.redirect(new URL("/admin", baseUrl));
+  const response = NextResponse.redirect(adminUrl);
+
+  const expiredCookieOpts = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: 0,
+  };
+
+  // Delete impersonation session cookie (scoped to app subdomain)
+  if (USE_SUBDOMAINS) {
+    response.cookies.set(COOKIE_NAME, "", { ...expiredCookieOpts, domain: APP_DOMAIN });
+    response.cookies.set("admin-impersonating", "", { ...expiredCookieOpts, domain: APP_DOMAIN });
+  } else {
+    response.cookies.set(COOKIE_NAME, "", expiredCookieOpts);
+    response.cookies.set("admin-impersonating", "", expiredCookieOpts);
   }
 
-  // Сначала удаляем текущую (impersonated) сессию
-  // Затем восстанавливаем backup
-  const response = NextResponse.redirect(new URL("/admin", baseUrl));
+  // Clean up old backup cookies if they exist (legacy support)
+  response.cookies.set("admin-session-backup", "", expiredCookieOpts);
+  response.cookies.set("__Host-admin-session-backup", "", expiredCookieOpts);
 
-  response.cookies.set("__Secure-authjs.session-token", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
-  response.cookies.set("authjs.session-token", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
-  
-  // Восстанавливаем обе возможные cookie — только одна будет активной
-  response.cookies.set("__Secure-authjs.session-token", backupCookie.value, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  response.cookies.set("authjs.session-token", backupCookie.value, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  
-  // Удаляем backup cookie
-  response.cookies.set("admin-session-backup", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
-  
   return response;
 }

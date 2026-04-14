@@ -11,6 +11,7 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   // Проверяем режим имперсонации
   const cookieStore = await cookies();
   const isImpersonating =
+    cookieStore.has("admin-impersonating") ||
     cookieStore.has("admin-session-backup") ||
     cookieStore.has("__Host-admin-session-backup");
 
