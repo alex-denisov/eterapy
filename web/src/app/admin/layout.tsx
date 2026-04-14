@@ -6,7 +6,8 @@ import { getUserPermissions } from "@/lib/moderator-permissions";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   const role = session?.user?.role ?? "";
-  if (!session || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
+  if (!session) redirect("/login");
+  if (!["ADMIN", "SUPERADMIN"].includes(role)) redirect("/");
 
   const permissions = await getUserPermissions(session.user!.id!, role);
 

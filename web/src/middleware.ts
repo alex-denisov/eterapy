@@ -74,16 +74,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url("/cabinet", MAIN_DOMAIN));
     }
 
-    // In production: redirect /cabinet → app subdomain, /admin → admin subdomain
-    // In local dev: allow /cabinet and /admin on main domain
-    if (USE_SUBDOMAINS) {
-      if (pathname.startsWith("/cabinet")) {
-        if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
-        return NextResponse.redirect(url(pathname, APP_DOMAIN));
-      }
-      if (pathname.startsWith("/admin")) {
-        if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
-        if (role !== "ADMIN" && role !== "SUPERADMIN") return NextResponse.redirect(url("/", MAIN_DOMAIN));
+    // Protect /cabinet and /admin — redirect unauthenticated/unauthorized users
+    if (pathname.startsWith("/cabinet")) {
+      if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+      if (USE_SUBDOMAINS) return NextResponse.redirect(url(pathname, APP_DOMAIN));
+    }
+    if (pathname.startsWith("/admin")) {
+      if (!role) return NextResponse.redirect(url("/login", MAIN_DOMAIN));
+      if (role !== "ADMIN" && role !== "SUPERADMIN") return NextResponse.redirect(url("/", MAIN_DOMAIN));
+      if (USE_SUBDOMAINS) {
         const adminPath = pathname === "/admin" ? "/" : pathname;
         return NextResponse.redirect(url(adminPath, ADMIN_DOMAIN));
       }
