@@ -5,7 +5,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
-import { appUrl } from "@/lib/subdomain";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
@@ -34,7 +34,7 @@ const STATUS_LABELS = {
 
 export default async function PractitionerCabinetPage() {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await getPractitionerData(session.user!.id!);

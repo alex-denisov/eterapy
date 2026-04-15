@@ -68,7 +68,7 @@ export function UserActionPanel({
 
   async function loadSessions() {
     setLoadingSessions(true);
-    const res = await fetch(`/api/bookings?userId=${user.id}&role=admin`);
+    const res = await fetch(`/api/bookings?role=admin&userId=${user.id}`);
     const d = await res.json();
     setSessions(d.bookings ?? []);
     setLoadingSessions(false);

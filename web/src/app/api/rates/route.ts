@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 
+const VALID_DURATIONS = [15, 30, 45, 60, 90, 120];
+
 /** GET /api/rates?practitionerId=xxx — тарифная сетка */
 export async function GET(req: NextRequest) {
   const practitionerId = req.nextUrl.searchParams.get("practitionerId");
@@ -36,26 +38,42 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 
-  const VALID_DURATIONS = [15, 30, 45, 60, 90, 120];
-
   // Fetch existing rates to preserve prices when practitioner toggles without price
   const existingRates = await db.priceRate.findMany({
     where: { practitionerId },
   });
   const existingMap = new Map(existingRates.map(r => [r.durationMin, r]));
-
-  for (const rate of rates) {
-    if (!VALID_DURATIONS.includes(rate.durationMin)) continue;
-
-    const existing = existingMap.get(rate.durationMin);
-    // If practitioner didn't send a price (0), use existing price
-    const priceRub = rate.priceRub > 0 ? rate.priceRub : (existing?.priceRub ?? 0);
-
-    await db.priceRate.upsert({
-      where: { practitionerId_durationMin: { practitionerId, durationMin: rate.durationMin } },
-      create: { practitionerId, durationMin: rate.durationMin, priceRub, enabled: rate.enabled },
-      update: { priceRub, enabled: rate.enabled },
+  const resolvedRates = rates
+    .filter(rate => VALID_DURATIONS.includes(rate.durationMin))
+    .map(rate => {
+      const existing = existingMap.get(rate.durationMin);
+      const priceRub = rate.priceRub > 0 ? rate.priceRub : (existing?.priceRub ?? 0);
+      return { durationMin: rate.durationMin, priceRub, enabled: rate.enabled };
     });
+
+  const rateOperations = resolvedRates.map(rate => db.priceRate.upsert({
+    where: { practitionerId_durationMin: { practitionerId, durationMin: rate.durationMin } },
+    create: { practitionerId, durationMin: rate.durationMin, priceRub: rate.priceRub, enabled: rate.enabled },
+    update: { priceRub: rate.priceRub, enabled: rate.enabled },
+  }));
+
+  const canonicalRate = resolvedRates
+    .filter(rate => rate.enabled && rate.priceRub > 0)
+    .sort((a, b) => a.durationMin - b.durationMin)[0];
+
+  if (canonicalRate) {
+    await db.$transaction([
+      ...rateOperations,
+      db.practitioner.update({
+        where: { id: practitionerId },
+        data: {
+          pricePerSession: canonicalRate.priceRub,
+          sessionDuration: canonicalRate.durationMin,
+        },
+      }),
+    ]);
+  } else {
+    await db.$transaction(rateOperations);
   }
 
   return NextResponse.json({ ok: true });

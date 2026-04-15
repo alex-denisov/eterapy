@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { randomBytes } from "crypto";
 import { logAudit } from "@/lib/audit";
+import { adminUrl } from "@/lib/subdomain";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -44,8 +45,9 @@ export async function GET(req: NextRequest) {
 
   await logAudit(session.user.id, "IMPERSONATE", userId, `Вход как ${target.name} (${target.email})`);
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
-  const redirectUrl = `${baseUrl}/api/admin/impersonate/${token}`;
+  // Redirect to the token URL on the same host.
+  // The token handler sets the impersonated session and backs up the admin session.
+  const redirectUrl = adminUrl(`/api/admin/impersonate/${token}`);
 
-  return NextResponse.redirect(redirectUrl);
+  return NextResponse.redirect(new URL(redirectUrl, req.url));
 }

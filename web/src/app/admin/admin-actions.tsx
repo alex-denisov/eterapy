@@ -20,10 +20,13 @@ export function AdminActions({ practitionerId }: { practitionerId: string }) {
         setDone(status === "ACTIVE" ? "approved" : "rejected");
         toast.success(status === "ACTIVE" ? "Практик одобрен" : "Заявка отклонена");
       } else {
-        toast.error(data.error);
+        toast.error(data.error ?? "Не удалось обновить статус");
       }
-    } catch { toast.error("Ошибка"); }
-    finally { setLoading(false); }
+    } catch {
+      toast.error("Ошибка");
+    } finally {
+      setLoading(false);
+    }
   }
 
   if (done === "approved") return <span className="text-xs text-green-400">✓ Одобрен</span>;

@@ -4,6 +4,8 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { encode as jwtEncode } from "next-auth/jwt";
 import { sanitizeName, sanitizeEmail } from "@/lib/validation";
+import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
+import { homePathForRole } from "@/lib/subdomain";
 
 interface VKTokenData {
   access_token: string;
@@ -220,18 +222,19 @@ export async function POST(request: NextRequest) {
         role: dbUser.role,
       },
       secret: process.env.AUTH_SECRET!,
-      salt: "__Secure-authjs.session-token",
+      salt: SESSION_COOKIE_NAME,
       maxAge: 60 * 60 * 24 * 30,
     });
 
-    const response = NextResponse.json({ success: true, redirect: "/cabinet" });
+    const response = NextResponse.json({ success: true, redirect: homePathForRole(dbUser.role) });
     response.cookies.set({
-      name: "__Secure-authjs.session-token",
+      name: SESSION_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      domain: SHARED_COOKIE_DOMAIN,
       maxAge: 60 * 60 * 24 * 30,
     });
     return response;

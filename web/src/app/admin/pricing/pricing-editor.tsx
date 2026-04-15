@@ -38,20 +38,11 @@ const PLAN_KEYS = [
   { key: "session.min_price",      label: "Минимальная цена сессии ₽",   type: "number" },
 ];
 
-const SPECIALTY_FILTER = [
-  { value: "", label: "Все специализации" },
-  { value: "TAROT", label: "Таро" },
-  { value: "ASTROLOGY", label: "Астрология" },
-  { value: "NUMEROLOGY", label: "Нумерология" },
-];
-
 export function PricingEditor({ initialSettings, practitioners }: Props) {
   const [settings, setSettings] = useState<Record<string, string>>(initialSettings);
   const [savingSettings, setSavingSettings] = useState(false);
   const [testMode, setTestMode] = useState(initialSettings["session.test_mode"] === "true");
   const [expandedPrac, setExpandedPrac] = useState<string | null>(null);
-  const [filterSpecialty, setFilterSpecialty] = useState("");
-  const [filterMinRating, setFilterMinRating] = useState(0);
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkRates, setBulkRates] = useState<Record<number, { price: number; enabled: boolean }>>({
     15: { price: 0, enabled: false },
@@ -94,10 +85,10 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
         priceRub: v.price,
         enabled: v.enabled,
       }));
-      const res = await fetch("/api/rates", {
+      const res = await fetch(`/api/admin/practitioners/${p.id}/rates`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ practitionerId: p.id, rates }),
+        body: JSON.stringify({ rates }),
       });
       if ((await res.json()).ok) ok++;
     }
@@ -105,11 +96,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     setApplyingBulk(false);
   }
 
-  // Фильтрация практиков
-  const filteredPractitioners = practitioners.filter(p => {
-    if (filterMinRating > 0) { /* no rating data here, skip */ }
-    return true;
-  });
+  const filteredPractitioners = practitioners;
 
   const DURATION_LABELS: Record<number, string> = {
     15: "15 мин", 30: "30 мин", 45: "45 мин", 60: "1 час", 90: "1.5 ч", 120: "2 ч",

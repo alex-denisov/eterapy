@@ -2,9 +2,9 @@
  * GET /api/admin/impersonate/[token]
  *
  * Принимает одноразовый токен имперсонации.
- * Создаёт JWT-сессию для целевого пользователя и устанавливает её
- * ТОЛЬКО для app.eterapy.com — сессия суперадмина на admin.eterapy.com
- * остаётся нетронутой.
+ * Создаёт JWT-сессию для целевого пользователя.
+ * Текущая сессия (суперадмина) сохраняется в admin-session-backup cookie
+ * и восстанавливается при /api/admin/stop-impersonate.
  *
  * Безопасность:
  * - Токен удаляется при первом открытии (one-time use)
@@ -14,13 +14,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encode } from "next-auth/jwt";
 import db from "@/lib/db";
+import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
+import { adminUrl, appUrl } from "@/lib/subdomain";
 
-const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
-const APP_DOMAIN = "app.eterapy.com";
-const COOKIE_NAME =
-  process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
+const BACKUP_COOKIE_NAME = "admin-session-backup";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -51,12 +48,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   });
 
   if (!user) {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
-    return NextResponse.redirect(new URL("/admin/clients", baseUrl));
+    return NextResponse.redirect(new URL(adminUrl("/admin/clients"), req.url));
   }
 
   const cabinet = user.role === "PRACTITIONER" ? "/cabinet/practitioner" : "/cabinet";
-  const appUrl = USE_SUBDOMAINS ? `https://${APP_DOMAIN}` : (process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com");
 
   // Build the JWT payload in the same shape NextAuth v5 uses
   const now = Math.floor(Date.now() / 1000);
@@ -71,31 +66,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
       jti: crypto.randomUUID(),
     },
     secret: process.env.AUTH_SECRET!,
-    salt: COOKIE_NAME,
+    salt: SESSION_COOKIE_NAME,
   });
 
-  const response = NextResponse.redirect(new URL(cabinet, appUrl));
+  const response = NextResponse.redirect(new URL(appUrl(cabinet), req.url));
 
-  // Set session cookie scoped only to app.eterapy.com (not .eterapy.com)
-  // This preserves the superadmin's session on admin.eterapy.com
-  response.cookies.set(COOKIE_NAME, sessionToken, {
+  const cookieOpts = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
+    domain: SHARED_COOKIE_DOMAIN,
     maxAge: 60 * 60 * 2,
-    // Only set domain when using subdomains; otherwise use current domain
-    ...(USE_SUBDOMAINS ? { domain: APP_DOMAIN } : {}),
-  });
+  };
+
+  // Save the current admin session so it can be restored later
+  const currentSession = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (currentSession) {
+    response.cookies.set(BACKUP_COOKIE_NAME, currentSession, cookieOpts);
+  }
+
+  // Set impersonated session
+  response.cookies.set(SESSION_COOKIE_NAME, sessionToken, cookieOpts);
 
   // Flag for impersonation banner in cabinet layout
   response.cookies.set("admin-impersonating", "1", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 2,
-    ...(USE_SUBDOMAINS ? { domain: APP_DOMAIN } : {}),
+    ...cookieOpts,
   });
 
   return response;

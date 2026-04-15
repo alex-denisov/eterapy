@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { encode as jwtEncode } from "next-auth/jwt";
+import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -46,10 +47,6 @@ export async function GET(request: NextRequest) {
 
   await logAudit(dbUser.id, "LOGIN", undefined, "OAuth: vk");
 
-  const cookieName = process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
-
   const token = await jwtEncode({
     token: {
       name: dbUser.name,
@@ -61,19 +58,19 @@ export async function GET(request: NextRequest) {
       role: dbUser.role,
     },
     secret: process.env.AUTH_SECRET!,
-    salt: cookieName,
+    salt: SESSION_COOKIE_NAME,
     maxAge: 60 * 60 * 24 * 30,
   });
 
   const response = NextResponse.redirect(new URL(callbackUrl, url.origin));
   response.cookies.set({
-    name: cookieName,
+    name: SESSION_COOKIE_NAME,
     value: token,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    domain: process.env.NODE_ENV === "production" ? ".eterapy.com" : undefined,
+    domain: SHARED_COOKIE_DOMAIN,
     maxAge: 60 * 60 * 24 * 30,
   });
 

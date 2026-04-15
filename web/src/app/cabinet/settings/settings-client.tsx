@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import Image from "next/image";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
 import { sanitizeName, getNameError, sanitizeText } from "@/lib/validation";
+import { logoutUrl } from "@/lib/subdomain";
 
 type Tab = "profile" | "extended" | "security" | "notifications" | "danger";
 
@@ -104,7 +105,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
     try {
       const res = await fetch("/api/auth/deactivate", { method: "POST" });
       const d = await res.json();
-      if (d.ok) await signOut({ callbackUrl: "/" });
+      if (d.ok) window.location.href = logoutUrl();
       else toast.error(d.error || "Ошибка");
     } catch { toast.error("Ошибка"); }
     finally { setDeleting(false); }

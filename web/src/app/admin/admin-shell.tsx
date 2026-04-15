@@ -2,13 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import {
+  BarChart3,
+  BookOpenText,
+  BriefcaseBusiness,
+  CalendarDays,
+  FolderOpen,
+  Gauge,
+  LayoutDashboard,
+  MessageSquareWarning,
+  Settings,
+  Shield,
+  SlidersHorizontal,
+  Users,
+  UserRound,
+  WalletCards,
+  Wrench,
+  LogOut,
+  FileText,
+} from "lucide-react";
 import type { Permission } from "@/lib/moderator-permissions";
-import { adminUrl, mainUrl } from "@/lib/subdomain";
+import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface NavItem {
   href: string;
-  icon: string;
+  icon: React.ElementType;
   label: string;
   /** Если задано — показывать только при наличии этого полномочия */
   permission?: Permission;
@@ -17,24 +36,24 @@ interface NavItem {
 }
 
 const BASE_NAV: NavItem[] = [
-  { href: adminUrl("/admin"),              icon: "🏠", label: "Обзор" },
-  { href: adminUrl("/admin/clients"),      icon: "👤", label: "Клиенты",      permission: "clients.view" },
-  { href: adminUrl("/admin/practitioners"),icon: "🔮", label: "Практики",     permission: "practitioners.view" },
-  { href: adminUrl("/admin/applications"), icon: "📋", label: "Заявки",        permission: "practitioners.view" },
-  { href: adminUrl("/admin/bookings"),     icon: "📅", label: "Бронирования" },
-  { href: adminUrl("/admin/complaints"),   icon: "⚠️", label: "Жалобы" },
+  { href: adminUrl("/admin"),              icon: LayoutDashboard,   label: "Обзор" },
+  { href: adminUrl("/admin/clients"),      icon: Users,             label: "Клиенты",      permission: "clients.view" },
+  { href: adminUrl("/admin/practitioners"),icon: BriefcaseBusiness, label: "Практики",     permission: "practitioners.view" },
+  { href: adminUrl("/admin/applications"), icon: FileText,          label: "Заявки",       permission: "practitioners.view" },
+  { href: adminUrl("/admin/bookings"),     icon: CalendarDays,      label: "Бронирования" },
+  { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы" },
 ];
 
 const SUPERADMIN_EXTRA: NavItem[] = [
-  { href: adminUrl("/admin/metrics"),    icon: "📊", label: "Метрики",          superadminOnly: true },
-  { href: adminUrl("/admin/pricing"),    icon: "💰", label: "Цены и тарифы",    superadminOnly: true },
-  { href: adminUrl("/admin/moderators"), icon: "🛡️", label: "Модераторы",       superadminOnly: true },
-  { href: adminUrl("/admin/users"),      icon: "🗂️", label: "Все пользователи", superadminOnly: true },
-  { href: adminUrl("/admin/payments"),   icon: "💳", label: "Выплаты",          superadminOnly: true },
-  { href: adminUrl("/admin/files"),      icon: "📁", label: "Файлы",            superadminOnly: true },
-  { href: adminUrl("/admin/sessions"),   icon: "🔐", label: "Сессии",           superadminOnly: true },
-  { href: adminUrl("/admin/logs"),       icon: "📋", label: "Логи",             superadminOnly: true },
-  { href: adminUrl("/admin/system"),     icon: "⚙️", label: "Система",          superadminOnly: true },
+  { href: adminUrl("/admin/metrics"),    icon: BarChart3,         label: "Метрики",          superadminOnly: true },
+  { href: adminUrl("/admin/pricing"),    icon: SlidersHorizontal, label: "Цены и тарифы",    superadminOnly: true },
+  { href: adminUrl("/admin/moderators"), icon: Shield,            label: "Модераторы",       superadminOnly: true },
+  { href: adminUrl("/admin/users"),      icon: UserRound,         label: "Все пользователи", superadminOnly: true },
+  { href: adminUrl("/admin/payments"),   icon: WalletCards,       label: "Выплаты",          superadminOnly: true },
+  { href: adminUrl("/admin/files"),      icon: FolderOpen,        label: "Файлы",            superadminOnly: true },
+  { href: adminUrl("/admin/sessions"),   icon: Gauge,             label: "Сессии",           superadminOnly: true },
+  { href: adminUrl("/admin/logs"),       icon: BookOpenText,      label: "Логи",             superadminOnly: true },
+  { href: adminUrl("/admin/system"),     icon: Wrench,            label: "Система",          superadminOnly: true },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -66,10 +85,29 @@ export function AdminShell({
   });
 
   function isActive(href: string) {
-    const itemPath = new URL(href).pathname;
+    const itemPath = toPathname(href);
     if (itemPath === "/admin") return pathname === itemPath;
     return pathname.startsWith(itemPath);
   }
+
+  const navLabelByPath = new Map(nav.map((item) => [toPathname(item.href), item.label]));
+  const breadcrumbItems = pathname
+    .split("/")
+    .filter(Boolean)
+    .slice(1)
+    .map((segment, index, segments) => {
+      const fullPath = `/admin/${segments.slice(0, index + 1).join("/")}`;
+      const label = navLabelByPath.get(fullPath)
+        ?? segment
+          .split("-")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ");
+      const isLast = index === segments.length - 1;
+      return {
+        label,
+        href: isLast ? undefined : adminUrl(fullPath),
+      };
+    });
 
   return (
     <div className="min-h-screen flex">
@@ -86,34 +124,43 @@ export function AdminShell({
         </div>
 
         <nav className="flex-1 space-y-0.5">
-          {nav.map((item) => (
+          {nav.map((item) => {
+            const Icon = item.icon;
+            return (
             <Link key={item.href} href={item.href}
               className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                 isActive(item.href)
                   ? "bg-primary/10 text-primary font-medium"
                   : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
               }`}>
-              <span className="text-base">{item.icon}</span>
+              <Icon className="h-4 w-4 shrink-0" />
               {item.label}
             </Link>
-          ))}
+          )})}
         </nav>
 
         <div className="border-t border-border/20 pt-2 mt-2">
           <Link href={adminUrl("/admin/settings")}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors">
-            <span className="text-base">⚙️</span>
+            <Settings className="h-4 w-4 shrink-0" />
             Настройки
           </Link>
-          <button onClick={() => signOut({ callbackUrl: mainUrl("/") })}
+          <button onClick={() => { window.location.href = logoutUrl(); }}
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors">
-            <span className="text-base">🚪</span>
+            <LogOut className="h-4 w-4 shrink-0" />
             Выйти
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">{children}</main>
+      <main className="flex-1 min-w-0">
+        {breadcrumbItems.length > 0 && (
+          <div className="px-4 pt-6 sm:px-6">
+            <Breadcrumb homeHref={adminUrl("/admin")} items={breadcrumbItems} className="mb-0" />
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

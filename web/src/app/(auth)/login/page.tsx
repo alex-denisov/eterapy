@@ -2,14 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
-import { sanitizeEmail, validateEmail, getEmailError } from "@/lib/validation";
+import { sanitizeEmail, getEmailError } from "@/lib/validation";
+import { homePathForRole, homeUrlForRole } from "@/lib/subdomain";
 
 const TEST_ACCOUNTS = [
   { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/cabinet" },
@@ -24,7 +25,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
@@ -37,7 +37,7 @@ export default function LoginPage() {
   useEffect(() => {
     let cancelled = false;
     if (status === "authenticated") {
-      router.replace("/cabinet");
+      window.location.replace(homeUrlForRole(session?.user?.role));
       return;
     }
     // Fallback: always check session via fetch — works even when useSession is stale
@@ -46,17 +46,16 @@ export default function LoginPage() {
       .then(data => {
         if (!cancelled && data.user?.id) {
           const role = data.user.role;
-          const dest = role === "PRACTITIONER" ? "/cabinet/practitioner"
-            : (role === "ADMIN" || role === "SUPERADMIN") ? "/admin" : "/cabinet";
+          const dest = homeUrlForRole(role);
           // Only redirect if we're still on login/register page
           if (window.location.pathname === "/login" || window.location.pathname === "/register") {
-            window.location.href = dest;
+            window.location.replace(dest);
           }
         }
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []); // empty deps — run only once on mount
+  }, [session?.user?.role, status]); // run once plus status change
 
   async function doLogin(loginEmail: string, loginPassword: string, redirectTo: string) {
     setLoading(true);
@@ -81,7 +80,7 @@ export default function LoginPage() {
     const err = getEmailError(email);
     setEmailError(err);
     if (err) { toast.error(err); return; }
-    await doLogin(email, password, "/cabinet");
+    await doLogin(email, password, homePathForRole("CLIENT"));
   }
 
   return (
@@ -152,7 +151,7 @@ export default function LoginPage() {
                 {/* Google */}
                 <button
                   type="button"
-                  onClick={() => signIn("google", { callbackUrl: "/cabinet" })}
+                  onClick={() => signIn("google", { callbackUrl: homePathForRole("CLIENT") })}
                   className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground">
                   <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +16,7 @@ import {
   LogOut,
   HelpCircle,
 } from "lucide-react";
-import { appUrl, mainUrl } from "@/lib/subdomain";
+import { appUrl, logoutUrl, mainUrl, toPathname } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -67,8 +66,7 @@ export function CabinetShell({
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
 
   function isActive(href: string) {
-    // Extract pathname from the full URL
-    const itemPath = new URL(href).pathname;
+    const itemPath = toPathname(href);
     if (itemPath === "/cabinet" || itemPath === "/cabinet/practitioner") return pathname === itemPath;
     return pathname.startsWith(itemPath);
   }
@@ -128,7 +126,7 @@ export function CabinetShell({
             Настройки
           </Link>
           <button
-            onClick={() => signOut({ callbackUrl: mainUrl("/") })}
+            onClick={() => { window.location.href = logoutUrl(); }}
             className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors w-full"
           >
             <LogOut className="h-4 w-4 shrink-0" />

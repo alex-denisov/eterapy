@@ -72,7 +72,8 @@
       "Bash(then)",
       "Bash(fi)",
       "Bash(perl *)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(docker rm *)"
     ]
   },
   "$version": 3

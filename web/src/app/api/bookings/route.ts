@@ -13,7 +13,6 @@ import {
 } from "@/lib/email";
 import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
-import { sanitizeText } from "@/lib/validation";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +48,8 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
   const role = req.nextUrl.searchParams.get("role") ?? "client";
+  const requestedUserId = req.nextUrl.searchParams.get("userId");
+  const isAdminRequester = ["ADMIN", "SUPERADMIN"].includes(session.user?.role ?? "");
 
   try {
     let bookings;
@@ -63,6 +64,21 @@ export async function GET(req: NextRequest) {
         include: { client: { select: { name: true, email: true } }, slot: true },
         orderBy: { createdAt: "desc" },
         take: 50,
+      });
+    } else if (role === "admin") {
+      if (!isAdminRequester || !requestedUserId) return NextResponse.json({ bookings: [] });
+
+      bookings = await db.booking.findMany({
+        where: { clientId: requestedUserId },
+        include: {
+          practitioner: { include: { user: { select: { name: true } } } },
+          slot: true,
+        },
+        orderBy: [
+          { slot: { startAt: "asc" } },
+          { createdAt: "desc" },
+        ],
+        take: 100,
       });
     } else {
       bookings = await db.booking.findMany({
@@ -98,7 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { practitionerId, slotId, slotStartAt, slotEndAt, durationMin, priceOverride } = await req.json();
+    const { practitionerId, slotId, slotStartAt, slotEndAt, priceOverride } = await req.json();
     if (!practitionerId) return NextResponse.json({ error: "practitionerId обязателен" }, { status: 400 });
 
     const practitioner = await db.practitioner.findUnique({

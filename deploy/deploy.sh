@@ -95,12 +95,20 @@ docker compose ps
 if [ "$SKIP_SSL" != "--skip-ssl" ]; then
   step "SSL: Let's Encrypt"
   CERT_PATH="/var/lib/docker/volumes/eterapy_certbot-conf/_data/live/$DOMAIN/fullchain.pem"
-  
+
+  NEED_CERT=1
   if [ -f "$CERT_PATH" ]; then
-    log "Certificate already exists — skipping issuance"
-  else
-    log "Requesting certificate for $DOMAIN and www.$DOMAIN..."
-    # Wait for nginx to be ready
+    if openssl x509 -in "$CERT_PATH" -text -noout | grep -q "DNS:app.$DOMAIN" \
+      && openssl x509 -in "$CERT_PATH" -text -noout | grep -q "DNS:admin.$DOMAIN"; then
+      NEED_CERT=0
+      log "Certificate already covers apex + app/admin subdomains"
+    else
+      log "Existing certificate is missing app/admin SANs — expanding it"
+    fi
+  fi
+
+  if [ "$NEED_CERT" -eq 1 ]; then
+    log "Requesting certificate for $DOMAIN, www.$DOMAIN, app.$DOMAIN, admin.$DOMAIN..."
     sleep 5
     docker compose run --rm certbot certonly \
       --webroot \
@@ -108,9 +116,13 @@ if [ "$SKIP_SSL" != "--skip-ssl" ]; then
       --email "$EMAIL" \
       --agree-tos \
       --no-eff-email \
+      --cert-name "$DOMAIN" \
+      --expand \
       -d "$DOMAIN" \
-      -d "www.$DOMAIN"
-    log "Certificate issued!"
+      -d "www.$DOMAIN" \
+      -d "app.$DOMAIN" \
+      -d "admin.$DOMAIN"
+    log "Certificate issued/expanded"
   fi
 
   # Activate HTTPS nginx config

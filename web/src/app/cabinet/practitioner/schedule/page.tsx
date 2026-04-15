@@ -7,17 +7,18 @@ import { WeekCalendar } from "@/components/schedule/week-calendar";
 import { ScheduleSettings } from "@/components/schedule/schedule-settings";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 import { SchedulePageTabs } from "./schedule-tabs";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 
 export default async function PractitionerSchedulePage() {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id },
     select: { id: true },
   });
-  if (!practitioner) redirect("/cabinet/practitioner");
+  if (!practitioner) redirect(appUrl("/cabinet/practitioner"));
 
   const [rules, rates] = await Promise.all([
     db.scheduleRule.findMany({ where: { practitionerId: practitioner.id }, orderBy: { dayOfWeek: "asc" } }),

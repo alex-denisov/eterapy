@@ -1,92 +1,88 @@
-/**
- * Subdomain-aware URL helpers for eTerapy routing.
- *
- * In production (VPS): uses app.eterapy.com / admin.eterapy.com
- * In local dev: uses eterapy.com for everything (Docker Desktop TLS limitation)
- */
-
-const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
-const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
-// Use subdomains only when explicitly enabled via env var.
-// Set NEXT_PUBLIC_USE_SUBDOMAINS=true on VPS; leave unset for local dev.
-const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
-const PROTOCOL = "https://";
-
-/** Paths that belong on the main (guest) domain */
-const MAIN_PATHS = ["/", "/login", "/register", "/practitioners", "/about", "/help",
-  "/how-to-choose", "/all-modalities", "/modalities", "/tools", "/legal", "/session"];
-
-/** Paths that belong on the app subdomain */
+export const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
+export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
+export const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
+export const PRIMARY_DOMAIN_ONLY = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY !== "false";
+export const USE_SUBDOMAINS =
+  process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true" && !PRIMARY_DOMAIN_ONLY;
+export const PROTOCOL = "https://";
 const APP_PATHS = ["/cabinet"];
-
-/** Paths that belong on the admin subdomain */
 const ADMIN_PATHS = ["/admin"];
 
-/**
- * Return the correct domain for a given pathname.
- */
-function domainForPath(pathname: string, role?: string): string {
+function normalizePath(pathname: string): string {
+  if (!pathname) return "/";
+  return pathname.startsWith("/") ? pathname : `/${pathname}`;
+}
+
+function absoluteUrl(domain: string, pathname: string): string {
+  return `${PROTOCOL}${domain}${normalizePath(pathname)}`;
+}
+
+function hrefForDomain(domain: string, pathname: string): string {
+  const normalized = normalizePath(pathname);
+  if (!USE_SUBDOMAINS) return normalized;
+  return absoluteUrl(domain, normalized);
+}
+
+function domainForPath(pathname: string): string {
+  const normalized = normalizePath(pathname);
+  if (PRIMARY_DOMAIN_ONLY) return MAIN_DOMAIN;
   if (!USE_SUBDOMAINS) return MAIN_DOMAIN;
-  if (ADMIN_PATHS.some(p => pathname.startsWith(p))) {
+  if (ADMIN_PATHS.some(p => normalized.startsWith(p))) {
     return ADMIN_DOMAIN;
   }
-  if (APP_PATHS.some(p => pathname.startsWith(p))) {
+  if (APP_PATHS.some(p => normalized.startsWith(p))) {
     return APP_DOMAIN;
   }
   return MAIN_DOMAIN;
 }
 
-/**
- * Build a fully-qualified URL for the given pathname,
- * using the correct subdomain based on the path pattern.
- */
 export function appUrl(pathname: string): string {
-  const domain = USE_SUBDOMAINS ? APP_DOMAIN : MAIN_DOMAIN;
-  return `${PROTOCOL}${domain}${pathname}`;
+  return hrefForDomain(APP_DOMAIN, pathname);
 }
 
 export function adminUrl(pathname: string): string {
-  const domain = USE_SUBDOMAINS ? ADMIN_DOMAIN : MAIN_DOMAIN;
-  return `${PROTOCOL}${domain}${pathname}`;
+  return hrefForDomain(ADMIN_DOMAIN, pathname);
 }
 
 export function mainUrl(pathname: string): string {
-  return `${PROTOCOL}${MAIN_DOMAIN}${pathname}`;
+  return hrefForDomain(MAIN_DOMAIN, pathname);
 }
 
-/**
- * Given a pathname, return the correct fully-qualified URL
- * based on which subdomain should serve it.
- */
 export function subdomainUrl(pathname: string, role?: string): string {
-  const domain = domainForPath(pathname, role);
-  return `${PROTOCOL}${domain}${pathname}`;
+  const domain = domainForPath(pathname);
+  return hrefForDomain(domain, pathname);
 }
 
-/**
- * Cabinet-specific helper — always returns app.eterapy.com URL in production,
- * eterapy.com in local dev.
- */
+export function homePathForRole(role?: string | null): string {
+  if (role === "PRACTITIONER") return "/cabinet/practitioner";
+  if (role === "ADMIN" || role === "SUPERADMIN") return "/admin";
+  return "/cabinet";
+}
+
+export function homeUrlForRole(role?: string | null): string {
+  return subdomainUrl(homePathForRole(role ?? undefined), role ?? undefined);
+}
+
+export function loginUrl(): string {
+  return mainUrl("/login");
+}
+
+export function registerUrl(): string {
+  return mainUrl("/register");
+}
+
+export function logoutUrl(): string {
+  return mainUrl("/api/auth/logout");
+}
+
 export function cabinetUrl(pathname: string): string {
-  const domain = USE_SUBDOMAINS ? APP_DOMAIN : MAIN_DOMAIN;
-  if (pathname.startsWith("/")) return `${PROTOCOL}${domain}${pathname}`;
-  return `${PROTOCOL}${domain}/${pathname}`;
+  return appUrl(pathname);
 }
 
-/**
- * Admin-specific helper
- */
 export function adminPanelUrl(pathname: string): string {
-  const domain = USE_SUBDOMAINS ? ADMIN_DOMAIN : MAIN_DOMAIN;
-  if (pathname.startsWith("/")) return `${PROTOCOL}${domain}${pathname}`;
-  return `${PROTOCOL}${domain}/${pathname}`;
+  return adminUrl(pathname);
 }
 
-/**
- * Determine which subdomain is serving the current request.
- * Works both server-side (from headers) and client-side (from window.location).
- */
 export function getSubdomain(host?: string | null): "app" | "admin" | "main" {
   const h = host ?? (typeof window !== "undefined" ? window.location.host : null);
   if (!h) return "main";
@@ -94,4 +90,26 @@ export function getSubdomain(host?: string | null): "app" | "admin" | "main" {
   if (clean === APP_DOMAIN) return "app";
   if (clean === ADMIN_DOMAIN) return "admin";
   return "main";
+}
+
+export function toPathname(href: string): string {
+  if (!href) return "/";
+  if (href.startsWith("/")) return href;
+  try {
+    return new URL(href).pathname;
+  } catch {
+    return href;
+  }
+}
+
+export function absoluteMainUrl(pathname: string): string {
+  return absoluteUrl(MAIN_DOMAIN, pathname);
+}
+
+export function absoluteAppUrl(pathname: string): string {
+  return absoluteUrl(APP_DOMAIN, pathname);
+}
+
+export function absoluteAdminUrl(pathname: string): string {
+  return absoluteUrl(ADMIN_DOMAIN, pathname);
 }

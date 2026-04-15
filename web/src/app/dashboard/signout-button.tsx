@@ -1,7 +1,7 @@
 "use client";
 
-import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { logoutUrl } from "@/lib/subdomain";
 
 export function SignOutButton() {
   return (
@@ -9,7 +9,7 @@ export function SignOutButton() {
       variant="ghost"
       size="sm"
       className="text-muted-foreground"
-      onClick={() => signOut({ callbackUrl: "/" })}
+      onClick={() => { window.location.href = logoutUrl(); }}
     >
       Выйти
     </Button>

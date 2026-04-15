@@ -11,15 +11,16 @@ interface BreadcrumbItem {
 interface BreadcrumbProps {
   items: BreadcrumbItem[];
   className?: string;
+  homeHref?: string;
 }
 
 /**
  * Breadcrumbs для cabinet и admin страниц.
  */
-export function Breadcrumb({ items, className }: BreadcrumbProps) {
+export function Breadcrumb({ items, className, homeHref = appUrl("/cabinet") }: BreadcrumbProps) {
   return (
     <nav aria-label="Навигация" className={cn("flex items-center gap-1 text-sm text-muted-foreground mb-6", className)}>
-      <Link href={appUrl("/cabinet")} className="hover:text-foreground transition-colors">
+      <Link href={homeHref} className="hover:text-foreground transition-colors">
         <Home className="h-4 w-4" />
         <span className="sr-only">Главная</span>
       </Link>

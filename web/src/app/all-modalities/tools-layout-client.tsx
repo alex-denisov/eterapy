@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { logoutUrl } from "@/lib/subdomain";
 import { appUrl } from "@/lib/subdomain";
 
 const TOOLS_NAV = [
@@ -116,7 +116,7 @@ export function ToolsLayoutClient({
         </div>
 
         <div className="mt-auto">
-          <button onClick={() => signOut({ callbackUrl: "/" })}
+          <button onClick={() => { window.location.href = logoutUrl(); }}
             className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors">
             <span className="text-sm w-4 text-center">🚪</span>
             Выйти

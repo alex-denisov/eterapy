@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PractitionerProfileEditor } from "./profile-editor";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 
 export default async function PractitionerProfilePage() {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({
@@ -15,7 +16,7 @@ export default async function PractitionerProfilePage() {
     include: { user: { select: { name: true, email: true, avatarUrl: true } } },
   });
 
-  if (!practitioner) redirect("/cabinet");
+  if (!practitioner) redirect(appUrl("/cabinet"));
 
   return (
     <div className="px-6 py-8 max-w-2xl">

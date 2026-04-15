@@ -5,23 +5,11 @@ import { usersDb } from "./users-db";
 import db from "./db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "./audit";
+import { authConfig } from "./auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  trustHost: true,
+  ...authConfig,
   debug: process.env.NODE_ENV !== "production",
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax" as const,
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        // Share across subdomains in production; in dev use current domain
-        domain: process.env.NODE_ENV === "production" ? ".eterapy.com" : undefined,
-      },
-    },
-  },
   providers: [
     Credentials({
       name: "Email",
@@ -94,13 +82,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     ] : []),
   ],
 
-  pages: {
-    signIn: "/login",
-  },
-
-  session: { strategy: "jwt" },
-
   callbacks: {
+    // Merge: session callback from authConfig + signIn/jwt callbacks here
+    ...authConfig.callbacks,
+
     async signIn({ user, account }) {
       // Обработка OAuth входа (Google)
       if (account?.provider === "google" && user.email) {
@@ -159,14 +144,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
 
-    session({ session, token }) {
-      if (session.user) {
-        session.user.id = (token as any).id as string;
-        // @ts-expect-error NextAuth v5 impossible emailVerified type (Date & string)
-        session.user.emailVerified = (token as any).emailVerified ? new Date((token as any).emailVerified) : null;
-        session.user.role = (token as any).role;
-      }
-      return session;
-    },
   },
 });

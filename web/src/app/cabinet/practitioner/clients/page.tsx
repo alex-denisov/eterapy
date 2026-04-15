@@ -7,14 +7,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
 import { BookingActions } from "./booking-actions";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 
 export default async function PractitionerClientsPage() {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({ where: { userId: session.user!.id } });
-  if (!practitioner) redirect("/cabinet/practitioner");
+  if (!practitioner) redirect(appUrl("/cabinet/practitioner"));
 
   const bookings = await db.booking.findMany({
     where: { practitionerId: practitioner.id },

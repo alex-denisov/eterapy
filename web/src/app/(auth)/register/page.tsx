@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
-import { sanitizeName, sanitizeEmail, validateName, validateEmail, getNameError, getEmailError } from "@/lib/validation";
-import { appUrl } from "@/lib/subdomain";
+import { sanitizeName, sanitizeEmail, getNameError, getEmailError } from "@/lib/validation";
+import { appUrl, homePathForRole, homeUrlForRole } from "@/lib/subdomain";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -21,14 +20,13 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   // Редирект, если уже залогинен
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/cabinet");
+      window.location.replace(homeUrlForRole(session?.user?.role));
     }
-  }, [status, router]);
+  }, [session?.user?.role, status]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -172,7 +170,7 @@ export default function RegisterPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <VKIDButton />
-              <button type="button" onClick={() => signIn("google", { callbackUrl: "/cabinet" })}
+              <button type="button" onClick={() => signIn("google", { callbackUrl: homePathForRole("CLIENT") })}
                 className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>

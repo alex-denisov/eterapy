@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
-import { appUrl, adminUrl, mainUrl } from "@/lib/subdomain";
+import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 
 const GUEST_NAV = [
@@ -178,7 +178,7 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
             <button
               role="menuitem"
               tabIndex={focusedIndex === allItems.length - 1 ? 0 : -1}
-              onClick={() => { closeAndFocus(); signOut({ callbackUrl: mainUrl("/") }); }}
+              onClick={() => { closeAndFocus(); window.location.href = logoutUrl(); }}
               onFocus={() => setFocusedIndex(allItems.length - 1)}
               className="w-full min-h-[44px] px-4 py-2.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-white/5 hover:text-foreground focus:bg-white/5 focus:text-foreground"
             >
@@ -212,7 +212,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href={!isAuthenticated ? mainUrl("/") : role === "PRACTITIONER" ? appUrl("/cabinet/practitioner") : (role === "ADMIN" || role === "SUPERADMIN") ? adminUrl("/admin") : appUrl("/cabinet")}
+        <Link href={mainUrl("/")}
           className="flex items-center gap-2.5 shrink-0">
           <Image src="/logo.svg" alt="ETerapy" width={28} height={28} />
           <span className="font-heading text-xl font-bold text-primary">ETerapy</span>
@@ -303,7 +303,7 @@ export function Header() {
                   Помощь
                 </Link>
                 <div className="px-3 py-2 text-sm text-primary">💰 {balanceRub} ₽</div>
-                <button onClick={() => { setMobileOpen(false); signOut({ callbackUrl: mainUrl("/") }); }}
+                <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
                   className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
                   Выйти
                 </button>

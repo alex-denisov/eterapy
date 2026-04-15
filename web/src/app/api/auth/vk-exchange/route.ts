@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { encode as jwtEncode } from "next-auth/jwt";
-
-const APP_URL = process.env.NEXTAUTH_URL || "https://eterapy.com";
+import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
+import { homeUrlForRole, loginUrl } from "@/lib/subdomain";
 
 /**
  * VK ID Token Exchange endpoint (GET).
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const deviceId = url.searchParams.get("device_id");
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login", APP_URL));
+    return NextResponse.redirect(new URL(loginUrl(), request.url));
   }
 
   // Read code_verifier from cookie (set by VKIDButton)
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (!tokenRes.ok || tokenData.error) {
       console.error("[VK] Token error:", JSON.stringify(tokenData, null, 2));
-      return NextResponse.redirect(new URL("/login?error=vk_token_error", APP_URL));
+      return NextResponse.redirect(new URL(`${loginUrl()}?error=vk_token_error`, request.url));
     }
 
     console.log("[VK] Token received, user_id:", tokenData.user_id);
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!email) {
-      return NextResponse.redirect(new URL("/login?error=vk_no_email", APP_URL));
+      return NextResponse.redirect(new URL(`${loginUrl()}?error=vk_no_email`, request.url));
     }
 
     // Get profile info
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       dbUser = await db.user.create({ data: createData });
       await logAudit(dbUser.id, "REGISTER", undefined, "OAuth: vk");
     } else if (dbUser.blockedAt) {
-      return NextResponse.redirect(new URL("/login?error=blocked", APP_URL));
+      return NextResponse.redirect(new URL(`${loginUrl()}?error=blocked`, request.url));
     } else {
       const updateData: any = {};
       if (name && dbUser.name !== name) updateData.name = name;
@@ -191,27 +191,33 @@ export async function GET(request: NextRequest) {
         role: dbUser.role,
       },
       secret: process.env.AUTH_SECRET!,
-      salt: "__Secure-authjs.session-token",
+      salt: SESSION_COOKIE_NAME,
       maxAge: 60 * 60 * 24 * 30,
     });
 
-    const response = NextResponse.redirect(new URL("/cabinet", APP_URL));
+    const response = NextResponse.redirect(new URL(homeUrlForRole(dbUser.role), request.url));
     response.cookies.set({
-      name: "__Secure-authjs.session-token",
+      name: SESSION_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      domain: SHARED_COOKIE_DOMAIN,
       maxAge: 60 * 60 * 24 * 30,
     });
 
     // Clean up code_verifier cookie
-    response.cookies.set("vk_code_verifier", "", { maxAge: 0, path: "/", secure: true });
+    response.cookies.set("vk_code_verifier", "", {
+      maxAge: 0,
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      domain: SHARED_COOKIE_DOMAIN,
+    });
 
     return response;
   } catch (err: any) {
     console.error("[VK] Exchange error:", err);
-    return NextResponse.redirect(new URL("/login?error=vk_error", APP_URL));
+    return NextResponse.redirect(new URL(`${loginUrl()}?error=vk_error`, request.url));
   }
 }

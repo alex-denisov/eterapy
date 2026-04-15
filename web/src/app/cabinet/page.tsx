@@ -6,18 +6,17 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookingsList } from "@/components/bookings-list";
-import { appUrl } from "@/lib/subdomain";
+import { adminUrl, appUrl, loginUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session) redirect(loginUrl());
   const role = session.user?.role ?? "CLIENT";
   if (role === "PRACTITIONER") redirect("/cabinet/practitioner");
-  if (role === "ADMIN" || role === "SUPERADMIN") redirect("/admin");
+  if (role === "ADMIN" || role === "SUPERADMIN") redirect(adminUrl("/admin"));
 
   if (!session.user?.id) {
-    redirect("/login");
+    redirect(loginUrl());
   }
   const userId = session.user.id;
 
