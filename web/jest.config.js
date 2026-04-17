@@ -14,11 +14,16 @@ const customJestConfig = {
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },
-  // Transform node_modules that use ESM
-  transformIgnorePatterns: [
-    '/node_modules/(?!(next-auth|@auth-core)/)',
-  ],
   moduleFileExtensions: ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'node'],
 };
 
-module.exports = createJestConfig(customJestConfig);
+// nextJest overrides transformIgnorePatterns with its own defaults (ignores all
+// node_modules). Merge in ESM packages we need transformed after nextJest wraps.
+module.exports = async () => {
+  const config = await createJestConfig(customJestConfig)();
+  config.transformIgnorePatterns = [
+    '/node_modules/(?!(next-auth|@auth/core|jose|oauth4webapi|preact|@panva|@babel/runtime/helpers/esm)/)',
+    '^.+\\.module\\.(css|sass|scss)$',
+  ];
+  return config;
+};

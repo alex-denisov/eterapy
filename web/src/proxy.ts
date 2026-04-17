@@ -1,25 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-/** Extract session role+id from JWT cookie (edge-safe, no DB). */
-function getSessionFromCookie(request: NextRequest): { role: string | null; id: string | null } {
-  const cookie =
-    request.cookies.get("__Secure-authjs.session-token") ||
-    request.cookies.get("authjs.session-token") ||
-    request.cookies.get("next-auth.session-token");
-  if (!cookie) return { role: null, id: null };
-  const [, payloadBase64] = cookie.value.split(".");
-  if (!payloadBase64) return { role: null, id: null };
-  try {
-    const payload = JSON.parse(Buffer.from(payloadBase64, "base64url").toString("utf-8"));
-    return {
-      role: (payload.role as string) || null,
-      id: (payload.id as string) || null,
-    };
-  } catch {
-    return { role: null, id: null };
-  }
-}
+import { getSessionFromCookie } from "@/lib/session-from-cookie";
 
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
@@ -54,10 +35,10 @@ function redirectAbs(domain: string, pathname: string) {
 // Paths that are OK on any subdomain (auth flow, nextauth callbacks at app-route level)
 const ALWAYS_ALLOW = ["/auth/", "/callback/"];
 
-export default function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
-  const { role } = getSessionFromCookie(request);
+  const { role } = await getSessionFromCookie(request);
 
   if (ALWAYS_ALLOW.some(p => pathname.startsWith(p))) {
     return NextResponse.next();
