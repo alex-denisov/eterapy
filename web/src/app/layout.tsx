@@ -5,6 +5,7 @@ import { Header } from "@/components/header";
 import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@/components/analytics";
+import { HashScroll } from "@/components/hash-scroll";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -56,6 +57,7 @@ export default function RootLayout({
     <html lang="ru" className={`${inter.variable} ${playfair.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers>
+          <HashScroll />
           <Header />
           <main className="flex-1">{children}</main>
           <FooterConditional />

@@ -108,6 +108,8 @@
   }
   html {
     @apply font-sans;
+    scroll-padding-top: var(--header-height);
+    scroll-behavior: smooth;
   }
   h1, h2, h3, h4 {
     font-family: var(--font-heading);
