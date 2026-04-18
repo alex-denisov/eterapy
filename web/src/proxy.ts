@@ -80,8 +80,8 @@ export default async function proxy(request: NextRequest) {
     if (pathname === "/") {
       return redirect(homePathForRole(role), request);
     }
-    // Only /cabinet and /api routes allowed here (api excluded by matcher)
-    if (!pathname.startsWith("/cabinet")) {
+    // /cabinet, /help и /api routes allowed here (api excluded by matcher)
+    if (!pathname.startsWith("/cabinet") && pathname !== "/help" && !pathname.startsWith("/help/")) {
       return redirect(homePathForRole(role), request);
     }
     return NextResponse.next();
@@ -98,7 +98,7 @@ export default async function proxy(request: NextRequest) {
     if (pathname === "/") {
       return redirect("/admin", request);
     }
-    if (!pathname.startsWith("/admin")) {
+    if (!pathname.startsWith("/admin") && pathname !== "/help" && !pathname.startsWith("/help/")) {
       return redirect("/admin", request);
     }
     return NextResponse.next();

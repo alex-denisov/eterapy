@@ -31,7 +31,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet/modalities"), icon: Compass, label: "Направления" },
   { href: appUrl("/cabinet/action-history"), icon: History, label: "История действий" },
   { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Баланс и оплата" },
-  { href: mainUrl("/help"), icon: HelpCircle, label: "Помощь" },
+  { href: appUrl("/help"), icon: HelpCircle, label: "Помощь" },
 ];
 
 const PRACTITIONER_NAV: NavItem[] = [
@@ -41,7 +41,7 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: appUrl("/cabinet/practitioner/clients"), icon: Users, label: "Клиенты" },
   { href: appUrl("/cabinet/practitioner/reviews"), icon: Star, label: "Отзывы" },
   { href: appUrl("/cabinet/practitioner/earnings"), icon: Banknote, label: "Выплаты" },
-  { href: mainUrl("/help"), icon: HelpCircle, label: "Помощь" },
+  { href: appUrl("/help"), icon: HelpCircle, label: "Помощь" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
