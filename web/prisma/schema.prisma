@@ -55,6 +55,7 @@ model User {
   storedFiles         StoredFile[]
   chatMessages        ChatMessage[]
   notificationPrefs   NotificationPreference[]
+  notifications       Notification[]
   complaints          Complaint[]           @relation("ComplaintReporter")
   aiSessionLogs       AISessionLog[]
   balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
@@ -406,6 +407,22 @@ enum NotificationChannel {
   EMAIL
   TELEGRAM
   WEB          // Уведомление в дропдауне кабинета (колокольчик)
+}
+
+// Запись событий для WEB-канала: показываются в дропдауне колокольчика.
+model Notification {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     NotificationEvent
+  title     String
+  body      String
+  href      String?           // deep-link
+  readAt    DateTime?
+  createdAt DateTime          @default(now())
+
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 // ─── Platform Settings ────────────────────────────────────────────────────────

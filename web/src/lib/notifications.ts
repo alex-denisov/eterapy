@@ -26,12 +26,12 @@ export interface NotifPayload {
 }
 
 /** Проверяет, включён ли канал для пользователя */
-async function isEnabled(userId: string, event: NotifEvent, channel: "EMAIL" | "TELEGRAM"): Promise<boolean> {
-  // Если пользователь ещё не настроил, используем дефолт
+async function isEnabled(userId: string, event: NotifEvent, channel: "EMAIL" | "TELEGRAM" | "WEB"): Promise<boolean> {
   const pref = await db.notificationPreference.findUnique({
     where: { userId_event_channel: { userId, event, channel } },
   });
-  if (!pref) return channel === "EMAIL"; // Email включён по умолчанию, Telegram — нет
+  // Дефолты: EMAIL on, WEB on (in-cabinet bell), TELEGRAM off.
+  if (!pref) return channel !== "TELEGRAM";
   return pref.enabled;
 }
 
@@ -43,12 +43,13 @@ export async function notify(payload: NotifPayload) {
   });
   if (!user || !user.email) return;
 
-  const [emailEnabled, telegramEnabled] = await Promise.all([
+  const [emailEnabled, telegramEnabled, webEnabled] = await Promise.all([
     isEnabled(payload.userId, payload.event, "EMAIL"),
     isEnabled(payload.userId, payload.event, "TELEGRAM"),
+    isEnabled(payload.userId, payload.event, "WEB"),
   ]);
 
-  const promises: Promise<void>[] = [];
+  const promises: Promise<unknown>[] = [];
 
   if (emailEnabled) {
     promises.push(
@@ -68,7 +69,50 @@ export async function notify(payload: NotifPayload) {
     );
   }
 
+  if (webEnabled) {
+    const web = formatWebNotification(payload.event, payload.data);
+    promises.push(
+      db.notification.create({
+        data: {
+          userId: payload.userId,
+          event: payload.event,
+          title: web.title,
+          body: web.body,
+          href: web.href ?? null,
+        },
+      }).catch(e => console.error("Web notify persist error:", e))
+    );
+  }
+
   await Promise.allSettled(promises);
+}
+
+/** Формирует заголовок + подпись для дропдауна колокольчика */
+function formatWebNotification(event: NotifEvent, data: Record<string, string>): { title: string; body: string; href?: string } {
+  switch (event) {
+    case "BOOKING_REQUESTED":
+      return { title: "Новая запись", body: `${data.clientName} — ${data.date}, ${data.time}`, href: "/cabinet/practitioner/clients" };
+    case "BOOKING_CONFIRMED":
+      return { title: "Запись подтверждена", body: `${data.date} в ${data.time}`, href: data.sessionUrl ?? "/cabinet/bookings" };
+    case "BOOKING_CANCELLED":
+      return { title: "Запись отменена", body: `${data.date}${data.reason ? ` — ${data.reason}` : ""}`, href: "/cabinet/bookings" };
+    case "BOOKING_REMINDER":
+      return { title: "Напоминание о сессии", body: `Через ${data.in}`, href: data.bookingId ? `/session/${data.bookingId}` : "/cabinet/bookings" };
+    case "SESSION_STARTED":
+      return { title: "Сессия началась", body: "Видеочат открыт", href: data.bookingId ? `/session/${data.bookingId}` : undefined };
+    case "SESSION_COMPLETED":
+      return { title: "Сессия завершена", body: data.reviewUrl ? "Оставьте отзыв" : "Спасибо за сессию", href: data.reviewUrl };
+    case "REVIEW_REQUESTED":
+      return { title: "Оставьте отзыв", body: `Сессия с ${data.practitionerName}`, href: data.reviewUrl };
+    case "NEW_REVIEW":
+      return { title: "Новый отзыв", body: `${data.clientName}: ${data.rating}/5`, href: "/cabinet/practitioner/reviews" };
+    case "PAYMENT_RECEIVED":
+      return { title: "Платёж получен", body: `${data.amountRub} ₽ — ${data.date}`, href: "/cabinet/practitioner/earnings" };
+    case "PAYOUT_SCHEDULED":
+      return { title: "Запланированная выплата", body: `${data.date}: ${data.totalRub} ₽ (${data.practitionerCount})`, href: "/admin/payouts" };
+    default:
+      return { title: "Уведомление", body: "" };
+  }
 }
 
 /** Форматирует сообщение Telegram */

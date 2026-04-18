@@ -1,102 +1,96 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Bell, Check, Trash2, Calendar, Star, Clock, Wallet } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Bell, Check, Trash2, Calendar, Star, Clock, Wallet, Info } from "lucide-react";
 
-export interface Notification {
+type NotifEvent =
+  | "BOOKING_REQUESTED" | "BOOKING_CONFIRMED" | "BOOKING_CANCELLED"
+  | "BOOKING_REMINDER" | "SESSION_STARTED" | "SESSION_COMPLETED"
+  | "REVIEW_REQUESTED" | "NEW_REVIEW" | "PAYMENT_RECEIVED" | "PAYOUT_SCHEDULED";
+
+interface ApiNotification {
   id: string;
-  type: "booking" | "tarot" | "reminder" | "payment";
+  event: NotifEvent;
   title: string;
-  description: string;
-  timeAgo: string;
+  body: string;
+  href: string | null;
   read: boolean;
+  createdAt: string;
 }
 
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: "1",
-    type: "booking",
-    title: "Бронирование подтверждено",
-    description: "Елена Морозова, 12 апреля",
-    timeAgo: "2 ч назад",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "tarot",
-    title: "Расклад Таро готов",
-    description: "Полный расклад доступен в истории",
-    timeAgo: "5 ч назад",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "reminder",
-    title: "Напоминание",
-    description: "Сессия через 30 минут",
-    timeAgo: "30 мин назад",
-    read: true,
-  },
-  {
-    id: "4",
-    type: "payment",
-    title: "Пополнение баланса",
-    description: "500 ₽ зачислено",
-    timeAgo: "1 д назад",
-    read: true,
-  },
-];
-
-const ICON_MAP: Record<Notification["type"], React.ElementType> = {
-  booking: Calendar,
-  tarot: Star,
-  reminder: Clock,
-  payment: Wallet,
+const ICON_MAP: Record<NotifEvent, React.ElementType> = {
+  BOOKING_REQUESTED: Calendar,
+  BOOKING_CONFIRMED: Calendar,
+  BOOKING_CANCELLED: Calendar,
+  BOOKING_REMINDER: Clock,
+  SESSION_STARTED: Clock,
+  SESSION_COMPLETED: Star,
+  REVIEW_REQUESTED: Star,
+  NEW_REVIEW: Star,
+  PAYMENT_RECEIVED: Wallet,
+  PAYOUT_SCHEDULED: Wallet,
 };
 
-const ICON_BG_MAP: Record<Notification["type"], string> = {
-  booking: "bg-emerald-500/15 text-emerald-400",
-  tarot: "bg-violet-500/15 text-violet-400",
-  reminder: "bg-amber-500/15 text-amber-400",
-  payment: "bg-sky-500/15 text-sky-400",
+const ICON_BG_MAP: Record<NotifEvent, string> = {
+  BOOKING_REQUESTED: "bg-emerald-500/15 text-emerald-400",
+  BOOKING_CONFIRMED: "bg-emerald-500/15 text-emerald-400",
+  BOOKING_CANCELLED: "bg-rose-500/15 text-rose-400",
+  BOOKING_REMINDER: "bg-amber-500/15 text-amber-400",
+  SESSION_STARTED: "bg-amber-500/15 text-amber-400",
+  SESSION_COMPLETED: "bg-violet-500/15 text-violet-400",
+  REVIEW_REQUESTED: "bg-violet-500/15 text-violet-400",
+  NEW_REVIEW: "bg-violet-500/15 text-violet-400",
+  PAYMENT_RECEIVED: "bg-sky-500/15 text-sky-400",
+  PAYOUT_SCHEDULED: "bg-sky-500/15 text-sky-400",
 };
+
+function relTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return "только что";
+  if (mins < 60) return `${mins} мин назад`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} ч назад`;
+  const days = Math.round(hrs / 24);
+  return `${days} д назад`;
+}
 
 function NotificationItem({
-  notification,
+  n,
   onMarkRead,
 }: {
-  notification: Notification;
+  n: ApiNotification;
   onMarkRead: (id: string) => void;
 }) {
-  const Icon = ICON_MAP[notification.type];
-  const iconBg = ICON_BG_MAP[notification.type];
+  const Icon = ICON_MAP[n.event] ?? Info;
+  const iconBg = ICON_BG_MAP[n.event] ?? "bg-slate-500/15 text-slate-400";
 
-  return (
-    <button
-      onClick={() => onMarkRead(notification.id)}
-      className={`w-full text-left px-3 py-2.5 flex gap-3 rounded-lg transition-colors hover:bg-white/5 focus:outline-none focus-visible:bg-white/5 ${
-        !notification.read ? "bg-primary/5" : ""
-      }`}
-      aria-label={`${notification.title}: ${notification.description}`}
-    >
-      {/* Icon */}
+  const inner = (
+    <div className={`w-full text-left px-3 py-2.5 flex gap-3 rounded-lg transition-colors hover:bg-white/5 focus:outline-none focus-visible:bg-white/5 ${!n.read ? "bg-primary/5" : ""}`}>
       <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
         <Icon className="h-4 w-4" />
       </div>
-
-      {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium leading-tight">{notification.title}</p>
-          {!notification.read && (
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-          )}
+          <p className="text-sm font-medium leading-tight">{n.title}</p>
+          {!n.read && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground leading-tight truncate">
-          {notification.description}
-        </p>
-        <p className="mt-1 text-[11px] text-muted-foreground/60">{notification.timeAgo}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground leading-tight truncate">{n.body}</p>
+        <p className="mt-1 text-[11px] text-muted-foreground/60">{relTime(n.createdAt)}</p>
       </div>
+    </div>
+  );
+
+  if (n.href) {
+    return (
+      <a href={n.href} onClick={() => onMarkRead(n.id)} aria-label={`${n.title}: ${n.body}`} className="block">
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <button onClick={() => onMarkRead(n.id)} aria-label={`${n.title}: ${n.body}`} className="block w-full">
+      {inner}
     </button>
   );
 }
@@ -105,20 +99,43 @@ interface NotificationBellProps {
   variant?: "header" | "cabinet";
 }
 
+const POLL_MS = 30_000;
+
 export function NotificationBell({ variant = "header" }: NotificationBellProps) {
-  const [notifications, setNotifications] = useState<Notification[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications", { cache: "no-store" });
+      if (!res.ok) return;
+      const d = await res.json();
+      setNotifications(d.notifications ?? []);
+    } catch {
+      /* ignore network hiccups */
+    }
+  }, []);
+
+  // Initial load + polling
+  useEffect(() => {
+    load();
+    const t = setInterval(load, POLL_MS);
+    return () => clearInterval(t);
+  }, [load]);
+
+  // Refresh on open (best-effort immediacy)
+  useEffect(() => {
+    if (open) load();
+  }, [open, load]);
+
   // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -127,10 +144,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
   // Close on Escape
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
+      if (e.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
     }
     if (open) {
       document.addEventListener("keydown", handleKey);
@@ -138,25 +152,25 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
     }
   }, [open]);
 
-  function handleMarkRead(id: string) {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+  async function handleMarkRead(id: string) {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
   }
 
-  function handleMarkAllRead() {
+  async function handleMarkAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
   }
 
-  function handleClearAll() {
+  async function handleClearAll() {
     setNotifications([]);
+    fetch("/api/notifications", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
   }
 
   const isHeader = variant === "header";
 
   return (
     <div ref={ref} className="relative">
-      {/* Bell trigger */}
       <button
         ref={triggerRef}
         onClick={() => setOpen(!open)}
@@ -171,33 +185,23 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
         )}
       </button>
 
-      {/* Dropdown panel */}
       {open && (
         <div
           role="dialog"
           aria-label="Уведомления"
-          className={`absolute z-50 mt-2 w-[300px] rounded-xl border border-border/40 bg-navy/95 shadow-xl backdrop-blur-xl ${
-            isHeader ? "right-0" : "left-0"
-          }`}
-          style={{
-            animation: "notificationSlideIn 0.15s ease-out",
-          }}
+          className={`absolute z-50 mt-2 w-[300px] rounded-xl border border-border/40 bg-navy/95 shadow-xl backdrop-blur-xl ${isHeader ? "right-0" : "left-0"}`}
+          style={{ animation: "notificationSlideIn 0.15s ease-out" }}
         >
-          {/* Header */}
           <div className="flex items-center justify-between border-b border-border/30 px-4 py-3">
             <h2 className="text-sm font-semibold">Уведомления</h2>
             {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-              >
+              <button onClick={handleMarkAllRead} className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground">
                 <Check className="h-3 w-3" />
                 Прочитать все
               </button>
             )}
           </div>
 
-          {/* Body */}
           <div className="max-h-[360px] overflow-y-auto overscroll-contain">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
@@ -207,23 +211,15 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
             ) : (
               <div className="px-2 py-1.5 space-y-0.5">
                 {notifications.map((n) => (
-                  <NotificationItem
-                    key={n.id}
-                    notification={n}
-                    onMarkRead={handleMarkRead}
-                  />
+                  <NotificationItem key={n.id} n={n} onMarkRead={handleMarkRead} />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Footer */}
           {notifications.length > 0 && (
             <div className="border-t border-border/30 px-3 py-2">
-              <button
-                onClick={handleClearAll}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
-              >
+              <button onClick={handleClearAll} className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-xs text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground">
                 <Trash2 className="h-3 w-3" />
                 Очистить все
               </button>
@@ -232,17 +228,10 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
         </div>
       )}
 
-      {/* Inline animation keyframes */}
       <style jsx>{`
         @keyframes notificationSlideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-4px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+          from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </div>
