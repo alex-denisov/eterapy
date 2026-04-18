@@ -5,8 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, CalendarClock } from "lucide-react";
-
-const MOSCOW_TZ = "Europe/Moscow";
+import { PAYOUT_TZ, formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedule";
 
 interface Movement {
   id: string;
@@ -15,31 +14,6 @@ interface Movement {
   amountRub: number;
   label: string;
   sublabel: string;
-}
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: MOSCOW_TZ });
-}
-
-// Next scheduled payout: next 1st or 15th of the month, Europe/Moscow.
-function nextPayoutDate(now: Date): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: MOSCOW_TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-  const y = Number(parts.find((p) => p.type === "year")!.value);
-  const m = Number(parts.find((p) => p.type === "month")!.value);
-  const d = Number(parts.find((p) => p.type === "day")!.value);
-
-  if (d < 15) {
-    return new Date(Date.UTC(y, m - 1, 15));
-  }
-  if (m === 12) {
-    return new Date(Date.UTC(y + 1, 0, 1));
-  }
-  return new Date(Date.UTC(y, m, 1));
 }
 
 export default async function PractitionerEarningsPage() {
@@ -93,7 +67,7 @@ export default async function PractitionerEarningsPage() {
   const monthFormatter = new Intl.DateTimeFormat("ru-RU", {
     month: "long",
     year: "numeric",
-    timeZone: MOSCOW_TZ,
+    timeZone: PAYOUT_TZ,
   });
   const monthKey = monthFormatter.format(now);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -176,7 +150,7 @@ export default async function PractitionerEarningsPage() {
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Следующая выплата</p>
                 <p className="font-heading text-2xl font-bold text-foreground">
-                  {formatDate(nextPayoutOn)}
+                  {formatPayoutDate(nextPayoutOn)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Запланировано · {currentBalance.toLocaleString("ru")} ₽
@@ -236,7 +210,7 @@ export default async function PractitionerEarningsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{m.label}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {formatDate(m.date)} · {m.sublabel}
+                      {formatPayoutDate(m.date)} · {m.sublabel}
                     </p>
                   </div>
                   <p
