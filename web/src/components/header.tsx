@@ -9,6 +9,7 @@ import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
+import { Wallet, HelpCircle } from "lucide-react";
 
 const GUEST_NAV = [
   { href: "/practitioners", label: "Найти практика" },
@@ -237,19 +238,24 @@ export function Header() {
         <div className="flex items-center gap-2">
           {isAuthenticated && session ? (
             <>
-              {/* Help link */}
+              {/* Balance — button styled like notification bell */}
               <Link
-                href={mainUrl("/help")}
-                className="rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5"
+                href={appUrl("/cabinet/billing")}
+                aria-label={`Баланс: ${balanceRub} ₽. Открыть раздел пополнения`}
+                className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/30 px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground"
               >
-                Помощь
+                <Wallet className="h-4 w-4" />
+                <span className="tabular-nums">{balanceRub} ₽</span>
               </Link>
 
-              {/* Balance */}
-              <div className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground">
-                <span>💰</span>
-                <span className="tabular-nums">{balanceRub} ₽</span>
-              </div>
+              {/* Help — button styled like notification bell */}
+              <Link
+                href={appUrl("/help")}
+                aria-label="Помощь"
+                className="flex items-center justify-center rounded-lg border border-border/40 bg-card/30 px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Link>
 
               {/* Notification bell */}
               <NotificationBell variant="header" />
