@@ -60,9 +60,9 @@ test.describe('prod auth flow', () => {
     const appCabinet = await appCtx.get('/cabinet', { maxRedirects: 0 });
     const appLoc = appCabinet.headers()['location'] ?? '';
     expect(appLoc).not.toMatch(/\/login/);
-    // Should either render (200) or redirect within cabinet namespace
+    // /cabinet is stripped on app subdomain; expect either 308 to / or a 2xx render
     if (appCabinet.status() >= 300 && appCabinet.status() < 400) {
-      expect(appLoc).toMatch(/\/cabinet/);
+      expect(appLoc).toMatch(/^\/$|app\.eterapy\.com\/?(?:\?|$)/);
     } else {
       expect(appCabinet.status()).toBeLessThan(400);
     }
