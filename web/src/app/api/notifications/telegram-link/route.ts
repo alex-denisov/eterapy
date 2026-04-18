@@ -1,5 +1,6 @@
 /**
- * POST /api/notifications/telegram-link  — генерирует токен для привязки Telegram
+ * GET    /api/notifications/telegram-link — текущий статус привязки Telegram
+ * POST   /api/notifications/telegram-link — генерирует токен для привязки Telegram
  * DELETE /api/notifications/telegram-link — отвязывает Telegram
  */
 import { NextResponse } from "next/server";
@@ -7,6 +8,21 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getTelegramLinkUrl } from "@/lib/telegram";
 import { randomBytes } from "crypto";
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { telegramId: true, telegramUsername: true },
+  });
+
+  return NextResponse.json({
+    linked: Boolean(user?.telegramId),
+    username: user?.telegramUsername ?? null,
+  });
+}
 
 export async function POST() {
   const session = await auth();

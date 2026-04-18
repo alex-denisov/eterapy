@@ -4,10 +4,19 @@
  *
  * Для привязки аккаунта пользователь отправляет боту /start <token>
  * Бот записывает telegramId в User.
+ *
+ * Если сервер находится в регионе с блокировкой api.telegram.org (напр., РФ),
+ * установите `TELEGRAM_API_BASE` в URL relay/прокси вида
+ *   https://tg-relay.example.com/bot<TOKEN>
+ * или
+ *   https://<worker>.workers.dev/bot<TOKEN>
+ * тогда все обращения пойдут через этот host. По умолчанию используется
+ * `https://api.telegram.org/bot<TOKEN>`.
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
-const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const API_BASE = process.env.TELEGRAM_API_BASE?.trim()
+  || `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 /** Отправляет сообщение в Telegram-чат. chatId — строка (telegramId пользователя) */
 export async function sendTelegram(chatId: string, text: string): Promise<void> {
@@ -78,5 +87,23 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
   } catch (err) {
     console.error("[Telegram] setWebhook error:", err);
     return false;
+  }
+}
+
+/** Возвращает текущий WebhookInfo от Telegram — для диагностики */
+export async function getTelegramWebhookInfo(): Promise<{ ok: boolean; result?: unknown; error?: string }> {
+  if (!BOT_TOKEN) return { ok: false, error: "TELEGRAM_BOT_TOKEN not set" };
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const res = await fetch(`${API_BASE}/getWebhookInfo`, { signal: controller.signal });
+      const d = await res.json();
+      return d;
+    } finally {
+      clearTimeout(timeout);
+    }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }

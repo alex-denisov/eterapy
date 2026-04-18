@@ -69,6 +69,61 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
       .then(d => { setPrefs(d.prefs ?? []); setLoading(false); });
   }, []);
 
+  // Пока у пользователя есть активный токен и Telegram ещё не привязан — опрашиваем
+  // статус каждые 3 с. Как только link появится, скрываем блок генерации и показываем "Привязан".
+  useEffect(() => {
+    if (tgStatus.linked) return;
+    if (!tgLinkUrl || !tgLinkExpiry) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (cancelled) return;
+        if (d.linked) {
+          setTgStatus({ linked: true, username: d.username ?? null });
+          setTgLinkUrl(null);
+          setTgLinkExpiry(null);
+          toast.success("Telegram привязан");
+        }
+      } catch { /* ignore transient errors */ }
+    };
+
+    const id = setInterval(() => {
+      if (tgLinkExpiry && tgLinkExpiry.getTime() < Date.now()) {
+        clearInterval(id);
+        return;
+      }
+      poll();
+    }, 3000);
+    poll();
+    return () => { cancelled = true; clearInterval(id); };
+  }, [tgLinkUrl, tgLinkExpiry, tgStatus.linked]);
+
+  // На случай возврата на вкладку после ручной привязки без активного токена —
+  // один раз подтягиваем актуальный статус при фокусе/видимости.
+  useEffect(() => {
+    async function refreshStatus() {
+      try {
+        const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (d.linked !== tgStatus.linked || d.username !== tgStatus.username) {
+          setTgStatus({ linked: Boolean(d.linked), username: d.username ?? null });
+        }
+      } catch { /* ignore */ }
+    }
+    function onVisibility() { if (!document.hidden) refreshStatus(); }
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", refreshStatus);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", refreshStatus);
+    };
+  }, [tgStatus.linked, tgStatus.username]);
+
   function getPref(event: string, channel: Channel): Pref | undefined {
     return prefs.find(p => p.event === event && p.channel === channel);
   }
