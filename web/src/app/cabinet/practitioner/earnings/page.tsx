@@ -4,6 +4,43 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
+import { ArrowDownCircle, ArrowUpCircle, Wallet, CalendarClock } from "lucide-react";
+
+const MOSCOW_TZ = "Europe/Moscow";
+
+interface Movement {
+  id: string;
+  kind: "earning" | "payout";
+  date: Date;
+  amountRub: number;
+  label: string;
+  sublabel: string;
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric", timeZone: MOSCOW_TZ });
+}
+
+// Next scheduled payout: next 1st or 15th of the month, Europe/Moscow.
+function nextPayoutDate(now: Date): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MOSCOW_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const y = Number(parts.find((p) => p.type === "year")!.value);
+  const m = Number(parts.find((p) => p.type === "month")!.value);
+  const d = Number(parts.find((p) => p.type === "day")!.value);
+
+  if (d < 15) {
+    return new Date(Date.UTC(y, m - 1, 15));
+  }
+  if (m === 12) {
+    return new Date(Date.UTC(y + 1, 0, 1));
+  }
+  return new Date(Date.UTC(y, m, 1));
+}
 
 export default async function PractitionerEarningsPage() {
   const session = await auth();
@@ -12,53 +49,155 @@ export default async function PractitionerEarningsPage() {
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id },
-    select: { id: true },
+    select: { id: true, commissionPercent: true },
   });
   if (!practitioner) redirect("/cabinet/practitioner");
 
-  const completedBookings = await db.booking.findMany({
-    where: { practitionerId: practitioner.id, status: "COMPLETED" },
-    orderBy: { createdAt: "desc" },
-    include: { client: { select: { name: true } } },
-  });
+  const commissionPercent = practitioner.commissionPercent ?? 25;
+  const commission = commissionPercent / 100;
 
-  const COMMISSION = 0.15;
+  const [completedBookings, payouts] = await Promise.all([
+    db.booking.findMany({
+      where: { practitionerId: practitioner.id, status: "COMPLETED" },
+      orderBy: { createdAt: "desc" },
+      include: { client: { select: { name: true } } },
+    }),
+    db.payout.findMany({
+      where: { practitionerId: practitioner.id },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const netOf = (rub: number) => rub - Math.round(rub * commission);
+
   const totalRevenue = completedBookings.reduce((s, b) => s + b.priceRub, 0);
-  const totalFee = Math.round(totalRevenue * COMMISSION);
-  const totalNet = totalRevenue - totalFee;
+  const totalFee = Math.round(totalRevenue * commission);
+  const accruedNet = totalRevenue - totalFee;
+
+  const paidOutKopecks = payouts
+    .filter((p) => p.status === "DONE")
+    .reduce((s, p) => s + p.amountKopecks, 0);
+  const paidOut = Math.round(paidOutKopecks / 100);
+
+  const pendingPayoutKopecks = payouts
+    .filter((p) => p.status === "PENDING" || p.status === "PROCESSING")
+    .reduce((s, p) => s + p.amountKopecks, 0);
+  const pendingPayout = Math.round(pendingPayoutKopecks / 100);
+
+  const currentBalance = accruedNet - paidOut - pendingPayout;
+
+  const now = new Date();
+  const nextPayoutOn = nextPayoutDate(now);
 
   // Текущий месяц
-  const now = new Date();
+  const monthFormatter = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+    timeZone: MOSCOW_TZ,
+  });
+  const monthKey = monthFormatter.format(now);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthBookings = completedBookings.filter(b => new Date(b.createdAt) >= startOfMonth);
+  const monthBookings = completedBookings.filter((b) => new Date(b.createdAt) >= startOfMonth);
   const monthRevenue = monthBookings.reduce((s, b) => s + b.priceRub, 0);
-  const monthNet = monthRevenue - Math.round(monthRevenue * COMMISSION);
+  const monthNet = monthRevenue - Math.round(monthRevenue * commission);
 
   // Группировка по месяцам
   const byMonth: Record<string, { revenue: number; count: number; net: number }> = {};
   for (const b of completedBookings) {
-    const key = new Date(b.createdAt).toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+    const key = monthFormatter.format(new Date(b.createdAt));
     if (!byMonth[key]) byMonth[key] = { revenue: 0, count: 0, net: 0 };
     byMonth[key].revenue += b.priceRub;
     byMonth[key].count += 1;
-    byMonth[key].net += b.priceRub - Math.round(b.priceRub * COMMISSION);
+    byMonth[key].net += netOf(b.priceRub);
   }
+
+  // Движение средств: зачисления (сессии) + списания (выплаты)
+  const movements: Movement[] = [
+    ...completedBookings.map<Movement>((b) => ({
+      id: `b-${b.id}`,
+      kind: "earning",
+      date: new Date(b.createdAt),
+      amountRub: netOf(b.priceRub),
+      label: `Сессия · ${b.client.name}`,
+      sublabel: `${b.priceRub.toLocaleString("ru")} ₽ − ${commissionPercent}% комиссия`,
+    })),
+    ...payouts.map<Movement>((p) => {
+      const labels: Record<string, string> = {
+        PENDING: "Ожидает выплаты",
+        PROCESSING: "В процессе",
+        DONE: "Выплата",
+        FAILED: "Ошибка выплаты",
+      };
+      return {
+        id: `p-${p.id}`,
+        kind: "payout",
+        date: p.processedAt ?? p.createdAt,
+        amountRub: Math.round(p.amountKopecks / 100),
+        label: labels[p.status] ?? "Выплата",
+        sublabel: `Статус · ${p.status}`,
+      };
+    }),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
     <div className="px-6 py-8 max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold mb-6">Выплаты и доходы</h1>
+      <h1 className="font-heading text-2xl font-bold mb-1">Выплаты и доходы</h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        Баланс, движение средств и предстоящие выплаты. Комиссия платформы · {commissionPercent}%
+      </p>
+
+      {/* Баланс + следующая выплата */}
+      <div className="grid gap-3 sm:grid-cols-2 mb-6">
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Текущий баланс</p>
+                <p className="font-heading text-2xl font-bold text-primary tabular-nums">
+                  {currentBalance.toLocaleString("ru")} ₽
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  К выплате на следующую дату
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/15 text-green-400">
+                <CalendarClock className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Следующая выплата</p>
+                <p className="font-heading text-2xl font-bold text-foreground">
+                  {formatDate(nextPayoutOn)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Запланировано · {currentBalance.toLocaleString("ru")} ₽
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Итоги */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {[
-          { label: "Этот месяц", value: `${monthNet.toLocaleString("ru")} ₽`, sub: `${monthBookings.length} сессий`, color: "text-primary" },
-          { label: "Всего заработано", value: `${totalRevenue.toLocaleString("ru")} ₽`, sub: `${completedBookings.length} сессий`, color: "text-foreground" },
-          { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: "15% от оборота", color: "text-muted-foreground" },
-          { label: "Чистый доход", value: `${totalNet.toLocaleString("ru")} ₽`, sub: "за всё время", color: "text-green-400" },
-        ].map(s => (
+          { label: monthKey, value: `${monthNet.toLocaleString("ru")} ₽`, sub: `${monthBookings.length} сессий`, color: "text-foreground" },
+          { label: "Всего заработано", value: `${accruedNet.toLocaleString("ru")} ₽`, sub: `${completedBookings.length} сессий`, color: "text-foreground" },
+          { label: "Уже выплачено", value: `${paidOut.toLocaleString("ru")} ₽`, sub: `${payouts.filter((p) => p.status === "DONE").length} выплат`, color: "text-muted-foreground" },
+          { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: `${commissionPercent}% от оборота`, color: "text-muted-foreground" },
+        ].map((s) => (
           <Card key={s.label} className="border-border/40 bg-card/50">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+              <p className="text-xs text-muted-foreground mb-1 capitalize">{s.label}</p>
               <p className={`font-heading text-xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
             </CardContent>
@@ -66,12 +205,53 @@ export default async function PractitionerEarningsPage() {
         ))}
       </div>
 
-      {/* Баннер */}
+      {/* Баннер о графике выплат */}
       <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground mb-1">💳 Подключение выплат</p>
-        Система автоматических выплат на банковский счёт будет доступна после интеграции ЮKassa Payout API.
-        Пока выплаты производятся вручную администратором. Напишите на{" "}
-        <a href="mailto:payments@eterapy.com" className="text-primary hover:underline">payments@eterapy.com</a>.
+        <p className="font-medium text-foreground mb-1">📅 График выплат</p>
+        Выплаты начисляются дважды в месяц — <span className="text-foreground">1-го и 15-го числа</span>{" "}
+        по московскому времени. На дату выплаты переводится весь доступный баланс за минусом комиссии платформы.
+        Реквизиты можно настроить в разделе «Настройки».
+      </div>
+
+      {/* Движение средств */}
+      <div className="mb-6">
+        <h2 className="font-semibold mb-3">Движение средств</h2>
+        {movements.length === 0 ? (
+          <div className="rounded-xl border border-border/30 bg-card/20 p-8 text-center text-sm text-muted-foreground">
+            Нет движений. Доход появится после первой завершённой сессии.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
+            {movements.map((m) => {
+              const isEarning = m.kind === "earning";
+              return (
+                <div key={m.id} className="flex items-center gap-3 px-4 py-3">
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                      isEarning ? "bg-green-500/10 text-green-400" : "bg-orange-500/10 text-orange-400"
+                    }`}
+                  >
+                    {isEarning ? <ArrowDownCircle className="h-4 w-4" /> : <ArrowUpCircle className="h-4 w-4" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{m.label}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {formatDate(m.date)} · {m.sublabel}
+                    </p>
+                  </div>
+                  <p
+                    className={`text-sm font-medium tabular-nums whitespace-nowrap ${
+                      isEarning ? "text-green-400" : "text-orange-400"
+                    }`}
+                  >
+                    {isEarning ? "+" : "−"}
+                    {m.amountRub.toLocaleString("ru")} ₽
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* По месяцам */}
@@ -83,38 +263,15 @@ export default async function PractitionerEarningsPage() {
               <div key={month} className="flex items-center gap-4 px-4 py-3">
                 <span className="text-sm flex-1 capitalize">{month}</span>
                 <span className="text-xs text-muted-foreground w-16 text-right">{data.count} сессий</span>
-                <span className="text-sm w-24 text-right text-muted-foreground">{data.revenue.toLocaleString("ru")} ₽</span>
-                <span className="text-sm w-28 text-right font-medium text-green-400">{data.net.toLocaleString("ru")} ₽ чистыми</span>
+                <span className="text-sm w-24 text-right text-muted-foreground">
+                  {data.revenue.toLocaleString("ru")} ₽
+                </span>
+                <span className="text-sm w-28 text-right font-medium text-green-400">
+                  {data.net.toLocaleString("ru")} ₽ чистыми
+                </span>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* История */}
-      <h2 className="font-semibold mb-3">История сессий</h2>
-      {completedBookings.length === 0 ? (
-        <div className="rounded-xl border border-border/30 bg-card/20 p-8 text-center text-sm text-muted-foreground">
-          Нет завершённых сессий. Доход появится после первой оплаченной сессии.
-        </div>
-      ) : (
-        <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
-          {completedBookings.map(b => (
-            <div key={b.id} className="flex items-center px-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{b.client.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(b.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                </p>
-              </div>
-              <div className="text-right ml-4">
-                <p className="text-sm font-medium text-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
-                <p className="text-xs text-green-400">
-                  {(b.priceRub - Math.round(b.priceRub * COMMISSION)).toLocaleString("ru")} ₽ чистыми
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
       )}
     </div>
