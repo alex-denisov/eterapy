@@ -16,7 +16,10 @@ export type NotifEvent =
   | "REVIEW_REQUESTED"
   | "NEW_REVIEW"
   | "PAYMENT_RECEIVED"
-  | "PAYOUT_SCHEDULED";
+  | "PAYOUT_SCHEDULED"
+  | "BALANCE_TOPUP"
+  | "CARD_LINKED"
+  | "CARD_REMOVED";
 
 export interface NotifPayload {
   userId: string;
@@ -110,6 +113,12 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
       return { title: "Платёж получен", body: `${data.amountRub} ₽ — ${data.date}`, href: "/cabinet/practitioner/earnings" };
     case "PAYOUT_SCHEDULED":
       return { title: "Запланированная выплата", body: `${data.date}: ${data.totalRub} ₽ (${data.practitionerCount})`, href: "/admin/payouts" };
+    case "BALANCE_TOPUP":
+      return { title: "Баланс пополнен", body: `+${data.amountRub} ₽`, href: "/cabinet/billing" };
+    case "CARD_LINKED":
+      return { title: "Карта привязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
+    case "CARD_REMOVED":
+      return { title: "Карта отвязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
     default:
       return { title: "Уведомление", body: "" };
   }
@@ -139,6 +148,12 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `💰 Платёж получен\n${data.amountRub} ₽ за сессию ${data.date}.`;
     case "PAYOUT_SCHEDULED":
       return `🏦 Запланированная выплата\n${data.date}: ${data.totalRub} ₽ для ${data.practitionerCount} практиков.`;
+    case "BALANCE_TOPUP":
+      return `💳 Баланс пополнен\nНа ваш счёт зачислено ${data.amountRub} ₽.\n<a href="${baseUrl}/cabinet/billing">Открыть кошелёк →</a>`;
+    case "CARD_LINKED":
+      return `🔗 Карта привязана\n${data.brand} •••• ${data.last4} теперь доступна для быстрой оплаты.`;
+    case "CARD_REMOVED":
+      return `🗑 Карта отвязана\n${data.brand} •••• ${data.last4} удалена из списка карт.`;
     default:
       return `ETerapy: уведомление`;
   }
@@ -172,4 +187,7 @@ export const ALL_EVENTS: Array<{ event: NotifEvent; label: string; description: 
   { event: "REVIEW_REQUESTED",  label: "Просьба оставить отзыв", description: "После завершённой сессии" },
   { event: "NEW_REVIEW",        label: "Новый отзыв",          description: "Когда клиент оставил отзыв (для практика)" },
   { event: "PAYMENT_RECEIVED",  label: "Платёж получен",       description: "Подтверждение оплаты" },
+  { event: "BALANCE_TOPUP",     label: "Пополнение баланса",   description: "Успешное пополнение кошелька" },
+  { event: "CARD_LINKED",       label: "Карта привязана",      description: "Новая карта добавлена для быстрой оплаты" },
+  { event: "CARD_REMOVED",      label: "Карта отвязана",       description: "Привязанная карта удалена" },
 ];

@@ -13,7 +13,10 @@ export type NotifEvent =
   | "REVIEW_REQUESTED"
   | "NEW_REVIEW"
   | "PAYMENT_RECEIVED"
-  | "PAYOUT_SCHEDULED";
+  | "PAYOUT_SCHEDULED"
+  | "BALANCE_TOPUP"
+  | "CARD_LINKED"
+  | "CARD_REMOVED";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
 
@@ -82,6 +85,24 @@ export const ALL_EVENTS: Array<{
     label: "Запланированная выплата",
     description: "Сводка по выплатам практикам на 1-е и 15-е число",
     roles: ["SUPERADMIN"],
+  },
+  {
+    event: "BALANCE_TOPUP",
+    label: "Пополнение баланса",
+    description: "Успешное пополнение кошелька",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "CARD_LINKED",
+    label: "Карта привязана",
+    description: "Новая карта добавлена для быстрой оплаты",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "CARD_REMOVED",
+    label: "Карта отвязана",
+    description: "Привязанная карта удалена",
+    roles: ["CLIENT", "PRACTITIONER"],
   },
 ];
 

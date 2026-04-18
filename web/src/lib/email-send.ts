@@ -58,6 +58,9 @@ const SUBJECTS: Record<NotifEvent, string> = {
   NEW_REVIEW:         "Новый отзыв на вашем профиле — ETerapy",
   PAYMENT_RECEIVED:   "Платёж получен — ETerapy",
   PAYOUT_SCHEDULED:   "Запланированная выплата — ETerapy",
+  BALANCE_TOPUP:      "Баланс пополнен — ETerapy",
+  CARD_LINKED:        "Карта привязана — ETerapy",
+  CARD_REMOVED:       "Карта отвязана — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
@@ -150,6 +153,39 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
            <p style="margin:0;color:#f8fafc">${data.date}</p>`
         )}
         ${btn(`${BASE_URL}/cabinet/practitioner/earnings`, "Мои доходы")}
+      `;
+    case "BALANCE_TOPUP":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">💳 Баланс пополнен</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Сумма пополнения</p>
+           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:22px">+${data.amountRub} ₽</p>`
+        )}
+        ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
+      `;
+    case "CARD_LINKED":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">🔗 Карта привязана</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Новая карта</p>
+           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.brand} •••• ${data.last4}</p>`
+        )}
+        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Теперь вы можете быстро пополнять баланс этой картой.</p>
+        ${btn(`${BASE_URL}/cabinet/billing`, "Мои карты")}
+      `;
+    case "CARD_REMOVED":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">🗑 Карта отвязана</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Удалённая карта</p>
+           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.brand} •••• ${data.last4}</p>`,
+          "rgba(239,68,68,0.2)"
+        )}
+        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Если вы не совершали это действие — свяжитесь с поддержкой.</p>
+        ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
       `;
     default:
       return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;

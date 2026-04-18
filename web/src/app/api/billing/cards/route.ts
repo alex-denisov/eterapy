@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { deleteSavedPaymentMethod } from "@/lib/yukassa";
+import { notify } from "@/lib/notifications";
 
 export async function GET() {
   const session = await auth();
@@ -66,6 +67,12 @@ export async function DELETE(req: NextRequest) {
       });
     }
   }
+
+  notify({
+    userId: session.user.id,
+    event: "CARD_REMOVED",
+    data: { last4: card.last4, brand: card.brand },
+  }).catch((e) => console.error("[cards] CARD_REMOVED notify error:", e));
 
   return NextResponse.json({ ok: true });
 }

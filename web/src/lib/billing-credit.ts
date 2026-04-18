@@ -12,6 +12,7 @@
  * never credit again, even if the webhook arrives after the reconcile-driven crediting.
  */
 import db from "./db";
+import { notify } from "./notifications";
 
 interface YookassaCardSnapshot {
   id: string;
@@ -48,11 +49,11 @@ export async function creditSucceededPayment(
   providerPaymentId: string,
   paymentMethod?: YookassaCardSnapshot,
 ): Promise<boolean> {
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const transaction = await tx.transaction.findUnique({
       where: { providerPaymentId },
     });
-    if (!transaction || transaction.status !== "PENDING") return false;
+    if (!transaction || transaction.status !== "PENDING") return null;
 
     await tx.transaction.update({
       where: { id: transaction.id },
@@ -63,6 +64,7 @@ export async function creditSucceededPayment(
       data: { balance: { increment: transaction.amount } },
     });
 
+    let newCard: { last4: string; brand: string } | null = null;
     const pm = paymentMethod;
     if (pm?.saved && pm.card) {
       const existing = await tx.savedCard.findUnique({
@@ -72,21 +74,43 @@ export async function creditSucceededPayment(
         const existingCardsCount = await tx.savedCard.count({
           where: { userId: transaction.userId },
         });
+        const brand = normalizeBrand(pm.card.card_type);
         await tx.savedCard.create({
           data: {
             userId: transaction.userId,
             paymentMethodId: pm.id,
             last4: pm.card.last4,
-            brand: normalizeBrand(pm.card.card_type),
+            brand,
             expiryMonth: pm.card.expiry_month,
             expiryYear: pm.card.expiry_year,
             isDefault: existingCardsCount === 0,
           },
         });
+        newCard = { last4: pm.card.last4, brand };
       }
     }
-    return true;
+    return { userId: transaction.userId, amount: transaction.amount, newCard };
   });
+
+  if (!result) return false;
+
+  // Fire notifications outside the DB transaction — best-effort, no blocking.
+  const amountRub = (result.amount / 100).toFixed(2);
+  notify({
+    userId: result.userId,
+    event: "BALANCE_TOPUP",
+    data: { amountRub },
+  }).catch((e) => console.error("[billing-credit] BALANCE_TOPUP notify error:", e));
+
+  if (result.newCard) {
+    notify({
+      userId: result.userId,
+      event: "CARD_LINKED",
+      data: { last4: result.newCard.last4, brand: result.newCard.brand },
+    }).catch((e) => console.error("[billing-credit] CARD_LINKED notify error:", e));
+  }
+
+  return true;
 }
 
 /** Flips a PENDING transaction to CANCELLED. No balance change. Idempotent. */

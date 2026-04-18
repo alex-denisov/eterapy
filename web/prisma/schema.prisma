@@ -401,6 +401,9 @@ enum NotificationEvent {
   NEW_REVIEW             // Новый отзыв (для практика)
   PAYMENT_RECEIVED       // Платёж получен
   PAYOUT_SCHEDULED       // Запланированная выплата практикам (для superadmin)
+  BALANCE_TOPUP          // Пополнение баланса (для клиента/практика)
+  CARD_LINKED            // Новая карта привязана
+  CARD_REMOVED           // Карта отвязана
 }
 
 enum NotificationChannel {
