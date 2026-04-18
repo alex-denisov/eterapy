@@ -298,8 +298,7 @@ function SearchFAQs() {
   }, [query]);
 
   return (
-    <div className="space-y-6">
-      {/* Search — clean input with icon properly positioned */}
+    <div className="space-y-5">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -307,17 +306,17 @@ function SearchFAQs() {
           placeholder="Поиск по вопросам..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-10 rounded-xl border-border/40 bg-muted/30 pl-10 pr-4 text-sm transition-colors focus-visible:border-ring focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-ring/20"
+          className="h-10 rounded-lg border-border/40 bg-card/30 pl-10 pr-4 text-sm transition-colors focus-visible:border-primary/40 focus-visible:bg-card/50 focus-visible:ring-2 focus-visible:ring-primary/20"
         />
       </div>
 
       {filteredCategories.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 py-10 text-center">
+        <div className="rounded-xl border border-dashed border-border/40 bg-card/20 py-6 text-center">
           <p className="text-sm text-muted-foreground">
             Ничего не найдено по запросу «{query}»
           </p>
           <p className="mt-1 text-xs text-muted-foreground/70">
-            Попробуйте изменить запрос или напишите нам на{" "}
+            Напишите нам на{" "}
             <a href="mailto:support@eterapy.com" className="text-primary hover:underline">
               support&#64;eterapy.com
             </a>
@@ -329,12 +328,12 @@ function SearchFAQs() {
           return (
             <section key={cat.id} className="space-y-2">
               <div className="flex items-center gap-2 px-1">
-                <Icon className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                <Icon className="h-4 w-4 text-primary" />
+                <h2 className="font-heading text-sm font-semibold text-foreground">
                   {cat.label}
                 </h2>
               </div>
-              <div className="overflow-hidden rounded-xl border border-border/30 bg-muted/10">
+              <div className="overflow-hidden rounded-xl border border-border/40 bg-card/30">
                 <Accordion items={cat.items} />
               </div>
             </section>
@@ -351,23 +350,19 @@ export default function HelpPage() {
   const role = session?.user?.role ?? "CLIENT";
 
   const content = (
-    <PageContainer maxWidth="3xl" className="py-12">
-      {/* Hero */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Чем мы можем помочь?</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Ответы на частые вопросы о платформе eTerapy
-        </p>
-      </div>
+    <PageContainer maxWidth="3xl">
+      <h1 className="font-heading text-2xl font-bold mb-1">Чем мы можем помочь?</h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        Ответы на частые вопросы о платформе eTerapy
+      </p>
 
       <SearchFAQs />
 
-      {/* Contact support — email only */}
-      <div className="mt-12 rounded-xl border border-border/30 bg-muted/10 px-5 py-4 flex items-center gap-4">
+      <div className="mt-8 rounded-xl border border-border/40 bg-card/30 p-5 flex items-center gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
           <Mail className="h-5 w-5 text-primary" />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-medium">Не нашли ответ?</p>
           <p className="text-xs text-muted-foreground">
             Напишите нам — ответим в течение 24 часов
