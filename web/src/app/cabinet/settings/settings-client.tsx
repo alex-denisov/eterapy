@@ -219,7 +219,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                 <label className="mb-1 block text-sm text-muted-foreground">Повторите новый пароль</label>
                 <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" className="bg-card/50" />
               </div>
-              <Button type="submit" variant="outline" disabled={savingPwd || !currentPwd || !newPwd}>
+              <Button type="submit" disabled={savingPwd || !currentPwd || !newPwd}>
                 {savingPwd ? "Сохранение..." : "Изменить пароль"}
               </Button>
             </form>

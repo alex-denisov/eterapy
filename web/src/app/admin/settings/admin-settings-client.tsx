@@ -92,7 +92,7 @@ export function AdminSettingsClient({
               <Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)}
                 autoComplete="new-password" className="bg-card/50" name="settings-confirm-pwd" data-form-type="other" />
             </div>
-            <Button type="submit" variant="outline" disabled={savingPwd || !currentPwd || !newPwd}>
+            <Button type="submit" disabled={savingPwd || !currentPwd || !newPwd}>
               {savingPwd ? "Сохранение..." : "Изменить пароль"}
             </Button>
           </form>
