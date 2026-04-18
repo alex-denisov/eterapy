@@ -81,20 +81,51 @@ export default function BillingPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Check for payment result from URL params
+  // Check for payment result from URL params.
+  // After YooKassa redirects the user back, the webhook may still be in flight —
+  // in test mode it can arrive seconds (or never) later. Actively reconcile the
+  // pending transactions against YooKassa on mount, then poll balance for a few
+  // seconds so the UI doesn't show a stale number.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const payment = searchParams?.get("payment");
-    if (payment === "success") {
-      toast.success("Баланс успешно пополнен!");
-      loadData();
-      router.replace("/cabinet/billing");
-    } else if (payment === "card-saved") {
-      toast.success("Карта успешно привязана!");
-      loadData();
-      router.replace("/cabinet/billing");
+    if (payment !== "success" && payment !== "card-saved") return;
+
+    if (payment === "success") toast.success("Баланс успешно пополнен!");
+    if (payment === "card-saved") toast.success("Карта успешно привязана!");
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 6; // ~12s total at 2s intervals
+
+    async function reconcileAndRefresh() {
+      try {
+        await fetch("/api/billing/reconcile", { method: "POST" });
+      } catch { /* network errors are fine — fall through to polling */ }
+      if (cancelled) return;
+
+      const [balRes, cardsRes, txRes] = await Promise.all([
+        fetch("/api/billing/balance").then(r => r.json()).catch(() => null),
+        fetch("/api/billing/cards").then(r => r.json()).catch(() => null),
+        fetch("/api/billing/transactions").then(r => r.json()).catch(() => null),
+      ]);
+      if (cancelled) return;
+
+      if (balRes?.balanceRub) setBalanceRub(balRes.balanceRub);
+      if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
+      if (txRes?.transactions) setTransactions(txRes.transactions);
+
+      const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
+      attempts += 1;
+      if (stillPending && attempts < maxAttempts && !cancelled) {
+        setTimeout(reconcileAndRefresh, 2000);
+      }
     }
-  }, [searchParams, loadData, router]);
+
+    reconcileAndRefresh();
+    router.replace("/cabinet/billing");
+    return () => { cancelled = true; };
+  }, [searchParams, router]);
 
   // Standard top-up (redirect to YooKassa)
   async function handleTopUp() {
@@ -178,12 +209,21 @@ export default function BillingPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        if (data.paid) {
+        if (data.paid || data.credited) {
           toast.success(`Баланс пополнен на ${topUpAmount} ₽`);
           loadData();
         } else {
           toast.success("Платёж обрабатывается");
-          loadData();
+          // Saved-card charge is usually synchronous, but if YooKassa returns a
+          // not-yet-captured status we reconcile a few times until it settles.
+          let attempts = 0;
+          const tick = async () => {
+            attempts += 1;
+            try { await fetch("/api/billing/reconcile", { method: "POST" }); } catch {}
+            loadData();
+            if (attempts < 5) setTimeout(tick, 2000);
+          };
+          tick();
         }
       } else {
         toast.error(data.error || "Ошибка платежа");

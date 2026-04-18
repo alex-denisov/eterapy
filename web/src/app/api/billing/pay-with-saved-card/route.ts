@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { yukassaFetch } from "@/lib/yukassa";
+import { applyPaymentResult } from "@/lib/billing-credit";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -63,7 +64,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Сохраняем транзакцию
     await db.transaction.create({
       data: {
         userId: session.user.id,
@@ -75,11 +75,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Saved-card charges usually capture immediately, so credit in-band rather than
+    // waiting for the async webhook — otherwise the UI would show a stale balance.
+    // The webhook (when it arrives) becomes an idempotent no-op.
+    const outcome = await applyPaymentResult(payment);
+
     return NextResponse.json({
       ok: true,
       paymentId: payment.id,
       status: payment.status,
       paid: payment.paid,
+      credited: outcome === "credited",
     });
   } catch (err: any) {
     console.error("YuKassa pay-with-saved-card error:", err);
