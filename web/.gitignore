@@ -5,3 +5,6 @@ node_modules/
 *.tsbuildinfo
 
 certificates
+
+test-results/
+playwright-report/
