@@ -405,6 +405,7 @@ enum NotificationEvent {
 enum NotificationChannel {
   EMAIL
   TELEGRAM
+  WEB          // Уведомление в дропдауне кабинета (колокольчик)
 }
 
 // ─── Platform Settings ────────────────────────────────────────────────────────

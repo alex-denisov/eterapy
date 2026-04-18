@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { getEventsForRole, type NotifEvent, type UserRole } from "@/lib/notification-events";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
-type Channel = "EMAIL" | "TELEGRAM";
+type Channel = "EMAIL" | "TELEGRAM" | "WEB";
 
 interface Pref {
   event: string;
@@ -125,7 +125,6 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
 
   if (loading) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем настройки...</div>;
 
-  const channels: Channel[] = ["EMAIL", "TELEGRAM"];
   const events = getEventsForRole(role);
 
   return (
@@ -183,6 +182,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
           <div className="flex gap-3 text-xs text-muted-foreground/70 pr-1">
             <span className="w-20 text-center">Email</span>
             <span className="w-20 text-center">Telegram</span>
+            <span className="w-20 text-center">Web</span>
           </div>
         </div>
 
@@ -193,8 +193,10 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
 
             const emailPref = getPref(event, "EMAIL");
             const tgPref = getPref(event, "TELEGRAM");
+            const webPref = getPref(event, "WEB");
             const emailEnabled = emailPref ? emailPref.enabled : true;
             const tgEnabled = tgPref ? tgPref.enabled : false;
+            const webEnabled = webPref ? webPref.enabled : true;
             const isReminder = event === "BOOKING_REMINDER";
 
             return (
@@ -202,7 +204,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{meta.label}</p>
                   <p className="text-xs text-muted-foreground/70">{meta.description}</p>
-                  {isReminder && (emailEnabled || tgEnabled) && (
+                  {isReminder && (emailEnabled || tgEnabled || webEnabled) && (
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-muted-foreground/70">До начала сессии:</span>
                       <div className="flex flex-wrap gap-1">
@@ -210,6 +212,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                           const currentVals = [
                             ...(emailPref?.remindBeforeHours ?? []),
                             ...(tgPref?.remindBeforeHours ?? []),
+                            ...(webPref?.remindBeforeHours ?? []),
                           ];
                           const isActive = currentVals.includes(opt.value);
                           return (
@@ -218,6 +221,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                               onClick={() => {
                                 toggleReminder(event, "EMAIL", opt.value);
                                 toggleReminder(event, "TELEGRAM", opt.value);
+                                toggleReminder(event, "WEB", opt.value);
                               }}
                               className={`rounded px-2 py-0.5 text-[11px] transition-colors ${
                                 isActive ? "bg-primary/20 text-primary font-medium" : "bg-card/40 text-muted-foreground hover:text-foreground"
@@ -253,6 +257,14 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                         updatePref(event, "TELEGRAM", { enabled: !tgEnabled });
                       }}
                       label={`Telegram: ${meta.label}`}
+                    />
+                  </div>
+                  {/* Web (in-cabinet bell) toggle */}
+                  <div className="w-20 flex items-center justify-center">
+                    <ToggleSwitch
+                      enabled={webEnabled}
+                      onToggle={() => updatePref(event, "WEB", { enabled: !webEnabled })}
+                      label={`Web: ${meta.label}`}
                     />
                   </div>
                 </div>

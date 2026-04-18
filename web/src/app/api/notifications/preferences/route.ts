@@ -15,14 +15,15 @@ export async function GET() {
   const userId = session.user.id;
   const prefs = await db.notificationPreference.findMany({ where: { userId } });
 
-  // Merge with defaults — return full matrix
+  // Merge with defaults — return full matrix.
+  // Default enabled: EMAIL, WEB (in-cabinet bell).  TELEGRAM opt-in.
   const result = ALL_EVENTS.flatMap(({ event }) =>
-    (["EMAIL", "TELEGRAM"] as const).map(channel => {
+    (["EMAIL", "TELEGRAM", "WEB"] as const).map(channel => {
       const pref = prefs.find(p => p.event === event && p.channel === channel);
       return {
         event,
         channel,
-        enabled: pref ? pref.enabled : channel === "EMAIL",
+        enabled: pref ? pref.enabled : channel !== "TELEGRAM",
         remindBeforeHours: pref?.remindBeforeHours ?? null,
       };
     })
