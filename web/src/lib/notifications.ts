@@ -15,7 +15,8 @@ export type NotifEvent =
   | "SESSION_COMPLETED"
   | "REVIEW_REQUESTED"
   | "NEW_REVIEW"
-  | "PAYMENT_RECEIVED";
+  | "PAYMENT_RECEIVED"
+  | "PAYOUT_SCHEDULED";
 
 export interface NotifPayload {
   userId: string;
@@ -92,6 +93,8 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `⭐ Новый отзыв\nКлиент ${data.clientName} оставил отзыв ${data.rating}/5.\n"${data.text}"`;
     case "PAYMENT_RECEIVED":
       return `💰 Платёж получен\n${data.amountRub} ₽ за сессию ${data.date}.`;
+    case "PAYOUT_SCHEDULED":
+      return `🏦 Запланированная выплата\n${data.date}: ${data.totalRub} ₽ для ${data.practitionerCount} практиков.`;
     default:
       return `ETerapy: уведомление`;
   }

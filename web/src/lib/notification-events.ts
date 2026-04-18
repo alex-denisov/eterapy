@@ -12,9 +12,10 @@ export type NotifEvent =
   | "SESSION_COMPLETED"
   | "REVIEW_REQUESTED"
   | "NEW_REVIEW"
-  | "PAYMENT_RECEIVED";
+  | "PAYMENT_RECEIVED"
+  | "PAYOUT_SCHEDULED";
 
-export type UserRole = "CLIENT" | "PRACTITIONER";
+export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
 
 export const ALL_EVENTS: Array<{
   event: NotifEvent;
@@ -75,6 +76,12 @@ export const ALL_EVENTS: Array<{
     label: "Платёж получен",
     description: "Подтверждение оплаты",
     roles: ["PRACTITIONER"],
+  },
+  {
+    event: "PAYOUT_SCHEDULED",
+    label: "Запланированная выплата",
+    description: "Сводка по выплатам практикам на 1-е и 15-е число",
+    roles: ["SUPERADMIN"],
   },
 ];
 

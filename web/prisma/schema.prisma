@@ -399,6 +399,7 @@ enum NotificationEvent {
   REVIEW_REQUESTED       // Просьба оставить отзыв
   NEW_REVIEW             // Новый отзыв (для практика)
   PAYMENT_RECEIVED       // Платёж получен
+  PAYOUT_SCHEDULED       // Запланированная выплата практикам (для superadmin)
 }
 
 enum NotificationChannel {

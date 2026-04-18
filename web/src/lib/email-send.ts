@@ -57,6 +57,7 @@ const SUBJECTS: Record<NotifEvent, string> = {
   REVIEW_REQUESTED:   "Оставьте отзыв — ETerapy",
   NEW_REVIEW:         "Новый отзыв на вашем профиле — ETerapy",
   PAYMENT_RECEIVED:   "Платёж получен — ETerapy",
+  PAYOUT_SCHEDULED:   "Запланированная выплата — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
