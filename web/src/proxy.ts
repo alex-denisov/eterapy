@@ -71,20 +71,30 @@ export default async function proxy(request: NextRequest) {
   // ─── app.eterapy.com ───
   if (onApp) {
     if (!role) {
-      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/cabinet")}`);
+      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/")}`);
     }
     if (isAdminRole(role)) {
       return redirectAbs(ADMIN_DOMAIN, "/admin");
     }
     // CLIENT or PRACTITIONER
-    if (pathname === "/") {
-      return redirect(homePathForRole(role), request);
+    // Strip /cabinet segment: incoming /cabinet/X → 308 redirect to /X; /cabinet alone → /
+    if (pathname === "/cabinet") {
+      return NextResponse.redirect(new URL("/", request.url), 308);
     }
-    // /cabinet, /help и /api routes allowed here (api excluded by matcher)
-    if (!pathname.startsWith("/cabinet") && pathname !== "/help" && !pathname.startsWith("/help/")) {
-      return redirect(homePathForRole(role), request);
+    if (pathname.startsWith("/cabinet/")) {
+      const stripped = pathname.slice("/cabinet".length); // keeps leading /
+      const search = request.nextUrl.search;
+      return NextResponse.redirect(new URL(stripped + search, request.url), 308);
     }
-    return NextResponse.next();
+    // /help passthrough (served from src/app/help)
+    if (pathname === "/help" || pathname.startsWith("/help/")) {
+      return NextResponse.next();
+    }
+    // All other paths → internally rewrite to /cabinet prefix so existing route tree still serves
+    const target = pathname === "/" ? "/cabinet" : `/cabinet${pathname}`;
+    const rewriteUrl = new URL(target, request.url);
+    rewriteUrl.search = request.nextUrl.search;
+    return NextResponse.rewrite(rewriteUrl);
   }
 
   // ─── admin.eterapy.com ───
