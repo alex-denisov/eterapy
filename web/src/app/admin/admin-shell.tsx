@@ -74,6 +74,7 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const isSuperAdmin = role === "SUPERADMIN";
+  const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
 
   const allNavItems = isSuperAdmin ? [...BASE_NAV, ...SUPERADMIN_EXTRA] : BASE_NAV;
 
@@ -83,6 +84,9 @@ export function AdminShell({
     if (item.permission && !permissions.includes(item.permission)) return false;
     return true;
   });
+
+  // Для мобильного навигации — первые 4 пункта
+  const mobileNav = nav.slice(0, 4);
 
   function isActive(href: string) {
     const itemPath = toPathname(href);
@@ -116,11 +120,15 @@ export function AdminShell({
         style={{ top: "var(--header-height)" }}
       >
         <div className="mb-6 px-2">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-            {ROLE_LABELS[role] ?? "Администратор"}
-          </p>
-          <p className="font-medium text-sm truncate">{user?.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold text-sm">
+              {initial}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
+              <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? "Администратор"}</p>
+            </div>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-0.5">
@@ -153,7 +161,23 @@ export function AdminShell({
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0">
+      {/* Mobile nav */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/20 bg-navy/95 backdrop-blur-sm">
+        {mobileNav.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
+                isActive(item.href) ? "text-primary" : "text-muted-foreground"
+              }`}>
+              <Icon className="h-5 w-5" />
+              {item.label.split(" ")[0]}
+            </Link>
+          );
+        })}
+      </div>
+
+      <main className="flex-1 min-w-0 pb-20 md:pb-0">
         {breadcrumbItems.length > 0 && (
           <div className="px-4 pt-6 sm:px-6">
             <Breadcrumb homeHref={adminUrl("/admin")} items={breadcrumbItems} className="mb-0" />

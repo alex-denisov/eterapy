@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { ClientsTable } from "./clients-table";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminClientsPage() {
   const session = await auth();
@@ -26,12 +27,12 @@ export default async function AdminClientsPage() {
   });
 
   return (
-    <div className="px-6 py-8">
+    <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Клиенты</h1>
         <span className="text-sm text-muted-foreground">Всего: {users.length}</span>
       </div>
       <ClientsTable users={users} adminRole={role} permissions={permissions} />
-    </div>
+    </PageContainer>
   );
 }

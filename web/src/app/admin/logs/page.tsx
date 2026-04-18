@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { LogsViewer } from "./logs-viewer";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminLogsPage() {
   const session = await auth();
@@ -38,7 +39,7 @@ export default async function AdminLogsPage() {
   }));
 
   return (
-    <div className="px-6 py-8">
+    <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Журнал событий</h1>
@@ -47,6 +48,6 @@ export default async function AdminLogsPage() {
         <span className="text-sm text-muted-foreground">Последние {logs.length} записей</span>
       </div>
       <LogsViewer logs={enriched} />
-    </div>
+    </PageContainer>
   );
 }

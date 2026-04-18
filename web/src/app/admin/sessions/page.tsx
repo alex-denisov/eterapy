@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminSessionsPage() {
   const session = await auth();
@@ -42,7 +43,7 @@ export default async function AdminSessionsPage() {
   const total = videoSessions.length;
 
   return (
-    <div className="px-6 py-8">
+    <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Видеосессии</h1>
@@ -104,6 +105,6 @@ export default async function AdminSessionsPage() {
           </tbody>
         </table>
       </div>
-    </div>
+    </PageContainer>
   );
 }

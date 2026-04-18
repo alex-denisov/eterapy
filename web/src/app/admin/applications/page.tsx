@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { ApplicationsManager } from "./applications-manager";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminApplicationsPage() {
   const session = await auth();
@@ -16,7 +17,7 @@ export default async function AdminApplicationsPage() {
   });
 
   return (
-    <div className="px-6 py-8">
+    <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Заявки практиков</h1>
@@ -32,6 +33,6 @@ export default async function AdminApplicationsPage() {
         createdAt: a.createdAt.toISOString(),
         updatedAt: a.updatedAt.toISOString(),
       }))} adminRole={role} />
-    </div>
+    </PageContainer>
   );
 }

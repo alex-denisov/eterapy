@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { ComplaintsManager } from "./complaints-manager";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminComplaintsPage() {
   const session = await auth();
@@ -38,7 +39,7 @@ export default async function AdminComplaintsPage() {
   const openCount = complaints.filter(c => c.status === "OPEN").length;
 
   return (
-    <div className="px-6 py-8">
+    <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-heading text-2xl font-bold">Жалобы</h1>
@@ -84,6 +85,6 @@ export default async function AdminComplaintsPage() {
           createdAt: m.createdAt.toISOString(),
         })) ?? [],
       }))} />
-    </div>
+    </PageContainer>
   );
 }
