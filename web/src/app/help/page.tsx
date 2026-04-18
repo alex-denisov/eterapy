@@ -6,7 +6,7 @@ import { CabinetShell } from "@/components/cabinet/cabinet-shell";
 import { PageContainer } from "@/components/ui/page-container";
 import { Accordion } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
-import { appUrl, mainUrl } from "@/lib/subdomain";
+import { appUrl, adminUrl } from "@/lib/subdomain";
 import {
   Rocket,
   Sparkles,
@@ -16,6 +16,11 @@ import {
   Send,
   Search,
   Mail,
+  Users,
+  Banknote,
+  ShieldCheck,
+  Settings,
+  AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,7 +31,7 @@ interface FAQCategory {
   items: { title: string; content: React.ReactNode }[];
 }
 
-const FAQ_CATEGORIES: FAQCategory[] = [
+const CLIENT_FAQ: FAQCategory[] = [
   {
     id: "getting-started",
     label: "Начало работы",
@@ -279,13 +284,283 @@ const FAQ_CATEGORIES: FAQCategory[] = [
   },
 ];
 
-function SearchFAQs() {
+const PRACTITIONER_FAQ: FAQCategory[] = [
+  {
+    id: "practitioner-start",
+    label: "Начало работы",
+    icon: Rocket,
+    items: [
+      {
+        title: "Как начать принимать клиентов?",
+        content: (
+          <>
+            <p className="mb-2">После одобрения заявки:</p>
+            <ol className="list-decimal pl-5 space-y-1">
+              <li>Заполните профиль в разделе <Link href={appUrl("/cabinet/practitioner/profile")} className="text-primary hover:underline">«Мой профиль»</Link></li>
+              <li>Настройте расписание и доступные слоты</li>
+              <li>Укажите цены по тарифам и длительность сессий</li>
+              <li>Клиенты смогут найти вас в каталоге и записаться</li>
+            </ol>
+          </>
+        ),
+      },
+      {
+        title: "Как редактировать профиль?",
+        content: (
+          <p>
+            Перейдите в раздел <Link href={appUrl("/cabinet/practitioner/profile")} className="text-primary hover:underline">«Мой профиль»</Link>.
+            Здесь можно менять имя, биографию, фото, направления и тарифы. Изменения видны
+            клиентам сразу после сохранения.
+          </p>
+        ),
+      },
+    ],
+  },
+  {
+    id: "schedule",
+    label: "Расписание",
+    icon: Calendar,
+    items: [
+      {
+        title: "Как настроить доступные слоты?",
+        content: (
+          <p>
+            В разделе <Link href={appUrl("/cabinet/practitioner/schedule")} className="text-primary hover:underline">«Расписание»</Link>
+            {" "}добавьте интервалы, в которые готовы принимать клиентов. Повторяющиеся правила
+            и исключения для конкретных дат настраиваются отдельно.
+          </p>
+        ),
+      },
+      {
+        title: "Как отменить запись клиента?",
+        content: (
+          <p>
+            Откройте бронирование в разделе «Расписание» и выберите «Отменить». Клиенту
+            автоматически вернутся средства и придёт уведомление. Частые отмены влияют
+            на рейтинг — старайтесь отменять только по уважительной причине.
+          </p>
+        ),
+      },
+    ],
+  },
+  {
+    id: "clients",
+    label: "Клиенты",
+    icon: Users,
+    items: [
+      {
+        title: "Где посмотреть список клиентов?",
+        content: (
+          <p>
+            В разделе <Link href={appUrl("/cabinet/practitioner/clients")} className="text-primary hover:underline">«Клиенты»</Link>.
+            Для каждого клиента доступна история сессий, заметки и статус оплаты.
+          </p>
+        ),
+      },
+      {
+        title: "Как отвечать на отзывы?",
+        content: (
+          <p>
+            Перейдите в <Link href={appUrl("/cabinet/practitioner/reviews")} className="text-primary hover:underline">«Отзывы»</Link>
+            {" "}и оставьте публичный ответ. Клиент получит уведомление.
+          </p>
+        ),
+      },
+    ],
+  },
+  {
+    id: "earnings",
+    label: "Выплаты",
+    icon: Banknote,
+    items: [
+      {
+        title: "Когда приходят выплаты?",
+        content: (
+          <p>
+            Выплаты производятся два раза в месяц: <strong>1-го</strong> и <strong>15-го</strong> числа.
+            Комиссия платформы удерживается автоматически и отображается в разделе
+            <Link href={appUrl("/cabinet/practitioner/earnings")} className="text-primary hover:underline"> «Выплаты»</Link>.
+          </p>
+        ),
+      },
+      {
+        title: "Что влияет на сумму выплаты?",
+        content: (
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Проведённые сессии за период</li>
+            <li>Комиссия платформы (индивидуальный процент)</li>
+            <li>Удержания по жалобам, если они были удовлетворены</li>
+            <li>Возвраты клиентам по отменам</li>
+          </ul>
+        ),
+      },
+    ],
+  },
+  {
+    id: "video-practitioner",
+    label: "Видеосессии",
+    icon: Video,
+    items: [
+      {
+        title: "Как начать сессию?",
+        content: (
+          <p>
+            За 5 минут до начала в расписании появится кнопка «Начать». Откроется страница
+            видеосессии с клиентом: видео, аудио, чат, заметки. По завершению нажмите
+            «Завершить сессию», чтобы запустить расчёт выплаты.
+          </p>
+        ),
+      },
+      {
+        title: "Что делать, если клиент не подключился?",
+        content: (
+          <p>
+            Подождите 10 минут. Если клиент не вышел на связь, можно завершить сессию
+            с пометкой «неявка клиента» — сессия будет оплачена согласно правилам платформы.
+          </p>
+        ),
+      },
+    ],
+  },
+];
+
+const ADMIN_FAQ: FAQCategory[] = [
+  {
+    id: "admin-start",
+    label: "Быстрый старт",
+    icon: Rocket,
+    items: [
+      {
+        title: "Разделы админ-панели",
+        content: (
+          <ul className="list-disc pl-5 space-y-1">
+            <li><Link href={adminUrl("/admin/clients")} className="text-primary hover:underline">Клиенты</Link> — управление пользователями</li>
+            <li><Link href={adminUrl("/admin/practitioners")} className="text-primary hover:underline">Практики</Link> — модерация, тарифы, комиссия</li>
+            <li><Link href={adminUrl("/admin/applications")} className="text-primary hover:underline">Заявки</Link> — обработка анкет</li>
+            <li><Link href={adminUrl("/admin/complaints")} className="text-primary hover:underline">Жалобы</Link> — разрешение споров</li>
+            <li><Link href={adminUrl("/admin/payments")} className="text-primary hover:underline">Платежи</Link> — транзакции и выплаты</li>
+          </ul>
+        ),
+      },
+    ],
+  },
+  {
+    id: "users-admin",
+    label: "Управление пользователями",
+    icon: Users,
+    items: [
+      {
+        title: "Как заблокировать клиента?",
+        content: (
+          <p>
+            В разделе «Клиенты» откройте карточку, нажмите «Заблокировать» и укажите причину.
+            Клиент потеряет доступ к кабинету, но данные и история сохранятся.
+          </p>
+        ),
+      },
+      {
+        title: "Как удалить аккаунт?",
+        content: (
+          <p>
+            Удаление клиента выполняется с <strong>10-дневным льготным периодом</strong>.
+            Ежедневный крон в 00:00 (MSK) удаляет аккаунты, по которым истёк срок. До этого момента
+            удаление можно отменить.
+          </p>
+        ),
+      },
+      {
+        title: "Как войти под пользователем (импersonate)?",
+        content: (
+          <p>
+            На карточке клиента/практика нажмите «Войти как». Сессия суперадмина сохранится,
+            а вы войдёте в кабинет пользователя на поддомене. Чтобы вернуться — нажмите «Выйти из режима».
+          </p>
+        ),
+      },
+    ],
+  },
+  {
+    id: "complaints-admin",
+    label: "Жалобы и модерация",
+    icon: AlertTriangle,
+    items: [
+      {
+        title: "Как рассматривать жалобу?",
+        content: (
+          <p>
+            В <Link href={adminUrl("/admin/complaints")} className="text-primary hover:underline">«Жалобах»</Link>
+            {" "}откройте обращение. Внутри доступны: видеозапись сессии, транскрипция, файлы, чат.
+            Решение об удовлетворении/отклонении влияет на выплату практику.
+          </p>
+        ),
+      },
+      {
+        title: "Когда удерживается выплата практику?",
+        content: (
+          <p>
+            Если жалоба подана <strong>во время</strong> сессии — выплата приостанавливается
+            до решения модератора. Жалобы после сессии не удерживают уже выплаченные суммы.
+          </p>
+        ),
+      },
+    ],
+  },
+  {
+    id: "system-admin",
+    label: "Системные задачи",
+    icon: Settings,
+    items: [
+      {
+        title: "Где смотреть логи и статус сервисов?",
+        content: (
+          <p>
+            Раздел <Link href={adminUrl("/admin/system")} className="text-primary hover:underline">«Система»</Link>
+            {" "}показывает здоровье контейнеров и даёт доступ к логам приложения.
+          </p>
+        ),
+      },
+      {
+        title: "Где настроить AI-модели?",
+        content: (
+          <p>
+            В разделе «Система» → «AI-модели» настраиваются провайдеры и параметры моделей
+            для направлений, транскрипции и других ML-функций.
+          </p>
+        ),
+      },
+    ],
+  },
+  {
+    id: "security-admin",
+    label: "Безопасность",
+    icon: ShieldCheck,
+    items: [
+      {
+        title: "Как сбросить пароль пользователю?",
+        content: (
+          <p>
+            На карточке пользователя нажмите «Сбросить пароль» — на email отправится ссылка
+            для установки нового пароля.
+          </p>
+        ),
+      },
+    ],
+  },
+];
+
+function getFaqForRole(role: string): FAQCategory[] {
+  if (role === "PRACTITIONER") return PRACTITIONER_FAQ;
+  if (role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR") return ADMIN_FAQ;
+  return CLIENT_FAQ;
+}
+
+function SearchFAQs({ categories }: { categories: FAQCategory[] }) {
   const [query, setQuery] = useState("");
 
   const filteredCategories = useMemo(() => {
-    if (!query.trim()) return FAQ_CATEGORIES;
+    if (!query.trim()) return categories;
     const q = query.toLowerCase();
-    return FAQ_CATEGORIES
+    return categories
       .map((cat) => ({
         ...cat,
         items: cat.items.filter(
@@ -295,7 +570,7 @@ function SearchFAQs() {
         ),
       }))
       .filter((cat) => cat.items.length > 0);
-  }, [query]);
+  }, [query, categories]);
 
   return (
     <div className="space-y-5">
@@ -348,15 +623,21 @@ export default function HelpPage() {
   const { data: session } = useSession();
   const isLoggedIn = !!session;
   const role = session?.user?.role ?? "CLIENT";
+  const categories = getFaqForRole(role);
+
+  const roleLabel =
+    role === "PRACTITIONER"
+      ? "Ответы для практиков"
+      : role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR"
+      ? "Ответы для администраторов"
+      : "Ответы на частые вопросы о платформе eTerapy";
 
   const content = (
     <PageContainer maxWidth="3xl">
       <h1 className="font-heading text-2xl font-bold mb-1">Чем мы можем помочь?</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Ответы на частые вопросы о платформе eTerapy
-      </p>
+      <p className="text-sm text-muted-foreground mb-6">{roleLabel}</p>
 
-      <SearchFAQs />
+      <SearchFAQs categories={categories} />
 
       <div className="mt-8 rounded-xl border border-border/40 bg-card/30 p-5 flex items-center gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
