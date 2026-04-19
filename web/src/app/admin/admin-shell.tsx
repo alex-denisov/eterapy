@@ -35,25 +35,35 @@ interface NavItem {
   superadminOnly?: boolean;
 }
 
-const BASE_NAV: NavItem[] = [
-  { href: adminUrl("/admin"),              icon: LayoutDashboard,   label: "Обзор" },
-  { href: adminUrl("/admin/clients"),      icon: Users,             label: "Клиенты",      permission: "clients.view" },
-  { href: adminUrl("/admin/practitioners"),icon: BriefcaseBusiness, label: "Практики",     permission: "practitioners.view" },
-  { href: adminUrl("/admin/applications"), icon: FileText,          label: "Заявки",       permission: "practitioners.view" },
-  { href: adminUrl("/admin/bookings"),     icon: CalendarDays,      label: "Бронирования" },
-  { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы" },
-];
+// Unified nav order — single source of truth for both ADMIN and SUPERADMIN.
+// Order:
+//   1. Dashboard
+//   2. Role sections: Clients → Practitioners → Moderators (per backlog 11.1)
+//   3. Workflow: Applications → Bookings → Complaints
+//   4. Finance & analytics: Payouts → Pricing → Metrics
+//   5. Records & diagnostics: Sessions → Files → Logs → All users
+//   6. System (ops) — last
+const NAV_ITEMS: NavItem[] = [
+  { href: adminUrl("/admin"),              icon: LayoutDashboard,      label: "Обзор" },
 
-const SUPERADMIN_EXTRA: NavItem[] = [
-  { href: adminUrl("/admin/metrics"),    icon: BarChart3,         label: "Метрики",          superadminOnly: true },
-  { href: adminUrl("/admin/pricing"),    icon: SlidersHorizontal, label: "Цены и тарифы",    superadminOnly: true },
-  { href: adminUrl("/admin/moderators"), icon: Shield,            label: "Модераторы",       superadminOnly: true },
-  { href: adminUrl("/admin/users"),      icon: UserRound,         label: "Все пользователи", superadminOnly: true },
-  { href: adminUrl("/admin/payments"),   icon: WalletCards,       label: "Выплаты",          superadminOnly: true },
-  { href: adminUrl("/admin/files"),      icon: FolderOpen,        label: "Файлы",            superadminOnly: true },
-  { href: adminUrl("/admin/sessions"),   icon: Gauge,             label: "Сессии",           superadminOnly: true },
-  { href: adminUrl("/admin/logs"),       icon: BookOpenText,      label: "Логи",             superadminOnly: true },
-  { href: adminUrl("/admin/system"),     icon: Wrench,            label: "Система",          superadminOnly: true },
+  { href: adminUrl("/admin/clients"),      icon: Users,                label: "Клиенты",          permission: "clients.view" },
+  { href: adminUrl("/admin/practitioners"),icon: BriefcaseBusiness,    label: "Практики",         permission: "practitioners.view" },
+  { href: adminUrl("/admin/moderators"),   icon: Shield,               label: "Модераторы",       superadminOnly: true },
+
+  { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки",           permission: "practitioners.view" },
+  { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования" },
+  { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы" },
+
+  { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Выплаты",          superadminOnly: true },
+  { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
+  { href: adminUrl("/admin/metrics"),      icon: BarChart3,            label: "Метрики",          superadminOnly: true },
+
+  { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии",           superadminOnly: true },
+  { href: adminUrl("/admin/files"),        icon: FolderOpen,           label: "Файлы",            superadminOnly: true },
+  { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Логи",             superadminOnly: true },
+  { href: adminUrl("/admin/users"),        icon: UserRound,            label: "Все пользователи", superadminOnly: true },
+
+  { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Система",          superadminOnly: true },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -76,10 +86,8 @@ export function AdminShell({
   const isSuperAdmin = role === "SUPERADMIN";
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
 
-  const allNavItems = isSuperAdmin ? [...BASE_NAV, ...SUPERADMIN_EXTRA] : BASE_NAV;
-
   // Фильтруем: суперадмин-only скрываем для ADMIN; permission-protected скрываем если нет полномочия
-  const nav = allNavItems.filter(item => {
+  const nav = NAV_ITEMS.filter(item => {
     if (item.superadminOnly && !isSuperAdmin) return false;
     if (item.permission && !permissions.includes(item.permission)) return false;
     return true;
