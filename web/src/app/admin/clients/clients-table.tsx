@@ -19,6 +19,12 @@ interface User {
   avatarUrl: string | null;
   provider?: string | null;
   registrationChannel?: string | null;
+  balance?: number | null;
+  birthDate?: string | Date | null;
+  birthTime?: string | null;
+  birthPlace?: string | null;
+  timezone?: string | null;
+  telegramUsername?: string | null;
 }
 
 function SortBtn({

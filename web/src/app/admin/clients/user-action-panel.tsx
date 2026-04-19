@@ -14,6 +14,12 @@ interface User {
   freeToolsLimit: number | null;
   provider?: string | null;
   registrationChannel?: string | null;
+  balance?: number | null; // kopecks
+  birthDate?: string | Date | null;
+  birthTime?: string | null;
+  birthPlace?: string | null;
+  timezone?: string | null;
+  telegramUsername?: string | null;
 }
 
 export function UserActionPanel({
@@ -40,6 +46,22 @@ export function UserActionPanel({
   const [name, setName] = useState(user.name);
   const [newPwd, setNewPwd] = useState("");
   const [blockComment, setBlockComment] = useState("");
+  const [deleteComment, setDeleteComment] = useState("");
+  const [email, setEmail] = useState(user.email);
+  const [birthDate, setBirthDate] = useState(
+    user.birthDate ? new Date(user.birthDate).toISOString().slice(0, 10) : "",
+  );
+  const [birthTime, setBirthTime] = useState(user.birthTime ?? "");
+  const [birthPlace, setBirthPlace] = useState(user.birthPlace ?? "");
+  const [timezone, setTimezone] = useState(user.timezone ?? "");
+  const [telegramUsername, setTelegramUsername] = useState(user.telegramUsername ?? "");
+  const [balanceRub, setBalanceRub] = useState(
+    user.balance != null ? String(Math.round(user.balance / 100)) : "0",
+  );
+  const [balanceReason, setBalanceReason] = useState("");
+  const [freeLimitInput, setFreeLimitInput] = useState(
+    user.freeToolsLimit == null ? "" : String(user.freeToolsLimit),
+  );
   const [tab, setTab] = useState<TabId>("actions");
   const [events, setEvents] = useState<Array<{ action: string; createdAt: string; details: string | null }>>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -209,6 +231,141 @@ export function UserActionPanel({
             </p>
           )}
         </div>
+
+        {/* Расширенный профиль — только superadmin или edit-permission */}
+        {can("clients.edit") && (
+          <div className="mt-6 space-y-4 border-t border-border/20 pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Профиль</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Email</label>
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  className="bg-card/50 text-sm h-8" autoComplete="off" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Telegram (@login)</label>
+                <Input value={telegramUsername} onChange={e => setTelegramUsername(e.target.value)}
+                  placeholder="username" className="bg-card/50 text-sm h-8" autoComplete="off" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Дата рождения</label>
+                <Input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)}
+                  className="bg-card/50 text-sm h-8" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Время рождения</label>
+                <Input type="time" value={birthTime} onChange={e => setBirthTime(e.target.value)}
+                  className="bg-card/50 text-sm h-8" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Город</label>
+                <Input value={birthPlace} onChange={e => setBirthPlace(e.target.value)}
+                  placeholder="Москва" className="bg-card/50 text-sm h-8" autoComplete="off" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Часовой пояс</label>
+                <Input value={timezone} onChange={e => setTimezone(e.target.value)}
+                  placeholder="Europe/Moscow" className="bg-card/50 text-sm h-8" autoComplete="off" />
+              </div>
+            </div>
+            <button onClick={async () => {
+              const ok = await callAction("update_profile", {
+                email, birthDate, birthTime, birthPlace, timezone, telegramUsername,
+              });
+              if (ok) onUpdate({ email, birthDate, birthTime, birthPlace, timezone, telegramUsername });
+            }}
+              className="rounded-lg bg-primary/20 px-4 py-1.5 text-xs text-primary hover:bg-primary/30">
+              Сохранить профиль
+            </button>
+          </div>
+        )}
+
+        {/* Баланс — только superadmin */}
+        {adminRole === "SUPERADMIN" && (
+          <div className="mt-6 space-y-3 border-t border-border/20 pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Баланс (ручная корректировка)</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Баланс, ₽</label>
+                <Input type="number" value={balanceRub} onChange={e => setBalanceRub(e.target.value)}
+                  className="bg-card/50 text-sm h-8 w-32" />
+              </div>
+              <div className="flex-1 min-w-[160px]">
+                <label className="block text-[11px] text-muted-foreground mb-1">Причина (в аудит)</label>
+                <Input value={balanceReason} onChange={e => setBalanceReason(e.target.value)}
+                  placeholder="Возврат / корректировка" className="bg-card/50 text-sm h-8" />
+              </div>
+              <button onClick={async () => {
+                const ok = await callAction("update_balance", { balanceRub, reason: balanceReason });
+                if (ok) { setBalanceReason(""); onUpdate({ balance: Math.round(Number(balanceRub) * 100) }); }
+              }}
+                className="rounded-lg bg-primary/20 px-3 h-8 text-xs text-primary hover:bg-primary/30 shrink-0">
+                Применить
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Лимит бесплатных AI-инструментов — только superadmin */}
+        {adminRole === "SUPERADMIN" && (
+          <div className="mt-6 space-y-2 border-t border-border/20 pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Лимит бесплатных «направлений»</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">Оставить пустым — план по умолчанию (3)</label>
+                <Input type="number" min={0} value={freeLimitInput}
+                  onChange={e => setFreeLimitInput(e.target.value)}
+                  placeholder="3" className="bg-card/50 text-sm h-8 w-28" />
+              </div>
+              <button onClick={async () => {
+                const val = freeLimitInput.trim();
+                const payload = val === "" ? { limit: "unlimited" } : { limit: val };
+                const ok = await callAction("set_free_limit", payload);
+                if (ok) onUpdate({ freeToolsLimit: val === "" ? 0 : Number(val) });
+              }}
+                className="rounded-lg bg-primary/20 px-3 h-8 text-xs text-primary hover:bg-primary/30">
+                Сохранить
+              </button>
+              <span className="text-[11px] text-muted-foreground">0 = безлимит</span>
+            </div>
+          </div>
+        )}
+
+        {/* Удаление с 10-дневной отсрочкой — только superadmin */}
+        {adminRole === "SUPERADMIN" && (
+          <div className="mt-6 space-y-2 border-t border-border/20 pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Удаление аккаунта</p>
+            {user.deletedAt ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs text-yellow-400">
+                  Помечен на удаление {new Date(user.deletedAt).toLocaleString("ru-RU")}
+                  . Покой до {new Date(new Date(user.deletedAt).getTime() + 10 * 86400_000).toLocaleDateString("ru-RU")}.
+                </span>
+                <button onClick={async () => {
+                  if (await callAction("restore")) onUpdate({ deletedAt: null });
+                }}
+                  className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10">
+                  ↺ Восстановить
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Input value={deleteComment} onChange={e => setDeleteComment(e.target.value)}
+                  placeholder="Причина удаления" className="bg-card/50 text-sm h-8 flex-1 min-w-[200px]" />
+                <button onClick={async () => {
+                  if (!window.confirm("Пометить на удаление? Будет безвозвратно удалён через 10 дней (cron /api/cron/cleanup).")) return;
+                  if (await callAction("soft_delete", { comment: deleteComment })) {
+                    onUpdate({ deletedAt: new Date().toISOString() });
+                    setDeleteComment("");
+                  }
+                }}
+                  className="rounded-lg border border-red-500/30 px-3 h-8 text-xs text-red-400 hover:bg-red-500/10 shrink-0">
+                  🗑 Удалить (10 дней)
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         </form>
       )}
 

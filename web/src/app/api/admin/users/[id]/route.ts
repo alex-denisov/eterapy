@@ -23,6 +23,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       id: true, name: true, email: true, role: true, emailVerified: true,
       avatarUrl: true, deletedAt: true, blockedAt: true, freeToolsLimit: true,
       createdAt: true, updatedAt: true,
+      birthDate: true, birthTime: true, birthPlace: true, timezone: true,
+      telegramUsername: true, balance: true,
     },
   });
   if (!user) return NextResponse.json({ error: "Не найден" }, { status: 404 });
@@ -86,6 +88,68 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     case "set_free_limit": {
       const limit = body.limit === "unlimited" ? 0 : Number(body.limit);
       await db.user.update({ where: { id }, data: { freeToolsLimit: limit } });
+      await logAudit(adminId, "PROFILE_UPDATE", id, `freeToolsLimit=${limit}`);
+      return NextResponse.json({ ok: true });
+    }
+    case "update_profile": {
+      const { email, birthDate, birthTime, birthPlace, timezone, telegramUsername } = body;
+      const data: Record<string, unknown> = {};
+
+      if (typeof email === "string" && email.trim()) {
+        const trimmedEmail = email.trim().toLowerCase();
+        if (trimmedEmail !== targetUser.email) {
+          const existing = await db.user.findUnique({ where: { email: trimmedEmail }, select: { id: true } });
+          if (existing && existing.id !== id) {
+            return NextResponse.json({ error: "Email уже используется" }, { status: 409 });
+          }
+          data.email = trimmedEmail;
+        }
+      }
+      if (birthDate !== undefined) {
+        data.birthDate = birthDate ? new Date(birthDate) : null;
+      }
+      if (birthTime !== undefined) {
+        data.birthTime = typeof birthTime === "string" && birthTime.trim() ? birthTime.trim() : null;
+      }
+      if (birthPlace !== undefined) {
+        data.birthPlace = typeof birthPlace === "string" && birthPlace.trim() ? birthPlace.trim() : null;
+      }
+      if (timezone !== undefined) {
+        data.timezone = typeof timezone === "string" && timezone.trim() ? timezone.trim() : null;
+      }
+      if (telegramUsername !== undefined) {
+        const raw = typeof telegramUsername === "string" ? telegramUsername.trim().replace(/^@/, "") : "";
+        data.telegramUsername = raw || null;
+      }
+
+      if (Object.keys(data).length === 0) {
+        return NextResponse.json({ error: "Нет изменений" }, { status: 400 });
+      }
+
+      await db.user.update({ where: { id }, data });
+      await logAudit(adminId, "PROFILE_UPDATE", id, Object.keys(data).join(","));
+      return NextResponse.json({ ok: true });
+    }
+    case "update_balance": {
+      const rub = Number(body.balanceRub);
+      if (!Number.isFinite(rub)) return NextResponse.json({ error: "Некорректный баланс" }, { status: 400 });
+      const kopecks = Math.round(rub * 100);
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      await db.user.update({ where: { id }, data: { balance: kopecks } });
+      await logAudit(adminId, "PROFILE_UPDATE", id, `balance=${kopecks}${reason ? ` (${reason})` : ""}`);
+      return NextResponse.json({ ok: true });
+    }
+    case "soft_delete": {
+      // Sets deletedAt = now. /api/cron/cleanup purges users after 10 days.
+      if (targetUser.deletedAt) return NextResponse.json({ error: "Уже помечен на удаление" }, { status: 400 });
+      await db.user.update({ where: { id }, data: { deletedAt: new Date() } });
+      await logAudit(adminId, "ACCOUNT_DELETE", id, typeof comment === "string" ? comment : "");
+      return NextResponse.json({ ok: true });
+    }
+    case "restore": {
+      if (!targetUser.deletedAt) return NextResponse.json({ error: "Не был удалён" }, { status: 400 });
+      await db.user.update({ where: { id }, data: { deletedAt: null } });
+      await logAudit(adminId, "PROFILE_UPDATE", id, "restore");
       return NextResponse.json({ ok: true });
     }
     default:
