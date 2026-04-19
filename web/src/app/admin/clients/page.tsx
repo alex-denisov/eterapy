@@ -33,7 +33,12 @@ export default async function AdminClientsPage() {
         <h1 className="font-heading text-2xl font-bold">Клиенты</h1>
         <span className="text-sm text-muted-foreground">Всего: {users.length}</span>
       </div>
-      <ClientsTable users={users} adminRole={role} permissions={permissions} />
+      <ClientsTable
+        users={users}
+        adminRole={role}
+        permissions={permissions}
+        canCreate={permissions.includes("clients.create")}
+      />
     </PageContainer>
   );
 }

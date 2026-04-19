@@ -4,10 +4,26 @@ import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
+import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
 
 function isAdminOrSuper(role?: string) {
   return role === "ADMIN" || role === "SUPERADMIN";
 }
+
+// Per-action permission gate. SUPERADMIN bypasses all checks (permissions list
+// already contains every permission for SUPERADMIN via getUserPermissions).
+const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
+  update_name:      "clients.edit",
+  update_profile:   "clients.edit",
+  set_password:     "clients.set_password",
+  reset_password:   "clients.reset_password",
+  block:            "clients.block",
+  unblock:          "clients.block",
+  update_balance:   "SUPERADMIN_ONLY",
+  set_free_limit:   "SUPERADMIN_ONLY",
+  soft_delete:      "clients.delete",
+  restore:          "clients.delete",
+};
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -50,6 +66,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const adminId = session!.user!.id!;
+
+  // Enforce per-action permission for CLIENT targets. SUPERADMIN has all perms via getUserPermissions.
+  const gate = ACTION_PERMISSION[action as string];
+  if (gate) {
+    if (gate === "SUPERADMIN_ONLY") {
+      if (adminRole !== "SUPERADMIN") {
+        return NextResponse.json({ error: `Действие «${action}» доступно только суперадмину` }, { status: 403 });
+      }
+    } else {
+      const perms = await getUserPermissions(adminId, adminRole!);
+      if (!perms.includes(gate)) {
+        return NextResponse.json({ error: `Нет полномочия ${gate}` }, { status: 403 });
+      }
+    }
+  }
 
   switch (action) {
     case "update_name": {

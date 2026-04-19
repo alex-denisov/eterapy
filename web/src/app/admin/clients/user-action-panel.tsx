@@ -331,8 +331,8 @@ export function UserActionPanel({
           </div>
         )}
 
-        {/* Удаление с 10-дневной отсрочкой — только superadmin */}
-        {adminRole === "SUPERADMIN" && (
+        {/* Удаление с 10-дневной отсрочкой — clients.delete (у SUPERADMIN есть автоматически) */}
+        {can("clients.delete") && (
           <div className="mt-6 space-y-2 border-t border-border/20 pt-4">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Удаление аккаунта</p>
             {user.deletedAt ? (

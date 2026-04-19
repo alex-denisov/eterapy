@@ -6,7 +6,9 @@ import db from "@/lib/db";
 
 export type Permission =
   | "clients.view"
+  | "clients.create"
   | "clients.edit"
+  | "clients.delete"
   | "clients.block"
   | "clients.reset_password"
   | "clients.set_password"
@@ -24,7 +26,7 @@ export type Permission =
 
 /** Все полномочия SUPERADMIN — полный доступ */
 export const ALL_PERMISSIONS: Permission[] = [
-  "clients.view", "clients.edit", "clients.block",
+  "clients.view", "clients.create", "clients.edit", "clients.delete", "clients.block",
   "clients.reset_password", "clients.set_password",
   "clients.view_sessions", "clients.view_events",
   "practitioners.view", "practitioners.create", "practitioners.edit",

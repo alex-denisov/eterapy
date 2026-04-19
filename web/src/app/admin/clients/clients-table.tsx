@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { UserActionPanel } from "./user-action-panel";
+import { CreateClientModal } from "./create-client-modal";
 import type { Permission } from "@/lib/moderator-permissions";
 
 interface User {
@@ -57,11 +59,14 @@ export function ClientsTable({
   users,
   adminRole,
   permissions,
+  canCreate = false,
 }: {
   users: User[];
   adminRole: string;
   permissions: Permission[];
+  canCreate?: boolean;
 }) {
+  const router = useRouter();
   const can = (p: Permission) => permissions.includes(p);
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<"name" | "email" | "createdAt">("createdAt");
@@ -69,6 +74,7 @@ export function ClientsTable({
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "blocked" | "deleted">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localUsers, setLocalUsers] = useState(users);
+  const [showCreate, setShowCreate] = useState(false);
 
   const filtered = useMemo(() => {
     let list = [...localUsers];
@@ -117,7 +123,20 @@ export function ClientsTable({
           ))}
         </div>
         <span className="ml-auto text-xs text-muted-foreground">{filtered.length} из {localUsers.length}</span>
+        {canCreate && (
+          <button type="button" onClick={() => setShowCreate(true)}
+            className="rounded-lg bg-primary/20 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/30">
+            + Новый клиент
+          </button>
+        )}
       </form>
+
+      {showCreate && (
+        <CreateClientModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => router.refresh()}
+        />
+      )}
 
       {/* Таблица */}
       <div className="rounded-xl border border-border/30 overflow-hidden">
