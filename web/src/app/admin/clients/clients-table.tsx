@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { UserActionPanel } from "./user-action-panel";
 import { CreateClientModal } from "./create-client-modal";
 import type { Permission } from "@/lib/moderator-permissions";
+import { resolveRegistrationChannel } from "@/lib/registration-channel";
 
 interface User {
   id: string;
@@ -195,7 +196,7 @@ export function ClientsTable({
                   <td className="p-3 text-muted-foreground">{u.email}</td>
                   <td className="p-3 text-xs">
                     <Badge variant="outline" className="text-xs">
-                      {u.provider ?? "email"}
+                      {resolveRegistrationChannel(u)}
                     </Badge>
                   </td>
                   <td className="p-3">

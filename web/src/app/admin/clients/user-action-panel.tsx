@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import type { Permission } from "@/lib/moderator-permissions";
+import { resolveRegistrationChannel, registrationChannelLabel } from "@/lib/registration-channel";
 
 interface User {
   id: string;
@@ -144,21 +145,12 @@ export function UserActionPanel({
             </div>
           )}
 
-          {/* Канал регистрации */}
+          {/* Канал регистрации — read-only, single source of truth */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Регистрация</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Канал регистрации</p>
             <div className="rounded-lg border border-border/20 bg-card/30 px-3 py-2 text-xs text-foreground">
-              <p className="text-muted-foreground">Канал: <span className="text-foreground font-medium">{
-                user.registrationChannel === "site" ? "Сайт" :
-                user.registrationChannel === "google" ? "Google" :
-                user.registrationChannel === "vk" ? "VK" :
-                user.registrationChannel === "telegram" ? "Telegram" :
-                user.registrationChannel === "referral" ? "Реферал" :
-                user.registrationChannel || "Не указан"
-              }</span></p>
-              {user.provider && (
-                <p className="text-muted-foreground mt-1">Провайдер: <span className="text-foreground font-medium">{user.provider}</span></p>
-              )}
+              <span className="text-foreground font-medium">{registrationChannelLabel(resolveRegistrationChannel(user))}</span>
+              <span className="ml-2 text-[10px] text-muted-foreground/60">({resolveRegistrationChannel(user)})</span>
             </div>
           </div>
 

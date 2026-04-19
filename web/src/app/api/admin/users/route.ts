@@ -83,8 +83,7 @@ export async function POST(req: NextRequest) {
       password: hashed,
       role: "CLIENT",
       emailVerified: false,
-      provider: "manual",
-      registrationChannel: "manual",
+      provider: "manual", // canonical channel (registrationChannel column is legacy, read via resolveRegistrationChannel)
       birthDate,
       birthTime,
       birthPlace,
