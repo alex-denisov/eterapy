@@ -11,12 +11,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { id } = await params;
-  const { name, title, bio, experience } = await req.json();
+  const body = await req.json();
+  const { name, title, bio, experience, commissionPercent } = body as {
+    name?: string;
+    title?: string;
+    bio?: string;
+    experience?: string;
+    commissionPercent?: number;
+  };
+
+  // Комиссию правит только суперадмин — финансовая настройка.
+  if (commissionPercent !== undefined && role !== "SUPERADMIN") {
+    return NextResponse.json({ error: "Комиссию меняет только SUPERADMIN" }, { status: 403 });
+  }
+  if (commissionPercent !== undefined) {
+    const n = Number(commissionPercent);
+    if (!Number.isInteger(n) || n < 0 || n > 100) {
+      return NextResponse.json({ error: "commissionPercent должен быть целым от 0 до 100" }, { status: 400 });
+    }
+  }
 
   await db.$transaction(async (tx) => {
+    const updateData: {
+      title?: string;
+      bio?: string;
+      experience?: string;
+      commissionPercent?: number;
+    } = {};
+    if (title !== undefined) updateData.title = title;
+    if (bio !== undefined) updateData.bio = bio;
+    if (experience !== undefined) updateData.experience = experience;
+    if (commissionPercent !== undefined) updateData.commissionPercent = commissionPercent;
+
     const p = await tx.practitioner.update({
       where: { id },
-      data: { title, bio, experience },
+      data: updateData,
       select: { userId: true },
     });
     if (name) {
@@ -26,7 +55,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   const p = await db.practitioner.findUnique({ where: { id }, select: { userId: true } });
-  if (p) await logAudit(session.user.id, "PRACTITIONER_PROFILE_UPDATE", p.userId, `Профиль обновлён администратором`);
+  if (p) {
+    const note = commissionPercent !== undefined
+      ? `Профиль обновлён администратором (комиссия = ${commissionPercent}%)`
+      : `Профиль обновлён администратором`;
+    await logAudit(session.user.id, "PRACTITIONER_PROFILE_UPDATE", p.userId, note);
+  }
 
   return NextResponse.json({ ok: true });
 }

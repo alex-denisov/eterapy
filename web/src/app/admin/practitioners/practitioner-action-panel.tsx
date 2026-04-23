@@ -59,6 +59,8 @@ export function PractitionerActionPanel({
   const [ratesLoaded, setRatesLoaded] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [payingOut, setPayingOut] = useState(false);
+  const [commissionInput, setCommissionInput] = useState(String(p.commissionPercent));
+  const [savingCommission, setSavingCommission] = useState(false);
 
   async function callUserAction(action: string, extra: Record<string, string> = {}) {
     const res = await fetch(`/api/admin/users/${p.userId}`, {
@@ -107,6 +109,28 @@ export function PractitionerActionPanel({
     const d = await res.json();
     if (d.ok) toast.success("Тарифы обновлены");
     else toast.error(d.error ?? "Ошибка");
+  }
+
+  async function saveCommission() {
+    const n = parseInt(commissionInput, 10);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      toast.error("Комиссия должна быть от 0 до 100");
+      return;
+    }
+    setSavingCommission(true);
+    const res = await fetch(`/api/admin/practitioners/${p.id}/profile`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commissionPercent: n }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      toast.success(`Комиссия: ${n}%`);
+      onUpdate({ commissionPercent: n } as Partial<Practitioner>);
+    } else {
+      toast.error(d.error ?? "Ошибка");
+    }
+    setSavingCommission(false);
   }
 
   async function triggerPayout() {
@@ -320,6 +344,29 @@ export function PractitionerActionPanel({
             <p>Сессий выполнено: <span className="text-foreground font-medium">{p.sessionCount}</span></p>
             <p>Рейтинг: <span className="text-foreground font-medium">{p.avgRating != null ? `★ ${p.avgRating.toFixed(1)} (${p.reviewCount})` : "нет оценок"}</span></p>
             <p>Открытых жалоб: <span className={p.openComplaintCount > 0 ? "text-red-400 font-medium" : "text-foreground font-medium"}>{p.openComplaintCount}</span></p>
+          </div>
+
+          {/* Комиссия: редактирует только SUPERADMIN (role-gate on server), остальные видят как read-only */}
+          <div className="rounded-lg border border-border/30 p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Комиссия платформы</p>
+            {adminRole === "SUPERADMIN" ? (
+              <div className="flex items-center gap-2">
+                <Input type="number" min="0" max="100" step="1"
+                  value={commissionInput}
+                  onChange={e => setCommissionInput(e.target.value)}
+                  className="h-8 w-24 bg-card/50 text-sm" />
+                <span className="text-sm text-muted-foreground">%</span>
+                <button onClick={saveCommission} disabled={savingCommission}
+                  className="rounded-lg bg-primary/20 px-3 py-1.5 text-xs text-primary hover:bg-primary/30 disabled:opacity-40">
+                  {savingCommission ? "Сохранение…" : "Сохранить"}
+                </button>
+                <p className="ml-auto text-[10px] text-muted-foreground">
+                  Применяется к новым завершённым сессиям; баланс пересчитается на лету.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm font-medium">{p.commissionPercent}%</p>
+            )}
           </div>
 
           {can("practitioners.payout") && (

@@ -48,12 +48,17 @@ export default async function AdminPaymentsPage() {
     practitioners: list.reduce((s, p) => s + p.practitionerEarnings, 0),
   };
 
+  // Blended commission = platform / revenue (fallback to 0 when no revenue).
+  const blendedCommission = totals.revenue > 0
+    ? Math.round((totals.platform / totals.revenue) * 100)
+    : 0;
+
   return (
     <div className="px-6 py-8">
       <div className="mb-6">
         <h1 className="font-heading text-2xl font-bold">Выплаты практикам</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Управление выплатами · Комиссия платформы 15%
+          Комиссия задаётся per-practitioner · средняя {blendedCommission}%
         </p>
       </div>
 
@@ -61,7 +66,7 @@ export default async function AdminPaymentsPage() {
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
           { label: "Общий оборот", value: totals.revenue, color: "text-foreground" },
-          { label: "Доход платформы (15%)", value: totals.platform, color: "text-primary" },
+          { label: `Доход платформы (${blendedCommission}% в среднем)`, value: totals.platform, color: "text-primary" },
           { label: "К выплате практикам", value: totals.practitioners, color: "text-green-400" },
         ].map(item => (
           <div key={item.label} className="rounded-xl border border-border/30 bg-card/20 px-5 py-4">
