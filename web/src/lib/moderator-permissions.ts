@@ -22,7 +22,8 @@ export type Permission =
   | "practitioners.set_password"
   | "practitioners.set_rates"
   | "practitioners.set_schedule"
-  | "practitioners.view_earnings";
+  | "practitioners.view_earnings"
+  | "practitioners.payout";
 
 /** Все полномочия SUPERADMIN — полный доступ */
 export const ALL_PERMISSIONS: Permission[] = [
@@ -32,6 +33,7 @@ export const ALL_PERMISSIONS: Permission[] = [
   "practitioners.view", "practitioners.create", "practitioners.edit",
   "practitioners.block", "practitioners.reset_password", "practitioners.set_password",
   "practitioners.set_rates", "practitioners.set_schedule", "practitioners.view_earnings",
+  "practitioners.payout",
 ];
 
 /** Минимальный набор для ADMIN без явных полномочий */

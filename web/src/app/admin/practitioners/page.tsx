@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PractitionersPanel } from "./practitioners-panel";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { computePractitionerBalances } from "@/lib/practitioner-balance";
 
 export default async function AdminPractitionersPage() {
   const session = await auth();
@@ -22,30 +23,60 @@ export default async function AdminPractitionersPage() {
     },
   });
 
-  const list = practitioners.map(p => ({
-    id: p.id,
-    userId: p.userId,
-    slug: p.slug,
-    name: p.user.name,
-    email: p.user.email,
-    avatarUrl: p.user.avatarUrl,
-    userBlockedAt: p.user.blockedAt ? p.user.blockedAt.toISOString() : null,
-    status: p.status,
-    title: p.title,
-    bio: p.bio,
-    experience: p.experience,
-    specialties: p.specialties,
-    tags: p.tags,
-    pricePerSession: p.pricePerSession,
-    sessionDuration: p.sessionDuration,
-    verified: p.verified,
-    founding: p.founding,
-    reviewCount: p.reviewCount,
-    sessionCount: p.sessionCount,
-    minRate: p.priceRates[0]?.priceRub ?? null,
-    minRateDuration: p.priceRates[0]?.durationMin ?? null,
-    createdAt: p.createdAt.toISOString(),
-  }));
+  const practitionerIds = practitioners.map(p => p.id);
+  const [balances, complaintRows] = await Promise.all([
+    computePractitionerBalances(practitionerIds),
+    // Count open/reviewing complaints per practitioner via their bookings.
+    db.complaint.findMany({
+      where: {
+        status: { in: ["OPEN", "REVIEWING"] },
+        booking: { practitionerId: { in: practitionerIds } },
+      },
+      select: { booking: { select: { practitionerId: true } } },
+    }),
+  ]);
+
+  const openComplaintCount = new Map<string, number>();
+  for (const row of complaintRows) {
+    const pid = row.booking.practitionerId;
+    openComplaintCount.set(pid, (openComplaintCount.get(pid) ?? 0) + 1);
+  }
+
+  const list = practitioners.map(p => {
+    const balance = balances.get(p.id);
+    const avgRating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : null;
+    return {
+      id: p.id,
+      userId: p.userId,
+      slug: p.slug,
+      name: p.user.name,
+      email: p.user.email,
+      avatarUrl: p.user.avatarUrl,
+      userBlockedAt: p.user.blockedAt ? p.user.blockedAt.toISOString() : null,
+      status: p.status,
+      title: p.title,
+      bio: p.bio,
+      experience: p.experience,
+      specialties: p.specialties,
+      tags: p.tags,
+      pricePerSession: p.pricePerSession,
+      sessionDuration: p.sessionDuration,
+      commissionPercent: p.commissionPercent,
+      verified: p.verified,
+      founding: p.founding,
+      reviewCount: p.reviewCount,
+      sessionCount: p.sessionCount,
+      avgRating,
+      openComplaintCount: openComplaintCount.get(p.id) ?? 0,
+      accruedNet: balance?.accruedNet ?? 0,
+      paidOut: balance?.paidOut ?? 0,
+      pendingPayout: balance?.pendingPayout ?? 0,
+      currentBalance: balance?.currentBalance ?? 0,
+      minRate: p.priceRates[0]?.priceRub ?? null,
+      minRateDuration: p.priceRates[0]?.durationMin ?? null,
+      createdAt: p.createdAt.toISOString(),
+    };
+  });
 
   return (
     <div className="px-6 py-8">

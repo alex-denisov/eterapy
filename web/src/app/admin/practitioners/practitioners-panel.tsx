@@ -24,10 +24,17 @@ interface Practitioner {
   tags: string[];
   pricePerSession: number;
   sessionDuration: number;
+  commissionPercent: number;
   verified: boolean;
   founding: boolean;
   reviewCount: number;
   sessionCount: number;
+  avgRating: number | null;
+  openComplaintCount: number;
+  accruedNet: number;
+  paidOut: number;
+  pendingPayout: number;
+  currentBalance: number;
   minRate: number | null;
   minRateDuration: number | null;
   createdAt: string;
@@ -210,6 +217,9 @@ export function PractitionersPanel({
               <th className="text-left p-3 text-xs text-muted-foreground font-medium">Статус</th>
               <th className="text-left p-3 text-xs text-muted-foreground font-medium">Специализация</th>
               <th className="text-left p-3 text-xs text-muted-foreground font-medium">Сессии</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Рейтинг</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Жалобы</th>
+              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Баланс</th>
               <th className="text-left p-3 text-xs text-muted-foreground font-medium">Тариф (мин)</th>
               <th className="p-3"></th>
             </tr>
@@ -251,6 +261,24 @@ export function PractitionersPanel({
                     <p className="text-[10px] text-muted-foreground">{p.reviewCount} отзывов</p>
                   </td>
                   <td className="p-3 text-xs">
+                    {p.avgRating != null ? (
+                      <span className="font-medium text-yellow-400">★ {p.avgRating.toFixed(1)}</span>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </td>
+                  <td className="p-3 text-xs">
+                    {p.openComplaintCount > 0 ? (
+                      <Badge className="bg-red-500/15 text-red-400 text-[10px] py-0">{p.openComplaintCount}</Badge>
+                    ) : <span className="text-muted-foreground">0</span>}
+                  </td>
+                  <td className="p-3 text-xs">
+                    <span className={p.currentBalance > 0 ? "text-primary font-medium" : "text-muted-foreground"}>
+                      {p.currentBalance.toLocaleString("ru")} ₽
+                    </span>
+                    {p.pendingPayout > 0 && (
+                      <p className="text-[10px] text-yellow-400">+{p.pendingPayout.toLocaleString("ru")} ₽ в пути</p>
+                    )}
+                  </td>
+                  <td className="p-3 text-xs">
                     {p.minRate != null ? (
                       <span className="text-primary font-medium">{p.minRate.toLocaleString("ru")} ₽/{p.minRateDuration}мин</span>
                     ) : <span className="text-muted-foreground">—</span>}
@@ -267,7 +295,8 @@ export function PractitionersPanel({
                       </a>
                       {(can("practitioners.edit") || can("practitioners.block") ||
                         can("practitioners.reset_password") || can("practitioners.set_password") ||
-                        can("practitioners.set_rates")) && (
+                        can("practitioners.set_rates") || can("practitioners.payout") ||
+                        can("practitioners.view_earnings")) && (
                         <button onClick={() => setExpandedId(expandedId === p.id ? null : p.id)}
                           className="rounded-lg border border-border/30 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground">
                           {expandedId === p.id ? "Скрыть" : "Управление"}
@@ -278,7 +307,7 @@ export function PractitionersPanel({
                 </tr>
                 {expandedId === p.id && (
                   <tr>
-                    <td colSpan={6} className="bg-card/10 p-4 border-b border-border/20">
+                    <td colSpan={9} className="bg-card/10 p-4 border-b border-border/20">
                       <PractitionerActionPanel
                         practitioner={p}
                         adminRole={adminRole}

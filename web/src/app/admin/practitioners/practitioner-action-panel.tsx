@@ -16,6 +16,15 @@ interface Practitioner {
   experience: string;
   verified: boolean;
   userBlockedAt: string | null;
+  commissionPercent: number;
+  accruedNet: number;
+  paidOut: number;
+  pendingPayout: number;
+  currentBalance: number;
+  openComplaintCount: number;
+  avgRating: number | null;
+  reviewCount: number;
+  sessionCount: number;
 }
 
 const STATUSES = [
@@ -39,7 +48,7 @@ export function PractitionerActionPanel({
   onUpdate: (patch: Partial<Practitioner>) => void;
 }) {
   const can = (perm: Permission) => permissions.includes(perm);
-  const [tab, setTab] = useState<"actions" | "rates" | "schedule">("actions");
+  const [tab, setTab] = useState<"actions" | "rates" | "schedule" | "finance">("actions");
   const [newPwd, setNewPwd] = useState("");
   const [blockComment, setBlockComment] = useState("");
   const [name, setName] = useState(p.name);
@@ -49,6 +58,7 @@ export function PractitionerActionPanel({
   const [rates, setRates] = useState<Array<{ durationMin: number; priceRub: number; enabled: boolean }>>([]);
   const [ratesLoaded, setRatesLoaded] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [payingOut, setPayingOut] = useState(false);
 
   async function callUserAction(action: string, extra: Record<string, string> = {}) {
     const res = await fetch(`/api/admin/users/${p.userId}`, {
@@ -79,10 +89,9 @@ export function PractitionerActionPanel({
     const res = await fetch(`/api/rates?practitionerId=${p.id}`);
     const d = await res.json();
     const ALL_DURATIONS = [15, 30, 45, 60, 90, 120];
-    const existing = d.rates ?? [];
-    // Дополняем все длительности, даже если их нет в БД
+    const existing = (d.rates ?? []) as Array<{ durationMin: number; priceRub: number; enabled: boolean }>;
     const fullRates = ALL_DURATIONS.map(dur => {
-      const found = existing.find((r: any) => r.durationMin === dur);
+      const found = existing.find(r => r.durationMin === dur);
       return found ?? { durationMin: dur, priceRub: 0, enabled: false };
     });
     setRates(fullRates);
@@ -100,12 +109,33 @@ export function PractitionerActionPanel({
     else toast.error(d.error ?? "Ошибка");
   }
 
+  async function triggerPayout() {
+    if (!confirm(`Выплатить ${p.currentBalance.toLocaleString("ru")} ₽ этому практику?`)) return;
+    setPayingOut(true);
+    const res = await fetch(`/api/admin/practitioners/${p.id}/payout`, { method: "POST" });
+    const d = await res.json();
+    if (d.ok) {
+      toast.success("Выплата инициирована");
+      onUpdate({
+        pendingPayout: p.pendingPayout + p.currentBalance,
+        currentBalance: 0,
+      } as Partial<Practitioner>);
+    } else {
+      toast.error(d.error ?? "Ошибка выплаты");
+    }
+    setPayingOut(false);
+  }
+
   return (
     <div>
       {/* Табы — только разрешённые */}
       <div className="flex gap-1 mb-4 border-b border-border/20 pb-2">
-        {(["actions", "rates", "schedule"] as const)
-          .filter(t => t !== "rates" || can("practitioners.set_rates"))
+        {(["actions", "rates", "finance", "schedule"] as const)
+          .filter(t => {
+            if (t === "rates") return can("practitioners.set_rates");
+            if (t === "finance") return can("practitioners.view_earnings") || can("practitioners.payout");
+            return true;
+          })
           .map(t => (
           <button key={t} onClick={() => {
             setTab(t);
@@ -114,7 +144,7 @@ export function PractitionerActionPanel({
             className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
               tab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
             }`}>
-            {{ actions: "⚙️ Действия", rates: "💰 Тарифы", schedule: "📅 Расписание" }[t]}
+            {{ actions: "⚙️ Действия", rates: "💰 Тарифы", finance: "🏦 Финансы", schedule: "📅 Расписание" }[t]}
           </button>
         ))}
       </div>
@@ -260,6 +290,51 @@ export function PractitionerActionPanel({
                 Сохранить тарифы
               </button>
             </>
+          )}
+        </div>
+      )}
+
+      {tab === "finance" && (
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-lg border border-border/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Начислено (после комиссии)</p>
+              <p className="mt-1 text-lg font-semibold">{p.accruedNet.toLocaleString("ru")} ₽</p>
+              <p className="text-[10px] text-muted-foreground">Комиссия {p.commissionPercent}%</p>
+            </div>
+            <div className="rounded-lg border border-border/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Выплачено</p>
+              <p className="mt-1 text-lg font-semibold text-green-400">{p.paidOut.toLocaleString("ru")} ₽</p>
+            </div>
+            <div className="rounded-lg border border-border/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">В обработке</p>
+              <p className="mt-1 text-lg font-semibold text-yellow-400">{p.pendingPayout.toLocaleString("ru")} ₽</p>
+            </div>
+            <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-primary/80">Текущий баланс</p>
+              <p className="mt-1 text-lg font-semibold text-primary">{p.currentBalance.toLocaleString("ru")} ₽</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border/30 p-3 text-xs text-muted-foreground space-y-1">
+            <p>Сессий выполнено: <span className="text-foreground font-medium">{p.sessionCount}</span></p>
+            <p>Рейтинг: <span className="text-foreground font-medium">{p.avgRating != null ? `★ ${p.avgRating.toFixed(1)} (${p.reviewCount})` : "нет оценок"}</span></p>
+            <p>Открытых жалоб: <span className={p.openComplaintCount > 0 ? "text-red-400 font-medium" : "text-foreground font-medium"}>{p.openComplaintCount}</span></p>
+          </div>
+
+          {can("practitioners.payout") && (
+            <div>
+              <button onClick={triggerPayout}
+                disabled={payingOut || p.currentBalance <= 0}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-navy hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed">
+                {payingOut
+                  ? "Инициирую…"
+                  : p.currentBalance > 0
+                    ? `💸 Выплатить ${p.currentBalance.toLocaleString("ru")} ₽ сейчас`
+                    : "Нет средств к выплате"}
+              </button>
+              <p className="mt-2 text-[11px] text-muted-foreground">Создаёт Payout со статусом PENDING — обработчик проведёт через платёжного провайдера.</p>
+            </div>
           )}
         </div>
       )}

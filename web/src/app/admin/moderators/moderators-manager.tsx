@@ -24,6 +24,7 @@ const ALL_PERMISSIONS: Array<{ key: string; label: string; group: string }> = [
   { key: "practitioners.set_rates",     label: "Управление тарифами",        group: "Практики" },
   { key: "practitioners.set_schedule",  label: "Управление расписанием",     group: "Практики" },
   { key: "practitioners.view_earnings", label: "Просмотр выплат",            group: "Практики" },
+  { key: "practitioners.payout",        label: "Инициация выплат",           group: "Практики" },
 ];
 
 interface Moderator {
