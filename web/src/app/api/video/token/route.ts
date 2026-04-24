@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { generateToken, makeRoomName } from "@/lib/livekit";
+import { chargeClientForSession } from "@/lib/session-charge";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
     where: { id: bookingId },
     include: {
       practitioner: { include: { user: { select: { id: true, name: true } } } },
-      client: { select: { id: true, name: true, balance: true } },
+      client: { select: { id: true, name: true } },
     },
   });
   if (!booking) return NextResponse.json({ error: "Бронирование не найдено" }, { status: 404 });
@@ -34,28 +35,21 @@ export async function GET(req: NextRequest) {
   const participantName = isClient ? booking.client.name : booking.practitioner.user.name;
   const role = isClient ? "client" : "practitioner";
 
-  // Меняем статус бронирования на IN_PROGRESS при первом входе и списываем баланс
+  // Первый вход: переводим бронирование в IN_PROGRESS и списываем баланс клиента.
+  // Повторные вызовы идемпотентны (status === "already_charged").
   if (booking.status === "CONFIRMED") {
-    const client = await db.user.findUnique({ where: { id: booking.clientId }, select: { balance: true } });
-    if (!client) {
-      return NextResponse.json({ error: "Клиент не найден" }, { status: 404 });
+    const outcome = await chargeClientForSession(bookingId);
+    if (outcome.status === "insufficient_balance") {
+      const needRub = Math.ceil(outcome.priceKopecks / 100);
+      const haveRub = (outcome.balanceKopecks / 100).toFixed(2);
+      return NextResponse.json(
+        { error: `Недостаточно средств на балансе: ${haveRub} ₽ из ${needRub} ₽` },
+        { status: 402 },
+      );
     }
-    if (client.balance < booking.priceRub) {
-      return NextResponse.json({ error: "Недостаточно средств на балансе" }, { status: 402 });
+    if (outcome.status === "invalid_status") {
+      return NextResponse.json({ error: "Сессия в неподходящем статусе для запуска" }, { status: 409 });
     }
-
-    await db.$transaction([
-      db.booking.update({ where: { id: bookingId }, data: { status: "IN_PROGRESS" } }),
-      db.user.update({ where: { id: booking.clientId }, data: { balance: { decrement: booking.priceRub } } }),
-      db.payment.create({
-        data: {
-          bookingId,
-          amountKopecks: booking.priceRub,
-          currency: "RUB",
-          status: "PAID",
-        },
-      }),
-    ]);
   }
 
   // Создаём или обновляем VideoSession

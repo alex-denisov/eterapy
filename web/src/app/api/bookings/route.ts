@@ -13,6 +13,7 @@ import {
 } from "@/lib/email";
 import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
+import { chargeClientForSession } from "@/lib/session-charge";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -275,26 +276,18 @@ export async function PATCH(req: NextRequest) {
 
     // При переходе в IN_PROGRESS — списываем баланс клиента
     if (status === "IN_PROGRESS" && booking.status === "CONFIRMED") {
-      const client = await db.user.findUnique({ where: { id: booking.clientId }, select: { balance: true } });
-      if (!client) {
-        return NextResponse.json({ error: "Клиент не найден" }, { status: 404 });
+      const outcome = await chargeClientForSession(bookingId);
+      if (outcome.status === "insufficient_balance") {
+        const needRub = Math.ceil(outcome.priceKopecks / 100);
+        const haveRub = (outcome.balanceKopecks / 100).toFixed(2);
+        return NextResponse.json(
+          { error: `Недостаточно средств на балансе: ${haveRub} ₽ из ${needRub} ₽` },
+          { status: 402 },
+        );
       }
-      if (client.balance < booking.priceRub) {
-        return NextResponse.json({ error: "Недостаточно средств на балансе" }, { status: 402 });
+      if (outcome.status === "invalid_status") {
+        return NextResponse.json({ error: "Сессия в неподходящем статусе для запуска" }, { status: 409 });
       }
-
-      await db.$transaction([
-        db.booking.update({ where: { id: bookingId }, data: { status: "IN_PROGRESS" } }),
-        db.user.update({ where: { id: booking.clientId }, data: { balance: { decrement: booking.priceRub } } }),
-        db.payment.create({
-          data: {
-            bookingId,
-            amountKopecks: booking.priceRub,
-            currency: "RUB",
-            status: "PAID",
-          },
-        }),
-      ]);
 
       const updatedBooking = await db.booking.findUnique({
         where: { id: bookingId },
