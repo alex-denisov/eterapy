@@ -244,6 +244,9 @@ export function PractitionersPanel({
                           {p.userBlockedAt && <Badge className="bg-red-500/15 text-red-400 text-[10px] py-0">заблок.</Badge>}
                         </div>
                         <p className="text-xs text-muted-foreground">{p.email}</p>
+                        <p className="text-[10px] text-muted-foreground/70">
+                          с {new Date(p.createdAt).toLocaleDateString("ru")}
+                        </p>
                       </div>
                     </div>
                   </td>
