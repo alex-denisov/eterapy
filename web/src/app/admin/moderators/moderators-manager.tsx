@@ -43,6 +43,81 @@ interface PermMatrixProps {
   onChange: (p: string[]) => void;
 }
 
+interface ModeratorAccountControlsProps {
+  mod: Moderator;
+  onPatch: (payload: Record<string, unknown>, successMsg: string) => Promise<void>;
+}
+
+function ModeratorAccountControls({ mod, onPatch }: ModeratorAccountControlsProps) {
+  const [name, setName] = useState(mod.name);
+  const [pwd, setPwd] = useState("");
+  const [busy, setBusy] = useState<"name" | "pwd" | "reset" | null>(null);
+
+  async function saveName() {
+    if (!name.trim() || name === mod.name) return;
+    setBusy("name");
+    await onPatch({ name }, "Имя обновлено");
+    setBusy(null);
+  }
+  async function savePwd() {
+    if (pwd.length < 8) { toast.error("Минимум 8 символов"); return; }
+    setBusy("pwd");
+    await onPatch({ password: pwd }, "Пароль установлен");
+    setPwd("");
+    setBusy(null);
+  }
+  async function sendReset() {
+    if (!confirm(`Отправить ${mod.email} ссылку на сброс пароля?`)) return;
+    setBusy("reset");
+    await onPatch({ sendResetLink: true }, "Письмо отправлено");
+    setBusy(null);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="bg-card/50 max-w-xs h-8 text-sm"
+          placeholder="Имя"
+        />
+        <button
+          onClick={saveName}
+          disabled={busy === "name" || !name.trim() || name === mod.name}
+          className="rounded-lg bg-primary/15 px-3 py-1.5 text-xs text-primary hover:bg-primary/25 disabled:opacity-40"
+        >
+          {busy === "name" ? "..." : "Сохранить имя"}
+        </button>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Input
+          type="password"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          className="bg-card/50 max-w-xs h-8 text-sm"
+          placeholder="Новый пароль (мин. 8)"
+          autoComplete="new-password"
+        />
+        <button
+          onClick={savePwd}
+          disabled={busy === "pwd" || pwd.length < 8}
+          className="rounded-lg bg-primary/15 px-3 py-1.5 text-xs text-primary hover:bg-primary/25 disabled:opacity-40"
+        >
+          {busy === "pwd" ? "..." : "Назначить пароль"}
+        </button>
+        <button
+          onClick={sendReset}
+          disabled={busy === "reset"}
+          className="rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+        >
+          {busy === "reset" ? "..." : "Сбросить пароль (письмо)"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function PermMatrix({ permissions, onChange }: PermMatrixProps) {
   return (
     <div className="space-y-4">
@@ -156,6 +231,21 @@ export function ModeratorsManager() {
     if ((await res.json()).ok) { toast.success("Удалён"); await load(); }
   }
 
+  async function patch(moderatorId: string, payload: Record<string, unknown>, successMsg: string) {
+    const res = await fetch("/api/admin/moderators", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ moderatorId, ...payload }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      toast.success(successMsg);
+      await load();
+    } else {
+      toast.error(d.error ?? "Ошибка");
+    }
+  }
+
   if (loading) return <p className="text-muted-foreground animate-pulse text-sm">Загружаем...</p>;
 
   return (
@@ -222,7 +312,8 @@ export function ModeratorsManager() {
                   </div>
                 </div>
                 {isExpanded && (
-                  <div className="border-t border-border/20 p-4">
+                  <div className="border-t border-border/20 p-4 space-y-5">
+                    <ModeratorAccountControls mod={mod} onPatch={(payload, msg) => patch(mod.id, payload, msg)} />
                     <PermMatrix
                       permissions={mod.permissions}
                       onChange={perms => updatePerms(mod.id, perms)}

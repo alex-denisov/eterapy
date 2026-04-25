@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { sendPasswordResetEmail } from "@/lib/email";
+import { logAudit } from "@/lib/audit";
 
 function requireSuperAdmin(role?: string) {
   return role === "SUPERADMIN";
@@ -9,11 +12,13 @@ function requireSuperAdmin(role?: string) {
 
 // Все доступные полномочия модератора
 export const ALL_PERMISSIONS = [
-  "clients.view", "clients.edit", "clients.block", "clients.reset_password",
-  "clients.set_password", "clients.view_sessions", "clients.view_events",
+  "clients.view", "clients.create", "clients.edit", "clients.block",
+  "clients.delete", "clients.reset_password", "clients.set_password",
+  "clients.view_sessions", "clients.view_events",
   "practitioners.view", "practitioners.create", "practitioners.edit",
   "practitioners.block", "practitioners.reset_password", "practitioners.set_password",
-  "practitioners.set_rates", "practitioners.set_schedule", "practitioners.view_earnings",
+  "practitioners.set_rates", "practitioners.set_schedule",
+  "practitioners.view_earnings", "practitioners.payout",
 ] as const;
 
 export type Permission = typeof ALL_PERMISSIONS[number];
@@ -70,15 +75,52 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!requireSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
-  const { moderatorId, permissions, name, blockedAt } = await req.json();
+  const adminId = session!.user!.id!;
+  const { moderatorId, permissions, name, blockedAt, password, sendResetLink } = await req.json();
   if (!moderatorId) return NextResponse.json({ error: "moderatorId обязателен" }, { status: 400 });
 
-  if (name !== undefined) {
-    await db.user.update({ where: { id: moderatorId }, data: { name } });
+  const moderator = await db.user.findUnique({
+    where: { id: moderatorId },
+    select: { id: true, role: true, email: true, name: true },
+  });
+  if (!moderator || moderator.role !== "ADMIN") {
+    return NextResponse.json({ error: "Модератор не найден" }, { status: 404 });
+  }
+
+  if (typeof name === "string" && name.trim().length > 0) {
+    await db.user.update({ where: { id: moderatorId }, data: { name: name.trim() } });
+    await logAudit(adminId, "PROFILE_UPDATE", moderatorId, "moderator name");
   }
   if (blockedAt !== undefined) {
-    await db.user.update({ where: { id: moderatorId }, data: { blockedAt: blockedAt ? new Date() : null } });
+    await db.user.update({
+      where: { id: moderatorId },
+      data: { blockedAt: blockedAt ? new Date() : null },
+    });
+    await logAudit(adminId, blockedAt ? "ACCOUNT_BLOCK" : "ACCOUNT_UNBLOCK", moderatorId, "moderator");
   }
+  if (typeof password === "string" && password.length >= 8) {
+    const hashed = await bcrypt.hash(password, 10);
+    await db.user.update({
+      where: { id: moderatorId },
+      data: { password: hashed, resetToken: null, resetExpires: null },
+    });
+    await logAudit(adminId, "PASSWORD_SET", moderatorId, "moderator");
+  } else if (password !== undefined) {
+    return NextResponse.json({ error: "Пароль должен быть не менее 8 символов" }, { status: 400 });
+  }
+
+  if (sendResetLink === true) {
+    const token = randomBytes(24).toString("hex");
+    await db.user.update({
+      where: { id: moderatorId },
+      data: { resetToken: token, resetExpires: new Date(Date.now() + 3_600_000) },
+    });
+    sendPasswordResetEmail(moderator.email, moderator.name, token).catch((e) =>
+      console.error("[moderators] reset-email failed:", e),
+    );
+    await logAudit(adminId, "PASSWORD_RESET", moderatorId, "moderator (reset-link sent)");
+  }
+
   if (permissions !== undefined) {
     // Full replace: delete all, re-create
     await db.moderatorPermission.deleteMany({ where: { moderatorId } });
