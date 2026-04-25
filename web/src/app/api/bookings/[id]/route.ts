@@ -9,6 +9,7 @@ import {
   sendReviewRequestClient,
 } from "@/lib/email";
 import { notify } from "@/lib/notifications";
+import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 
 function fmtSlot(slot: { startAt: Date; endAt: Date } | null) {
   if (!slot) return "время уточняется";
@@ -51,37 +52,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 
-  // Practitioner cannot complete session before 75% of duration has passed
-  if (status === "COMPLETED" && userRole === "PRACTITIONER") {
-    if (booking.slot?.startAt) {
-      const durationMinutes = (booking.slot.endAt
-        ? (booking.slot.endAt.getTime() - booking.slot.startAt.getTime()) / 60000
-        : 60);
-      const sessionStartedAt = booking.startedAt ?? booking.slot.startAt;
-      const elapsed = Date.now() - new Date(sessionStartedAt).getTime();
-      const required = durationMinutes * 0.75 * 60 * 1000;
-      if (elapsed < required) {
-        return NextResponse.json(
-          { error: "Сессию можно завершить после 75% времени" },
-          { status: 400 },
-        );
-      }
+  // COMPLETED: единый путь через helper (75% гейт, holds при открытой жалобе, payout в правильных копейках)
+  if (status === "COMPLETED") {
+    const outcome = await completeBookingAtSessionEnd(id, {
+      userId: session.user!.id!,
+      isPractitioner: booking.practitioner.userId === session.user!.id,
+    });
+    if (outcome.status === "not_found") {
+      return NextResponse.json({ error: "Не найдено" }, { status: 404 });
     }
+    if (outcome.status === "early_end_blocked") {
+      const minutesLeft = Math.ceil((outcome.requiredMs - outcome.elapsedMs) / 60000);
+      return NextResponse.json(
+        { error: `Сессию можно завершить после 75% времени. Осталось ~${minutesLeft} мин` },
+        { status: 400 },
+      );
+    }
+    if (outcome.status === "invalid_status") {
+      return NextResponse.json(
+        { error: `Нельзя завершить сессию из статуса ${outcome.currentStatus}` },
+        { status: 409 },
+      );
+    }
+  } else {
+    await db.booking.update({ where: { id }, data: { status } });
   }
-
-  const updated = await db.booking.update({ where: { id }, data: { status } });
 
   // Освобождаем слот при отмене
   if (status === "CANCELLED" && booking.slotId) {
     await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
-  }
-
-  // Счётчик сессий
-  if (status === "COMPLETED") {
-    await db.practitioner.update({
-      where: { id: booking.practitioner.id },
-      data: { sessionCount: { increment: 1 } },
-    }).catch(() => {});
   }
 
   const emailData = {
@@ -119,5 +118,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }}).catch(console.error);
   }
 
-  return NextResponse.json({ booking: updated });
+  const refreshed = await db.booking.findUnique({ where: { id }, select: { id: true, status: true } });
+  return NextResponse.json({ booking: refreshed });
 }

@@ -6,8 +6,12 @@
  * Formula (all integer rubles):
  *   accruedNet     = sum(COMPLETED booking.priceRub) − commission
  *   paidOut        = sum(Payout.amountKopecks / 100) where status = DONE
- *   pendingPayout  = sum(Payout.amountKopecks / 100) where status in (PENDING, PROCESSING)
+ *   pendingPayout  = sum(Payout.amountKopecks / 100) where status in (PENDING, PROCESSING, HELD)
  *   currentBalance = accruedNet − paidOut − pendingPayout
+ *
+ * HELD payouts (created by `completeBookingAtSessionEnd` when an unresolved
+ * complaint exists on the booking — see backlog 11.C.2/3) reserve money
+ * against the practitioner balance until the moderator resolves the dispute.
  *
  * `commissionPercent` defaults to 25% when not set (see Practitioner schema).
  */
@@ -64,7 +68,7 @@ export async function computePractitionerBalances(
       .filter(x => x.status === "DONE")
       .reduce((s, x) => s + x.amountKopecks, 0);
     const pendingKopecks = myPayouts
-      .filter(x => x.status === "PENDING" || x.status === "PROCESSING")
+      .filter(x => x.status === "PENDING" || x.status === "PROCESSING" || x.status === "HELD")
       .reduce((s, x) => s + x.amountKopecks, 0);
 
     const paidOut = Math.round(paidKopecks / 100);

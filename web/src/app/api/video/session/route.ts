@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 
 /** GET /api/video/session?bookingId=xxx — получить сессию с историей чата */
 export async function GET(req: NextRequest) {
@@ -46,16 +47,27 @@ export async function PATCH(req: NextRequest) {
     },
   });
 
-  // Если сессия завершена — завершаем booking
+  // Если сессия завершена — завершаем booking единым путём (75% гейт, holds, payout)
   if (status === "ENDED") {
-    await db.booking.update({
+    const booking = await db.booking.findUnique({
       where: { id: bookingId },
-      data: { status: "COMPLETED" },
-    }).catch(() => {});
-    await db.practitioner.updateMany({
-      where: { bookings: { some: { id: bookingId } } },
-      data: { sessionCount: { increment: 1 } },
-    }).catch(() => {});
+      select: { practitioner: { select: { userId: true } } },
+    });
+    const isPractitioner = booking?.practitioner.userId === session.user.id;
+    const outcome = await completeBookingAtSessionEnd(bookingId, {
+      userId: session.user.id,
+      isPractitioner,
+    });
+    if (outcome.status === "early_end_blocked") {
+      const minutesLeft = Math.ceil((outcome.requiredMs - outcome.elapsedMs) / 60000);
+      return NextResponse.json(
+        { error: `Сессию можно завершить после 75% времени. Осталось ~${minutesLeft} мин` },
+        { status: 400 },
+      );
+    }
+    // already_completed / invalid_status / not_found are non-fatal here:
+    // the video session row is already marked ENDED — payout state is what
+    // it was on the prior call.
   }
 
   return NextResponse.json({ ok: true, session: updated });

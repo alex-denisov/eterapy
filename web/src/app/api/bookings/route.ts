@@ -14,6 +14,7 @@ import {
 import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
 import { chargeClientForSession } from "@/lib/session-charge";
+import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -302,31 +303,26 @@ export async function PATCH(req: NextRequest) {
 
     // При переходе в COMPLETED — создаём выплату практику и обновляем счётчик
     if (status === "COMPLETED") {
-      const practitioner = await db.practitioner.findUnique({
-        where: { id: booking.practitioner.id },
-        select: { id: true, commissionPercent: true, userId: true },
+      const outcome = await completeBookingAtSessionEnd(bookingId, {
+        userId: session.user.id,
+        isPractitioner: booking.practitioner.userId === session.user.id,
       });
-      if (!practitioner) {
-        return NextResponse.json({ error: "Практик не найден" }, { status: 404 });
+      if (outcome.status === "not_found") {
+        return NextResponse.json({ error: "Бронирование не найдено" }, { status: 404 });
       }
-
-      const payoutAmount = Math.round(booking.priceRub * (1 - practitioner.commissionPercent / 100));
-
-      await db.$transaction([
-        db.booking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } }),
-        db.payout.create({
-          data: {
-            practitionerId: practitioner.id,
-            amountKopecks: payoutAmount,
-            status: "PENDING",
-            initiatedBy: session.user.id,
-          },
-        }),
-        db.practitioner.update({
-          where: { id: practitioner.id },
-          data: { sessionCount: { increment: 1 } },
-        }),
-      ]);
+      if (outcome.status === "early_end_blocked") {
+        const minutesLeft = Math.ceil((outcome.requiredMs - outcome.elapsedMs) / 60000);
+        return NextResponse.json(
+          { error: `Сессию можно завершить после 75% времени. Осталось ~${minutesLeft} мин` },
+          { status: 400 },
+        );
+      }
+      if (outcome.status === "invalid_status") {
+        return NextResponse.json(
+          { error: `Нельзя завершить сессию из статуса ${outcome.currentStatus}` },
+          { status: 409 },
+        );
+      }
 
       // Отправляем запрос на отзыв
       sendReviewRequestClient({
