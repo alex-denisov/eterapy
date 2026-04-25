@@ -199,7 +199,20 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                                 <div key={i} className="text-xs">
                                   <span className="text-muted-foreground/50">[{new Date(m.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}]</span>{" "}
                                   <span className="font-medium">{m.senderName}:</span>{" "}
-                                  <span className="text-muted-foreground">{m.text ?? (m.fileName ? `📎 ${m.fileName}` : "")}</span>
+                                  {m.text ? (
+                                    <span className="text-muted-foreground">{m.text}</span>
+                                  ) : m.fileUrl && m.fileName ? (
+                                    <a
+                                      href={m.fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-primary hover:underline"
+                                    >
+                                      📎 {m.fileName}
+                                    </a>
+                                  ) : m.fileName ? (
+                                    <span className="text-muted-foreground">📎 {m.fileName}</span>
+                                  ) : null}
                                 </div>
                               ))}
                             </div>
