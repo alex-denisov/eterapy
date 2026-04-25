@@ -54,7 +54,13 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
     const d = await res.json();
     if (d.ok) {
       setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-      toast.success(`Статус изменён: ${STATUS_META[status]?.label}`);
+      if (d.accountCreated) {
+        toast.success(
+          `Аккаунт практика создан · письмо со ссылкой на установку пароля отправлено на ${d.practitioner?.email ?? "указанный email"}`,
+        );
+      } else {
+        toast.success(`Статус изменён: ${STATUS_META[status]?.label}`);
+      }
     } else toast.error(d.error ?? "Ошибка");
   }
 
@@ -166,9 +172,9 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                         </button>
                       )}
                       {a.status === "APPROVED" && adminRole === "SUPERADMIN" && (
-                        <a href={`/admin/practitioners?createFor=${encodeURIComponent(a.email)}&name=${encodeURIComponent(a.name)}`}
-                          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-navy">
-                          → Создать аккаунт практика
+                        <a href={`/admin/practitioners?email=${encodeURIComponent(a.email)}`}
+                          className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs text-primary hover:bg-primary/10">
+                          Открыть аккаунт практика →
                         </a>
                       )}
                     </div>
