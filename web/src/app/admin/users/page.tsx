@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { UserLimitControl } from "./user-limit-control";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminUsersPage() {
   const session = await auth();
@@ -21,9 +22,15 @@ export default async function AdminUsersPage() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <PageContainer maxWidth="6xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold">Пользователи</h1>
+        <div>
+          <h1 className="font-heading text-2xl font-bold">Все пользователи</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Кросс-ролевой обзор + лимит бесплатных инструментов на пользователя.
+            Per-role панели для клиентов / практиков / модераторов — в боковом меню.
+          </p>
+        </div>
         <span className="text-sm text-muted-foreground">Всего: {users.length}</span>
       </div>
 
@@ -76,6 +83,6 @@ export default async function AdminUsersPage() {
           </tbody>
         </table>
       </div>
-    </div>
+    </PageContainer>
   );
 }

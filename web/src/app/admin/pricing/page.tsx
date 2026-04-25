@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getAllSettings } from "@/lib/platform-settings";
 import { PricingEditor } from "./pricing-editor";
+import { PageContainer } from "@/components/ui/page-container";
 
 export default async function AdminPricingPage() {
   const session = await auth();
@@ -22,13 +23,14 @@ export default async function AdminPricingPage() {
   ]);
 
   return (
-    <div className="px-6 py-8 max-w-4xl">
-      <h1 className="font-heading text-2xl font-bold mb-2">Цены и тарифы</h1>
-      <p className="text-sm text-muted-foreground mb-8">
-        Управление тарифными планами, комиссией и ценами практиков.
-        Изменения применяются немедленно.
-      </p>
+    <PageContainer maxWidth="4xl">
+      <div className="mb-6">
+        <h1 className="font-heading text-2xl font-bold">Цены и тарифы</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Управление тарифными планами, комиссией и ценами практиков. Изменения применяются немедленно.
+        </p>
+      </div>
       <PricingEditor initialSettings={settings} practitioners={practitioners} />
-    </div>
+    </PageContainer>
   );
 }

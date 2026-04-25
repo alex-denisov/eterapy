@@ -98,17 +98,22 @@ export default async function PractitionerEarningsPage() {
     ...payouts.map<Movement>((p) => {
       const labels: Record<string, string> = {
         PENDING: "Ожидает выплаты",
+        HELD: "Удержана (рассмотрение жалобы)",
         PROCESSING: "В процессе",
         DONE: "Выплата",
-        FAILED: "Ошибка выплаты",
+        FAILED: "Удержана (по решению модератора)",
       };
+      const netRub = Math.round(p.amountKopecks / 100);
+      // Восстанавливаем gross (priceRub до вычета комиссии): net = price * (1 - c/100) ⇒ price = net / (1 - c/100)
+      const grossRub = commission < 1 ? Math.round(netRub / (1 - commission)) : netRub;
+      const feeRub = grossRub - netRub;
       return {
         id: `p-${p.id}`,
         kind: "payout",
         date: p.processedAt ?? p.createdAt,
-        amountRub: Math.round(p.amountKopecks / 100),
+        amountRub: netRub,
         label: labels[p.status] ?? "Выплата",
-        sublabel: `Статус · ${p.status}`,
+        sublabel: `Сессия · ${grossRub.toLocaleString("ru")} ₽ − комиссия ${feeRub.toLocaleString("ru")} ₽ (${commissionPercent}%)`,
       };
     }),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
