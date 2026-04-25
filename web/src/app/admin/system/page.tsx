@@ -3,6 +3,20 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { PageContainer } from "@/components/ui/page-container";
+
+const PRODUCT_CRONS = [
+  {
+    path: "/api/cron/reminders",
+    purpose: "Напоминания клиентам и практикам за 24 ч и 1 ч до сессии",
+    cadence: "каждые 15 минут",
+  },
+  {
+    path: "/api/cron/cleanup",
+    purpose: "Удаление soft-deleted клиентов после 10 дней grace + истёкших телеграм-токенов",
+    cadence: "1 раз в сутки (00:00)",
+  },
+];
 
 async function getStats() {
   const [users, practitioners, bookings, auditLogs, notifPrefs, telegramLinked] = await Promise.all([
@@ -35,9 +49,11 @@ export default async function AdminSystemPage() {
   };
 
   return (
-    <div className="px-6 py-8 max-w-4xl">
-      <h1 className="font-heading text-2xl font-bold mb-2">Система</h1>
-      <p className="text-sm text-muted-foreground mb-8">Статус сервисов и конфигурация платформы</p>
+    <PageContainer maxWidth="4xl">
+      <div className="mb-6">
+        <h1 className="font-heading text-2xl font-bold">Система</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Статус сервисов, конфигурация платформы и продуктовые cron-задачи</p>
+      </div>
 
       {/* Статистика БД */}
       <section className="mb-8">
@@ -106,21 +122,25 @@ export default async function AdminSystemPage() {
         </div>
       </section>
 
-      {/* Cron инструкция */}
+      {/* Cron-задачи (продуктовые) */}
       <section>
-        <h2 className="font-semibold mb-4">⏰ Cron-задачи</h2>
-        <div className="rounded-xl border border-border/30 bg-card/20 p-4 space-y-3 text-sm">
-          <p className="text-muted-foreground">Для автоматических напоминаний о сессиях настройте вызов раз в 15 минут:</p>
-          <code className="block bg-card/40 rounded-lg px-3 py-2 text-xs text-primary">
-            GET {env.appUrl}/api/cron/reminders
-            <br/>
-            Authorization: Bearer {"{CRON_SECRET}"}
-          </code>
-          <p className="text-xs text-muted-foreground">
-            Используйте cron-job.org (бесплатно) или systemd timer на сервере.
-          </p>
+        <h2 className="font-semibold mb-4">⏰ Продуктовые cron-задачи</h2>
+        <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
+          {PRODUCT_CRONS.map((c) => (
+            <div key={c.path} className="px-4 py-3 space-y-1">
+              <div className="flex items-center justify-between gap-3">
+                <code className="text-xs text-primary">{c.path}</code>
+                <span className="text-xs text-muted-foreground shrink-0">{c.cadence}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{c.purpose}</p>
+            </div>
+          ))}
         </div>
+        <p className="text-xs text-muted-foreground mt-3">
+          Авторизация: <code>Authorization: Bearer {"{CRON_SECRET}"}</code>. Запуск через cron-job.org или systemd
+          timer на VPS — список фильтрован по продуктовым задачам, OS-уровневые таймеры здесь не отображаются.
+        </p>
       </section>
-    </div>
+    </PageContainer>
   );
 }
