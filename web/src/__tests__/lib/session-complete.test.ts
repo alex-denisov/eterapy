@@ -115,6 +115,7 @@ describe("completeBookingAtSessionEnd", () => {
     expect(mockDb.payout.create).toHaveBeenCalledWith({
       data: {
         practitionerId: "p1",
+        bookingId: "b1",
         amountKopecks: 225_000,
         status: PAYOUT_STATUS_PENDING,
         initiatedBy: "uAdmin",

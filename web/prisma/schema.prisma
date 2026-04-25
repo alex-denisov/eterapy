@@ -226,6 +226,7 @@ model Booking {
   videoSession   VideoSession?
   complaints     Complaint[]
   payment        Payment?
+  payouts        Payout[]
 
   @@index([clientId])
   @@index([practitionerId])
@@ -519,14 +520,17 @@ model Payout {
   id             String       @id @default(cuid())
   practitionerId String
   practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
+  bookingId      String?
+  booking        Booking?     @relation(fields: [bookingId], references: [id])
   amountKopecks  Int
-  status         String       // PENDING / PROCESSING / DONE / FAILED
+  status         String       // PENDING / HELD / PROCESSING / DONE / FAILED
   initiatedBy    String       // adminUserId
   externalId     String?      // ЮKassa payout ID
   createdAt      DateTime     @default(now())
   processedAt    DateTime?
 
   @@index([practitionerId])
+  @@index([bookingId])
   @@map("payouts")
 }
 

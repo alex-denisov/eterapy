@@ -1,8 +1,10 @@
 /** PATCH /api/complaints/[id] — обновить статус жалобы (admin) */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import db from "@/lib/db";
-import { logAudit } from "@/lib/audit";
+import { resolveComplaint, type PayoutDecision } from "@/lib/complaint-resolution";
+
+const VALID_STATUSES = ["OPEN", "REVIEWING", "RESOLVED", "CLOSED"] as const;
+type ComplaintStatus = (typeof VALID_STATUSES)[number];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -12,20 +14,45 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const { id } = await params;
-  const { status, resolution } = await req.json();
-  const validStatuses = ["OPEN", "REVIEWING", "RESOLVED", "CLOSED"];
-  if (!validStatuses.includes(status)) return NextResponse.json({ error: "Неверный статус" }, { status: 400 });
+  const body = (await req.json()) as {
+    status?: string;
+    resolution?: string;
+    payoutDecision?: PayoutDecision;
+  };
+  if (!body.status || !VALID_STATUSES.includes(body.status as ComplaintStatus)) {
+    return NextResponse.json({ error: "Неверный статус" }, { status: 400 });
+  }
 
-  await db.complaint.update({
-    where: { id },
-    data: {
-      status,
-      resolution: resolution?.trim() || null,
-      resolvedBy: session.user!.id,
-      resolvedAt: ["RESOLVED", "CLOSED"].includes(status) ? new Date() : null,
+  const outcome = await resolveComplaint(
+    {
+      complaintId: id,
+      status: body.status as ComplaintStatus,
+      resolution: body.resolution ?? null,
+      payoutDecision: body.payoutDecision,
     },
-  });
+    { userId: session.user!.id! },
+  );
 
-  await logAudit(session.user!.id!, "COMPLAINT_UPDATED", id, `Статус: ${status}`);
-  return NextResponse.json({ ok: true });
+  if (outcome.status === "not_found") {
+    return NextResponse.json({ error: "Жалоба не найдена" }, { status: 404 });
+  }
+  if (outcome.status === "invalid_status") {
+    return NextResponse.json({ error: "Неверный статус" }, { status: 400 });
+  }
+  if (outcome.status === "decision_required") {
+    return NextResponse.json(
+      {
+        error: "Требуется решение по выплате",
+        heldKopecks: outcome.heldKopecks,
+        heldPayoutId: outcome.heldPayoutId,
+      },
+      { status: 422 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    complaintStatus: outcome.complaintStatus,
+    payoutAction: outcome.payoutAction,
+  });
 }

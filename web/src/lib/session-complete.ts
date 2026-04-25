@@ -123,6 +123,7 @@ export async function completeBookingAtSessionEnd(
     return tx.payout.create({
       data: {
         practitionerId: booking.practitioner.id,
+        bookingId,
         amountKopecks,
         status: payoutStatus,
         initiatedBy: actor.userId,

@@ -19,6 +19,12 @@ export default async function AdminComplaintsPage() {
         include: {
           client: { select: { name: true, email: true } },
           practitioner: { select: { id: true, slug: true, user: { select: { name: true } } } },
+          payouts: {
+            where: { status: "HELD" },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { id: true, amountKopecks: true, status: true },
+          },
           videoSession: {
             include: {
               messages: {
@@ -69,6 +75,7 @@ export default async function AdminComplaintsPage() {
         practitionerSlug: c.booking.practitioner.slug,
         bookingId: c.bookingId,
         priceRub: c.booking.priceRub,
+        heldPayoutKopecks: c.booking.payouts[0]?.amountKopecks ?? null,
         // Artefacts from VideoSession
         transcriptText: c.booking.videoSession?.messages
           .filter(m => m.text)

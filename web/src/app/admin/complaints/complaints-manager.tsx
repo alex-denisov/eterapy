@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 
 interface Complaint {
   id: string;
@@ -20,6 +19,8 @@ interface Complaint {
   practitionerSlug?: string;
   bookingId: string;
   priceRub: number;
+  /** kopecks; null if no HELD payout exists for this booking */
+  heldPayoutKopecks: number | null;
   // VideoSession artifacts
   transcriptText: string | null;
   recordingUrl: string | null;
@@ -27,6 +28,8 @@ interface Complaint {
   summaryText: string | null;
   sessionMessages: Array<{ text: string | null; fileName: string | null; fileUrl: string | null; senderName: string; createdAt: string }>;
 }
+
+type PayoutDecision = "release" | "withhold";
 
 const REASON_LABELS: Record<string, string> = {
   PRACTITIONER_NO_SHOW: "Практик не явился",
@@ -50,21 +53,57 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
   const [filterStatus, setFilterStatus] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolution, setResolution] = useState<Record<string, string>>({});
+  const [decision, setDecision] = useState<Record<string, PayoutDecision>>({});
   const [processing, setProcessing] = useState<string | null>(null);
 
   const filtered = complaints.filter(c => filterStatus === "all" || c.status === filterStatus);
 
   async function updateStatus(id: string, status: string) {
+    const c = complaints.find(x => x.id === id);
+    const isTerminal = status === "RESOLVED" || status === "CLOSED";
+    const hasHeld = (c?.heldPayoutKopecks ?? 0) > 0;
+    const payoutDecision = isTerminal && hasHeld ? decision[id] : undefined;
+
+    if (isTerminal && hasHeld && !payoutDecision) {
+      toast.error("Сначала выберите: освободить или удержать выплату");
+      return;
+    }
+
     setProcessing(id);
     const res = await fetch(`/api/complaints/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, resolution: resolution[id] }),
+      body: JSON.stringify({ status, resolution: resolution[id], payoutDecision }),
     });
-    if ((await res.json()).ok) {
-      setComplaints(prev => prev.map(c => c.id === id ? { ...c, status, resolution: resolution[id] ?? c.resolution } : c));
-      toast.success(`Статус обновлён: ${STATUS_META[status]?.label}`);
-    } else toast.error("Ошибка");
+    const json = await res.json();
+    if (json.ok) {
+      setComplaints(prev =>
+        prev.map(c =>
+          c.id === id
+            ? {
+                ...c,
+                status,
+                resolution: resolution[id] ?? c.resolution,
+                heldPayoutKopecks:
+                  json.payoutAction === "released" || json.payoutAction === "withheld"
+                    ? null
+                    : c.heldPayoutKopecks,
+              }
+            : c,
+        ),
+      );
+      const suffix =
+        json.payoutAction === "released"
+          ? " · выплата освобождена"
+          : json.payoutAction === "withheld"
+          ? " · выплата удержана, клиенту возвращены деньги"
+          : "";
+      toast.success(`Статус обновлён: ${STATUS_META[status]?.label}${suffix}`);
+    } else if (res.status === 422 && json.error === "Требуется решение по выплате") {
+      toast.error("Выберите решение по удержанной выплате");
+    } else {
+      toast.error(json.error ?? "Ошибка");
+    }
     setProcessing(null);
   }
 
@@ -195,6 +234,47 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                         className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2 text-sm resize-none h-20 focus:outline-none focus:border-primary/50"
                       />
                     </div>
+
+                    {/* Решение по удержанной выплате (11.C.3) */}
+                    {(c.heldPayoutKopecks ?? 0) > 0 && (
+                      <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-3">
+                        <p className="text-xs text-yellow-400 uppercase tracking-wide mb-1.5">
+                          Удержанная выплата практику
+                        </p>
+                        <p className="text-sm mb-3">
+                          {((c.heldPayoutKopecks ?? 0) / 100).toLocaleString("ru-RU")} ₽
+                          {" "}<span className="text-xs text-muted-foreground">
+                            (создана при завершении сессии)
+                          </span>
+                        </p>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`decision-${c.id}`}
+                              checked={decision[c.id] === "release"}
+                              onChange={() => setDecision(prev => ({ ...prev, [c.id]: "release" }))}
+                              className="mt-0.5"
+                            />
+                            <span className="text-xs">
+                              <b className="text-green-400">Освободить</b> — практик получит выплату, клиенту возврата нет.
+                            </span>
+                          </label>
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name={`decision-${c.id}`}
+                              checked={decision[c.id] === "withhold"}
+                              onChange={() => setDecision(prev => ({ ...prev, [c.id]: "withhold" }))}
+                              className="mt-0.5"
+                            />
+                            <span className="text-xs">
+                              <b className="text-red-400">Удержать</b> — выплата отменяется, клиенту возвращается полная стоимость сессии ({c.priceRub.toLocaleString("ru-RU")} ₽).
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Кнопки статусов */}
                     <div className="flex flex-wrap gap-2 pt-1">
