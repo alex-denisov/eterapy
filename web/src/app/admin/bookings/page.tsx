@@ -3,9 +3,9 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { Badge } from "@/components/ui/badge";
-import { getBookingStatus } from "@/lib/booking-status";
 import { SearchInput } from "./search-input";
+import { BookingsManager, type AdminBookingRow } from "./bookings-manager";
+import { Prisma } from "@prisma/client";
 
 const STATUSES = [
   { value: "", label: "Все" },
@@ -29,12 +29,12 @@ export default async function AdminBookingsPage(props: {
   const statusFilter = sp.status ?? "";
   const search = sp.search ?? "";
 
-  const where: any = {};
-  if (statusFilter) where.status = statusFilter;
+  const where: Prisma.BookingWhereInput = {};
+  if (statusFilter) where.status = statusFilter as Prisma.BookingWhereInput["status"];
   if (search) {
     where.OR = [
-      { client: { name: { contains: search, mode: "insensitive" as const } } },
-      { practitioner: { user: { name: { contains: search, mode: "insensitive" as const } } } },
+      { client: { name: { contains: search, mode: "insensitive" } } },
+      { practitioner: { user: { name: { contains: search, mode: "insensitive" } } } },
     ];
   }
 
@@ -45,11 +45,24 @@ export default async function AdminBookingsPage(props: {
     include: {
       client: { select: { name: true, email: true } },
       practitioner: { include: { user: { select: { name: true } } } },
-      slot: true,
+      slot: { select: { startAt: true, endAt: true } },
     },
   });
 
-  const total = await db.booking.count(where);
+  const total = await db.booking.count({ where });
+
+  const rows: AdminBookingRow[] = bookings.map((b) => ({
+    id: b.id,
+    status: b.status,
+    priceRub: b.priceRub,
+    durationMin: b.slot
+      ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
+      : 60,
+    slotStartAt: b.slot ? new Date(b.slot.startAt).toISOString() : null,
+    createdAt: b.createdAt.toISOString(),
+    client: { name: b.client.name, email: b.client.email },
+    practitioner: { name: b.practitioner.user.name },
+  }));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -58,50 +71,26 @@ export default async function AdminBookingsPage(props: {
         <span className="text-sm text-muted-foreground">Найдено: {total}</span>
       </div>
 
-      {/* Фильтры */}
       <div className="mb-4 flex flex-wrap gap-3">
         <SearchInput defaultValue={search} statusFilter={statusFilter} />
         <div className="flex gap-1.5 flex-wrap">
-          {STATUSES.map(s => (
-            <a key={s.value}
+          {STATUSES.map((s) => (
+            <a
+              key={s.value}
               href={`/admin/bookings?${new URLSearchParams({ status: s.value, search })}`}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === s.value
                   ? "bg-primary/15 text-primary border border-primary/30"
                   : "bg-card/30 text-muted-foreground hover:text-foreground border border-border/30"
-              }`}>
+              }`}
+            >
               {s.label}
             </a>
           ))}
         </div>
       </div>
 
-      <div className="space-y-2">
-        {bookings.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">Нет бронирований</p>
-        ) : bookings.map((b) => {
-          const st = getBookingStatus(b.status);
-          const durationMinutes = b.slot
-            ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
-            : 60;
-          return (
-            <div key={b.id} className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
-                  {b.client.name} → {b.practitioner.user.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {b.priceRub.toLocaleString("ru-RU")} ₽ ·{" "}
-                  {durationMinutes} мин ·{" "}
-                  {b.slot ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "Слот не выбран"} ·{" "}
-                  {new Date(b.createdAt).toLocaleDateString("ru-RU")}
-                </p>
-              </div>
-              <Badge className={st.color}>{st.label}</Badge>
-            </div>
-          );
-        })}
-      </div>
+      <BookingsManager initial={rows} />
     </div>
   );
 }
