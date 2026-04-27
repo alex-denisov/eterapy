@@ -5,6 +5,7 @@
 import db from "@/lib/db";
 import { sendEmail } from "@/lib/email-send";
 import { sendTelegram } from "@/lib/telegram";
+import { log, serializeError } from "@/lib/logger";
 
 export type NotifEvent =
   | "BOOKING_REQUESTED"
@@ -26,6 +27,7 @@ export interface NotifPayload {
   event: NotifEvent;
   /** Переменные для шаблона */
   data: Record<string, string>;
+  requestId?: string;
 }
 
 /** Проверяет, включён ли канал для пользователя */
@@ -44,7 +46,15 @@ export async function notify(payload: NotifPayload) {
     where: { id: payload.userId },
     select: { email: true, name: true, telegramId: true },
   });
-  if (!user || !user.email) return;
+  if (!user || !user.email) {
+    log.warn("notification-user-missing", {
+      requestId: payload.requestId,
+      event: payload.event,
+      userId: payload.userId,
+      hasUser: Boolean(user),
+    });
+    return;
+  }
 
   const [emailEnabled, telegramEnabled, webEnabled] = await Promise.all([
     isEnabled(payload.userId, payload.event, "EMAIL"),
@@ -61,14 +71,28 @@ export async function notify(payload: NotifPayload) {
         event: payload.event,
         name: user.name,
         data: payload.data,
-      }).catch(e => console.error("Email notify error:", e))
+      }).catch((e) => {
+        log.error("notification-email-failed", {
+          requestId: payload.requestId,
+          event: payload.event,
+          userId: payload.userId,
+          error: serializeError(e),
+        });
+      })
     );
   }
 
   if (telegramEnabled && user.telegramId) {
     const text = formatTelegramMessage(payload.event, user.name, payload.data);
     promises.push(
-      sendTelegram(user.telegramId, text).catch(e => console.error("Telegram notify error:", e))
+      sendTelegram(user.telegramId, text).catch((e) => {
+        log.error("notification-telegram-failed", {
+          requestId: payload.requestId,
+          event: payload.event,
+          userId: payload.userId,
+          error: serializeError(e),
+        });
+      })
     );
   }
 
@@ -83,11 +107,29 @@ export async function notify(payload: NotifPayload) {
           body: web.body,
           href: web.href ?? null,
         },
-      }).catch(e => console.error("Web notify persist error:", e))
+      }).catch((e) => {
+        log.error("notification-web-persist-failed", {
+          requestId: payload.requestId,
+          event: payload.event,
+          userId: payload.userId,
+          error: serializeError(e),
+        });
+      })
     );
   }
 
-  await Promise.allSettled(promises);
+  const results = await Promise.allSettled(promises);
+  log.info("notification-dispatched", {
+    requestId: payload.requestId,
+    event: payload.event,
+    userId: payload.userId,
+    channels: {
+      email: emailEnabled,
+      telegram: telegramEnabled && Boolean(user.telegramId),
+      web: webEnabled,
+    },
+    settled: results.map((result) => result.status),
+  });
 }
 
 /** Формирует заголовок + подпись для дропдауна колокольчика */

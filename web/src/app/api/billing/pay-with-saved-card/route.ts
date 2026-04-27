@@ -3,28 +3,32 @@
  * Быстрое пополнение баланса с использованием привязанной карты.
  * Body: { cardId: string, amountKopecks: number }
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { yukassaFetch } from "@/lib/yukassa";
 import { applyPaymentResult } from "@/lib/billing-credit";
+import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { log, serializeError } from "@/lib/logger";
+import { requestContextFromHeaders } from "@/lib/request-context";
 
 export async function POST(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+    return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
   }
 
   const body = await req.json();
   const { cardId, amountKopecks } = body;
 
   if (!cardId) {
-    return NextResponse.json({ error: "cardId required" }, { status: 400 });
+    return errorWithRequestContext("CARD_ID_REQUIRED", "cardId required", 400, context);
   }
 
   const amount = Number(amountKopecks);
   if (!amount || amount < 100) {
-    return NextResponse.json({ error: "Минимальная сумма 100 копеек (1 ₽)" }, { status: 400 });
+    return errorWithRequestContext("INVALID_AMOUNT", "Минимальная сумма 100 копеек (1 ₽)", 400, context);
   }
 
   // Находим карту пользователя
@@ -33,7 +37,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (!card) {
-    return NextResponse.json({ error: "Карта не найдена" }, { status: 404 });
+    return errorWithRequestContext("CARD_NOT_FOUND", "Карта не найдена", 404, context);
   }
 
   const description = `Пополнение баланса ${amount / 100} ₽`;
@@ -80,15 +84,37 @@ export async function POST(req: NextRequest) {
     // The webhook (when it arrives) becomes an idempotent no-op.
     const outcome = await applyPaymentResult(payment);
 
-    return NextResponse.json({
+    log.info("billing-saved-card-payment-created", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      provider: "yookassa",
+      providerPaymentId: payment.id,
+      amountKopecks: amount,
+      status: payment.status,
+      credited: outcome === "credited",
+    });
+
+    return jsonWithRequestContext({
       ok: true,
       paymentId: payment.id,
       status: payment.status,
       paid: payment.paid,
       credited: outcome === "credited",
+    }, undefined, context);
+  } catch (err: unknown) {
+    log.error("billing-saved-card-payment-failed", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      provider: "yookassa",
+      cardId,
+      amountKopecks: amount,
+      error: serializeError(err),
     });
-  } catch (err: any) {
-    console.error("YuKassa pay-with-saved-card error:", err);
-    return NextResponse.json({ error: err.message || "Ошибка платежа" }, { status: 500 });
+    return errorWithRequestContext(
+      "SAVED_CARD_PAYMENT_FAILED",
+      err instanceof Error ? err.message : "Ошибка платежа",
+      500,
+      context
+    );
   }
 }

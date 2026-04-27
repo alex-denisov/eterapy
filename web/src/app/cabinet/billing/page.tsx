@@ -26,6 +26,14 @@ interface SavedCard {
   createdAt: string;
 }
 
+interface BillingTransaction {
+  id: string;
+  amountRub: string | number;
+  status: string;
+  description: string | null;
+  createdAt: string;
+}
+
 function getBrandIcon(brand: string) {
   const b = brand.toLowerCase();
   if (b.includes("visa")) return "VISA";
@@ -52,7 +60,7 @@ export default function BillingPage() {
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
   const [payingWithSaved, setPayingWithSaved] = useState(false);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
 
   // Cards
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);

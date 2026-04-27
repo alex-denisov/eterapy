@@ -4,15 +4,19 @@
  * После оплаты карта сохраняется в БД через webhook.
  * Body: { amountKopecks?: number } — если не указано, используется 100 (1 ₽)
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { yukassaFetch } from "@/lib/yukassa";
 import db from "@/lib/db";
+import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { log, serializeError } from "@/lib/logger";
+import { requestContextFromHeaders } from "@/lib/request-context";
 
 export async function POST(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+    return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
   }
 
   const body = await req.json();
@@ -68,13 +72,32 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
+    log.info("billing-save-card-payment-created", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      provider: "yookassa",
+      providerPaymentId: payment.id,
+      amountKopecks,
+    });
+
+    return jsonWithRequestContext({
       ok: true,
       paymentId: payment.id,
       confirmationUrl: payment.confirmation.confirmation_url,
+    }, undefined, context);
+  } catch (err: unknown) {
+    log.error("billing-save-card-payment-failed", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      provider: "yookassa",
+      amountKopecks,
+      error: serializeError(err),
     });
-  } catch (err: any) {
-    console.error("YuKassa save-card error:", err);
-    return NextResponse.json({ error: err.message || "Ошибка привязки карты" }, { status: 500 });
+    return errorWithRequestContext(
+      "SAVE_CARD_FAILED",
+      err instanceof Error ? err.message : "Ошибка привязки карты",
+      500,
+      context
+    );
   }
 }

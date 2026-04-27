@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { log, serializeError } from "@/lib/logger";
 
 /**
  * ETerapy AI Client
@@ -42,6 +43,8 @@ interface AIRequestOptions {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   maxTokens?: number;
   temperature?: number;
+  requestId?: string;
+  feature?: string;
 }
 
 interface AIResponse {
@@ -56,7 +59,7 @@ interface AIResponse {
 export async function aiComplete(
   options: AIRequestOptions
 ): Promise<AIResponse> {
-  const { messages, maxTokens = 2000, temperature = 0.7 } = options;
+  const { messages, maxTokens = 2000, temperature = 0.7, requestId, feature } = options;
   const errors: Array<{ model: string; error: string }> = [];
 
   // 1. OpenRouter: автороутер + конкретные модели
@@ -82,7 +85,14 @@ export async function aiComplete(
       // finish_reason=length means truncation — skip this model
       if (finishReason === "length") {
         errors.push({ model, error: "response truncated (finish_reason=length)" });
-        console.warn(`[AI] ⚠️ ${model} truncated output — trying next model`);
+        log.warn("ai-attempt-truncated", {
+          requestId,
+          feature,
+          provider: "openrouter",
+          model,
+          finishReason,
+          latencyMs,
+        });
         continue;
       }
 
@@ -90,9 +100,16 @@ export async function aiComplete(
       const actualModel =
         (response as unknown as { model?: string }).model || model;
 
-      console.log(
-        `[AI] ✅ ${actualModel} | finish=${finishReason} | tokens_in=${response.usage?.prompt_tokens ?? "?"} tokens_out=${response.usage?.completion_tokens ?? "?"} latency=${latencyMs}ms`
-      );
+      log.info("ai-attempt-succeeded", {
+        requestId,
+        feature,
+        provider: "openrouter",
+        model: actualModel,
+        finishReason,
+        tokensIn: response.usage?.prompt_tokens ?? 0,
+        tokensOut: response.usage?.completion_tokens ?? 0,
+        latencyMs,
+      });
 
       return {
         text,
@@ -105,7 +122,13 @@ export async function aiComplete(
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       errors.push({ model, error: errorMsg });
-      console.warn(`[AI] ⚠️ ${model} failed: ${errorMsg}`);
+      log.warn("ai-attempt-failed", {
+        requestId,
+        feature,
+        provider: "openrouter",
+        model,
+        error: serializeError(err),
+      });
       continue;
     }
   }
@@ -123,9 +146,16 @@ export async function aiComplete(
     const latencyMs = Date.now() - startTime;
     const text = response.choices?.[0]?.message?.content || "";
 
-    console.log(
-      `[AI] ✅ OpenAI ${OPENAI_FALLBACK_MODEL} (fallback) | tokens_in=${response.usage?.prompt_tokens ?? "?"} tokens_out=${response.usage?.completion_tokens ?? "?"} latency=${latencyMs}ms`
-    );
+    log.info("ai-attempt-succeeded", {
+      requestId,
+      feature,
+      provider: "openai",
+      model: OPENAI_FALLBACK_MODEL,
+      fallback: true,
+      tokensIn: response.usage?.prompt_tokens ?? 0,
+      tokensOut: response.usage?.completion_tokens ?? 0,
+      latencyMs,
+    });
 
     return {
       text,
@@ -138,7 +168,12 @@ export async function aiComplete(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     errors.push({ model: `openai/${OPENAI_FALLBACK_MODEL}`, error: errorMsg });
-    console.error(`[AI] ❌ All models failed:`, errors);
+    log.error("ai-all-models-failed", {
+      requestId,
+      feature,
+      attempts: errors,
+      error: serializeError(err),
+    });
     throw new Error(
       `All AI models unavailable. Tried ${errors.length} models. Last error: ${errorMsg}`
     );

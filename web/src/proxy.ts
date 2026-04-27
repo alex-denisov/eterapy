@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionFromCookie } from "@/lib/session-from-cookie";
+import { applyRequestContextHeaders, requestContextFromHeaders } from "@/lib/request-context";
 
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
@@ -24,38 +25,58 @@ function domainForPath(pathname: string): string {
   return MAIN_DOMAIN;
 }
 
-function redirect(url: string, request: NextRequest) {
-  return NextResponse.redirect(new URL(url, request.url));
+function withRequestContext<T extends NextResponse>(
+  response: T,
+  context: { requestId: string; correlationId: string }
+): T {
+  applyRequestContextHeaders(response.headers, context);
+  return response;
 }
 
-function redirectAbs(domain: string, pathname: string) {
-  return NextResponse.redirect(`${PROTO}${domain}${pathname}`);
+function redirect(url: string, request: NextRequest, context: { requestId: string; correlationId: string }) {
+  return withRequestContext(NextResponse.redirect(new URL(url, request.url)), context);
+}
+
+function redirectAbs(domain: string, pathname: string, context: { requestId: string; correlationId: string }) {
+  return withRequestContext(NextResponse.redirect(`${PROTO}${domain}${pathname}`), context);
+}
+
+function nextWithContext(requestHeaders: Headers, context: { requestId: string; correlationId: string }) {
+  applyRequestContextHeaders(requestHeaders, context);
+  return withRequestContext(NextResponse.next({ request: { headers: requestHeaders } }), context);
+}
+
+function rewriteWithContext(url: URL, requestHeaders: Headers, context: { requestId: string; correlationId: string }) {
+  applyRequestContextHeaders(requestHeaders, context);
+  return withRequestContext(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), context);
 }
 
 // Paths that are OK on any subdomain (auth flow, nextauth callbacks at app-route level)
 const ALWAYS_ALLOW = ["/auth/", "/callback/"];
 
 export default async function proxy(request: NextRequest) {
+  const context = requestContextFromHeaders(request.headers);
+  const requestHeaders = new Headers(request.headers);
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
   const { role } = await getSessionFromCookie(request);
 
   if (ALWAYS_ALLOW.some(p => pathname.startsWith(p))) {
-    return NextResponse.next();
+    return nextWithContext(requestHeaders, context);
   }
 
   // ─── No-subdomain mode (local dev): only enforce path-level auth ───
   if (!USE_SUBDOMAINS) {
     if ((pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) && !role) {
-      return redirect(`/login?next=${encodeURIComponent(pathname)}`, request);
+      return redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context);
     }
     if (pathname.startsWith("/admin") && !isAdminRole(role)) {
-      return redirect("/cabinet", request);
+      return redirect("/cabinet", request, context);
     }
     if ((pathname === "/login" || pathname === "/register") && role) {
-      return redirect(homePathForRole(role), request);
+      return redirect(homePathForRole(role), request, context);
     }
-    return NextResponse.next();
+    return nextWithContext(requestHeaders, context);
   }
 
   // ─── Production with subdomains ───────────────────────────────────
@@ -65,88 +86,88 @@ export default async function proxy(request: NextRequest) {
 
   // Unknown host → serve as main
   if (!onMain && !onApp && !onAdmin) {
-    return NextResponse.next();
+    return nextWithContext(requestHeaders, context);
   }
 
   // ─── app.eterapy.com ───
   if (onApp) {
     if (!role) {
-      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/")}`);
+      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/")}`, context);
     }
     if (isAdminRole(role)) {
-      return redirectAbs(ADMIN_DOMAIN, "/admin");
+      return redirectAbs(ADMIN_DOMAIN, "/admin", context);
     }
     // CLIENT or PRACTITIONER
     // Strip /cabinet segment: incoming /cabinet/X → 308 redirect to /X; /cabinet alone → /
     if (pathname === "/cabinet") {
-      return NextResponse.redirect(new URL("/", request.url), 308);
+      return withRequestContext(NextResponse.redirect(new URL("/", request.url), 308), context);
     }
     if (pathname.startsWith("/cabinet/")) {
       const stripped = pathname.slice("/cabinet".length); // keeps leading /
       const search = request.nextUrl.search;
-      return NextResponse.redirect(new URL(stripped + search, request.url), 308);
+      return withRequestContext(NextResponse.redirect(new URL(stripped + search, request.url), 308), context);
     }
     // /help passthrough (served from src/app/help)
     if (pathname === "/help" || pathname.startsWith("/help/")) {
-      return NextResponse.next();
+      return nextWithContext(requestHeaders, context);
     }
     // All other paths → internally rewrite to /cabinet prefix so existing route tree still serves
     const target = pathname === "/" ? "/cabinet" : `/cabinet${pathname}`;
     const rewriteUrl = new URL(target, request.url);
     rewriteUrl.search = request.nextUrl.search;
-    return NextResponse.rewrite(rewriteUrl);
+    return rewriteWithContext(rewriteUrl, requestHeaders, context);
   }
 
   // ─── admin.eterapy.com ───
   if (onAdmin) {
     if (!role) {
-      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/admin")}`);
+      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/admin")}`, context);
     }
     if (!isAdminRole(role)) {
-      return redirectAbs(APP_DOMAIN, "/cabinet");
+      return redirectAbs(APP_DOMAIN, "/cabinet", context);
     }
     if (pathname === "/") {
-      return redirect("/admin", request);
+      return redirect("/admin", request, context);
     }
     if (!pathname.startsWith("/admin") && pathname !== "/help" && !pathname.startsWith("/help/")) {
-      return redirect("/admin", request);
+      return redirect("/admin", request, context);
     }
-    return NextResponse.next();
+    return nextWithContext(requestHeaders, context);
   }
 
   // ─── eterapy.com (main) ───
   // Normalise www → apex already handled by nginx; just in case
   if (host === `www.${MAIN_DOMAIN}`) {
-    return redirectAbs(MAIN_DOMAIN, pathname);
+    return redirectAbs(MAIN_DOMAIN, pathname, context);
   }
 
   // Logged-in user hitting main domain
   if (role) {
     // /cabinet here → push to app subdomain
     if (pathname.startsWith("/cabinet")) {
-      return redirectAbs(APP_DOMAIN, pathname);
+      return redirectAbs(APP_DOMAIN, pathname, context);
     }
     // /admin here → push to admin subdomain
     if (pathname.startsWith("/admin")) {
-      return redirectAbs(ADMIN_DOMAIN, pathname);
+      return redirectAbs(ADMIN_DOMAIN, pathname, context);
     }
     // Login/register while logged in → home
     if (pathname === "/login" || pathname === "/register") {
-      return redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role));
+      return redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context);
     }
     // Landing page for logged-in user → their cabinet
     if (pathname === "/") {
-      return redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role));
+      return redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context);
     }
     // Other public pages (practitioners catalog, modalities, help, legal, how-to-choose, about) stay accessible
-    return NextResponse.next();
+    return nextWithContext(requestHeaders, context);
   }
 
   // Guest on main domain — block protected paths, show everything else
   if (pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) {
-    return redirect(`/login?next=${encodeURIComponent(pathname)}`, request);
+    return redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context);
   }
-  return NextResponse.next();
+  return nextWithContext(requestHeaders, context);
 }
 
 export const config = {

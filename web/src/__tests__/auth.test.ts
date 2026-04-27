@@ -7,12 +7,24 @@ import bcrypt from 'bcryptjs';
 // Mock dependencies
 jest.mock('@/lib/users-db');
 jest.mock('@/lib/audit');
-jest.mock('@/lib/db');
+jest.mock('@/lib/db', () => ({
+  __esModule: true,
+  default: {
+    telegramLinkToken: {
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+    },
+  },
+}));
 jest.mock('bcryptjs');
 
 // Need to re-import after mocking
 import { handlers, signIn, signOut, auth } from '@/lib/auth';
-import { NextAuthConfig } from 'next-auth';
 
 describe('Auth Configuration', () => {
   beforeEach(() => {
@@ -22,8 +34,8 @@ describe('Auth Configuration', () => {
   describe('NextAuth config', () => {
     it('should export expected handlers', () => {
       expect(handlers).toBeDefined();
-      expect(typeof handlers.Auth).toBe('function');
-      expect(typeof handlers.Credentials).toBe('function');
+      expect(typeof handlers.GET).toBe('function');
+      expect(typeof handlers.POST).toBe('function');
     });
 
     it('should have session strategy set to JWT', () => {

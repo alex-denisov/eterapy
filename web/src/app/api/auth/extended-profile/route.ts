@@ -34,7 +34,9 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let { birthDate, birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals } = await req.json();
+  const body = await req.json();
+  const { birthDate, birthTime, timezone, maritalStatus, aiGoals } = body;
+  let { birthPlace, occupation } = body;
 
   // Sanitize text fields
   if (birthPlace !== undefined) birthPlace = sanitizeName(birthPlace).slice(0, 100);

@@ -12,19 +12,23 @@
  * Idempotent — uses the shared credit helper, which guards on transaction.status === PENDING.
  * Only reconciles transactions belonging to the authenticated user, so no impersonation.
  */
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { yukassaFetch } from "@/lib/yukassa";
 import { applyPaymentResult } from "@/lib/billing-credit";
+import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { log, serializeError } from "@/lib/logger";
+import { requestContextFromHeaders } from "@/lib/request-context";
 
 // Only look at the last 30 minutes — older PENDING rows are almost certainly dead.
 const LOOKBACK_MS = 30 * 60 * 1000;
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   }
 
   const since = new Date(Date.now() - LOOKBACK_MS);
@@ -58,10 +62,23 @@ export async function POST() {
       const outcome = await applyPaymentResult(payment);
       results.push({ providerPaymentId: t.providerPaymentId, outcome });
     } catch (err) {
-      console.error(`[billing/reconcile] failed for ${t.providerPaymentId}:`, err);
+      log.error("billing-reconcile-payment-failed", {
+        requestId: context.requestId,
+        userId: session.user.id,
+        providerPaymentId: t.providerPaymentId,
+        error: serializeError(err),
+      });
       results.push({ providerPaymentId: t.providerPaymentId, outcome: "error" });
     }
   }
 
-  return NextResponse.json({ ok: true, reconciled: results.length, results });
+  log.info("billing-reconcile-completed", {
+    requestId: context.requestId,
+    userId: session.user.id,
+    pendingCount: pending.length,
+    reconciled: results.length,
+    outcomes: results.map((result) => result.outcome),
+  });
+
+  return jsonWithRequestContext({ ok: true, reconciled: results.length, results }, undefined, context);
 }

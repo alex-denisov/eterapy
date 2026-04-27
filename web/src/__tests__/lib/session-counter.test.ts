@@ -1,4 +1,4 @@
-import { sessionCounter, type UsageData } from '@/lib/session-counter';
+import { sessionCounter } from '@/lib/session-counter';
 
 // Mock window and localStorage
 const localStorageMock = (() => {
@@ -20,15 +20,6 @@ const localStorageMock = (() => {
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 });
-
-// Mock getMonthKey to control time in tests
-const realDate = Date;
-
-function setMockDate(year: number, month: number, day: number = 1) {
-  const mockDate = new realDate(year, month, day);
-  jest.spyOn(global, 'Date').mockImplementation(() => mockDate as unknown as string);
-  return mockDate;
-}
 
 describe('sessionCounter', () => {
   beforeEach(() => {
@@ -138,7 +129,7 @@ describe('sessionCounter', () => {
     });
 
     it('should return false when limit already reached', () => {
-      localStorageMock.setItem('eterapt_tool_usage', JSON.stringify({
+      localStorageMock.setItem('eterapy_tool_usage', JSON.stringify({
         month: '2026-04',
         count: 3,
       }));
@@ -192,10 +183,10 @@ describe('sessionCounter', () => {
       sessionCounter.increment();
 
       const result = sessionCounter.increment();
-      expect(result).toBe(false); // third should fail
+      expect(result).toBe(true); // third reaches the limit
 
       const stored = JSON.parse(localStorageMock.getItem('eterapy_tool_usage')!);
-      expect(stored.count).toBe(2);
+      expect(stored.count).toBe(3);
     });
   });
 
@@ -232,7 +223,7 @@ describe('sessionCounter', () => {
       }));
 
       // Switch to March
-      jest.spyOn(global, 'Date').mockImplementation(() => new Date(2024, 2, 1) as unknown as string);
+      jest.useFakeTimers().setSystemTime(new Date(2024, 2, 1).getTime());
 
       const result = sessionCounter.get();
       expect(result.month).toBe('2024-03');
@@ -245,7 +236,7 @@ describe('sessionCounter', () => {
         count: 1,
       }));
 
-      jest.spyOn(global, 'Date').mockImplementation(() => new Date(2026, 0, 1) as unknown as string);
+      jest.useFakeTimers().setSystemTime(new Date(2026, 0, 1).getTime());
 
       const result = sessionCounter.get();
       expect(result.month).toBe('2026-01');

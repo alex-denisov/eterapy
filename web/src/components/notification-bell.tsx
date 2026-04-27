@@ -122,6 +122,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
 
   // Initial load + polling
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Initial async refresh is the notification subscription bootstrap.
     load();
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
@@ -129,6 +130,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
 
   // Refresh on open (best-effort immediacy)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Opening the bell intentionally refreshes async data.
     if (open) load();
   }, [open, load]);
 

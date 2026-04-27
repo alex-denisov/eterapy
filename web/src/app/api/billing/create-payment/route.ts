@@ -3,15 +3,19 @@
  * Создаёт платёж в ЮKassa и возвращает confirmation URL для редиректа.
  * Body: { amountKopecks: number, description?: string }
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { yukassaFetch } from "@/lib/yukassa";
+import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { log, serializeError } from "@/lib/logger";
+import { requestContextFromHeaders } from "@/lib/request-context";
 
 export async function POST(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+    return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
   }
 
   const body = await req.json();
@@ -19,7 +23,7 @@ export async function POST(req: NextRequest) {
   const description = body.description || `Пополнение баланса на сайте ETerapy`;
 
   if (!amountKopecks || amountKopecks < 100) {
-    return NextResponse.json({ error: "Минимальная сумма 100 копеек (1 ₽)" }, { status: 400 });
+    return errorWithRequestContext("INVALID_AMOUNT", "Минимальная сумма 100 копеек (1 ₽)", 400, context);
   }
 
   // Valid return URL — always a full absolute URL
@@ -69,13 +73,28 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
+    log.info("billing-payment-created", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      provider: "yookassa",
+      providerPaymentId: payment.id,
+      amountKopecks,
+    });
+
+    return jsonWithRequestContext({
       ok: true,
       paymentId: payment.id,
       confirmationUrl: payment.confirmation.confirmation_url,
+    }, undefined, context);
+  } catch (err: unknown) {
+    log.error("billing-payment-create-failed", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      provider: "yookassa",
+      amountKopecks,
+      error: serializeError(err),
     });
-  } catch (err: any) {
-    console.error("YuKassa create payment error:", err);
-    return NextResponse.json({ error: err.message || "Ошибка создания платежа" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Ошибка создания платежа";
+    return errorWithRequestContext("PAYMENT_CREATE_FAILED", message, 500, context);
   }
 }

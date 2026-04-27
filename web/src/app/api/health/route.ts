@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import db from "@/lib/db";
+import { jsonWithRequestContext } from "@/lib/api-response";
+import { log, serializeError } from "@/lib/logger";
+import { requestContextFromHeaders } from "@/lib/request-context";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   let dbStatus = "unknown";
   let userCount = 0;
 
@@ -10,9 +14,13 @@ export async function GET() {
     dbStatus = "ok";
   } catch (err) {
     dbStatus = `error: ${err instanceof Error ? err.message : String(err)}`;
+    log.error("health-db-check-failed", {
+      requestId: context.requestId,
+      error: serializeError(err),
+    });
   }
 
-  return NextResponse.json(
+  return jsonWithRequestContext(
     {
       status: "ok",
       timestamp: new Date().toISOString(),
@@ -20,6 +28,7 @@ export async function GET() {
       db: dbStatus,
       users: userCount,
     },
-    { status: 200 }
+    { status: 200 },
+    context
   );
 }

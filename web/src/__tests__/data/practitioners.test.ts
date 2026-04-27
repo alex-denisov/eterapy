@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { practitioners, SPECIALTY_LABELS } from '@/data/practitioners';
 
 describe('Practitioners Data', () => {

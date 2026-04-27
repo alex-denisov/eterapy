@@ -170,6 +170,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
+    // eslint-disable-next-line react-hooks/purity -- Event handler output filename, not render state.
     a.download = `${tool.toLowerCase()}-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);

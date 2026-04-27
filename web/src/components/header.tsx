@@ -23,7 +23,6 @@ function useBalance(userId: string | null | undefined) {
 
   useEffect(() => {
     if (!userId) {
-      setBalanceKopecks(0);
       return;
     }
     let cancelled = false;
@@ -34,7 +33,7 @@ function useBalance(userId: string | null | undefined) {
     return () => { cancelled = true; };
   }, [userId]);
 
-  return balanceKopecks;
+  return userId ? balanceKopecks : 0;
 }
 
 function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; balanceKopecks: number }) {
@@ -112,6 +111,7 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
   // Focus management
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Keeps roving focus index aligned with menu visibility.
       setFocusedIndex(0);
     } else {
       setFocusedIndex(-1);
@@ -196,14 +196,12 @@ export function Header() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // Скрываем header на странице видеосессии
-  if (pathname.startsWith("/session")) return null;
-
   const isAuthenticated = status === "authenticated" && !!session;
   const isLoading = status === "loading";
   const balanceKopecks = useBalance(session?.user?.id ?? null);
-  const role: string = session?.user?.role ?? "GUEST";
+
+  // Скрываем header на странице видеосессии
+  if (pathname.startsWith("/session")) return null;
 
   // Пока загружается — показываем пустой хедер без навигации (без мигания гостевых ссылок)
   const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];

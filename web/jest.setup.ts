@@ -1,4 +1,23 @@
 import '@testing-library/jest-dom';
+import { ReadableStream, TransformStream } from 'stream/web';
+import { TextDecoder, TextEncoder } from 'util';
+
+Object.assign(globalThis, {
+  TextDecoder,
+  TextEncoder,
+  ReadableStream,
+  TransformStream,
+});
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const edgeFetch = require('next/dist/compiled/@edge-runtime/primitives/fetch.js');
+
+Object.assign(globalThis, {
+  Request: globalThis.Request ?? edgeFetch.Request,
+  Response: globalThis.Response ?? edgeFetch.Response,
+  Headers: globalThis.Headers ?? edgeFetch.Headers,
+  fetch: globalThis.fetch ?? edgeFetch.fetch,
+});
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({

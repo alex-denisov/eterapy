@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({
@@ -22,7 +23,7 @@ const customJestConfig = {
 module.exports = async () => {
   const config = await createJestConfig(customJestConfig)();
   config.transformIgnorePatterns = [
-    '/node_modules/(?!(next-auth|@auth/core|jose|oauth4webapi|preact|@panva|@babel/runtime/helpers/esm)/)',
+    '/node_modules/(?!(next-auth|@auth/core|jose|oauth4webapi|preact|preact-render-to-string|@panva|@babel/runtime/helpers/esm)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ];
   return config;

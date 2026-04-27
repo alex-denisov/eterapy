@@ -7,6 +7,61 @@ import bcrypt from "bcryptjs";
 import { logAudit } from "./audit";
 import { authConfig } from "./auth.config";
 
+type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken", unknown>>;
+
+export async function authorize(credentials: CredentialsInput | undefined) {
+  // ── Impersonation path: SUPERADMIN one-time token ─────────────────────
+  const impToken = credentials?.impersonateToken as string | undefined;
+  if (impToken) {
+    const record = await db.telegramLinkToken.findUnique({
+      where: { token: `imp:${impToken}` },
+    });
+    if (!record || record.expiresAt < new Date()) return null;
+    // Delete immediately — one-time use
+    await db.telegramLinkToken.delete({ where: { token: `imp:${impToken}` } });
+    const target = await db.user.findUnique({
+      where: { id: record.userId },
+      select: { id: true, email: true, name: true, role: true, emailVerified: true, blockedAt: true },
+    });
+    if (!target || target.blockedAt) return null;
+    return {
+      id: target.id,
+      email: target.email,
+      name: target.name,
+      emailVerified: target.emailVerified,
+      role: target.role,
+    };
+  }
+
+  // ── Normal email/password path ─────────────────────────────────────────
+  const email = credentials?.email as string;
+  const password = credentials?.password as string;
+  if (!email || !password) return null;
+
+  const user = await usersDb.get(email);
+  if (!user) return null;
+
+  // Blocked users cannot login
+  if (user.blockedAt) return null;
+
+  // Support both bcrypt-hashed and plaintext passwords (test accounts)
+  const isHashed = user.password.startsWith("$2");
+  const valid = isHashed
+    ? await bcrypt.compare(password, user.password)
+    : user.password === password;
+  if (!valid) return null;
+
+  await logAudit(user.id, "LOGIN", undefined, `Email: ${email}`);
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    emailVerified: user.emailVerified,
+    role: user.role,
+  };
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   debug: process.env.NODE_ENV !== "production",
@@ -20,56 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       // @ts-expect-error NextAuth v5 Credentials authorize type mismatch
       async authorize(credentials, _request: Request) {
-        // ── Impersonation path: SUPERADMIN one-time token ─────────────────────
-        const impToken = credentials?.impersonateToken as string | undefined;
-        if (impToken) {
-          const record = await db.telegramLinkToken.findUnique({
-            where: { token: `imp:${impToken}` },
-          });
-          if (!record || record.expiresAt < new Date()) return null;
-          // Delete immediately — one-time use
-          await db.telegramLinkToken.delete({ where: { token: `imp:${impToken}` } });
-          const target = await db.user.findUnique({
-            where: { id: record.userId },
-            select: { id: true, email: true, name: true, role: true, emailVerified: true, blockedAt: true },
-          });
-          if (!target || target.blockedAt) return null;
-          return {
-            id: target.id,
-            email: target.email,
-            name: target.name,
-            emailVerified: target.emailVerified,
-            role: target.role,
-          };
-        }
-
-        // ── Normal email/password path ─────────────────────────────────────────
-        const email = credentials?.email as string;
-        const password = credentials?.password as string;
-        if (!email || !password) return null;
-
-        const user = await usersDb.get(email);
-        if (!user) return null;
-
-        // Blocked users cannot login
-        if (user.blockedAt) return null;
-
-        // Support both bcrypt-hashed and plaintext passwords (test accounts)
-        const isHashed = user.password.startsWith("$2");
-        const valid = isHashed
-          ? await bcrypt.compare(password, user.password)
-          : user.password === password;
-        if (!valid) return null;
-
-        await logAudit(user.id, "LOGIN", undefined, `Email: ${email}`);
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          emailVerified: user.emailVerified,
-          role: user.role,
-        };
+        return authorize(credentials);
       },
     }),
 
@@ -124,9 +130,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async jwt({ token, user, account }) {
       if (user) {
-        (token as any).id = user.id;
-        (token as any).emailVerified = user.emailVerified ? String(user.emailVerified) : undefined;
-        (token as any).role = user.role;
+        (token as Record<string, unknown>).id = user.id;
+        (token as Record<string, unknown>).emailVerified = user.emailVerified ? String(user.emailVerified) : undefined;
+        (token as Record<string, unknown>).role = user.role;
       }
 
       // При OAuth входе загружаем данные из БД
