@@ -2,6 +2,7 @@ import type { Job } from "@prisma/client";
 import db from "@/lib/db";
 import { claimNextJob, completeJob, failJob, releaseStaleJobs, type JobResult } from "@/lib/job-queue";
 import { log } from "@/lib/logger";
+import { CRON_JOB_HANDLERS } from "@/lib/cron-jobs";
 
 const DEFAULT_POLL_MS = 2_000;
 const DEFAULT_STALE_AFTER_MS = 10 * 60_000;
@@ -32,6 +33,7 @@ export const JOB_HANDLERS: JobHandlers = {
     ok: true,
     jobId: job.id,
   }),
+  ...CRON_JOB_HANDLERS,
 };
 
 function sleep(ms: number) {
