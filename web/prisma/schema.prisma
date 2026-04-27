@@ -58,6 +58,7 @@ model User {
   notifications       Notification[]
   complaints          Complaint[]           @relation("ComplaintReporter")
   aiSessionLogs       AISessionLog[]
+  aiGatewayRequests   AIRequest[]
   balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
   transactions        Transaction[]
   savedCards          SavedCard[]
@@ -598,6 +599,135 @@ model AISessionLog {
 
   @@index([userId, createdAt])
   @@map("ai_session_logs")
+}
+
+// ─── AI Gateway ──────────────────────────────────────────────────────────────
+
+model AIProviderConfig {
+  id                    String     @id @default(cuid())
+  provider              AIProvider @unique
+  displayName           String     @map("display_name")
+  enabled               Boolean    @default(false)
+  priority              Int        @default(100)
+  baseUrl               String?    @map("base_url")
+  defaultModel          String?    @map("default_model")
+  timeoutMs             Int        @default(30000) @map("timeout_ms")
+  rpmLimit              Int?       @map("rpm_limit")
+  tpmLimit              Int?       @map("tpm_limit")
+  inputTokenCostMicros  Int?       @map("input_token_cost_micros")
+  outputTokenCostMicros Int?       @map("output_token_cost_micros")
+  metadata              Json?
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
+
+  @@index([enabled, priority])
+  @@map("ai_provider_configs")
+}
+
+model AIRoutingPolicy {
+  id                      String       @id @default(cuid())
+  feature                 String       @unique
+  enabled                 Boolean      @default(true)
+  providerOrder           AIProvider[] @default([]) @map("provider_order")
+  modelPreferences        Json?        @map("model_preferences")
+  maxTokens               Int?         @map("max_tokens")
+  temperature             Float?
+  timeoutMs               Int?         @map("timeout_ms")
+  dailyTokenBudget        Int?         @map("daily_token_budget")
+  perUserDailyTokenBudget Int?         @map("per_user_daily_token_budget")
+  metadata                Json?
+  createdAt               DateTime     @default(now()) @map("created_at")
+  updatedAt               DateTime     @updatedAt @map("updated_at")
+
+  @@index([enabled, feature])
+  @@map("ai_routing_policies")
+}
+
+model AIRequest {
+  id                  String          @id @default(cuid())
+  feature             String
+  userId              String?         @map("user_id")
+  user                User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status              AIRequestStatus @default(PENDING)
+  requestHash         String?         @map("request_hash")
+  promptTokens        Int             @default(0) @map("prompt_tokens")
+  completionTokens    Int             @default(0) @map("completion_tokens")
+  totalTokens         Int             @default(0) @map("total_tokens")
+  estimatedCostMicros Int             @default(0) @map("estimated_cost_micros")
+  metadata            Json?
+  startedAt           DateTime?       @map("started_at")
+  finishedAt          DateTime?       @map("finished_at")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  attempts            AIAttempt[]
+
+  @@index([feature, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("ai_requests")
+}
+
+model AIAttempt {
+  id                  String          @id @default(cuid())
+  aiRequestId         String          @map("ai_request_id")
+  aiRequest           AIRequest       @relation(fields: [aiRequestId], references: [id], onDelete: Cascade)
+  provider            AIProvider
+  model               String
+  status              AIAttemptStatus @default(RUNNING)
+  latencyMs           Int?            @map("latency_ms")
+  promptTokens        Int             @default(0) @map("prompt_tokens")
+  completionTokens    Int             @default(0) @map("completion_tokens")
+  totalTokens         Int             @default(0) @map("total_tokens")
+  estimatedCostMicros Int             @default(0) @map("estimated_cost_micros")
+  errorCode           String?         @map("error_code")
+  errorMessage        String?         @map("error_message")
+  startedAt           DateTime        @default(now()) @map("started_at")
+  finishedAt          DateTime?       @map("finished_at")
+
+  @@index([aiRequestId, startedAt])
+  @@index([provider, status, startedAt])
+  @@map("ai_attempts")
+}
+
+model AIBudgetLedger {
+  id          String   @id @default(cuid())
+  scopeType   String   @map("scope_type") // global | feature | user | plan
+  scopeKey    String   @map("scope_key")
+  period      String   // YYYY-MM-DD
+  tokens      Int      @default(0)
+  costMicros  Int      @default(0) @map("cost_micros")
+  requestCount Int     @default(0) @map("request_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([scopeType, scopeKey, period])
+  @@index([period, scopeType])
+  @@map("ai_budget_ledger")
+}
+
+enum AIProvider {
+  OPENAI
+  ANTHROPIC
+  FIREWORKS
+  OPENROUTER
+}
+
+enum AIRequestStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum AIAttemptStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  TIMEOUT
+  RATE_LIMITED
+  SKIPPED
 }
 
 // ─── Tool Sessions ────────────────────────────────────────────────────────────

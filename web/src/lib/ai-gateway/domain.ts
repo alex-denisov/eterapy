@@ -1,0 +1,51 @@
+import { AIProvider } from "@prisma/client";
+
+export const AI_GATEWAY_PROVIDERS = [
+  AIProvider.OPENAI,
+  AIProvider.ANTHROPIC,
+  AIProvider.FIREWORKS,
+  AIProvider.OPENROUTER,
+] as const;
+
+export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
+  [AIProvider.OPENAI]: "OpenAI",
+  [AIProvider.ANTHROPIC]: "Anthropic",
+  [AIProvider.FIREWORKS]: "Fireworks AI",
+  [AIProvider.OPENROUTER]: "OpenRouter",
+};
+
+export interface AIGatewayMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+export interface AIGatewayRequestInput {
+  feature: string;
+  messages: AIGatewayMessage[];
+  userId?: string;
+  maxTokens?: number;
+  temperature?: number;
+  metadata?: Record<string, unknown>;
+}
+
+export function normalizeAIFeatureKey(feature: string) {
+  return feature
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_.:-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96);
+}
+
+export function aiBudgetPeriod(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+export function defaultProviderOrder(): AIProvider[] {
+  return [
+    AIProvider.OPENROUTER,
+    AIProvider.OPENAI,
+    AIProvider.ANTHROPIC,
+    AIProvider.FIREWORKS,
+  ];
+}
