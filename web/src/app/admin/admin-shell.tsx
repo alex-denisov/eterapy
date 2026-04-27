@@ -63,7 +63,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Логи",             superadminOnly: true },
   { href: adminUrl("/admin/users"),        icon: UserRound,            label: "Все пользователи", superadminOnly: true },
 
-  { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Система",          superadminOnly: true },
+  { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Система",          permission: "system.read" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

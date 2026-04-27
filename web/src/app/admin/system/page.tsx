@@ -1,146 +1,158 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
+import { AlertTriangle, CheckCircle2, Clock3, Database, Server, Settings2, XCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
-import db from "@/lib/db";
+import { getAdminSystemStatus, type SystemService } from "@/lib/admin-system-status";
+import { getUserPermissions } from "@/lib/moderator-permissions";
+import { requestContextFromHeaders } from "@/lib/request-context";
 import { PageContainer } from "@/components/ui/page-container";
 
-const PRODUCT_CRONS = [
-  {
-    path: "/api/cron/reminders",
-    purpose: "Напоминания клиентам и практикам за 24 ч и 1 ч до сессии",
-    cadence: "каждые 15 минут",
-  },
-  {
-    path: "/api/cron/cleanup",
-    purpose: "Удаление soft-deleted клиентов после 10 дней grace + истёкших телеграм-токенов",
-    cadence: "1 раз в сутки (00:00)",
-  },
-];
+function statusLabel(status: "ok" | "degraded" | "down" | "missing_config") {
+  if (status === "ok") return "OK";
+  if (status === "degraded") return "Degraded";
+  if (status === "missing_config") return "Config";
+  return "Down";
+}
 
-async function getStats() {
-  const [users, practitioners, bookings, auditLogs, notifPrefs, telegramLinked] = await Promise.all([
-    db.user.count(),
-    db.practitioner.count(),
-    db.booking.count(),
-    db.auditLog.count(),
-    db.notificationPreference.count(),
-    db.user.count({ where: { telegramId: { not: null } } }),
-  ]);
-  return { users, practitioners, bookings, auditLogs, notifPrefs, telegramLinked };
+function statusClasses(status: "ok" | "degraded" | "down" | "missing_config") {
+  if (status === "ok") return "border-emerald-500/25 bg-emerald-500/10 text-emerald-300";
+  if (status === "missing_config" || status === "degraded") return "border-amber-500/25 bg-amber-500/10 text-amber-300";
+  return "border-red-500/25 bg-red-500/10 text-red-300";
+}
+
+function StatusIcon({ status }: { status: "ok" | "degraded" | "down" | "missing_config" }) {
+  if (status === "ok") return <CheckCircle2 className="h-4 w-4" />;
+  if (status === "missing_config" || status === "degraded") return <AlertTriangle className="h-4 w-4" />;
+  return <XCircle className="h-4 w-4" />;
+}
+
+function ServiceRow({ service }: { service: SystemService }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3" data-testid={`system-service-${service.key}`}>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{service.name}</p>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {service.latencyMs !== undefined ? `${service.detail} · ${service.latencyMs} ms` : service.detail}
+        </p>
+      </div>
+      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${statusClasses(service.status)}`}>
+        <StatusIcon status={service.status} />
+        {statusLabel(service.status)}
+      </span>
+    </div>
+  );
 }
 
 export default async function AdminSystemPage() {
   const session = await auth();
-  if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
+  const role = session?.user?.role ?? "";
+  if (!session?.user?.id || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
-  const stats = await getStats();
+  const permissions = await getUserPermissions(session.user.id, role);
+  if (!permissions.includes("system.read")) redirect("/admin");
 
-  const env = {
-    nodeEnv: process.env.NODE_ENV ?? "—",
-    appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "—",
-    hasResend: !!process.env.RESEND_API_KEY,
-    hasOpenRouter: !!process.env.OPENROUTER_API_KEY,
-    hasLiveKit: !!process.env.LIVEKIT_API_KEY,
-    hasTelegram: !!process.env.TELEGRAM_BOT_TOKEN,
-    hasGoogle: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-    hasVK: !!(process.env.VK_CLIENT_ID && process.env.VK_CLIENT_SECRET),
-    hasCronSecret: !!process.env.CRON_SECRET,
-  };
+  const status = await getAdminSystemStatus(requestContextFromHeaders());
+  const statCards = [
+    { label: "Пользователей", value: status.stats.users },
+    { label: "Практиков", value: status.stats.practitioners },
+    { label: "Бронирований", value: status.stats.bookings },
+    { label: "Ожидают", value: status.stats.pendingBookings },
+    { label: "Audit logs", value: status.stats.auditLogs },
+    { label: "Telegram", value: status.stats.telegramLinked },
+  ];
 
   return (
-    <PageContainer maxWidth="4xl">
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">Система</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Статус сервисов, конфигурация платформы и продуктовые cron-задачи</p>
+    <PageContainer maxWidth="6xl">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-bold">Система</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Живой статус платформы, зависимостей и production cron-контуров</p>
+        </div>
+        <div className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${statusClasses(status.status)}`} data-testid="system-overall-status">
+          <StatusIcon status={status.status} />
+          {statusLabel(status.status)}
+        </div>
       </div>
 
-      {/* Статистика БД */}
-      <section className="mb-8">
-        <h2 className="font-semibold mb-4">📊 База данных</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {[
-            { label: "Пользователей", value: stats.users },
-            { label: "Практиков", value: stats.practitioners },
-            { label: "Бронирований", value: stats.bookings },
-            { label: "Записей в логах", value: stats.auditLogs },
-            { label: "Настроек уведомлений", value: stats.notifPrefs },
-            { label: "Telegram привязок", value: stats.telegramLinked },
-          ].map(stat => (
-            <div key={stat.label} className="rounded-xl border border-border/30 bg-card/20 px-4 py-3">
-              <p className="text-2xl font-bold text-primary">{stat.value.toLocaleString("ru")}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-border/30 bg-card/40 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <Server className="h-4 w-4 text-primary" />
+            Liveness
+          </div>
+          <p className="text-2xl font-bold text-emerald-300">{status.live.status}</p>
+          <p className="mt-1 text-xs text-muted-foreground">uptime {status.live.uptimeSec}s · v{status.live.version}</p>
+        </div>
+        <div className="rounded-lg border border-border/30 bg-card/40 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <Database className="h-4 w-4 text-primary" />
+            Readiness
+          </div>
+          <p className={`text-2xl font-bold ${status.ready.status === "ok" ? "text-emerald-300" : "text-red-300"}`}>{status.ready.status}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{status.ready.checks.length} dependency checks</p>
+        </div>
+        <div className="rounded-lg border border-border/30 bg-card/40 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <Clock3 className="h-4 w-4 text-primary" />
+            Last sample
+          </div>
+          <p className="text-sm font-medium">{new Date(status.ready.timestamp).toLocaleString("ru-RU")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{status.env.nodeEnv} · {status.env.appUrl}</p>
+        </div>
+      </div>
+
+      <section className="mb-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">База данных</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+          {statCards.map((stat) => (
+            <div key={stat.label} className="rounded-lg border border-border/30 bg-card/30 px-4 py-3">
+              <p className="text-xl font-bold text-primary">{stat.value.toLocaleString("ru")}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
             </div>
           ))}
         </div>
+        {status.stats.message && (
+          <p className="mt-3 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+            DB stats unavailable: {status.stats.message}
+          </p>
+        )}
       </section>
 
-      {/* Статус сервисов */}
-      <section className="mb-8">
-        <h2 className="font-semibold mb-4">🔌 Статус сервисов</h2>
-        <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
-          {[
-            { name: "Email (Resend)",      ok: env.hasResend,      hint: "RESEND_API_KEY" },
-            { name: "AI (OpenRouter)",     ok: env.hasOpenRouter,  hint: "OPENROUTER_API_KEY" },
-            { name: "Видеочат (LiveKit)", ok: env.hasLiveKit,     hint: "LIVEKIT_API_KEY" },
-            { name: "Telegram Bot",        ok: env.hasTelegram,    hint: "TELEGRAM_BOT_TOKEN" },
-            { name: "Google OAuth",        ok: env.hasGoogle,      hint: "GOOGLE_CLIENT_ID + SECRET" },
-            { name: "VK OAuth",            ok: env.hasVK,          hint: "VK_CLIENT_ID + SECRET" },
-            { name: "Cron-напоминания",    ok: env.hasCronSecret,  hint: "CRON_SECRET" },
-          ].map(svc => (
-            <div key={svc.name} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                <span className={`text-lg ${svc.ok ? "text-green-400" : "text-muted-foreground/30"}`}>
-                  {svc.ok ? "●" : "○"}
-                </span>
-                <span className="text-sm font-medium">{svc.name}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-xs ${svc.ok ? "text-green-400" : "text-muted-foreground"}`}>
-                  {svc.ok ? "Настроен" : "Не настроен"}
-                </span>
-                {!svc.ok && <code className="text-[10px] text-muted-foreground/40">{svc.hint}</code>}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Зависимости</h2>
+          <div className="overflow-hidden rounded-lg border border-border/30 bg-card/30 divide-y divide-border/10">
+            {status.services.map((service) => (
+              <ServiceRow key={service.key} service={service} />
+            ))}
+          </div>
+        </section>
 
-      {/* Окружение */}
-      <section className="mb-8">
-        <h2 className="font-semibold mb-4">⚙️ Конфигурация</h2>
-        <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
-          {[
-            { key: "Режим",        value: env.nodeEnv },
-            { key: "URL приложения", value: env.appUrl },
-          ].map(row => (
-            <div key={row.key} className="flex items-center justify-between px-4 py-3">
-              <span className="text-sm text-muted-foreground">{row.key}</span>
-              <code className="text-sm">{row.value}</code>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Cron-задачи (продуктовые) */}
-      <section>
-        <h2 className="font-semibold mb-4">⏰ Продуктовые cron-задачи</h2>
-        <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
-          {PRODUCT_CRONS.map((c) => (
-            <div key={c.path} className="px-4 py-3 space-y-1">
-              <div className="flex items-center justify-between gap-3">
-                <code className="text-xs text-primary">{c.path}</code>
-                <span className="text-xs text-muted-foreground shrink-0">{c.cadence}</span>
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cron-задачи</h2>
+          <div className="overflow-hidden rounded-lg border border-border/30 bg-card/30 divide-y divide-border/10">
+            {status.crons.map((cron) => (
+              <div key={cron.path} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <code className="text-xs text-primary">{cron.path}</code>
+                  <span className="shrink-0 rounded-full border border-border/30 px-2 py-0.5 text-[11px] text-muted-foreground">{cron.cadence}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{cron.purpose}</p>
               </div>
-              <p className="text-xs text-muted-foreground">{c.purpose}</p>
+            ))}
+          </div>
+          <div className="mt-4 rounded-lg border border-border/30 bg-card/20 p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+              <Settings2 className="h-4 w-4 text-primary" />
+              API diagnostics
             </div>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-3">
-          Авторизация: <code>Authorization: Bearer {"{CRON_SECRET}"}</code>. Запуск через cron-job.org или systemd
-          timer на VPS — список фильтрован по продуктовым задачам, OS-уровневые таймеры здесь не отображаются.
-        </p>
-      </section>
+            <p className="text-xs text-muted-foreground">
+              Read-only status API: <code>/api/admin/system/status</code>. Доступ только для роли с permission <code>system.read</code>.
+            </p>
+          </div>
+        </section>
+      </div>
     </PageContainer>
   );
 }

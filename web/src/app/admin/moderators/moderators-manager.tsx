@@ -25,6 +25,8 @@ const ALL_PERMISSIONS: Array<{ key: string; label: string; group: string }> = [
   { key: "practitioners.set_schedule",  label: "Управление расписанием",     group: "Практики" },
   { key: "practitioners.view_earnings", label: "Просмотр выплат",            group: "Практики" },
   { key: "practitioners.payout",        label: "Инициация выплат",           group: "Практики" },
+  // Система
+  { key: "system.read",                  label: "Статус системы",             group: "Система" },
 ];
 
 interface Moderator {
@@ -36,7 +38,7 @@ interface Moderator {
   permissions: string[];
 }
 
-const groups = ["Клиенты", "Практики"];
+const groups = ["Клиенты", "Практики", "Система"];
 
 interface PermMatrixProps {
   permissions: string[];
