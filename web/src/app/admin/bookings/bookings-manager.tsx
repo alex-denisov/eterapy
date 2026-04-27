@@ -13,7 +13,20 @@ export interface AdminBookingRow {
   slotStartAt: string | null;
   createdAt: string;
   client: { name: string; email: string };
-  practitioner: { name: string };
+  practitioner: { id: string; name: string };
+}
+
+interface AvailableSlot {
+  startAt: string;
+  endAt: string;
+}
+
+const DURATION_CHOICES = [30, 45, 60, 90];
+
+function todayInputDate() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
 }
 
 type SortKey = "createdDesc" | "createdAsc" | "slotDesc" | "slotAsc";
@@ -125,7 +138,7 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t border-border/20 px-4 pb-4 pt-3 space-y-3 text-xs">
+                  <div className="border-t border-border/20 px-4 pb-4 pt-3 space-y-4 text-xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <p className="text-muted-foreground">Клиент</p>
@@ -137,9 +150,22 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                         <p>{b.practitioner.name}</p>
                       </div>
                     </div>
-                    <p className="text-muted-foreground">
-                      Reschedule, изменение длительности и переназначение практика — в работе (11.E.2 / 11.E.3).
-                    </p>
+
+                    {CANCELLABLE.has(b.status) && (
+                      <RescheduleControls
+                        booking={b}
+                        onApplied={(slot, priceRub, durationMin) => {
+                          setRows((prev) =>
+                            prev.map((r) =>
+                              r.id === b.id
+                                ? { ...r, slotStartAt: slot.startAt, priceRub, durationMin }
+                                : r,
+                            ),
+                          );
+                        }}
+                      />
+                    )}
+
                     <div className="flex flex-wrap gap-2 pt-1">
                       {CANCELLABLE.has(b.status) && (
                         <button
@@ -151,6 +177,10 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                         </button>
                       )}
                     </div>
+
+                    <p className="text-muted-foreground/60">
+                      Переназначение на другого практика — отдельным шагом (11.E.3).
+                    </p>
                   </div>
                 )}
               </div>
@@ -158,6 +188,174 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
           })
         )}
       </div>
+    </div>
+  );
+}
+
+interface RescheduleControlsProps {
+  booking: AdminBookingRow;
+  onApplied: (slot: AvailableSlot, priceRub: number, durationMin: number) => void;
+}
+
+function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(todayInputDate());
+  const [duration, setDuration] = useState<number>(booking.durationMin || 60);
+  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [picked, setPicked] = useState<AvailableSlot | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function fetchSlots(d: string, dur: number) {
+    setLoading(true);
+    setSlots([]);
+    setPicked(null);
+    const params = new URLSearchParams({
+      practitionerId: booking.practitioner.id,
+      date: d,
+      durationMin: String(dur),
+    });
+    const res = await fetch(`/api/slots/available?${params}`);
+    const json = await res.json().catch(() => ({}));
+    setSlots(json.slots ?? []);
+    setLoading(false);
+  }
+
+  async function applyReschedule() {
+    if (!picked) return;
+    setSubmitting(true);
+    const res = await fetch(`/api/admin/bookings/${booking.id}/reschedule`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newSlotStartAt: picked.startAt, newSlotEndAt: picked.endAt }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) {
+      toast.success(
+        `Перенесено на ${new Date(picked.startAt).toLocaleString("ru-RU", {
+          day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+        })} · ${json.booking?.priceRub ?? booking.priceRub} ₽`,
+      );
+      onApplied(picked, json.booking?.priceRub ?? booking.priceRub, duration);
+      setOpen(false);
+      setPicked(null);
+    } else {
+      toast.error(json.error ?? "Не удалось перенести");
+    }
+    setSubmitting(false);
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => {
+          setOpen(true);
+          fetchSlots(date, duration);
+        }}
+        className="rounded-lg border border-primary/30 px-3 py-1.5 text-xs text-primary hover:bg-primary/10"
+      >
+        Перенести / изменить длительность
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-primary">Перенос сессии</p>
+        <button onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-foreground">
+          Закрыть
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-3 items-end">
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">Дата</span>
+          <input
+            type="date"
+            value={date}
+            min={todayInputDate()}
+            onChange={(e) => {
+              setDate(e.target.value);
+              fetchSlots(e.target.value, duration);
+            }}
+            className="rounded-lg border border-border/40 bg-card/50 px-2 py-1 text-xs"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-[11px] text-muted-foreground">Длительность</span>
+          <select
+            value={duration}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setDuration(next);
+              fetchSlots(date, next);
+            }}
+            className="rounded-lg border border-border/40 bg-card/50 px-2 py-1 text-xs"
+          >
+            {DURATION_CHOICES.map((d) => (
+              <option key={d} value={d}>
+                {d} мин
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="space-y-1">
+        <p className="text-[11px] text-muted-foreground">
+          Свободные окна {booking.practitioner.name} · текущее: {booking.durationMin} мин · {booking.priceRub.toLocaleString("ru-RU")} ₽
+        </p>
+        {loading ? (
+          <p className="text-xs text-muted-foreground/70">Загружаем...</p>
+        ) : slots.length === 0 ? (
+          <p className="text-xs text-muted-foreground/70">На этот день нет свободных окон.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {slots.map((s) => {
+              const isPicked = picked?.startAt === s.startAt;
+              const time = new Date(s.startAt).toLocaleTimeString("ru-RU", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return (
+                <button
+                  key={s.startAt}
+                  onClick={() => setPicked(s)}
+                  className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+                    isPicked
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {time}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {picked && (
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-xs">
+            Перенести на{" "}
+            <b>
+              {new Date(picked.startAt).toLocaleString("ru-RU", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </b>{" "}
+            ({duration} мин)
+          </p>
+          <button
+            onClick={applyReschedule}
+            disabled={submitting}
+            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-navy disabled:opacity-50"
+          >
+            {submitting ? "..." : "Подтвердить"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

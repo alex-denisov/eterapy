@@ -61,7 +61,7 @@ export default async function AdminBookingsPage(props: {
     slotStartAt: b.slot ? new Date(b.slot.startAt).toISOString() : null,
     createdAt: b.createdAt.toISOString(),
     client: { name: b.client.name, email: b.client.email },
-    practitioner: { name: b.practitioner.user.name },
+    practitioner: { id: b.practitioner.id, name: b.practitioner.user.name },
   }));
 
   return (
