@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { REQUEST_ID_HEADER, CORRELATION_ID_HEADER } from "@/lib/request-context";
 
-export function jsonWithRequestContext<T extends Record<string, unknown>>(
+export function jsonWithRequestContext<T extends object>(
   body: T,
   init: ResponseInit | undefined,
   context: { requestId: string; correlationId?: string }
