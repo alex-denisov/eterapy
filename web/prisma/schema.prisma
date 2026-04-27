@@ -324,6 +324,43 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ─── Durable Jobs ────────────────────────────────────────────────────────────
+
+model Job {
+  id             String    @id @default(cuid())
+  queue          String    @default("default")
+  type           String
+  status         JobStatus @default(PENDING)
+  priority       Int       @default(0)
+  payload        Json
+  result         Json?
+  error          String?
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3) @map("max_attempts")
+  runAfter       DateTime  @default(now()) @map("run_after")
+  lockedAt       DateTime? @map("locked_at")
+  lockedBy       String?   @map("locked_by")
+  startedAt      DateTime? @map("started_at")
+  finishedAt     DateTime? @map("finished_at")
+  idempotencyKey String?   @map("idempotency_key")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([queue, type, idempotencyKey], map: "jobs_queue_type_idempotency_key_key")
+  @@index([status, runAfter, priority, createdAt])
+  @@index([queue, status, runAfter])
+  @@index([lockedAt])
+  @@map("jobs")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD
+}
+
 // ─── Moderator Permissions ────────────────────────────────────────────────────
 
 model ModeratorPermission {
