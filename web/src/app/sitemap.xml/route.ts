@@ -1,4 +1,5 @@
 import { canonicalUrl, hostKind, publicSeoRoutes } from "@/lib/seo";
+import { approvedLibraryEntries } from "@/data/anonymous-library";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,12 @@ export function GET(request: Request) {
     return xmlResponse('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" />', "no-store");
   }
 
-  const urls = publicSeoRoutes.map((route) => [
+  const sitemapRoutes = [
+    ...publicSeoRoutes,
+    ...approvedLibraryEntries().map((entry) => `/library/${entry.slug}`),
+  ];
+
+  const urls = sitemapRoutes.map((route) => [
     "  <url>",
     `    <loc>${canonicalUrl(route)}</loc>`,
     "    <changefreq>weekly</changefreq>",
