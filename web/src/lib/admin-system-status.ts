@@ -53,6 +53,35 @@ function configured(ok: boolean): "ok" | "missing_config" {
   return ok ? "ok" : "missing_config";
 }
 
+function aiProviderServices(): SystemService[] {
+  return [
+    {
+      key: "ai-openrouter",
+      name: "AI OpenRouter",
+      status: configured(Boolean(process.env.OPENROUTER_API_KEY)),
+      detail: "OPENROUTER_API_KEY",
+    },
+    {
+      key: "ai-openai",
+      name: "AI OpenAI",
+      status: configured(Boolean(process.env.OPENAI_API_KEY)),
+      detail: "OPENAI_API_KEY",
+    },
+    {
+      key: "ai-anthropic",
+      name: "AI Anthropic",
+      status: configured(Boolean(process.env.ANTHROPIC_API_KEY)),
+      detail: "ANTHROPIC_API_KEY",
+    },
+    {
+      key: "ai-fireworks",
+      name: "AI Fireworks",
+      status: configured(Boolean(process.env.FIREWORKS_API_KEY)),
+      detail: "FIREWORKS_API_KEY",
+    },
+  ];
+}
+
 async function getStats(context: { requestId: string }): Promise<SystemStats> {
   try {
     const [users, practitioners, bookings, pendingBookings, auditLogs, notificationPreferences, telegramLinked] = await Promise.all([
@@ -116,12 +145,7 @@ export async function getAdminSystemStatus(context: { requestId: string }): Prom
       status: configured(Boolean(process.env.RESEND_API_KEY)),
       detail: "RESEND_API_KEY",
     },
-    {
-      key: "ai",
-      name: "AI (OpenRouter)",
-      status: configured(Boolean(process.env.OPENROUTER_API_KEY)),
-      detail: "OPENROUTER_API_KEY",
-    },
+    ...aiProviderServices(),
     {
       key: "video",
       name: "Video (LiveKit)",

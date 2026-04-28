@@ -55,6 +55,19 @@ export function classifyProviderError(err: unknown) {
   const status = typeof err === "object" && err !== null && "status" in err
     ? Number((err as { status?: unknown }).status)
     : undefined;
+  const rawCode = typeof err === "object" && err !== null && "code" in err
+    ? String((err as { code?: unknown }).code)
+    : undefined;
+  const name = typeof err === "object" && err !== null && "name" in err
+    ? String((err as { name?: unknown }).name)
+    : undefined;
+  const timeout = name === "AbortError" || rawCode === "ETIMEDOUT" || rawCode === "TIMEOUT";
+  if (timeout) {
+    return {
+      code: "TIMEOUT",
+      retryable: true,
+    };
+  }
   const code = typeof err === "object" && err !== null && "code" in err
     ? String((err as { code?: unknown }).code)
     : status
