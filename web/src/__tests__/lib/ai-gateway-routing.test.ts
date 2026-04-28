@@ -196,4 +196,54 @@ describe("AI Gateway routing", () => {
     });
     expect(second).not.toHaveBeenCalled();
   });
+
+  it("continues fallback when one provider has auth or credit outage", async () => {
+    const first = jest.fn().mockRejectedValue(new AIProviderError("insufficient credits", {
+      provider: AIProvider.OPENROUTER,
+      code: "HTTP_402",
+      retryable: false,
+    }));
+    const second = jest.fn().mockResolvedValue({
+      text: "ok",
+      provider: AIProvider.OPENAI,
+      model: "gpt-4o-mini",
+      promptTokens: 2,
+      completionTokens: 3,
+      totalTokens: 5,
+      latencyMs: 100,
+    });
+
+    const result = await runAIGatewayFallback({
+      plan: {
+        feature: "test.feature",
+        attempts: [
+          { provider: AIProvider.OPENROUTER, model: "openai/gpt-4o-mini", timeoutMs: 1000 },
+          { provider: AIProvider.OPENAI, model: "gpt-4o-mini", timeoutMs: 2000 },
+        ],
+      },
+      adapters: new Map([
+        [AIProvider.OPENROUTER, adapter(AIProvider.OPENROUTER, first)],
+        [AIProvider.OPENAI, adapter(AIProvider.OPENAI, second)],
+      ]),
+      request: {
+        messages: [{ role: "user", content: "hello" }],
+      },
+    });
+
+    expect(result.response.provider).toBe(AIProvider.OPENAI);
+    expect(result.attempts).toEqual([
+      {
+        provider: AIProvider.OPENROUTER,
+        model: "openai/gpt-4o-mini",
+        status: "failed",
+        code: "HTTP_402",
+        retryable: false,
+      },
+      {
+        provider: AIProvider.OPENAI,
+        model: "gpt-4o-mini",
+        status: "succeeded",
+      },
+    ]);
+  });
 });

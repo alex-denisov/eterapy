@@ -63,6 +63,15 @@ export class AIGatewayRoutingError extends Error {
   }
 }
 
+function canFallbackFromProviderError(error: AIProviderError) {
+  return error.retryable || [
+    "MISSING_CONFIG",
+    "HTTP_401",
+    "HTTP_402",
+    "HTTP_403",
+  ].includes(error.code);
+}
+
 function uniqueProviderOrder(providers: AIProvider[]) {
   const seen = new Set<AIProvider>();
   return providers.filter((provider) => {
@@ -184,7 +193,7 @@ export async function runAIGatewayFallback(input: {
         retryable: providerError.retryable,
       });
 
-      if (!providerError.retryable) {
+      if (!canFallbackFromProviderError(providerError)) {
         throw providerError;
       }
     }
