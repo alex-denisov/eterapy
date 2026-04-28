@@ -15,7 +15,7 @@ describe("OpenRouter adapter", () => {
 
   it("normalizes OpenAI-compatible chat completion responses", async () => {
     const create = jest.fn().mockResolvedValue({
-      model: "meta-llama/llama-3.1-70b-instruct:free",
+      model: "openrouter/free",
       choices: [{ message: { content: "Готово" }, finish_reason: "stop" }],
       usage: { prompt_tokens: 14, completion_tokens: 9, total_tokens: 23 },
     });
@@ -35,14 +35,14 @@ describe("OpenRouter adapter", () => {
     });
 
     expect(create).toHaveBeenCalledWith(expect.objectContaining({
-      model: "meta-llama/llama-3.1-70b-instruct:free",
+      model: "openrouter/free",
       max_tokens: 100,
       temperature: 0.2,
     }), { timeout: 1234 });
     expect(response).toEqual(expect.objectContaining({
       text: "Готово",
       provider: AIProvider.OPENROUTER,
-      model: "meta-llama/llama-3.1-70b-instruct:free",
+      model: "openrouter/free",
       promptTokens: 14,
       completionTokens: 9,
       totalTokens: 23,
@@ -102,8 +102,12 @@ describe("OpenRouter adapter", () => {
     } satisfies Partial<AIProviderError>));
   });
 
-  it("rejects non-free models without making a network call", async () => {
-    const create = jest.fn();
+  it("passes paid models through to OpenRouter without local restriction", async () => {
+    const create = jest.fn().mockResolvedValue({
+      model: "openai/gpt-4o-mini",
+      choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
     const adapter = createOpenRouterAdapter({
       apiKey: "test-key",
       client: { chat: { completions: { create } } },
@@ -113,12 +117,13 @@ describe("OpenRouter adapter", () => {
       feature: "test.feature",
       model: "openai/gpt-4o-mini",
       messages: [{ role: "user", content: "hello" }],
-    })).rejects.toMatchObject({
-      name: "AIProviderError",
-      code: "MODEL_NOT_ALLOWED",
-      retryable: false,
-    });
-    expect(create).not.toHaveBeenCalled();
+    })).resolves.toEqual(expect.objectContaining({
+      provider: AIProvider.OPENROUTER,
+      model: "openai/gpt-4o-mini",
+    }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      model: "openai/gpt-4o-mini",
+    }), { timeout: 30_000 });
   });
 
   it("accepts :free models", async () => {
@@ -142,8 +147,31 @@ describe("OpenRouter adapter", () => {
     }));
   });
 
+  it("uses openrouter/free as default and forwards it as a meta-id", async () => {
+    const create = jest.fn().mockResolvedValue({
+      model: "openrouter/free",
+      choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+    const adapter = createOpenRouterAdapter({
+      apiKey: "test-key",
+      client: { chat: { completions: { create } } },
+    });
+
+    await expect(adapter.complete({
+      feature: "test.feature",
+      messages: [{ role: "user", content: "hello" }],
+    })).resolves.toEqual(expect.objectContaining({
+      provider: AIProvider.OPENROUTER,
+      model: "openrouter/free",
+    }));
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      model: "openrouter/free",
+    }), expect.any(Object));
+  });
+
   it("checks model health when configured", async () => {
-    const retrieve = jest.fn().mockResolvedValue({ id: "meta-llama/llama-3.1-70b-instruct:free" });
+    const retrieve = jest.fn().mockResolvedValue({ id: "openrouter/free" });
     const adapter = createOpenRouterAdapter({
       client: {
         chat: { completions: { create: jest.fn() } },
@@ -154,9 +182,9 @@ describe("OpenRouter adapter", () => {
     await expect(adapter.healthcheck()).resolves.toEqual(expect.objectContaining({
       provider: AIProvider.OPENROUTER,
       status: "ok",
-      model: "meta-llama/llama-3.1-70b-instruct:free",
+      model: "openrouter/free",
       latencyMs: expect.any(Number),
     }));
-    expect(retrieve).toHaveBeenCalledWith("meta-llama/llama-3.1-70b-instruct:free", { timeout: 30_000 });
+    expect(retrieve).toHaveBeenCalledWith("openrouter/free", { timeout: 30_000 });
   });
 });

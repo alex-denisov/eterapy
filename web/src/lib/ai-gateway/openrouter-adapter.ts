@@ -10,26 +10,19 @@ import {
 } from "@/lib/ai-gateway/adapters";
 import { log, serializeError } from "@/lib/logger";
 
-const DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.1-70b-instruct:free";
+const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * Helper for UI hints: returns true if the model id is a free variant
+ * (suffix `:free`) or an OpenRouter free-pool meta id (`openrouter/free`).
+ * No longer used to reject paid models — admins may select any model id.
+ */
 export function isFreeOpenRouterModel(model: string | undefined | null): boolean {
   if (!model) return false;
-  return model.trim().toLowerCase().endsWith(":free");
-}
-
-export function assertFreeOpenRouterModel(model: string): void {
-  if (!isFreeOpenRouterModel(model)) {
-    throw new AIProviderError(
-      `OpenRouter is restricted to free models; "${model}" does not have the :free suffix`,
-      {
-        provider: AIProvider.OPENROUTER,
-        code: "MODEL_NOT_ALLOWED",
-        retryable: false,
-      }
-    );
-  }
+  const normalized = model.trim().toLowerCase();
+  return normalized.endsWith(":free") || normalized === "openrouter/free";
 }
 
 interface OpenRouterClientLike {
@@ -102,7 +95,6 @@ export function createOpenRouterAdapter(options: OpenRouterAdapterOptions = {}):
 
     async complete(request: AIGatewayCompletionRequest): Promise<AIGatewayCompletionResponse> {
       const model = request.model ?? defaultModel;
-      assertFreeOpenRouterModel(model);
       const startedAt = Date.now();
       try {
         const response = await requireClient().chat.completions.create({
