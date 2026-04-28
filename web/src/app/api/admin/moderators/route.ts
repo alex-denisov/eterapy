@@ -5,23 +5,23 @@ import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
+import { ALL_PERMISSIONS, type Permission } from "@/lib/moderator-permissions";
 
 function requireSuperAdmin(role?: string) {
   return role === "SUPERADMIN";
 }
 
-// Все доступные полномочия модератора
-export const ALL_PERMISSIONS = [
-  "clients.view", "clients.create", "clients.edit", "clients.block",
-  "clients.delete", "clients.reset_password", "clients.set_password",
-  "clients.view_sessions", "clients.view_events",
-  "practitioners.view", "practitioners.create", "practitioners.edit",
-  "practitioners.block", "practitioners.reset_password", "practitioners.set_password",
-  "practitioners.set_rates", "practitioners.set_schedule",
-  "practitioners.view_earnings", "practitioners.payout",
-] as const;
+export { ALL_PERMISSIONS };
+export type { Permission };
 
-export type Permission = typeof ALL_PERMISSIONS[number];
+function normalizePermissions(value: unknown): Permission[] {
+  if (!Array.isArray(value)) return [];
+
+  const allowed = new Set<string>(ALL_PERMISSIONS);
+  return [...new Set(value.filter((permission): permission is Permission =>
+    typeof permission === "string" && allowed.has(permission),
+  ))];
+}
 
 export async function GET() {
   const session = await auth();
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
   if (!requireSuperAdmin(session?.user?.role)) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const { name, email, password, permissions } = await req.json();
+  const normalizedPermissions = normalizePermissions(permissions);
   if (!name || !email || !password) return NextResponse.json({ error: "name, email, password обязательны" }, { status: 400 });
 
   const hashed = await bcrypt.hash(password, 10);
@@ -61,9 +62,9 @@ export async function POST(req: NextRequest) {
   });
 
   // Назначаем полномочия
-  if (permissions?.length) {
+  if (normalizedPermissions.length > 0) {
     await db.moderatorPermission.createMany({
-      data: permissions.map((p: string) => ({ moderatorId: user.id, permission: p, granted: true })),
+      data: normalizedPermissions.map((permission) => ({ moderatorId: user.id, permission, granted: true })),
       skipDuplicates: true,
     });
   }
@@ -122,11 +123,12 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (permissions !== undefined) {
+    const normalizedPermissions = normalizePermissions(permissions);
     // Full replace: delete all, re-create
     await db.moderatorPermission.deleteMany({ where: { moderatorId } });
-    if (permissions.length > 0) {
+    if (normalizedPermissions.length > 0) {
       await db.moderatorPermission.createMany({
-        data: permissions.map((p: string) => ({ moderatorId, permission: p, granted: true })),
+        data: normalizedPermissions.map((permission) => ({ moderatorId, permission, granted: true })),
         skipDuplicates: true,
       });
     }

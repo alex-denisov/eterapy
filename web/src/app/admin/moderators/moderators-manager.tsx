@@ -6,10 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
 const ALL_PERMISSIONS: Array<{ key: string; label: string; group: string }> = [
+  // Пользователи
+  { key: "users.view",            label: "Просмотр пользователей",      group: "Пользователи" },
+  { key: "users.create",          label: "Создание пользователей",      group: "Пользователи" },
+  { key: "users.edit",            label: "Редактирование пользователей", group: "Пользователи" },
+  { key: "users.delete",          label: "Удаление пользователей",      group: "Пользователи" },
+  { key: "users.block",           label: "Блокировка пользователей",    group: "Пользователи" },
+  { key: "users.reset_password",  label: "Сброс пароля",               group: "Пользователи" },
+  { key: "users.set_password",    label: "Назначение пароля",          group: "Пользователи" },
+  { key: "users.impersonate",     label: "Имперсонация",               group: "Пользователи" },
   // Клиенты
   { key: "clients.view",           label: "Просмотр клиентов",        group: "Клиенты" },
+  { key: "clients.create",         label: "Создание клиентов",         group: "Клиенты" },
   { key: "clients.edit",           label: "Редактирование имени",      group: "Клиенты" },
   { key: "clients.block",          label: "Блокировка/разблокировка",  group: "Клиенты" },
+  { key: "clients.delete",         label: "Удаление клиентов",         group: "Клиенты" },
   { key: "clients.reset_password", label: "Сброс пароля",              group: "Клиенты" },
   { key: "clients.set_password",   label: "Назначение пароля",         group: "Клиенты" },
   { key: "clients.view_sessions",  label: "Просмотр сессий",           group: "Клиенты" },
@@ -25,8 +36,24 @@ const ALL_PERMISSIONS: Array<{ key: string; label: string; group: string }> = [
   { key: "practitioners.set_schedule",  label: "Управление расписанием",     group: "Практики" },
   { key: "practitioners.view_earnings", label: "Просмотр выплат",            group: "Практики" },
   { key: "practitioners.payout",        label: "Инициация выплат",           group: "Практики" },
+  { key: "practitioners.verify",        label: "Верификация практиков",      group: "Практики" },
+  // Продукт v5
+  { key: "dialogues.view",              label: "Просмотр диалогов",          group: "Продукт v5" },
+  { key: "reports.view",                label: "Просмотр отчетов",           group: "Продукт v5" },
+  { key: "library.moderate",            label: "Модерация библиотеки",       group: "Продукт v5" },
+  { key: "safety.review",               label: "Разбор safety-событий",      group: "Продукт v5" },
+  { key: "practitioner_pro.manage",     label: "Практик Pro",               group: "Продукт v5" },
+  { key: "content.configure",           label: "Контентные настройки",       group: "Продукт v5" },
+  { key: "seo.manage",                  label: "SEO-настройки",             group: "Продукт v5" },
+  // Финансы и подписки
+  { key: "payments.refund",             label: "Возвраты платежей",          group: "Финансы" },
+  { key: "subscriptions.manage",        label: "Управление подписками",      group: "Финансы" },
   // Система
+  { key: "analytics.view",              label: "Аналитика",                 group: "Система" },
+  { key: "ai.configure",                label: "AI-настройки",              group: "Система" },
+  { key: "notifications.diagnose",      label: "Диагностика уведомлений",   group: "Система" },
   { key: "system.read",                  label: "Статус системы",             group: "Система" },
+  { key: "system.operate",              label: "Операции системы",          group: "Система" },
 ];
 
 interface Moderator {
@@ -38,7 +65,7 @@ interface Moderator {
   permissions: string[];
 }
 
-const groups = ["Клиенты", "Практики", "Система"];
+const groups = ["Пользователи", "Клиенты", "Практики", "Продукт v5", "Финансы", "Система"];
 
 interface PermMatrixProps {
   permissions: string[];

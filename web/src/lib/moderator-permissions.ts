@@ -4,40 +4,31 @@
  */
 import db from "@/lib/db";
 
-export type Permission =
-  | "clients.view"
-  | "clients.create"
-  | "clients.edit"
-  | "clients.delete"
-  | "clients.block"
-  | "clients.reset_password"
-  | "clients.set_password"
-  | "clients.view_sessions"
-  | "clients.view_events"
-  | "practitioners.view"
-  | "practitioners.create"
-  | "practitioners.edit"
-  | "practitioners.block"
-  | "practitioners.reset_password"
-  | "practitioners.set_password"
-  | "practitioners.set_rates"
-  | "practitioners.set_schedule"
-  | "practitioners.view_earnings"
-  | "practitioners.payout"
-  | "analytics.view"
-  | "ai.configure"
-  | "system.read";
-
 /** Все полномочия SUPERADMIN — полный доступ */
-export const ALL_PERMISSIONS: Permission[] = [
+export const ALL_PERMISSIONS = [
+  "users.view", "users.create", "users.edit", "users.delete", "users.block",
+  "users.reset_password", "users.set_password", "users.impersonate",
   "clients.view", "clients.create", "clients.edit", "clients.delete", "clients.block",
   "clients.reset_password", "clients.set_password",
   "clients.view_sessions", "clients.view_events",
   "practitioners.view", "practitioners.create", "practitioners.edit",
   "practitioners.block", "practitioners.reset_password", "practitioners.set_password",
   "practitioners.set_rates", "practitioners.set_schedule", "practitioners.view_earnings",
-  "practitioners.payout", "analytics.view", "ai.configure",
-  "system.read",
+  "practitioners.payout", "practitioners.verify",
+  "dialogues.view", "reports.view", "library.moderate", "safety.review",
+  "payments.refund", "subscriptions.manage", "notifications.diagnose",
+  "practitioner_pro.manage", "content.configure", "seo.manage",
+  "analytics.view", "ai.configure", "system.read", "system.operate",
+] as const;
+
+export type Permission = typeof ALL_PERMISSIONS[number];
+
+export const V5_REQUIRED_PERMISSIONS: Permission[] = [
+  "users.view", "users.create", "users.edit", "users.delete", "users.block",
+  "dialogues.view", "reports.view", "library.moderate", "safety.review",
+  "analytics.view", "payments.refund", "subscriptions.manage",
+  "notifications.diagnose", "practitioners.verify", "practitioner_pro.manage",
+  "content.configure", "ai.configure", "seo.manage", "system.read", "system.operate",
 ];
 
 /** Минимальный набор для ADMIN без явных полномочий */
@@ -52,7 +43,7 @@ export const DEFAULT_ADMIN_PERMISSIONS: Permission[] = [
  * - ADMIN → читает ModeratorPermission из БД
  */
 export async function getUserPermissions(userId: string, role: string): Promise<Permission[]> {
-  if (role === "SUPERADMIN") return ALL_PERMISSIONS;
+  if (role === "SUPERADMIN") return [...ALL_PERMISSIONS];
 
   const rows = await db.moderatorPermission.findMany({
     where: { moderatorId: userId, granted: true },

@@ -7,14 +7,14 @@ import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 
-async function requireAdmin(req?: NextRequest) {
+async function requireAdmin() {
   const session = await auth();
   if (!session || !["ADMIN","SUPERADMIN"].includes(session.user?.role ?? "")) return null;
   return session;
 }
 
 export async function GET(req: NextRequest) {
-  const session = await requireAdmin(req);
+  const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const search = req.nextUrl.searchParams.get("search") ?? "";
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireAdmin(req);
+  const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
   const adminId = session.user!.id!;
@@ -109,16 +109,26 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await requireAdmin(req);
+  const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
 
+  const adminId = session.user!.id!;
+  const adminRole = session.user!.role!;
   const { userId, freeToolsLimit, role } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId обязателен" }, { status: 400 });
+  if (adminRole !== "SUPERADMIN" && (freeToolsLimit !== undefined || role !== undefined)) {
+    return NextResponse.json({ error: "Только суперадмин может менять роль и лимиты пользователя" }, { status: 403 });
+  }
+  if (role !== undefined && !["CLIENT", "PRACTITIONER", "ADMIN"].includes(role)) {
+    return NextResponse.json({ error: "Некорректная роль" }, { status: 400 });
+  }
 
   const data: Record<string, unknown> = {};
   if (freeToolsLimit !== undefined) data.freeToolsLimit = freeToolsLimit === "unlimited" ? 0 : Number(freeToolsLimit);
   if (role) data.role = role;
+  if (Object.keys(data).length === 0) return NextResponse.json({ error: "Нет изменений" }, { status: 400 });
 
   const user = await db.user.update({ where: { id: userId }, data, select: { id: true, name: true, freeToolsLimit: true, role: true } });
+  await logAudit(adminId, "PROFILE_UPDATE", userId, Object.keys(data).join(","));
   return NextResponse.json({ ok: true, user });
 }
