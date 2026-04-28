@@ -45,6 +45,12 @@ jest.mock("@/lib/db", () => ({
   },
 }));
 
+jest.mock("@/lib/platform-settings", () => ({
+  __esModule: true,
+  getSetting: jest.fn().mockResolvedValue(""),
+  setSetting: jest.fn(),
+}));
+
 jest.mock("@/lib/logger", () => ({
   __esModule: true,
   log: {
@@ -78,6 +84,10 @@ describe("notification delivery jobs", () => {
     mockSendEmail.mockResolvedValue(undefined);
     mockSendTelegram.mockResolvedValue(undefined);
     (db.notification.create as jest.Mock).mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("registers a durable worker handler for notification deliveries", () => {
@@ -184,6 +194,7 @@ describe("notification delivery jobs", () => {
       email: "user@example.com",
       name: "User",
       telegramId: "tg-1",
+      timezone: "Europe/Moscow",
     });
     (db.notificationPreference.findUnique as jest.Mock).mockImplementation(({ where }) => {
       const channel = where.userId_event_channel.channel;
@@ -213,6 +224,7 @@ describe("notification delivery jobs", () => {
       email: "user@example.com",
       name: "User",
       telegramId: null,
+      timezone: "Europe/Moscow",
     });
     (db.notificationPreference.findUnique as jest.Mock).mockImplementation(({ where }) => {
       const channel = where.userId_event_channel.channel;
@@ -229,6 +241,44 @@ describe("notification delivery jobs", () => {
     expect(mockEnqueueJob).toHaveBeenCalledTimes(1);
     expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
       payload: expect.objectContaining({ channel: "WEB" }),
+    }));
+  });
+
+  it("delays email and Telegram jobs during quiet hours while keeping web immediate", async () => {
+    jest.useFakeTimers().setSystemTime(new Date("2026-04-28T20:30:00.000Z").getTime());
+    const { getSetting } = await import("@/lib/platform-settings");
+    (getSetting as jest.Mock).mockResolvedValueOnce(JSON.stringify({
+      enabled: true,
+      from: "22:00",
+      to: "09:00",
+      timezone: "Europe/Moscow",
+    }));
+    (db.user.findUnique as jest.Mock).mockResolvedValue({
+      email: "user@example.com",
+      name: "User",
+      telegramId: "tg-1",
+      timezone: "Europe/Moscow",
+    });
+    (db.notificationPreference.findUnique as jest.Mock).mockResolvedValue({ enabled: true });
+
+    await notify({
+      userId: "user-1",
+      event: "BOOKING_CONFIRMED",
+      data: { date: "29.04", time: "10:00" },
+      requestId: "req-1",
+    });
+
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ channel: "EMAIL" }),
+      runAfter: new Date("2026-04-29T06:00:00.000Z"),
+    }));
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ channel: "TELEGRAM" }),
+      runAfter: new Date("2026-04-29T06:00:00.000Z"),
+    }));
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ channel: "WEB" }),
+      runAfter: undefined,
     }));
   });
 });

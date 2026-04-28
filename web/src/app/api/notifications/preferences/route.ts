@@ -8,17 +8,14 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { ALL_EVENTS } from "@/lib/notification-events";
-import { getSetting, setSetting } from "@/lib/platform-settings";
+import {
+  getUserQuietHours,
+  quietHoursSchema,
+  setUserQuietHours,
+} from "@/lib/notification-preference-settings";
 
 const channels = ["EMAIL", "TELEGRAM", "WEB"] as const;
 const events = ALL_EVENTS.map(({ event }) => event) as [string, ...string[]];
-const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
-const quietHoursSchema = z.object({
-  enabled: z.boolean(),
-  from: timeSchema,
-  to: timeSchema,
-  timezone: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_+\-/]+$/),
-});
 const preferenceSchema = z.object({
   event: z.enum(events),
   channel: z.enum(channels),
@@ -38,31 +35,6 @@ const patchSchema = preferenceSchema.partial({ enabled: true, remindBeforeHours:
   channel: true,
 });
 
-type QuietHours = z.infer<typeof quietHoursSchema>;
-
-function quietHoursKey(userId: string) {
-  return `notification.quiet_hours.${userId}`;
-}
-
-function defaultQuietHours(timezone?: string | null): QuietHours {
-  return {
-    enabled: false,
-    from: "22:00",
-    to: "09:00",
-    timezone: timezone || "Europe/Moscow",
-  };
-}
-
-function parseQuietHours(value: string, timezone?: string | null): QuietHours {
-  if (!value) return defaultQuietHours(timezone);
-  try {
-    const parsed = quietHoursSchema.safeParse(JSON.parse(value));
-    return parsed.success ? parsed.data : defaultQuietHours(timezone);
-  } catch {
-    return defaultQuietHours(timezone);
-  }
-}
-
 function normalizeReminder(value: unknown): number | null {
   if (Array.isArray(value)) return typeof value[0] === "number" ? value[0] : null;
   return typeof value === "number" ? value : null;
@@ -73,10 +45,9 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
-  const [prefs, user, quietHoursValue] = await Promise.all([
+  const [prefs, user] = await Promise.all([
     db.notificationPreference.findMany({ where: { userId } }),
     db.user.findUnique({ where: { id: userId }, select: { timezone: true } }),
-    getSetting(quietHoursKey(userId)),
   ]);
 
   // Merge with defaults — return full matrix.
@@ -96,7 +67,7 @@ export async function GET() {
 
   return NextResponse.json({
     prefs: result,
-    quietHours: parseQuietHours(quietHoursValue, user?.timezone),
+    quietHours: await getUserQuietHours(userId, user?.timezone),
   });
 }
 
@@ -144,7 +115,7 @@ export async function PUT(req: NextRequest) {
   );
 
   await db.$transaction(writes);
-  if (quietHours) await setSetting(quietHoursKey(userId), JSON.stringify(quietHours), userId);
+  if (quietHours) await setUserQuietHours(userId, quietHours);
 
   return NextResponse.json({ ok: true });
 }

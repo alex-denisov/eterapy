@@ -9,6 +9,7 @@ import {
   queueNotificationDelivery,
   type NotificationDeliveryChannel,
 } from "@/lib/notification-delivery";
+import { getQuietHoursDelayMs, getUserQuietHours } from "@/lib/notification-preference-settings";
 
 export type NotifEvent =
   | "BOOKING_REQUESTED"
@@ -47,7 +48,7 @@ async function isEnabled(userId: string, event: NotifEvent, channel: "EMAIL" | "
 export async function notify(payload: NotifPayload) {
   const user = await db.user.findUnique({
     where: { id: payload.userId },
-    select: { email: true, name: true, telegramId: true },
+    select: { email: true, name: true, telegramId: true, timezone: true },
   });
   if (!user || !user.email) {
     log.warn("notification-user-missing", {
@@ -69,6 +70,9 @@ export async function notify(payload: NotifPayload) {
   if (emailEnabled) channels.push("EMAIL");
   if (telegramEnabled && user.telegramId) channels.push("TELEGRAM");
   if (webEnabled) channels.push("WEB");
+  const quietHours = await getUserQuietHours(payload.userId, user.timezone);
+  const quietDelayMs = getQuietHoursDelayMs(quietHours);
+  const runAfter = quietDelayMs > 0 ? new Date(Date.now() + quietDelayMs) : undefined;
 
   await Promise.all(channels.map(async (channel) => {
     const delivery = {
@@ -81,6 +85,7 @@ export async function notify(payload: NotifPayload) {
         name: user.name,
         telegramId: user.telegramId,
       },
+      runAfter: channel === "WEB" ? undefined : runAfter,
       requestId: payload.requestId,
     };
 
@@ -101,6 +106,10 @@ export async function notify(payload: NotifPayload) {
       web: webEnabled,
     },
     queued: channels,
+    quietHours: {
+      enabled: quietHours.enabled,
+      delayedUntil: runAfter?.toISOString(),
+    },
   });
 }
 

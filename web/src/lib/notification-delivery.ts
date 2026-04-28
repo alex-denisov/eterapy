@@ -32,6 +32,7 @@ export interface QueueNotificationDeliveryInput {
   channel: NotificationDeliveryChannel;
   data: Record<string, string>;
   recipient: NotificationDeliveryPayload["recipient"];
+  runAfter?: Date;
   requestId?: string;
 }
 
@@ -50,6 +51,7 @@ export async function queueNotificationDelivery(input: QueueNotificationDelivery
     queue: "default",
     payload,
     maxAttempts: NOTIFICATION_DELIVERY_MAX_ATTEMPTS,
+    runAfter: input.runAfter,
     requestId: input.requestId,
   });
 }
