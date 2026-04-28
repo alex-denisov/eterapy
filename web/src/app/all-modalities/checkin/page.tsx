@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
+import { DialogueShell } from "@/components/dialogue/dialogue-shell";
+import { Disclaimer } from "@/components/ui/disclaimer";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
 
 const questions = [
@@ -55,7 +57,7 @@ export default function CheckinPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tier]);
 
   function handleNext() {
     if (!currentAnswer.trim()) return;
@@ -93,17 +95,30 @@ export default function CheckinPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-20 text-center">
-        <div className="text-4xl animate-pulse">✦</div>
-        <p className="mt-4 text-lg text-muted-foreground">
-          {tier === "full" ? "Проводим глубинный анализ..." : "Анализирую ваши ответы..."}
-        </p>
-      </div>
+      <DialogueShell
+        title={tier === "full" ? "Проводим глубинный анализ" : "Собираю отражение"}
+        description="Ответ появится здесь автоматически."
+      >
+        <div className="flex min-h-64 flex-col items-center justify-center text-center">
+          <div className="h-14 w-14 animate-pulse rounded-full bg-[radial-gradient(circle,var(--dialogue-halo-core),transparent_68%)] shadow-[var(--shadow-halo-soft)]" />
+          <p className="mt-4 text-lg text-muted-foreground">
+            {tier === "full" ? "Сопоставляю ответы и контекст..." : "Анализирую ваши ответы..."}
+          </p>
+        </div>
+      </DialogueShell>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <DialogueShell
+      title={result ? "Ваше отражение" : "Рефлексия"}
+      description={!result && (
+        tier === "quick"
+          ? "Ответьте на вопросы и получите краткое отражение состояния."
+          : "Развёрнутый анализ с рекомендациями и более глубокими связями между ответами."
+      )}
+      progress={!result ? { current: step + 1, total: questions.length } : undefined}
+    >
       {showAuth && (
         <AuthModal
           open={showAuth}
@@ -115,10 +130,8 @@ export default function CheckinPage() {
 
       {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onClose={() => setIsLimited(false)} />}
 
-      <h1 className="font-heading text-3xl font-bold md:text-4xl">💬 Рефлексия</h1>
-
       {/* Быстрый / Полный переключатель */}
-      <div className="mt-4 flex gap-2">
+      {!result && <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setTier("quick")}
@@ -143,21 +156,9 @@ export default function CheckinPage() {
           <div className="text-base font-semibold">🔮 Полный</div>
           <div className="mt-0.5 text-xs text-muted-foreground">{FULL_PRICE_KOPECKS / 100} ₽ · Детальный анализ</div>
         </button>
-      </div>
+      </div>}
 
-      <p className="mt-3 text-muted-foreground">
-        {tier === "quick"
-          ? "Ответьте на 5 вопросов — получите краткое отражение вашего состояния."
-          : "Развёрнутый анализ с рекомендациями и глубинными инсайтами."}
-      </p>
-
-      <div className="mt-8 flex gap-1">
-        {questions.map((_, i) => (
-          <div key={i} className={`h-1 flex-1 rounded-full ${i < step ? "bg-primary" : i === step ? "bg-primary/50" : "bg-border/40"}`} />
-        ))}
-      </div>
-
-      <Card className="mt-6 border-border/40 bg-card/50">
+      {!result && <Card className="mt-6 border-border/40 bg-card/50">
         <CardContent className="p-6">
           <p className="text-xs text-muted-foreground">Вопрос {step + 1} из {questions.length}</p>
           <h2 className="mt-2 font-heading text-xl font-semibold">{questions[step]}</h2>
@@ -176,13 +177,12 @@ export default function CheckinPage() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
       {result && (
-        <div className="mt-8">
-          <h1 className="font-heading text-3xl font-bold">💬 Ваше отражение</h1>
+        <div>
           {tier === "full" && (
             <Badge className="mt-4 bg-primary/10 text-primary text-xs">🔮 Полный расклад</Badge>
           )}
@@ -197,9 +197,11 @@ export default function CheckinPage() {
           <div className="mt-6 flex gap-3">
             <Button onClick={reset} variant="outline" className="border-border/40 text-muted-foreground">Пройти заново</Button>
           </div>
-          <p className="mt-8 text-xs text-muted-foreground/60">Носит рефлексивный характер, не является психологической консультацией.</p>
+          <Disclaimer className="mt-8" tone="info" title="Ограничение">
+            Носит рефлексивный характер, не является психологической консультацией.
+          </Disclaimer>
         </div>
       )}
-    </div>
+    </DialogueShell>
   );
 }
