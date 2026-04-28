@@ -27,6 +27,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Ответы на вопросы о регистрации, кабинетах, оплатах, сессиях, уведомлениях и работе практиков на ETerapy.",
     schemaKind: "FAQPage",
   },
+  "/how-it-works": {
+    title: "Как работает ETerapy",
+    description: "Путь v5: вопрос, бесплатный первичный ответ, углубление по подписке или продукту и специалист только как осознанный следующий шаг.",
+    schemaKind: "Article",
+  },
   "/how-to-choose": {
     title: "Как выбрать практика — ETerapy",
     description: "Как безопасно выбрать таролога, астролога или нумеролога: цель запроса, профиль, отзывы, цена и красные флаги.",

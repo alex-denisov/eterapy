@@ -18,6 +18,7 @@ export const publicSeoRoutes = [
   "/",
   "/about",
   "/help",
+  "/how-it-works",
   "/how-to-choose",
   "/all-modalities",
   "/all-modalities/checkin",
