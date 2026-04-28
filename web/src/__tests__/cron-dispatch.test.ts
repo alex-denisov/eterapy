@@ -103,4 +103,22 @@ describe("cron dispatchers", () => {
     expect(body.code).toBe("UNAUTHORIZED");
     expect(mockEnqueueJob).not.toHaveBeenCalled();
   });
+
+  it("fails closed in production when CRON_SECRET is missing", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    process.env.CRON_SECRET = "";
+
+    const response = await dispatchCleanup(new Request("https://eterapy.com/api/cron/cleanup", {
+      headers: { [REQUEST_ID_HEADER]: "cron-request-123" },
+    }) as NextRequest);
+    jest.useRealTimers();
+    const body = await response.json();
+
+    process.env.NODE_ENV = originalNodeEnv;
+
+    expect(response.status).toBe(401);
+    expect(body.code).toBe("UNAUTHORIZED");
+    expect(mockEnqueueJob).not.toHaveBeenCalled();
+  });
 });

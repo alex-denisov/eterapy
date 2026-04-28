@@ -11,7 +11,8 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 function isCronAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET ?? "";
   const auth = req.headers.get("authorization");
-  return !secret || auth === `Bearer ${secret}`;
+  if (!secret) return process.env.NODE_ENV !== "production";
+  return auth === `Bearer ${secret}`;
 }
 
 function cleanupKey(now: Date) {
