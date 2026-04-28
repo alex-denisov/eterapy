@@ -10,9 +10,27 @@ import {
 } from "@/lib/ai-gateway/adapters";
 import { log, serializeError } from "@/lib/logger";
 
-const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini";
+const DEFAULT_OPENROUTER_MODEL = "meta-llama/llama-3.1-70b-instruct:free";
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+export function isFreeOpenRouterModel(model: string | undefined | null): boolean {
+  if (!model) return false;
+  return model.trim().toLowerCase().endsWith(":free");
+}
+
+export function assertFreeOpenRouterModel(model: string): void {
+  if (!isFreeOpenRouterModel(model)) {
+    throw new AIProviderError(
+      `OpenRouter is restricted to free models; "${model}" does not have the :free suffix`,
+      {
+        provider: AIProvider.OPENROUTER,
+        code: "MODEL_NOT_ALLOWED",
+        retryable: false,
+      }
+    );
+  }
+}
 
 interface OpenRouterClientLike {
   chat: {
@@ -84,6 +102,7 @@ export function createOpenRouterAdapter(options: OpenRouterAdapterOptions = {}):
 
     async complete(request: AIGatewayCompletionRequest): Promise<AIGatewayCompletionResponse> {
       const model = request.model ?? defaultModel;
+      assertFreeOpenRouterModel(model);
       const startedAt = Date.now();
       try {
         const response = await requireClient().chat.completions.create({

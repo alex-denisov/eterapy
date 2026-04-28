@@ -30,7 +30,7 @@ export interface AIRoutingPolicyInput {
 }
 
 const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
-  { provider: AIProvider.OPENROUTER, enabled: false, priority: 10, defaultModel: "openai/gpt-4o-mini", timeoutMs: 30_000 },
+  { provider: AIProvider.OPENROUTER, enabled: false, priority: 10, defaultModel: "meta-llama/llama-3.1-70b-instruct:free", timeoutMs: 30_000 },
   { provider: AIProvider.OPENAI, enabled: false, priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000 },
   { provider: AIProvider.ANTHROPIC, enabled: false, priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000 },
   { provider: AIProvider.FIREWORKS, enabled: false, priority: 40, defaultModel: "accounts/fireworks/models/llama-v3p1-8b-instruct", timeoutMs: 30_000 },
