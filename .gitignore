@@ -7,6 +7,11 @@ node_modules/
 .DS_Store
 nginx/ssl/
 deploy/eTerapy_web
+certs/key.pem
+certificates/*private*.key
+*.p12
+*.pfx
+*.jks
 
 
 # ── GSD baseline (auto-generated) ──

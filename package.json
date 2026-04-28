@@ -4,6 +4,13 @@
   "workspaces": [
     "web"
   ],
+  "scripts": {
+    "security:secrets": "node scripts/security-secret-scan.mjs",
+    "security:sast": "node scripts/security-sast-scan.mjs",
+    "security:audit": "node scripts/security-audit-summary.mjs",
+    "security:audit:gate": "node scripts/security-audit-summary.mjs --fail-on=high",
+    "security:baseline": "npm run security:secrets && npm run security:sast && npm run security:audit"
+  },
   "dependencies": {
     "@prisma/client": "^7.7.0",
     "prisma": "^7.7.0"
