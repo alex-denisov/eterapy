@@ -16,6 +16,8 @@ export interface AIRoutingProviderConfig {
   priority: number;
   defaultModel?: string | null;
   timeoutMs?: number | null;
+  inputTokenCostMicros?: number | null;
+  outputTokenCostMicros?: number | null;
 }
 
 export interface AIRoutingPolicyConfig {
@@ -26,6 +28,8 @@ export interface AIRoutingPolicyConfig {
   maxTokens?: number | null;
   temperature?: number | null;
   timeoutMs?: number | null;
+  dailyTokenBudget?: number | null;
+  perUserDailyTokenBudget?: number | null;
 }
 
 export interface AIRoutingAttemptPlan {

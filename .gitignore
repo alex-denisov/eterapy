@@ -6,6 +6,7 @@ node_modules/
 *.tsbuildinfo
 .DS_Store
 nginx/ssl/
+deploy/eTerapy_web
 
 
 # ── GSD baseline (auto-generated) ──
