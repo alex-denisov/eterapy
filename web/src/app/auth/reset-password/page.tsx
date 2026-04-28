@@ -21,7 +21,7 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (password !== confirm) { setError("Пароли не совпадают"); return; }
-    if (password.length < 6) { setError("Минимум 6 символов"); return; }
+    if (password.length < 8) { setError("Минимум 8 символов"); return; }
 
     setError("");
     setLoading(true);
@@ -76,11 +76,11 @@ export default function ResetPasswordPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
                 type="password"
-                placeholder="Новый пароль (мин. 6 символов)"
+                placeholder="Новый пароль (мин. 8 символов)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
                 className="bg-background/50"
               />

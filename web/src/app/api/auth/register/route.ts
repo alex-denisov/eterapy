@@ -17,11 +17,11 @@ export async function POST(req: NextRequest) {
     if (!validateEmail(email)) {
       return NextResponse.json({ error: "Введите корректный email (без символа '+', макс. 50 символов)" }, { status: 400 });
     }
-    if (password.length < 6) {
-      return NextResponse.json({ error: "Пароль минимум 6 символов" }, { status: 400 });
+    if (password.length < 8) {
+      return NextResponse.json({ error: "Пароль минимум 8 символов" }, { status: 400 });
     }
     if (await usersDb.get(email)) {
-      return NextResponse.json({ error: "Email уже зарегистрирован" }, { status: 409 });
+      return NextResponse.json({ error: "Email уже зарегистрирован", code: "DUPLICATE_EMAIL" }, { status: 409 });
     }
 
     const user = await usersDb.create({ email, name, password });

@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
 
     const user = await usersDb.get(email);
     if (!user) return NextResponse.json({ ok: true }); // не раскрываем
-    if (user.emailVerified) return NextResponse.json({ error: "Email уже подтверждён" }, { status: 400 });
+    if (user.emailVerified) return NextResponse.json({ ok: true }); // не раскрываем статус
 
     // Обновляем токен
     const token = crypto.randomUUID().replace(/-/g, "");

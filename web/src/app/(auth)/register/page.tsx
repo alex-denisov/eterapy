@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
   const [guestResultSaved, setGuestResultSaved] = useState(false);
+  const [duplicateEmail, setDuplicateEmail] = useState(false);
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const intent = searchParams.get("intent");
@@ -44,6 +45,7 @@ export default function RegisterPage() {
     const eErr = getEmailError(email);
     setEmailError(eErr);
     if (eErr) { toast.error(eErr); return; }
+    setDuplicateEmail(false);
 
     setLoading(true);
 
@@ -56,6 +58,7 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.code === "DUPLICATE_EMAIL") setDuplicateEmail(true);
         toast.error(data.error || "Ошибка регистрации");
         return;
       }
@@ -141,6 +144,19 @@ export default function RegisterPage() {
                 className={`bg-background/50 ${emailError ? "border-destructive" : ""}`}
               />
               {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
+              {duplicateEmail && (
+                <div className="mt-2 rounded-[var(--radius-card)] border border-border/40 bg-background/50 p-3 text-sm text-muted-foreground" data-testid="duplicate-email-state">
+                  <p className="font-medium text-foreground">Аккаунт с этим email уже есть.</p>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    <Link href={`/login?email=${encodeURIComponent(email)}${isSavingResult ? "&intent=save-result" : ""}`} className="text-primary hover:underline">
+                      Войти
+                    </Link>
+                    <Link href={`/auth/forgot-password?email=${encodeURIComponent(email)}`} className="text-primary hover:underline">
+                      Сбросить пароль
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label htmlFor="reg-password" className="sr-only">Пароль</label>
