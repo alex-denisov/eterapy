@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
 import { sanitizeEmail, getEmailError } from "@/lib/validation";
 import { homePathForRole, homeUrlForRole } from "@/lib/subdomain";
+import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
 
 const TEST_ACCOUNTS = [
   { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/cabinet" },
@@ -70,6 +71,7 @@ export default function LoginPage() {
       toast.error("Неверный email или пароль");
     } else {
       toast.success("Добро пожаловать!");
+      await persistGuestResultDraftToAccount();
       // Hard navigate so server-side layout re-reads the new session cookie
       window.location.href = redirectTo;
     }

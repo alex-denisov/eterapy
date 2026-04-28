@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
-import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
 
 interface AuthModalProps {
   toolName: string;
@@ -44,6 +44,7 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
 
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.ok) {
+        await persistGuestResultDraftToAccount();
         toast.success("Аккаунт создан! Продолжаем...");
         onSuccess();
       } else {
@@ -59,6 +60,7 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
     try {
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.ok) {
+        await persistGuestResultDraftToAccount();
         toast.success("Вход выполнен! Продолжаем...");
         onSuccess();
       } else {

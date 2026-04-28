@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VKIDButton } from "@/components/vkid-button";
 import { sanitizeName, sanitizeEmail, getNameError, getEmailError } from "@/lib/validation";
 import { appUrl, homePathForRole, homeUrlForRole } from "@/lib/subdomain";
+import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -63,6 +64,7 @@ export default function RegisterPage() {
       if (result?.error) {
         toast.error("Аккаунт создан, но не удалось войти. Попробуйте войти вручную.");
       } else {
+        await persistGuestResultDraftToAccount();
         setRegistered(true);
         toast.success("Аккаунт создан! Проверьте email для подтверждения.");
       }

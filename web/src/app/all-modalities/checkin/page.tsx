@@ -10,6 +10,7 @@ import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
+import { saveGuestResultDraft } from "@/lib/guest-result-cache";
 
 const questions = [
   "Что сейчас занимает ваши мысли больше всего?",
@@ -54,6 +55,12 @@ export default function CheckinPage() {
       }
       if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       setResult(data.result);
+      saveGuestResultDraft({
+        tool: "CHECKIN",
+        title: tier === "full" ? "Полная рефлексия" : "Первичный ответ",
+        prompt: finalAnswers.map((answer, index) => `${index + 1}. ${questions[index]}\n${answer}`).join("\n\n"),
+        result: data.result,
+      });
       if (data.balanceKopecks != null) setBalanceKopecks(data.balanceKopecks);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ошибка");
