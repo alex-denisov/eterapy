@@ -362,6 +362,28 @@ enum JobStatus {
   DEAD
 }
 
+// ─── External Webhooks ────────────────────────────────────────────────────────
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  provider    String
+  eventId     String
+  eventType   String
+  resourceId  String?
+  status      String    @default("PROCESSING")
+  payload     Json?
+  result      Json?
+  error       String?
+  requestId   String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId])
+  @@index([provider, receivedAt])
+  @@index([provider, resourceId])
+  @@map("webhook_events")
+}
+
 // ─── Moderator Permissions ────────────────────────────────────────────────────
 
 model ModeratorPermission {
