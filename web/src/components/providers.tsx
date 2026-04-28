@@ -14,13 +14,15 @@ export function Providers({ children }: { children: ReactNode }) {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: "#0f2236",
-            border: "1px solid rgba(201,168,76,0.2)",
-            color: "#f8fafc",
+            background: "var(--surface-overlay)",
+            border: "1px solid color-mix(in srgb, var(--brand-warm-gold) 22%, transparent)",
+            borderRadius: "var(--radius-card)",
+            boxShadow: "var(--shadow-surface)",
+            color: "var(--text-primary)",
           },
           classNames: {
-            success: "!border-green-500/30",
-            error: "!border-rose-500/30",
+            success: "!border-[color-mix(in_srgb,var(--signal-success)_45%,transparent)]",
+            error: "!border-[color-mix(in_srgb,var(--signal-danger)_45%,transparent)]",
           },
         }}
         richColors
