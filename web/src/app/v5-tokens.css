@@ -1,0 +1,65 @@
+:root {
+  /* FINAL Brandbook colors: Dialogue Halo / Диалоговый ореол. */
+  --brand-midnight-navy: #081223;
+  --brand-warm-gold: #d4a15a;
+  --brand-soft-gold: #f2c37d;
+  --brand-lavender: #8e89d6;
+  --brand-lavender-light: #c7c2f0;
+  --brand-glow-center: #ffd79a;
+  --brand-white: #f8fafc;
+  --brand-ink: #081223;
+
+  --dialogue-halo-core: var(--brand-glow-center);
+  --dialogue-halo-warm: var(--brand-soft-gold);
+  --dialogue-halo-cool: var(--brand-lavender);
+  --dialogue-halo-aura: color-mix(in srgb, var(--brand-lavender-light) 28%, transparent);
+
+  --surface-canvas: var(--brand-midnight-navy);
+  --surface-raised: #101d31;
+  --surface-subtle: #17263c;
+  --surface-overlay: #0d1a2d;
+  --surface-halo: color-mix(in srgb, var(--brand-lavender) 14%, var(--brand-midnight-navy));
+
+  --text-primary: #f8fafc;
+  --text-secondary: #d7deea;
+  --text-muted: #93a4ba;
+  --text-inverse: var(--brand-midnight-navy);
+
+  --signal-success: #6fca9f;
+  --signal-warning: var(--brand-soft-gold);
+  --signal-danger: #e46666;
+  --signal-info: var(--brand-lavender-light);
+
+  --focus-ring: var(--brand-soft-gold);
+  --focus-ring-offset: var(--brand-midnight-navy);
+  --focus-outline: 2px solid var(--focus-ring);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.5rem;
+  --radius-sheet: 0.75rem;
+  --radius-pill: 999px;
+
+  --shadow-halo-soft: 0 0 36px color-mix(in srgb, var(--dialogue-halo-core) 20%, transparent);
+  --shadow-surface: 0 18px 60px rgba(0, 0, 0, 0.32);
+
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 260ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
