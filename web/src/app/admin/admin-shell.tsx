@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  BrainCircuit,
   BookOpenText,
   BriefcaseBusiness,
   CalendarDays,
@@ -57,6 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Выплаты",          superadminOnly: true },
   { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
   { href: adminUrl("/admin/metrics"),      icon: BarChart3,            label: "Метрики",          superadminOnly: true },
+  { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "AI Control",       permission: "ai.configure" },
 
   { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии",           superadminOnly: true },
   { href: adminUrl("/admin/files"),        icon: FolderOpen,           label: "Файлы",            superadminOnly: true },
