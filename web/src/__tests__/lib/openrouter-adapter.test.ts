@@ -84,6 +84,24 @@ describe("OpenRouter adapter", () => {
     } satisfies Partial<AIProviderError>));
   });
 
+  it("normalizes numeric provider SDK codes to HTTP codes", async () => {
+    const create = jest.fn().mockRejectedValue(Object.assign(new Error("insufficient credits"), { code: 402 }));
+    const adapter = createOpenRouterAdapter({
+      client: {
+        chat: { completions: { create } },
+      },
+    });
+
+    await expect(adapter.complete({
+      feature: "test.feature",
+      messages: [{ role: "user", content: "hello" }],
+    })).rejects.toEqual(expect.objectContaining({
+      provider: AIProvider.OPENROUTER,
+      code: "HTTP_402",
+      retryable: false,
+    } satisfies Partial<AIProviderError>));
+  });
+
   it("checks model health when configured", async () => {
     const retrieve = jest.fn().mockResolvedValue({ id: "openai/gpt-4o-mini" });
     const adapter = createOpenRouterAdapter({

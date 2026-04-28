@@ -68,14 +68,14 @@ export function classifyProviderError(err: unknown) {
       retryable: true,
     };
   }
-  const code = typeof err === "object" && err !== null && "code" in err
-    ? String((err as { code?: unknown }).code)
-    : status
-      ? `HTTP_${status}`
-      : "PROVIDER_ERROR";
+  const code = status
+    ? `HTTP_${status}`
+    : rawCode && /^\d{3}$/.test(rawCode)
+      ? `HTTP_${rawCode}`
+      : rawCode ?? "PROVIDER_ERROR";
 
   return {
     code,
-    retryable: status === 408 || status === 409 || status === 429 || (status !== undefined && status >= 500),
+    retryable: code === "HTTP_408" || code === "HTTP_409" || code === "HTTP_429" || /^HTTP_5\d\d$/.test(code),
   };
 }
