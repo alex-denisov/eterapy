@@ -3,6 +3,8 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { AI_PROVIDER_LABELS, aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import { getAIUsageLedger } from "@/lib/ai-gateway/usage";
+import { listCredentials } from "@/lib/ai-gateway/credentials";
+import { isAICredentialEncryptionConfigured } from "@/lib/ai-gateway/credentials-crypto";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -35,10 +37,11 @@ const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
 ];
 
 export async function getAIControlCenterData(period = aiBudgetPeriod()) {
-  const [storedProviders, policies, usage] = await Promise.all([
+  const [storedProviders, policies, usage, credentials] = await Promise.all([
     db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] }),
     db.aIRoutingPolicy.findMany({ orderBy: { feature: "asc" } }),
     getAIUsageLedger(period),
+    listCredentials(),
   ]);
 
   const providerByName = new Map(storedProviders.map((provider) => [provider.provider, provider]));
@@ -57,6 +60,8 @@ export async function getAIControlCenterData(period = aiBudgetPeriod()) {
     providers,
     policies,
     usage,
+    credentials,
+    encryptionConfigured: isAICredentialEncryptionConfigured(),
     period,
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AIProvider } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,25 @@ type UsageRow = {
   requestCount: number;
 };
 
+type CredentialRow = {
+  id: string;
+  provider: AIProvider;
+  label: string;
+  apiKey: string;
+  enabled: boolean;
+  priority: number;
+  baseUrlOverride: string | null;
+  modelOverride: string | null;
+  consecutiveFailures: number;
+  cooldownUntil: string | null;
+  regionBlocked: boolean;
+  lastUsedAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+};
+
 const PROVIDERS = Object.values(AIProvider);
 
 function toNumber(value: FormDataEntryValue | null) {
@@ -61,17 +81,210 @@ function CheckboxSwitch({ name, defaultChecked, label }: { name: string; default
   );
 }
 
+function maskKey(value: string): string {
+  if (!value) return "";
+  if (value.length <= 12) return "*".repeat(value.length);
+  return `${value.slice(0, 6)}…${value.slice(-4)}`;
+}
+
+function CredentialRowEditor({
+  credential,
+  onUpdate,
+  onDelete,
+  disabled,
+}: {
+  credential: CredentialRow;
+  onUpdate: (payload: Record<string, unknown>, msg: string) => Promise<void> | void;
+  onDelete: () => Promise<void> | void;
+  disabled: boolean;
+}) {
+  const [showKey, setShowKey] = useState(false);
+  const [draft, setDraft] = useState({
+    label: credential.label,
+    apiKey: "",
+    priority: credential.priority,
+    modelOverride: credential.modelOverride ?? "",
+    baseUrlOverride: credential.baseUrlOverride ?? "",
+  });
+
+  const cooldownActive = credential.cooldownUntil && new Date(credential.cooldownUntil) > new Date();
+  const status = !credential.enabled
+    ? { label: "disabled", color: "text-muted-foreground" }
+    : credential.regionBlocked
+      ? { label: "region-blocked", color: "text-red-300" }
+      : cooldownActive
+        ? { label: "cooldown", color: "text-amber-300" }
+        : { label: "active", color: "text-emerald-300" };
+
+  return (
+    <div className="px-4 py-3 space-y-3" data-testid={`ai-credential-${credential.id}`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-medium">{credential.label}</p>
+          <p className="text-xs text-muted-foreground">
+            <span className={status.color}>{status.label}</span>
+            {credential.lastSuccessAt && <> · last success {new Date(credential.lastSuccessAt).toLocaleString("ru")}</>}
+            {credential.lastErrorCode && <> · last error {credential.lastErrorCode}</>}
+            {credential.consecutiveFailures > 0 && <> · failures {credential.consecutiveFailures}</>}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => onUpdate({ enabled: !credential.enabled }, credential.enabled ? "Ключ выключен" : "Ключ включён")}
+          >
+            {credential.enabled ? "Выключить" : "Включить"}
+          </Button>
+          {(credential.regionBlocked || cooldownActive || credential.consecutiveFailures > 0) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              onClick={() => onUpdate({ resetFailureState: true }, "Состояние ошибок сброшено")}
+            >
+              Сбросить статус
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            onClick={() => onDelete()}
+          >
+            Удалить
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-[120px_1fr_1fr_1fr_auto]">
+        <Input
+          value={draft.label}
+          onChange={(event) => setDraft({ ...draft, label: event.target.value })}
+          placeholder="Label"
+        />
+        <Input
+          value={showKey ? (draft.apiKey || credential.apiKey) : (draft.apiKey || maskKey(credential.apiKey))}
+          onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })}
+          onFocus={() => setShowKey(true)}
+          placeholder="API key (введите чтобы заменить)"
+          type={showKey ? "text" : "text"}
+          spellCheck={false}
+          autoComplete="off"
+        />
+        <Input
+          value={draft.modelOverride}
+          onChange={(event) => setDraft({ ...draft, modelOverride: event.target.value })}
+          placeholder="Default model (override)"
+        />
+        <Input
+          value={draft.baseUrlOverride}
+          onChange={(event) => setDraft({ ...draft, baseUrlOverride: event.target.value })}
+          placeholder="Base URL override"
+        />
+        <Button
+          type="button"
+          size="sm"
+          disabled={disabled}
+          onClick={() => {
+            const payload: Record<string, unknown> = {
+              label: draft.label,
+              priority: draft.priority,
+              modelOverride: draft.modelOverride || null,
+              baseUrlOverride: draft.baseUrlOverride || null,
+            };
+            if (draft.apiKey.trim()) payload.apiKey = draft.apiKey.trim();
+            void onUpdate(payload, `Ключ ${draft.label} сохранён`);
+            setDraft({ ...draft, apiKey: "" });
+          }}
+        >
+          Сохранить
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function AIControlCenter({
   providers,
   policies,
   usage,
+  credentials,
+  encryptionConfigured,
 }: {
   providers: ProviderRow[];
   policies: PolicyRow[];
   usage: UsageRow[];
+  credentials: CredentialRow[];
+  encryptionConfigured: boolean;
 }) {
   const [message, setMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+
+  function reportSuccess(text: string) {
+    setMessage(text);
+    setErrorMessage(null);
+    router.refresh();
+  }
+
+  function reportError(text: string) {
+    setMessage(null);
+    setErrorMessage(text);
+  }
+
+  async function createCredential(formData: FormData) {
+    const provider = String(formData.get("provider") ?? "") as AIProvider;
+    const label = String(formData.get("label") ?? "").trim();
+    const apiKey = String(formData.get("apiKey") ?? "").trim();
+    const baseUrlOverride = String(formData.get("baseUrlOverride") ?? "").trim() || null;
+    const modelOverride = String(formData.get("modelOverride") ?? "").trim() || null;
+    const priority = toNumber(formData.get("priority")) ?? undefined;
+    if (!label || !apiKey) {
+      reportError("Укажите label и API key");
+      return;
+    }
+    const response = await fetch("/api/admin/ai/credentials", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider, label, apiKey, priority, baseUrlOverride, modelOverride, enabled: true }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      reportError(body?.message ?? "Не удалось создать ключ");
+      return;
+    }
+    reportSuccess(`Ключ ${label} добавлен`);
+  }
+
+  async function patchCredential(id: string, payload: Record<string, unknown>, successMessage: string) {
+    const response = await fetch(`/api/admin/ai/credentials/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      reportError(body?.message ?? "Не удалось обновить ключ");
+      return;
+    }
+    reportSuccess(successMessage);
+  }
+
+  async function deleteCredentialById(id: string, label: string) {
+    if (typeof window !== "undefined" && !window.confirm(`Удалить ключ ${label}?`)) return;
+    const response = await fetch(`/api/admin/ai/credentials/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      reportError(body?.message ?? "Не удалось удалить ключ");
+      return;
+    }
+    reportSuccess(`Ключ ${label} удалён`);
+  }
 
   function submitProvider(formData: FormData) {
     startTransition(() => {
@@ -118,6 +331,16 @@ export function AIControlCenter({
           {message}
         </div>
       )}
+      {errorMessage && (
+        <div className="rounded-lg border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200" data-testid="ai-control-error">
+          {errorMessage}
+        </div>
+      )}
+      {!encryptionConfigured && (
+        <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200" data-testid="ai-encryption-warning">
+          AI_CREDENTIAL_KEY не настроен на сервере. Управление ключами недоступно — добавьте 32-байтный ключ в env (см. DEPLOY.md).
+        </div>
+      )}
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Провайдеры</h2>
@@ -143,6 +366,50 @@ export function AIControlCenter({
               <Button type="submit" size="sm" className="mt-4" disabled={isPending}>Сохранить</Button>
             </form>
           ))}
+        </div>
+      </section>
+
+      <section data-testid="admin-ai-credentials">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">API ключи (по провайдерам)</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Несколько ключей на провайдера. Маршрутизация выбирает наименее недавно использованный активный ключ. При HTTP_403 (region) переключаемся на другого провайдера; при 401/402/429 — на следующий ключ того же провайдера после cooldown.
+        </p>
+        <div className="space-y-6">
+          {PROVIDERS.map((provider) => {
+            const providerCredentials = credentials.filter((credential) => credential.provider === provider);
+            return (
+              <div key={provider} className="rounded-lg border border-border/30 bg-card/30 p-4" data-testid={`ai-credentials-${provider}`}>
+                <h3 className="mb-3 text-sm font-semibold">{provider}</h3>
+                <div className="overflow-hidden rounded-lg border border-border/20 divide-y divide-border/10">
+                  {providerCredentials.length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-muted-foreground">Ключи не настроены</p>
+                  ) : providerCredentials.map((credential) => (
+                    <CredentialRowEditor
+                      key={credential.id}
+                      credential={credential}
+                      onUpdate={(payload, msg) => patchCredential(credential.id, payload, msg)}
+                      onDelete={() => deleteCredentialById(credential.id, credential.label)}
+                      disabled={!encryptionConfigured || isPending}
+                    />
+                  ))}
+                </div>
+                <form
+                  className="mt-3 grid gap-2 sm:grid-cols-[120px_1fr_1fr_1fr_auto]"
+                  action={(formData) => {
+                    startTransition(() => { void createCredential(formData); });
+                  }}
+                  data-testid={`ai-credentials-${provider}-create`}
+                >
+                  <input type="hidden" name="provider" value={provider} />
+                  <Input name="label" placeholder="Label (Account 1)" required />
+                  <Input name="apiKey" placeholder="API key" type="password" required />
+                  <Input name="modelOverride" placeholder="Default model (override)" />
+                  <Input name="baseUrlOverride" placeholder="Base URL override" />
+                  <Button type="submit" size="sm" disabled={!encryptionConfigured || isPending}>Добавить ключ</Button>
+                </form>
+              </div>
+            );
+          })}
         </div>
       </section>
 

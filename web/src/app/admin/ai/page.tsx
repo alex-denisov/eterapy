@@ -37,14 +37,38 @@ export default async function AdminAIPage() {
     dailyTokenBudget: policy.dailyTokenBudget,
     perUserDailyTokenBudget: policy.perUserDailyTokenBudget,
   }));
+  const credentials = data.credentials.map((credential) => ({
+    id: credential.id,
+    provider: credential.provider,
+    label: credential.label,
+    apiKey: credential.apiKey,
+    enabled: credential.enabled,
+    priority: credential.priority,
+    baseUrlOverride: credential.baseUrlOverride,
+    modelOverride: credential.modelOverride,
+    consecutiveFailures: credential.consecutiveFailures,
+    cooldownUntil: credential.cooldownUntil ? credential.cooldownUntil.toISOString() : null,
+    regionBlocked: credential.regionBlocked,
+    lastUsedAt: credential.lastUsedAt ? credential.lastUsedAt.toISOString() : null,
+    lastSuccessAt: credential.lastSuccessAt ? credential.lastSuccessAt.toISOString() : null,
+    lastErrorAt: credential.lastErrorAt ? credential.lastErrorAt.toISOString() : null,
+    lastErrorCode: credential.lastErrorCode,
+    lastErrorMessage: credential.lastErrorMessage,
+  }));
 
   return (
     <PageContainer maxWidth="6xl">
       <div className="mb-6">
         <h1 className="font-heading text-2xl font-bold">AI Control Center</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Провайдеры, fallback routing, token budgets и usage-контроль v5</p>
+        <p className="mt-1 text-sm text-muted-foreground">Провайдеры, ключи, fallback routing, token budgets и usage-контроль v5</p>
       </div>
-      <AIControlCenter providers={providers} policies={policies} usage={data.usage} />
+      <AIControlCenter
+        providers={providers}
+        policies={policies}
+        usage={data.usage}
+        credentials={credentials}
+        encryptionConfigured={data.encryptionConfigured}
+      />
     </PageContainer>
   );
 }
