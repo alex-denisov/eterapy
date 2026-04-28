@@ -4,6 +4,7 @@
  */
 import db from "../src/lib/db";
 import { PractitionerStatus, Specialty, Role } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const practitioners = [
   {
@@ -144,10 +145,11 @@ async function main() {
   console.log("🌱 Seeding practitioners...");
 
   for (const { practitioner: pData, ...userData } of practitioners) {
+    const password = await bcrypt.hash(userData.password, 10);
     const user = await db.user.upsert({
       where: { email: userData.email },
-      create: { ...userData, id: `practitioner-${userData.email.split("@")[0]}` },
-      update: { name: userData.name },
+      create: { ...userData, password, id: `practitioner-${userData.email.split("@")[0]}` },
+      update: { name: userData.name, password },
     });
 
     await db.practitioner.upsert({

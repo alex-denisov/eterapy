@@ -27,8 +27,19 @@ jest.mock('bcryptjs');
 import { handlers, signIn, signOut, auth } from '@/lib/auth';
 
 describe('Auth Configuration', () => {
+  const originalAllowPlaintextPasswords = process.env.ALLOW_PLAINTEXT_PASSWORDS;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.ALLOW_PLAINTEXT_PASSWORDS;
+  });
+
+  afterAll(() => {
+    if (originalAllowPlaintextPasswords === undefined) {
+      delete process.env.ALLOW_PLAINTEXT_PASSWORDS;
+    } else {
+      process.env.ALLOW_PLAINTEXT_PASSWORDS = originalAllowPlaintextPasswords;
+    }
   });
 
   describe('NextAuth config', () => {
@@ -116,7 +127,18 @@ describe('Auth Configuration', () => {
       expect(result).toBeNull();
     });
 
-    it('should support plaintext passwords (test accounts)', async () => {
+    it('should reject plaintext passwords by default', async () => {
+      const plainUser = { ...mockUser, password: 'test1234' };
+      (usersDb.get as jest.Mock).mockResolvedValue(plainUser);
+
+      const result = await authorize({ email: mockUser.email, password: 'test1234' });
+
+      expect(result).toBeNull();
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it('should support plaintext passwords only when explicitly allowed outside production', async () => {
+      process.env.ALLOW_PLAINTEXT_PASSWORDS = 'true';
       const plainUser = { ...mockUser, password: 'test1234' };
       (usersDb.get as jest.Mock).mockResolvedValue(plainUser);
 

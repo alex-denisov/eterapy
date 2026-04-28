@@ -9,6 +9,14 @@ import { authConfig } from "./auth.config";
 
 type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken", unknown>>;
 
+function isBcryptHash(passwordHash: string) {
+  return /^\$2[aby]\$\d{2}\$/.test(passwordHash);
+}
+
+function allowPlaintextPasswordFallback() {
+  return process.env.NODE_ENV !== "production" && process.env.ALLOW_PLAINTEXT_PASSWORDS === "true";
+}
+
 export async function authorize(credentials: CredentialsInput | undefined) {
   // ── Impersonation path: SUPERADMIN one-time token ─────────────────────
   const impToken = credentials?.impersonateToken as string | undefined;
@@ -44,11 +52,10 @@ export async function authorize(credentials: CredentialsInput | undefined) {
   // Blocked users cannot login
   if (user.blockedAt) return null;
 
-  // Support both bcrypt-hashed and plaintext passwords (test accounts)
-  const isHashed = user.password.startsWith("$2");
-  const valid = isHashed
-    ? await bcrypt.compare(password, user.password)
-    : user.password === password;
+  const isHashed = isBcryptHash(user.password);
+  if (!isHashed && !allowPlaintextPasswordFallback()) return null;
+
+  const valid = isHashed ? await bcrypt.compare(password, user.password) : user.password === password;
   if (!valid) return null;
 
   await logAudit(user.id, "LOGIN", undefined, `Email: ${email}`);
