@@ -16,7 +16,7 @@ import {
   LogOut,
   HelpCircle,
 } from "lucide-react";
-import { appUrl, logoutUrl, mainUrl, toPathname } from "@/lib/subdomain";
+import { appUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -75,16 +75,17 @@ export function CabinetShell({
   const mobileNav = nav.slice(0, 4);
 
   return (
-    <div className="min-h-screen flex">
+    <div data-testid="app-shell" className="flex min-h-screen bg-background">
       {/* Sidebar — sticky, own scroll */}
       <aside
-        className="hidden md:flex w-56 shrink-0 flex-col border-r border-border/20 bg-card/20 px-3 py-6 sticky h-[calc(100vh-var(--header-height))] overflow-y-auto"
+        data-testid="app-shell-sidebar"
+        className="sticky hidden h-[calc(100vh-var(--header-height))] w-56 shrink-0 flex-col overflow-y-auto border-r border-border/20 bg-card/45 px-3 py-6 shadow-[var(--shadow-surface)] md:flex"
         style={{ top: "var(--header-height)" }}
       >
         {/* User badge + Notifications */}
         <div className="mb-6 px-2">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary font-semibold text-sm">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand-warm-gold/15 text-sm font-semibold text-brand-soft-gold">
               {initial}
             </div>
             <div className="min-w-0">
@@ -100,10 +101,11 @@ export function CabinetShell({
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                data-testid="app-shell-nav-item"
+                className={`flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                   isActive(item.href)
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    ? "bg-brand-warm-gold/12 text-brand-soft-gold font-medium"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}>
                 <Icon className="h-4 w-4 shrink-0" />
                 {item.label}
@@ -116,10 +118,10 @@ export function CabinetShell({
         <div className="mt-2 border-t border-border/20 pt-2">
           <Link
             href={appUrl("/cabinet/settings")}
-            className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors w-full ${
+            className={`flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
               isActive(appUrl("/cabinet/settings"))
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                ? "bg-brand-warm-gold/12 text-brand-soft-gold font-medium"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <Settings className="h-4 w-4 shrink-0" />
@@ -127,7 +129,7 @@ export function CabinetShell({
           </Link>
           <button
             onClick={() => { window.location.href = logoutUrl(); }}
-            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors w-full"
+            className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm text-muted-foreground transition-colors duration-[var(--motion-base)] hover:bg-muted hover:text-foreground"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             Выйти
@@ -136,13 +138,13 @@ export function CabinetShell({
       </aside>
 
       {/* Mobile nav */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/20 bg-navy/95 backdrop-blur-sm">
+      <div data-testid="app-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/20 bg-navy/95 backdrop-blur-sm md:hidden">
         {mobileNav.map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
-                isActive(item.href) ? "text-primary" : "text-muted-foreground"
+              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
+                isActive(item.href) ? "text-brand-soft-gold" : "text-muted-foreground"
               }`}>
               <Icon className="h-5 w-5" />
               {item.label.split(" ")[0]}
@@ -152,7 +154,7 @@ export function CabinetShell({
       </div>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 pb-20 md:pb-0">
+      <main data-testid="app-shell-main" className="min-w-0 flex-1 pb-20 md:pb-0">
         {children}
       </main>
     </div>
