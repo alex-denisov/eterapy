@@ -14,7 +14,8 @@ import {
 } from "@/lib/ai-gateway/domain";
 import {
   resolveAIRoutingPlan,
-  runAIGatewayFallback,
+  runAIGatewayFallbackWithCredentials,
+  type AICredentialAdapter,
   type AIRoutingPolicyConfig,
   type AIRoutingProviderConfig,
 } from "@/lib/ai-gateway/routing";
@@ -23,6 +24,12 @@ import {
   estimateAICostMicros,
   recordAIUsageLedger,
 } from "@/lib/ai-gateway/usage";
+import {
+  listActiveCredentialsForProvider,
+  markCredentialFailure,
+  markCredentialSuccess,
+  type DecryptedAICredential,
+} from "@/lib/ai-gateway/credentials";
 import { log, serializeError } from "@/lib/logger";
 
 const PROVIDER_ENV: Record<AIProvider, string | undefined> = {
@@ -33,11 +40,29 @@ const PROVIDER_ENV: Record<AIProvider, string | undefined> = {
 };
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
-  { provider: AIProvider.OPENROUTER, enabled: Boolean(PROVIDER_ENV.OPENROUTER), priority: 10, defaultModel: "openai/gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENROUTER, enabled: Boolean(PROVIDER_ENV.OPENROUTER), priority: 10, defaultModel: "meta-llama/llama-3.1-70b-instruct:free", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.OPENAI, enabled: Boolean(PROVIDER_ENV.OPENAI), priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.ANTHROPIC, enabled: Boolean(PROVIDER_ENV.ANTHROPIC), priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.FIREWORKS, enabled: Boolean(PROVIDER_ENV.FIREWORKS), priority: 40, defaultModel: "accounts/fireworks/models/llama-v3p1-8b-instruct", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
+
+function buildAdapterForCredential(credential: DecryptedAICredential): AIGatewayAdapter {
+  const opts = {
+    apiKey: credential.apiKey,
+    ...(credential.baseUrlOverride ? { baseURL: credential.baseUrlOverride } : {}),
+    ...(credential.modelOverride ? { defaultModel: credential.modelOverride } : {}),
+  };
+  switch (credential.provider) {
+    case AIProvider.OPENROUTER:
+      return createOpenRouterAdapter(opts);
+    case AIProvider.OPENAI:
+      return createOpenAIAdapter(opts);
+    case AIProvider.ANTHROPIC:
+      return createAnthropicAdapter(opts);
+    case AIProvider.FIREWORKS:
+      return createFireworksAdapter(opts);
+  }
+}
 
 interface AIRequestOptions {
   messages: AIGatewayMessage[];
@@ -57,13 +82,28 @@ interface AIResponse {
   latencyMs: number;
 }
 
-function defaultAdapters(): Map<AIProvider, AIGatewayAdapter> {
-  return new Map([
-    [AIProvider.OPENROUTER, createOpenRouterAdapter()],
-    [AIProvider.OPENAI, createOpenAIAdapter()],
-    [AIProvider.ANTHROPIC, createAnthropicAdapter()],
-    [AIProvider.FIREWORKS, createFireworksAdapter()],
-  ]);
+function adaptersForCredentials(credentials: DecryptedAICredential[]): AICredentialAdapter[] {
+  return credentials.map((credential) => ({
+    credentialId: credential.id,
+    credentialLabel: credential.label,
+    adapter: buildAdapterForCredential(credential),
+  }));
+}
+
+interface FailureClassification {
+  cooldownMs: number;
+  regionBlocked: boolean;
+}
+
+function classifyCredentialFailure(code: string | undefined): FailureClassification {
+  if (!code) return { cooldownMs: 60_000, regionBlocked: false };
+  if (code === "HTTP_403") return { cooldownMs: 0, regionBlocked: true };
+  if (code === "HTTP_401") return { cooldownMs: 30 * 60_000, regionBlocked: false };
+  if (code === "HTTP_402") return { cooldownMs: 60 * 60_000, regionBlocked: false };
+  if (code === "HTTP_429") return { cooldownMs: 5 * 60_000, regionBlocked: false };
+  if (code === "TIMEOUT" || /^HTTP_5\d\d$/.test(code)) return { cooldownMs: 60_000, regionBlocked: false };
+  if (code === "MISSING_CONFIG") return { cooldownMs: 0, regionBlocked: false };
+  return { cooldownMs: 60_000, regionBlocked: false };
 }
 
 function providerLabel(provider: AIProvider): AIResponse["provider"] {
@@ -160,13 +200,15 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
   });
 
   try {
-    const { response, attempts } = await runAIGatewayFallback({
+    const { response, attempts } = await runAIGatewayFallbackWithCredentials({
       plan: requestPlan,
-      adapters: defaultAdapters(),
       request: {
         requestId,
         messages,
       },
+      resolveAdapters: async (provider) => adaptersForCredentials(
+        await listActiveCredentialsForProvider({ provider })
+      ),
     });
     const providerConfig = providerConfigs.find((config) => config.provider === response.provider);
     const estimatedCostMicros = estimateAICostMicros({
@@ -204,6 +246,22 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
         userId,
         tokens: response.totalTokens,
         costMicros: estimatedCostMicros,
+      }),
+      ...attempts.flatMap((attempt) => {
+        if (!attempt.credentialId) return [];
+        if (attempt.status === "succeeded") {
+          return [markCredentialSuccess({ credentialId: attempt.credentialId })];
+        }
+        if (attempt.status === "failed") {
+          const classification = classifyCredentialFailure(attempt.code);
+          return [markCredentialFailure({
+            credentialId: attempt.credentialId,
+            code: attempt.code ?? "PROVIDER_ERROR",
+            cooldownMs: classification.cooldownMs,
+            regionBlocked: classification.regionBlocked,
+          })];
+        }
+        return [];
       }),
     ]);
 

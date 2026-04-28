@@ -10,6 +10,25 @@ import { log } from "@/lib/logger";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * Failure-handling decision for a credential attempt:
+ * - retryNextCredential: try the next key of the SAME provider
+ * - skipProvider: skip remaining keys of this provider, move to next provider
+ * - stop: hard error, don't try any more providers either
+ */
+export type CredentialFailureDecision = "retryNextCredential" | "skipProvider" | "stop";
+
+export function decideFailureFallback(code: string | undefined): CredentialFailureDecision {
+  if (!code) return "retryNextCredential";
+  if (code === "HTTP_403") return "skipProvider"; // region/forbidden — no other key on this provider will help
+  if (code === "MODEL_NOT_ALLOWED") return "skipProvider";
+  if (code === "MISSING_CONFIG") return "skipProvider";
+  if (code === "MISSING_ADAPTER") return "skipProvider";
+  if (code === "HTTP_400") return "skipProvider"; // bad payload — same on every key
+  if (code === "HTTP_404") return "skipProvider"; // model not found — same on every key
+  return "retryNextCredential";
+}
+
 export interface AIRoutingProviderConfig {
   provider: AIProvider;
   enabled: boolean;
@@ -196,6 +215,121 @@ export async function runAIGatewayFallback(input: {
       if (!canFallbackFromProviderError(providerError)) {
         throw providerError;
       }
+    }
+  }
+
+  throw new AIGatewayRoutingError(`All AI providers failed for ${input.plan.feature}`, "ALL_PROVIDERS_FAILED");
+}
+
+export interface AICredentialAdapter {
+  credentialId: string;
+  credentialLabel: string;
+  adapter: AIGatewayAdapter;
+}
+
+export interface AICredentialAttempt extends AIGatewayFallbackAttempt {
+  credentialId?: string;
+  credentialLabel?: string;
+}
+
+/**
+ * Smart fallback executor with per-credential rotation:
+ * - For each provider in the routing plan, iterate its enabled credentials in LRU order.
+ * - On per-credential failure, classify the error:
+ *   - retryNextCredential: try the next key of the same provider
+ *   - skipProvider: skip remaining keys of this provider, move to next provider
+ *     (e.g. HTTP_403 region block — no other key on this provider will help)
+ *   - stop: hard error, propagate immediately
+ * - Returns on the first credential success.
+ *
+ * The retry is transparent to the caller — a single AIGatewayCompletionResponse
+ * is produced and the attempts ledger records every key tried.
+ */
+export async function runAIGatewayFallbackWithCredentials(input: {
+  plan: AIRoutingPlan;
+  request: Omit<AIGatewayCompletionRequest, "feature" | "model" | "maxTokens" | "temperature" | "timeoutMs">;
+  resolveAdapters: (provider: AIProvider) => Promise<AICredentialAdapter[]>;
+}): Promise<{ response: AIGatewayCompletionResponse; attempts: AICredentialAttempt[] }> {
+  const attempts: AICredentialAttempt[] = [];
+
+  for (const attempt of input.plan.attempts) {
+    const credentialAdapters = await input.resolveAdapters(attempt.provider);
+    if (credentialAdapters.length === 0) {
+      attempts.push({
+        provider: attempt.provider,
+        model: attempt.model,
+        status: "skipped",
+        code: "MISSING_ADAPTER",
+        retryable: true,
+      });
+      continue;
+    }
+
+    let providerSkipped = false;
+    for (const { credentialId, credentialLabel, adapter } of credentialAdapters) {
+      try {
+        const response = await adapter.complete({
+          ...input.request,
+          feature: input.plan.feature,
+          model: attempt.model,
+          maxTokens: attempt.maxTokens,
+          temperature: attempt.temperature,
+          timeoutMs: attempt.timeoutMs,
+        });
+        attempts.push({
+          provider: attempt.provider,
+          model: response.model,
+          status: "succeeded",
+          credentialId,
+          credentialLabel,
+        });
+        return { response, attempts };
+      } catch (err) {
+        const providerError = err instanceof AIProviderError
+          ? err
+          : new AIProviderError("AI provider failed", {
+            provider: attempt.provider,
+            code: "PROVIDER_ERROR",
+            retryable: false,
+            cause: err,
+          });
+        attempts.push({
+          provider: attempt.provider,
+          model: attempt.model,
+          status: "failed",
+          code: providerError.code,
+          retryable: providerError.retryable,
+          credentialId,
+          credentialLabel,
+        });
+        log.warn("ai-gateway-credential-attempt-failed", {
+          feature: input.plan.feature,
+          provider: attempt.provider,
+          credentialId,
+          credentialLabel,
+          model: attempt.model,
+          code: providerError.code,
+          retryable: providerError.retryable,
+        });
+
+        const decision = decideFailureFallback(providerError.code);
+        if (decision === "stop") {
+          throw providerError;
+        }
+        if (decision === "skipProvider") {
+          providerSkipped = true;
+          break;
+        }
+        // retryNextCredential — fall through to next credential of same provider
+      }
+    }
+
+    if (providerSkipped) {
+      // explicit marker so observability/metrics see the skip
+      log.info("ai-gateway-provider-skipped", {
+        feature: input.plan.feature,
+        provider: attempt.provider,
+      });
     }
   }
 

@@ -45,12 +45,12 @@ export interface OpenAIAdapterOptions {
 }
 
 export function createOpenAIAdapter(options: OpenAIAdapterOptions = {}): AIGatewayAdapter {
-  const configured = Boolean(options.client || options.apiKey || process.env.OPENAI_API_KEY);
+  const configured = Boolean(options.client || options.apiKey);
   const defaultModel = options.defaultModel ?? DEFAULT_OPENAI_MODEL;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const client: OpenAIClientLike | null = options.client ?? (configured
     ? new OpenAI({
-      apiKey: options.apiKey ?? process.env.OPENAI_API_KEY ?? "",
+      apiKey: options.apiKey ?? "",
       baseURL: options.baseURL,
     })
     : null);

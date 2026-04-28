@@ -728,6 +728,33 @@ model AIBudgetLedger {
   @@map("ai_budget_ledger")
 }
 
+model AIProviderCredential {
+  id                   String     @id @default(cuid())
+  provider             AIProvider
+  label                String
+  encryptedKey         String     @map("encrypted_key")
+  enabled              Boolean    @default(true)
+  priority             Int        @default(100)
+  baseUrlOverride      String?    @map("base_url_override")
+  modelOverride        String?    @map("model_override")
+  lastUsedAt           DateTime?  @map("last_used_at")
+  lastSuccessAt        DateTime?  @map("last_success_at")
+  lastErrorAt          DateTime?  @map("last_error_at")
+  lastErrorCode        String?    @map("last_error_code")
+  lastErrorMessage     String?    @map("last_error_message")
+  consecutiveFailures  Int        @default(0) @map("consecutive_failures")
+  cooldownUntil        DateTime?  @map("cooldown_until")
+  regionBlocked        Boolean    @default(false) @map("region_blocked")
+  metadata             Json?
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+
+  @@unique([provider, label])
+  @@index([provider, enabled, priority])
+  @@index([provider, enabled, lastUsedAt])
+  @@map("ai_provider_credentials")
+}
+
 enum AIProvider {
   OPENAI
   ANTHROPIC

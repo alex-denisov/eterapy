@@ -69,7 +69,7 @@ async function parseError(response: Response) {
 }
 
 export function createAnthropicAdapter(options: AnthropicAdapterOptions = {}): AIGatewayAdapter {
-  const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY ?? "";
+  const apiKey = options.apiKey ?? "";
   const configured = Boolean(apiKey);
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/$/, "");

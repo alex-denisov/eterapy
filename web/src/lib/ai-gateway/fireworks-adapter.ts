@@ -46,12 +46,12 @@ export interface FireworksAdapterOptions {
 }
 
 export function createFireworksAdapter(options: FireworksAdapterOptions = {}): AIGatewayAdapter {
-  const configured = Boolean(options.client || options.apiKey || process.env.FIREWORKS_API_KEY);
+  const configured = Boolean(options.client || options.apiKey);
   const defaultModel = options.defaultModel ?? DEFAULT_FIREWORKS_MODEL;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const client: FireworksClientLike | null = options.client ?? (configured
     ? new OpenAI({
-      apiKey: options.apiKey ?? process.env.FIREWORKS_API_KEY ?? "",
+      apiKey: options.apiKey ?? "",
       baseURL: options.baseURL ?? DEFAULT_BASE_URL,
     })
     : null);

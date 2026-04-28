@@ -1,7 +1,7 @@
 import { AIProvider, AIRequestStatus } from "@prisma/client";
 import db from "@/lib/db";
 import { aiComplete } from "@/lib/ai";
-import { runAIGatewayFallback } from "@/lib/ai-gateway/routing";
+import { runAIGatewayFallbackWithCredentials } from "@/lib/ai-gateway/routing";
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -11,6 +11,7 @@ jest.mock("@/lib/db", () => ({
     aIBudgetLedger: { findUnique: jest.fn() },
     aIRequest: { create: jest.fn(), update: jest.fn() },
     aIAttempt: { create: jest.fn() },
+    aIProviderCredential: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
     $executeRaw: jest.fn(),
   },
 }));
@@ -20,7 +21,7 @@ jest.mock("@/lib/ai-gateway/routing", () => {
   return {
     __esModule: true,
     ...actual,
-    runAIGatewayFallback: jest.fn(),
+    runAIGatewayFallbackWithCredentials: jest.fn(),
   };
 });
 
@@ -35,7 +36,7 @@ jest.mock("@/lib/logger", () => ({
 }));
 
 const mockDb = db as jest.Mocked<typeof db>;
-const mockRunFallback = runAIGatewayFallback as jest.MockedFunction<typeof runAIGatewayFallback>;
+const mockRunFallback = runAIGatewayFallbackWithCredentials as jest.MockedFunction<typeof runAIGatewayFallbackWithCredentials>;
 
 describe("aiComplete gateway migration", () => {
   beforeEach(() => {

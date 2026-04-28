@@ -57,12 +57,12 @@ function attributionHeaders(options: OpenRouterAdapterOptions) {
 }
 
 export function createOpenRouterAdapter(options: OpenRouterAdapterOptions = {}): AIGatewayAdapter {
-  const configured = Boolean(options.client || options.apiKey || process.env.OPENROUTER_API_KEY);
+  const configured = Boolean(options.client || options.apiKey);
   const defaultModel = options.defaultModel ?? DEFAULT_OPENROUTER_MODEL;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const client: OpenRouterClientLike | null = options.client ?? (configured
     ? new OpenAI({
-      apiKey: options.apiKey ?? process.env.OPENROUTER_API_KEY ?? "",
+      apiKey: options.apiKey ?? "",
       baseURL: options.baseURL ?? DEFAULT_BASE_URL,
       defaultHeaders: attributionHeaders(options),
     })
