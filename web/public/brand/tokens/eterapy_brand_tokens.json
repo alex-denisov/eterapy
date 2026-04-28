@@ -1,0 +1,20 @@
+{
+  "brand": "ETerapy",
+  "final_concept": "Dialogue Halo / Диалоговый ореол",
+  "source_of_truth": "The supplied final PNG boards are the source of truth. Do not redraw the logo from approximated geometry.",
+  "primary_tagline_ru": "Ясность. Диалог. Понимание.",
+  "primary_tagline_en_reference": "Clarity. Reflection. Insight.",
+  "colors": {
+    "Midnight Navy": "#081223",
+    "Warm Gold": "#D4A15A",
+    "Soft Gold": "#F2C37D",
+    "Lavender": "#8E89D6",
+    "Lavender Light": "#C7C2F0",
+    "Glow Center": "#FFD79A"
+  },
+  "typography_reference": {
+    "Brand / wordmark style": "High-contrast elegant serif in the spirit of Cormorant Garamond / editorial serif",
+    "Supporting headings": "Montserrat-style uppercase tracking",
+    "Product UI": "Inter / Manrope / Onest"
+  }
+}

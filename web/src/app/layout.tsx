@@ -6,6 +6,7 @@ import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
+import { brandAssets } from "@/lib/brand-assets";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -36,9 +37,14 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: brandAssets.favicon.ico, sizes: "any" },
+      { url: brandAssets.favicon.png16, type: "image/png", sizes: "16x16" },
+      { url: brandAssets.favicon.png32, type: "image/png", sizes: "32x32" },
     ],
+    apple: [{ url: brandAssets.favicon.apple180, sizes: "180x180" }],
   },
+  manifest: brandAssets.favicon.manifest,
+  themeColor: "#081223",
   openGraph: {
     title: "ETerapy — этичная эзотерическая платформа",
     description:
