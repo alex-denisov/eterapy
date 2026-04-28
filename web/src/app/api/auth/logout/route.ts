@@ -19,7 +19,11 @@ function clearCookie(response: NextResponse, name: string, withDomain = false) {
 }
 
 export async function GET(request: Request) {
-  const response = NextResponse.redirect(new URL(mainUrl("/"), request.url));
+  const reason = new URL(request.url).searchParams.get("reason");
+  const target = reason === "blocked" || reason === "deleted"
+    ? `/login?account=${reason}`
+    : "/";
+  const response = NextResponse.redirect(new URL(mainUrl(target), request.url));
 
   const names = [
     SESSION_COOKIE_NAME,

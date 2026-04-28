@@ -29,12 +29,15 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const intent = searchParams.get("intent");
+  const accountState = searchParams.get("account");
   const isSavingResult = intent === "save-result";
 
   useEffect(() => {
     const err = searchParams.get("error");
     if (err === "CredentialsSignin") toast.error("Неверный email или пароль");
-  }, [searchParams]);
+    if (err === "blocked" || accountState === "blocked") toast.error("Аккаунт заблокирован. Обратитесь в поддержку.");
+    if (accountState === "deleted") toast.error("Аккаунт деактивирован или удалён.");
+  }, [accountState, searchParams]);
 
   // Редирект, если уже залогинен — ОДИН РАЗ при монтировании
   useEffect(() => {
@@ -98,6 +101,13 @@ export default function LoginPage() {
             </p>
           </CardHeader>
           <CardContent>
+            {(accountState === "blocked" || accountState === "deleted") && (
+              <div className="mb-4 rounded-[var(--radius-card)] border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" data-testid="inactive-account-state">
+                {accountState === "blocked"
+                  ? "Аккаунт заблокирован. Если это ошибка, обратитесь в поддержку ETerapy."
+                  : "Аккаунт деактивирован или удалён. Для восстановления обратитесь в поддержку."}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="login-email" className="sr-only">Email</label>

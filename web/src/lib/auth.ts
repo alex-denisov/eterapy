@@ -29,9 +29,9 @@ export async function authorize(credentials: CredentialsInput | undefined) {
     await db.telegramLinkToken.delete({ where: { token: `imp:${impToken}` } });
     const target = await db.user.findUnique({
       where: { id: record.userId },
-      select: { id: true, email: true, name: true, role: true, emailVerified: true, blockedAt: true },
+      select: { id: true, email: true, name: true, role: true, emailVerified: true, blockedAt: true, deletedAt: true },
     });
-    if (!target || target.blockedAt) return null;
+    if (!target || target.blockedAt || target.deletedAt) return null;
     return {
       id: target.id,
       email: target.email,
@@ -50,7 +50,7 @@ export async function authorize(credentials: CredentialsInput | undefined) {
   if (!user) return null;
 
   // Blocked users cannot login
-  if (user.blockedAt) return null;
+  if (user.blockedAt || user.deletedAt) return null;
 
   const isHashed = isBcryptHash(user.password);
   if (!isHashed && !allowPlaintextPasswordFallback()) return null;
@@ -81,7 +81,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         impersonateToken: { label: "Impersonate Token", type: "text" },
       },
       // @ts-expect-error NextAuth v5 Credentials authorize type mismatch
-      async authorize(credentials, _request: Request) {
+      async authorize(credentials) {
         return authorize(credentials);
       },
     }),
@@ -118,7 +118,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
           });
           await logAudit(dbUser.id, "REGISTER", undefined, `OAuth: ${account?.provider}`);
-        } else if (dbUser.blockedAt) {
+        } else if (dbUser.blockedAt || dbUser.deletedAt) {
           return false; // Blocked user cannot login via OAuth
         }
 

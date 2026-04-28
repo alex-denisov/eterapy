@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
-import { loginUrl, mainUrl } from "@/lib/subdomain";
+import { loginUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
+import { getSessionAccountAccessState, inactiveAccountReason } from "@/lib/account-state";
 
 export const metadata: Metadata = {
   robots: noIndexRobots,
@@ -13,6 +14,9 @@ export const metadata: Metadata = {
 export default async function CabinetLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect(loginUrl());
+  const accountState = await getSessionAccountAccessState(session);
+  const inactiveReason = inactiveAccountReason(accountState);
+  if (inactiveReason) redirect(`${logoutUrl()}?reason=${inactiveReason}`);
   const role = session.user?.role ?? "CLIENT";
 
   // Проверяем режим имперсонации

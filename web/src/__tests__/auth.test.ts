@@ -102,6 +102,14 @@ describe('Auth Configuration', () => {
       expect(result).toBeNull();
     });
 
+    it('should reject deleted users', async () => {
+      const deletedUser = { ...mockUser, deletedAt: new Date() };
+      (usersDb.get as jest.Mock).mockResolvedValue(deletedUser);
+
+      const result = await authorize({ email: mockUser.email, password: 'password' });
+      expect(result).toBeNull();
+    });
+
     it('should authenticate with bcrypt for hashed passwords', async () => {
       bcrypt.compare = jest.fn().mockResolvedValue(true);
       (usersDb.get as jest.Mock).mockResolvedValue(mockUser);
