@@ -28,6 +28,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const intent = searchParams.get("intent");
+  const isSavingResult = intent === "save-result";
 
   useEffect(() => {
     const err = searchParams.get("error");
@@ -91,6 +93,9 @@ export default function LoginPage() {
         <Card className="border-border/40 bg-card/50">
           <CardHeader className="text-center">
             <CardTitle className="font-heading text-2xl">Вход в ETerapy</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {isSavingResult ? "Войдите, чтобы сохранить полученный ответ в кабинет" : "Продолжите работу в своём кабинете"}
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

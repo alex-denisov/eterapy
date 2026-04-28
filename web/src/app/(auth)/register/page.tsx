@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,11 @@ export default function RegisterPage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [guestResultSaved, setGuestResultSaved] = useState(false);
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const intent = searchParams.get("intent");
+  const isSavingResult = intent === "save-result";
 
   // Редирект, если уже залогинен
   useEffect(() => {
@@ -64,9 +69,10 @@ export default function RegisterPage() {
       if (result?.error) {
         toast.error("Аккаунт создан, но не удалось войти. Попробуйте войти вручную.");
       } else {
-        await persistGuestResultDraftToAccount();
+        const persisted = await persistGuestResultDraftToAccount();
+        setGuestResultSaved(persisted.saved);
         setRegistered(true);
-        toast.success("Аккаунт создан! Проверьте email для подтверждения.");
+        toast.success(persisted.saved ? "Аккаунт создан, ответ сохранён." : "Аккаунт создан! Проверьте email для подтверждения.");
       }
     } catch {
       toast.error("Ошибка сети. Попробуйте снова.");
@@ -82,6 +88,7 @@ export default function RegisterPage() {
           <div className="text-5xl">📬</div>
           <h1 className="font-heading text-2xl font-bold">Почти готово!</h1>
           <p className="text-muted-foreground">
+            {guestResultSaved ? "Ваш ответ сохранён в кабинете. " : ""}
             Мы отправили письмо на <strong className="text-foreground">{email}</strong>.
             Перейдите по ссылке в письме чтобы подтвердить аккаунт.
           </p>
@@ -101,7 +108,9 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md border-border/40 bg-card/50">
         <CardHeader className="text-center">
           <CardTitle className="font-heading text-2xl">Создать аккаунт</CardTitle>
-          <p className="text-sm text-muted-foreground">3 бесплатных сессии в месяц</p>
+          <p className="text-sm text-muted-foreground">
+            {isSavingResult ? "Сохраните уже полученный ответ и вернитесь к нему позже" : "Регистрация после первого полезного шага"}
+          </p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

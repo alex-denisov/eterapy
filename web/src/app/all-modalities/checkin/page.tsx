@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +12,9 @@ import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
-import { saveGuestResultDraft } from "@/lib/guest-result-cache";
+import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
+import { buttonVariants } from "@/lib/button-variants";
+import { cn } from "@/lib/utils";
 
 const questions = [
   "Что сейчас занимает ваши мысли больше всего?",
@@ -21,6 +25,7 @@ const questions = [
 ];
 
 export default function CheckinPage() {
+  const { status } = useSession();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState("");
@@ -30,6 +35,7 @@ export default function CheckinPage() {
   const [isLimited, setIsLimited] = useState(false);
   const [tier, setTier] = useState<"quick" | "full">("quick");
   const [balanceKopecks, setBalanceKopecks] = useState<number | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   const FULL_PRICE_KOPECKS = getFullReadingPriceKopecks();
 
@@ -55,6 +61,7 @@ export default function CheckinPage() {
       }
       if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       setResult(data.result);
+      setSaveState("idle");
       saveGuestResultDraft({
         tool: "CHECKIN",
         title: tier === "full" ? "Полная рефлексия" : "Первичный ответ",
@@ -90,7 +97,13 @@ export default function CheckinPage() {
   }
 
   function reset() {
-    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setIsLimited(false); setTier("quick"); setBalanceKopecks(null);
+    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setIsLimited(false); setTier("quick"); setBalanceKopecks(null); setSaveState("idle");
+  }
+
+  async function handleSaveToAccount() {
+    setSaveState("saving");
+    const persisted = await persistGuestResultDraftToAccount();
+    setSaveState(persisted.saved ? "saved" : "error");
   }
 
   if (loading) {
@@ -186,9 +199,27 @@ export default function CheckinPage() {
             </CardContent>
           </Card>
           <AIShareButton tool="CHECKIN" title="Рефлексия" resultText={result} />
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            {status === "authenticated" ? (
+              <Button onClick={handleSaveToAccount} disabled={saveState === "saving" || saveState === "saved"} data-testid="save-result-authenticated">
+                {saveState === "saved" ? "Сохранено в кабинете" : saveState === "saving" ? "Сохраняем..." : "Сохранить в кабинет"}
+              </Button>
+            ) : (
+              <Link href="/register?intent=save-result" className={cn(buttonVariants())} data-testid="save-result-register">
+                Сохранить ответ
+              </Link>
+            )}
             <Button onClick={reset} variant="outline" className="border-border/40 text-muted-foreground">Пройти заново</Button>
           </div>
+          {status !== "authenticated" && (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Ответ сохранится после регистрации. Уже есть аккаунт?{" "}
+              <Link href="/login?intent=save-result" className="text-primary hover:underline">
+                Войти
+              </Link>
+            </p>
+          )}
+          {saveState === "error" && <p className="mt-3 text-sm text-destructive">Не удалось сохранить. Попробуйте еще раз.</p>}
           <Disclaimer className="mt-8" tone="info" title="Ограничение">
             Носит рефлексивный характер, не является психологической консультацией.
           </Disclaimer>
