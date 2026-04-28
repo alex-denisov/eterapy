@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
@@ -22,15 +20,12 @@ const questions = [
 ];
 
 export default function CheckinPage() {
-  const { data: session, status } = useSession();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [showAuth, setShowAuth] = useState(false);
-  const [pendingAnswers, setPendingAnswers] = useState<string[] | null>(null);
   const [isLimited, setIsLimited] = useState(false);
   const [tier, setTier] = useState<"quick" | "full">("quick");
   const [balanceKopecks, setBalanceKopecks] = useState<number | null>(null);
@@ -40,7 +35,6 @@ export default function CheckinPage() {
   const submitAnswers = useCallback(async (finalAnswers: string[]) => {
     setLoading(true);
     setError("");
-    setShowAuth(false);
     setIsLimited(false);
     try {
       const res = await fetch("/api/modalities/checkin", {
@@ -49,7 +43,15 @@ export default function CheckinPage() {
         body: JSON.stringify({ answers: finalAnswers, tier }),
       });
       const data = await res.json();
-      if (res.status === 429) { setBalanceKopecks(data.balanceKopecks ?? null); setIsLimited(true); return; }
+      if (res.status === 429) {
+        if (data.balanceKopecks == null) {
+          setError(data.error || "Для этого действия нужна регистрация");
+          return;
+        }
+        setBalanceKopecks(data.balanceKopecks ?? null);
+        setIsLimited(true);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Ошибка сервера");
       setResult(data.result);
       if (data.balanceKopecks != null) setBalanceKopecks(data.balanceKopecks);
@@ -68,12 +70,7 @@ export default function CheckinPage() {
 
     const isFinal = step >= 4;
     if (isFinal) {
-      if (!session && status !== "loading") {
-        setPendingAnswers(updated);
-        setShowAuth(true);
-      } else {
-        submitAnswers(updated);
-      }
+      submitAnswers(updated);
     } else {
       setStep(step + 1);
     }
@@ -81,17 +78,12 @@ export default function CheckinPage() {
 
   function handleSkip() {
     if (answers.length >= 3) {
-      if (!session && status !== "loading") {
-        setPendingAnswers(answers);
-        setShowAuth(true);
-      } else {
-        submitAnswers(answers);
-      }
+      submitAnswers(answers);
     }
   }
 
   function reset() {
-    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setPendingAnswers(null); setIsLimited(false); setTier("quick"); setBalanceKopecks(null);
+    setStep(0); setAnswers([]); setCurrentAnswer(""); setResult(null); setError(""); setIsLimited(false); setTier("quick"); setBalanceKopecks(null);
   }
 
   if (loading) {
@@ -121,15 +113,6 @@ export default function CheckinPage() {
       progress={!result ? { current: step + 1, total: questions.length } : undefined}
     >
       <PublicJsonLd route="/all-modalities/checkin" />
-      {showAuth && (
-        <AuthModal
-          open={showAuth}
-          toolName="Рефлексия"
-          onSuccess={() => pendingAnswers && submitAnswers(pendingAnswers)}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
-
       {isLimited && <PaywallScreen balanceKopecks={balanceKopecks ?? undefined} fullPriceKopecks={FULL_PRICE_KOPECKS} onClose={() => setIsLimited(false)} />}
 
       {/* Быстрый / Полный переключатель */}

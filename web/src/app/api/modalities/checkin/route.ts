@@ -3,6 +3,7 @@ import { checkAndRecordToolSession } from "@/lib/tool-limit-server";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { aiComplete } from "@/lib/ai";
+import { ensureGuestSession } from "@/lib/guest-session";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       maxTokens: isFull ? 3000 : 2000,
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       result: result.text,
       model: result.model,
       provider: result.provider,
@@ -67,6 +68,11 @@ export async function POST(req: NextRequest) {
       balanceKopecks: toolLimit.balanceKopecks,
       fullPriceKopecks: getFullReadingPriceKopecks(),
     });
+    if (!userId) {
+      const guest = ensureGuestSession(req, response);
+      response.headers.set("X-Guest-Session", guest.created ? "created" : "existing");
+    }
+    return response;
   } catch (error) {
     console.error("[API:checkin] Error:", error);
     return NextResponse.json({ error: "Произошла ошибка. Попробуйте позже." }, { status: 500 });
