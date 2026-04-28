@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-export const metadata = {
-  title: "О проекте — ETerapy",
-  description: "ETerapy — этичная платформа для встречи с тарологами, астрологами и нумерологами. Узнайте нашу историю, ценности и принципы работы.",
-};
+export const metadata = createPublicPageMetadata("/about");
 
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16">
+      <PublicJsonLd route="/about" />
       {/* Hero */}
       <div className="mb-16 text-center">
         <span className="inline-block text-5xl mb-6">✦</span>

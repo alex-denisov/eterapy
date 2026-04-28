@@ -10,6 +10,7 @@ import { ToolLoading } from "@/components/tool-loading";
 import { AuthModal } from "@/components/auth-modal";
 import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
 
 interface TarotCard { name: string; nameEn: string; position: string; reversed: boolean; keywords: string[]; }
 interface TarotResult { cards: TarotCard[]; interpretation: string; tier: string; balanceKopecks?: number; fullPriceKopecks?: number; }
@@ -68,6 +69,7 @@ export default function TarotPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
+      <PublicJsonLd route="/all-modalities/tarot" />
       <AuthModal open={showAuth} toolName="Расклад Таро" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />
 
       <h1 className="font-heading text-3xl font-bold md:text-4xl">🃏 Расклад Таро</h1>

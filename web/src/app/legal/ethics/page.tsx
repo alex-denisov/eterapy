@@ -1,8 +1,12 @@
-export const metadata = { title: "Этический кодекс — ETerapy" };
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
+
+export const metadata = createPublicPageMetadata("/legal/ethics");
 
 export default function EthicsPage() {
   return (
     <article className="prose prose-invert prose-sm max-w-none">
+      <PublicJsonLd route="/legal/ethics" />
       <h1 className="font-heading text-2xl font-bold">Этический кодекс практика</h1>
       <p className="text-muted-foreground">
         Все верифицированные практики ETerapy обязаны соблюдать настоящий кодекс.

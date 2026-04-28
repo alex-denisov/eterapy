@@ -5,6 +5,8 @@ import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { PractitionersCatalog } from "./catalog-client";
 import { SPECIALTY_LABELS } from "@/lib/types";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 function pluralize(count: number, one: string, few: string, many: string): string {
   const mod10 = count % 10;
@@ -52,16 +54,14 @@ async function getPractitioners() {
   });
 }
 
-export const metadata = {
-  title: "Каталог практиков — ETerapy",
-  description: "Верифицированные таролог, астролог, нумеролог. Фиксированная цена. Реальные отзывы.",
-};
+export const metadata = createPublicPageMetadata("/practitioners");
 
 export default async function PractitionersPage() {
   const practitioners = await getPractitioners();
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
+      <PublicJsonLd route="/practitioners" />
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold md:text-4xl">Каталог практиков</h1>
         <p className="mt-2 text-muted-foreground">

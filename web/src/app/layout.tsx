@@ -8,6 +8,7 @@ import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
 import { brandAssets } from "@/lib/brand-assets";
 import { seoOrigins } from "@/lib/seo";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -24,17 +25,17 @@ const playfair = Playfair_Display({
   preload: false,
 });
 
+const homeMetadata = createPublicPageMetadata("/");
+
 export const metadata: Metadata = {
+  ...homeMetadata,
   metadataBase: new URL(seoOrigins.main),
-  title: "ETerapy — этичная эзотерическая платформа",
-  description:
-    "Найди проверенного таролога, астролога или нумеролога. Фиксированная цена за сессию. Бесплатные направления самопознания. Безопасно. Прозрачно. Онлайн.",
   keywords: [
-    "таролог онлайн",
-    "астролог онлайн",
-    "нумеролог онлайн",
-    "таро расклад",
-    "натальная карта",
+    "задать вопрос онлайн",
+    "самопознание онлайн",
+    "таро онлайн",
+    "натальная карта онлайн",
+    "нумерология онлайн",
     "этичная эзотерика",
   ],
   icons: {
@@ -48,9 +49,7 @@ export const metadata: Metadata = {
   manifest: brandAssets.favicon.manifest,
   themeColor: "#081223",
   openGraph: {
-    title: "ETerapy — этичная эзотерическая платформа",
-    description:
-      "Найди проверенного практика. Фиксированная цена. Направления самопознания. Безопасно.",
+    ...homeMetadata.openGraph,
     type: "website",
     locale: "ru_RU",
   },

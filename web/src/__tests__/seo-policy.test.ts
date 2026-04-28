@@ -1,5 +1,6 @@
 import { GET as robotsTxt } from "@/app/robots.txt/route";
 import { GET as sitemapXml } from "@/app/sitemap.xml/route";
+import { createPublicPageMetadata, jsonLdForPublicPage, publicPageSeo } from "@/lib/public-page-seo";
 import { canonicalUrl, publicSeoRoutes, shouldNoIndex } from "@/lib/seo";
 
 function requestFor(host: string, pathname = "/robots.txt") {
@@ -58,5 +59,31 @@ describe("v5 SEO routing policy", () => {
     expect(shouldNoIndex("eterapy.com", "/cabinet/billing")).toBe(true);
     expect(shouldNoIndex("eterapy.com", "/admin/users")).toBe(true);
     expect(shouldNoIndex("eterapy.com", "/all-modalities/checkin")).toBe(false);
+  });
+
+  it("keeps metadata and JSON-LD defined for every sitemap route", () => {
+    for (const route of publicSeoRoutes) {
+      const metadata = createPublicPageMetadata(route);
+      const jsonLd = jsonLdForPublicPage(route);
+
+      expect(publicPageSeo[route].title.length).toBeGreaterThan(10);
+      expect(publicPageSeo[route].description.length).toBeGreaterThan(40);
+      expect(metadata.alternates?.canonical).toBe(canonicalUrl(route));
+      expect(metadata.openGraph).toEqual(expect.objectContaining({
+        title: publicPageSeo[route].title,
+        description: publicPageSeo[route].description,
+        url: canonicalUrl(route),
+      }));
+      expect(metadata.twitter).toEqual(expect.objectContaining({
+        card: "summary",
+        title: publicPageSeo[route].title,
+      }));
+      expect(jsonLd).toEqual(expect.objectContaining({
+        "@context": "https://schema.org",
+        name: publicPageSeo[route].title,
+        description: publicPageSeo[route].description,
+        url: canonicalUrl(route),
+      }));
+    }
   });
 });

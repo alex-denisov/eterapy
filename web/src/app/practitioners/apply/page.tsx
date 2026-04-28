@@ -1,10 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ApplyForm } from "./apply-form";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-export const metadata = {
-  title: "Стать практиком — ETerapy",
-  description: "Присоединяйтесь к платформе ETerapy как таролог, астролог или нумеролог. Готовая аудитория, удобное расписание, прозрачная оплата.",
-};
+export const metadata = createPublicPageMetadata("/practitioners/apply");
 
 const BENEFITS = [
   { icon: "🔮", title: "Готовая аудитория", desc: "Клиенты, уже заинтересованные в эзотерической практике — без рекламы и поиска" },
@@ -25,6 +24,7 @@ const STEPS = [
 export default function PractitionerApplyPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-16">
+      <PublicJsonLd route="/practitioners/apply" />
       {/* Hero */}
       <div className="text-center mb-16">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary mb-6">

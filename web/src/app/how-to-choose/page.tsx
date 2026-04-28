@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-export const metadata = {
-  title: "Как выбрать практика — ETerapy",
-  description: "Советы по выбору таролога, астролога или нумеролога. На что обращать внимание, как читать отзывы и не попасться на мошенников.",
-};
+export const metadata = createPublicPageMetadata("/how-to-choose");
 
 export default function HowToChoosePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-16">
+      <PublicJsonLd route="/how-to-choose" />
       {/* Hero */}
       <div className="mb-14 text-center">
         <span className="inline-block text-5xl mb-6">🔮</span>

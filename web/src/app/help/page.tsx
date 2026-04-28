@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/ui/page-container";
 import { Accordion } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { appUrl, adminUrl } from "@/lib/subdomain";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import {
   Rocket,
   Sparkles,
@@ -633,30 +634,33 @@ export default function HelpPage() {
       : "Ответы на частые вопросы о платформе eTerapy";
 
   const content = (
-    <PageContainer maxWidth="3xl">
-      <h1 className="font-heading text-2xl font-bold mb-1">Чем мы можем помочь?</h1>
-      <p className="text-sm text-muted-foreground mb-6">{roleLabel}</p>
+    <>
+      <PublicJsonLd route="/help" />
+      <PageContainer maxWidth="3xl">
+        <h1 className="font-heading text-2xl font-bold mb-1">Чем мы можем помочь?</h1>
+        <p className="text-sm text-muted-foreground mb-6">{roleLabel}</p>
 
-      <SearchFAQs categories={categories} />
+        <SearchFAQs categories={categories} />
 
-      <div className="mt-8 rounded-xl border border-border/40 bg-card/30 p-5 flex items-center gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-          <Mail className="h-5 w-5 text-primary" />
+        <div className="mt-8 rounded-xl border border-border/40 bg-card/30 p-5 flex items-center gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <Mail className="h-5 w-5 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Не нашли ответ?</p>
+            <p className="text-xs text-muted-foreground">
+              Напишите нам — ответим в течение 24 часов
+            </p>
+          </div>
+          <a
+            href="mailto:support@eterapy.com"
+            className="ml-auto shrink-0 text-sm font-medium text-primary hover:underline"
+          >
+            support&#64;eterapy.com
+          </a>
         </div>
-        <div className="min-w-0">
-          <p className="text-sm font-medium">Не нашли ответ?</p>
-          <p className="text-xs text-muted-foreground">
-            Напишите нам — ответим в течение 24 часов
-          </p>
-        </div>
-        <a
-          href="mailto:support@eterapy.com"
-          className="ml-auto shrink-0 text-sm font-medium text-primary hover:underline"
-        >
-          support&#64;eterapy.com
-        </a>
-      </div>
-    </PageContainer>
+      </PageContainer>
+    </>
   );
 
   if (isLoggedIn) {

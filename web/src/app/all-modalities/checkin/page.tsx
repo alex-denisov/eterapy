@@ -10,6 +10,7 @@ import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { Disclaimer } from "@/components/ui/disclaimer";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
 
 const questions = [
@@ -119,6 +120,7 @@ export default function CheckinPage() {
       )}
       progress={!result ? { current: step + 1, total: questions.length } : undefined}
     >
+      <PublicJsonLd route="/all-modalities/checkin" />
       {showAuth && (
         <AuthModal
           open={showAuth}

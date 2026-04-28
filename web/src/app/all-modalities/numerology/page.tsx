@@ -12,6 +12,7 @@ import { AIShareButton } from "@/components/ai-share-button";
 import { PaywallScreen } from "@/components/paywall-screen";
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
 
 export default function NumerologyPage() {
   const { data: session, status } = useSession();
@@ -75,6 +76,7 @@ export default function NumerologyPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
+      <PublicJsonLd route="/all-modalities/numerology" />
       <AuthModal open={showAuth} toolName="Нумерология" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />
 
       <h1 className="font-heading text-3xl font-bold">🔢 Нумерология</h1>

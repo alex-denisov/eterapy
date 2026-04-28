@@ -13,6 +13,7 @@ import { searchCities } from "@/lib/cities";
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
 import { getFullReadingPriceKopecks } from "@/lib/tool-limit";
 import { Badge } from "@/components/ui/badge";
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
 
 
 
@@ -134,6 +135,7 @@ export default function NatalPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
+      <PublicJsonLd route="/all-modalities/natal" />
       <AuthModal open={showAuth} toolName="Натальная карта" onSuccess={doSubmit} onClose={() => setShowAuth(false)} />
       <h1 className="font-heading text-3xl font-bold">⭐ Натальная карта</h1>
 

@@ -1,8 +1,12 @@
-export const metadata = { title: "Политика конфиденциальности — ETerapy" };
+import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { createPublicPageMetadata } from "@/lib/public-page-seo";
+
+export const metadata = createPublicPageMetadata("/legal/privacy");
 
 export default function PrivacyPage() {
   return (
     <article className="prose prose-invert prose-sm max-w-none">
+      <PublicJsonLd route="/legal/privacy" />
       <h1 className="font-heading text-2xl font-bold">Политика конфиденциальности</h1>
       <p className="text-muted-foreground">Редакция от 1 апреля 2026 г.</p>
 
