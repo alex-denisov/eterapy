@@ -37,6 +37,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Как безопасно выбрать таролога, астролога или нумеролога: цель запроса, профиль, отзывы, цена и красные флаги.",
     schemaKind: "Article",
   },
+  "/pricing": {
+    title: "Цены и тарифы ETerapy",
+    description: "Прозрачные цены v5: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности, подписки и Practitioner Pro.",
+    schemaKind: "Product",
+  },
   "/all-modalities": {
     title: "Сервисы самопознания — ETerapy",
     description: "Question-first сервисы ETerapy: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",

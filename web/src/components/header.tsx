@@ -16,6 +16,7 @@ const GUEST_NAV = [
   { href: "/all-modalities/checkin", label: "Задать вопрос" },
   { href: "/how-it-works", label: "Как работает" },
   { href: "/#modalities", label: "Продукты" },
+  { href: "/pricing", label: "Цены" },
   { href: "/practitioners", label: "Практики" },
   { href: "/#faq", label: "FAQ" },
 ];
