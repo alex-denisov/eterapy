@@ -2,11 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Bell, Check, Trash2, Calendar, Star, Clock, Wallet, Info } from "lucide-react";
-
-type NotifEvent =
-  | "BOOKING_REQUESTED" | "BOOKING_CONFIRMED" | "BOOKING_CANCELLED"
-  | "BOOKING_REMINDER" | "SESSION_STARTED" | "SESSION_COMPLETED"
-  | "REVIEW_REQUESTED" | "NEW_REVIEW" | "PAYMENT_RECEIVED" | "PAYOUT_SCHEDULED";
+import type { NotifEvent } from "@/lib/notification-events";
 
 interface ApiNotification {
   id: string;
@@ -29,6 +25,9 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   NEW_REVIEW: Star,
   PAYMENT_RECEIVED: Wallet,
   PAYOUT_SCHEDULED: Wallet,
+  BALANCE_TOPUP: Wallet,
+  CARD_LINKED: Wallet,
+  CARD_REMOVED: Wallet,
 };
 
 const ICON_BG_MAP: Record<NotifEvent, string> = {
@@ -42,6 +41,9 @@ const ICON_BG_MAP: Record<NotifEvent, string> = {
   NEW_REVIEW: "bg-violet-500/15 text-violet-400",
   PAYMENT_RECEIVED: "bg-sky-500/15 text-sky-400",
   PAYOUT_SCHEDULED: "bg-sky-500/15 text-sky-400",
+  BALANCE_TOPUP: "bg-sky-500/15 text-sky-400",
+  CARD_LINKED: "bg-sky-500/15 text-sky-400",
+  CARD_REMOVED: "bg-sky-500/15 text-sky-400",
 };
 
 function relTime(iso: string): string {
@@ -104,25 +106,30 @@ const POLL_MS = 30_000;
 export function NotificationBell({ variant = "header" }: NotificationBellProps) {
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/notifications", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("NOTIFICATIONS_FAILED");
       const d = await res.json();
       setNotifications(d.notifications ?? []);
     } catch {
-      /* ignore network hiccups */
+      setError("Не удалось загрузить уведомления");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   // Initial load + polling
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Initial async refresh is the notification subscription bootstrap.
     load();
     const t = setInterval(load, POLL_MS);
     return () => clearInterval(t);
@@ -130,7 +137,6 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
 
   // Refresh on open (best-effort immediacy)
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Opening the bell intentionally refreshes async data.
     if (open) load();
   }, [open, load]);
 
@@ -205,7 +211,20 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
           </div>
 
           <div className="max-h-[360px] overflow-y-auto overscroll-contain">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center" data-testid="notification-bell-loading">
+                <Bell className="h-8 w-8 animate-pulse text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">Загружаем уведомления...</p>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center gap-3 px-4 py-10 text-center" data-testid="notification-bell-error">
+                <Info className="h-8 w-8 text-amber-400/70" />
+                <p className="text-sm text-muted-foreground">{error}</p>
+                <button onClick={load} className="rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                  Повторить
+                </button>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
                 <Bell className="h-8 w-8 text-muted-foreground/30" />
                 <p className="text-sm text-muted-foreground">Нет уведомлений</p>
