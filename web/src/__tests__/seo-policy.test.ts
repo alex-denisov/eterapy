@@ -39,6 +39,8 @@ describe("v5 SEO routing policy", () => {
     expect(body).not.toContain("admin.eterapy.com");
     expect(body).not.toContain("/cabinet");
     expect(body).not.toContain("/api");
+    expect(body).not.toContain("/modalities");
+    expect(body).not.toContain("/tools");
 
     for (const route of publicSeoRoutes) {
       expect(body).toContain(`<loc>${canonicalUrl(route)}</loc>`);

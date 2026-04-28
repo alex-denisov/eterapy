@@ -1,1 +1,6 @@
-import { redirect } from "next/navigation"; export default function R() { redirect("/all-modalities"); }
+import { permanentRedirect } from "next/navigation";
+import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
+
+export default function Redirect() {
+  permanentRedirect(legacyPublicRedirect("/tools") ?? "/all-modalities");
+}
