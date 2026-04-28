@@ -4,7 +4,7 @@ import db from "@/lib/db";
 import { sendEmail } from "@/lib/email-send";
 import { enqueueJob, type JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
-import { sendTelegram } from "@/lib/telegram";
+import { getTelegramRuntimeConfig, sendTelegram } from "@/lib/telegram";
 import type { NotifEvent } from "@/lib/notification-events";
 
 export const NOTIFICATION_DELIVERY_JOB_TYPE = "notification.delivery";
@@ -75,7 +75,19 @@ export async function handleNotificationDeliveryJob(job: Job): Promise<JobResult
 
   if (payload.channel === "TELEGRAM") {
     if (!payload.recipient.telegramId) throw new Error("Missing Telegram recipient");
-    await sendTelegram(payload.recipient.telegramId, formatTelegramMessage(event, payload.recipient.name ?? "", payload.data));
+    try {
+      await sendTelegram(payload.recipient.telegramId, formatTelegramMessage(event, payload.recipient.name ?? "", payload.data));
+    } catch (err) {
+      log.error("notification-telegram-delivery-failed", {
+        requestId: payload.requestId,
+        jobId: job.id,
+        event,
+        userId: payload.userId,
+        telegram: getTelegramRuntimeConfig(),
+        error: serializeError(err),
+      });
+      throw err;
+    }
   }
 
   if (payload.channel === "WEB") {

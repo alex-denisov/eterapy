@@ -8,7 +8,8 @@ import {
 } from "@/lib/notification-delivery";
 import { enqueueJob } from "@/lib/job-queue";
 import { sendEmail } from "@/lib/email-send";
-import { sendTelegram } from "@/lib/telegram";
+import { getTelegramRuntimeConfig, sendTelegram } from "@/lib/telegram";
+import { log } from "@/lib/logger";
 import db from "@/lib/db";
 
 jest.mock("@/lib/job-queue", () => ({
@@ -27,6 +28,11 @@ jest.mock("@/lib/email-send", () => ({
 
 jest.mock("@/lib/telegram", () => ({
   __esModule: true,
+  getTelegramRuntimeConfig: jest.fn(() => ({
+    configured: true,
+    apiBaseHost: "tg-relay.example.com",
+    usingRelay: true,
+  })),
   sendTelegram: jest.fn(),
 }));
 
@@ -52,6 +58,7 @@ jest.mock("@/lib/logger", () => ({
 const mockEnqueueJob = enqueueJob as jest.MockedFunction<typeof enqueueJob>;
 const mockSendEmail = sendEmail as jest.MockedFunction<typeof sendEmail>;
 const mockSendTelegram = sendTelegram as jest.MockedFunction<typeof sendTelegram>;
+const mockGetTelegramRuntimeConfig = getTelegramRuntimeConfig as jest.MockedFunction<typeof getTelegramRuntimeConfig>;
 
 function job(payload: unknown) {
   return {
@@ -144,6 +151,32 @@ describe("notification delivery jobs", () => {
         title: "Запись подтверждена",
       }),
     });
+  });
+
+  it("logs Telegram relay diagnostics and retries through the worker policy on outage", async () => {
+    mockSendTelegram.mockRejectedValueOnce(new Error("Telegram relay timeout"));
+
+    await expect(handleNotificationDeliveryJob(job({
+      userId: "user-1",
+      event: "BOOKING_CONFIRMED",
+      channel: "TELEGRAM",
+      data: { date: "29.04", time: "10:00" },
+      recipient: { email: "user@example.com", name: "User", telegramId: "tg-1" },
+      requestId: "req-1",
+    }))).rejects.toThrow("Telegram relay timeout");
+
+    expect(mockGetTelegramRuntimeConfig).toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith("notification-telegram-delivery-failed", expect.objectContaining({
+      requestId: "req-1",
+      jobId: "job-1",
+      event: "BOOKING_CONFIRMED",
+      userId: "user-1",
+      telegram: {
+        configured: true,
+        apiBaseHost: "tg-relay.example.com",
+        usingRelay: true,
+      },
+    }));
   });
 
   it("queues enabled channels from notify instead of sending inline", async () => {

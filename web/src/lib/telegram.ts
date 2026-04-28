@@ -18,6 +18,21 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const API_BASE = process.env.TELEGRAM_API_BASE?.trim()
   || `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+export function getTelegramRuntimeConfig() {
+  let apiBaseHost = "invalid";
+  try {
+    apiBaseHost = new URL(API_BASE).host;
+  } catch {
+    apiBaseHost = "invalid";
+  }
+
+  return {
+    configured: Boolean(BOT_TOKEN),
+    apiBaseHost,
+    usingRelay: Boolean(process.env.TELEGRAM_API_BASE?.trim()),
+  };
+}
+
 /** Отправляет сообщение в Telegram-чат. chatId — строка (telegramId пользователя) */
 export async function sendTelegram(chatId: string, text: string): Promise<void> {
   if (!BOT_TOKEN) {
