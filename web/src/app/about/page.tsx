@@ -117,10 +117,10 @@ export default function AboutPage() {
 
         {/* CTA */}
         <div className="text-center space-y-4 pt-4">
-          <p className="text-muted-foreground">Готовы познакомиться с нашими практиками?</p>
+          <p className="text-muted-foreground">Готовы начать с вопроса и понятного следующего шага?</p>
           <div className="flex gap-3 justify-center">
-            <Link href="/practitioners" className={cn(buttonVariants(), "px-6")}>
-              Найти практика
+            <Link href="/all-modalities/checkin" className={cn(buttonVariants(), "px-6")}>
+              Задать вопрос
             </Link>
             <Link href="/practitioners/apply" className={cn(buttonVariants({ variant: "outline" }), "px-6")}>
               Стать практиком

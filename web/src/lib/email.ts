@@ -247,9 +247,9 @@ export async function sendBookingCancelledClient(d: BookingEmailData, cancelledB
       <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">
         Запись к <strong style="color:#f8fafc">${d.practitionerName}</strong> (${d.slotStr}) была отменена
         ${cancelledBy === "practitioner" ? "практиком" : "вами"}.
-        ${cancelledBy === "practitioner" ? "Мы сожалеем о неудобстве. Вы можете записаться снова или выбрать другого практика." : ""}
+        ${cancelledBy === "practitioner" ? "Мы сожалеем о неудобстве. Вы можете вернуться к вопросу и выбрать следующий шаг заново." : ""}
       </p>
-      ${btn(`${APP_URL}/practitioners`, "Найти практика")}
+      ${btn(`${APP_URL}/all-modalities/checkin`, "Задать новый вопрос")}
     `),
   });
 }

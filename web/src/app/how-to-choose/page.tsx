@@ -118,18 +118,18 @@ export default function HowToChoosePage() {
         <section className="rounded-xl border border-primary/20 bg-primary/5 p-6">
           <h2 className="font-heading text-lg font-semibold mb-3">💡 Сначала попробуйте направления самопознания</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Не уверены нужен ли вам практик? Начните с наших бесплатных направлений:
-            таро, натальная карта, нумерология — без регистрации, 3 расклада в месяц.
+            Не уверены нужен ли вам практик? Начните с бесплатного вопроса:
+            ETerapy уточнит контекст и предложит следующий шаг без давления.
           </p>
-          <Link href="/all-modalities" className={cn(buttonVariants(), "text-sm")}>
-            Открыть направления →
+          <Link href="/all-modalities/checkin" className={cn(buttonVariants(), "text-sm")}>
+            Задать вопрос →
           </Link>
         </section>
 
         {/* CTA */}
         <div className="text-center pt-4">
-          <Link href="/practitioners" className={cn(buttonVariants(), "px-8 py-3 text-base")}>
-            Найти практика в каталоге
+          <Link href="/all-modalities/checkin" className={cn(buttonVariants(), "px-8 py-3 text-base")}>
+            Получить первичный ответ
           </Link>
         </div>
       </div>

@@ -94,7 +94,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
         ${greeting}
         ${infoBox(row("Дата", data.date) + row("Время", data.time).replace("margin:0 0 16px", "margin:0"), "rgba(239,68,68,0.2)")}
         ${data.reason ? `<p style="margin:0 0 28px;color:#94a3b8">Причина: ${data.reason}</p>` : ""}
-        ${btn(`${BASE_URL}/practitioners`, "Найти практика")}
+        ${btn(`${BASE_URL}/all-modalities/checkin`, "Задать новый вопрос")}
       `;
     case "BOOKING_REMINDER":
       return `

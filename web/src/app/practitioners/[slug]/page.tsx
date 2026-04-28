@@ -86,7 +86,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
       <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/" className="hover:text-foreground">Главная</Link>
         <span>/</span>
-        <Link href="/practitioners" className="hover:text-foreground">Каталог</Link>
+        <Link href="/practitioners" className="hover:text-foreground">Специалисты</Link>
         <span>/</span>
         <span className="text-foreground">{p.user.name}</span>
       </nav>

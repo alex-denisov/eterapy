@@ -1,51 +1,45 @@
 import Link from "next/link";
+import { FileText, Layers3, MessageSquareText, Route, ShieldCheck, UsersRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
 const tools = [
   {
-    icon: "💬",
+    icon: MessageSquareText,
     title: "Первичный ответ",
     description: "Question-first диалог: 2-5 уточнений, краткое отражение и безопасный следующий шаг.",
-    tag: "Старт v5",
-    href: "/all-modalities/checkin",
+    href: "/products/primary-answer",
   },
   {
-    icon: "🃏",
-    title: "Расклад Таро",
-    description: "Три карты на ваш вопрос с развёрнутой интерпретацией. Классическая колода Райдера-Уэйта.",
-    tag: "Популярное",
-    href: "/all-modalities/tarot",
+    icon: Layers3,
+    title: "4 ракурса",
+    description: "Рациональный, эмоциональный, символический и практический взгляд на один вопрос.",
+    href: "/products/perspectives",
   },
   {
-    icon: "⭐",
-    title: "Натальная карта",
-    description: "Полная карта вашего рождения по западной астрологии. Планеты, дома, аспекты — с описанием.",
-    tag: "Астрология",
-    href: "/all-modalities/natal",
+    icon: FileText,
+    title: "Глубокий отчет",
+    description: "Развернутый результат по ситуации, доступный после оплаты или по подписке.",
+    href: "/products/deep-report",
   },
   {
-    icon: "🔢",
-    title: "Нумерология",
-    description: "Число жизненного пути, число выражения и личности по системе Пифагора.",
-    tag: "Быстро",
-    href: "/all-modalities/numerology",
+    icon: ShieldCheck,
+    title: "Разбор переписки",
+    description: "Приватный анализ с явным согласием, предупреждением о данных и удалением источника.",
+    href: "/products/chat-analysis",
   },
   {
-    icon: "🌙",
-    title: "Гороскоп",
-    description: "Персонализированный прогноз на день, неделю или месяц на основе текущих транзитов.",
-    tag: "Ежедневно",
-    href: "/all-modalities/horoscope",
+    icon: UsersRound,
+    title: "Совместимость",
+    description: "Парный сценарий с invite flow и согласием второго участника до результата.",
+    href: "/products/compatibility",
   },
   {
-    icon: "📖",
-    title: "Личный гид",
-    description: "Короткая анкета → персональный текст по теме вашего запроса. Глубже, чем стандартный гороскоп.",
-    tag: "Наша разработка",
-    href: "/all-modalities/guide",
+    icon: Route,
+    title: "7 дней к ясности",
+    description: "Мягкий маршрут с ежедневными шагами, напоминаниями и итоговым отчетом.",
+    href: "/products/seven-days",
   },
 ];
 
@@ -61,8 +55,8 @@ export function AIToolsSection() {
         </p>
 
         <div className="mt-8 text-center">
-          <Link href="/all-modalities" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
-            Все сервисы →
+          <Link href="/products" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
+            Все продукты →
           </Link>
         </div>
 
@@ -71,15 +65,7 @@ export function AIToolsSection() {
             <Link key={tool.title} href={tool.href}>
               <Card className="group h-full cursor-pointer border-border/40 bg-card/50 transition-colors hover:border-primary/30">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <span className="text-3xl">{tool.icon}</span>
-                    <Badge
-                      variant="secondary"
-                      className="bg-primary/10 text-xs text-primary"
-                    >
-                      {tool.tag}
-                    </Badge>
-                  </div>
+                  <tool.icon className="size-5 text-primary" />
                   <h3 className="mt-4 text-lg font-semibold">{tool.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                     {tool.description}
