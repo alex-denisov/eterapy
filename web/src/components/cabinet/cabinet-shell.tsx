@@ -75,15 +75,16 @@ export function CabinetShell({
   const mobileNav = nav.slice(0, 4);
 
   return (
-    <div data-testid="app-shell" className="flex min-h-screen bg-background">
+    <div data-testid="app-shell" data-shell-role={role} className="flex min-h-screen bg-background">
       {/* Sidebar — sticky, own scroll */}
       <aside
         data-testid="app-shell-sidebar"
+        data-shell-role={role}
         className="sticky hidden h-[calc(100vh-var(--header-height))] w-56 shrink-0 flex-col overflow-y-auto border-r border-border/20 bg-card/45 px-3 py-6 shadow-[var(--shadow-surface)] md:flex"
         style={{ top: "var(--header-height)" }}
       >
         {/* User badge + Notifications */}
-        <div className="mb-6 px-2">
+        <div className="mb-6 px-2" data-testid="app-shell-user">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand-warm-gold/15 text-sm font-semibold text-brand-soft-gold">
               {initial}
