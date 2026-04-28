@@ -1,17 +1,30 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { getEventsForRole, type UserRole } from "@/lib/notification-events";
+import {
+  getEventsForRole,
+  NOTIFICATION_CATEGORY_META,
+  type NotificationCategory,
+  type UserRole,
+} from "@/lib/notification-events";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 type Channel = "EMAIL" | "TELEGRAM" | "WEB";
 
 interface Pref {
   event: string;
+  category?: NotificationCategory;
   channel: Channel;
   enabled: boolean;
   remindBeforeHours: (number | null)[];
+}
+
+interface QuietHours {
+  enabled: boolean;
+  from: string;
+  to: string;
+  timezone: string;
 }
 
 interface TelegramStatus {
@@ -26,7 +39,6 @@ const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
   { value: 24,   label: "24 ч" },
   { value: 2,    label: "2 ч" },
   { value: 1,    label: "1 ч" },
-  { value: 0.25, label: "15 мин" },
 ];
 
 const EVENT_META: Record<string, { label: string; description: string }> = {};
@@ -54,6 +66,12 @@ function TelegramIcon({ className }: { className?: string }) {
 
 export function NotificationSettings({ telegramStatus, role }: { telegramStatus: TelegramStatus; role: UserRole }) {
   const [prefs, setPrefs] = useState<Pref[]>([]);
+  const [quietHours, setQuietHours] = useState<QuietHours>({
+    enabled: false,
+    from: "22:00",
+    to: "09:00",
+    timezone: "Europe/Moscow",
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tgStatus, setTgStatus] = useState(telegramStatus);
@@ -73,7 +91,11 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   useEffect(() => {
     fetch("/api/notifications/preferences")
       .then(r => r.json())
-      .then(d => { setPrefs(d.prefs ?? []); setLoading(false); });
+      .then(d => {
+        setPrefs(d.prefs ?? []);
+        if (d.quietHours) setQuietHours(d.quietHours);
+        setLoading(false);
+      });
   }, []);
 
   const applyTelegramStatus = useCallback((d: TelegramStatus) => {
@@ -181,6 +203,21 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     });
   }
 
+  function setCategoryChannel(category: NotificationCategory, channel: Channel, enabled: boolean) {
+    const categoryEvents = events
+      .filter(event => event.category === category)
+      .map(event => event.event);
+    setPrefs(prev => {
+      const next = [...prev];
+      for (const event of categoryEvents) {
+        const index = next.findIndex(p => p.event === event && p.channel === channel);
+        if (index >= 0) next[index] = { ...next[index], enabled };
+        else next.push({ event, category, channel, enabled, remindBeforeHours: [] });
+      }
+      return next;
+    });
+  }
+
   function toggleReminder(event: string, channel: Channel, value: number | null) {
     const current = getPref(event, channel)?.remindBeforeHours ?? [];
     const updated = current.includes(value)
@@ -194,7 +231,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     const res = await fetch("/api/notifications/preferences", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prefs }),
+      body: JSON.stringify({ prefs, quietHours }),
     });
     if ((await res.json()).ok) toast.success("Настройки уведомлений сохранены");
     else toast.error("Ошибка сохранения");
@@ -242,9 +279,18 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     }
   }
 
-  if (loading) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем настройки...</div>;
+  const events = useMemo(() => getEventsForRole(role), [role]);
+  const groupedEvents = useMemo(() => {
+    const groups = new Map<NotificationCategory, typeof events>();
+    for (const event of events) {
+      const group = groups.get(event.category) ?? [];
+      group.push(event);
+      groups.set(event.category, group);
+    }
+    return Array.from(groups.entries());
+  }, [events]);
 
-  const events = getEventsForRole(role);
+  if (loading) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем настройки...</div>;
 
   return (
     <div className="space-y-6">
@@ -306,6 +352,52 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
         </div>
       </div>
 
+      <div className="rounded-xl border border-border/30 bg-card/20 p-5" data-testid="notification-quiet-hours">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="font-semibold">Тихие часы</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground/70">
+              В это время не показываем некритичные push-уведомления; срочные события останутся в кабинете.
+            </p>
+          </div>
+          <ToggleSwitch
+            enabled={quietHours.enabled}
+            onToggle={() => setQuietHours(prev => ({ ...prev, enabled: !prev.enabled }))}
+            label="Тихие часы"
+          />
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <label className="text-xs text-muted-foreground/70">
+            С
+            <input
+              type="time"
+              value={quietHours.from}
+              onChange={e => setQuietHours(prev => ({ ...prev, from: e.target.value }))}
+              className="mt-1 block w-full rounded-lg border border-border/40 bg-card/60 px-3 py-2 text-sm text-foreground"
+            />
+          </label>
+          <label className="text-xs text-muted-foreground/70">
+            До
+            <input
+              type="time"
+              value={quietHours.to}
+              onChange={e => setQuietHours(prev => ({ ...prev, to: e.target.value }))}
+              className="mt-1 block w-full rounded-lg border border-border/40 bg-card/60 px-3 py-2 text-sm text-foreground"
+            />
+          </label>
+          <label className="text-xs text-muted-foreground/70">
+            Часовой пояс
+            <input
+              type="text"
+              value={quietHours.timezone}
+              onChange={e => setQuietHours(prev => ({ ...prev, timezone: e.target.value }))}
+              className="mt-1 block w-full rounded-lg border border-border/40 bg-card/60 px-3 py-2 text-sm text-foreground"
+              placeholder="Europe/Moscow"
+            />
+          </label>
+        </div>
+      </div>
+
       {/* Матрица событий */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -317,89 +409,120 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
-          {events.map(({ event }) => {
-            const meta = EVENT_META[event];
-            if (!meta) return null;
-
-            const emailPref = getPref(event, "EMAIL");
-            const tgPref = getPref(event, "TELEGRAM");
-            const webPref = getPref(event, "WEB");
-            const emailEnabled = emailPref ? emailPref.enabled : true;
-            const tgEnabled = tgPref ? tgPref.enabled : false;
-            const webEnabled = webPref ? webPref.enabled : true;
-            const isReminder = event === "BOOKING_REMINDER";
-
+        <div className="space-y-3" data-testid="notification-category-preferences">
+          {groupedEvents.map(([category, categoryEvents]) => {
+            const categoryMeta = NOTIFICATION_CATEGORY_META[category];
             return (
-              <div key={event} className="flex items-center gap-4 px-4 py-3 hover:bg-white/2 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{meta.label}</p>
-                  <p className="text-xs text-muted-foreground/70">{meta.description}</p>
-                  {isReminder && (emailEnabled || tgEnabled || webEnabled) && (
-                    <div className="mt-2 flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-muted-foreground/70">До начала сессии:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {REMINDER_OPTIONS.map(opt => {
-                          const currentVals = [
-                            ...(emailPref?.remindBeforeHours ?? []),
-                            ...(tgPref?.remindBeforeHours ?? []),
-                            ...(webPref?.remindBeforeHours ?? []),
-                          ];
-                          const isActive = currentVals.includes(opt.value);
-                          return (
-                            <button
-                              key={String(opt.value)}
-                              onClick={() => {
-                                toggleReminder(event, "EMAIL", opt.value);
-                                toggleReminder(event, "TELEGRAM", opt.value);
-                                toggleReminder(event, "WEB", opt.value);
+              <section key={category} className="overflow-hidden rounded-xl border border-border/30">
+                <div className="flex flex-col gap-3 border-b border-border/10 bg-card/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">{categoryMeta.label}</p>
+                    <p className="text-xs text-muted-foreground/70">{categoryMeta.description}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {(["EMAIL", "TELEGRAM", "WEB"] as const).map(channel => (
+                      <button
+                        key={channel}
+                        type="button"
+                        onClick={() => {
+                          const allEnabled = categoryEvents.every(({ event }) => getPref(event, channel)?.enabled ?? channel !== "TELEGRAM");
+                          if (channel === "TELEGRAM" && !tgStatus.linked && !allEnabled) {
+                            toast("Сначала привяжите Telegram-аккаунт", { icon: "ℹ️" });
+                            return;
+                          }
+                          setCategoryChannel(category, channel, !allEnabled);
+                        }}
+                        className="rounded-lg border border-border/40 px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        {channel === "EMAIL" ? "Email" : channel === "TELEGRAM" ? "Telegram" : "Web"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="divide-y divide-border/10">
+                  {categoryEvents.map(({ event }) => {
+                    const meta = EVENT_META[event];
+                    if (!meta) return null;
+
+                    const emailPref = getPref(event, "EMAIL");
+                    const tgPref = getPref(event, "TELEGRAM");
+                    const webPref = getPref(event, "WEB");
+                    const emailEnabled = emailPref ? emailPref.enabled : true;
+                    const tgEnabled = tgPref ? tgPref.enabled : false;
+                    const webEnabled = webPref ? webPref.enabled : true;
+                    const isReminder = event === "BOOKING_REMINDER";
+
+                    return (
+                      <div key={event} className="flex items-center gap-4 px-4 py-3 hover:bg-white/2 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">{meta.label}</p>
+                          <p className="text-xs text-muted-foreground/70">{meta.description}</p>
+                          {isReminder && (emailEnabled || tgEnabled || webEnabled) && (
+                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                              <span className="text-xs text-muted-foreground/70">До начала сессии:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {REMINDER_OPTIONS.map(opt => {
+                                  const currentVals = [
+                                    ...(emailPref?.remindBeforeHours ?? []),
+                                    ...(tgPref?.remindBeforeHours ?? []),
+                                    ...(webPref?.remindBeforeHours ?? []),
+                                  ];
+                                  const isActive = currentVals.includes(opt.value);
+                                  return (
+                                    <button
+                                      key={String(opt.value)}
+                                      onClick={() => {
+                                        toggleReminder(event, "EMAIL", opt.value);
+                                        toggleReminder(event, "TELEGRAM", opt.value);
+                                        toggleReminder(event, "WEB", opt.value);
+                                      }}
+                                      className={`rounded px-2 py-0.5 text-[11px] transition-colors ${
+                                        isActive ? "bg-primary/20 text-primary font-medium" : "bg-card/40 text-muted-foreground hover:text-foreground"
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-3 shrink-0">
+                          <div className="w-20 flex items-center justify-center">
+                            <ToggleSwitch
+                              enabled={emailEnabled}
+                              onToggle={() => updatePref(event, "EMAIL", { enabled: !emailEnabled })}
+                              label={`Email: ${meta.label}`}
+                            />
+                          </div>
+                          <div className="w-20 flex items-center justify-center">
+                            <ToggleSwitch
+                              enabled={tgEnabled}
+                              disabled={!tgStatus.linked && !tgEnabled}
+                              onToggle={() => {
+                                if (!tgStatus.linked && !tgEnabled) {
+                                  toast("Сначала привяжите Telegram-аккаунт", { icon: "ℹ️" });
+                                  return;
+                                }
+                                updatePref(event, "TELEGRAM", { enabled: !tgEnabled });
                               }}
-                              className={`rounded px-2 py-0.5 text-[11px] transition-colors ${
-                                isActive ? "bg-primary/20 text-primary font-medium" : "bg-card/40 text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              {opt.label}
-                            </button>
-                          );
-                        })}
+                              label={`Telegram: ${meta.label}`}
+                            />
+                          </div>
+                          <div className="w-20 flex items-center justify-center">
+                            <ToggleSwitch
+                              enabled={webEnabled}
+                              onToggle={() => updatePref(event, "WEB", { enabled: !webEnabled })}
+                              label={`Web: ${meta.label}`}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-                <div className="flex gap-3 shrink-0">
-                  {/* Email toggle */}
-                  <div className="w-20 flex items-center justify-center">
-                    <ToggleSwitch
-                      enabled={emailEnabled}
-                      onToggle={() => updatePref(event, "EMAIL", { enabled: !emailEnabled })}
-                      label={`Email: ${meta.label}`}
-                    />
-                  </div>
-                  {/* Telegram toggle */}
-                  <div className="w-20 flex items-center justify-center">
-                    <ToggleSwitch
-                      enabled={tgEnabled}
-                      disabled={!tgStatus.linked && !tgEnabled}
-                      onToggle={() => {
-                        if (!tgStatus.linked && !tgEnabled) {
-                          toast("Сначала привяжите Telegram-аккаунт", { icon: "ℹ️" });
-                          return;
-                        }
-                        updatePref(event, "TELEGRAM", { enabled: !tgEnabled });
-                      }}
-                      label={`Telegram: ${meta.label}`}
-                    />
-                  </div>
-                  {/* Web (in-cabinet bell) toggle */}
-                  <div className="w-20 flex items-center justify-center">
-                    <ToggleSwitch
-                      enabled={webEnabled}
-                      onToggle={() => updatePref(event, "WEB", { enabled: !webEnabled })}
-                      label={`Web: ${meta.label}`}
-                    />
-                  </div>
-                </div>
-              </div>
+              </section>
             );
           })}
         </div>

@@ -19,87 +19,125 @@ export type NotifEvent =
   | "CARD_REMOVED";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
+export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "system";
+
+export const NOTIFICATION_CATEGORY_META: Record<NotificationCategory, { label: string; description: string }> = {
+  booking: {
+    label: "Записи",
+    description: "Создание, подтверждение, отмена и напоминания по сессиям.",
+  },
+  session: {
+    label: "Сессии",
+    description: "Начало и завершение видео-сессии.",
+  },
+  reviews: {
+    label: "Отзывы",
+    description: "Просьбы оставить отзыв и новые отзывы клиентов.",
+  },
+  payments: {
+    label: "Платежи",
+    description: "Баланс, карты, выплаты и платежные события.",
+  },
+  system: {
+    label: "Системные",
+    description: "Операционные уведомления для администраторов.",
+  },
+};
 
 export const ALL_EVENTS: Array<{
   event: NotifEvent;
+  category: NotificationCategory;
   label: string;
   description: string;
   roles: UserRole[];
 }> = [
   {
     event: "BOOKING_REQUESTED",
+    category: "booking",
     label: "Новая запись",
     description: "Когда клиент запросил сессию",
     roles: ["PRACTITIONER"],
   },
   {
     event: "BOOKING_CONFIRMED",
+    category: "booking",
     label: "Запись подтверждена",
     description: "Когда практик подтвердил запись",
     roles: ["CLIENT"],
   },
   {
     event: "BOOKING_CANCELLED",
+    category: "booking",
     label: "Запись отменена",
     description: "Когда сессия была отменена любой стороной",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
     event: "BOOKING_REMINDER",
+    category: "booking",
     label: "Напоминание о сессии",
     description: "До начала сессии",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
     event: "SESSION_STARTED",
+    category: "session",
     label: "Сессия началась",
     description: "Когда открыт видеочат",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
     event: "SESSION_COMPLETED",
+    category: "session",
     label: "Сессия завершена",
     description: "После окончания сессии",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
     event: "REVIEW_REQUESTED",
+    category: "reviews",
     label: "Просьба оставить отзыв",
     description: "После завершённой сессии",
     roles: ["CLIENT"],
   },
   {
     event: "NEW_REVIEW",
+    category: "reviews",
     label: "Новый отзыв",
     description: "Когда клиент оставил отзыв",
     roles: ["PRACTITIONER"],
   },
   {
     event: "PAYMENT_RECEIVED",
+    category: "payments",
     label: "Платёж получен",
     description: "Подтверждение оплаты",
     roles: ["PRACTITIONER"],
   },
   {
     event: "PAYOUT_SCHEDULED",
+    category: "system",
     label: "Запланированная выплата",
     description: "Сводка по выплатам практикам на 1-е и 15-е число",
     roles: ["SUPERADMIN"],
   },
   {
     event: "BALANCE_TOPUP",
+    category: "payments",
     label: "Пополнение баланса",
     description: "Успешное пополнение кошелька",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
     event: "CARD_LINKED",
+    category: "payments",
     label: "Карта привязана",
     description: "Новая карта добавлена для быстрой оплаты",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
     event: "CARD_REMOVED",
+    category: "payments",
     label: "Карта отвязана",
     description: "Привязанная карта удалена",
     roles: ["CLIENT", "PRACTITIONER"],
