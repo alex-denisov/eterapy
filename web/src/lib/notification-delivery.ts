@@ -7,6 +7,9 @@ import { log, serializeError } from "@/lib/logger";
 import { sendTelegram } from "@/lib/telegram";
 import type { NotifEvent } from "@/lib/notification-events";
 
+export const NOTIFICATION_DELIVERY_JOB_TYPE = "notification.delivery";
+export const NOTIFICATION_DELIVERY_MAX_ATTEMPTS = 3;
+
 const deliveryPayloadSchema = z.object({
   userId: z.string().min(1),
   event: z.string().min(1),
@@ -43,10 +46,10 @@ export async function queueNotificationDelivery(input: QueueNotificationDelivery
   };
 
   return enqueueJob({
-    type: "notification.delivery",
+    type: NOTIFICATION_DELIVERY_JOB_TYPE,
     queue: "default",
     payload,
-    maxAttempts: 3,
+    maxAttempts: NOTIFICATION_DELIVERY_MAX_ATTEMPTS,
     requestId: input.requestId,
   });
 }

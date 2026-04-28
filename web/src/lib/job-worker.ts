@@ -3,7 +3,10 @@ import db from "@/lib/db";
 import { claimNextJob, completeJob, failJob, releaseStaleJobs, type JobResult } from "@/lib/job-queue";
 import { log } from "@/lib/logger";
 import { CRON_JOB_HANDLERS } from "@/lib/cron-jobs";
-import { handleNotificationDeliveryJob } from "@/lib/notification-delivery";
+import {
+  handleNotificationDeliveryJob,
+  NOTIFICATION_DELIVERY_JOB_TYPE,
+} from "@/lib/notification-delivery";
 
 const DEFAULT_POLL_MS = 2_000;
 const DEFAULT_STALE_AFTER_MS = 10 * 60_000;
@@ -34,7 +37,7 @@ export const JOB_HANDLERS: JobHandlers = {
     ok: true,
     jobId: job.id,
   }),
-  "notification.delivery": handleNotificationDeliveryJob,
+  [NOTIFICATION_DELIVERY_JOB_TYPE]: handleNotificationDeliveryJob,
   ...CRON_JOB_HANDLERS,
 };
 

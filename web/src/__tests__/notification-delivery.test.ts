@@ -2,6 +2,8 @@ import { JOB_HANDLERS } from "@/lib/job-worker";
 import { notify } from "@/lib/notifications";
 import {
   handleNotificationDeliveryJob,
+  NOTIFICATION_DELIVERY_JOB_TYPE,
+  NOTIFICATION_DELIVERY_MAX_ATTEMPTS,
   queueNotificationDelivery,
 } from "@/lib/notification-delivery";
 import { enqueueJob } from "@/lib/job-queue";
@@ -56,7 +58,7 @@ function job(payload: unknown) {
     id: "job-1",
     payload,
     queue: "default",
-    type: "notification.delivery",
+    type: NOTIFICATION_DELIVERY_JOB_TYPE,
     attempts: 1,
     maxAttempts: 3,
   } as never;
@@ -72,7 +74,7 @@ describe("notification delivery jobs", () => {
   });
 
   it("registers a durable worker handler for notification deliveries", () => {
-    expect(JOB_HANDLERS["notification.delivery"]).toBe(handleNotificationDeliveryJob);
+    expect(JOB_HANDLERS[NOTIFICATION_DELIVERY_JOB_TYPE]).toBe(handleNotificationDeliveryJob);
   });
 
   it("queues notification delivery attempts as durable jobs", async () => {
@@ -86,9 +88,9 @@ describe("notification delivery jobs", () => {
     });
 
     expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
-      type: "notification.delivery",
+      type: NOTIFICATION_DELIVERY_JOB_TYPE,
       queue: "default",
-      maxAttempts: 3,
+      maxAttempts: NOTIFICATION_DELIVERY_MAX_ATTEMPTS,
       requestId: "req-1",
       payload: expect.objectContaining({
         userId: "user-1",
@@ -112,6 +114,18 @@ describe("notification delivery jobs", () => {
       event: "BOOKING_CONFIRMED",
       data: { date: "29.04", time: "10:00" },
     }));
+  });
+
+  it("lets email adapter failures bubble to the worker retry policy", async () => {
+    mockSendEmail.mockRejectedValueOnce(new Error("resend unavailable"));
+
+    await expect(handleNotificationDeliveryJob(job({
+      userId: "user-1",
+      event: "BOOKING_CONFIRMED",
+      channel: "EMAIL",
+      data: { date: "29.04", time: "10:00" },
+      recipient: { email: "user@example.com", name: "User" },
+    }))).rejects.toThrow("resend unavailable");
   });
 
   it("persists web delivery jobs as in-cabinet notifications", async () => {
@@ -159,5 +173,29 @@ describe("notification delivery jobs", () => {
     }));
     expect(mockSendEmail).not.toHaveBeenCalled();
     expect(mockSendTelegram).not.toHaveBeenCalled();
+  });
+
+  it("does not queue email delivery when the user disabled the email preference", async () => {
+    (db.user.findUnique as jest.Mock).mockResolvedValue({
+      email: "user@example.com",
+      name: "User",
+      telegramId: null,
+    });
+    (db.notificationPreference.findUnique as jest.Mock).mockImplementation(({ where }) => {
+      const channel = where.userId_event_channel.channel;
+      return Promise.resolve({ enabled: channel === "WEB" });
+    });
+
+    await notify({
+      userId: "user-1",
+      event: "BOOKING_CONFIRMED",
+      data: { date: "29.04", time: "10:00" },
+      requestId: "req-1",
+    });
+
+    expect(mockEnqueueJob).toHaveBeenCalledTimes(1);
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      payload: expect.objectContaining({ channel: "WEB" }),
+    }));
   });
 });
