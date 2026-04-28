@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import { encode as jwtEncode } from "next-auth/jwt";
 import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 import { homeUrlForRole, loginUrl } from "@/lib/subdomain";
+import { log, serializeError } from "@/lib/logger";
 
 /**
  * VK ID Token Exchange endpoint (GET).
@@ -23,9 +24,6 @@ export async function GET(request: NextRequest) {
 
   // Read code_verifier from cookie (set by VKIDButton)
   const codeVerifier = request.cookies.get("vk_code_verifier")?.value || "";
-  console.log("[VK] code:", code ? `${code.slice(0, 20)}...` : "MISSING");
-  console.log("[VK] device_id:", deviceId || "MISSING");
-  console.log("[VK] code_verifier from cookie:", codeVerifier ? `${codeVerifier.slice(0, 20)}...` : "MISSING");
 
   try {
     // Exchange code for token
@@ -38,7 +36,6 @@ export async function GET(request: NextRequest) {
     if (codeVerifier) tokenParams.set("code_verifier", codeVerifier);
     if (deviceId) tokenParams.set("device_id", deviceId);
 
-    console.log("[VK] Exchanging code for token...");
     const tokenRes = await fetch("https://id.vk.com/oauth2/auth", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -47,11 +44,12 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenRes.json();
 
     if (!tokenRes.ok || tokenData.error) {
-      console.error("[VK] Token error:", JSON.stringify(tokenData, null, 2));
+      log.warn("vk-exchange-token-failed", {
+        status: tokenRes.status,
+        errorCode: typeof tokenData.error === "string" ? tokenData.error : undefined,
+      });
       return NextResponse.redirect(new URL(`${loginUrl()}?error=vk_token_error`, request.url));
     }
-
-    console.log("[VK] Token received, user_id:", tokenData.user_id);
 
     // Get email
     let email: string | undefined = tokenData.email;
@@ -71,7 +69,6 @@ export async function GET(request: NextRequest) {
         });
         const data = await res.json();
         email = data.response?.[0]?.email;
-        console.log("[VK] users.get email:", email || "(not found)");
       } catch { /* ignore */ }
     }
 
@@ -87,7 +84,6 @@ export async function GET(request: NextRequest) {
         });
         const data = await res.json();
         email = data.email || data.user?.email;
-        console.log("[VK] userinfo email:", email || "(not found)");
       } catch { /* ignore */ }
     }
 
@@ -217,7 +213,7 @@ export async function GET(request: NextRequest) {
 
     return response;
   } catch (err: any) {
-    console.error("[VK] Exchange error:", err);
+    log.error("vk-exchange-unhandled", { error: serializeError(err) });
     return NextResponse.redirect(new URL(`${loginUrl()}?error=vk_error`, request.url));
   }
 }

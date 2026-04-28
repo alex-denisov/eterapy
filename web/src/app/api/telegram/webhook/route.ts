@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const username = msg.from?.username ?? null;
     const text = msg.text.trim();
 
-    log.info("telegram-webhook-message", { command: text.split(" ")[0], chatId });
+    log.info("telegram-webhook-message", { command: text.split(" ")[0] });
 
     if (text.startsWith("/start")) {
       const token = text.split(" ")[1]?.trim();
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       ]);
 
       const user = await db.user.findUnique({ where: { id: link.userId }, select: { name: true } });
-      log.info("telegram-webhook-linked", { chatId, userId: link.userId });
+      log.info("telegram-webhook-linked", { userId: link.userId });
       await safeSend(chatId,
         `✅ Telegram привязан!\nПривет, ${user?.name ?? ""}! Теперь вы будете получать уведомления ETerapy через Telegram.`
       );
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
         await safeSend(chatId, "Ваш Telegram не привязан ни к одному аккаунту ETerapy.");
       } else {
         await db.user.update({ where: { id: user.id }, data: { telegramId: null, telegramUsername: null } });
-        log.info("telegram-webhook-unlinked", { chatId, userId: user.id });
+        log.info("telegram-webhook-unlinked", { userId: user.id });
         await safeSend(chatId, "✅ Telegram отвязан от аккаунта ETerapy. Уведомления отключены.");
       }
       await completeWebhookEvent(claim.event.id, { result: "stop" });

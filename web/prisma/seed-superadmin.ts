@@ -34,7 +34,7 @@ async function main() {
     update: { role: "ADMIN" },
   });
 
-  console.log("✅ SUPERADMIN: admin@test.eterapy.com / test1234");
-  console.log("✅ ADMIN:      moderator@test.eterapy.com / test1234");
+  console.log("✅ SUPERADMIN account ready: admin@test.eterapy.com");
+  console.log("✅ ADMIN account ready: moderator@test.eterapy.com");
 }
 main().catch(console.error);

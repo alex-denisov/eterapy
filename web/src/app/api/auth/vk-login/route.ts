@@ -6,6 +6,7 @@ import { encode as jwtEncode } from "next-auth/jwt";
 import { sanitizeName, sanitizeEmail } from "@/lib/validation";
 import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 import { homePathForRole } from "@/lib/subdomain";
+import { log, serializeError } from "@/lib/logger";
 
 interface VKTokenData {
   access_token: string;
@@ -48,7 +49,6 @@ export async function POST(request: NextRequest) {
         tokenParams.set("code_verifier", code_verifier);
         if (device_id) tokenParams.set("device_id", device_id);
 
-        console.log("[VK] Exchanging code for token...");
         const tokenRes = await fetch("https://id.vk.com/oauth2/auth", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -56,13 +56,15 @@ export async function POST(request: NextRequest) {
         });
         const data = await tokenRes.json();
         if (!tokenRes.ok || data.error) {
-          console.error("[VK] Token exchange error:", JSON.stringify(data, null, 2));
+          log.warn("vk-token-exchange-failed", {
+            status: tokenRes.status,
+            errorCode: typeof data.error === "string" ? data.error : undefined,
+          });
           return NextResponse.json({ error: data.error_description || data.error || "Token exchange failed" }, { status: 400 });
         }
         tokenData = data as VKTokenData;
-        console.log("[VK] Token received, user_id:", data.user_id);
       } catch (err: unknown) {
-        console.error("[VK] Token exchange exception:", err);
+        log.error("vk-token-exchange-exception", { error: serializeError(err) });
         const message = err instanceof Error ? err.message : "Unknown error";
         return NextResponse.json({ error: "Token exchange failed: " + message }, { status: 500 });
       }
@@ -70,8 +72,6 @@ export async function POST(request: NextRequest) {
 
     let email: string | undefined = tokenData.email;
     const userId = tokenData.user_id || user_id;
-
-    console.log("[VK] tokenData.email:", tokenData.email);
 
     // Получаем email если не пришёл
     if (!email && userId) {
@@ -88,7 +88,6 @@ export async function POST(request: NextRequest) {
         });
         const data = await res.json();
         email = data.response?.[0]?.email;
-        console.log("[VK] users.get email:", email || "(not found)");
       } catch { /* ignore */ }
     }
 
@@ -105,13 +104,11 @@ export async function POST(request: NextRequest) {
         });
         const data = await res.json();
         email = data.email || data.user?.email;
-        console.log("[VK] userinfo email:", email || "(not found)");
       } catch { /* ignore */ }
     }
 
     if (!email && userId) {
       email = `vk${userId}@vk.id`;
-      console.log("[VK] ⚠️ Using placeholder email:", email);
     }
 
     if (!email) {
@@ -144,7 +141,6 @@ export async function POST(request: NextRequest) {
           if (!birthDateStr) birthDateStr = vkUser.bdate;
           if (!avatarUrl) avatarUrl = vkUser.photo_200;
         }
-        console.log("[VK] users.get profile:", JSON.stringify(vkUser));
       } catch { /* ignore */ }
     }
 
@@ -203,14 +199,6 @@ export async function POST(request: NextRequest) {
 
     await logAudit(dbUser.id, "LOGIN", undefined, "OAuth: vk");
 
-    console.log("[VK Login] User:", JSON.stringify({
-      id: dbUser.id,
-      name: dbUser.name,
-      email: dbUser.email,
-      birthDate: dbUser.birthDate,
-      avatarUrl: dbUser.avatarUrl,
-    }));
-
     const token = await jwtEncode({
       token: {
         name: dbUser.name,
@@ -239,7 +227,7 @@ export async function POST(request: NextRequest) {
     });
     return response;
   } catch (err: any) {
-    console.error("[VK Login] Unhandled error:", err);
+    log.error("vk-login-unhandled", { error: serializeError(err) });
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });
   }
 }
