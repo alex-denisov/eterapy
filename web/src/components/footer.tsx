@@ -1,24 +1,32 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
+import { brandAssets } from "@/lib/brand-assets";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border/40 bg-navy">
+    <footer data-testid="public-shell-footer" className="border-t border-border/40 bg-navy">
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid gap-8 md:grid-cols-4">
           <div>
-            <span className="font-heading text-lg font-bold text-primary">ETerapy</span>
+            <Image
+              src={brandAssets.logos.horizontalDark}
+              alt="ETerapy"
+              width={150}
+              height={50}
+              className="h-9 w-auto"
+            />
             <p className="mt-2 text-sm text-muted-foreground">
-              Люди, смыслы и технологии на стороне вашего внутреннего мира.
+              Диалоговая платформа ясности.
             </p>
           </div>
 
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">Клиентам</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><Link href="/practitioners" className="hover:text-foreground">Каталог практиков</Link></li>
-              <li><Link href="/#modalities" className="hover:text-foreground">Направления</Link></li>
-              <li><Link href="/how-to-choose" className="hover:text-foreground">Как выбрать практика</Link></li>
+              <li><Link href="/all-modalities/checkin" className="hover:text-foreground">Задать вопрос</Link></li>
+              <li><Link href="/#modalities" className="hover:text-foreground">Продукты</Link></li>
+              <li><Link href="/how-to-choose" className="hover:text-foreground">Как выбрать следующий шаг</Link></li>
             </ul>
           </div>
 
@@ -35,6 +43,7 @@ export function Footer() {
             <h4 className="mb-3 text-sm font-semibold text-foreground">О проекте</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/about" className="hover:text-foreground">О нас</Link></li>
+              <li><Link href="/#faq" className="hover:text-foreground">FAQ</Link></li>
               <li><Link href="/legal/privacy" className="hover:text-foreground">Политика конфиденциальности</Link></li>
               <li><Link href="/legal/offer" className="hover:text-foreground">Оферта</Link></li>
             </ul>

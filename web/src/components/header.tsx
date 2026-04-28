@@ -10,11 +10,13 @@ import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 import { Wallet, HelpCircle } from "lucide-react";
+import { brandAssets } from "@/lib/brand-assets";
 
 const GUEST_NAV = [
-  { href: "/practitioners", label: "Найти практика" },
-  { href: "/#modalities", label: "Направления" },
-  { href: "/#for-practitioners", label: "Для практиков" },
+  { href: "/all-modalities/checkin", label: "Задать вопрос" },
+  { href: "/#how-it-works", label: "Как работает" },
+  { href: "/#modalities", label: "Продукты" },
+  { href: "/practitioners", label: "Практики" },
   { href: "/#faq", label: "FAQ" },
 ];
 
@@ -209,12 +211,18 @@ export function Header() {
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
+    <header data-testid="public-shell-header" className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href={mainUrl("/")}
-          className="flex items-center gap-2.5 shrink-0">
-          <Image src="/logo.svg" alt="ETerapy" width={28} height={28} />
-          <span className="font-heading text-xl font-bold text-primary">ETerapy</span>
+          className="flex shrink-0 items-center">
+          <Image
+            src={brandAssets.logos.horizontalDark}
+            alt="ETerapy"
+            width={150}
+            height={50}
+            priority
+            className="h-9 w-auto"
+          />
         </Link>
 
         {/* Guest navigation — NEVER shown to authenticated users */}
@@ -267,8 +275,8 @@ export function Header() {
                 className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden text-muted-foreground md:inline-flex")}>
                 Войти
               </Link>
-              <Link href={mainUrl("/register")} className={cn(buttonVariants({ size: "sm" }))}>
-                Начать бесплатно
+              <Link href={mainUrl("/all-modalities/checkin")} className={cn(buttonVariants({ size: "sm" }))}>
+                Задать вопрос
               </Link>
             </>
           ) : (
@@ -316,8 +324,8 @@ export function Header() {
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
                 <Link href={mainUrl("/login")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
-                <Link href={mainUrl("/register")} onClick={() => setMobileOpen(false)}
-                  className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Регистрация</Link>
+                <Link href={mainUrl("/all-modalities/checkin")} onClick={() => setMobileOpen(false)}
+                  className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Задать вопрос</Link>
               </div>
             ) : null}
           </nav>
