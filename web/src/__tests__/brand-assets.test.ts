@@ -39,4 +39,25 @@ describe("brand production assets", () => {
       expect.objectContaining({ src: "/favicon/favicon_512x512.png", sizes: "512x512", type: "image/png" }),
     ]));
   });
+
+  it("keeps old starter and pre-v5 public assets out of the active bundle", () => {
+    const removedLegacyAssets = [
+      "logo.svg",
+      "next.svg",
+      "vercel.svg",
+      "file.svg",
+      "globe.svg",
+      "window.svg",
+      "favicon.svg",
+      "favicon.png",
+    ];
+
+    for (const assetName of removedLegacyAssets) {
+      expect(fs.existsSync(path.join(publicDir, assetName))).toBe(false);
+    }
+
+    expect(fs.readFileSync(publicPath(brandAssets.favicon.ico))).toEqual(
+      fs.readFileSync(path.join(publicDir, "favicon.ico")),
+    );
+  });
 });
