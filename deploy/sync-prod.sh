@@ -134,7 +134,7 @@ ADM_HOME="$(curl -s -o /dev/null -w '%{http_code}' https://admin.eterapy.com || 
 log "eterapy.com/api/health → $HEALTH"
 log "app.eterapy.com        → $APP_HOME"
 log "admin.eterapy.com      → $ADM_HOME"
-WORKER_STATUS="$(ssh "${SSH_OPTS[@]}" "$VPS_HOST" "pm2 jlist" | node -e 'let data=\"\";process.stdin.on(\"data\",c=>data+=c);process.stdin.on(\"end\",()=>{const apps=JSON.parse(data);const w=apps.find(a=>a.name===\"eterapy-worker\");process.stdout.write(w?.pm2_env?.status || \"missing\")})')"
+WORKER_STATUS="$(ssh "${SSH_OPTS[@]}" "$VPS_HOST" "pm2 jlist" | node -e 'let data="";process.stdin.on("data",c=>data+=c);process.stdin.on("end",()=>{const apps=JSON.parse(data);const w=apps.find(a=>a.name==="eterapy-worker");process.stdout.write(w?.pm2_env?.status || "missing")})')"
 log "eterapy-worker PM2    → $WORKER_STATUS"
 
 if [ "$HEALTH" != "200" ]; then
