@@ -3,9 +3,13 @@ import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
 import { validateName, validateEmail } from "@/lib/validation";
+import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    const ipLimit = checkRequestAuthRateLimit(req, "register", 10, 15 * 60_000);
+    if (!ipLimit.allowed) return authRateLimitResponse(ipLimit);
+
     const { email, password, name } = await req.json();
 
     if (!email || !password || !name) {
@@ -17,6 +21,8 @@ export async function POST(req: NextRequest) {
     if (!validateEmail(email)) {
       return NextResponse.json({ error: "Введите корректный email (без символа '+', макс. 50 символов)" }, { status: 400 });
     }
+    const emailLimit = checkAuthRateLimit(authRateLimitKey("register:email", email), 5, 60 * 60_000);
+    if (!emailLimit.allowed) return authRateLimitResponse(emailLimit);
     if (password.length < 8) {
       return NextResponse.json({ error: "Пароль минимум 8 символов" }, { status: 400 });
     }

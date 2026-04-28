@@ -3,6 +3,7 @@ import { usersDb } from '@/lib/users-db';
 import { logAudit } from '@/lib/audit';
 import db from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { resetAuthRateLimitForTests } from '@/lib/auth-rate-limit';
 
 // Mock dependencies
 jest.mock('@/lib/users-db');
@@ -31,6 +32,7 @@ describe('Auth Configuration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetAuthRateLimitForTests();
     delete process.env.ALLOW_PLAINTEXT_PASSWORDS;
   });
 

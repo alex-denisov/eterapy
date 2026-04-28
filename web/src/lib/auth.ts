@@ -6,6 +6,7 @@ import db from "./db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "./audit";
 import { authConfig } from "./auth.config";
+import { authRateLimitKey, checkAuthRateLimit } from "./auth-rate-limit";
 
 type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken", unknown>>;
 
@@ -45,6 +46,8 @@ export async function authorize(credentials: CredentialsInput | undefined) {
   const email = credentials?.email as string;
   const password = credentials?.password as string;
   if (!email || !password) return null;
+  const loginLimit = checkAuthRateLimit(authRateLimitKey("login:email", email), 10, 15 * 60_000);
+  if (!loginLimit.allowed) return null;
 
   const user = await usersDb.get(email);
   if (!user) return null;
