@@ -9,6 +9,7 @@
     "security:sast": "node scripts/security-sast-scan.mjs",
     "security:audit": "node scripts/security-audit-summary.mjs",
     "security:audit:gate": "node scripts/security-audit-summary.mjs --fail-on=high",
+    "security:zap": "bash scripts/security-zap-baseline.sh",
     "security:baseline": "npm run security:secrets && npm run security:sast && npm run security:audit"
   },
   "dependencies": {
