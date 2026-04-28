@@ -15,9 +15,11 @@ set -euo pipefail
 # ── Configuration ────────────────────────────────────────────────────────────
 VPS_HOST="${VPS_HOST:-admin@192.144.14.146}"
 APP_DIR_REMOTE="/home/admin/eterapy/web"
+DEPLOY_DIR_REMOTE="/home/admin/eterapy/deploy"
 DB_CREDS_REMOTE="/home/admin/db-creds.txt"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOCAL_WEB_DIR="$REPO_ROOT/web"
+LOCAL_ECOSYSTEM="$REPO_ROOT/deploy/ecosystem.config.js"
 SSH_KEY="${SSH_KEY:-$REPO_ROOT/deploy/eTerapy_web}"
 SSH_OPTS=(-i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=10)
 
@@ -53,6 +55,10 @@ if [ ! -d "$LOCAL_WEB_DIR" ]; then
   echo "ERROR: $LOCAL_WEB_DIR not found." >&2
   exit 1
 fi
+if [ ! -f "$LOCAL_ECOSYSTEM" ]; then
+  echo "ERROR: $LOCAL_ECOSYSTEM not found." >&2
+  exit 1
+fi
 
 if ! ssh "${SSH_OPTS[@]}" "$VPS_HOST" "test -f $DB_CREDS_REMOTE"; then
   echo "ERROR: $DB_CREDS_REMOTE missing on VPS — bootstrap not complete." >&2
@@ -83,6 +89,10 @@ RSYNC_OPTS=(
 )
 [ "$DRY_RUN" -eq 1 ] && RSYNC_OPTS+=(--dry-run -v)
 
+ssh "${SSH_OPTS[@]}" "$VPS_HOST" "mkdir -p $DEPLOY_DIR_REMOTE"
+ECOSYSTEM_RSYNC_OPTS=(-az -e "ssh -i $SSH_KEY -o IdentitiesOnly=yes")
+[ "$DRY_RUN" -eq 1 ] && ECOSYSTEM_RSYNC_OPTS+=(--dry-run -v)
+rsync "${ECOSYSTEM_RSYNC_OPTS[@]}" "$LOCAL_ECOSYSTEM" "$VPS_HOST:$DEPLOY_DIR_REMOTE/ecosystem.config.js"
 rsync "${RSYNC_OPTS[@]}" "$LOCAL_WEB_DIR/" "$VPS_HOST:$APP_DIR_REMOTE/"
 
 if [ "$DRY_RUN" -eq 1 ]; then
@@ -110,8 +120,8 @@ npx prisma migrate deploy
 echo "▶ next build"
 npm run build
 
-echo "▶ pm2 restart eterapy --update-env"
-pm2 restart eterapy --update-env
+echo "▶ pm2 startOrReload web + worker"
+pm2 startOrReload /home/admin/eterapy/deploy/ecosystem.config.js --update-env
 pm2 save
 REMOTE
 
@@ -124,10 +134,17 @@ ADM_HOME="$(curl -s -o /dev/null -w '%{http_code}' https://admin.eterapy.com || 
 log "eterapy.com/api/health → $HEALTH"
 log "app.eterapy.com        → $APP_HOME"
 log "admin.eterapy.com      → $ADM_HOME"
+WORKER_STATUS="$(ssh "${SSH_OPTS[@]}" "$VPS_HOST" "pm2 jlist" | node -e 'let data=\"\";process.stdin.on(\"data\",c=>data+=c);process.stdin.on(\"end\",()=>{const apps=JSON.parse(data);const w=apps.find(a=>a.name===\"eterapy-worker\");process.stdout.write(w?.pm2_env?.status || \"missing\")})')"
+log "eterapy-worker PM2    → $WORKER_STATUS"
 
 if [ "$HEALTH" != "200" ]; then
   echo "ERROR: health check failed. Inspect logs:" >&2
   echo "  ssh $VPS_HOST 'pm2 logs eterapy --lines 100 --nostream'" >&2
+  exit 1
+fi
+if [ "$WORKER_STATUS" != "online" ]; then
+  echo "ERROR: worker is not online. Inspect logs:" >&2
+  echo "  ssh -i $SSH_KEY -o IdentitiesOnly=yes $VPS_HOST 'pm2 logs eterapy-worker --lines 100 --nostream'" >&2
   exit 1
 fi
 
