@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
 import { loginUrl, mainUrl } from "@/lib/subdomain";
+import { noIndexRobots } from "@/lib/seo";
+
+export const metadata: Metadata = {
+  robots: noIndexRobots,
+};
 
 export default async function CabinetLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

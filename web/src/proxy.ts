@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionFromCookie } from "@/lib/session-from-cookie";
 import { applyRequestContextHeaders, requestContextFromHeaders } from "@/lib/request-context";
+import { shouldNoIndex } from "@/lib/seo";
 
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
@@ -51,6 +52,13 @@ function rewriteWithContext(url: URL, requestHeaders: Headers, context: { reques
   return withRequestContext(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), context);
 }
 
+function applyRobotsPolicy<T extends NextResponse>(response: T, host: string, pathname: string): T {
+  if (shouldNoIndex(host, pathname)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return response;
+}
+
 // Paths that are OK on any subdomain (auth flow, nextauth callbacks at app-route level)
 const ALWAYS_ALLOW = ["/auth/", "/callback/"];
 
@@ -62,21 +70,21 @@ export default async function proxy(request: NextRequest) {
   const { role } = await getSessionFromCookie(request);
 
   if (ALWAYS_ALLOW.some(p => pathname.startsWith(p))) {
-    return nextWithContext(requestHeaders, context);
+    return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
   // ─── No-subdomain mode (local dev): only enforce path-level auth ───
   if (!USE_SUBDOMAINS) {
     if ((pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) && !role) {
-      return redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context);
+      return applyRobotsPolicy(redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context), host, pathname);
     }
     if (pathname.startsWith("/admin") && !isAdminRole(role)) {
-      return redirect("/cabinet", request, context);
+      return applyRobotsPolicy(redirect("/cabinet", request, context), host, pathname);
     }
     if ((pathname === "/login" || pathname === "/register") && role) {
-      return redirect(homePathForRole(role), request, context);
+      return applyRobotsPolicy(redirect(homePathForRole(role), request, context), host, pathname);
     }
-    return nextWithContext(requestHeaders, context);
+    return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
   // ─── Production with subdomains ───────────────────────────────────
@@ -86,88 +94,88 @@ export default async function proxy(request: NextRequest) {
 
   // Unknown host → serve as main
   if (!onMain && !onApp && !onAdmin) {
-    return nextWithContext(requestHeaders, context);
+    return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
   // ─── app.eterapy.com ───
   if (onApp) {
     if (!role) {
-      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/")}`, context);
+      return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/")}`, context), host, pathname);
     }
     if (isAdminRole(role)) {
-      return redirectAbs(ADMIN_DOMAIN, "/admin", context);
+      return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, "/admin", context), host, pathname);
     }
     // CLIENT or PRACTITIONER
     // Strip /cabinet segment: incoming /cabinet/X → 308 redirect to /X; /cabinet alone → /
     if (pathname === "/cabinet") {
-      return withRequestContext(NextResponse.redirect(new URL("/", request.url), 308), context);
+      return applyRobotsPolicy(withRequestContext(NextResponse.redirect(new URL("/", request.url), 308), context), host, pathname);
     }
     if (pathname.startsWith("/cabinet/")) {
       const stripped = pathname.slice("/cabinet".length); // keeps leading /
       const search = request.nextUrl.search;
-      return withRequestContext(NextResponse.redirect(new URL(stripped + search, request.url), 308), context);
+      return applyRobotsPolicy(withRequestContext(NextResponse.redirect(new URL(stripped + search, request.url), 308), context), host, pathname);
     }
     // /help passthrough (served from src/app/help)
     if (pathname === "/help" || pathname.startsWith("/help/")) {
-      return nextWithContext(requestHeaders, context);
+      return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
     }
     // All other paths → internally rewrite to /cabinet prefix so existing route tree still serves
     const target = pathname === "/" ? "/cabinet" : `/cabinet${pathname}`;
     const rewriteUrl = new URL(target, request.url);
     rewriteUrl.search = request.nextUrl.search;
-    return rewriteWithContext(rewriteUrl, requestHeaders, context);
+    return applyRobotsPolicy(rewriteWithContext(rewriteUrl, requestHeaders, context), host, pathname);
   }
 
   // ─── admin.eterapy.com ───
   if (onAdmin) {
     if (!role) {
-      return redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/admin")}`, context);
+      return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/admin")}`, context), host, pathname);
     }
     if (!isAdminRole(role)) {
-      return redirectAbs(APP_DOMAIN, "/cabinet", context);
+      return applyRobotsPolicy(redirectAbs(APP_DOMAIN, "/cabinet", context), host, pathname);
     }
     if (pathname === "/") {
-      return redirect("/admin", request, context);
+      return applyRobotsPolicy(redirect("/admin", request, context), host, pathname);
     }
     if (!pathname.startsWith("/admin") && pathname !== "/help" && !pathname.startsWith("/help/")) {
-      return redirect("/admin", request, context);
+      return applyRobotsPolicy(redirect("/admin", request, context), host, pathname);
     }
-    return nextWithContext(requestHeaders, context);
+    return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
   // ─── eterapy.com (main) ───
   // Normalise www → apex already handled by nginx; just in case
   if (host === `www.${MAIN_DOMAIN}`) {
-    return redirectAbs(MAIN_DOMAIN, pathname, context);
+    return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, pathname, context), host, pathname);
   }
 
   // Logged-in user hitting main domain
   if (role) {
     // /cabinet here → push to app subdomain
     if (pathname.startsWith("/cabinet")) {
-      return redirectAbs(APP_DOMAIN, pathname, context);
+      return applyRobotsPolicy(redirectAbs(APP_DOMAIN, pathname, context), host, pathname);
     }
     // /admin here → push to admin subdomain
     if (pathname.startsWith("/admin")) {
-      return redirectAbs(ADMIN_DOMAIN, pathname, context);
+      return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, pathname, context), host, pathname);
     }
     // Login/register while logged in → home
     if (pathname === "/login" || pathname === "/register") {
-      return redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context);
+      return applyRobotsPolicy(redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context), host, pathname);
     }
     // Landing page for logged-in user → their cabinet
     if (pathname === "/") {
-      return redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context);
+      return applyRobotsPolicy(redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context), host, pathname);
     }
     // Other public pages (practitioners catalog, modalities, help, legal, how-to-choose, about) stay accessible
-    return nextWithContext(requestHeaders, context);
+    return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 
   // Guest on main domain — block protected paths, show everything else
   if (pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) {
-    return redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context);
+    return applyRobotsPolicy(redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context), host, pathname);
   }
-  return nextWithContext(requestHeaders, context);
+  return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
 }
 
 export const config = {

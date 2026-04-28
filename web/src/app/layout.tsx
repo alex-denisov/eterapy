@@ -7,6 +7,7 @@ import { Providers } from "@/components/providers";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
 import { brandAssets } from "@/lib/brand-assets";
+import { seoOrigins } from "@/lib/seo";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -24,6 +25,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(seoOrigins.main),
   title: "ETerapy — этичная эзотерическая платформа",
   description:
     "Найди проверенного таролога, астролога или нумеролога. Фиксированная цена за сессию. Бесплатные направления самопознания. Безопасно. Прозрачно. Онлайн.",
