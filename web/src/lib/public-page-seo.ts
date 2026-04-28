@@ -42,6 +42,46 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Прозрачные цены v5: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности, подписки и Practitioner Pro.",
     schemaKind: "Product",
   },
+  "/products": {
+    title: "Продукты ETerapy v5",
+    description: "Все v5 продукты углубления: первичный ответ, 4 ракурса, глубокий отчет, разбор переписки, совместимость, 7 дней к ясности и Моя карта.",
+    schemaKind: "Product",
+  },
+  "/products/primary-answer": {
+    title: "Первичный ответ — ETerapy",
+    description: "Бесплатный question-first продукт: короткий уточняющий диалог, структурированный первичный ответ и безопасный следующий шаг.",
+    schemaKind: "Product",
+  },
+  "/products/perspectives": {
+    title: "4 ракурса ответа — ETerapy",
+    description: "Платное углубление: рациональный, эмоциональный, символический и практический ракурс одного вопроса.",
+    schemaKind: "Product",
+  },
+  "/products/deep-report": {
+    title: "Глубокий отчет — ETerapy",
+    description: "Развернутый отчет по ситуации на основе диалога, доступный после оплаты или по подписке.",
+    schemaKind: "Product",
+  },
+  "/products/chat-analysis": {
+    title: "Разбор переписки — ETerapy",
+    description: "Приватный анализ переписки с предупреждением о персональных данных, праве использования и удалении исходника.",
+    schemaKind: "Product",
+  },
+  "/products/compatibility": {
+    title: "Совместимость — ETerapy",
+    description: "Парный отчет по совместимости с invite flow, согласием второго участника и приватностью ответов.",
+    schemaKind: "Product",
+  },
+  "/products/seven-days": {
+    title: "7 дней к ясности — ETerapy",
+    description: "Маршрут из ежедневных шагов по 5-10 минут, паузой, напоминаниями и итоговым отчетом.",
+    schemaKind: "Product",
+  },
+  "/products/my-map": {
+    title: "Моя карта ETerapy",
+    description: "Приватное пространство для сохранения вопросов, ответов, отчетов, маршрутов и личных выводов.",
+    schemaKind: "Product",
+  },
   "/all-modalities": {
     title: "Сервисы самопознания — ETerapy",
     description: "Question-first сервисы ETerapy: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
