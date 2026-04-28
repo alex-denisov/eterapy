@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
@@ -47,12 +47,15 @@ export const metadata: Metadata = {
     apple: [{ url: brandAssets.favicon.apple180, sizes: "180x180" }],
   },
   manifest: brandAssets.favicon.manifest,
-  themeColor: "#081223",
   openGraph: {
     ...homeMetadata.openGraph,
     type: "website",
     locale: "ru_RU",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#081223",
 };
 
 export default function RootLayout({

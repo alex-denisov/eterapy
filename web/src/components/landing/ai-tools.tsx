@@ -6,6 +6,13 @@ import { cn } from "@/lib/utils";
 
 const tools = [
   {
+    icon: "💬",
+    title: "Первичный ответ",
+    description: "Question-first диалог: 2-5 уточнений, краткое отражение и безопасный следующий шаг.",
+    tag: "Старт v5",
+    href: "/all-modalities/checkin",
+  },
+  {
     icon: "🃏",
     title: "Расклад Таро",
     description: "Три карты на ваш вопрос с развёрнутой интерпретацией. Классическая колода Райдера-Уэйта.",
@@ -34,13 +41,6 @@ const tools = [
     href: "/all-modalities/horoscope",
   },
   {
-    icon: "💬",
-    title: "Рефлексия",
-    description: "3–5 вопросов → структурированный ответ о вашем состоянии. Инструмент самопознания за 2 минуты.",
-    tag: "Наша разработка",
-    href: "/all-modalities/checkin",
-  },
-  {
     icon: "📖",
     title: "Личный гид",
     description: "Короткая анкета → персональный текст по теме вашего запроса. Глубже, чем стандартный гороскоп.",
@@ -54,15 +54,15 @@ export function AIToolsSection() {
     <section id="modalities" className="bg-navy-light/50 px-4 py-20">
       <div className="mx-auto max-w-5xl">
         <h2 className="font-heading text-center text-3xl font-bold md:text-4xl">
-          Направления самопознания
+          Что можно углубить после ответа
         </h2>
         <p className="mt-3 text-center text-muted-foreground">
-          Попробуй бесплатно — 3 расклада в месяц. Регистрация не нужна.
+          Сервисы открываются как продолжение вопроса, а не как витрина ради выбора.
         </p>
 
         <div className="mt-8 text-center">
           <Link href="/all-modalities" className={cn(buttonVariants({ variant: "outline" }), "border-primary/30 text-primary hover:bg-primary/10")}>
-            Все направления →
+            Все сервисы →
           </Link>
         </div>
 

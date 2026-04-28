@@ -7,6 +7,7 @@ import { TrustSection } from "@/components/landing/trust";
 import { FAQSection } from "@/components/landing/faq";
 import { CTASection } from "@/components/landing/cta";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { HomeAnalytics } from "@/components/landing/home-analytics";
 
 export default async function Home() {
   await auth();
@@ -14,6 +15,7 @@ export default async function Home() {
   return (
     <>
       <PublicJsonLd route="/" />
+      <HomeAnalytics />
       <HeroSection />
       <HowItWorksSection />
       <AIToolsSection />
