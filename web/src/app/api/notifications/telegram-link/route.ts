@@ -17,10 +17,24 @@ export async function GET() {
     where: { id: session.user.id },
     select: { telegramId: true, telegramUsername: true },
   });
+  const linked = Boolean(user?.telegramId);
+  const pendingToken = linked
+    ? null
+    : await db.telegramLinkToken.findFirst({
+      where: {
+        userId: session.user.id,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { token: true, expiresAt: true },
+    });
 
   return NextResponse.json({
-    linked: Boolean(user?.telegramId),
+    linked,
     username: user?.telegramUsername ?? null,
+    pending: Boolean(pendingToken),
+    url: pendingToken ? getTelegramLinkUrl(pendingToken.token) : null,
+    expiresAt: pendingToken?.expiresAt.toISOString() ?? null,
   });
 }
 
@@ -28,6 +42,21 @@ export async function POST() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { telegramId: true, telegramUsername: true },
+  });
+
+  if (user?.telegramId) {
+    return NextResponse.json({
+      ok: true,
+      linked: true,
+      username: user.telegramUsername ?? null,
+      pending: false,
+      url: null,
+      expiresAt: null,
+    });
+  }
 
   // Delete old tokens for this user
   await db.telegramLinkToken.deleteMany({ where: { userId } });
@@ -38,17 +67,33 @@ export async function POST() {
   await db.telegramLinkToken.create({ data: { token, userId, expiresAt } });
 
   const url = getTelegramLinkUrl(token);
-  return NextResponse.json({ ok: true, url, token, expiresAt: expiresAt.toISOString() });
+  return NextResponse.json({
+    ok: true,
+    linked: false,
+    pending: true,
+    url,
+    expiresAt: expiresAt.toISOString(),
+  });
 }
 
 export async function DELETE() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = session.user.id;
+
+  await db.telegramLinkToken.deleteMany({ where: { userId } });
 
   await db.user.update({
-    where: { id: session.user.id },
+    where: { id: userId },
     data: { telegramId: null, telegramUsername: null },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    linked: false,
+    username: null,
+    pending: false,
+    url: null,
+    expiresAt: null,
+  });
 }

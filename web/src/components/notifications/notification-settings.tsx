@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
-import { getEventsForRole, type NotifEvent, type UserRole } from "@/lib/notification-events";
+import { getEventsForRole, type UserRole } from "@/lib/notification-events";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 
 type Channel = "EMAIL" | "TELEGRAM" | "WEB";
@@ -17,6 +17,9 @@ interface Pref {
 interface TelegramStatus {
   linked: boolean;
   username: string | null;
+  pending?: boolean;
+  url?: string | null;
+  expiresAt?: string | null;
 }
 
 const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
@@ -54,9 +57,13 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [tgStatus, setTgStatus] = useState(telegramStatus);
-  const [tgLinkUrl, setTgLinkUrl] = useState<string | null>(null);
-  const [tgLinkExpiry, setTgLinkExpiry] = useState<Date | null>(null);
+  const [tgLinkUrl, setTgLinkUrl] = useState<string | null>(telegramStatus.url ?? null);
+  const [tgLinkExpiry, setTgLinkExpiry] = useState<Date | null>(
+    telegramStatus.expiresAt ? new Date(telegramStatus.expiresAt) : null,
+  );
   const [generatingLink, setGeneratingLink] = useState(false);
+  const [checkingTelegram, setCheckingTelegram] = useState(false);
+  const [telegramError, setTelegramError] = useState<string | null>(null);
 
   // Инициализация метаданных для роли
   useEffect(() => {
@@ -69,6 +76,49 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
       .then(d => { setPrefs(d.prefs ?? []); setLoading(false); });
   }, []);
 
+  const applyTelegramStatus = useCallback((d: TelegramStatus) => {
+    setTgStatus({
+      linked: Boolean(d.linked),
+      username: d.username ?? null,
+      pending: Boolean(d.pending),
+      url: d.url ?? null,
+      expiresAt: d.expiresAt ?? null,
+    });
+
+    if (d.linked) {
+      setTgLinkUrl(null);
+      setTgLinkExpiry(null);
+      setTelegramError(null);
+      return;
+    }
+
+    if (d.pending && d.url && d.expiresAt) {
+      setTgLinkUrl(d.url);
+      setTgLinkExpiry(new Date(d.expiresAt));
+      setTelegramError(null);
+      return;
+    }
+
+    setTgLinkUrl(null);
+    setTgLinkExpiry(null);
+  }, []);
+
+  const refreshTelegramStatus = useCallback(async ({ notifyLinked = false } = {}) => {
+    setCheckingTelegram(true);
+    try {
+      const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
+      if (!res.ok) throw new Error("STATUS_FAILED");
+      const d = await res.json();
+      const wasLinked = tgStatus.linked;
+      applyTelegramStatus(d);
+      if (notifyLinked && !wasLinked && d.linked) toast.success("Telegram привязан");
+    } catch {
+      setTelegramError("Не удалось проверить статус Telegram. Попробуйте еще раз.");
+    } finally {
+      setCheckingTelegram(false);
+    }
+  }, [applyTelegramStatus, tgStatus.linked]);
+
   // Пока у пользователя есть активный токен и Telegram ещё не привязан — опрашиваем
   // статус каждые 3 с. Как только link появится, скрываем блок генерации и показываем "Привязан".
   useEffect(() => {
@@ -79,20 +129,23 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     const poll = async () => {
       try {
         const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error("STATUS_FAILED");
         const d = await res.json();
         if (cancelled) return;
+        applyTelegramStatus(d);
         if (d.linked) {
-          setTgStatus({ linked: true, username: d.username ?? null });
-          setTgLinkUrl(null);
-          setTgLinkExpiry(null);
           toast.success("Telegram привязан");
         }
-      } catch { /* ignore transient errors */ }
+      } catch {
+        if (!cancelled) setTelegramError("Проверка Telegram временно недоступна.");
+      }
     };
 
     const id = setInterval(() => {
       if (tgLinkExpiry && tgLinkExpiry.getTime() < Date.now()) {
+        setTgLinkUrl(null);
+        setTgLinkExpiry(null);
+        setTelegramError("Ссылка истекла. Сгенерируйте новую.");
         clearInterval(id);
         return;
       }
@@ -100,29 +153,19 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     }, 3000);
     poll();
     return () => { cancelled = true; clearInterval(id); };
-  }, [tgLinkUrl, tgLinkExpiry, tgStatus.linked]);
+  }, [applyTelegramStatus, tgLinkUrl, tgLinkExpiry, tgStatus.linked]);
 
   // На случай возврата на вкладку после ручной привязки без активного токена —
   // один раз подтягиваем актуальный статус при фокусе/видимости.
   useEffect(() => {
-    async function refreshStatus() {
-      try {
-        const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
-        if (!res.ok) return;
-        const d = await res.json();
-        if (d.linked !== tgStatus.linked || d.username !== tgStatus.username) {
-          setTgStatus({ linked: Boolean(d.linked), username: d.username ?? null });
-        }
-      } catch { /* ignore */ }
-    }
-    function onVisibility() { if (!document.hidden) refreshStatus(); }
+    function onVisibility() { if (!document.hidden) refreshTelegramStatus(); }
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", refreshStatus);
+    window.addEventListener("focus", refreshTelegramStatus);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", refreshStatus);
+      window.removeEventListener("focus", refreshTelegramStatus);
     };
-  }, [tgStatus.linked, tgStatus.username]);
+  }, [refreshTelegramStatus]);
 
   function getPref(event: string, channel: Channel): Pref | undefined {
     return prefs.find(p => p.event === event && p.channel === channel);
@@ -160,21 +203,42 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
 
   async function generateTelegramLink() {
     setGeneratingLink(true);
-    const res = await fetch("/api/notifications/telegram-link", { method: "POST" });
-    const d = await res.json();
-    if (d.ok) {
-      setTgLinkUrl(d.url);
-      setTgLinkExpiry(new Date(d.expiresAt));
-    } else toast.error(d.error ?? "Ошибка");
-    setGeneratingLink(false);
+    setTelegramError(null);
+    try {
+      const res = await fetch("/api/notifications/telegram-link", { method: "POST" });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        applyTelegramStatus(d);
+        if (d.linked) toast.success("Telegram уже привязан");
+      } else {
+        const message = d.error ?? "Не удалось создать ссылку Telegram";
+        setTelegramError(message);
+        toast.error(message);
+      }
+    } catch {
+      setTelegramError("Не удалось создать ссылку Telegram. Попробуйте еще раз.");
+      toast.error("Не удалось создать ссылку Telegram");
+    } finally {
+      setGeneratingLink(false);
+    }
   }
 
   async function unlinkTelegram() {
-    const res = await fetch("/api/notifications/telegram-link", { method: "DELETE" });
-    if ((await res.json()).ok) {
-      setTgStatus({ linked: false, username: null });
-      setTgLinkUrl(null);
-      toast.success("Telegram отвязан");
+    setTelegramError(null);
+    try {
+      const res = await fetch("/api/notifications/telegram-link", { method: "DELETE" });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        applyTelegramStatus(d);
+        toast.success("Telegram отвязан");
+      } else {
+        const message = d.error ?? "Не удалось отвязать Telegram";
+        setTelegramError(message);
+        toast.error(message);
+      }
+    } catch {
+      setTelegramError("Не удалось отвязать Telegram. Попробуйте еще раз.");
+      toast.error("Не удалось отвязать Telegram");
     }
   }
 
@@ -215,15 +279,27 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                 {generatingLink ? "Генерация..." : "Привязать Telegram"}
               </button>
               {tgLinkUrl && tgLinkExpiry && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-2 space-y-2" data-testid="telegram-link-pending">
                   <p className="text-xs text-muted-foreground/70">
-                    Ссылка действует до {tgLinkExpiry.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                    Ожидаем подтверждение. Ссылка действует до {tgLinkExpiry.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                   <a href={tgLinkUrl} target="_blank" rel="noopener noreferrer"
                     className="block rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-500/30 font-medium">
                     → Открыть бота для привязки
                   </a>
+                  <button
+                    onClick={() => refreshTelegramStatus({ notifyLinked: true })}
+                    disabled={checkingTelegram}
+                    className="block w-full rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  >
+                    {checkingTelegram ? "Проверяем..." : "Проверить статус"}
+                  </button>
                 </div>
+              )}
+              {telegramError && (
+                <p className="mt-2 max-w-48 text-xs text-red-400" role="status">
+                  {telegramError}
+                </p>
               )}
             </div>
           )}
