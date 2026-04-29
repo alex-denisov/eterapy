@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { resetAuthRateLimitForTests } from "@/lib/auth-rate-limit";
+import { classifyDialogueQuestion } from "@/lib/dialogue-router";
 import db from "@/lib/db";
 import { createGuestSessionCookieValue, GUEST_SESSION_COOKIE } from "@/lib/guest-session";
 import { GET as listDialogues, POST as createDialogue } from "@/app/api/dialogues/route";
@@ -22,8 +23,15 @@ jest.mock("@/lib/db", () => ({
   },
 }));
 
+jest.mock("@/lib/dialogue-router", () => ({
+  __esModule: true,
+  DIALOGUE_TOPICS: ["relationships", "career", "money", "family", "self", "anxiety", "other"],
+  classifyDialogueQuestion: jest.fn(),
+}));
+
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockDb = db as jest.Mocked<typeof db>;
+const mockClassifyDialogueQuestion = classifyDialogueQuestion as jest.MockedFunction<typeof classifyDialogueQuestion>;
 
 function request(url: string, init: RequestInit = {}) {
   const parsedUrl = new URL(url);
@@ -55,6 +63,14 @@ describe("v5 dialogue API", () => {
     jest.clearAllMocks();
     resetAuthRateLimitForTests();
     mockAuth.mockResolvedValue(null);
+    mockClassifyDialogueQuestion.mockResolvedValue({
+      topic: "career",
+      difficulty: "medium",
+      confidence: 0.82,
+      source: "ai",
+      provider: "openrouter",
+      model: "openrouter/free",
+    });
   });
 
   it("creates a guest-owned dialogue and first user message", async () => {
@@ -90,9 +106,22 @@ describe("v5 dialogue API", () => {
         guestSessionId: expect.stringMatching(/^gst_/),
         title: "Как выбрать направление?",
         topic: "career",
+        difficulty: "medium",
         messages: { create: { role: "USER", content: "Как выбрать направление?" } },
+        metadata: expect.objectContaining({
+          routing: expect.objectContaining({
+            topic: "career",
+            difficulty: "medium",
+            source: "ai",
+          }),
+        }),
       }),
     }));
+    expect(mockClassifyDialogueQuestion).toHaveBeenCalledWith({
+      question: "Как выбрать направление?",
+      userId: null,
+      requestId: expect.any(String),
+    });
   });
 
   it("lists only current user's dialogues for registered users", async () => {

@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { authRateLimitKey, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { classifyDialogueQuestion, DIALOGUE_TOPICS } from "@/lib/dialogue-router";
 import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -13,7 +14,7 @@ const MAX_DIALOGUES_LIMIT = 50;
 
 const createDialogueSchema = z.object({
   question: z.string().trim().min(3).max(4000),
-  topic: z.string().trim().max(80).optional(),
+  topic: z.enum(DIALOGUE_TOPICS).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -131,14 +132,31 @@ export async function POST(request: NextRequest) {
     return response;
   }
   const title = titleFromQuestion(parsed.data.question);
+  const routing = await classifyDialogueQuestion({
+    question: parsed.data.question,
+    userId,
+    requestId: context.requestId,
+  });
+  const metadata = {
+    ...parsed.data.metadata,
+    routing: {
+      topic: routing.topic,
+      difficulty: routing.difficulty,
+      confidence: routing.confidence,
+      source: routing.source,
+      provider: routing.provider,
+      model: routing.model,
+    },
+  };
 
   const dialogue = await db.dialogue.create({
     data: {
       userId,
       guestSessionId: guest?.id ?? null,
       title,
-      topic: parsed.data.topic ?? null,
-      metadata: parsed.data.metadata as Prisma.InputJsonObject | undefined,
+      topic: parsed.data.topic ?? routing.topic,
+      difficulty: routing.difficulty,
+      metadata: metadata as Prisma.InputJsonObject,
       messages: {
         create: {
           role: "USER",
