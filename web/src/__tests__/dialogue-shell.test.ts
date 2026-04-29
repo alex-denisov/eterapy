@@ -20,7 +20,10 @@ describe("v5 dialogue shell", () => {
 
     expect(checkin).toContain('from "@/components/dialogue/dialogue-shell"');
     expect(checkin).toContain("<DialogueShell");
-    expect(checkin).toContain("progress={!result ? { current: step + 1, total: questions.length } : undefined}");
+    expect(checkin).toContain('data-testid="dialogue-question-step"');
+    expect(checkin).toContain('data-testid="dialogue-clarifying-step"');
+    expect(checkin).toContain('data-testid="dialogue-processing-step"');
+    expect(checkin).toContain('data-testid="dialogue-result-step"');
     expect(checkin).toContain("<Disclaimer");
   });
 });

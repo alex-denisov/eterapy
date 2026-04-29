@@ -12,6 +12,7 @@ describe("B051 value-moment registration", () => {
     const page = source("src/app/all-modalities/checkin/page.tsx");
 
     expect(page).toContain("saveGuestResultDraft");
+    expect(page).toContain("primaryAnswer");
     expect(page).toContain("save-result-register");
     expect(page).toContain('href="/register?intent=save-result"');
     expect(page).toContain('href="/login?intent=save-result"');

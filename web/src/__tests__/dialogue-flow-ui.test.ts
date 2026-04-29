@@ -1,0 +1,40 @@
+import fs from "node:fs";
+import path from "node:path";
+
+function source(relativePath: string) {
+  return fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
+}
+
+describe("B071-B074 dialogue flow UI", () => {
+  it("uses the v5 dialogue APIs instead of the old check-in generator", () => {
+    const page = source("src/app/all-modalities/checkin/page.tsx");
+
+    expect(page).toContain('requestJson<{ dialogue: DialoguePayload }>("/api/dialogues"');
+    expect(page).toContain("/api/dialogues/${dialogueId}/answer");
+    expect(page).toContain("/api/dialogues/${dialogue.id}");
+    expect(page).not.toContain("/api/modalities/checkin");
+  });
+
+  it("covers question, clarification, processing, safety, and result states", () => {
+    const page = source("src/app/all-modalities/checkin/page.tsx");
+
+    expect(page).toContain('data-testid="dialogue-question-step"');
+    expect(page).toContain('data-testid="dialogue-clarifying-step"');
+    expect(page).toContain('data-testid="dialogue-processing-step"');
+    expect(page).toContain('data-testid="dialogue-safety-interrupt"');
+    expect(page).toContain('data-testid="dialogue-result-step"');
+    expect(page).toContain('data-testid="dialogue-retry-answer"');
+  });
+
+  it("offers save, share, and deepen actions after the primary answer", () => {
+    const page = source("src/app/all-modalities/checkin/page.tsx");
+
+    expect(page).toContain("<AIShareButton");
+    expect(page).toContain('data-testid="save-result-authenticated"');
+    expect(page).toContain('data-testid="save-result-register"');
+    expect(page).toContain('data-testid="dialogue-deepen-report"');
+    expect(page).toContain('href="/products/deep-report"');
+    expect(page).toContain('data-testid="dialogue-deepen-perspectives"');
+    expect(page).toContain('href="/products/perspectives"');
+  });
+});
