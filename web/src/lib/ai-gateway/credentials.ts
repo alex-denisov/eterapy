@@ -64,13 +64,6 @@ export interface UpdateCredentialInput {
   resetFailureState?: boolean;
 }
 
-const ENV_KEY_BY_PROVIDER: Record<AIProvider, string | undefined> = {
-  [AIProvider.OPENAI]: process.env.OPENAI_API_KEY,
-  [AIProvider.ANTHROPIC]: process.env.ANTHROPIC_API_KEY,
-  [AIProvider.FIREWORKS]: process.env.FIREWORKS_API_KEY,
-  [AIProvider.OPENROUTER]: process.env.OPENROUTER_API_KEY,
-};
-
 function clampPriority(value: number | undefined): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return 100;
   return Math.max(0, Math.min(1_000_000, Math.trunc(value)));
@@ -220,99 +213,50 @@ interface PickCredentialInput {
 export async function listActiveCredentialsForProvider(input: { provider: AIProvider; now?: Date }): Promise<DecryptedAICredential[]> {
   const now = input.now ?? new Date();
 
-  if (isAICredentialEncryptionConfigured()) {
-    const rows = await db.aIProviderCredential.findMany({
-      where: {
-        provider: input.provider,
-        enabled: true,
-        regionBlocked: false,
-        OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }],
-      },
-      orderBy: [
-        { priority: "asc" },
-        { lastUsedAt: { sort: "asc", nulls: "first" } },
-        { id: "asc" },
-      ],
-    });
-    if (rows.length > 0) {
-      return rows.map(rowToDecrypted);
-    }
-  }
+  if (!isAICredentialEncryptionConfigured()) return [];
 
-  const envKey = ENV_KEY_BY_PROVIDER[input.provider];
-  if (envKey) {
-    return [{
-      id: envCredentialId(input.provider),
+  const rows = await db.aIProviderCredential.findMany({
+    where: {
       provider: input.provider,
-      label: "env-fallback",
-      apiKey: envKey,
-      baseUrlOverride: null,
-      modelOverride: null,
       enabled: true,
-      priority: 1000,
-      consecutiveFailures: 0,
-      cooldownUntil: null,
       regionBlocked: false,
-    }];
-  }
+      OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }],
+    },
+    orderBy: [
+      { priority: "asc" },
+      { lastUsedAt: { sort: "asc", nulls: "first" } },
+      { id: "asc" },
+    ],
+  });
 
-  return [];
+  return rows.map(rowToDecrypted);
 }
 
 export async function pickCredentialForProvider(input: PickCredentialInput): Promise<DecryptedAICredential | null> {
   const now = input.now ?? new Date();
   const excludeIds = input.excludeIds ?? [];
 
-  if (isAICredentialEncryptionConfigured()) {
-    const rows = await db.aIProviderCredential.findMany({
-      where: {
-        provider: input.provider,
-        enabled: true,
-        regionBlocked: false,
-        AND: [
-          excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {},
-          { OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }] },
-        ],
-      },
-      orderBy: [
-        { priority: "asc" },
-        { lastUsedAt: { sort: "asc", nulls: "first" } },
-        { id: "asc" },
-      ],
-      take: 1,
-    });
-    if (rows[0]) return rowToDecrypted(rows[0]);
-  }
+  if (!isAICredentialEncryptionConfigured()) return null;
 
-  // Transition fallback: pick env-provided key if no DB credential exists for the provider
-  // and we are not explicitly excluding the env-fallback id.
-  if (excludeIds.includes(envCredentialId(input.provider))) return null;
-  const envKey = ENV_KEY_BY_PROVIDER[input.provider];
-  if (envKey) {
-    return {
-      id: envCredentialId(input.provider),
+  const rows = await db.aIProviderCredential.findMany({
+    where: {
       provider: input.provider,
-      label: "env-fallback",
-      apiKey: envKey,
-      baseUrlOverride: null,
-      modelOverride: null,
       enabled: true,
-      priority: 1000,
-      consecutiveFailures: 0,
-      cooldownUntil: null,
       regionBlocked: false,
-    };
-  }
+      AND: [
+        excludeIds.length > 0 ? { id: { notIn: excludeIds } } : {},
+        { OR: [{ cooldownUntil: null }, { cooldownUntil: { lt: now } }] },
+      ],
+    },
+    orderBy: [
+      { priority: "asc" },
+      { lastUsedAt: { sort: "asc", nulls: "first" } },
+      { id: "asc" },
+    ],
+    take: 1,
+  });
 
-  return null;
-}
-
-export function envCredentialId(provider: AIProvider): string {
-  return `env:${provider}`;
-}
-
-export function isEnvFallbackCredential(id: string): boolean {
-  return id.startsWith("env:");
+  return rows[0] ? rowToDecrypted(rows[0]) : null;
 }
 
 interface MarkSuccessInput {
@@ -321,7 +265,6 @@ interface MarkSuccessInput {
 }
 
 export async function markCredentialSuccess(input: MarkSuccessInput): Promise<void> {
-  if (isEnvFallbackCredential(input.credentialId)) return;
   const now = input.now ?? new Date();
   try {
     await db.aIProviderCredential.update({
@@ -354,7 +297,6 @@ interface MarkFailureInput {
 }
 
 export async function markCredentialFailure(input: MarkFailureInput): Promise<void> {
-  if (isEnvFallbackCredential(input.credentialId)) return;
   const now = input.now ?? new Date();
   const cooldownUntil = input.cooldownMs && input.cooldownMs > 0
     ? new Date(now.getTime() + input.cooldownMs)
