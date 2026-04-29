@@ -21,6 +21,8 @@ jest.mock("@/lib/db", () => ({
   default: {
     aIProviderConfig: { findMany: jest.fn(), upsert: jest.fn() },
     aIRoutingPolicy: { findMany: jest.fn(), upsert: jest.fn() },
+    aIProviderCredential: { findMany: jest.fn() },
+    aIProviderModel: { findMany: jest.fn() },
     auditLog: { create: jest.fn() },
     $queryRaw: jest.fn(),
   },
@@ -51,6 +53,8 @@ describe("admin AI control API", () => {
     mockGetUserPermissions.mockResolvedValue(["ai.configure"]);
     mockDb.aIProviderConfig.findMany.mockResolvedValue([]);
     mockDb.aIRoutingPolicy.findMany.mockResolvedValue([]);
+    mockDb.aIProviderCredential.findMany.mockResolvedValue([]);
+    mockDb.aIProviderModel.findMany.mockResolvedValue([]);
     mockDb.$queryRaw.mockResolvedValue([]);
     mockDb.aIProviderConfig.upsert.mockResolvedValue({
       id: "provider-config-1",

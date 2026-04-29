@@ -56,6 +56,16 @@ type CredentialRow = {
   lastErrorMessage: string | null;
 };
 
+type ModelRow = {
+  modelId: string;
+  displayName: string | null;
+  isFree: boolean;
+  contextWindow: number | null;
+  fetchedAt: string;
+};
+
+type ModelsByProvider = Partial<Record<string, ModelRow[]>>;
+
 const PROVIDERS = Object.values(AIProvider);
 
 function toNumber(value: FormDataEntryValue | null) {
@@ -87,13 +97,52 @@ function maskKey(value: string): string {
   return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
+function ModelSelect({
+  value,
+  models,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  models: ModelRow[];
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const knownIds = new Set(models.map((model) => model.modelId));
+  const showCustom = value.trim().length > 0 && !knownIds.has(value.trim());
+  return (
+    <select
+      value={showCustom ? "__custom__" : value}
+      onChange={(event) => {
+        const next = event.target.value;
+        if (next === "__custom__") return;
+        onChange(next === "__none__" ? "" : next);
+      }}
+      className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <option value="__none__">{placeholder ?? "Default model"}</option>
+      {models.length === 0 && <option value="" disabled>Список моделей пуст — нажмите «Обновить»</option>}
+      {models.map((model) => (
+        <option key={model.modelId} value={model.modelId}>
+          {model.isFree ? "🆓 " : ""}
+          {model.modelId}
+          {model.displayName ? ` — ${model.displayName}` : ""}
+        </option>
+      ))}
+      {showCustom && <option value="__custom__">{value} (текущее, нет в каталоге)</option>}
+    </select>
+  );
+}
+
 function CredentialRowEditor({
   credential,
+  models,
   onUpdate,
   onDelete,
   disabled,
 }: {
   credential: CredentialRow;
+  models: ModelRow[];
   onUpdate: (payload: Record<string, unknown>, msg: string) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
   disabled: boolean;
@@ -175,9 +224,10 @@ function CredentialRowEditor({
           spellCheck={false}
           autoComplete="off"
         />
-        <Input
+        <ModelSelect
           value={draft.modelOverride}
-          onChange={(event) => setDraft({ ...draft, modelOverride: event.target.value })}
+          models={models}
+          onChange={(value) => setDraft({ ...draft, modelOverride: value })}
           placeholder="Default model (override)"
         />
         <Input
@@ -213,18 +263,42 @@ export function AIControlCenter({
   policies,
   usage,
   credentials,
+  models,
   encryptionConfigured,
 }: {
   providers: ProviderRow[];
   policies: PolicyRow[];
   usage: UsageRow[];
   credentials: CredentialRow[];
+  models: ModelsByProvider;
   encryptionConfigured: boolean;
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState<AIProvider | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  async function refreshProviderModels(provider: AIProvider) {
+    setRefreshing(provider);
+    setMessage(null);
+    setErrorMessage(null);
+    try {
+      const response = await fetch(`/api/admin/ai/models?provider=${provider}`, { method: "POST" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        setErrorMessage(body?.error ?? body?.message ?? `Не удалось обновить список моделей ${provider}`);
+        return;
+      }
+      const body = await response.json();
+      setMessage(`Каталог моделей ${provider} обновлён: ${body.count} (удалено ${body.removed})`);
+      router.refresh();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Не удалось обновить список моделей");
+    } finally {
+      setRefreshing(null);
+    }
+  }
 
   function reportSuccess(text: string) {
     setMessage(text);
@@ -377,9 +451,32 @@ export function AIControlCenter({
         <div className="space-y-6">
           {PROVIDERS.map((provider) => {
             const providerCredentials = credentials.filter((credential) => credential.provider === provider);
+            const providerModels = models[provider] ?? [];
+            const lastFetchedAt = providerModels[0]?.fetchedAt ?? null;
+            const allowsCredentialless = provider === AIProvider.OPENROUTER;
+            const refreshDisabled = refreshing === provider || isPending
+              || (!allowsCredentialless && providerCredentials.filter((c) => c.enabled).length === 0);
             return (
               <div key={provider} className="rounded-lg border border-border/30 bg-card/30 p-4" data-testid={`ai-credentials-${provider}`}>
-                <h3 className="mb-3 text-sm font-semibold">{provider}</h3>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">{provider}</h3>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span data-testid={`ai-models-count-${provider}`}>
+                      моделей в каталоге: {providerModels.length}
+                      {lastFetchedAt && <> · обновлено {new Date(lastFetchedAt).toLocaleString("ru")}</>}
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={refreshDisabled}
+                      onClick={() => { void refreshProviderModels(provider); }}
+                      data-testid={`ai-models-refresh-${provider}`}
+                    >
+                      {refreshing === provider ? "Обновляем…" : "Обновить список"}
+                    </Button>
+                  </div>
+                </div>
                 <div className="overflow-hidden rounded-lg border border-border/20 divide-y divide-border/10">
                   {providerCredentials.length === 0 ? (
                     <p className="px-4 py-3 text-sm text-muted-foreground">Ключи не настроены</p>
@@ -387,6 +484,7 @@ export function AIControlCenter({
                     <CredentialRowEditor
                       key={credential.id}
                       credential={credential}
+                      models={providerModels}
                       onUpdate={(payload, msg) => patchCredential(credential.id, payload, msg)}
                       onDelete={() => deleteCredentialById(credential.id, credential.label)}
                       disabled={!encryptionConfigured || isPending}
@@ -403,7 +501,18 @@ export function AIControlCenter({
                   <input type="hidden" name="provider" value={provider} />
                   <Input name="label" placeholder="Label (Account 1)" required />
                   <Input name="apiKey" placeholder="API key" type="password" required />
-                  <Input name="modelOverride" placeholder="Default model (override)" />
+                  <select
+                    name="modelOverride"
+                    defaultValue=""
+                    className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">Default model</option>
+                    {providerModels.map((model) => (
+                      <option key={model.modelId} value={model.modelId}>
+                        {model.isFree ? "🆓 " : ""}{model.modelId}
+                      </option>
+                    ))}
+                  </select>
                   <Input name="baseUrlOverride" placeholder="Base URL override" />
                   <Button type="submit" size="sm" disabled={!encryptionConfigured || isPending}>Добавить ключ</Button>
                 </form>

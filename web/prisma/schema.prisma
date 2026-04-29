@@ -755,6 +755,23 @@ model AIProviderCredential {
   @@map("ai_provider_credentials")
 }
 
+model AIProviderModel {
+  id              String     @id @default(cuid())
+  provider        AIProvider
+  modelId         String     @map("model_id")
+  displayName     String?    @map("display_name")
+  isFree          Boolean    @default(false) @map("is_free")
+  contextWindow   Int?       @map("context_window")
+  metadata        Json?
+  fetchedAt       DateTime   @map("fetched_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  @@unique([provider, modelId])
+  @@index([provider, isFree])
+  @@map("ai_provider_models")
+}
+
 enum AIProvider {
   OPENAI
   ANTHROPIC

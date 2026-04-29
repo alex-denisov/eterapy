@@ -5,6 +5,7 @@ import { AI_PROVIDER_LABELS, aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib
 import { getAIUsageLedger } from "@/lib/ai-gateway/usage";
 import { listCredentials } from "@/lib/ai-gateway/credentials";
 import { isAICredentialEncryptionConfigured } from "@/lib/ai-gateway/credentials-crypto";
+import { listCachedModels } from "@/lib/ai-gateway/models";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -37,11 +38,15 @@ const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
 ];
 
 export async function getAIControlCenterData(period = aiBudgetPeriod()) {
-  const [storedProviders, policies, usage, credentials] = await Promise.all([
+  const [storedProviders, policies, usage, credentials, openaiModels, anthropicModels, fireworksModels, openrouterModels] = await Promise.all([
     db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] }),
     db.aIRoutingPolicy.findMany({ orderBy: { feature: "asc" } }),
     getAIUsageLedger(period),
     listCredentials(),
+    listCachedModels(AIProvider.OPENAI),
+    listCachedModels(AIProvider.ANTHROPIC),
+    listCachedModels(AIProvider.FIREWORKS),
+    listCachedModels(AIProvider.OPENROUTER),
   ]);
 
   const providerByName = new Map(storedProviders.map((provider) => [provider.provider, provider]));
@@ -56,11 +61,19 @@ export async function getAIControlCenterData(period = aiBudgetPeriod()) {
     updatedAt: new Date(0),
   });
 
+  const models: Record<AIProvider, typeof openaiModels> = {
+    [AIProvider.OPENAI]: openaiModels,
+    [AIProvider.ANTHROPIC]: anthropicModels,
+    [AIProvider.FIREWORKS]: fireworksModels,
+    [AIProvider.OPENROUTER]: openrouterModels,
+  };
+
   return {
     providers,
     policies,
     usage,
     credentials,
+    models,
     encryptionConfigured: isAICredentialEncryptionConfigured(),
     period,
   };
