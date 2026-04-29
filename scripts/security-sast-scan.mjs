@@ -18,7 +18,12 @@ const rules = [
 ];
 
 const allowlist = new Set([
+  // Scanner self-test pattern definitions, not executable raw-query usage.
+  "scripts/security-sast-scan.mjs:prisma-raw-unsafe",
+  // Public SEO JSON-LD scripts serialize trusted static data through JSON.stringify.
+  "web/src/app/library/[slug]/page.tsx:react-dangerous-html",
   "web/src/components/analytics.tsx:react-dangerous-html",
+  "web/src/components/seo/public-json-ld.tsx:react-dangerous-html",
 ]);
 
 const findings = [];
