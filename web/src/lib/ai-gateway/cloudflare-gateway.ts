@@ -12,13 +12,13 @@
  *   CF_AI_GATEWAY_TOKEN       — authenticated-gateway bearer token (secret)
  *
  * The actual baseURL is stored per-credential in `baseUrlOverride` so admins
- * can selectively route some OpenAI keys through the gateway and others
- * directly. The OpenAI adapter detects a CF Gateway URL and attaches the
+ * can selectively route some provider keys through the gateway and others
+ * directly. Adapters detect a CF Gateway URL and attach the
  * `cf-aig-authorization` header automatically when the token is present.
  */
 
 const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
-export type CloudflareGatewayProvider = "openai" | "anthropic" | "groq" | "azure-openai";
+export type CloudflareGatewayProvider = "openai" | "anthropic" | "openrouter" | "groq" | "azure-openai";
 
 export interface CloudflareGatewayConfig {
   accountId: string;

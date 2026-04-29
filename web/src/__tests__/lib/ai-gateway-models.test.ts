@@ -65,6 +65,32 @@ describe("ai-gateway/models", () => {
     });
   });
 
+  it("adds Cloudflare AI Gateway auth header when refreshing Anthropic models through gateway", async () => {
+    const originalToken = process.env.CF_AI_GATEWAY_TOKEN;
+    process.env.CF_AI_GATEWAY_TOKEN = "cf-test-token";
+    mockFetch({ data: [{ id: "claude-3-5-haiku-20241022", display_name: "Claude 3.5 Haiku" }] });
+
+    await fetchModelsFromProvider({
+      provider: AIProvider.ANTHROPIC,
+      credential: baseCred({
+        provider: AIProvider.ANTHROPIC,
+        baseUrlOverride: "https://gateway.ai.cloudflare.com/v1/acc/gw/anthropic",
+      }),
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://gateway.ai.cloudflare.com/v1/acc/gw/anthropic/models",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "cf-aig-authorization": "Bearer cf-test-token",
+        }),
+      }),
+    );
+
+    if (originalToken === undefined) delete process.env.CF_AI_GATEWAY_TOKEN;
+    else process.env.CF_AI_GATEWAY_TOKEN = originalToken;
+  });
+
   it("OpenRouter prepends openrouter/free + openrouter/auto meta-models and flags :free as free", async () => {
     mockFetch({
       data: [
@@ -91,6 +117,32 @@ describe("ai-gateway/models", () => {
     await expect(
       fetchModelsFromProvider({ provider: AIProvider.OPENROUTER, credential: null }),
     ).resolves.toBeDefined();
+  });
+
+  it("adds Cloudflare AI Gateway auth header when refreshing OpenRouter models through gateway", async () => {
+    const originalToken = process.env.CF_AI_GATEWAY_TOKEN;
+    process.env.CF_AI_GATEWAY_TOKEN = "cf-test-token";
+    mockFetch({ data: [] });
+
+    await fetchModelsFromProvider({
+      provider: AIProvider.OPENROUTER,
+      credential: baseCred({
+        provider: AIProvider.OPENROUTER,
+        baseUrlOverride: "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter",
+      }),
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://gateway.ai.cloudflare.com/v1/acc/gw/openrouter/models",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "cf-aig-authorization": "Bearer cf-test-token",
+        }),
+      }),
+    );
+
+    if (originalToken === undefined) delete process.env.CF_AI_GATEWAY_TOKEN;
+    else process.env.CF_AI_GATEWAY_TOKEN = originalToken;
   });
 
   it("getOpenRouterMetaModels exposes the meta entries", () => {

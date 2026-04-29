@@ -7,6 +7,7 @@ import {
   type AIGatewayCompletionResponse,
   type AIProviderHealth,
 } from "@/lib/ai-gateway/adapters";
+import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
 import type { AIGatewayMessage } from "@/lib/ai-gateway/domain";
 import { log, serializeError } from "@/lib/logger";
 
@@ -91,6 +92,7 @@ export function createAnthropicAdapter(options: AnthropicAdapterOptions = {}): A
       "content-type": "application/json",
       "x-api-key": apiKey,
       "anthropic-version": ANTHROPIC_VERSION,
+      ...cloudflareGatewayAuthHeaders(baseURL),
     };
   }
 

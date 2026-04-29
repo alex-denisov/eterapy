@@ -35,6 +35,19 @@ describe("OpenAI Cloudflare AI Gateway integration", () => {
         }),
       ).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/openai");
     });
+
+    it("builds Anthropic and OpenRouter gateway URL shapes", () => {
+      expect(buildCloudflareGatewayUrl({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: "anthropic",
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/anthropic");
+      expect(buildCloudflareGatewayUrl({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: "openrouter",
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/openrouter");
+    });
   });
 
   describe("getCloudflareGatewayConfig", () => {

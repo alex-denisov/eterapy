@@ -103,4 +103,37 @@ describe("Anthropic adapter", () => {
       expect.objectContaining({ method: "GET" })
     );
   });
+
+  it("adds Cloudflare AI Gateway auth header when base URL is a gateway", async () => {
+    const originalToken = process.env.CF_AI_GATEWAY_TOKEN;
+    process.env.CF_AI_GATEWAY_TOKEN = "cf-test-token";
+    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({
+      model: "claude-3-5-haiku-20241022",
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: "ok" }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }));
+    const adapter = createAnthropicAdapter({
+      apiKey: "test-key",
+      baseURL: "https://gateway.ai.cloudflare.com/v1/acc/gw/anthropic",
+      fetchImpl,
+    });
+
+    await adapter.complete({
+      feature: "test.feature",
+      messages: [{ role: "user", content: "hello" }],
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://gateway.ai.cloudflare.com/v1/acc/gw/anthropic/messages",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "cf-aig-authorization": "Bearer cf-test-token",
+        }),
+      }),
+    );
+
+    if (originalToken === undefined) delete process.env.CF_AI_GATEWAY_TOKEN;
+    else process.env.CF_AI_GATEWAY_TOKEN = originalToken;
+  });
 });

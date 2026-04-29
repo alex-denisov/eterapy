@@ -86,6 +86,7 @@ async function fetchAnthropicModels(credential: DecryptedAICredential): Promise<
     headers: {
       "x-api-key": credential.apiKey,
       "anthropic-version": "2023-06-01",
+      ...cloudflareGatewayAuthHeaders(baseUrl),
     },
   });
   const list = (data as { data?: Array<{ id?: string; display_name?: string }> }).data ?? [];
@@ -126,6 +127,7 @@ async function fetchOpenRouterModels(credential: DecryptedAICredential | null): 
   const baseUrl = credential?.baseUrlOverride?.replace(/\/+$/, "") ?? "https://openrouter.ai/api/v1";
   const headers: Record<string, string> = { Accept: "application/json" };
   if (credential?.apiKey) headers.Authorization = `Bearer ${credential.apiKey}`;
+  Object.assign(headers, cloudflareGatewayAuthHeaders(baseUrl));
   const data = await fetchJSON(`${baseUrl}/models`, { headers });
   const list = (data as { data?: OpenRouterModelRow[] }).data ?? [];
 

@@ -8,6 +8,7 @@ import {
   type AIGatewayCompletionResponse,
   type AIProviderHealth,
 } from "@/lib/ai-gateway/adapters";
+import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
@@ -75,7 +76,10 @@ export function createOpenRouterAdapter(options: OpenRouterAdapterOptions = {}):
     ? new OpenAI({
       apiKey: options.apiKey ?? "",
       baseURL: options.baseURL ?? DEFAULT_BASE_URL,
-      defaultHeaders: attributionHeaders(options),
+      defaultHeaders: {
+        ...attributionHeaders(options),
+        ...cloudflareGatewayAuthHeaders(options.baseURL ?? DEFAULT_BASE_URL),
+      },
     })
     : null);
 
