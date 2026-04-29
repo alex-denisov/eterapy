@@ -70,7 +70,7 @@ export async function handleNotificationDeliveryJob(job: Job): Promise<JobResult
     await sendEmail({
       to: payload.recipient.email,
       event,
-      name: payload.recipient.name ?? undefined,
+      name: payload.recipient.name ?? "",
       data: payload.data,
     });
   }
