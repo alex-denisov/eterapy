@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { classifyDialogueQuestion, DIALOGUE_TOPICS } from "@/lib/dialogue-router";
 import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
+import { generateDialogueClarifyingQuestions } from "@/lib/dialogue-clarifier";
 import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -146,6 +147,14 @@ export async function POST(request: NextRequest) {
     }),
   ]);
   const interrupted = shouldInterruptDialogue(safety.level);
+  const clarifier = interrupted ? null : await generateDialogueClarifyingQuestions({
+    question: parsed.data.question,
+    topic: parsed.data.topic ?? routing.topic,
+    difficulty: routing.difficulty,
+    safetyLevel: safety.level,
+    userId,
+    requestId: context.requestId,
+  });
   const metadata = {
     ...parsed.data.metadata,
     routing: {
@@ -164,6 +173,14 @@ export async function POST(request: NextRequest) {
       provider: safety.provider,
       model: safety.model,
     },
+    ...(clarifier ? {
+      clarifyingQuestions: {
+        questions: clarifier.questions,
+        source: clarifier.source,
+        provider: clarifier.provider,
+        model: clarifier.model,
+      },
+    } : {}),
   };
 
   const dialogue = await db.dialogue.create({
@@ -171,16 +188,29 @@ export async function POST(request: NextRequest) {
       userId,
       guestSessionId: guest?.id ?? null,
       title,
-      status: interrupted ? "SAFETY_INTERRUPTED" : "OPEN",
+      status: interrupted ? "SAFETY_INTERRUPTED" : "AWAITING_USER",
       topic: parsed.data.topic ?? routing.topic,
       difficulty: routing.difficulty,
       safetyLevel: safety.level,
       metadata: metadata as Prisma.InputJsonObject,
       messages: {
-        create: {
-          role: "USER",
-          content: parsed.data.question,
-        },
+        create: [
+          {
+            role: "USER",
+            content: parsed.data.question,
+          },
+          ...(clarifier ? [{
+            role: "ASSISTANT" as const,
+            content: clarifier.questions.map((question, index) => `${index + 1}. ${question}`).join("\n"),
+            metadata: {
+              kind: "clarifying_questions",
+              questions: clarifier.questions,
+              source: clarifier.source,
+              provider: clarifier.provider,
+              model: clarifier.model,
+            } as Prisma.InputJsonObject,
+          }] : []),
+        ],
       },
     },
     select: {
@@ -212,6 +242,7 @@ export async function POST(request: NextRequest) {
         reason: safety.reason,
         interrupt: interrupted,
       },
+      clarifyingQuestions: clarifier?.questions ?? [],
       createdAt: dialogue.createdAt.toISOString(),
       updatedAt: dialogue.updatedAt.toISOString(),
       messages: dialogue.messages.map((message) => ({
