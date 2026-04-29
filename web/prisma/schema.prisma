@@ -59,6 +59,7 @@ model User {
   complaints          Complaint[]           @relation("ComplaintReporter")
   aiSessionLogs       AISessionLog[]
   aiGatewayRequests   AIRequest[]
+  dialogues           Dialogue[]
   balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
   transactions        Transaction[]
   savedCards          SavedCard[]
@@ -607,6 +608,60 @@ model PayoutDetails {
 }
 
 // ─── AI Session Log ───────────────────────────────────────────────────────────
+
+// ─── v5 Dialogues ────────────────────────────────────────────────────────────
+
+model Dialogue {
+  id             String           @id @default(cuid())
+  userId         String?          @map("user_id")
+  user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestSessionId String?          @map("guest_session_id")
+  status         DialogueStatus   @default(OPEN)
+  title          String
+  topic          String?
+  difficulty     String?
+  safetyLevel    String?          @map("safety_level")
+  metadata       Json?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  archivedAt     DateTime?        @map("archived_at")
+  deletedAt      DateTime?        @map("deleted_at")
+
+  messages       DialogueMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([guestSessionId, updatedAt])
+  @@index([status, updatedAt])
+  @@map("dialogues")
+}
+
+model DialogueMessage {
+  id         String              @id @default(cuid())
+  dialogueId String              @map("dialogue_id")
+  dialogue   Dialogue            @relation(fields: [dialogueId], references: [id], onDelete: Cascade)
+  role       DialogueMessageRole
+  content    String
+  metadata   Json?
+  createdAt  DateTime            @default(now()) @map("created_at")
+
+  @@index([dialogueId, createdAt])
+  @@map("dialogue_messages")
+}
+
+enum DialogueStatus {
+  OPEN
+  AWAITING_USER
+  PROCESSING
+  ANSWERED
+  ARCHIVED
+  DELETED
+}
+
+enum DialogueMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
 
 // Сохранённые результаты AI-инструментов для истории в кабинете
 model AISessionLog {
