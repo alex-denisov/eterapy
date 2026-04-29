@@ -335,5 +335,5 @@ export async function runAIGatewayFallbackWithCredentials(input: {
     }
   }
 
-  throw new AIGatewayRoutingError(`All AI providers failed for ${input.plan.feature}`, "ALL_PROVIDERS_FAILED");
+  throw new AIGatewayRoutingError(`All AI providers failed for ${input.plan.feature}`, "ALL_PROVIDERS_FAILED", attempts);
 }

@@ -37,7 +37,7 @@ const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
   { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: "openrouter/free", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: "accounts/fireworks/models/llama-v3p1-8b-instruct", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: "accounts/fireworks/models/kimi-k2p6", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
 
 function buildAdapterForCredential(credential: DecryptedAICredential): AIGatewayAdapter {
