@@ -7,6 +7,7 @@ import { authRateLimitKey, checkAuthRateLimit, checkRequestAuthRateLimit } from 
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { classifyDialogueQuestion, DIALOGUE_TOPICS } from "@/lib/dialogue-router";
+import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
 import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -132,11 +133,19 @@ export async function POST(request: NextRequest) {
     return response;
   }
   const title = titleFromQuestion(parsed.data.question);
-  const routing = await classifyDialogueQuestion({
-    question: parsed.data.question,
-    userId,
-    requestId: context.requestId,
-  });
+  const [routing, safety] = await Promise.all([
+    classifyDialogueQuestion({
+      question: parsed.data.question,
+      userId,
+      requestId: context.requestId,
+    }),
+    classifyDialogueSafety({
+      question: parsed.data.question,
+      userId,
+      requestId: context.requestId,
+    }),
+  ]);
+  const interrupted = shouldInterruptDialogue(safety.level);
   const metadata = {
     ...parsed.data.metadata,
     routing: {
@@ -147,6 +156,14 @@ export async function POST(request: NextRequest) {
       provider: routing.provider,
       model: routing.model,
     },
+    safety: {
+      level: safety.level,
+      reason: safety.reason,
+      confidence: safety.confidence,
+      source: safety.source,
+      provider: safety.provider,
+      model: safety.model,
+    },
   };
 
   const dialogue = await db.dialogue.create({
@@ -154,8 +171,10 @@ export async function POST(request: NextRequest) {
       userId,
       guestSessionId: guest?.id ?? null,
       title,
+      status: interrupted ? "SAFETY_INTERRUPTED" : "OPEN",
       topic: parsed.data.topic ?? routing.topic,
       difficulty: routing.difficulty,
+      safetyLevel: safety.level,
       metadata: metadata as Prisma.InputJsonObject,
       messages: {
         create: {
@@ -188,6 +207,11 @@ export async function POST(request: NextRequest) {
       topic: dialogue.topic,
       difficulty: dialogue.difficulty,
       safetyLevel: dialogue.safetyLevel,
+      safety: {
+        level: safety.level,
+        reason: safety.reason,
+        interrupt: interrupted,
+      },
       createdAt: dialogue.createdAt.toISOString(),
       updatedAt: dialogue.updatedAt.toISOString(),
       messages: dialogue.messages.map((message) => ({

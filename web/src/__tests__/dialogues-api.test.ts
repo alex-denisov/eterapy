@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { resetAuthRateLimitForTests } from "@/lib/auth-rate-limit";
 import { classifyDialogueQuestion } from "@/lib/dialogue-router";
+import { classifyDialogueSafety } from "@/lib/dialogue-safety";
 import db from "@/lib/db";
 import { createGuestSessionCookieValue, GUEST_SESSION_COOKIE } from "@/lib/guest-session";
 import { GET as listDialogues, POST as createDialogue } from "@/app/api/dialogues/route";
@@ -29,9 +30,16 @@ jest.mock("@/lib/dialogue-router", () => ({
   classifyDialogueQuestion: jest.fn(),
 }));
 
+jest.mock("@/lib/dialogue-safety", () => ({
+  __esModule: true,
+  classifyDialogueSafety: jest.fn(),
+  shouldInterruptDialogue: (level: string) => level === "crisis" || level === "blocked",
+}));
+
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockDb = db as jest.Mocked<typeof db>;
 const mockClassifyDialogueQuestion = classifyDialogueQuestion as jest.MockedFunction<typeof classifyDialogueQuestion>;
+const mockClassifyDialogueSafety = classifyDialogueSafety as jest.MockedFunction<typeof classifyDialogueSafety>;
 
 function request(url: string, init: RequestInit = {}) {
   const parsedUrl = new URL(url);
@@ -67,6 +75,14 @@ describe("v5 dialogue API", () => {
       topic: "career",
       difficulty: "medium",
       confidence: 0.82,
+      source: "ai",
+      provider: "openrouter",
+      model: "openrouter/free",
+    });
+    mockClassifyDialogueSafety.mockResolvedValue({
+      level: "normal",
+      reason: "no_marker",
+      confidence: 0.7,
       source: "ai",
       provider: "openrouter",
       model: "openrouter/free",
@@ -107,24 +123,82 @@ describe("v5 dialogue API", () => {
       data: expect.objectContaining({
         userId: null,
         guestSessionId: expect.stringMatching(/^gst_/),
-        title: "Как выбрать направление?",
-        topic: "career",
-        difficulty: "medium",
-        messages: { create: { role: "USER", content: "Как выбрать направление?" } },
-        metadata: expect.objectContaining({
+      title: "Как выбрать направление?",
+      status: "OPEN",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      messages: { create: { role: "USER", content: "Как выбрать направление?" } },
+      metadata: expect.objectContaining({
           routing: expect.objectContaining({
             topic: "career",
             difficulty: "medium",
             source: "ai",
           }),
+          safety: expect.objectContaining({
+            level: "normal",
+            source: "ai",
+          }),
         }),
       }),
     }));
+    expect(body.dialogue.safety).toEqual({
+      level: "normal",
+      reason: "no_marker",
+      interrupt: false,
+    });
     expect(mockClassifyDialogueQuestion).toHaveBeenCalledWith({
       question: "Как выбрать направление?",
       userId: null,
       requestId: expect.any(String),
     });
+    expect(mockClassifyDialogueSafety).toHaveBeenCalledWith({
+      question: "Как выбрать направление?",
+      userId: null,
+      requestId: expect.any(String),
+    });
+  });
+
+  it("marks crisis dialogues as safety interrupted at creation", async () => {
+    mockClassifyDialogueSafety.mockResolvedValueOnce({
+      level: "crisis",
+      reason: "self_harm_or_suicide_marker",
+      confidence: 0.9,
+      source: "heuristic",
+    });
+    mockDb.dialogue.create.mockResolvedValue({
+      id: "dlg_crisis",
+      title: "Мне страшно",
+      status: "SAFETY_INTERRUPTED",
+      topic: "anxiety",
+      difficulty: "high",
+      safetyLevel: "crisis",
+      createdAt: now,
+      updatedAt: now,
+      messages: [{
+        id: "msg_crisis",
+        role: "USER",
+        content: "Мне страшно",
+        createdAt: now,
+      }],
+    });
+
+    const response = await createDialogue(request("https://app.eterapy.com/api/dialogues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question: "Мне страшно" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.dialogue.status).toBe("SAFETY_INTERRUPTED");
+    expect(body.dialogue.safety.interrupt).toBe(true);
+    expect(mockDb.dialogue.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        status: "SAFETY_INTERRUPTED",
+        safetyLevel: "crisis",
+      }),
+    }));
   });
 
   it("lists only current user's dialogues for registered users", async () => {

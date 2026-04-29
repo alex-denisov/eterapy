@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "DialogueStatus" ADD VALUE 'SAFETY_INTERRUPTED';
