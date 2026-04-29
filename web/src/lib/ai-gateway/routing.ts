@@ -74,11 +74,13 @@ export interface AIGatewayFallbackAttempt {
 
 export class AIGatewayRoutingError extends Error {
   code: string;
+  attempts?: Array<AIGatewayFallbackAttempt & { credentialId?: string; credentialLabel?: string }>;
 
-  constructor(message: string, code: string) {
+  constructor(message: string, code: string, attempts?: Array<AIGatewayFallbackAttempt & { credentialId?: string; credentialLabel?: string }>) {
     super(message);
     this.name = "AIGatewayRoutingError";
     this.code = code;
+    this.attempts = attempts;
   }
 }
 
@@ -218,7 +220,7 @@ export async function runAIGatewayFallback(input: {
     }
   }
 
-  throw new AIGatewayRoutingError(`All AI providers failed for ${input.plan.feature}`, "ALL_PROVIDERS_FAILED");
+  throw new AIGatewayRoutingError(`All AI providers failed for ${input.plan.feature}`, "ALL_PROVIDERS_FAILED", attempts);
 }
 
 export interface AICredentialAdapter {

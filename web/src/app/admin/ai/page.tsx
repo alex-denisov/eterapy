@@ -41,7 +41,7 @@ export default async function AdminAIPage() {
     id: credential.id,
     provider: credential.provider,
     label: credential.label,
-    apiKey: credential.apiKey,
+    apiKeyPreview: credential.apiKeyPreview,
     enabled: credential.enabled,
     priority: credential.priority,
     baseUrlOverride: credential.baseUrlOverride,

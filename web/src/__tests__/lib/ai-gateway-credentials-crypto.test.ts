@@ -22,7 +22,7 @@ describe("ai-gateway credentials crypto", () => {
   });
 
   it("round-trips secrets through AES-256-GCM", () => {
-    const plaintext = "sk-ant-api03-AqmOdK2G9CELWX03CTR7dTU43QleAW";
+    const plaintext = "anthropic_test_fixture_not_a_real_secret";
     const stored = encryptSecret(plaintext);
 
     expect(stored).toMatch(/^v1:/);

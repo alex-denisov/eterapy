@@ -13,6 +13,7 @@ import {
   type AIGatewayMessage,
 } from "@/lib/ai-gateway/domain";
 import {
+  AIGatewayRoutingError,
   resolveAIRoutingPlan,
   runAIGatewayFallbackWithCredentials,
   type AICredentialAdapter,
@@ -32,18 +33,11 @@ import {
 } from "@/lib/ai-gateway/credentials";
 import { log, serializeError } from "@/lib/logger";
 
-const PROVIDER_ENV: Record<AIProvider, string | undefined> = {
-  [AIProvider.OPENROUTER]: process.env.OPENROUTER_API_KEY,
-  [AIProvider.OPENAI]: process.env.OPENAI_API_KEY,
-  [AIProvider.ANTHROPIC]: process.env.ANTHROPIC_API_KEY,
-  [AIProvider.FIREWORKS]: process.env.FIREWORKS_API_KEY,
-};
-
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
-  { provider: AIProvider.OPENROUTER, enabled: Boolean(PROVIDER_ENV.OPENROUTER), priority: 10, defaultModel: "meta-llama/llama-3.1-70b-instruct:free", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.OPENAI, enabled: Boolean(PROVIDER_ENV.OPENAI), priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.ANTHROPIC, enabled: Boolean(PROVIDER_ENV.ANTHROPIC), priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.FIREWORKS, enabled: Boolean(PROVIDER_ENV.FIREWORKS), priority: 40, defaultModel: "accounts/fireworks/models/llama-v3p1-8b-instruct", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: "openrouter/free", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: "accounts/fireworks/models/llama-v3p1-8b-instruct", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
 
 function buildAdapterForCredential(credential: DecryptedAICredential): AIGatewayAdapter {
@@ -284,6 +278,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       latencyMs: response.latencyMs,
     };
   } catch (err) {
+    const failedAttempts = err instanceof AIGatewayRoutingError ? err.attempts ?? [] : [];
     await db.aIRequest.update({
       where: { id: aiRequest.id },
       data: {
@@ -291,6 +286,34 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
         finishedAt: new Date(),
       },
     }).catch(() => undefined);
+    await Promise.all([
+      ...failedAttempts.map((attempt) => db.aIAttempt.create({
+        data: {
+          aiRequestId: aiRequest.id,
+          provider: attempt.provider,
+          model: attempt.model ?? "unknown",
+          status: attemptStatus(attempt),
+          errorCode: attempt.code ?? null,
+          finishedAt: new Date(),
+        },
+      })),
+      ...failedAttempts.flatMap((attempt) => {
+        if (!attempt.credentialId || attempt.status !== "failed") return [];
+        const classification = classifyCredentialFailure(attempt.code);
+        return [markCredentialFailure({
+          credentialId: attempt.credentialId,
+          code: attempt.code ?? "PROVIDER_ERROR",
+          cooldownMs: classification.cooldownMs,
+          regionBlocked: classification.regionBlocked,
+        })];
+      }),
+    ]).catch((recordErr) => {
+      log.warn("ai-gateway-failed-attempt-recording-failed", {
+        requestId,
+        feature,
+        error: serializeError(recordErr),
+      });
+    });
 
     log.error("ai-gateway-request-failed", {
       requestId,

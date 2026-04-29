@@ -5,6 +5,7 @@ import {
   pickCredentialForProvider,
   type DecryptedAICredential,
 } from "@/lib/ai-gateway/credentials";
+import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
 import { isFreeOpenRouterModel } from "@/lib/ai-gateway/openrouter-adapter";
 
 export interface AIModelInfo {
@@ -63,7 +64,10 @@ async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
 async function fetchOpenAIModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
   const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? "https://api.openai.com/v1";
   const data = await fetchJSON(`${baseUrl}/models`, {
-    headers: { Authorization: `Bearer ${credential.apiKey}` },
+    headers: {
+      Authorization: `Bearer ${credential.apiKey}`,
+      ...cloudflareGatewayAuthHeaders(baseUrl),
+    },
   });
   const list = (data as { data?: Array<{ id?: string; owned_by?: string }> }).data ?? [];
   return list

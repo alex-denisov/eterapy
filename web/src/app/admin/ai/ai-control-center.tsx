@@ -41,7 +41,7 @@ type CredentialRow = {
   id: string;
   provider: AIProvider;
   label: string;
-  apiKey: string;
+  apiKeyPreview: string;
   enabled: boolean;
   priority: number;
   baseUrlOverride: string | null;
@@ -89,12 +89,6 @@ function CheckboxSwitch({ name, defaultChecked, label }: { name: string; default
       <span className="relative inline-flex h-5 w-10 shrink-0 rounded-full bg-muted/40 transition-colors after:absolute after:left-1 after:top-0.5 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-5" />
     </label>
   );
-}
-
-function maskKey(value: string): string {
-  if (!value) return "";
-  if (value.length <= 12) return "*".repeat(value.length);
-  return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
 function ModelSelect({
@@ -147,7 +141,6 @@ function CredentialRowEditor({
   onDelete: () => Promise<void> | void;
   disabled: boolean;
 }) {
-  const [showKey, setShowKey] = useState(false);
   const [draft, setDraft] = useState({
     label: credential.label,
     apiKey: "",
@@ -216,11 +209,10 @@ function CredentialRowEditor({
           placeholder="Label"
         />
         <Input
-          value={showKey ? (draft.apiKey || credential.apiKey) : (draft.apiKey || maskKey(credential.apiKey))}
+          value={draft.apiKey}
           onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })}
-          onFocus={() => setShowKey(true)}
-          placeholder="API key (введите чтобы заменить)"
-          type={showKey ? "text" : "text"}
+          placeholder={`${credential.apiKeyPreview} — введите новый ключ для замены`}
+          type="password"
           spellCheck={false}
           autoComplete="off"
         />

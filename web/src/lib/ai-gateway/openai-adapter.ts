@@ -8,11 +8,14 @@ import {
   type AIGatewayCompletionResponse,
   type AIProviderHealth,
 } from "@/lib/ai-gateway/adapters";
+import {
+  cloudflareGatewayAuthHeaders,
+  isCloudflareAIGatewayUrl as isCloudflareGatewayUrl,
+} from "@/lib/ai-gateway/cloudflare-gateway";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_TIMEOUT_MS = 30_000;
-const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
 
 /**
  * Returns true when the given baseURL points at a Cloudflare AI Gateway.
@@ -20,12 +23,7 @@ const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
  *   https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/openai
  */
 export function isCloudflareAIGatewayUrl(url: string | undefined | null): boolean {
-  if (!url) return false;
-  try {
-    return new URL(url).host === CF_AI_GATEWAY_HOST;
-  } catch {
-    return false;
-  }
+  return isCloudflareGatewayUrl(url);
 }
 
 /**
@@ -37,10 +35,7 @@ export function isCloudflareAIGatewayUrl(url: string | undefined | null): boolea
  * DB changes.
  */
 function cfGatewayHeaders(baseURL: string | undefined): Record<string, string> {
-  if (!isCloudflareAIGatewayUrl(baseURL)) return {};
-  const token = process.env.CF_AI_GATEWAY_TOKEN?.trim();
-  if (!token) return {};
-  return { "cf-aig-authorization": `Bearer ${token}` };
+  return cloudflareGatewayAuthHeaders(baseURL);
 }
 
 interface OpenAIClientLike {

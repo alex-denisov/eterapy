@@ -17,8 +17,8 @@
  * `cf-aig-authorization` header automatically when the token is present.
  */
 
-const SUPPORTED_PROVIDERS = ["openai", "anthropic", "groq", "azure-openai"] as const;
-export type CloudflareGatewayProvider = (typeof SUPPORTED_PROVIDERS)[number];
+const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
+export type CloudflareGatewayProvider = "openai" | "anthropic" | "groq" | "azure-openai";
 
 export interface CloudflareGatewayConfig {
   accountId: string;
@@ -43,4 +43,20 @@ export function buildCloudflareGatewayUrl(input: {
   provider: CloudflareGatewayProvider;
 }): string {
   return `https://gateway.ai.cloudflare.com/v1/${input.accountId}/${input.gatewayId}/${input.provider}`;
+}
+
+export function isCloudflareAIGatewayUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  try {
+    return new URL(url).host === CF_AI_GATEWAY_HOST;
+  } catch {
+    return false;
+  }
+}
+
+export function cloudflareGatewayAuthHeaders(baseURL: string | undefined | null): Record<string, string> {
+  if (!isCloudflareAIGatewayUrl(baseURL)) return {};
+  const token = process.env.CF_AI_GATEWAY_TOKEN?.trim();
+  if (!token) return {};
+  return { "cf-aig-authorization": `Bearer ${token}` };
 }

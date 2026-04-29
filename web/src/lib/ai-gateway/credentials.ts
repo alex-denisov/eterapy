@@ -27,7 +27,7 @@ export interface CredentialPublicView {
   id: string;
   provider: AIProvider;
   label: string;
-  apiKey: string;
+  apiKeyPreview: string;
   baseUrlOverride: string | null;
   modelOverride: string | null;
   enabled: boolean;
@@ -80,7 +80,7 @@ function rowToPublicView(row: AIProviderCredential): CredentialPublicView {
     id: row.id,
     provider: row.provider,
     label: row.label,
-    apiKey: decryptSecret(row.encryptedKey),
+    apiKeyPreview: "stored secret",
     baseUrlOverride: row.baseUrlOverride,
     modelOverride: row.modelOverride,
     enabled: row.enabled,
@@ -115,7 +115,6 @@ function rowToDecrypted(row: AIProviderCredential): DecryptedAICredential {
 }
 
 export async function listCredentials(provider?: AIProvider): Promise<CredentialPublicView[]> {
-  if (!isAICredentialEncryptionConfigured()) return [];
   const rows = await db.aIProviderCredential.findMany({
     where: provider ? { provider } : undefined,
     orderBy: [{ provider: "asc" }, { priority: "asc" }, { label: "asc" }],
