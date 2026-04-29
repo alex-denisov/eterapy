@@ -181,11 +181,12 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   // один раз подтягиваем актуальный статус при фокусе/видимости.
   useEffect(() => {
     function onVisibility() { if (!document.hidden) refreshTelegramStatus(); }
+    function onFocus() { void refreshTelegramStatus(); }
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", refreshTelegramStatus);
+    window.addEventListener("focus", onFocus);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", refreshTelegramStatus);
+      window.removeEventListener("focus", onFocus);
     };
   }, [refreshTelegramStatus]);
 
