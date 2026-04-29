@@ -258,6 +258,10 @@ function CredentialRowEditor({
   );
 }
 
+type CloudflareGatewayState =
+  | { configured: true; accountId: string; gatewayId: string; hasToken: boolean; openaiUrl: string }
+  | { configured: false };
+
 export function AIControlCenter({
   providers,
   policies,
@@ -265,6 +269,7 @@ export function AIControlCenter({
   credentials,
   models,
   encryptionConfigured,
+  cloudflareGateway,
 }: {
   providers: ProviderRow[];
   policies: PolicyRow[];
@@ -272,6 +277,7 @@ export function AIControlCenter({
   credentials: CredentialRow[];
   models: ModelsByProvider;
   encryptionConfigured: boolean;
+  cloudflareGateway: CloudflareGatewayState;
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -413,6 +419,24 @@ export function AIControlCenter({
       {!encryptionConfigured && (
         <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-200" data-testid="ai-encryption-warning">
           AI_CREDENTIAL_KEY не настроен на сервере. Управление ключами недоступно — добавьте 32-байтный ключ в env (см. DEPLOY.md).
+        </div>
+      )}
+      {cloudflareGateway.configured ? (
+        <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200" data-testid="ai-cf-gateway-info">
+          <div className="font-medium">Cloudflare AI Gateway настроен</div>
+          <p className="mt-1 text-xs text-emerald-200/80">
+            Gateway: <code className="font-mono">{cloudflareGateway.gatewayId}</code> · account <code className="font-mono">{cloudflareGateway.accountId.slice(0, 8)}…</code> · auth token: {cloudflareGateway.hasToken ? "присутствует" : "отсутствует (Authenticated Gateway отключён)"}
+          </p>
+          <p className="mt-1 text-xs text-emerald-200/80">
+            Чтобы прокинуть OpenAI через CF Gateway — создайте отдельный credential c этим Base URL override:
+          </p>
+          <code className="mt-1 block break-all rounded bg-black/30 px-2 py-1 font-mono text-xs">
+            {cloudflareGateway.openaiUrl}
+          </code>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-xs text-sky-200" data-testid="ai-cf-gateway-missing">
+          Cloudflare AI Gateway не настроен. Чтобы обойти региональную блокировку OpenAI на VPS, выставите CF_AI_GATEWAY_ACCOUNT_ID, CF_AI_GATEWAY_ID и (опционально) CF_AI_GATEWAY_TOKEN в env (см. DEPLOY.md).
         </div>
       )}
 

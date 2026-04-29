@@ -82,6 +82,7 @@ export default async function AdminAIPage() {
         credentials={credentials}
         models={models}
         encryptionConfigured={data.encryptionConfigured}
+        cloudflareGateway={data.cloudflareGateway}
       />
     </PageContainer>
   );

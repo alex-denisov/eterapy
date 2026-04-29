@@ -12,6 +12,36 @@ import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_TIMEOUT_MS = 30_000;
+const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
+
+/**
+ * Returns true when the given baseURL points at a Cloudflare AI Gateway.
+ * CF Gateway URLs look like:
+ *   https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>/openai
+ */
+export function isCloudflareAIGatewayUrl(url: string | undefined | null): boolean {
+  if (!url) return false;
+  try {
+    return new URL(url).host === CF_AI_GATEWAY_HOST;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build the cf-aig-authorization header for an authenticated CF AI Gateway,
+ * if the gateway token is configured. Returns an empty record otherwise.
+ *
+ * The token comes from `CF_AI_GATEWAY_TOKEN` env var (provisioned per-deploy,
+ * not stored in the credential record), so rotating it does not require any
+ * DB changes.
+ */
+function cfGatewayHeaders(baseURL: string | undefined): Record<string, string> {
+  if (!isCloudflareAIGatewayUrl(baseURL)) return {};
+  const token = process.env.CF_AI_GATEWAY_TOKEN?.trim();
+  if (!token) return {};
+  return { "cf-aig-authorization": `Bearer ${token}` };
+}
 
 interface OpenAIClientLike {
   chat: {
@@ -48,10 +78,12 @@ export function createOpenAIAdapter(options: OpenAIAdapterOptions = {}): AIGatew
   const configured = Boolean(options.client || options.apiKey);
   const defaultModel = options.defaultModel ?? DEFAULT_OPENAI_MODEL;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const cfHeaders = cfGatewayHeaders(options.baseURL);
   const client: OpenAIClientLike | null = options.client ?? (configured
     ? new OpenAI({
       apiKey: options.apiKey ?? "",
       baseURL: options.baseURL,
+      ...(Object.keys(cfHeaders).length > 0 ? { defaultHeaders: cfHeaders } : {}),
     })
     : null);
 

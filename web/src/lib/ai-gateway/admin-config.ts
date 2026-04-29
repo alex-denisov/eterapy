@@ -6,6 +6,10 @@ import { getAIUsageLedger } from "@/lib/ai-gateway/usage";
 import { listCredentials } from "@/lib/ai-gateway/credentials";
 import { isAICredentialEncryptionConfigured } from "@/lib/ai-gateway/credentials-crypto";
 import { listCachedModels } from "@/lib/ai-gateway/models";
+import {
+  buildCloudflareGatewayUrl,
+  getCloudflareGatewayConfig,
+} from "@/lib/ai-gateway/cloudflare-gateway";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -68,6 +72,21 @@ export async function getAIControlCenterData(period = aiBudgetPeriod()) {
     [AIProvider.OPENROUTER]: openrouterModels,
   };
 
+  const cfGateway = getCloudflareGatewayConfig();
+  const cloudflareGateway = cfGateway
+    ? {
+      configured: true as const,
+      accountId: cfGateway.accountId,
+      gatewayId: cfGateway.gatewayId,
+      hasToken: cfGateway.hasToken,
+      openaiUrl: buildCloudflareGatewayUrl({
+        accountId: cfGateway.accountId,
+        gatewayId: cfGateway.gatewayId,
+        provider: "openai",
+      }),
+    }
+    : { configured: false as const };
+
   return {
     providers,
     policies,
@@ -75,6 +94,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod()) {
     credentials,
     models,
     encryptionConfigured: isAICredentialEncryptionConfigured(),
+    cloudflareGateway,
     period,
   };
 }
