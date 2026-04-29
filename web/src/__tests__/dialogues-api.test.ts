@@ -79,6 +79,8 @@ describe("v5 dialogue API", () => {
       title: "Как выбрать направление?",
       status: "OPEN",
       topic: "career",
+      difficulty: "medium",
+      safetyLevel: null,
       createdAt: now,
       updatedAt: now,
       messages: [{
@@ -100,6 +102,7 @@ describe("v5 dialogue API", () => {
     expect(response.headers.get("set-cookie")).toContain(GUEST_SESSION_COOKIE);
     expect(response.headers.get("X-Guest-Session")).toBe("created");
     expect(body.dialogue.id).toBe("dlg_1");
+    expect(body.dialogue.difficulty).toBe("medium");
     expect(mockDb.dialogue.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: null,

@@ -169,6 +169,8 @@ export async function POST(request: NextRequest) {
       title: true,
       status: true,
       topic: true,
+      difficulty: true,
+      safetyLevel: true,
       createdAt: true,
       updatedAt: true,
       messages: {
@@ -184,6 +186,8 @@ export async function POST(request: NextRequest) {
       title: dialogue.title,
       status: dialogue.status,
       topic: dialogue.topic,
+      difficulty: dialogue.difficulty,
+      safetyLevel: dialogue.safetyLevel,
       createdAt: dialogue.createdAt.toISOString(),
       updatedAt: dialogue.updatedAt.toISOString(),
       messages: dialogue.messages.map((message) => ({
