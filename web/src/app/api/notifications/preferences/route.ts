@@ -4,6 +4,7 @@
  * PUT  /api/notifications/preferences  — заменить все настройки
  */
 import { NextRequest, NextResponse } from "next/server";
+import { NotificationChannel, NotificationEvent } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
@@ -79,12 +80,14 @@ export async function PATCH(req: NextRequest) {
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid preferences payload" }, { status: 400 });
   const { event, channel, enabled, remindBeforeHours } = parsed.data;
+  const typedEvent = event as NotificationEvent;
+  const typedChannel = channel as NotificationChannel;
   const nextEnabled = enabled ?? true;
   const nextReminder = normalizeReminder(remindBeforeHours);
 
   await db.notificationPreference.upsert({
-    where: { userId_event_channel: { userId, event, channel } },
-    create: { userId, event: event as never, channel, enabled: nextEnabled, remindBeforeHours: nextReminder },
+    where: { userId_event_channel: { userId, event: typedEvent, channel: typedChannel } },
+    create: { userId, event: typedEvent, channel: typedChannel, enabled: nextEnabled, remindBeforeHours: nextReminder },
     update: { enabled: nextEnabled, remindBeforeHours: nextReminder },
   });
 
@@ -102,11 +105,11 @@ export async function PUT(req: NextRequest) {
 
   const writes: Array<ReturnType<typeof db.notificationPreference.upsert>> = prefs.map(p =>
       db.notificationPreference.upsert({
-        where: { userId_event_channel: { userId, event: p.event as never, channel: p.channel as never } },
+        where: { userId_event_channel: { userId, event: p.event as NotificationEvent, channel: p.channel as NotificationChannel } },
         create: {
           userId,
-          event: p.event as never,
-          channel: p.channel as never,
+          event: p.event as NotificationEvent,
+          channel: p.channel as NotificationChannel,
           enabled: p.enabled,
           remindBeforeHours: normalizeReminder(p.remindBeforeHours),
         },
