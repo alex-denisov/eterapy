@@ -12,16 +12,16 @@ describe("v5 UI primitives", () => {
     const componentClass = componentButtonVariants();
     const linkClass = linkButtonVariants();
 
-    expect(componentClass).toContain("rounded-[var(--radius-control)]");
-    expect(componentClass).toContain("bg-primary");
-    expect(componentClass).toContain("shadow-[0_0_24px");
-    expect(linkClass).toContain("rounded-[var(--radius-control)]");
-    expect(linkClass).toContain("bg-primary");
+    expect(componentClass).toContain("rounded-[var(--radius-pill)]");
+    expect(componentClass).toContain("bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))]");
+    expect(componentClass).toContain("shadow-[var(--shadow-halo-gold)]");
+    expect(linkClass).toContain("rounded-[var(--radius-pill)]");
+    expect(linkClass).toContain("bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))]");
   });
 
   it("uses v5 surface, radius, and focus tokens in core primitives", () => {
-    expect(source("src/components/ui/input.tsx")).toContain("rounded-[var(--radius-control)]");
-    expect(source("src/components/ui/card.tsx")).toContain("rounded-[var(--radius-card)]");
+    expect(source("src/components/ui/input.tsx")).toContain("premium-input");
+    expect(source("src/components/ui/card.tsx")).toContain("premium-card");
     expect(source("src/components/ui/dialog.tsx")).toContain("rounded-[var(--radius-sheet)]");
     expect(source("src/components/providers.tsx")).toContain("var(--surface-overlay)");
   });

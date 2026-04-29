@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { BrandSignature, HaloMark } from "@/components/brand/brand-mark";
 
 interface DialogueShellProps {
   title: string;
@@ -24,16 +25,20 @@ export function DialogueShell({
   return (
     <section
       data-testid="dialogue-shell"
-      className={cn("relative min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-10 md:py-14", className)}
+      className={cn("premium-page relative min-h-[calc(100vh-4rem)] overflow-hidden px-4 py-8 md:py-12", className)}
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-8 h-64 w-64 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--dialogue-halo-core)_20%,transparent),transparent_68%)] blur-2xl"
+        className="pointer-events-none absolute left-1/2 top-8 h-80 w-80 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--dialogue-halo-core)_24%,transparent),transparent_68%)] blur-2xl"
       />
-      <div className="relative mx-auto w-full max-w-2xl">
+      <div className="relative mx-auto w-full max-w-3xl">
         <header className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-soft-gold">{kicker}</p>
-          <h1 className="mt-2 font-heading text-3xl font-semibold leading-tight md:text-4xl">{title}</h1>
+          <div className="mb-6 flex items-center justify-between gap-4 border-b border-border/25 pb-4">
+            <BrandSignature compact />
+            <HaloMark size={34} />
+          </div>
+          <p className="premium-eyebrow">{kicker}</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-5xl">{title}</h1>
           {description && <div className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">{description}</div>}
           {progress && (
             <div className="mt-6" aria-label={`Шаг ${progress.current} из ${progress.total}`}>

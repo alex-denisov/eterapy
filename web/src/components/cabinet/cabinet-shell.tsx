@@ -17,6 +17,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import { appUrl, logoutUrl, toPathname } from "@/lib/subdomain";
+import { BrandSignature } from "@/components/brand/brand-mark";
 
 interface NavItem {
   href: string;
@@ -26,10 +27,10 @@ interface NavItem {
 
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Обзор" },
-  { href: appUrl("/cabinet/practitioners"), icon: Users, label: "Практики" },
+  { href: appUrl("/cabinet/practitioners"), icon: Users, label: "Специалисты" },
   { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Мои записи" },
   { href: appUrl("/cabinet/modalities"), icon: Compass, label: "Направления" },
-  { href: appUrl("/cabinet/action-history"), icon: History, label: "История действий" },
+  { href: appUrl("/cabinet/action-history"), icon: History, label: "Моя карта" },
   { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Баланс и оплата" },
   { href: appUrl("/help"), icon: HelpCircle, label: "Помощь" },
 ];
@@ -75,18 +76,21 @@ export function CabinetShell({
   const mobileNav = nav.slice(0, 4);
 
   return (
-    <div data-testid="app-shell" data-shell-role={role} className="flex min-h-screen bg-background">
+    <div data-testid="app-shell" data-shell-role={role} className="premium-page flex min-h-screen bg-background">
       {/* Sidebar — sticky, own scroll */}
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="sticky hidden h-[calc(100vh-var(--header-height))] w-56 shrink-0 flex-col overflow-y-auto border-r border-border/20 bg-card/45 px-3 py-6 shadow-[var(--shadow-surface)] md:flex"
+        className="sticky hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col overflow-y-auto border-r border-brand-warm-gold/15 bg-card/45 px-3 py-5 shadow-[var(--shadow-surface)] backdrop-blur-xl md:flex"
         style={{ top: "var(--header-height)" }}
       >
         {/* User badge + Notifications */}
+        <div className="mb-5 border-b border-border/20 px-2 pb-4">
+          <BrandSignature compact />
+        </div>
         <div className="mb-6 px-2" data-testid="app-shell-user">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand-warm-gold/15 text-sm font-semibold text-brand-soft-gold">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-card)] border border-brand-warm-gold/25 bg-brand-warm-gold/15 text-sm font-semibold text-brand-soft-gold">
               {initial}
             </div>
             <div className="min-w-0">
@@ -103,7 +107,7 @@ export function CabinetShell({
             return (
               <Link key={item.href} href={item.href}
                 data-testid="app-shell-nav-item"
-                className={`flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+                className={`flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                   isActive(item.href)
                     ? "bg-brand-warm-gold/12 text-brand-soft-gold font-medium"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -139,7 +143,7 @@ export function CabinetShell({
       </aside>
 
       {/* Mobile nav */}
-      <div data-testid="app-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/20 bg-navy/95 backdrop-blur-sm md:hidden">
+      <div data-testid="app-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-brand-warm-gold/15 bg-navy/96 shadow-[0_-18px_50px_rgba(0,0,0,0.34)] backdrop-blur-xl md:hidden">
         {mobileNav.map((item) => {
           const Icon = item.icon;
           return (

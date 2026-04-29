@@ -1,17 +1,18 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { HaloVisual } from "@/components/v5/premium";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
 export function CTASection() {
   return (
-    <section className="relative overflow-hidden px-4 py-24">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(201,168,76,0.06),transparent_60%)]" />
-
-      <div className="relative mx-auto max-w-2xl text-center">
-        <h2 className="font-heading text-3xl font-bold md:text-4xl">
-          Начните с одного <span className="text-primary">честного вопроса</span>
+    <section className="relative overflow-hidden px-4 py-16 md:py-24">
+      <div className="premium-shell halo-waterline relative mx-auto max-w-4xl overflow-hidden px-5 py-10 text-center md:px-10 md:py-14">
+        <HaloVisual className="mb-4 max-w-[150px]" />
+        <h2 className="premium-title text-3xl md:text-5xl">
+          Начните с одного <span className="text-brand-soft-gold">честного вопроса</span>
         </h2>
-        <p className="mt-4 text-lg text-muted-foreground">
+        <p className="premium-lead mx-auto mt-4 max-w-2xl">
           Бесплатный первичный ответ за несколько минут. Без привязки карты.
         </p>
 
@@ -22,7 +23,8 @@ export function CTASection() {
             data-analytics-event="dialogue_cta_clicked"
             data-analytics-target="/all-modalities/checkin"
           >
-            Задать вопрос
+            Начать диалог
+            <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         </div>
 

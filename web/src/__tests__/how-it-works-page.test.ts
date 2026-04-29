@@ -23,7 +23,7 @@ describe("v5 how-it-works page", () => {
     expect(page).toContain("Бесплатный первичный ответ");
     expect(page).toContain("Платная глубина или подписка");
     expect(page).toContain("Специалист как следующий шаг");
-    expect(page).toContain("no paid CTA in crisis");
+    expect(page).toContain("нет платного CTA в кризисе");
   });
 
   it("links public navigation to the durable route, not only the home anchor", () => {

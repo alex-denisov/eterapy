@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,26 +44,27 @@ export default async function AdminPage() {
   const stats = await getStats();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="premium-page mx-auto max-w-6xl px-4 py-12">
       <div className="mb-8">
-        <h1 className="font-heading text-2xl font-bold">Обзор</h1>
+        <p className="premium-eyebrow">Админка</p>
+        <h1 className="premium-title mt-2 text-3xl md:text-5xl">Обзор платформы</h1>
         <p className="mt-1 text-sm text-muted-foreground">ETerapy · Панель администратора</p>
       </div>
 
       {/* Статистика */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          { label: "Пользователей", value: stats.totalUsers, icon: "👤", color: "text-primary" },
-          { label: "Практиков", value: stats.totalPractitioners, icon: "🔮", color: "text-primary" },
-          { label: "На проверке", value: stats.pendingPractitioners, icon: "⏳", color: stats.pendingPractitioners > 0 ? "text-yellow-400" : "text-primary" },
-          { label: "Бронирований", value: stats.totalBookings, icon: "📅", color: "text-primary" },
-          { label: "Ожидают", value: stats.pendingBookings, icon: "🕐", color: stats.pendingBookings > 0 ? "text-yellow-400" : "text-primary" },
+          { label: "Пользователей", value: stats.totalUsers, icon: "01", color: "text-primary" },
+          { label: "Практиков", value: stats.totalPractitioners, icon: "02", color: "text-primary" },
+          { label: "На проверке", value: stats.pendingPractitioners, icon: "03", color: stats.pendingPractitioners > 0 ? "text-yellow-400" : "text-primary" },
+          { label: "Бронирований", value: stats.totalBookings, icon: "04", color: "text-primary" },
+          { label: "Ожидают", value: stats.pendingBookings, icon: "05", color: stats.pendingBookings > 0 ? "text-yellow-400" : "text-primary" },
         ].map((s) => (
           <Card key={s.label} className="border-border/40 bg-card/50">
             <CardContent className="p-4">
               <div className="flex items-start justify-between">
                 <p className="text-xs text-muted-foreground">{s.label}</p>
-                <span className="text-lg">{s.icon}</span>
+                <span className="font-heading text-lg text-primary">{s.icon}</span>
               </div>
               <p className={`mt-1 font-heading text-2xl font-bold ${s.color}`}>{s.value}</p>
             </CardContent>

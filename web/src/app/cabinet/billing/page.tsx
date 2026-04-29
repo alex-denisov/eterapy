@@ -247,24 +247,27 @@ export default function BillingPage() {
   if (!session) { router.push("/login"); return null; }
 
   return (
-    <div className="px-4 py-8 sm:px-6 max-w-3xl mx-auto space-y-6">
-      <h1 className="font-heading text-2xl font-bold">Баланс и оплата</h1>
+    <div className="premium-page mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+      <div>
+        <p className="premium-eyebrow">Оплата</p>
+        <h1 className="premium-title mt-2 text-3xl md:text-5xl">Баланс и безопасная оплата</h1>
+      </div>
 
       {/* Баланс */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+      <Card className="border-brand-warm-gold/30 bg-[linear-gradient(135deg,#fbf6ef,#f1e3d2)] text-brand-midnight shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <div className="mb-1 flex items-center gap-2 text-sm text-slate-600">
                 <Wallet className="h-4 w-4" />
                 Баланс
               </div>
-              <p className="font-heading text-4xl font-bold text-primary tabular-nums">{Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽</p>
+              <p className="font-heading text-4xl font-medium text-brand-midnight tabular-nums">{Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽</p>
             </div>
             <button
               onClick={handleTopUp}
               disabled={creatingPayment}
-              className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 rounded-full bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))] px-5 py-3 text-sm font-semibold text-navy shadow-[var(--shadow-halo-gold)] transition-colors hover:brightness-105 disabled:opacity-50"
             >
               {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {creatingPayment ? "Создание платежа..." : "Пополнить"}
@@ -338,7 +341,7 @@ export default function BillingPage() {
                         {card.isDefault && (
                           <span className="flex items-center gap-1 text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                             <Check className="h-3 w-3" />
-                            Default
+                            Основная
                           </span>
                         )}
                       </div>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { HaloVisual, PremiumCard, PremiumHero, PremiumPage, PremiumSection } from "@/components/v5/premium";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { buttonVariants } from "@/lib/button-variants";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
@@ -32,19 +34,23 @@ export default async function ProductPage({
   if (!product) notFound();
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-14 md:py-20" data-testid={`product-page-${product.slug}`}>
+    <PremiumPage data-testid={`product-page-${product.slug}`}>
       <PublicJsonLd route={product.route as PublicSeoRoute} />
 
-      <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div>
-          <p className="text-sm font-semibold text-primary">{product.eyebrow}</p>
-          <h1 className="mt-3 font-heading text-4xl font-bold leading-tight md:text-6xl">
-            {product.name}
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            {product.summary}
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <PremiumHero
+        eyebrow={product.eyebrow}
+        title={<>{product.name}</>}
+        lead={product.summary}
+        visual={
+          <PremiumCard tone={product.tone === "private" || product.tone === "route" ? "lavender" : "gold"} className="p-6">
+            <HaloVisual className="max-w-[220px]" />
+            <p className="mt-4 text-sm text-muted-foreground">Цена</p>
+            <p className="mt-1 font-heading text-4xl font-medium text-primary">{product.price}</p>
+            <Disclaimer className="mt-5">{product.privacy}</Disclaimer>
+          </PremiumCard>
+        }
+      >
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/all-modalities/checkin"
               className={cn(buttonVariants({ size: "lg" }), "min-h-12 text-base")}
@@ -53,37 +59,33 @@ export default async function ProductPage({
               data-testid="product-dialogue-cta"
             >
               {product.cta}
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
             <Link href="/products" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "min-h-12 text-base")}>
               Все продукты
             </Link>
           </div>
-        </div>
+      </PremiumHero>
 
-        <aside className="rounded-[var(--radius-card)] border border-border/40 bg-card/40 p-5">
-          <p className="text-sm text-muted-foreground">Цена</p>
-          <p className="mt-2 text-3xl font-bold text-primary">{product.price}</p>
-          <Disclaimer className="mt-4">{product.privacy}</Disclaimer>
-        </aside>
-      </section>
-
-      <section className="mt-14 grid gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="rounded-[var(--radius-card)] border border-border/30 bg-card/25 p-6">
-          <h2 className="font-heading text-2xl font-semibold">Что получает пользователь</h2>
+      <PremiumSection>
+      <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+        <PremiumCard>
+          <h2 className="font-heading text-3xl font-medium">Что получает пользователь</h2>
           <p className="mt-3 leading-relaxed text-muted-foreground">{product.result}</p>
-        </div>
+        </PremiumCard>
 
-        <div className="rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-6">
-          <h2 className="font-heading text-2xl font-semibold">UX и продуктовые механики</h2>
+        <PremiumCard tone="lavender">
+          <h2 className="font-heading text-3xl font-medium">UX и продуктовые механики</h2>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             {product.mechanics.map((item) => (
-              <li key={item} className="rounded-full border border-border/30 bg-background/50 px-3 py-2">
+              <li key={item} className="premium-chip w-full justify-start">
                 {item}
               </li>
             ))}
           </ul>
-        </div>
-      </section>
-    </main>
+        </PremiumCard>
+      </div>
+      </PremiumSection>
+    </PremiumPage>
   );
 }

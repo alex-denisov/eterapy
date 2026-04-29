@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
@@ -10,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 import { Wallet, HelpCircle } from "lucide-react";
-import { brandAssets } from "@/lib/brand-assets";
+import { BrandLogo } from "@/components/brand/brand-mark";
 
 const GUEST_NAV = [
   { href: "/all-modalities/checkin", label: "Задать вопрос" },
@@ -162,7 +161,10 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
           <div className="border-b border-border/30 px-4 py-3">
             <p className="text-sm font-medium">{session.user?.name}</p>
             <p className="text-xs text-muted-foreground">{session.user?.email}</p>
-            <p className="text-xs text-primary mt-1">💰 {rub} ₽</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-primary">
+              <Wallet className="size-3" aria-hidden="true" />
+              {rub} ₽
+            </p>
           </div>
           <div className="py-1">
             {menuItems.map((item, i) => (
@@ -213,18 +215,11 @@ export function Header() {
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   return (
-    <header data-testid="public-shell-header" className="sticky top-0 z-50 border-b border-border/40 bg-navy/90 backdrop-blur-xl">
+    <header data-testid="public-shell-header" className="sticky top-0 z-50 border-b border-brand-warm-gold/15 bg-navy/86 shadow-[0_8px_38px_rgba(0,0,0,0.28)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href={mainUrl("/")}
           className="flex shrink-0 items-center">
-          <Image
-            src={brandAssets.logos.horizontalDark}
-            alt="ETerapy"
-            width={150}
-            height={50}
-            priority
-            className="h-9 w-auto"
-          />
+          <BrandLogo height={36} priority />
         </Link>
 
         {/* Guest navigation — NEVER shown to authenticated users */}
@@ -233,8 +228,8 @@ export function Header() {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href}
-                className={cn("rounded-lg px-3 py-2 text-sm transition-colors",
-                  active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                className={cn("rounded-full px-3 py-2 text-sm transition-colors",
+                  active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                 )}>
                 {item.label}
               </Link>
@@ -250,7 +245,7 @@ export function Header() {
               <Link
                 href={appUrl("/cabinet/billing")}
                 aria-label={`Баланс: ${balanceRub} ₽. Открыть раздел пополнения`}
-                className="hidden sm:flex items-center gap-1.5 rounded-lg border border-border/40 bg-card/30 px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground"
+                className="hidden min-h-10 items-center gap-1.5 rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground sm:flex"
               >
                 <Wallet className="h-4 w-4" />
                 <span className="tabular-nums">{balanceRub} ₽</span>
@@ -260,7 +255,7 @@ export function Header() {
               <Link
                 href={appUrl("/help")}
                 aria-label="Помощь"
-                className="flex items-center justify-center rounded-lg border border-border/40 bg-card/30 px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground"
+                className="flex min-h-10 items-center justify-center rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground"
               >
                 <HelpCircle className="h-4 w-4" />
               </Link>
@@ -289,7 +284,7 @@ export function Header() {
             </div>
           )}
           <button
-            className="ml-1 flex h-9 w-9 items-center justify-center rounded-lg border border-border/40 text-muted-foreground transition-colors hover:text-foreground md:hidden"
+            className="ml-1 flex h-10 w-10 items-center justify-center rounded-full border border-border/40 text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground md:hidden"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Меню"
           >
@@ -299,12 +294,12 @@ export function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border/40 bg-navy/95 px-4 py-4 md:hidden animate-in slide-in-from-top-2 duration-200">
+        <div className="border-t border-border/40 bg-navy/96 px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl md:hidden animate-in slide-in-from-top-2 duration-200">
           <nav className="flex flex-col gap-1">
             {nav.map((item) => (
               <Link key={item.href} href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={cn("rounded-lg px-3 py-2.5 text-sm transition-colors",
+                className={cn("rounded-xl px-3 py-2.5 text-sm transition-colors",
                   pathname === item.href ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                 )}>
                 {item.label}
@@ -316,7 +311,10 @@ export function Header() {
                   className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   Помощь
                 </Link>
-                <div className="px-3 py-2 text-sm text-primary">💰 {balanceRub} ₽</div>
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-primary">
+                  <Wallet className="size-4" aria-hidden="true" />
+                  {balanceRub} ₽
+                </div>
                 <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
                   className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
                   Выйти

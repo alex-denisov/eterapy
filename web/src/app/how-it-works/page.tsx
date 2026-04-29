@@ -12,31 +12,31 @@ const stages = [
     step: "01",
     title: "Вопрос вместо каталога",
     text: "Пользователь начинает с живой формулировки ситуации. Система не просит выбирать практика до того, как понятен контекст.",
-    mechanics: ["анонимная сессия", "sourceAttribution=seo", "сохранение после value moment"],
+    mechanics: ["анонимная сессия", "SEO-атрибуция источника", "сохранение после момента ценности"],
   },
   {
     step: "02",
     title: "Уточняющий диалог",
     text: "Диалог задает 2-5 коротких вопросов, распознает сложность темы и останавливает кризисные сценарии до монетизации.",
-    mechanics: ["quick replies", "skip state", "refresh recovery", "safety interrupt"],
+    mechanics: ["быстрые ответы", "пропуск уточнений", "восстановление после обновления", "Экстренная поддержка"],
   },
   {
     step: "03",
     title: "Бесплатный первичный ответ",
     text: "Пользователь получает структурированное отражение: что происходит, какие есть перспективы и какой следующий шаг уместен.",
-    mechanics: ["save/share/deepen", "registration gate после результата", "no paid CTA in crisis"],
+    mechanics: ["сохранить, поделиться, углубить", "регистрация после результата", "нет платного CTA в кризисе"],
   },
   {
     step: "04",
     title: "Платная глубина или подписка",
     text: "Если нужно больше, ETerapy предлагает deep report, перспективы, совместимость, 7-дневный маршрут или подписку.",
-    mechanics: ["entitlement-based unlock", "trial/cancel lifecycle", "payment failure retry"],
+    mechanics: ["открытие через entitlement", "пробный период и отмена", "повтор после ошибки оплаты"],
   },
   {
     step: "05",
     title: "Специалист как следующий шаг",
     text: "Практик появляется не как витрина, а как рекомендация после контекста: 2-3 специалиста, rationale, формат и цена.",
-    mechanics: ["recommendation rationale", "fixed packages", "booking notifications"],
+    mechanics: ["объяснение рекомендации", "фиксированные пакеты", "уведомления о записи"],
   },
 ];
 
@@ -54,7 +54,7 @@ export default function HowItWorksPage() {
 
       <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div>
-          <p className="text-sm font-semibold text-primary">ETerapy v5 flow</p>
+          <p className="text-sm font-semibold text-primary">Путь ETerapy v5</p>
           <h1 className="mt-3 font-heading text-4xl font-bold leading-tight md:text-6xl">
             От вопроса к ясному следующему шагу
           </h1>

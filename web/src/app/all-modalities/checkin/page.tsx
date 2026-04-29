@@ -187,12 +187,12 @@ export default function CheckinPage() {
 
   return (
     <DialogueShell
-      title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Сначала безопасность" : "Задайте вопрос"}
+      title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Экстренная поддержка" : "Диалог ясности"}
       description={
         phase === "result"
           ? "Это первый слой ответа. Его можно сохранить, отправить себе или углубить."
           : phase === "safety"
-            ? "В этом сценарии ETerapy не показывает платные действия и не заменяет срочную помощь."
+            ? "В этом сценарии ETerapy не показывает платные действия и помогает перейти к безопасному следующему шагу."
             : "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ."
       }
       progress={progress}
@@ -201,7 +201,7 @@ export default function CheckinPage() {
 
       {phase === "question" && (
         <div data-testid="dialogue-question-step">
-          <Card className="border-border/40 bg-card/50">
+          <Card className="border-brand-warm-gold/25 bg-card/50">
             <CardContent className="p-5">
               <label htmlFor="dialogue-question" className="text-sm font-medium text-foreground">
                 Что сейчас хочется понять?
@@ -211,7 +211,7 @@ export default function CheckinPage() {
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
                 placeholder="Например: почему я застрял в этом выборе и какой следующий шаг будет бережным?"
-                className="mt-3 min-h-36 w-full resize-none rounded-[var(--radius-control)] border border-border/40 bg-background/60 px-4 py-3 text-base leading-relaxed outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                className="premium-input mt-3 min-h-36 w-full resize-none px-4 py-3 text-base leading-relaxed"
                 rows={5}
                 data-testid="dialogue-question-input"
               />
@@ -235,7 +235,7 @@ export default function CheckinPage() {
       {phase === "clarifying" && dialogue && (
         <div data-testid="dialogue-clarifying-step">
           <div className="space-y-3">
-            <div className="rounded-[var(--radius-card)] border border-border/35 bg-card/40 p-4">
+            <div className="premium-card p-4">
               <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Ваш вопрос</p>
               <p className="mt-2 text-sm leading-relaxed">{question || dialogue.title}</p>
             </div>
@@ -243,7 +243,7 @@ export default function CheckinPage() {
               <CardContent className="p-5">
                 <Badge variant="outline" className="border-primary/30 text-primary">
                   <Sparkles className="size-3" aria-hidden="true" />
-                  Уточнение
+                  Уточняющие вопросы
                 </Badge>
                 <div className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90">
                   {(dialogue.clarifyingQuestions ?? []).map((item, index) => (
@@ -256,7 +256,7 @@ export default function CheckinPage() {
                   value={clarification}
                   onChange={(event) => setClarification(event.target.value)}
                   placeholder="Ответьте одним сообщением или пропустите уточнения."
-                  className="mt-4 min-h-28 w-full resize-none rounded-[var(--radius-control)] border border-border/40 bg-background/60 px-4 py-3 text-sm leading-relaxed outline-none transition focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                  className="premium-input mt-4 min-h-28 w-full resize-none px-4 py-3 text-sm leading-relaxed"
                   rows={4}
                   data-testid="dialogue-clarification-input"
                 />
@@ -276,7 +276,7 @@ export default function CheckinPage() {
       )}
 
       {phase === "processing" && (
-        <div className="flex min-h-72 flex-col items-center justify-center rounded-[var(--radius-card)] border border-border/35 bg-card/40 px-5 text-center" data-testid="dialogue-processing-step">
+        <div className="premium-card flex min-h-72 flex-col items-center justify-center px-5 text-center" data-testid="dialogue-processing-step">
           <div className="relative">
             <div className="h-16 w-16 animate-pulse rounded-full bg-[radial-gradient(circle,var(--dialogue-halo-core),transparent_68%)] shadow-[var(--shadow-halo-soft)]" />
             <Loader2 className="absolute inset-0 m-auto size-6 animate-spin text-primary" aria-hidden="true" />
@@ -302,7 +302,7 @@ export default function CheckinPage() {
 
       {phase === "safety" && (
         <div data-testid="dialogue-safety-interrupt">
-          <Disclaimer tone="warning" title="Похоже, тут нужен безопасный следующий шаг">
+          <Disclaimer tone="warning" title="Экстренная поддержка">
             Если есть риск причинить вред себе или другому человеку, обратитесь в экстренные службы или к близкому человеку рядом. ETerapy не будет предлагать платные продукты в таком сценарии.
           </Disclaimer>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">

@@ -1,23 +1,16 @@
 import Link from "next/link";
-import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
-import { brandAssets } from "@/lib/brand-assets";
+import { BrandLogo } from "@/components/brand/brand-mark";
 
 export function Footer() {
   return (
-    <footer data-testid="public-shell-footer" className="border-t border-border/40 bg-navy">
+    <footer data-testid="public-shell-footer" className="border-t border-brand-warm-gold/15 bg-navy/96">
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid gap-8 md:grid-cols-4">
           <div>
-            <Image
-              src={brandAssets.logos.horizontalDark}
-              alt="ETerapy"
-              width={150}
-              height={50}
-              className="h-9 w-auto"
-            />
+            <BrandLogo height={38} />
             <p className="mt-2 text-sm text-muted-foreground">
-              Диалоговая платформа ясности.
+              Диалоговая платформа ясности. Бережно, красиво и без давления.
             </p>
           </div>
 
@@ -26,9 +19,12 @@ export function Footer() {
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/all-modalities/checkin" className="hover:text-foreground">Задать вопрос</Link></li>
               <li><Link href="/products" className="hover:text-foreground">Продукты</Link></li>
+              <li><Link href="/products/deep-report" className="hover:text-foreground">Глубокий отчет</Link></li>
+              <li><Link href="/products/chat-analysis" className="hover:text-foreground">Разбор переписки</Link></li>
+              <li><Link href="/products/compatibility" className="hover:text-foreground">Совместимость</Link></li>
+              <li><Link href="/products/seven-days" className="hover:text-foreground">7 дней к ясности</Link></li>
               <li><Link href="/library" className="hover:text-foreground">Библиотека вопросов</Link></li>
               <li><Link href="/pricing" className="hover:text-foreground">Цены и тарифы</Link></li>
-              <li><Link href="/how-to-choose" className="hover:text-foreground">Как выбрать следующий шаг</Link></li>
             </ul>
           </div>
 
@@ -36,6 +32,7 @@ export function Footer() {
             <h4 className="mb-3 text-sm font-semibold text-foreground">Практикам</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/practitioners/apply" className="hover:text-foreground">Стать практиком</Link></li>
+              <li><Link href="/practitioner" className="hover:text-foreground">Кабинет практика</Link></li>
               <li><Link href="/about#commission" className="hover:text-foreground">Условия и комиссия</Link></li>
               <li><Link href="/legal/ethics" className="hover:text-foreground">Этический кодекс</Link></li>
             </ul>
@@ -45,6 +42,7 @@ export function Footer() {
             <h4 className="mb-3 text-sm font-semibold text-foreground">О проекте</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><Link href="/about" className="hover:text-foreground">О нас</Link></li>
+              <li><Link href="/help" className="hover:text-foreground">Поддержка и жалобы</Link></li>
               <li><Link href="/#faq" className="hover:text-foreground">FAQ</Link></li>
               <li><Link href="/legal/privacy" className="hover:text-foreground">Политика конфиденциальности</Link></li>
               <li><Link href="/legal/offer" className="hover:text-foreground">Оферта</Link></li>

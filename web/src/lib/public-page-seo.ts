@@ -89,7 +89,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/all-modalities": {
     title: "Сервисы самопознания — ETerapy",
-    description: "Question-first сервисы ETerapy: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
+    description: "Сервисы ETerapy от вопроса: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
     schemaKind: "Product",
   },
   "/all-modalities/checkin": {

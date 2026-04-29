@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { SearchInput } from "./search-input";
 import { BookingsManager, type AdminBookingRow } from "./bookings-manager";
 import { Prisma } from "@prisma/client";
+import { PageContainer } from "@/components/ui/page-container";
 
 const STATUSES = [
   { value: "", label: "Все" },
@@ -65,10 +66,13 @@ export default async function AdminBookingsPage(props: {
   }));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <PageContainer maxWidth="6xl" className="py-12">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-heading text-2xl font-bold">Бронирования</h1>
-        <span className="text-sm text-muted-foreground">Найдено: {total}</span>
+        <div>
+          <div className="premium-eyebrow">Операции</div>
+          <h1 className="premium-title mt-3 text-3xl md:text-4xl">Бронирования</h1>
+        </div>
+        <span className="premium-chip premium-chip-gold">Найдено: {total}</span>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
@@ -78,10 +82,10 @@ export default async function AdminBookingsPage(props: {
             <a
               key={s.value}
               href={`/admin/bookings?${new URLSearchParams({ status: s.value, search })}`}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === s.value
-                  ? "bg-primary/15 text-primary border border-primary/30"
-                  : "bg-card/30 text-muted-foreground hover:text-foreground border border-border/30"
+                  ? "border border-brand-soft-gold/35 bg-brand-soft-gold/15 text-brand-soft-gold"
+                  : "border border-border/30 bg-card/30 text-muted-foreground hover:text-foreground"
               }`}
             >
               {s.label}
@@ -91,6 +95,6 @@ export default async function AdminBookingsPage(props: {
       </div>
 
       <BookingsManager initial={rows} />
-    </div>
+    </PageContainer>
   );
 }

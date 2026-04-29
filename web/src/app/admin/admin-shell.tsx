@@ -26,6 +26,7 @@ import {
 import type { Permission } from "@/lib/moderator-permissions";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { BrandSignature } from "@/components/brand/brand-mark";
 
 interface NavItem {
   href: string;
@@ -59,7 +60,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Выплаты",          superadminOnly: true },
   { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
   { href: adminUrl("/admin/metrics"),      icon: BarChart3,            label: "Метрики",          superadminOnly: true },
-  { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "AI Control",       permission: "ai.configure" },
+  { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "AI-центр",         permission: "ai.configure" },
   { href: adminUrl("/admin/notifications"),icon: BellRing,             label: "Уведомления",      permission: "notifications.diagnose" },
 
   { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии",           superadminOnly: true },
@@ -126,15 +127,18 @@ export function AdminShell({
     });
 
   return (
-    <div data-testid="admin-shell" data-shell-role={role} className="flex min-h-screen bg-background">
+    <div data-testid="admin-shell" data-shell-role={role} className="premium-page flex min-h-screen bg-background">
       <aside
         data-testid="admin-shell-sidebar"
-        className="sticky hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col overflow-y-auto border-r border-border/20 bg-card/50 px-3 py-5 shadow-[var(--shadow-surface)] md:flex"
+        className="sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto border-r border-brand-lavender/15 bg-card/50 px-3 py-5 shadow-[var(--shadow-surface)] backdrop-blur-xl md:flex"
         style={{ top: "var(--header-height)" }}
       >
+        <div className="mb-5 border-b border-border/20 px-2 pb-4">
+          <BrandSignature compact />
+        </div>
         <div className="mb-5 px-2" data-testid="admin-shell-user">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-brand-lavender/15 text-sm font-semibold text-brand-lavender-light">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-card)] border border-brand-lavender/25 bg-brand-lavender/15 text-sm font-semibold text-brand-lavender-light">
               {initial}
             </div>
             <div className="min-w-0">
@@ -150,7 +154,7 @@ export function AdminShell({
             return (
             <Link key={item.href} href={item.href}
               data-testid="admin-shell-nav-item"
-              className={`flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+              className={`flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                 isActive(item.href)
                   ? "bg-brand-lavender/14 text-brand-lavender-light font-medium"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -176,7 +180,7 @@ export function AdminShell({
       </aside>
 
       {/* Mobile nav */}
-      <div data-testid="admin-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-border/20 bg-navy/95 backdrop-blur-sm md:hidden">
+      <div data-testid="admin-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-brand-lavender/15 bg-navy/96 shadow-[0_-18px_50px_rgba(0,0,0,0.34)] backdrop-blur-xl md:hidden">
         {mobileNav.map((item) => {
           const Icon = item.icon;
           return (

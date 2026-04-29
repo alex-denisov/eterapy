@@ -32,7 +32,7 @@ export function PageContainer({
 }: PageContainerProps) {
   return (
     <div
-      className={cn("mx-auto px-4 py-8 sm:px-6", MAX_WIDTH_MAP[maxWidth], className)}
+      className={cn("premium-page mx-auto px-4 py-8 sm:px-6", MAX_WIDTH_MAP[maxWidth], className)}
     >
       {children}
     </div>

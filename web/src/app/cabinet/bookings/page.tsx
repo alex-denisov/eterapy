@@ -118,18 +118,11 @@ export default function ClientBookingsPage() {
     { key: "all", label: "Все", count: bookings.length },
   ];
 
-  function getVisibleBookings(): Booking[] {
-    if (filter === "upcoming") return upcoming;
-    if (filter === "past") return past;
-    return bookings;
-  }
-
-  const visibleBookings = getVisibleBookings();
-
   if (loading) {
     return (
-      <div className="px-6 py-8">
-        <h1 className="font-heading text-2xl font-bold mb-6">Мои записи</h1>
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="premium-eyebrow">Календарь</div>
+        <h1 className="premium-title mt-3 mb-6 text-3xl">Мои записи</h1>
         <div className="space-y-3">
           <SkeletonCard lines={2} />
           <SkeletonCard lines={2} />
@@ -159,7 +152,7 @@ export default function ClientBookingsPage() {
     if (isPastCard) {
       return (
         <div key={b.id}
-          className="flex items-center justify-between rounded-xl border border-border/20 bg-card/20 px-4 py-3">
+          className="premium-card flex items-center justify-between gap-4 px-4 py-3">
           <div>
             <p className="text-sm font-medium">{b.practitioner?.name}</p>
             <p className="text-xs text-muted-foreground">
@@ -193,7 +186,7 @@ export default function ClientBookingsPage() {
 
     // Upcoming card (полная карточка)
     return (
-      <Card key={b.id} className="border-border/40 bg-card/40">
+      <Card key={b.id}>
         <CardContent className="p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -218,23 +211,23 @@ export default function ClientBookingsPage() {
             )}
           </div>
           {b.status === "CONFIRMED" && (
-            <div className="mt-3 rounded-lg bg-green-500/5 border border-green-500/20 px-3 py-2 flex items-center justify-between">
-              <p className="text-xs text-green-400">✓ Сессия подтверждена</p>
+            <div className="mt-3 flex items-center justify-between rounded-[var(--radius-control)] border border-emerald-400/25 bg-emerald-400/10 px-3 py-2">
+              <p className="text-xs text-emerald-200">Сессия подтверждена</p>
               <a href={b.sessionUrl ?? `/session/${b.id}`}
-                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-navy hover:bg-primary/90 transition-colors">
-                Войти в сессию →
+                className="rounded-full bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))] px-3 py-1.5 text-xs font-semibold text-navy transition-[filter,transform] hover:brightness-105 active:scale-[0.96]">
+                Войти в сессию
               </a>
             </div>
           )}
           {b.status === "IN_PROGRESS" && (
-            <div className="mt-3 rounded-lg bg-blue-500/5 border border-blue-500/20 px-3 py-2 flex items-center justify-between">
+            <div className="mt-3 flex items-center justify-between rounded-[var(--radius-control)] border border-brand-lavender/25 bg-brand-lavender/10 px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <p className="text-xs text-blue-400">Сессия идёт</p>
+                <span className="h-2 w-2 rounded-full bg-brand-soft-gold animate-pulse" />
+                <p className="text-xs text-brand-lavender-light">Сессия идёт</p>
               </div>
               <a href={b.sessionUrl ?? `/session/${b.id}`}
-                className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600 transition-colors animate-pulse">
-                Подключиться →
+                className="rounded-full border border-brand-lavender/35 bg-brand-lavender/20 px-3 py-1.5 text-xs font-semibold text-brand-lavender-light transition-colors hover:bg-brand-lavender/30">
+                Подключиться
               </a>
             </div>
           )}
@@ -244,7 +237,7 @@ export default function ClientBookingsPage() {
   }
 
   return (
-    <div className="px-6 py-8 max-w-3xl">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       {complaintBooking && (
         <ComplaintModal
           open={!!complaintBooking}
@@ -301,13 +294,19 @@ export default function ClientBookingsPage() {
         />
       )}
 
-      <h1 className="font-heading text-2xl font-bold mb-6">Мои записи</h1>
+      <div className="mb-6">
+        <div className="premium-eyebrow">Календарь</div>
+        <h1 className="premium-title mt-3 text-3xl md:text-4xl">Мои записи</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Ближайшие сессии, история встреч, отзывы и обращения в поддержку собраны в одном месте.
+        </p>
+      </div>
 
       {bookings.length === 0 && (
-        <div className="rounded-xl border border-border/30 bg-card/20 py-12 text-center">
+        <div className="premium-card py-12 text-center">
           <p className="text-muted-foreground">Нет записей к практикам</p>
-          <Link href={appUrl("/cabinet/practitioners")} className="mt-4 inline-block text-sm text-primary hover:underline">
-            Найти практика →
+          <Link href={appUrl("/cabinet/practitioners")} className="mt-4 inline-flex rounded-full border border-brand-soft-gold/30 px-4 py-2 text-sm text-brand-soft-gold transition-colors hover:bg-brand-soft-gold/10">
+            Найти практика
           </Link>
         </div>
       )}
@@ -315,17 +314,17 @@ export default function ClientBookingsPage() {
       {bookings.length > 0 && (
         <>
           {/* Filter tabs */}
-          <div className="flex gap-2 mb-6" role="tablist">
+          <div className="mb-6 flex gap-2 overflow-x-auto pb-2" role="tablist">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 role="tab"
                 aria-selected={filter === tab.key}
                 onClick={() => setFilter(tab.key)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   filter === tab.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card/40 text-muted-foreground hover:text-foreground hover:bg-card/60 border border-border/30"
+                    ? "bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))] text-navy shadow-[var(--shadow-halo-gold)]"
+                    : "border border-border/30 bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground"
                 }`}
               >
                 {tab.label}
@@ -336,14 +335,14 @@ export default function ClientBookingsPage() {
 
           {/* Filter: upcoming only */}
           {filter === "upcoming" && upcoming.length === 0 && (
-            <div className="rounded-xl border border-border/30 bg-card/20 py-12 text-center">
+            <div className="premium-card py-12 text-center">
               <p className="text-muted-foreground">Нет предстоящих записей</p>
             </div>
           )}
 
           {/* Filter: past only */}
           {filter === "past" && past.length === 0 && (
-            <div className="rounded-xl border border-border/30 bg-card/20 py-12 text-center">
+            <div className="premium-card py-12 text-center">
               <p className="text-muted-foreground">Нет прошедших записей</p>
             </div>
           )}

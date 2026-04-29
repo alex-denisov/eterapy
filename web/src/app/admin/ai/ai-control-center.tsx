@@ -114,11 +114,11 @@ function ModelSelect({
       }}
       className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
     >
-      <option value="__none__">{placeholder ?? "Default model"}</option>
+      <option value="__none__">{placeholder ?? "Модель по умолчанию"}</option>
       {models.length === 0 && <option value="" disabled>Список моделей пуст — нажмите «Обновить»</option>}
       {models.map((model) => (
         <option key={model.modelId} value={model.modelId}>
-          {model.isFree ? "🆓 " : ""}
+          {model.isFree ? "Бесплатная · " : ""}
           {model.modelId}
           {model.displayName ? ` — ${model.displayName}` : ""}
         </option>
@@ -151,12 +151,12 @@ function CredentialRowEditor({
 
   const cooldownActive = credential.cooldownUntil && new Date(credential.cooldownUntil) > new Date();
   const status = !credential.enabled
-    ? { label: "disabled", color: "text-muted-foreground" }
+    ? { label: "выключен", color: "text-muted-foreground" }
     : credential.regionBlocked
-      ? { label: "region-blocked", color: "text-red-300" }
+      ? { label: "регион заблокирован", color: "text-red-300" }
       : cooldownActive
-        ? { label: "cooldown", color: "text-amber-300" }
-        : { label: "active", color: "text-emerald-300" };
+        ? { label: "пауза после ошибки", color: "text-amber-300" }
+        : { label: "активен", color: "text-emerald-300" };
 
   return (
     <div className="px-4 py-3 space-y-3" data-testid={`ai-credential-${credential.id}`}>
@@ -165,9 +165,9 @@ function CredentialRowEditor({
           <p className="font-medium">{credential.label}</p>
           <p className="text-xs text-muted-foreground">
             <span className={status.color}>{status.label}</span>
-            {credential.lastSuccessAt && <> · last success {new Date(credential.lastSuccessAt).toLocaleString("ru")}</>}
-            {credential.lastErrorCode && <> · last error {credential.lastErrorCode}</>}
-            {credential.consecutiveFailures > 0 && <> · failures {credential.consecutiveFailures}</>}
+            {credential.lastSuccessAt && <> · последний успех {new Date(credential.lastSuccessAt).toLocaleString("ru")}</>}
+            {credential.lastErrorCode && <> · последняя ошибка {credential.lastErrorCode}</>}
+            {credential.consecutiveFailures > 0 && <> · ошибок подряд {credential.consecutiveFailures}</>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -206,7 +206,7 @@ function CredentialRowEditor({
         <Input
           value={draft.label}
           onChange={(event) => setDraft({ ...draft, label: event.target.value })}
-          placeholder="Label"
+          placeholder="Метка"
         />
         <Input
           value={draft.apiKey}
@@ -220,12 +220,12 @@ function CredentialRowEditor({
           value={draft.modelOverride}
           models={models}
           onChange={(value) => setDraft({ ...draft, modelOverride: value })}
-          placeholder="Default model (override)"
+          placeholder="Модель по умолчанию или override"
         />
         <Input
           value={draft.baseUrlOverride}
           onChange={(event) => setDraft({ ...draft, baseUrlOverride: event.target.value })}
-          placeholder="Base URL override"
+          placeholder="Переопределение Base URL"
         />
         <Button
           type="button"
@@ -317,7 +317,7 @@ export function AIControlCenter({
     const modelOverride = String(formData.get("modelOverride") ?? "").trim() || null;
     const priority = toNumber(formData.get("priority")) ?? undefined;
     if (!label || !apiKey) {
-      reportError("Укажите label и API key");
+      reportError("Укажите метку и API-ключ");
       return;
     }
     const response = await fetch("/api/admin/ai/credentials", {
@@ -417,10 +417,10 @@ export function AIControlCenter({
         <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200" data-testid="ai-cf-gateway-info">
           <div className="font-medium">Cloudflare AI Gateway настроен</div>
           <p className="mt-1 text-xs text-emerald-200/80">
-            Gateway: <code className="font-mono">{cloudflareGateway.gatewayId}</code> · account <code className="font-mono">{cloudflareGateway.accountId.slice(0, 8)}…</code> · auth token: {cloudflareGateway.hasToken ? "присутствует" : "отсутствует (Authenticated Gateway отключён)"}
+            Gateway: <code className="font-mono">{cloudflareGateway.gatewayId}</code> · аккаунт <code className="font-mono">{cloudflareGateway.accountId.slice(0, 8)}…</code> · токен авторизации: {cloudflareGateway.hasToken ? "присутствует" : "отсутствует (Authenticated Gateway отключён)"}
           </p>
           <p className="mt-1 text-xs text-emerald-200/80">
-            Чтобы прокинуть OpenAI через CF Gateway — создайте отдельный credential c этим Base URL override:
+            Чтобы прокинуть OpenAI через CF Gateway, создайте отдельный ключ c этим переопределением Base URL:
           </p>
           <code className="mt-1 block break-all rounded bg-black/30 px-2 py-1 font-mono text-xs">
             {cloudflareGateway.openaiUrl}
@@ -443,15 +443,15 @@ export function AIControlCenter({
                   <h3 className="font-semibold">{provider.displayName}</h3>
                   <p className="text-xs text-muted-foreground">{provider.provider}</p>
                 </div>
-                <CheckboxSwitch name="enabled" defaultChecked={provider.enabled} label={`Enable ${provider.displayName}`} />
+                <CheckboxSwitch name="enabled" defaultChecked={provider.enabled} label={`Включить ${provider.displayName}`} />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="priority" type="number" defaultValue={provider.priority} placeholder="Priority" />
-                <Input name="timeoutMs" type="number" defaultValue={provider.timeoutMs} placeholder="Timeout ms" />
-                <Input name="defaultModel" defaultValue={provider.defaultModel ?? ""} placeholder="Default model" className="sm:col-span-2" />
-                <Input name="baseUrl" defaultValue={provider.baseUrl ?? ""} placeholder="Base URL override" className="sm:col-span-2" />
-                <Input name="inputTokenCostMicros" type="number" defaultValue={provider.inputTokenCostMicros ?? ""} placeholder="Input cost / 1K tokens" />
-                <Input name="outputTokenCostMicros" type="number" defaultValue={provider.outputTokenCostMicros ?? ""} placeholder="Output cost / 1K tokens" />
+                <Input name="priority" type="number" defaultValue={provider.priority} placeholder="Приоритет" />
+                <Input name="timeoutMs" type="number" defaultValue={provider.timeoutMs} placeholder="Таймаут, мс" />
+                <Input name="defaultModel" defaultValue={provider.defaultModel ?? ""} placeholder="Модель по умолчанию" className="sm:col-span-2" />
+                <Input name="baseUrl" defaultValue={provider.baseUrl ?? ""} placeholder="Переопределение Base URL" className="sm:col-span-2" />
+                <Input name="inputTokenCostMicros" type="number" defaultValue={provider.inputTokenCostMicros ?? ""} placeholder="Стоимость входа / 1K токенов" />
+                <Input name="outputTokenCostMicros" type="number" defaultValue={provider.outputTokenCostMicros ?? ""} placeholder="Стоимость выхода / 1K токенов" />
               </div>
               <Button type="submit" size="sm" className="mt-4" disabled={isPending}>Сохранить</Button>
             </form>
@@ -515,21 +515,21 @@ export function AIControlCenter({
                   data-testid={`ai-credentials-${provider}-create`}
                 >
                   <input type="hidden" name="provider" value={provider} />
-                  <Input name="label" placeholder="Label (Account 1)" required />
-                  <Input name="apiKey" placeholder="API key" type="password" required />
+                  <Input name="label" placeholder="Метка (Аккаунт 1)" required />
+                  <Input name="apiKey" placeholder="API ключ" type="password" required />
                   <select
                     name="modelOverride"
                     defaultValue=""
                     className="flex h-9 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   >
-                    <option value="">Default model</option>
+                    <option value="">Модель по умолчанию</option>
                     {providerModels.map((model) => (
                       <option key={model.modelId} value={model.modelId}>
-                        {model.isFree ? "🆓 " : ""}{model.modelId}
+                        {model.isFree ? "Бесплатная · " : ""}{model.modelId}
                       </option>
                     ))}
                   </select>
-                  <Input name="baseUrlOverride" placeholder="Base URL override" />
+                  <Input name="baseUrlOverride" placeholder="Переопределение Base URL" />
                   <Button type="submit" size="sm" disabled={!encryptionConfigured || isPending}>Добавить ключ</Button>
                 </form>
               </div>
@@ -540,50 +540,50 @@ export function AIControlCenter({
 
       <section className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Routing policies</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Политики маршрутизации</h2>
           <form action={submitPolicy} className="mb-4 rounded-lg border border-border/30 bg-card/30 p-4" data-testid="ai-policy-form">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <Input name="feature" placeholder="feature, например dialogue-primary-answer" required />
-              <CheckboxSwitch name="enabled" defaultChecked label="Enable policy" />
+              <Input name="feature" placeholder="Фича, например dialogue-primary-answer" required />
+              <CheckboxSwitch name="enabled" defaultChecked label="Включить политику" />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input name="providerOrder" defaultValue="OPENROUTER,OPENAI,ANTHROPIC,FIREWORKS" placeholder="Provider order" className="sm:col-span-2" />
-              <Input name="maxTokens" type="number" placeholder="Max tokens" />
-              <Input name="temperature" type="number" step="0.1" placeholder="Temperature" />
-              <Input name="timeoutMs" type="number" placeholder="Timeout ms" />
-              <Input name="dailyTokenBudget" type="number" placeholder="Feature daily budget" />
-              <Input name="perUserDailyTokenBudget" type="number" placeholder="User daily budget" />
+              <Input name="providerOrder" defaultValue="OPENROUTER,OPENAI,ANTHROPIC,FIREWORKS" placeholder="Порядок провайдеров" className="sm:col-span-2" />
+              <Input name="maxTokens" type="number" placeholder="Максимум токенов" />
+              <Input name="temperature" type="number" step="0.1" placeholder="Температура" />
+              <Input name="timeoutMs" type="number" placeholder="Таймаут, мс" />
+              <Input name="dailyTokenBudget" type="number" placeholder="Дневной бюджет фичи" />
+              <Input name="perUserDailyTokenBudget" type="number" placeholder="Дневной бюджет пользователя" />
             </div>
             <Button type="submit" size="sm" className="mt-4" disabled={isPending}>Создать / обновить</Button>
           </form>
           <div className="overflow-hidden rounded-lg border border-border/30 bg-card/30 divide-y divide-border/10">
             {policies.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">Routing policies еще не настроены</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">Политики маршрутизации еще не настроены</p>
             ) : policies.map((policy) => (
               <div key={policy.feature} className="px-4 py-3" data-testid={`ai-policy-${policy.feature}`}>
                 <div className="flex items-center justify-between gap-3">
                   <p className="font-medium">{policy.feature}</p>
-                  <span className={policy.enabled ? "text-xs text-emerald-300" : "text-xs text-amber-300"}>{policy.enabled ? "enabled" : "disabled"}</span>
+                  <span className={policy.enabled ? "text-xs text-emerald-300" : "text-xs text-amber-300"}>{policy.enabled ? "включено" : "выключено"}</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.providerOrder.join(" -> ") || "default order"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.providerOrder.join(" -> ") || "порядок по умолчанию"}</p>
               </div>
             ))}
           </div>
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Usage today</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Использование сегодня</h2>
           <div className="overflow-hidden rounded-lg border border-border/30 bg-card/30 divide-y divide-border/10">
             {usage.slice(0, 12).map((row) => (
               <div key={`${row.scopeType}:${row.scopeKey}`} className="px-4 py-3" data-testid={`ai-usage-${row.scopeType}-${row.scopeKey}`}>
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium">{row.scopeType}:{row.scopeKey}</span>
-                  <span className="text-primary">{row.tokens.toLocaleString("ru")} tok</span>
+                  <span className="text-primary">{row.tokens.toLocaleString("ru")} токенов</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{row.requestCount} requests · {row.costMicros.toLocaleString("ru")} micros</p>
+                <p className="mt-1 text-xs text-muted-foreground">{row.requestCount} запросов · {row.costMicros.toLocaleString("ru")} микросписаний</p>
               </div>
             ))}
-            {usage.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">Usage ledger пуст</p>}
+            {usage.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">Журнал использования пуст</p>}
           </div>
         </div>
       </section>

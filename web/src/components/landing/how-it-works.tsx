@@ -1,3 +1,5 @@
+import { PremiumCard, PremiumSection } from "@/components/v5/premium";
+
 const steps = [
   {
     number: "01",
@@ -27,29 +29,25 @@ const steps = [
 
 export function HowItWorksSection() {
   return (
-    <section id="how-it-works" className="px-4 py-20">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="font-heading text-center text-3xl font-bold md:text-4xl">
-          Как это работает
-        </h2>
-        <p className="mt-3 text-center text-muted-foreground">
-          От первого вопроса до осмысленного действия — 4 спокойных шага
-        </p>
-
-        <div className="mt-14 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step) => (
-            <div key={step.number} className="group relative">
-              <div className="mb-4 font-heading text-4xl font-bold text-primary/20 transition-colors group-hover:text-primary/40">
-                {step.number}
-              </div>
-              <h3 className="text-lg font-semibold">{step.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {step.description}
-              </p>
+    <PremiumSection
+      className="px-4"
+      eyebrow="Как это работает"
+      title={<>От первого вопроса <span className="text-brand-soft-gold">до ясности</span></>}
+      lead="Четыре спокойных шага: без выбора специалиста на старте и без давления на покупку."
+    >
+      <div id="how-it-works" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {steps.map((step) => (
+          <PremiumCard key={step.number} className="group min-h-56">
+            <div className="font-heading text-4xl font-medium italic text-brand-soft-gold/75 transition-colors group-hover:text-brand-soft-gold">
+              {step.number}
             </div>
-          ))}
-        </div>
+            <h3 className="mt-5 font-heading text-2xl font-medium">{step.title}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              {step.description}
+            </p>
+          </PremiumCard>
+        ))}
       </div>
-    </section>
+    </PremiumSection>
   );
 }

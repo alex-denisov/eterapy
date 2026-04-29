@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Disclaimer } from "@/components/ui/disclaimer";
+import { PremiumCard, PremiumPage } from "@/components/v5/premium";
 import { buttonVariants } from "@/lib/button-variants";
 import { canonicalUrl } from "@/lib/seo";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ export default async function LibraryEntryPage({
   if (!entry) notFound();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-14 md:py-20" data-testid={`library-entry-${entry.slug}`}>
+    <PremiumPage className="px-4 py-12 md:py-16" data-testid={`library-entry-${entry.slug}`}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -73,23 +74,25 @@ export default async function LibraryEntryPage({
         Назад в библиотеку
       </Link>
 
-      <article className="mt-8">
-        <p className="text-sm font-semibold text-primary">{entry.topic}</p>
-        <h1 className="mt-3 font-heading text-3xl font-bold leading-tight md:text-5xl">
+      <article className="premium-container max-w-3xl">
+        <p className="premium-eyebrow">{entry.topic}</p>
+        <h1 className="premium-title mt-3 text-3xl md:text-5xl">
           {entry.question}
         </h1>
-        <p className="mt-5 text-lg leading-relaxed text-muted-foreground">{entry.summary}</p>
+        <p className="premium-lead mt-5">{entry.summary}</p>
 
         <Disclaimer className="mt-6">
           Вопрос обезличен и прошел модерацию. Открытых комментариев нет; персональный ответ создается только в вашем диалоге.
         </Disclaimer>
 
-        <section className="mt-10">
-          <h2 className="font-heading text-2xl font-semibold">Возможные ракурсы</h2>
+        <section className="py-10">
+          <h2 className="font-heading text-3xl font-medium">Возможные ракурсы</h2>
           <ul className="mt-4 space-y-3">
             {entry.perspectives.map((item) => (
-              <li key={item} className="rounded-[var(--radius-card)] border border-border/30 bg-card/25 p-4 text-muted-foreground">
+              <li key={item}>
+                <PremiumCard className="p-4 text-muted-foreground">
                 {item}
+                </PremiumCard>
               </li>
             ))}
           </ul>
@@ -110,6 +113,6 @@ export default async function LibraryEntryPage({
           </Link>
         </div>
       </article>
-    </main>
+    </PremiumPage>
   );
 }

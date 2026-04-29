@@ -15,13 +15,13 @@ import { SkeletonCard } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 
 const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
-  TAROT:      { label: "Таро",         icon: "🃏" },
-  CHECKIN:    { label: "Рефлексия",    icon: "💭" },
-  NATAL:      { label: "Натальная карта", icon: "⭐" },
-  NUMEROLOGY: { label: "Нумерология",  icon: "🔢" },
-  HOROSCOPE:  { label: "Гороскоп",     icon: "♈" },
-  GUIDE:      { label: "Личный гид",   icon: "🧭" },
-  BOOKING:    { label: "Запись к практику", icon: "📅" },
+  TAROT:      { label: "Таро",         icon: "01" },
+  CHECKIN:    { label: "Диалог ясности", icon: "02" },
+  NATAL:      { label: "Натальная карта", icon: "03" },
+  NUMEROLOGY: { label: "Нумерология",  icon: "04" },
+  HOROSCOPE:  { label: "Гороскоп",     icon: "05" },
+  GUIDE:      { label: "Личный гид",   icon: "06" },
+  BOOKING:    { label: "Запись к практику", icon: "07" },
 };
 
 interface LogEntry {
@@ -77,9 +77,12 @@ export default function AIHistoryPage() {
   }
 
   return (
-    <div className="px-6 py-8 max-w-3xl">
+    <div className="premium-page px-6 py-8 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-heading text-2xl font-bold">История действий</h1>
+        <div>
+          <p className="premium-eyebrow">Моя карта ETerapy</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-5xl">История разборов</h1>
+        </div>
         <Link href={appUrl("/cabinet/modalities")} className="text-sm text-primary hover:underline">
           Открыть направления →
         </Link>
@@ -129,7 +132,7 @@ export default function AIHistoryPage() {
               const meta = TOOL_LABELS[l.tool] ?? { label: l.tool, icon: "✦" };
               return (
                 <div key={l.id} className="flex items-center gap-3 rounded-xl border border-border/20 bg-card/20 px-4 py-3 hover:bg-card/30 transition-colors">
-                  <span className="text-2xl shrink-0">{meta.icon}</span>
+                  <span className="font-heading text-2xl text-primary shrink-0">{meta.icon}</span>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openLog(l.id)}>
                     <p className="text-sm font-medium truncate">{l.title}</p>
                     <p className="text-xs text-muted-foreground">
@@ -157,7 +160,7 @@ export default function AIHistoryPage() {
           </div>
         ) : fullReadings.length === 0 ? (
           <EmptyState
-            icon="🃏"
+            icon="✦"
             title="Нет полных раскладов"
             description="Полные расклады появляются здесь после оплаты"
             actionHref={appUrl("/cabinet/modalities")}
@@ -171,7 +174,7 @@ export default function AIHistoryPage() {
               return (
                 <div key={r.id} className="rounded-xl border border-border/20 bg-card/20 px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl shrink-0">{meta.icon}</span>
+                    <span className="font-heading text-2xl text-primary shrink-0">{meta.icon}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{r.title}</p>
                       <p className="text-xs text-muted-foreground">

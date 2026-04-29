@@ -15,7 +15,7 @@ describe("v5 public home page", () => {
     expect(hero).toContain('data-testid="v5-question-entry"');
     expect(hero).toContain('name="question"');
     expect(hero).toContain('action="/all-modalities/checkin"');
-    expect(hero).toContain("Получить первый ответ");
+    expect(hero).toContain("Начать диалог");
     expect(hero).toContain('data-analytics-event="dialogue_cta_clicked"');
     expect(hero).not.toContain('href="/practitioners"');
     expect(hero).not.toContain("Найти практика");

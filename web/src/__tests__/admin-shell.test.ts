@@ -14,7 +14,7 @@ describe("v5 admin shell", () => {
   it("keeps admin navigation dense, permission-aware, and tokenized", () => {
     expect(shell).toContain("permission?: Permission");
     expect(shell).toContain("permissions.includes(item.permission)");
-    expect(shell).toContain("w-60");
+    expect(shell).toContain("w-64");
     expect(shell).toContain("text-brand-lavender-light");
     expect(shell).toContain("duration-[var(--motion-base)]");
   });

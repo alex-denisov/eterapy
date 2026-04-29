@@ -11,7 +11,7 @@ import {
 
 const MODALITIES = [
   { href: "/cabinet/modalities/tarot",      icon: Sparkles,   label: "Расклад Таро",     desc: "Расклад на три карты: прошлое, настоящее, будущее" },
-  { href: "/cabinet/modalities/checkin",    icon: MessageCircle, label: "Рефлексия",     desc: "5 вопросов о вашем состоянии прямо сейчас" },
+  { href: "/cabinet/modalities/checkin",    icon: MessageCircle, label: "Диалог ясности", desc: "Короткий вопрос и бережное уточнение контекста" },
   { href: "/cabinet/modalities/horoscope",  icon: Moon,       label: "Гороскоп",          desc: "Персонализированный прогноз на день / неделю / месяц" },
   { href: "/cabinet/modalities/numerology", icon: Hash,       label: "Нумерология",       desc: "Число жизненного пути по Пифагору" },
   { href: "/cabinet/modalities/natal",      icon: Star,       label: "Натальная карта",   desc: "Описание вашей карты по дате и месту рождения" },
@@ -21,10 +21,13 @@ const MODALITIES = [
 export default function ClientModalitiesPage() {
   return (
     <PageContainer>
-      <h1 className="font-heading text-2xl font-bold mb-1">Направления самопознания</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        3 сессии в месяц включены в бесплатный план. Результаты носят ознакомительный характер.
-      </p>
+      <div className="mb-7">
+        <div className="premium-eyebrow">Сценарии</div>
+        <h1 className="premium-title mt-3 text-3xl md:text-4xl">Направления самопознания</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          3 сессии в месяц включены в бесплатный план. Результаты носят ознакомительный характер.
+        </p>
+      </div>
 
       {/* Горизонтальные табы-подуровни */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
@@ -34,7 +37,7 @@ export default function ClientModalitiesPage() {
             <Link
               key={t.href}
               href={t.href}
-              className="flex items-center gap-2 shrink-0 rounded-lg border border-border/30 bg-card/30 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary hover:bg-card/50"
+              className="premium-chip shrink-0 hover:border-brand-soft-gold/35 hover:text-brand-soft-gold"
             >
               <Icon className="h-4 w-4" />
               {t.label}
@@ -48,7 +51,7 @@ export default function ClientModalitiesPage() {
           const Icon = t.icon;
           return (
             <Link key={t.href} href={t.href}
-              className="flex items-start gap-4 rounded-xl border border-border/40 bg-card/30 p-5 transition-colors hover:border-primary/40 hover:bg-card/50">
+              className="premium-card flex items-start gap-4 p-5 transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-brand-soft-gold/35 hover:bg-card/50">
               <Icon className="h-8 w-8 shrink-0 mt-0.5 text-primary" />
               <div>
                 <p className="font-medium">{t.label}</p>

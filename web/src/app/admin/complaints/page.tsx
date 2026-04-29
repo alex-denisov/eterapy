@@ -48,13 +48,14 @@ export default async function AdminComplaintsPage() {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold">Жалобы</h1>
+          <div className="premium-eyebrow">Поддержка</div>
+          <h1 className="premium-title mt-3 text-3xl md:text-4xl">Жалобы</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Рассмотрение обращений клиентов
           </p>
         </div>
         {openCount > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1.5">
             <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-sm text-red-400 font-medium">{openCount} новых</span>
           </div>

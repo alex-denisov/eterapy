@@ -70,9 +70,9 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
           <div>
             <label className="text-sm font-medium mb-3 block">Причина жалобы *</label>
             <div className="space-y-2">
-              {REASONS.map(r => (
-                <label key={r.value} className={`flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors ${
-                  reason === r.value ? "border-red-500/40 bg-red-500/5" : "border-border/20 hover:border-border/40"
+              {REASONS.map((r) => (
+                <label key={r.value} className={`flex cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-4 py-3 transition-colors ${
+                  reason === r.value ? "border-brand-soft-gold/45 bg-brand-soft-gold/10" : "border-border/20 hover:border-brand-soft-gold/30"
                 }`}>
                   <input
                     type="radio"
@@ -80,7 +80,7 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
                     value={r.value}
                     checked={reason === r.value}
                     onChange={() => setReason(r.value)}
-                    className="accent-red-400"
+                    className="accent-[var(--brand-warm-gold)]"
                   />
                   <span className="text-sm">{r.label}</span>
                 </label>
@@ -96,28 +96,28 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="Что именно произошло? Чем больше деталей, тем быстрее мы разберёмся..."
-              className="w-full rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 text-sm resize-none h-28 focus:outline-none focus:border-primary/50"
+              className="premium-input h-28 w-full resize-none px-3 py-2.5 text-sm"
             />
             <p className="text-xs text-muted-foreground/50 mt-1">{description.length} / минимум 20 символов</p>
           </div>
 
           {/* Предупреждение */}
-          <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-4 py-3 text-xs text-yellow-400/80">
-            ℹ️ Мы рассмотрим жалобу в течение 24 часов. Чат сессии и логи сохранены и будут использованы при разборе.
+          <div className="rounded-[var(--radius-control)] border border-brand-soft-gold/20 bg-brand-soft-gold/10 px-4 py-3 text-xs text-brand-soft-gold/90">
+            Мы рассмотрим жалобу в течение 24 часов. Чат сессии и логи сохранены и будут использованы при разборе.
           </div>
         </div>
 
         <DialogFooter>
           <button
             onClick={onClose}
-            className="flex-1 rounded-lg border border-border/40 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex-1 rounded-full border border-border/40 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Отмена
           </button>
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className="flex-1 rounded-lg bg-red-500/80 py-2.5 text-sm font-semibold text-white hover:bg-red-500 transition-colors disabled:opacity-50"
+            className="flex-1 rounded-full bg-[linear-gradient(180deg,#ef7777,#be3b3b)] py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(190,59,59,0.22)] transition-[filter,transform] hover:brightness-105 active:scale-[0.96] disabled:opacity-50"
           >
             {submitting ? "Отправка..." : "Подать жалобу"}
           </button>

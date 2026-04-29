@@ -42,9 +42,12 @@ export default async function ClientCabinetPage() {
   const progressPct = Math.min((bookingCount / FREE_LIMIT) * 100, 100);
 
   return (
-    <PageContainer>
-      <h1 className="font-heading text-2xl font-bold mb-1">Привет, {firstName} 👋</h1>
-      <p className="text-muted-foreground text-sm mb-8">{session.user?.email}</p>
+    <PageContainer maxWidth="6xl">
+      <div className="mb-8">
+        <p className="premium-eyebrow">Кабинет клиента</p>
+        <h1 className="premium-title mt-2 text-3xl md:text-5xl">Добрый вечер, {firstName}</h1>
+        <p className="mt-2 text-muted-foreground text-sm">{session.user?.email}</p>
+      </div>
 
       {/* Статистика */}
       <div className="grid gap-4 sm:grid-cols-2 mb-8">
@@ -53,7 +56,7 @@ export default async function ClientCabinetPage() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm text-muted-foreground">Бесплатные сессии</p>
+            <p className="text-sm text-muted-foreground">Ваш прогресс</p>
                 <p className="mt-1 font-heading text-3xl font-bold text-primary tabular-nums">
                   {remainingSessions} из {FREE_LIMIT}
                 </p>
@@ -143,14 +146,14 @@ export default async function ClientCabinetPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { href: "/all-modalities/tarot", icon: "🃏", label: "Расклад Таро", desc: "Расклад на три карты" },
-            { href: "/all-modalities/checkin", icon: "💬", label: "Рефлексия", desc: "5 вопросов о состоянии" },
-            { href: "/all-modalities/horoscope", icon: "🌙", label: "Гороскоп", desc: "Ежедневный / недельный" },
-            { href: "/all-modalities/numerology", icon: "🔢", label: "Нумерология", desc: "Число жизненного пути" },
+            { href: "/all-modalities/checkin", icon: "01", label: "Диалог ясности", desc: "Первичный ответ по вопросу" },
+            { href: "/products/deep-report", icon: "02", label: "Глубокий отчет", desc: "Развернутое углубление" },
+            { href: "/products/seven-days", icon: "03", label: "7 дней к ясности", desc: "Короткий маршрут на неделю" },
+            { href: "/cabinet/action-history", icon: "04", label: "Моя карта", desc: "Сохраненные выводы" },
           ].map((item) => (
             <Link key={item.href} href={item.href}
               className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/30 p-4 transition-colors hover:border-primary/40 hover:bg-card/50">
-              <span className="text-2xl">{item.icon}</span>
+              <span className="font-heading text-2xl text-primary">{item.icon}</span>
               <div>
                 <p className="text-sm font-medium">{item.label}</p>
                 <p className="text-xs text-muted-foreground">{item.desc}</p>

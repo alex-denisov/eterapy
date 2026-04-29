@@ -37,12 +37,12 @@ describe("v5 product pages", () => {
   it("documents required privacy and paid-product mechanics", () => {
     const products = source("lib/v5-products.ts");
 
-    expect(products).toContain("PII warning");
-    expect(products).toContain("source deletion");
-    expect(products).toContain("partner consent");
-    expect(products).toContain("pause/resume");
-    expect(products).toContain("save/hide/delete");
-    expect(products).toContain("entitlement unlock");
+    expect(products).toContain("предупреждение о персональных данных");
+    expect(products).toContain("удаление источника");
+    expect(products).toContain("согласие партнера");
+    expect(products).toContain("пауза и продолжение");
+    expect(products).toContain("сохранить, скрыть или удалить");
+    expect(products).toContain("открытие через entitlement");
   });
 
   it("links public shell product navigation to durable product pages", () => {

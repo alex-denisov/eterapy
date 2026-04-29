@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { PageContainer } from "@/components/ui/page-container";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +40,6 @@ export default async function PractitionerCabinetPage() {
   if (!practitioner) {
     return (
       <div className="px-6 py-8 text-center">
-        <p className="text-2xl mb-4">⚠️</p>
         <h1 className="font-heading text-xl font-bold">Профиль практика не настроен</h1>
         <p className="mt-2 text-muted-foreground text-sm">Обратитесь в поддержку: support@eterapy.com</p>
       </div>
@@ -50,7 +48,6 @@ export default async function PractitionerCabinetPage() {
 
   const rating = practitioner.reviewCount > 0 ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1) : "—";
   const st = STATUS_LABELS[practitioner.status as keyof typeof STATUS_LABELS] ?? STATUS_LABELS.ACTIVE;
-  const profileUrl = `/practitioners/${practitioner.slug}`;
 
   // Pending bookings
   const pendingBookings = await db.booking.findMany({
@@ -69,11 +66,12 @@ export default async function PractitionerCabinetPage() {
   });
 
   return (
-    <div className="px-6 py-8 max-w-4xl">
+    <div className="premium-page px-6 py-8 max-w-6xl">
       {/* Шапка */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="font-heading text-2xl font-bold">{practitioner.user.name}</h1>
+        <p className="premium-eyebrow">Кабинет практика</p>
+        <div className="mt-2 flex items-center gap-3 flex-wrap">
+          <h1 className="premium-title text-3xl md:text-5xl">Добрый вечер, {practitioner.user.name}</h1>
           <Badge className={st.color}>{st.label}</Badge>
         </div>
         <p className="mt-1 text-muted-foreground">{practitioner.title}</p>
@@ -82,16 +80,16 @@ export default async function PractitionerCabinetPage() {
       {/* Статистика */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { label: "Рейтинг",       value: rating,                                       sub: `${practitioner.reviewCount} отзывов`,   icon: "★",  href: "/cabinet/practitioner/reviews" },
-          { label: "Сессий всего",  value: String(practitioner.sessionCount),             sub: "за всё время",                          icon: "📅", href: null },
-          { label: "На балансе",    value: "0 ₽",                                         sub: "выплата в разработке",                  icon: "💰", href: "/cabinet/practitioner/earnings" },
-          { label: "Цена сессии",   value: `${practitioner.pricePerSession.toLocaleString("ru")} ₽`, sub: "изменяется по заявке", icon: "🎫", href: null },
+          { label: "Рейтинг",       value: rating,                                       sub: `${practitioner.reviewCount} отзывов`,   icon: "01",  href: "/cabinet/practitioner/reviews" },
+          { label: "Сессий всего",  value: String(practitioner.sessionCount),             sub: "за всё время",                          icon: "02", href: null },
+          { label: "На балансе",    value: "0 ₽",                                         sub: "выплата в разработке",                  icon: "03", href: "/cabinet/practitioner/earnings" },
+          { label: "Цена сессии",   value: `${practitioner.pricePerSession.toLocaleString("ru")} ₽`, sub: "изменяется по заявке", icon: "04", href: null },
         ].map((s) => (
           <Card key={s.label} className="border-border/40 bg-card/50">
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
-                <span className="text-xl">{s.icon}</span>
+                <span className="font-heading text-xl text-primary">{s.icon}</span>
               </div>
               <p className="mt-1 font-heading text-2xl font-bold text-primary">{s.value}</p>
               {s.href ? (
@@ -215,7 +213,8 @@ export default async function PractitionerCabinetPage() {
 }
 
 // Server-side — нельзя использовать useState, делаем placeholder
-function PendingActions({ bookingId }: { bookingId: string }) {
+function PendingActions({ bookingId: _bookingId }: { bookingId: string }) {
+  void _bookingId;
   return (
     <span className="text-xs text-yellow-400">Ожидает</span>
   );

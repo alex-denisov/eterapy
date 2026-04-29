@@ -5,6 +5,7 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PremiumCard, PremiumPage } from "@/components/v5/premium";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
@@ -81,7 +82,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
   const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-12">
+    <PremiumPage className="mx-auto max-w-5xl px-4 py-12">
       {/* Хлебные крошки */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/" className="hover:text-foreground">Главная</Link>
@@ -91,16 +92,17 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
         <span className="text-foreground">{p.user.name}</span>
       </nav>
 
-      <div className="grid gap-8 md:grid-cols-[1fr_320px]">
+      <div className="grid gap-8 md:grid-cols-[1fr_340px]">
         {/* Левая колонка */}
         <div>
+          <PremiumCard className="p-5">
           <div className="flex items-start gap-5">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-primary/10 text-3xl font-bold text-primary ring-2 ring-primary/20">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--radius-card)] border border-primary/25 bg-primary/10 font-heading text-3xl font-medium text-primary shadow-[var(--shadow-halo-soft)]">
               {p.user.name.charAt(0)}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-heading text-2xl font-bold md:text-3xl">{p.user.name}</h1>
+                <h1 className="font-heading text-3xl font-medium md:text-4xl">{p.user.name}</h1>
                 {p.verified && <Badge className="bg-primary/10 text-primary">✦ Проверен ETerapy</Badge>}
                 {p.founding && <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 text-xs">Основатель</Badge>}
               </div>
@@ -116,6 +118,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
               </p>
             </div>
           </div>
+          </PremiumCard>
 
           {/* Специализации */}
           <div className="mt-6 flex flex-wrap gap-2">
@@ -125,7 +128,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
               </Badge>
             ))}
             {p.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-border/30 px-3 py-0.5 text-sm text-muted-foreground">{tag}</span>
+              <span key={tag} className="premium-chip">{tag}</span>
             ))}
           </div>
 
@@ -140,13 +143,13 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
             <h2 className="font-heading text-xl font-semibold">Как проходит сессия</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[
-                { icon: "📅", title: "Выбираете слот", text: "Удобное время в календаре" },
-                { icon: "💳", title: "Оплачиваете", text: "Деньги удерживаются до завершения" },
-                { icon: "📹", title: "Проводите сессию", text: "Видеочат прямо на платформе" },
-                { icon: "✦", title: "Оставляете отзыв", text: "Деньги поступают практику" },
+                { icon: "01", title: "Выбираете слот", text: "Удобное время в календаре" },
+                { icon: "02", title: "Оплачиваете", text: "Деньги удерживаются до завершения" },
+                { icon: "03", title: "Проводите сессию", text: "Видеочат прямо на платформе" },
+                { icon: "04", title: "Оставляете отзыв", text: "Деньги поступают практику" },
               ].map((step) => (
-                <div key={step.title} className="flex gap-3 rounded-xl border border-border/30 bg-card/30 p-4">
-                  <span className="text-2xl">{step.icon}</span>
+                <div key={step.title} className="premium-card flex gap-3 p-4">
+                  <span className="font-heading text-2xl text-primary">{step.icon}</span>
                   <div>
                     <p className="font-medium">{step.title}</p>
                     <p className="text-sm text-muted-foreground">{step.text}</p>
@@ -229,6 +232,6 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
           </Card>
         </div>
       </div>
-    </div>
+    </PremiumPage>
   );
 }

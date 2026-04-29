@@ -9,9 +9,11 @@ describe("v5 public shell", () => {
   it("uses official brand assets instead of the legacy svg logo", () => {
     const header = source("src/components/header.tsx");
     const footer = source("src/components/footer.tsx");
+    const brand = source("src/components/brand/brand-mark.tsx");
 
-    expect(header).toContain("brandAssets.logos.horizontalDark");
-    expect(footer).toContain("brandAssets.logos.horizontalDark");
+    expect(brand).toContain("brandAssets.logos.horizontalDark");
+    expect(header).toContain("<BrandLogo");
+    expect(footer).toContain("<BrandLogo");
     expect(header).not.toContain('src="/logo.svg"');
   });
 

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { HaloVisual, PremiumCard, PremiumHero, PremiumPage, PremiumSection } from "@/components/v5/premium";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { buttonVariants } from "@/lib/button-variants";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
@@ -36,7 +38,7 @@ const paidProducts = [
     name: "Совместимость",
     price: "590-990 ₽",
     note: "парный отчет с согласием второго участника",
-    includes: ["invite flow", "partner consent", "результат после завершения обеих сторон"],
+    includes: ["ссылка-приглашение", "согласие партнера", "результат после завершения обеих сторон"],
   },
   {
     name: "7 дней к ясности",
@@ -75,34 +77,43 @@ const subscriptions = [
     name: "Practitioner Pro",
     price: "990-2990 ₽/мес",
     role: "B2B SaaS",
-    points: ["AI summary", "client brief по согласию", "follow-up drafts", "аналитика"],
+    points: ["AI-саммари", "клиентский контекст по согласию", "черновики последующих сообщений", "аналитика"],
   },
 ];
 
 const marginRules = [
-  "бесплатный продукт ведет к paid unlock, но не давит на кризисные запросы",
+  "бесплатный продукт ведет к платному открытию, но не давит на кризисные запросы",
   "реферальные бонусы начисляются внутренними кредитами и не выводятся деньгами",
   "бонусами нельзя оплатить 100% живой консультации",
   "разбор переписки и совместимость являются приоритетными paid products",
-  "комиссия специалиста зависит от source attribution",
+  "комиссия специалиста зависит от атрибуции источника",
 ];
 
 export default function PricingPage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-14 md:py-20" data-testid="pricing-page">
+    <PremiumPage data-testid="pricing-page">
       <PublicJsonLd route="/pricing" />
 
-      <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div>
-          <p className="text-sm font-semibold text-primary">Цены v5</p>
-          <h1 className="mt-3 font-heading text-4xl font-bold leading-tight md:text-6xl">
-            Бесплатный старт, платная глубина, прозрачная подписка
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            ETerapy монетизирует не каталог как первый шаг, а осознанное углубление
-            после первичного ответа: отчеты, маршруты, совместимость, подписки и живых специалистов.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+      <PremiumHero
+        eyebrow="Цены ETerapy"
+        title={<>Бесплатный старт, платная глубина, <span className="text-brand-soft-gold">прозрачная подписка</span></>}
+        lead="ETerapy монетизирует не каталог как первый шаг, а осознанное углубление после первичного ответа: отчеты, маршруты, совместимость, подписки и живых специалистов."
+        visual={
+          <PremiumCard tone="gold" className="p-6">
+            <HaloVisual className="max-w-[220px]" />
+            <h2 className="mt-4 font-heading text-2xl font-medium">Живые консультации</h2>
+            <p className="mt-2 font-heading text-4xl font-medium text-primary">1500-12000 ₽</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              Цена сессии видна до бронирования. Комиссия платформы зависит от источника клиента:
+              20-25% для ETerapy-потока, 8-12% для ссылки специалиста, 10-15% для пилотных условий.
+            </p>
+            <Disclaimer className="mt-4">
+              Специалист не является первым экраном продукта: рекомендация появляется после контекста.
+            </Disclaimer>
+          </PremiumCard>
+        }
+      >
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/all-modalities/checkin"
               className={cn(buttonVariants({ size: "lg" }), "min-h-12 text-base")}
@@ -111,6 +122,7 @@ export default function PricingPage() {
               data-testid="pricing-dialogue-cta"
             >
               Начать бесплатно
+              <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
             <Link
               href="/how-it-works"
@@ -119,35 +131,22 @@ export default function PricingPage() {
               Как это работает
             </Link>
           </div>
-        </div>
+      </PremiumHero>
 
-        <aside className="rounded-[var(--radius-card)] border border-border/40 bg-card/40 p-5">
-          <h2 className="text-base font-semibold">Живые консультации</h2>
-          <p className="mt-2 text-3xl font-bold text-primary">1500-12000 ₽</p>
-          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Цена сессии видна до бронирования. Комиссия платформы зависит от источника клиента:
-            20-25% для ETerapy-потока, 8-12% для ссылки специалиста, 10-15% для пилотных условий.
-          </p>
-          <Disclaimer className="mt-4">
-            Специалист не является первым экраном продукта: рекомендация появляется после контекста.
-          </Disclaimer>
-        </aside>
-      </section>
-
-      <section className="mt-14">
+      <PremiumSection>
         <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
           <div>
-            <h2 className="font-heading text-3xl font-semibold">Разовые продукты</h2>
+            <h2 className="premium-title text-3xl md:text-5xl">Разовые продукты</h2>
             <p className="mt-2 text-muted-foreground">Покупка открывается entitlement-ом, не UI-состоянием.</p>
           </div>
           <p className="text-sm text-muted-foreground">Цены из v5 финансовой модели, финальные значения настраиваются в админке.</p>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {paidProducts.map((product) => (
-            <article key={product.name} className="rounded-[var(--radius-card)] border border-border/30 bg-card/25 p-5">
+            <PremiumCard key={product.name} tone={product.name === "Разбор переписки" || product.name === "Совместимость" ? "lavender" : "gold"}>
               <div className="flex items-start justify-between gap-3">
-                <h3 className="text-lg font-semibold">{product.name}</h3>
-                <span className="shrink-0 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
+                <h3 className="font-heading text-2xl font-medium">{product.name}</h3>
+                <span className="premium-chip premium-chip-gold shrink-0">
                   {product.price}
                 </span>
               </div>
@@ -160,39 +159,41 @@ export default function PricingPage() {
                   </li>
                 ))}
               </ul>
-            </article>
+            </PremiumCard>
           ))}
         </div>
-      </section>
+      </PremiumSection>
 
-      <section className="mt-14">
-        <h2 className="font-heading text-3xl font-semibold">Подписки и Pro</h2>
+      <PremiumSection>
+        <h2 className="premium-title text-3xl md:text-5xl">Подписки и Pro</h2>
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {subscriptions.map((plan) => (
-            <article key={plan.name} className="rounded-[var(--radius-card)] border border-border/30 bg-card/25 p-5">
+            <PremiumCard key={plan.name} tone={plan.name === "Premium" || plan.name === "Practitioner Pro" ? "lavender" : "gold"}>
               <p className="text-sm text-muted-foreground">{plan.role}</p>
-              <h3 className="mt-1 text-xl font-semibold">{plan.name}</h3>
-              <p className="mt-3 text-2xl font-bold text-primary">{plan.price}</p>
+              <h3 className="mt-1 font-heading text-2xl font-medium">{plan.name}</h3>
+              <p className="mt-3 font-heading text-3xl font-medium text-primary">{plan.price}</p>
               <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                 {plan.points.map((point) => (
                   <li key={point}>{point}</li>
                 ))}
               </ul>
-            </article>
+            </PremiumCard>
           ))}
         </div>
-      </section>
+      </PremiumSection>
 
-      <section className="mt-14 rounded-[var(--radius-card)] border border-primary/20 bg-primary/5 p-6">
-        <h2 className="font-heading text-2xl font-semibold">Правила защиты маржи</h2>
+      <PremiumSection className="pt-2">
+      <PremiumCard tone="lavender" className="p-6">
+        <h2 className="font-heading text-3xl font-medium">Правила защиты маржи</h2>
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {marginRules.map((rule) => (
-            <div key={rule} className="rounded-[var(--radius-control)] border border-border/30 bg-background/50 p-4 text-sm leading-relaxed text-muted-foreground">
+            <div key={rule} className="premium-chip w-full justify-start whitespace-normal rounded-[var(--radius-card)] p-4 text-sm leading-relaxed">
               {rule}
             </div>
           ))}
         </div>
-      </section>
-    </main>
+      </PremiumCard>
+      </PremiumSection>
+    </PremiumPage>
   );
 }

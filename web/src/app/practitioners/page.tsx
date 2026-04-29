@@ -8,7 +8,7 @@ import { SPECIALTY_LABELS } from "@/lib/types";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { buttonVariants } from "@/lib/button-variants";
-import { Card, CardContent } from "@/components/ui/card";
+import { PremiumCard, PremiumHero, PremiumPage, PremiumSection } from "@/components/v5/premium";
 import { cn } from "@/lib/utils";
 
 function pluralize(count: number, one: string, few: string, many: string): string {
@@ -64,20 +64,41 @@ export default async function PractitionersPage() {
   const featuredPractitioners = practitioners.slice(0, 3);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <PremiumPage>
       <PublicJsonLd route="/practitioners" />
-      <section className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-        <div>
-          <p className="text-sm font-medium text-primary">Специалист как следующий шаг</p>
-          <h1 className="mt-3 font-heading text-3xl font-bold leading-tight md:text-5xl">
-            Сначала контекст вопроса, потом подходящий практик
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-            ETerapy больше не ведет пользователя в каталог без понимания ситуации. Задайте вопрос,
-            получите первичный ответ и только затем выбирайте специалиста, если живой разговор
-            действительно нужен.
-          </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <PremiumHero
+        eyebrow="Специалист как следующий шаг"
+        title={<>Сначала контекст вопроса, потом <span className="text-brand-soft-gold">подходящий практик</span></>}
+        lead="ETerapy больше не ведет пользователя в каталог без понимания ситуации. Задайте вопрос, получите первичный ответ и только затем выбирайте специалиста, если живой разговор действительно нужен."
+        visual={
+          <PremiumCard tone="lavender" className="space-y-4 p-5">
+            <div className="flex items-start gap-3">
+              <MessageCircleQuestion className="mt-0.5 size-5 text-primary" />
+              <div>
+                <h2 className="font-heading text-2xl font-medium">Рекомендация после ответа</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Пользователь видит 2-3 практиков с объяснением, почему они подходят под тему,
+                  формат и уровень сложности запроса.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                { icon: BadgeCheck, title: "Верификация", text: "Профиль, этика и правила платформы." },
+                { icon: CalendarDays, title: "Фиксированные пакеты", text: "20/50 минут или серия сессий." },
+                { icon: ShieldCheck, title: "Без давления", text: "Кризисные и рискованные темы не монетизируются." },
+              ].map((item) => (
+                <div key={item.title} className="rounded-[var(--radius-card)] border border-border/35 bg-background/35 p-3">
+                  <item.icon className="size-4 text-primary" />
+                  <p className="mt-2 text-sm font-medium">{item.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </PremiumCard>
+        }
+      >
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/all-modalities/checkin"
               className={cn(buttonVariants({ size: "lg" }))}
@@ -92,38 +113,10 @@ export default async function PractitionersPage() {
               Как работает подбор
             </Link>
           </div>
-        </div>
+      </PremiumHero>
 
-        <Card className="border-border/40 bg-card/55">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex items-start gap-3">
-              <MessageCircleQuestion className="mt-0.5 size-5 text-primary" />
-              <div>
-                <h2 className="font-heading text-lg font-semibold">Рекомендация после ответа</h2>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  Пользователь видит 2-3 практиков с объяснением, почему они подходят под тему,
-                  формат и уровень сложности запроса.
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              {[
-                { icon: BadgeCheck, title: "Верификация", text: "Профиль, этика и правила платформы." },
-                { icon: CalendarDays, title: "Фиксированные пакеты", text: "20/50 минут или серия сессий." },
-                { icon: ShieldCheck, title: "Без давления", text: "Кризисные и рискованные темы не монетизируются." },
-              ].map((item) => (
-                <div key={item.title} className="rounded-[var(--radius-card)] border border-border/35 bg-background/45 p-3">
-                  <item.icon className="size-4 text-primary" />
-                  <p className="mt-2 text-sm font-medium">{item.title}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.text}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="mt-12 rounded-[var(--radius-card)] border border-border/40 bg-card/45 p-5">
+      <PremiumSection>
+      <PremiumCard className="p-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="font-heading text-2xl font-semibold">Проверенные специалисты</h2>
@@ -171,7 +164,8 @@ export default async function PractitionersPage() {
           Полный каталог с фильтрами убран из публичного первого шага. Прямые профили сохраняются на один релиз
           для SEO и существующих ссылок, но пользовательский путь начинается с вопроса.
         </p>
-      </section>
-    </div>
+      </PremiumCard>
+      </PremiumSection>
+    </PremiumPage>
   );
 }

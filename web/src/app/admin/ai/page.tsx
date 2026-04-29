@@ -72,8 +72,8 @@ export default async function AdminAIPage() {
   return (
     <PageContainer maxWidth="6xl">
       <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">AI Control Center</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Провайдеры, ключи, модели, fallback routing, token budgets и usage-контроль v5</p>
+        <h1 className="font-heading text-2xl font-bold">AI-центр управления</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Провайдеры, ключи, модели, резервная маршрутизация, бюджеты токенов и контроль использования v5</p>
       </div>
       <AIControlCenter
         providers={providers}

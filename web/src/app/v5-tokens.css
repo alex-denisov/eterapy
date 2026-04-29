@@ -19,11 +19,15 @@
   --surface-subtle: #17263c;
   --surface-overlay: #0d1a2d;
   --surface-halo: color-mix(in srgb, var(--brand-lavender) 14%, var(--brand-midnight-navy));
+  --surface-glass: rgba(255, 255, 255, 0.045);
+  --surface-glass-strong: rgba(255, 255, 255, 0.075);
+  --surface-cream: #f7efe5;
 
   --text-primary: #f8fafc;
   --text-secondary: #d7deea;
   --text-muted: #93a4ba;
   --text-inverse: var(--brand-midnight-navy);
+  --text-cream: #fbf6ef;
 
   --signal-success: #6fca9f;
   --signal-warning: var(--brand-soft-gold);
@@ -45,13 +49,20 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
-  --radius-control: 0.5rem;
-  --radius-card: 0.5rem;
-  --radius-sheet: 0.75rem;
+  --radius-control: 0.75rem;
+  --radius-card: 1.25rem;
+  --radius-sheet: 1.75rem;
   --radius-pill: 999px;
 
-  --shadow-halo-soft: 0 0 36px color-mix(in srgb, var(--dialogue-halo-core) 20%, transparent);
-  --shadow-surface: 0 18px 60px rgba(0, 0, 0, 0.32);
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --line-gold: rgba(212, 161, 90, 0.32);
+  --line-lavender: rgba(142, 137, 214, 0.32);
+
+  --shadow-halo-soft: 0 0 42px color-mix(in srgb, var(--dialogue-halo-core) 24%, transparent);
+  --shadow-halo-gold: 0 16px 48px rgba(212, 161, 90, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  --shadow-surface: 0 22px 70px rgba(0, 0, 0, 0.36);
+  --shadow-panel: 0 28px 90px rgba(0, 0, 0, 0.42);
 
   --motion-fast: 120ms;
   --motion-base: 180ms;

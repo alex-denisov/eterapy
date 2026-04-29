@@ -24,7 +24,7 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <div className={cn(
-      "rounded-xl border border-border/40 bg-card/50 p-5",
+      "premium-card p-5",
       className
     )}>
       <p className="text-sm text-muted-foreground">{label}</p>

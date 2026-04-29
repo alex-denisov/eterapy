@@ -1,35 +1,37 @@
 import Link from "next/link";
+import { BadgeCheck, BarChart3, BrainCircuit, FileCheck2, Globe2, WalletCards } from "lucide-react";
+import { PremiumCard, PremiumSection } from "@/components/v5/premium";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
 const benefits = [
   {
-    icon: "💰",
+    icon: WalletCards,
     title: "Комиссия 25% — прозрачно",
     description: "Для первых 50 практиков — 15% на 6 месяцев. Работайте параллельно где угодно.",
   },
   {
-    icon: "🌍",
+    icon: Globe2,
     title: "Международные платежи",
     description: "Принимайте онлайн-оплату за сессии — безопасно и прозрачно.",
   },
   {
-    icon: "📋",
+    icon: FileCheck2,
     title: "Легальные выплаты",
     description: "Агентский договор, автоматические чеки. Больше никаких рисков блокировки счёта.",
   },
   {
-    icon: "🤖",
+    icon: BrainCircuit,
     title: "Умный ассистент",
     description: "Черновик отчёта по сессии, структура консультации, натальная карта клиента — автоматически.",
   },
   {
-    icon: "📊",
+    icon: BarChart3,
     title: "Кабинет с аналитикой",
     description: "Расписание, история сессий, статус выплат, рейтинг — всё в одном месте.",
   },
   {
-    icon: "✅",
+    icon: BadgeCheck,
     title: "Значок верификации",
     description: "«Проверен ETerapy» — для вашего Telegram-канала. Повышает доверие подписчиков.",
   },
@@ -37,26 +39,24 @@ const benefits = [
 
 export function ForPractitionersSection() {
   return (
-    <section id="for-practitioners" className="px-4 py-20">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="font-heading text-center text-3xl font-bold md:text-4xl">
-          Для практиков
-        </h2>
-        <p className="mt-3 text-center text-muted-foreground">
-          Инфраструктура международного уровня с честными условиями
-        </p>
-
-        <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <PremiumSection
+      id="for-practitioners"
+      className="px-4"
+      eyebrow="Для практиков"
+      title={<>Инфраструктура с <span className="text-brand-soft-gold">честными условиями</span></>}
+      lead="Кабинет, расписание, выплаты, Pro-инструменты и прозрачная верификация."
+    >
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {benefits.map((b) => (
-            <div key={b.title} className="flex gap-4">
-              <span className="mt-0.5 text-2xl">{b.icon}</span>
+            <PremiumCard key={b.title} className="flex gap-4">
+              <b.icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
               <div>
-                <h3 className="font-semibold">{b.title}</h3>
+                <h3 className="font-heading text-xl font-medium">{b.title}</h3>
                 <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {b.description}
                 </p>
               </div>
-            </div>
+            </PremiumCard>
           ))}
         </div>
 
@@ -68,7 +68,6 @@ export function ForPractitionersSection() {
             Стать практиком →
           </Link>
         </div>
-      </div>
-    </section>
+    </PremiumSection>
   );
 }
