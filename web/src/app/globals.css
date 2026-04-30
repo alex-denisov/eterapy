@@ -278,6 +278,67 @@
       radial-gradient(45% 60% at 78% 72%, rgba(142,137,214,0.21), transparent 70%);
   }
 
+  .landing-hero {
+    background:
+      radial-gradient(58rem 32rem at 50% 16%, rgba(255, 215, 154, 0.11), transparent 62%),
+      radial-gradient(44rem 30rem at 18% 32%, rgba(212, 161, 90, 0.1), transparent 68%),
+      radial-gradient(48rem 30rem at 82% 30%, rgba(142, 137, 214, 0.14), transparent 70%);
+  }
+
+  .landing-hero-orbit {
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 0 42%, rgba(255, 215, 154, 0.14) 43%, transparent 44%),
+      radial-gradient(circle at 50% 50%, transparent 0 58%, rgba(142, 137, 214, 0.12) 59%, transparent 60%);
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.72), transparent 86%);
+  }
+
+  .landing-halo-float {
+    filter: drop-shadow(0 22px 46px rgba(0, 0, 0, 0.36));
+    animation: landingHaloFloat 7s var(--ease-standard) infinite;
+  }
+
+  .landing-question-surface {
+    border-radius: calc(var(--radius-sheet) + 0.45rem);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.026)),
+      radial-gradient(52% 180% at 8% 50%, rgba(212, 161, 90, 0.16), transparent 62%),
+      radial-gradient(52% 180% at 92% 50%, rgba(142, 137, 214, 0.17), transparent 62%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+      inset 0 0 0 2px rgba(212, 161, 90, 0.08),
+      0 30px 100px rgba(0, 0, 0, 0.42);
+  }
+
+  .landing-question-surface:focus-within {
+    box-shadow:
+      inset 0 0 0 1px rgba(242, 195, 125, 0.48),
+      0 0 0 4px rgba(212, 161, 90, 0.14),
+      0 30px 100px rgba(0, 0, 0, 0.42);
+  }
+
+  .landing-scenario-card {
+    border-radius: var(--radius-card);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.022));
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      0 18px 56px rgba(0, 0, 0, 0.24);
+    backdrop-filter: blur(14px);
+  }
+
+  .landing-scenario-gold {
+    background:
+      radial-gradient(95% 70% at 86% 0%, rgba(255, 215, 154, 0.14), transparent 62%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.022));
+  }
+
+  .landing-scenario-lavender {
+    background:
+      radial-gradient(95% 70% at 86% 0%, rgba(142, 137, 214, 0.18), transparent 62%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.022));
+  }
+
   .premium-table {
     overflow: hidden;
     border: 1px solid var(--line-soft);
@@ -292,6 +353,16 @@
     .premium-shell {
       border-radius: calc(var(--radius-card) + 0.25rem);
     }
+  }
+}
+
+@keyframes landingHaloFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
   }
 }
 

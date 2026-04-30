@@ -21,6 +21,17 @@ describe("v5 public home page", () => {
     expect(hero).not.toContain("Найти практика");
   });
 
+  it("keeps the landing hero organic and free of framed PNG artwork", () => {
+    const hero = source("components/landing/hero.tsx");
+
+    expect(hero).toContain("<HaloSymbol");
+    expect(hero).toContain("landing-question-surface");
+    expect(hero).not.toContain("HaloVisual");
+    expect(hero).not.toContain("premium-shell");
+    expect(hero).not.toContain("next/image");
+    expect(hero).not.toContain("brandAssets.icons");
+  });
+
   it("keeps home analytics hooks explicit and stable", () => {
     const page = source("app/page.tsx");
     const analytics = source("components/landing/home-analytics.tsx");

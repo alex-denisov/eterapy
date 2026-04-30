@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 import { Wallet, HelpCircle } from "lucide-react";
-import { BrandLogo } from "@/components/brand/brand-mark";
+import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
 const GUEST_NAV = [
   { href: "/all-modalities/checkin", label: "Задать вопрос" },
@@ -219,7 +219,7 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href={mainUrl("/")}
           className="flex shrink-0 items-center">
-          <BrandLogo height={36} priority />
+          <VectorBrandLogo height={38} />
         </Link>
 
         {/* Guest navigation — NEVER shown to authenticated users */}

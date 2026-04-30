@@ -6,13 +6,15 @@ function source(relativePath: string) {
 }
 
 describe("v5 public shell", () => {
-  it("uses official brand assets instead of the legacy svg logo", () => {
+  it("uses a scalable Dialogue Halo logo instead of the legacy svg logo", () => {
     const header = source("src/components/header.tsx");
     const footer = source("src/components/footer.tsx");
     const brand = source("src/components/brand/brand-mark.tsx");
 
+    expect(brand).toContain("function HaloSymbol");
+    expect(brand).toContain("function VectorBrandLogo");
     expect(brand).toContain("brandAssets.logos.horizontalDark");
-    expect(header).toContain("<BrandLogo");
+    expect(header).toContain("<VectorBrandLogo");
     expect(footer).toContain("<BrandLogo");
     expect(header).not.toContain('src="/logo.svg"');
   });
