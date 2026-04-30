@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const shell = fs.readFileSync(path.join(process.cwd(), "src/components/cabinet/cabinet-shell.tsx"), "utf8");
+const clientCabinet = fs.readFileSync(path.join(process.cwd(), "src/app/cabinet/page.tsx"), "utf8");
 
 describe("v5 app shell", () => {
   it("exposes stable test ids for role-based browser walkthroughs", () => {
@@ -16,5 +17,12 @@ describe("v5 app shell", () => {
     expect(shell).toContain("duration-[var(--motion-base)]");
     expect(shell).toContain("text-brand-soft-gold");
     expect(shell).toContain("shadow-[var(--shadow-surface)]");
+  });
+
+  it("sends public product links from the app cabinet back to the public domain", () => {
+    expect(clientCabinet).toContain('mainUrl("/all-modalities/checkin")');
+    expect(clientCabinet).toContain('mainUrl("/products/deep-report")');
+    expect(clientCabinet).toContain('mainUrl("/products/seven-days")');
+    expect(clientCabinet).toContain('appUrl("/cabinet/action-history")');
   });
 });

@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { Card, CardContent } from "@/components/ui/card";
-import { adminUrl, appUrl, loginUrl } from "@/lib/subdomain";
+import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
   const session = await auth();
@@ -146,10 +146,10 @@ export default async function ClientCabinetPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { href: "/all-modalities/checkin", icon: "01", label: "Диалог ясности", desc: "Первичный ответ по вопросу" },
-            { href: "/products/deep-report", icon: "02", label: "Глубокий отчет", desc: "Развернутое углубление" },
-            { href: "/products/seven-days", icon: "03", label: "7 дней к ясности", desc: "Короткий маршрут на неделю" },
-            { href: "/cabinet/action-history", icon: "04", label: "Моя карта", desc: "Сохраненные выводы" },
+            { href: mainUrl("/all-modalities/checkin"), icon: "01", label: "Диалог ясности", desc: "Первичный ответ по вопросу" },
+            { href: mainUrl("/products/deep-report"), icon: "02", label: "Глубокий отчет", desc: "Развернутое углубление" },
+            { href: mainUrl("/products/seven-days"), icon: "03", label: "7 дней к ясности", desc: "Короткий маршрут на неделю" },
+            { href: appUrl("/cabinet/action-history"), icon: "04", label: "Моя карта", desc: "Сохраненные выводы" },
           ].map((item) => (
             <Link key={item.href} href={item.href}
               className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/30 p-4 transition-colors hover:border-primary/40 hover:bg-card/50">
