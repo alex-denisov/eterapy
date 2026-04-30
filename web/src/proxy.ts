@@ -52,6 +52,18 @@ function rewriteWithContext(url: URL, requestHeaders: Headers, context: { reques
   return withRequestContext(NextResponse.rewrite(url, { request: { headers: requestHeaders } }), context);
 }
 
+export function internalRewriteUrl(request: NextRequest, pathname: string): URL {
+  const url = new URL(pathname, request.url);
+  // Behind nginx, Next can materialize request.url as https://localhost:3000
+  // from X-Forwarded-Proto. Rewriting that absolute URL makes Next proxy TLS to
+  // the local HTTP listener and returns 500/EPROTO. Keep internal rewrites local
+  // but force the backend protocol to HTTP.
+  if ((url.hostname === "localhost" || url.hostname === "127.0.0.1") && url.protocol === "https:") {
+    url.protocol = "http:";
+  }
+  return url;
+}
+
 function applyRobotsPolicy<T extends NextResponse>(response: T, host: string, pathname: string): T {
   if (shouldNoIndex(host, pathname)) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
@@ -121,7 +133,7 @@ export default async function proxy(request: NextRequest) {
     }
     // All other paths → internally rewrite to /cabinet prefix so existing route tree still serves
     const target = pathname === "/" ? "/cabinet" : `/cabinet${pathname}`;
-    const rewriteUrl = new URL(target, request.url);
+    const rewriteUrl = internalRewriteUrl(request, target);
     rewriteUrl.search = request.nextUrl.search;
     return applyRobotsPolicy(rewriteWithContext(rewriteUrl, requestHeaders, context), host, pathname);
   }
