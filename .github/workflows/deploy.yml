@@ -28,6 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm install --force
@@ -64,6 +65,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: web/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('web/**.[jt]sx?', 'web/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
 
       - name: Install dependencies
         run: rm -f package-lock.json && npm install --force
@@ -77,22 +87,17 @@ jobs:
       - name: Build application
         working-directory: ./web
         env:
-          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          # Use real secrets from GitHub - you MUST add these to repo Settings → Secrets
+          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET || 'dummy_secret_32chars_long_for_build' }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL || 'https://app.eterapy.com' }}
           DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
-          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
-          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
-          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY || 're_dummy_key_for_build_32chars' }}
+          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID || 'dummy_shop_id' }}
+          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY || 'dummy_secret_key_32chars_long' }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY || 'dummy_key' }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET || 'dummy_secret' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || 'dummy_token' }}
         run: npm run build
-
-      - name: Debug - List .next directory
-        run: |
-          echo "=== Checking web/.next/ ==="
-          ls -la web/.next/ || echo "web/.next/ not found"
-          find web/.next/ -type f | head -20 || echo "No files found"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -142,7 +147,7 @@ jobs:
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o IdentitiesOnly=yes admin@192.144.14.146 '
             set -euxo pipefail
             cd /home/admin/eterapy/web
-            # Source environment variables from .env and .env.local on VPS
+            # Source environment variables from files on VPS
             if [ -f .env ]; then export $(grep -v "^#" .env | xargs); fi
             if [ -f .env.local ]; then export $(grep -v "^#" .env.local | xargs); fi
             npm ci --omit=dev
@@ -169,17 +174,17 @@ jobs:
           if [ "$HEALTH_STATUS" != "200" ]; then
             echo "❌ Health check failed (status: $HEALTH_STATUS)"
             exit 1
-          fi
+          fi;
 
           if [ "$APP_STATUS" != "200" ] && [ "$APP_STATUS" != "307" ] && [ "$APP_STATUS" != "308" ]; then
             echo "❌ App check failed (status: $APP_STATUS)"
-            exit 1
-          fi
+            exit 1;
+          fi;
 
           if [ "$ADMIN_STATUS" != "200" ] && [ "$ADMIN_STATUS" != "307" ] && [ "$ADMIN_STATUS" != "308" ]; then
             echo "❌ Admin check failed (status: $ADMIN_STATUS)"
-            exit 1
-          fi
+            exit 1;
+          fi;
 
           echo "✅ All deployment checks passed!"
 
@@ -202,7 +207,7 @@ jobs:
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "⚠️ Telegram not configured. Skipping notification."
             exit 0
-          fi
+          fi;
 
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
@@ -219,7 +224,7 @@ jobs:
             TEST_ICON="❌"
           else
             TEST_ICON="⏭️"
-          fi
+          fi;
 
           if [ "$BUILD_RESULT" = "success" ]; then
             BUILD_ICON="✅"
@@ -227,7 +232,7 @@ jobs:
             BUILD_ICON="❌"
           else
             BUILD_ICON="⏭️"
-          fi
+          fi;
 
           if [ "$DEPLOY_RESULT" = "success" ]; then
             DEPLOY_ICON="✅"
@@ -235,7 +240,7 @@ jobs:
             DEPLOY_ICON="❌"
           else
             DEPLOY_ICON="⏭️"
-          fi
+          fi;
 
           # Overall status
           if [ "$DEPLOY_RESULT" = "success" ]; then
@@ -248,13 +253,13 @@ jobs:
             OVERALL="❌ Pipeline FAILED at DEPLOY"
           else
             OVERALL="⚠️ Pipeline status unclear"
-          fi
+          fi;
 
-          BODY="${OVERALL}%0A%0A${TEST_ICON} Tests | ${BUILD_ICON} Build | ${DEPLOY_ICON} Deploy%0A%0ACommit: ${SHA:0:7}%0ABranch: ${REF}%0AActor: ${ACTOR}%0A%0AMessage: ${MSG}"
+          BODY="${OVERALL}%0A%0A${TEST_ICON} Tests | ${BUILD_ICON} Build | ${DEPLOY_ICON} Deploy%0A%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0A%0AMessage: $MSG"
 
           if [ "$TEST_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ] || [ "$DEPLOY_RESULT" = "failure" ]; then
             BODY="${BODY}%0A%0A📋 Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          fi
+          fi;
 
           # Convert %0A to newlines for curl
           TEXT=$(echo "$BODY" | sed 's/%0A/\n/g')
