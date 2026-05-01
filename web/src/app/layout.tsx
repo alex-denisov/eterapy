@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Fraunces, Geist } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
 import { FooterConditional } from "@/components/footer-conditional";
@@ -10,19 +10,20 @@ import { brandAssets } from "@/lib/brand-assets";
 import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-const inter = Inter({
+const geist = Geist({
   variable: "--font-sans",
   subsets: ["latin", "cyrillic"],
   display: "swap",
-  preload: false,
+  preload: true,
 });
 
-const playfair = Playfair_Display({
+const fraunces = Fraunces({
   variable: "--font-heading",
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "600", "700"],
+  axes: ["opsz", "SOFT"],
+  style: ["normal", "italic"],
   display: "swap",
-  preload: false,
+  preload: true,
 });
 
 const homeMetadata = createPublicPageMetadata("/");
@@ -64,7 +65,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${inter.variable} ${playfair.variable} h-full`}>
+    <html lang="ru" className={`${geist.variable} ${fraunces.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers>
           <HashScroll />

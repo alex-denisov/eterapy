@@ -8,9 +8,33 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-heading);
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-heading: var(--font-heading), "Times New Roman", serif;
+
+  /* Typography scale — Aurora of Clarity (B178). */
+  --text-display-1: var(--text-display-1-size);
+  --text-display-1--line-height: var(--text-display-1-leading);
+  --text-display-2: var(--text-display-2-size);
+  --text-display-2--line-height: var(--text-display-2-leading);
+  --text-heading-1: var(--text-heading-1-size);
+  --text-heading-1--line-height: var(--text-heading-1-leading);
+  --text-heading-2: var(--text-heading-2-size);
+  --text-heading-2--line-height: var(--text-heading-2-leading);
+  --text-heading-3: var(--text-heading-3-size);
+  --text-heading-3--line-height: var(--text-heading-3-leading);
+  --text-heading-4: var(--text-heading-4-size);
+  --text-heading-4--line-height: var(--text-heading-4-leading);
+  --text-body-lg: var(--text-body-lg-size);
+  --text-body-lg--line-height: var(--text-body-lg-leading);
+  --text-body: var(--text-body-size);
+  --text-body--line-height: var(--text-body-leading);
+  --text-body-sm: var(--text-body-sm-size);
+  --text-body-sm--line-height: var(--text-body-sm-leading);
+  --text-caption: var(--text-caption-size);
+  --text-caption--line-height: var(--text-caption-leading);
+  --text-eyebrow: var(--text-eyebrow-size);
+  --text-eyebrow--line-height: var(--text-eyebrow-leading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -180,6 +204,46 @@
     backdrop-filter: blur(16px);
   }
 
+  /*
+   * Surface primitives — Aurora of Clarity (B178).
+   * The four named surfaces replace the single bordered-card recipe.
+   * See docs/agents/07-design-system.md §6 for usage rules.
+   */
+
+  .surface-elevated {
+    border-radius: var(--radius-card);
+    background: var(--surface-elevated-bg);
+    box-shadow: var(--surface-elevated-shadow);
+  }
+
+  .surface-glow-gold {
+    border-radius: var(--radius-card);
+    background: var(--surface-glow-gold-bg);
+    box-shadow: var(--surface-glow-gold-shadow);
+  }
+
+  .surface-glow-lavender {
+    border-radius: var(--radius-card);
+    background: var(--surface-glow-lavender-bg);
+    box-shadow: var(--surface-glow-lavender-shadow);
+  }
+
+  .surface-inset {
+    border-radius: var(--radius-card);
+    background: var(--surface-inset-bg);
+    box-shadow: var(--surface-inset-shadow);
+  }
+
+  .surface-stroke-soft {
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-card);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /*
+   * Legacy: .premium-card kept temporarily for components that still depend
+   * on it. B180 migrates them to a surface primitive and removes this rule.
+   */
   .premium-card {
     border: 1px solid var(--line-soft);
     border-radius: var(--radius-card);
