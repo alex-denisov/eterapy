@@ -65,8 +65,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
         working-directory: ./web
@@ -172,10 +170,13 @@ jobs:
         if: always()
         run: rm -f ~/.ssh/id_rsa
 
+
+
+
   # ========== STAGE 4: NOTIFICATIONS (per job) ==========
   notify-test:
     needs: test
-    if: always()
+    if: ${{ needs.test.result != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -185,29 +186,29 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "ℹ️ Telegram not configured. Skipping notification."
+            echo "⚠️ Telegram not configured. Skipping notification."
             exit 0
           fi
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
+          COMMIT_MSG="${{ github.event.head_commit.message || '(no message)' }}"
           RESULT="${{ needs.test.result }}"
           if [ "$RESULT" = "success" ]; then
-            MSG="✅ Eterapy Tests PASSED%0ACommit: $SHA%0ABranch: $REF%0AActor: $ACTOR"
+            BODY="✅ Eterapy Tests PASSED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG"
           else
-            MSG="❌ Eterapy Tests FAILED%0ACommit: $SHA%0ABranch: $REF%0AActor: $ACTOR%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            BODY="❌ Eterapy Tests FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
-          # Convert %0A to actual newline
-          MSG=$(echo "$MSG" | awk '{ gsub(/%0A/, "\n"); print }')
+          BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${MSG}" \
+            -d "text=${BODY}" \
             -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
 
   notify-build:
     needs: build
-    if: always()
+    if: ${{ needs.build.result != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -217,28 +218,29 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "ℹ️ Telegram not configured. Skipping notification."
+            echo "⚠️ Telegram not configured. Skipping notification."
             exit 0
           fi
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
+          COMMIT_MSG="${{ github.event.head_commit.message || '(no message)' }}"
           RESULT="${{ needs.build.result }}"
           if [ "$RESULT" = "success" ]; then
-            MSG="✅ Eterapy Build PASSED%0ACommit: $SHA%0ABranch: $REF%0AActor: $ACTOR"
+            BODY="✅ Eterapy Build PASSED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG"
           else
-            MSG="❌ Eterapy Build FAILED%0ACommit: $SHA%0ABranch: $REF%0AActor: $ACTOR%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            BODY="❌ Eterapy Build FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
-          MSG=$(echo "$MSG" | awk '{ gsub(/%0A/, "\n"); print }')
+          BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${MSG}" \
+            -d "text=${BODY}" \
             -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
 
   notify-deploy:
     needs: deploy
-    if: always()
+    if: ${{ needs.deploy.result != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -248,22 +250,22 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "ℹ️ Telegram not configured. Skipping notification."
+            echo "⚠️ Telegram not configured. Skipping notification."
             exit 0
           fi
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
+          COMMIT_MSG="${{ github.event.head_commit.message || '(no message)' }}"
           RESULT="${{ needs.deploy.result }}"
           if [ "$RESULT" = "success" ]; then
-            MSG="✅ Eterapy Deploy SUCCESS%0ACommit: $SHA%0ABranch: $REF%0AActor: $ACTOR"
+            BODY="✅ Eterapy Deploy SUCCESS%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG"
           else
-            MSG="❌ Eterapy Deploy FAILED%0ACommit: $SHA%0ABranch: $REF%0AActor: $ACTOR%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            BODY="❌ Eterapy Deploy FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
-          MSG=$(echo "$MSG" | awk '{ gsub(/%0A/, "\n"); print }')
+          BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${MSG}" \
+            -d "text=${BODY}" \
             -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
-
