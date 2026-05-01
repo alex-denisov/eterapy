@@ -74,6 +74,9 @@ jobs:
 
       - name: Build application
         working-directory: ./web
+        env:
+          RESEND_API_KEY: "dummy-key-for-build"
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npm run build
 
       - name: Upload build artifact
@@ -169,7 +172,7 @@ jobs:
   # ======== STAGE 4: NOTIFICATIONS (per job) ========
   notify-test:
     needs: test
-    if: needs.test.result == 'failure'
+    if: always() && needs.test.result == 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -196,7 +199,7 @@ jobs:
 
   notify-build:
     needs: build
-    if: needs.build.result == 'failure'
+    if: always() && needs.build.result == 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -223,7 +226,7 @@ jobs:
 
   notify-deploy:
     needs: deploy
-    if: needs.deploy.result != ''
+    if: always() && needs.deploy.result != ''
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
