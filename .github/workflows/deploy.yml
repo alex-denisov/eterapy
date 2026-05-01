@@ -30,7 +30,7 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies (root lockfile)
-        run: npm ci --workspace=web
+        run: npm ci
 
       - name: Generate Prisma Client
         working-directory: ./web
@@ -64,7 +64,7 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies (root lockfile)
-        run: npm ci --workspace=web
+        run: npm ci
 
       - name: Generate Prisma Client
         working-directory: ./web
