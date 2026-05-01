@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ========== STAGE 1: TEST & LINT ==========
+  # ========= STAGE 1: TEST & LINT =========
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -49,7 +49,7 @@ jobs:
         working-directory: ./web
         run: npm test -- --passWithNoTests
 
-  # ========== STAGE 2: BUILD ==========
+  # ========= STAGE 2: BUILD =========
   build:
     needs: test
     if: always() && (needs.test.result == 'success' || inputs.skip_tests)
@@ -85,7 +85,7 @@ jobs:
           path: web/.next/
           retention-days: 1
 
-  # ========== STAGE 3: DEPLOY ==========
+  # ========= STAGE 3: DEPLOY =========
   deploy:
     needs: [test, build]
     if: always() && (needs.build.result == 'success')
@@ -168,13 +168,10 @@ jobs:
         if: always()
         run: rm -f ~/.ssh/id_rsa
 
-
-
-
-  # ========== STAGE 4: NOTIFICATIONS (per job) ==========
+  # ========= STAGE 4: NOTIFICATIONS =========
   notify-test:
     needs: test
-    if: ${{ needs.test.result != '' }}
+    if: needs.test.result != ''
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -190,12 +187,12 @@ jobs:
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
-          COMMIT_MSG="${{ github.event.head_commit.message || '(no message)' }}"
+          MSG="${{ github.event.head_commit.message || '(no message)' }}"
           RESULT="${{ needs.test.result }}"
           if [ "$RESULT" = "success" ]; then
-            BODY="✅ Eterapy Tests PASSED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG"
+            BODY="✅ Eterapy Tests PASSED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG"
           else
-            BODY="❌ Eterapy Tests FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            BODY="❌ Eterapy Tests FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -206,7 +203,7 @@ jobs:
 
   notify-build:
     needs: build
-    if: ${{ needs.build.result != '' }}
+    if: needs.build.result != ''
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -222,12 +219,12 @@ jobs:
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
-          COMMIT_MSG="${{ github.event.head_commit.message || '(no message)' }}"
+          MSG="${{ github.event.head_commit.message || '(no message)' }}"
           RESULT="${{ needs.build.result }}"
           if [ "$RESULT" = "success" ]; then
-            BODY="✅ Eterapy Build PASSED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG"
+            BODY="✅ Eterapy Build PASSED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG"
           else
-            BODY="❌ Eterapy Build FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            BODY="❌ Eterapy Build FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -238,7 +235,7 @@ jobs:
 
   notify-deploy:
     needs: deploy
-    if: ${{ needs.deploy.result != '' }}
+    if: needs.deploy.result != ''
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -254,12 +251,12 @@ jobs:
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
-          COMMIT_MSG="${{ github.event.head_commit.message || '(no message)' }}"
+          MSG="${{ github.event.head_commit.message || '(no message)' }}"
           RESULT="${{ needs.deploy.result }}"
           if [ "$RESULT" = "success" ]; then
-            BODY="✅ Eterapy Deploy SUCCESS%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG"
+            BODY="✅ Eterapy Deploy SUCCESS%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG"
           else
-            BODY="❌ Eterapy Deploy FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $COMMIT_MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            BODY="❌ Eterapy Deploy FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           fi
           BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
