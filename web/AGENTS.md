@@ -1,5 +1,6 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# web/
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+See [`../AGENTS.md`](../AGENTS.md) and the modular agent contract in
+[`../docs/agents/`](../docs/agents/). The Next.js-specific gotchas are covered
+in [`../docs/agents/04-tools-skills-agents.md`](../docs/agents/04-tools-skills-agents.md)
+and [`../docs/agents/05-coding-style.md`](../docs/agents/05-coding-style.md).
