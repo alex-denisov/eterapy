@@ -84,24 +84,55 @@ export function PremiumSection({
   );
 }
 
+export type PremiumCardVariant =
+  | "elevated"
+  | "glow-gold"
+  | "glow-lavender"
+  | "inset"
+  | "stroke-soft";
+
+const PREMIUM_VARIANT_CLASS: Record<PremiumCardVariant, string> = {
+  elevated: "surface-elevated",
+  "glow-gold": "surface-glow-gold",
+  "glow-lavender": "surface-glow-lavender",
+  inset: "surface-inset",
+  "stroke-soft": "surface-stroke-soft",
+};
+
+const PREMIUM_TONE_TO_VARIANT: Record<"default" | "gold" | "lavender", PremiumCardVariant> = {
+  default: "elevated",
+  gold: "glow-gold",
+  lavender: "glow-lavender",
+};
+
+/**
+ * PremiumCard — router over the four surface primitives defined in
+ * docs/agents/07-design-system.md §6. Pick a `variant` that signals
+ * MEANING:
+ *   - `elevated` (default) — neutral content card
+ *   - `glow-gold` — featured / paid / primary call-to-action
+ *   - `glow-lavender` — dialogue / depth / AI surface
+ *   - `inset` — stat / quote / framed copy
+ *   - `stroke-soft` — data tables only
+ *
+ * The legacy `tone` prop is preserved for backward compatibility. Use
+ * `variant` for new code.
+ */
 export function PremiumCard({
   children,
+  variant,
   tone = "default",
   className,
 }: {
   children: ReactNode;
+  variant?: PremiumCardVariant;
+  /** @deprecated use `variant` instead */
   tone?: "default" | "gold" | "lavender";
   className?: string;
 }) {
+  const resolvedVariant: PremiumCardVariant = variant ?? PREMIUM_TONE_TO_VARIANT[tone];
   return (
-    <div
-      className={cn(
-        "premium-card p-5",
-        tone === "gold" && "premium-card-gold",
-        tone === "lavender" && "premium-card-lavender",
-        className,
-      )}
-    >
+    <div className={cn(PREMIUM_VARIANT_CLASS[resolvedVariant], "p-5", className)}>
       {children}
     </div>
   );
@@ -118,8 +149,9 @@ export function ScenarioCard({
   text: string;
   tone?: "gold" | "lavender";
 }) {
+  const variant: PremiumCardVariant = tone === "gold" ? "glow-gold" : "glow-lavender";
   return (
-    <PremiumCard tone={tone} className="group relative min-h-44 overflow-hidden transition-transform duration-[var(--motion-base)] ease-[var(--ease-standard)] hover:-translate-y-1">
+    <PremiumCard variant={variant} className="group relative min-h-44 overflow-hidden transition-transform duration-[var(--motion-base)] ease-[var(--ease-standard)] hover:-translate-y-1">
       <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-brand-glow/10 blur-2xl transition-opacity group-hover:opacity-80" />
       <div className={cn("premium-chip", tone === "gold" ? "premium-chip-gold" : "premium-chip-lavender")}>
         {label}

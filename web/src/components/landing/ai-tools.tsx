@@ -58,9 +58,12 @@ export function AIToolsSection() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {tools.map((tool) => (
+          {tools.map((tool, index) => (
             <Link key={tool.title} href={tool.href}>
-              <PremiumCard tone={tool.title === "Совместимость" || tool.title === "7 дней к ясности" ? "lavender" : "gold"} className="group h-full cursor-pointer transition-transform hover:-translate-y-1">
+              <PremiumCard
+                variant={index === 0 ? "glow-gold" : "elevated"}
+                className="group h-full cursor-pointer transition-transform duration-[var(--motion-base)] ease-[var(--ease-standard)] hover:-translate-y-1"
+              >
                   <tool.icon className="size-5 text-primary" aria-hidden="true" />
                   <h3 className="mt-4 font-heading text-2xl font-medium">{tool.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">

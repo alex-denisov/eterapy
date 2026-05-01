@@ -46,7 +46,11 @@ export function TrustSection() {
     >
         <div className="grid gap-4 md:grid-cols-3">
           {trustItems.map((item, index) => (
-            <PremiumCard key={item.title} tone={index === 1 ? "lavender" : "gold"} className="p-6">
+            <PremiumCard
+              key={item.title}
+              variant={index === 1 ? "glow-lavender" : "inset"}
+              className="p-6"
+            >
               <item.icon className="size-6 text-primary" aria-hidden="true" />
               <h3 className="mt-4 font-heading text-2xl font-medium">{item.title}</h3>
               <ul className="mt-4 space-y-2">
