@@ -13,7 +13,10 @@ describe("v5 public shell", () => {
 
     expect(brand).toContain("function HaloSymbol");
     expect(brand).toContain("function VectorBrandLogo");
-    expect(brand).toContain("brandAssets.logos.horizontalDark");
+    // The brand mark must be rendered as inline SVG, not as a next/image PNG.
+    expect(brand).not.toContain('from "next/image"');
+    expect(brand).not.toContain("brandAssets.logos");
+    expect(brand).toContain("<svg");
     expect(header).toContain("<VectorBrandLogo");
     expect(footer).toContain("<BrandLogo");
     expect(header).not.toContain('src="/logo.svg"');

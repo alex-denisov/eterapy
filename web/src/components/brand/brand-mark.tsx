@@ -1,10 +1,13 @@
-import Image from "next/image";
 import { useId } from "react";
-import { brandAssets } from "@/lib/brand-assets";
 import { cn } from "@/lib/utils";
 
 type BrandTheme = "dark" | "light";
 
+/**
+ * Dialogue Halo — pure SVG, recolorable, no PNG dependency.
+ * Two arcs (gold and lavender) framing a warm core glow. Used as the
+ * universal mark across the platform.
+ */
 export function HaloSymbol({
   size = 56,
   className,
@@ -29,7 +32,7 @@ export function HaloSymbol({
       style={{ width: size, height: size }}
     >
       {glow && (
-        <span className="absolute inset-[19%] rounded-full bg-brand-glow/30 blur-2xl" />
+        <span className="absolute inset-[19%] rounded-full bg-brand-glow/30 blur-2xl" aria-hidden="true" />
       )}
       <svg
         role={title ? "img" : undefined}
@@ -95,6 +98,53 @@ export function HaloSymbol({
   );
 }
 
+/**
+ * Compact halo-only mark. Same SVG as HaloSymbol; provided as a separate
+ * export so consumers can be explicit about intent (icon vs symbol).
+ */
+export function HaloMark({
+  size = 56,
+  className,
+  glow = true,
+}: {
+  size?: number;
+  className?: string;
+  glow?: boolean;
+  /** @deprecated kept for prop compatibility; no-op since the mark is SVG, not an Image */
+  priority?: boolean;
+}) {
+  return <HaloSymbol size={size} className={className} glow={glow} title="" />;
+}
+
+/**
+ * Word-only mark — "ETerapy" set in Fraunces (display heading).
+ */
+function Wordmark({
+  fontSize,
+  className,
+  theme = "dark",
+}: {
+  fontSize: number;
+  className?: string;
+  theme?: BrandTheme;
+}) {
+  return (
+    <span
+      className={cn(
+        "font-heading font-semibold leading-none tracking-normal",
+        theme === "light" ? "text-brand-midnight" : "text-foreground",
+        className,
+      )}
+      style={{ fontSize }}
+    >
+      ETerapy
+    </span>
+  );
+}
+
+/**
+ * Halo + wordmark. Used in the public header.
+ */
 export function VectorBrandLogo({
   theme = "dark",
   height = 38,
@@ -106,15 +156,11 @@ export function VectorBrandLogo({
   className?: string;
   compact?: boolean;
 }) {
-  const textColor = theme === "light" ? "text-brand-midnight" : "text-foreground";
-
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <HaloSymbol size={height} glow={!compact} />
       <span className="inline-flex min-w-0 flex-col">
-        <span className={cn("font-heading font-semibold leading-none tracking-normal", textColor)} style={{ fontSize: Math.max(21, height * 0.58) }}>
-          ETerapy
-        </span>
+        <Wordmark theme={theme} fontSize={Math.max(21, height * 0.58)} />
         {!compact && (
           <span className="mt-1 hidden text-[0.42rem] font-bold uppercase leading-none tracking-[0.22em] text-brand-soft-gold sm:inline">
             Ясность · Диалог · Понимание
@@ -125,66 +171,36 @@ export function VectorBrandLogo({
   );
 }
 
-export function HaloMark({
-  size = 56,
-  className,
-  glow = true,
-  priority = false,
-}: {
-  size?: number;
-  className?: string;
-  glow?: boolean;
-  priority?: boolean;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn("relative inline-flex shrink-0 items-center justify-center", className)}
-      style={{ width: size, height: size }}
-    >
-      {glow && (
-        <span className="absolute inset-[16%] rounded-full bg-brand-glow/25 blur-xl" />
-      )}
-      <Image
-        src={brandAssets.icons.appDarkTransparentMaster}
-        alt=""
-        width={size}
-        height={size}
-        priority={priority}
-        className="relative h-full w-full object-contain"
-      />
-    </span>
-  );
-}
-
+/**
+ * Halo + wordmark. Used in the footer. Sets a slightly larger gap and
+ * accepts the same `theme` / `height` interface as the legacy Image-backed
+ * BrandLogo so existing call sites keep working — but renders as pure SVG
+ * code, no PNG.
+ */
 export function BrandLogo({
   theme = "dark",
   height = 38,
   className,
-  priority = false,
 }: {
   theme?: BrandTheme;
   height?: number;
   className?: string;
+  /** @deprecated kept for prop compatibility; no-op since the logo is SVG, not an Image */
   priority?: boolean;
 }) {
-  const src = theme === "light"
-    ? brandAssets.logos.horizontalLight
-    : brandAssets.logos.horizontalDark;
-
   return (
-    <Image
-      src={src}
-      alt="ETerapy"
-      width={2048}
-      height={682}
-      priority={priority}
-      className={cn("w-auto object-contain", className)}
-      style={{ height }}
-    />
+    <span className={cn("inline-flex items-center gap-3", className)} style={{ height }}>
+      <HaloSymbol size={height} glow={false} />
+      <Wordmark theme={theme} fontSize={Math.max(20, height * 0.62)} />
+    </span>
   );
 }
 
+/**
+ * Compact lockup — halo + wordmark + optional tagline.
+ * Used inside the dialogue/cabinet/admin shells where the brand needs to be
+ * present but quiet.
+ */
 export function BrandSignature({
   compact = false,
   className,
