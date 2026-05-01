@@ -15,21 +15,8 @@ concurrency:
   group: production
   cancel-in-progress: true
 
-env:
-  # Dummy values for build-time env vars (static generation)
-  CI_BUILD: "true"
-  DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
-  RESEND_API_KEY: "re_dummy_key_for_build"
-  YUKASSA_SHOP_ID: "dummy_shop_id"
-  YUKASSA_SECRET_KEY: "dummy_secret_key"
-  NEXTAUTH_SECRET: "dummy_secret_for_build"
-  NEXTAUTH_URL: "https://app.eterapy.com"
-  TELEGRAM_BOT_TOKEN: "dummy_token"
-  LIVEKIT_API_KEY: "dummy_key"
-  LIVEKIT_API_SECRET: "dummy_secret"
-
 jobs:
-  # ======== STAGE 1: TEST & LINT ========
+  # ======== STAGE 1: TEST ========
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -47,6 +34,8 @@ jobs:
 
       - name: Generate Prisma Client
         working-directory: ./web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
         run: npx prisma generate
 
       - name: Run linter (disabled for now)
@@ -57,6 +46,8 @@ jobs:
       - name: Run tests
         if: ${{ !inputs.skip_tests }}
         working-directory: ./web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
         run: npm test -- --passWithNoTests
 
   # ======== STAGE 2: BUILD ========
@@ -79,21 +70,29 @@ jobs:
 
       - name: Generate Prisma Client
         working-directory: ./web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
         run: npx prisma generate
 
       - name: Build application
         working-directory: ./web
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL || 'https://app.eterapy.com' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
+          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: npm run build
 
-      - name: Debug build output
+      - name: Debug - List .next directory
         run: |
-          echo "=== Checking web directory ==="
-          ls -la web/
-          echo "=== Checking .next directory ==="
-          ls -la web/.next/ 2>/dev/null || echo ".next directory not found"
-          echo "=== Checking for dist or out directories ==="
-          ls -la web/dist/ 2>/dev/null || echo "dist not found"
-          ls -la web/out/ 2>/dev/null || echo "out not found"
+          echo "=== Checking web/.next/ ==="
+          ls -la web/.next/ || echo "web/.next/ not found"
+          find web/.next/ -type f | head -20 || echo "No files found"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -137,12 +136,15 @@ jobs:
             ./web/ admin@192.144.14.146:/home/admin/eterapy/web/
 
       - name: Restart application on VPS
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
         run: |
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o IdentitiesOnly=yes admin@192.144.14.146 '
             set -euxo pipefail
             cd /home/admin/eterapy/web
-            source /home/admin/db-creds.txt
-            export DATABASE_URL
+            # Source environment variables from .env and .env.local on VPS
+            if [ -f .env ]; then export $(grep -v "^#" .env | xargs); fi
+            if [ -f .env.local ]; then export $(grep -v "^#" .env.local | xargs); fi
             npm ci --omit=dev
             npx prisma generate
             npx prisma migrate deploy
@@ -185,7 +187,7 @@ jobs:
         if: always()
         run: rm -f ~/.ssh/id_rsa
 
-  # ======== STAGE 4: NOTIFICATION (single consolidated) ========
+  # ======== STAGE 4: NOTIFICATION (consolidated) ========
   notify:
     needs: [test, build, deploy]
     if: always()
