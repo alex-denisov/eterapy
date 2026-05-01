@@ -29,8 +29,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies (root lockfile)
-        run: npm ci
+      - name: Install dependencies (resolves optional deps per platform)
+        run: npm install
 
       - name: Generate Prisma Client
         working-directory: ./web
@@ -63,8 +63,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies (root lockfile)
-        run: npm ci
+      - name: Install dependencies (resolves optional deps per platform)
+        run: npm install
 
       - name: Generate Prisma Client
         working-directory: ./web
