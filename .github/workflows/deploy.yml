@@ -15,6 +15,19 @@ concurrency:
   group: production
   cancel-in-progress: true
 
+env:
+  # Dummy values for build-time env vars (static generation)
+  CI_BUILD: "true"
+  DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+  RESEND_API_KEY: "re_dummy_key_for_build"
+  YUKASSA_SHOP_ID: "dummy_shop_id"
+  YUKASSA_SECRET_KEY: "dummy_secret_key"
+  NEXTAUTH_SECRET: "dummy_secret_for_build"
+  NEXTAUTH_URL: "https://app.eterapy.com"
+  TELEGRAM_BOT_TOKEN: "dummy_token"
+  LIVEKIT_API_KEY: "dummy_key"
+  LIVEKIT_API_SECRET: "dummy_secret"
+
 jobs:
   # ======== STAGE 1: TEST & LINT ========
   test:
@@ -29,13 +42,11 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies (resolves optional deps per platform)
+      - name: Install dependencies
         run: npm install --force
 
       - name: Generate Prisma Client
         working-directory: ./web
-        env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npx prisma generate
 
       - name: Run linter (disabled for now)
@@ -63,20 +74,15 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install dependencies (resolves optional deps per platform)
+      - name: Install dependencies
         run: rm -f package-lock.json && npm install --force
 
       - name: Generate Prisma Client
         working-directory: ./web
-        env:
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npx prisma generate
 
       - name: Build application
         working-directory: ./web
-        env:
-          RESEND_API_KEY: "dummy-key-for-build"
-          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npm run build
 
       - name: Upload build artifact
@@ -89,7 +95,7 @@ jobs:
   # ======== STAGE 3: DEPLOY ========
   deploy:
     needs: [test, build]
-    if: always() && (needs.build.result == 'success')
+    if: always() && needs.build.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -151,17 +157,17 @@ jobs:
           if [ "$HEALTH_STATUS" != "200" ]; then
             echo "❌ Health check failed (status: $HEALTH_STATUS)"
             exit 1
-          fi;
+          fi
 
           if [ "$APP_STATUS" != "200" ] && [ "$APP_STATUS" != "307" ] && [ "$APP_STATUS" != "308" ]; then
             echo "❌ App check failed (status: $APP_STATUS)"
-            exit 1;
-          fi;
+            exit 1
+          fi
 
           if [ "$ADMIN_STATUS" != "200" ] && [ "$ADMIN_STATUS" != "307" ] && [ "$ADMIN_STATUS" != "308" ]; then
             echo "❌ Admin check failed (status: $ADMIN_STATUS)"
-            exit 1;
-          fi;
+            exit 1
+          fi
 
           echo "✅ All deployment checks passed!"
 
@@ -169,10 +175,10 @@ jobs:
         if: always()
         run: rm -f ~/.ssh/id_rsa
 
-  # ======== STAGE 4: NOTIFICATIONS (per job) ========
-  notify-test:
-    needs: test
-    if: always() && needs.test.result == 'failure'
+  # ======== STAGE 4: NOTIFICATION (single consolidated) ========
+  notify:
+    needs: [test, build, deploy]
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -183,75 +189,66 @@ jobs:
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "⚠️ Telegram not configured. Skipping notification."
-            exit 0;
-          fi;
-          SHA="${{ github.sha }}"
-          REF="${{ github.ref_name }}"
-          ACTOR="${{ github.actor }}"
-          MSG="${{ github.event.head_commit.message || '(no message)' }}"
-          BODY="❌ Eterapy Tests FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${BODY}" \
-            -d "parse_mode=HTML" \
-            -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
+            exit 0
+          fi
 
-  notify-build:
-    needs: build
-    if: always() && needs.build.result == 'failure'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Send Telegram notification
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "⚠️ Telegram not configured. Skipping notification."
-            exit 0;
-          fi;
           SHA="${{ github.sha }}"
           REF="${{ github.ref_name }}"
           ACTOR="${{ github.actor }}"
           MSG="${{ github.event.head_commit.message || '(no message)' }}"
-          BODY="❌ Eterapy Build FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${BODY}" \
-            -d "parse_mode=HTML" \
-            -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
+          TEST_RESULT="${{ needs.test.result }}"
+          BUILD_RESULT="${{ needs.build.result }}"
+          DEPLOY_RESULT="${{ needs.deploy.result }}"
 
-  notify-deploy:
-    needs: deploy
-    if: always() && needs.deploy.result != ''
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Send Telegram notification
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "⚠️ Telegram not configured. Skipping notification."
-            exit 0;
-          fi;
-          SHA="${{ github.sha }}"
-          REF="${{ github.ref_name }}"
-          ACTOR="${{ github.actor }}"
-          MSG="${{ github.event.head_commit.message || '(no message)' }}"
-          RESULT="${{ needs.deploy.result }}"
-          if [ "$RESULT" = "success" ]; then
-            BODY="✅ Eterapy Deploy SUCCESS%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG"
+          # Build status emoji line
+          if [ "$TEST_RESULT" = "success" ]; then
+            TEST_ICON="✅"
+          elif [ "$TEST_RESULT" = "failure" ]; then
+            TEST_ICON="❌"
           else
-            BODY="❌ Eterapy Deploy FAILED%0ACommit: ${SHA:0:7}%0ABranch: $REF%0AActor: $ACTOR%0ADesc: $MSG%0ALogs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          fi;
-          BODY=$(echo "$BODY" | awk '{ gsub(/%0A/, "\n"); print }')
+            TEST_ICON="⏭️"
+          fi
+
+          if [ "$BUILD_RESULT" = "success" ]; then
+            BUILD_ICON="✅"
+          elif [ "$BUILD_RESULT" = "failure" ]; then
+            BUILD_ICON="❌"
+          else
+            BUILD_ICON="⏭️"
+          fi
+
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            DEPLOY_ICON="✅"
+          elif [ "$DEPLOY_RESULT" = "failure" ]; then
+            DEPLOY_ICON="❌"
+          else
+            DEPLOY_ICON="⏭️"
+          fi
+
+          # Overall status
+          if [ "$DEPLOY_RESULT" = "success" ]; then
+            OVERALL="🚀 Pipeline SUCCESS"
+          elif [ "$BUILD_RESULT" = "failure" ]; then
+            OVERALL="❌ Pipeline FAILED at BUILD"
+          elif [ "$TEST_RESULT" = "failure" ]; then
+            OVERALL="❌ Pipeline FAILED at TESTS"
+          elif [ "$DEPLOY_RESULT" = "failure" ]; then
+            OVERALL="❌ Pipeline FAILED at DEPLOY"
+          else
+            OVERALL="⚠️ Pipeline status unclear"
+          fi
+
+          BODY="${OVERALL}%0A%0A${TEST_ICON} Tests | ${BUILD_ICON} Build | ${DEPLOY_ICON} Deploy%0A%0ACommit: ${SHA:0:7}%0ABranch: ${REF}%0AActor: ${ACTOR}%0A%0AMessage: ${MSG}"
+
+          if [ "$TEST_RESULT" = "failure" ] || [ "$BUILD_RESULT" = "failure" ] || [ "$DEPLOY_RESULT" = "failure" ]; then
+            BODY="${BODY}%0A%0A📋 Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+          # Convert %0A to newlines for curl
+          TEXT=$(echo "$BODY" | sed 's/%0A/\n/g')
+
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
-            -d "text=${BODY}" \
+            -d "text=${TEXT}" \
             -d "parse_mode=HTML" \
-            -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
+            -d "disable_web_page_preview=true" || echo "Telegram notification failed"
