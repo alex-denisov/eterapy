@@ -69,13 +69,26 @@ export interface YooKassaPaymentMethod {
 const SHOP_ID = process.env.YUKASSA_SHOP_ID;
 const SECRET_KEY = process.env.YUKASSA_SECRET_KEY;
 
-if (!SHOP_ID || !SECRET_KEY) {
-  throw new Error("YUKASSA_SHOP_ID and YUKASSA_SECRET_KEY must be set in environment");
-}
-
 const API_URL = "https://api.yookassa.ru/v3";
 
-const authHeader = `Basic ${Buffer.from(`${SHOP_ID}:${SECRET_KEY}`).toString("base64")}`;
+function getAuthHeader() {
+  if (!SHOP_ID || !SECRET_KEY) {
+    throw new Error("YUKASSA_SHOP_ID and YUKASSA_SECRET_KEY must be set in environment");
+  }
+  return `Basic ${Buffer.from(`${SHOP_ID}:${SECRET_KEY}`).toString("base64")}`;
+}
+
+// Lazy-initialized - only created when first accessed
+let _authHeader: string | null = null;
+function getAuthHeaderLazy() {
+  if (!_authHeader) {
+    _authHeader = getAuthHeader();
+  }
+  return _authHeader;
+}
+
+// For backward compatibility - will be set on first use
+const authHeader = getAuthHeaderLazy();
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
