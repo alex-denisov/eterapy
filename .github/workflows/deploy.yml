@@ -85,6 +85,16 @@ jobs:
         working-directory: ./web
         run: npm run build
 
+      - name: Debug build output
+        run: |
+          echo "=== Checking web directory ==="
+          ls -la web/
+          echo "=== Checking .next directory ==="
+          ls -la web/.next/ 2>/dev/null || echo ".next directory not found"
+          echo "=== Checking for dist or out directories ==="
+          ls -la web/dist/ 2>/dev/null || echo "dist not found"
+          ls -la web/out/ 2>/dev/null || echo "out not found"
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
