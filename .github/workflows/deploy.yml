@@ -36,7 +36,7 @@ jobs:
       - name: Generate Prisma Client
         working-directory: ./web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
         run: npx prisma generate
 
       - name: Run linter (disabled for now)
@@ -48,7 +48,7 @@ jobs:
         if: ${{ !inputs.skip_tests }}
         working-directory: ./web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
         run: npm test -- --passWithNoTests
 
   # ======== STAGE 2: BUILD ========
@@ -81,22 +81,21 @@ jobs:
       - name: Generate Prisma Client
         working-directory: ./web
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
         run: npx prisma generate
 
       - name: Build application
         working-directory: ./web
         env:
-          # Use real secrets from GitHub - you MUST add these to repo Settings → Secrets
-          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET || 'dummy_secret_32chars_long_for_build' }}
-          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL || 'https://app.eterapy.com' }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV || 'postgresql://dummy:dummy@localhost:5432/dummy' }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY || 're_dummy_key_for_build_32chars' }}
-          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID || 'dummy_shop_id' }}
-          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY || 'dummy_secret_key_32chars_long' }}
-          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY || 'dummy_key' }}
-          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET || 'dummy_secret' }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || 'dummy_token' }}
+          NEXTAUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
+          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: npm run build
 
       - name: Upload build artifact
@@ -114,7 +113,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4/
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
