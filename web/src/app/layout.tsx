@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist } from "next/font/google";
+import { Lora, Geist } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/header";
 import { FooterConditional } from "@/components/footer-conditional";
@@ -17,10 +17,9 @@ const geist = Geist({
   preload: true,
 });
 
-const fraunces = Fraunces({
+const lora = Lora({
   variable: "--font-heading",
   subsets: ["latin", "cyrillic"],
-  axes: ["opsz", "SOFT"],
   style: ["normal", "italic"],
   display: "swap",
   preload: true,
@@ -65,7 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${geist.variable} ${fraunces.variable} h-full`}>
+    <html lang="ru" className={`${geist.variable} ${lora.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers>
           <HashScroll />
