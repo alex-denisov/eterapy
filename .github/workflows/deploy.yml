@@ -30,7 +30,6 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        working-directory: ./web
         run: npm ci
 
       - name: Generate Prisma Client
@@ -65,7 +64,6 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        working-directory: ./web
         run: npm ci
 
       - name: Generate Prisma Client
