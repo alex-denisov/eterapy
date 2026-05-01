@@ -37,6 +37,8 @@ jobs:
 
       - name: Generate Prisma Client
         working-directory: ./web
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npx prisma generate
 
       - name: Run linter
@@ -72,6 +74,8 @@ jobs:
 
       - name: Generate Prisma Client
         working-directory: ./web
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
         run: npx prisma generate
 
       - name: Build application
@@ -179,28 +183,37 @@ jobs:
         id: message
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "text=✅ ETerapy Deploy SUCCESS!%0ACommit: ${{ github.sha }}%0ABranch: ${{ github.ref_name }}%0AAuthor: ${{ github.actor }}" >> $GITHUB_OUTPUT
+            echo "text<<EOF" >> $GITHUB_OUTPUT
+            echo "✅ ETerapy Deploy SUCCESS!" >> $GITHUB_OUTPUT
+            echo "Commit: ${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "Branch: ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "Author: ${{ github.actor }}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
             echo "status=success" >> $GITHUB_OUTPUT
           else
-            echo "text=❌ ETerapy Deploy FAILED!%0ACommit: ${{ github.sha }}%0ABranch: ${{ github.ref_name }}%0AAuthor: ${{ github.actor }}%0ACheck logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "text<<EOF" >> $GITHUB_OUTPUT
+            echo "❌ ETerapy Deploy FAILED!" >> $GITHUB_OUTPUT
+            echo "Commit: ${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "Branch: ${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "Author: ${{ github.actor }}" >> $GITHUB_OUTPUT
+            echo "Check logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
             echo "status=failure" >> $GITHUB_OUTPUT
           fi
 
       - name: Send Telegram notification
-        if: env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != ''
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MESSAGE: ${{ steps.message.outputs.text }}
         run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "ℹ️ Telegram not configured. Skipping notification."
+            echo "To enable notifications, add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to GitHub Secrets."
+            exit 0
+          fi
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
             -d "text=${MESSAGE}" \
             -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" || echo "Telegram notification skipped"
-
-      - name: Fallback notification (console)
-        if: env.TELEGRAM_BOT_TOKEN == '' || env.TELEGRAM_CHAT_ID == ''
-        run: |
-          echo "ℹ️ Telegram not configured. Skipping notification."
-          echo "To enable notifications, add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to GitHub Secrets."
