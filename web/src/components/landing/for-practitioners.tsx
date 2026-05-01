@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BadgeCheck, BarChart3, BrainCircuit, FileCheck2, Globe2, WalletCards } from "lucide-react";
-import { PremiumCard, PremiumSection } from "@/components/v5/premium";
+import { PremiumSection } from "@/components/v5/premium";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 
@@ -43,31 +43,42 @@ export function ForPractitionersSection() {
       id="for-practitioners"
       className="px-4"
       eyebrow="Для практиков"
-      title={<>Инфраструктура с <span className="text-brand-soft-gold">честными условиями</span></>}
+      title={
+        <>
+          Инфраструктура с <span className="text-brand-soft-gold">честными условиями</span>
+        </>
+      }
       lead="Кабинет, расписание, выплаты, Pro-инструменты и прозрачная верификация."
     >
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {benefits.map((b) => (
-            <PremiumCard key={b.title} className="flex gap-4">
-              <b.icon className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-              <div>
-                <h3 className="font-heading text-xl font-medium">{b.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                  {b.description}
-                </p>
-              </div>
-            </PremiumCard>
-          ))}
-        </div>
+      <ul className="mx-auto grid max-w-5xl gap-x-10 gap-y-8 md:grid-cols-2 md:gap-x-14 md:gap-y-10">
+        {benefits.map((b) => (
+          <li key={b.title} className="grid grid-cols-[auto_1fr] items-start gap-x-5">
+            <span
+              className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+              aria-hidden="true"
+            >
+              <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,215,154,0.16),transparent_72%)]" />
+              <b.icon className="relative size-5 text-primary" aria-hidden="true" />
+            </span>
+            <div>
+              <h3 className="font-heading text-xl font-medium leading-tight">{b.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{b.description}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
 
-        <div className="mt-12 text-center">
-          <Link
-            href="/practitioners/apply"
-            className={cn(buttonVariants({ variant: "outline", size: "lg" }), "border-primary/30 text-primary hover:bg-primary/10")}
-          >
-            Стать практиком →
-          </Link>
-        </div>
+      <div className="mt-12 text-center">
+        <Link
+          href="/practitioners/apply"
+          className={cn(
+            buttonVariants({ variant: "outline", size: "lg" }),
+            "border-primary/30 text-primary hover:bg-primary/10",
+          )}
+        >
+          Стать практиком →
+        </Link>
+      </div>
     </PremiumSection>
   );
 }

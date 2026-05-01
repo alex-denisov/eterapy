@@ -1,4 +1,4 @@
-import { PremiumCard, PremiumSection } from "@/components/v5/premium";
+import { PremiumSection } from "@/components/v5/premium";
 
 const steps = [
   {
@@ -11,7 +11,7 @@ const steps = [
     number: "02",
     title: "Уточните контекст",
     description:
-      "Диалог задает несколько коротких вопросов, распознает сложность и останавливает небезопасные сценарии.",
+      "Диалог задаёт несколько коротких вопросов, распознаёт сложность и останавливает небезопасные сценарии.",
   },
   {
     number: "03",
@@ -23,7 +23,7 @@ const steps = [
     number: "04",
     title: "Выберите глубину",
     description:
-      "Можно сохранить ответ, заказать отчет, пройти маршрут или перейти к рекомендованному специалисту.",
+      "Можно сохранить ответ, заказать отчёт, пройти маршрут или перейти к рекомендованному специалисту.",
   },
 ];
 
@@ -32,22 +32,44 @@ export function HowItWorksSection() {
     <PremiumSection
       className="px-4"
       eyebrow="Как это работает"
-      title={<>От первого вопроса <span className="text-brand-soft-gold">до ясности</span></>}
+      title={
+        <>
+          От первого вопроса <span className="text-brand-soft-gold">до ясности</span>
+        </>
+      }
       lead="Четыре спокойных шага: без выбора специалиста на старте и без давления на покупку."
     >
-      <div id="how-it-works" className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {steps.map((step) => (
-          <PremiumCard key={step.number} className="group min-h-56">
-            <div className="font-heading text-4xl font-medium italic text-brand-soft-gold/75 transition-colors group-hover:text-brand-soft-gold">
-              {step.number}
+      <ol id="how-it-works" className="relative mx-auto max-w-3xl pl-0">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-[2.25rem] top-2 bottom-2 hidden w-px bg-gradient-to-b from-transparent via-brand-soft-gold/35 to-transparent sm:block"
+        />
+        {steps.map((step, index) => (
+          <li
+            key={step.number}
+            className="group relative grid grid-cols-[auto_1fr] items-start gap-x-5 gap-y-2 py-6 sm:gap-x-8"
+            style={{
+              animation: `landingTimelineRise var(--motion-celebrate) var(--ease-soft) ${index * 90}ms both`,
+            }}
+          >
+            <span className="relative flex h-[4.5rem] w-[4.5rem] items-center justify-center font-heading text-3xl italic text-brand-soft-gold/85 sm:h-20 sm:w-20 sm:text-4xl">
+              <span
+                aria-hidden="true"
+                className="absolute inset-2 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,215,154,0.18),transparent_70%)] transition-opacity duration-[var(--motion-base)] ease-[var(--ease-standard)] group-hover:opacity-100"
+              />
+              <span className="relative">{step.number}</span>
+            </span>
+            <div className="pt-1.5">
+              <h3 className="font-heading text-2xl font-medium leading-tight text-foreground">
+                {step.title}
+              </h3>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+                {step.description}
+              </p>
             </div>
-            <h3 className="mt-5 font-heading text-2xl font-medium">{step.title}</h3>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              {step.description}
-            </p>
-          </PremiumCard>
+          </li>
         ))}
-      </div>
+      </ol>
     </PremiumSection>
   );
 }
