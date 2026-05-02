@@ -5,9 +5,7 @@ import path from "path";
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
-  turbopack: {
-    root: __dirname,
-  },
+  // Turbopack disabled due to monorepo root resolution issues
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "sun*.userapi.com" },
