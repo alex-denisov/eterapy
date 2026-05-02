@@ -206,11 +206,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: next-build-${{ github.sha }}
-          path: |
-            web/.next/build
-            web/.next/static
-            web/.next/server
-            web/.next/required-server-files.json
+          path: web/.next
           retention-days: 3
           if-no-files-found: error
           compression-level: 6
@@ -233,6 +229,65 @@ jobs:
         with:
           name: next-build-${{ github.sha }}
           path: web/.next
+
+      - name: Setup SSH key & Pre-flight
+        env:
+          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::secret CLOUDRU_ETERAPY_WEB_DEPLOY_KEY is empty"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          else
+            printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          fi
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          
+          echo "▶ Verifying VPS environment..."
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            'echo "✓ SSH connection established";
+             command -v node >/dev/null || { echo "::error::node missing on VPS"; exit 1; };
+             command -v npm >/dev/null || { echo "::error::npm missing on VPS"; exit 1; };
+             command -v pm2 >/dev/null || { echo "::error::pm2 missing on VPS"; exit 1; };
+             echo "✓ node $(node -v); npm v$(npm -v); pm2 v$(pm2 -v)"'
+
+      - name: Sync application to VPS
+        run: |
+          set -euo pipefail
+          SSH_CMD='ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=20'
+
+          echo "▶ rsync root manifest"
+          rsync -az --human-readable -e "$SSH_CMD" \
+            package.json package-lock.json \
+            "$VPS_USER@$VPS_HOST:$VPS_REPO_DIR/"
+
+          echo "▶ rsync ecosystem config"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" "mkdir -p $VPS_DEPLOY_DIR"
+          rsync -az --human-readable -e "$SSH_CMD" \
+            deploy/ecosystem.config.js \
+            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/ecosystem.config.js"
+
+          echo "▶ rsync web/ tree (including artifact)"
+          rsync -az --delete --human-readable -e "$SSH_CMD" \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='.next/cache' \
+            --exclude='public/uploads' \
+            --exclude='*.log' \
+            --exclude='.DS_Store' \
+            --exclude='coverage' \
+            --exclude='playwright-report' \
+            --exclude='test-results' \
+            web/ \
+            "$VPS_USER@$VPS_HOST:$VPS_WEB_DIR/"
 
       - name: Setup SSH key & Pre-flight
         env:
