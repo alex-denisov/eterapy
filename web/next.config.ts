@@ -1,11 +1,12 @@
 import type { NextConfig } from "next";
 import { securityHeaders } from "./src/lib/security-headers";
+import path from "path";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
   turbopack: {
-    root: process.cwd(),
+    root: __dirname,
   },
   images: {
     remotePatterns: [
