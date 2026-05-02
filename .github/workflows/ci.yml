@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.gitignore'
+      - '.artifacts/**'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  install:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    outputs:
+      cache-key: ${{ steps.cache-keys.outputs.deps }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - id: cache-keys
+        run: echo "deps=node-modules-${{ runner.os }}-node${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json') }}" >> "$GITHUB_OUTPUT"
+      - id: cache-deps
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            web/node_modules
+          key: ${{ steps.cache-keys.outputs.deps }}
+      - if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Generate Prisma client
+        working-directory: web
+        run: npx prisma generate
+
+  test:
+    name: Unit tests
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            web/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+      - name: Reinstall if cache miss
+        run: |
+          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
+            npm ci --prefer-offline --no-audit --no-fund
+          fi
+      - name: Ensure Prisma client
+        working-directory: web
+        run: npx prisma generate
+      - name: Run tests
+        working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          NODE_ENV: test
+        run: npm test -- --ci --passWithNoTests --silent
+
+  build:
+    name: Next.js build
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      - uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            web/node_modules
+          key: ${{ needs.install.outputs.cache-key }}
+      - name: Reinstall if cache miss
+        run: |
+          if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
+            npm ci --prefer-offline --no-audit --no-fund
+          fi
+      - name: Ensure Prisma client
+        working-directory: web
+        run: npx prisma generate
+      - uses: actions/cache@v5
+        with:
+          path: web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('web/src/**/*.{ts,tsx,js,jsx,css}', 'web/public/**', 'web/next.config.*') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            nextjs-${{ runner.os }}-
+      - name: Build (verify only, no deploy)
+        working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          AUTH_TRUST_HOST: 'true'
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          YUKASSA_SHOP_ID: ${{ secrets.YUKASSA_SHOP_ID }}
+          YUKASSA_SECRET_KEY: ${{ secrets.YUKASSA_SECRET_KEY }}
+          LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
+          LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          NEXT_PUBLIC_APP_URL: 'https://eterapy.com'
+          NEXT_PUBLIC_USE_SUBDOMAINS: 'true'
+          NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY: 'false'
+          NEXT_PUBLIC_MAIN_DOMAIN: 'eterapy.com'
+          NEXT_PUBLIC_APP_DOMAIN: 'app.eterapy.com'
+          NEXT_PUBLIC_ADMIN_DOMAIN: 'admin.eterapy.com'
+          NEXT_PUBLIC_LIVEKIT_URL: 'wss://eterapy.com:7880'
+          NODE_ENV: production
+        run: npm run build

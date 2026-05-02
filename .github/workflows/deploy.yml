@@ -45,8 +45,6 @@ env:
 
 jobs:
   # ╔═══════════════ STAGE 1: INSTALL ═══════════════╗
-  # Single source of truth for node_modules. Subsequent
-  # jobs restore the cache by lockfile hash → ~5s install.
   install:
     name: Install dependencies
     runs-on: ubuntu-latest
@@ -54,7 +52,7 @@ jobs:
     outputs:
       cache-key: ${{ steps.cache-keys.outputs.deps }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v5
@@ -85,14 +83,6 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
         run: npx prisma generate
 
-      - name: Cache Prisma generated client
-        uses: actions/cache@v5
-        with:
-          path: |
-            web/node_modules/.prisma
-            web/node_modules/@prisma/client
-          key: prisma-client-${{ runner.os }}-${{ hashFiles('web/prisma/schema.prisma', 'package-lock.json') }}
-
   # ╔═══════════════ STAGE 2: TEST ═══════════════╗
   test:
     name: Unit tests
@@ -101,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v5
         with:
@@ -121,10 +111,15 @@ jobs:
         run: |
           if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
             npm ci --prefer-offline --no-audit --no-fund
-            (cd web && npx prisma generate)
           fi
 
-      - name: Run jest
+      - name: Ensure Prisma client
+        working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+        run: npx prisma generate
+
+      - name: Run tests
         working-directory: web
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
@@ -138,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v5
         with:
@@ -158,8 +153,13 @@ jobs:
         run: |
           if [ ! -d node_modules ] || [ ! -d web/node_modules ]; then
             npm ci --prefer-offline --no-audit --no-fund
-            (cd web && npx prisma generate)
           fi
+
+      - name: Ensure Prisma client
+        working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
+        run: npx prisma generate
 
       - name: Restore Next.js build cache
         uses: actions/cache@v5
@@ -173,8 +173,6 @@ jobs:
       - name: Build Next.js (production)
         working-directory: web
         env:
-          # Server-side secrets: present at build time so any imported config validates,
-          # but actually consumed at runtime from .env.local on the VPS.
           DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
@@ -185,7 +183,6 @@ jobs:
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          # NEXT_PUBLIC_*: baked into the bundle. Public values, hardcoded here.
           NEXT_PUBLIC_APP_URL: 'https://eterapy.com'
           NEXT_PUBLIC_USE_SUBDOMAINS: 'true'
           NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY: 'false'
@@ -196,7 +193,6 @@ jobs:
           NODE_ENV: production
         run: npm run build
 
-      # Drop the cache directory before uploading — it's huge and never needed at runtime.
       - name: Trim build artifact
         run: |
           rm -rf web/.next/cache
@@ -216,7 +212,6 @@ jobs:
   deploy:
     name: Sync to VPS & reload
     needs: [build, test]
-    # Run if build succeeded AND (test passed OR test was explicitly skipped)
     if: |
       always() &&
       needs.build.result == 'success' &&
@@ -224,7 +219,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -232,7 +227,7 @@ jobs:
           name: next-build-${{ github.sha }}
           path: web/.next
 
-      - name: Setup SSH key
+      - name: Setup SSH key & Pre-flight
         env:
           SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
         run: |
@@ -242,7 +237,6 @@ jobs:
           fi
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          # Auto-detect: raw PEM or base64-encoded PEM
           if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
             printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           else
@@ -250,14 +244,16 @@ jobs:
           fi
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          
+          echo "▶ Verifying VPS environment..."
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=15 \
             "$VPS_USER@$VPS_HOST" \
-            'echo "✓ SSH OK on $(hostname); node $(node -v); pm2 v$(pm2 -v 2>/dev/null || echo missing)"'
+            'echo "✓ SSH connection established";
+             command -v node >/dev/null || { echo "::error::node missing on VPS"; exit 1; };
+             command -v npm >/dev/null || { echo "::error::npm missing on VPS"; exit 1; };
+             command -v pm2 >/dev/null || { echo "::error::pm2 missing on VPS"; exit 1; };
+             echo "✓ node $(node -v); npm v$(npm -v); pm2 v$(pm2 -v)"'
 
-      # Three rsync passes:
-      #   1. Root package.json + package-lock.json (monorepo lockfile lives at root)
-      #   2. ecosystem.config.js (PM2 process descriptor)
-      #   3. web/ tree with build output, excluding env / node_modules / cache
       - name: Sync application to VPS
         run: |
           set -euo pipefail
@@ -302,24 +298,26 @@ jobs:
               REPO_DIR=/home/admin/eterapy
               WEB_DIR=$REPO_DIR/web
 
-              echo "▶ Loading prod env from $WEB_DIR/.env.local"
-              if [ ! -f "$WEB_DIR/.env.local" ]; then
-                echo "::error::$WEB_DIR/.env.local missing — bootstrap incomplete"
-                exit 1
-              fi
-              set -a
-              # shellcheck disable=SC1091
-              . "$WEB_DIR/.env.local"
-              set +a
-              if [ -f /home/admin/db-creds.txt ]; then
+              echo "▶ Sourcing environment variables"
+              if [ -f "/home/admin/db-creds.txt" ]; then
+                echo "  - sourcing /home/admin/db-creds.txt"
                 set -a; . /home/admin/db-creds.txt; set +a
               fi
+              if [ -f "$WEB_DIR/.env.local" ]; then
+                echo "  - sourcing $WEB_DIR/.env.local"
+                set -a; . "$WEB_DIR/.env.local"; set +a
+              fi
+              
+              if [ -z "${DATABASE_URL:-}" ]; then
+                echo "::error::DATABASE_URL not found in environment — bootstrap required"
+                exit 1
+              fi
 
-              echo "▶ npm ci --omit=dev (root, monorepo)"
+              echo "▶ npm ci --omit=dev"
               cd "$REPO_DIR"
               npm ci --omit=dev --prefer-offline --no-audit --no-fund
 
-              echo "▶ prisma generate (web workspace)"
+              echo "▶ prisma generate"
               cd "$WEB_DIR"
               npx prisma generate
 
@@ -327,21 +325,12 @@ jobs:
                 echo "▶ prisma migrate deploy"
                 npx prisma migrate deploy
               else
-                echo "⏭  skipping migrations (workflow input)"
+                echo "⏭  skipping migrations"
               fi
 
-              echo "▶ pm2 reload"
+              echo "▶ pm2 startOrReload"
               pm2 startOrReload /home/admin/eterapy/deploy/ecosystem.config.js --update-env
               pm2 save --force
-
-              echo "▶ pm2 status:"
-              pm2 jlist | node -e '
-                let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{
-                  const apps=JSON.parse(d);
-                  for(const a of apps){
-                    console.log("  -", a.name, "→", a.pm2_env.status, "uptime", Math.floor((Date.now()-a.pm2_env.pm_uptime)/1000)+"s");
-                  }
-                });'
           REMOTE
 
       - name: Cleanup SSH key
@@ -356,7 +345,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe /api/health and subdomains (with retry)
+      - name: Probe /api/health (with retry)
+        id: probe
+        continue-on-error: true
         run: |
           set -euo pipefail
           MAX_ATTEMPTS=15
@@ -367,16 +358,48 @@ jobs:
             STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "✓ /api/health → 200 (attempt $i/$MAX_ATTEMPTS)"
-              break
+              exit 0
             fi
             echo "… attempt $i/$MAX_ATTEMPTS: status=$STATUS, retrying in ${DELAY}s"
             sleep $DELAY
           done
-          if [ "$STATUS" != "200" ]; then
-            echo "::error::/api/health failed after $MAX_ATTEMPTS attempts (last status: $STATUS)"
-            exit 1
-          fi
+          echo "::error::/api/health failed after $MAX_ATTEMPTS attempts (last status: $STATUS)"
+          exit 1
 
+      - name: Post-deploy diagnostics (on failure)
+        if: steps.probe.outcome == 'failure'
+        env:
+          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/diag_key
+          else
+            printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/diag_key
+          fi
+          chmod 600 ~/.ssh/diag_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          
+          echo "::group::PM2 Logs"
+          ssh -i ~/.ssh/diag_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
+            "pm2 logs eterapy --lines 100 --nostream || echo 'Failed to get logs'"
+          echo "::endgroup::"
+          
+          echo "::group::PM2 Status"
+          ssh -i ~/.ssh/diag_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
+            "pm2 status"
+          echo "::endgroup::"
+          
+          echo "::group::System Resources"
+          ssh -i ~/.ssh/diag_key -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
+            "free -h; df -h /"
+          echo "::endgroup::"
+          rm -f ~/.ssh/diag_key
+          exit 1
+
+      - name: Verify subdomains
+        if: steps.probe.outcome == 'success'
+        run: |
           for url in "$APP_URL" "$ADMIN_URL"; do
             S=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$url" || echo "000")
             case "$S" in
@@ -384,7 +407,6 @@ jobs:
               *) echo "::error::$url failed (status: $S)"; exit 1 ;;
             esac
           done
-
           echo "🚀 Production deploy verified."
 
   # ╔═══════════════ STAGE 6: NOTIFY ═══════════════╗
