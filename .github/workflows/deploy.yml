@@ -68,7 +68,7 @@ jobs:
 
       - name: Restore node_modules cache
         id: cache-deps
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules
@@ -81,10 +81,12 @@ jobs:
 
       - name: Generate Prisma client
         working-directory: web
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
         run: npx prisma generate
 
       - name: Cache Prisma generated client
-        uses: actions/cache/save@v4
+        uses: actions/cache@v5
         with:
           path: |
             web/node_modules/.prisma
@@ -107,7 +109,7 @@ jobs:
           cache: 'npm'
 
       - name: Restore node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules
@@ -144,7 +146,7 @@ jobs:
           cache: 'npm'
 
       - name: Restore node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             node_modules
@@ -160,7 +162,7 @@ jobs:
           fi
 
       - name: Restore Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: web/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('web/src/**/*.{ts,tsx,js,jsx,css}', 'web/public/**', 'web/next.config.*') }}
