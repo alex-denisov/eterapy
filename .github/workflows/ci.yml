@@ -15,6 +15,7 @@ concurrency:
 
 env:
   NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   install:
@@ -130,3 +131,4 @@ jobs:
           NEXT_PUBLIC_LIVEKIT_URL: 'wss://eterapy.com:7880'
           NODE_ENV: production
         run: npm run build
+

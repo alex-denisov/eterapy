@@ -34,6 +34,7 @@ concurrency:
 
 env:
   NODE_VERSION: '22'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   VPS_HOST: 192.144.14.146
   VPS_USER: admin
   VPS_REPO_DIR: /home/admin/eterapy
