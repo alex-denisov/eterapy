@@ -4,6 +4,9 @@ import { securityHeaders } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "sun*.userapi.com" },
