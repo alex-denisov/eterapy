@@ -205,7 +205,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: next-build-${{ github.sha }}
-          path: web/.next
+          path: ${{ github.workspace }}/web/.next
           retention-days: 3
           if-no-files-found: error
           compression-level: 6
