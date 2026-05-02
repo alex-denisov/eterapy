@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
   turbopack: {
-    root: process.cwd(),
+    root: "..",
   },
   images: {
     remotePatterns: [
