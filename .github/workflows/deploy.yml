@@ -196,19 +196,17 @@ jobs:
 
       - name: Trim build artifact
         run: |
-          echo "▶ Directory listing (before trim):"
-          ls -d web/.next || echo "web/.next missing"
+          echo "▶ Directory listing (workspace):"
+          ls -R web/.next | head -n 20 || echo "web/.next missing"
           rm -rf web/.next/cache
           echo "▶ Artifact size:"
           du -sh web/.next
-          echo "▶ Contents of web/.next:"
-          ls -F web/.next
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: next-build-${{ github.sha }}
-          path: ${{ github.workspace }}/web/.next
+          path: web/.next
           retention-days: 3
           if-no-files-found: error
           compression-level: 6
@@ -230,7 +228,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: next-build-${{ github.sha }}
-          path: ${{ github.workspace }}/web/.next
+          path: web/.next
 
       - name: Setup SSH key & Pre-flight
         env:
