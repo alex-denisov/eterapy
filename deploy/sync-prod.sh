@@ -20,6 +20,8 @@ DB_CREDS_REMOTE="/home/admin/db-creds.txt"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOCAL_WEB_DIR="$REPO_ROOT/web"
 LOCAL_ECOSYSTEM="$REPO_ROOT/deploy/ecosystem.config.js"
+LOCAL_ROOT_PACKAGE="$REPO_ROOT/package.json"
+LOCAL_ROOT_LOCK="$REPO_ROOT/package-lock.json"
 SSH_KEY="${SSH_KEY:-$REPO_ROOT/deploy/eTerapy_web}"
 SSH_OPTS=(-i "$SSH_KEY" -o IdentitiesOnly=yes -o ConnectTimeout=10)
 
@@ -59,6 +61,10 @@ if [ ! -f "$LOCAL_ECOSYSTEM" ]; then
   echo "ERROR: $LOCAL_ECOSYSTEM not found." >&2
   exit 1
 fi
+if [ ! -f "$LOCAL_ROOT_PACKAGE" ] || [ ! -f "$LOCAL_ROOT_LOCK" ]; then
+  echo "ERROR: root package.json/package-lock.json not found." >&2
+  exit 1
+fi
 
 if ! ssh "${SSH_OPTS[@]}" "$VPS_HOST" "test -f $DB_CREDS_REMOTE"; then
   echo "ERROR: $DB_CREDS_REMOTE missing on VPS — bootstrap not complete." >&2
@@ -93,6 +99,7 @@ ssh "${SSH_OPTS[@]}" "$VPS_HOST" "mkdir -p $DEPLOY_DIR_REMOTE"
 ECOSYSTEM_RSYNC_OPTS=(-az -e "ssh -i $SSH_KEY -o IdentitiesOnly=yes")
 [ "$DRY_RUN" -eq 1 ] && ECOSYSTEM_RSYNC_OPTS+=(--dry-run -v)
 rsync "${ECOSYSTEM_RSYNC_OPTS[@]}" "$LOCAL_ECOSYSTEM" "$VPS_HOST:$DEPLOY_DIR_REMOTE/ecosystem.config.js"
+rsync "${ECOSYSTEM_RSYNC_OPTS[@]}" "$LOCAL_ROOT_PACKAGE" "$LOCAL_ROOT_LOCK" "$VPS_HOST:/home/admin/eterapy/"
 rsync "${RSYNC_OPTS[@]}" "$LOCAL_WEB_DIR/" "$VPS_HOST:$APP_DIR_REMOTE/"
 
 if [ "$DRY_RUN" -eq 1 ]; then

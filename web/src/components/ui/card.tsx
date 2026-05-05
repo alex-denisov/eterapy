@@ -7,12 +7,15 @@ function Card({
   size = "default",
   ...props
 }: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+  const usesSoftCard = typeof className === "string" && /\bsoft-card\b/.test(className)
+
   return (
     <div
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card premium-card flex flex-col gap-4 overflow-hidden py-4 text-sm text-card-foreground has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-[var(--radius-card)] *:[img:last-child]:rounded-b-[var(--radius-card)]",
+        "group/card flex flex-col gap-4 overflow-hidden py-4 text-sm text-card-foreground has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-[var(--radius-card)] *:[img:last-child]:rounded-b-[var(--radius-card)]",
+        !usesSoftCard && "premium-card",
         className
       )}
       {...props}
