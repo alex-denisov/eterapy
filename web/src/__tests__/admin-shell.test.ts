@@ -15,7 +15,7 @@ describe("v5 admin shell", () => {
     expect(shell).toContain("permission?: Permission");
     expect(shell).toContain("permissions.includes(item.permission)");
     expect(shell).toContain("w-64");
-    expect(shell).toContain("text-brand-lavender-light");
+    expect(shell).toContain("text-[var(--soft-bordeaux)]");
     expect(shell).toContain("duration-[var(--motion-base)]");
   });
 });

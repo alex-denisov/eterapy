@@ -1,4 +1,9 @@
 import type { NextRequest } from "next/server";
+
+jest.mock("@/lib/session-from-cookie", () => ({
+  getSessionFromCookie: jest.fn(),
+}));
+
 import { internalRewriteUrl } from "@/proxy";
 
 function request(url: string): NextRequest {
