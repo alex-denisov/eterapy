@@ -94,6 +94,8 @@
 
 /* ETerapy v5: dark theme by default, sourced from FINAL Brandbook tokens. */
 :root {
+  --font-sans: "Montserrat", "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-heading: "Cormorant Garamond", "Lora", Georgia, "Times New Roman", serif;
   --background: var(--surface-canvas);
   --foreground: var(--text-primary);
   --card: var(--surface-raised);

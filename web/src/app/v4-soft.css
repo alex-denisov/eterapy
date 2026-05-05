@@ -830,7 +830,8 @@
     padding: clamp(1.25rem, 3vw, 2rem);
   }
 
-  .soft-app-shell {
+  .soft-app-shell,
+  .soft-admin-shell {
     --background: var(--soft-paper);
     --foreground: var(--soft-ink);
     --card: var(--soft-paper-card);
@@ -848,17 +849,22 @@
   }
 
   .soft-app-shell .premium-page,
-  .soft-app-shell [class*="bg-background"] {
+  .soft-app-shell [class*="bg-background"],
+  .soft-admin-shell .premium-page,
+  .soft-admin-shell [class*="bg-background"] {
     background: transparent !important;
   }
 
   .soft-app-shell .premium-title,
-  .soft-app-shell .font-heading {
+  .soft-app-shell .font-heading,
+  .soft-admin-shell .premium-title,
+  .soft-admin-shell .font-heading {
     color: var(--soft-bordeaux);
     letter-spacing: 0;
   }
 
-  .soft-app-shell .premium-eyebrow {
+  .soft-app-shell .premium-eyebrow,
+  .soft-admin-shell .premium-eyebrow {
     color: var(--soft-ink-faint);
     font-size: 0.72rem;
     font-weight: 700;
@@ -869,7 +875,12 @@
   .soft-app-shell .premium-card,
   .soft-app-shell [data-slot="card"],
   .soft-app-shell .rounded-xl.border,
-  .soft-app-shell .border[class*="rounded"] {
+  .soft-app-shell .border[class*="rounded"],
+  .soft-admin-shell .premium-card,
+  .soft-admin-shell [data-slot="card"],
+  .soft-admin-shell .rounded-xl.border,
+  .soft-admin-shell .rounded-lg.border,
+  .soft-admin-shell .border[class*="rounded"] {
     border-color: var(--soft-paper-edge) !important;
     background: color-mix(in srgb, var(--soft-paper-card) 94%, white) !important;
     box-shadow: var(--soft-shadow-sm) !important;
@@ -879,28 +890,39 @@
   .soft-app-shell .premium-input,
   .soft-app-shell input,
   .soft-app-shell textarea,
-  .soft-app-shell select {
+  .soft-app-shell select,
+  .soft-admin-shell .premium-input,
+  .soft-admin-shell input,
+  .soft-admin-shell textarea,
+  .soft-admin-shell select {
     border-color: var(--soft-paper-edge) !important;
     background: var(--soft-paper-card) !important;
     color: var(--soft-ink) !important;
   }
 
   .soft-app-shell .text-muted-foreground,
-  .soft-app-shell [class*="text-muted-foreground"] {
+  .soft-app-shell [class*="text-muted-foreground"],
+  .soft-admin-shell .text-muted-foreground,
+  .soft-admin-shell [class*="text-muted-foreground"] {
     color: var(--soft-ink-faint) !important;
   }
 
   .soft-app-shell .text-primary,
-  .soft-app-shell [class*="text-primary"] {
+  .soft-app-shell [class*="text-primary"],
+  .soft-admin-shell .text-primary,
+  .soft-admin-shell [class*="text-primary"] {
     color: var(--soft-terracotta-dark) !important;
   }
 
   .soft-app-shell .bg-primary,
-  .soft-app-shell [class*="bg-primary"] {
+  .soft-app-shell [class*="bg-primary"],
+  .soft-admin-shell .bg-primary,
+  .soft-admin-shell [class*="bg-primary"] {
     background-color: var(--soft-terracotta) !important;
   }
 
-  .soft-app-sidebar {
+  .soft-app-sidebar,
+  .soft-admin-sidebar {
     border-right: 1px solid var(--soft-paper-edge);
     background: color-mix(in srgb, var(--soft-paper-deep) 88%, white);
     box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
@@ -913,32 +935,81 @@
     color: var(--soft-bordeaux);
   }
 
-  .soft-app-nav-link {
+  .soft-app-nav-link,
+  .soft-admin-nav-link {
     color: var(--soft-ink-soft);
   }
 
   .soft-app-nav-link:hover,
-  .soft-app-nav-link.is-active {
+  .soft-app-nav-link.is-active,
+  .soft-admin-nav-link:hover,
+  .soft-admin-nav-link.is-active {
     background: var(--soft-paper-card);
     color: var(--soft-bordeaux);
   }
 
-  .soft-app-nav-link.is-active {
+  .soft-app-nav-link.is-active,
+  .soft-admin-nav-link.is-active {
     box-shadow: inset 3px 0 0 var(--soft-terracotta);
   }
 
-  .soft-app-mobile-nav {
+  .soft-app-mobile-nav,
+  .soft-admin-mobile-nav {
     border-top: 1px solid var(--soft-paper-edge);
     background: rgba(251, 246, 238, 0.92);
     box-shadow: 0 -18px 48px -30px rgba(60, 30, 20, 0.36);
     backdrop-filter: blur(16px);
   }
 
-  .soft-app-shell .soft-map-tile {
+  .soft-app-shell .soft-map-tile,
+  .soft-admin-shell .soft-map-tile {
     border: 1px solid var(--soft-paper-edge);
     border-radius: var(--soft-radius-lg);
     background: var(--soft-paper-card);
     box-shadow: var(--soft-shadow-sm);
+  }
+
+  .soft-admin-shell table {
+    color: var(--soft-ink);
+  }
+
+  .soft-admin-shell th,
+  .soft-admin-shell td {
+    border-color: var(--soft-paper-edge) !important;
+  }
+
+  .soft-admin-shell code {
+    border-radius: 0.45rem;
+    background: var(--soft-paper-deep);
+    color: var(--soft-bordeaux);
+    padding: 0.1rem 0.35rem;
+  }
+
+  .soft-app-shell .soft-notification-trigger,
+  .soft-admin-shell .soft-notification-trigger {
+    border-color: var(--soft-paper-edge) !important;
+    background: var(--soft-paper-card) !important;
+    color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-app-shell .soft-notification-trigger:hover,
+  .soft-admin-shell .soft-notification-trigger:hover {
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-app-shell .soft-notification-popover,
+  .soft-admin-shell .soft-notification-popover {
+    border-color: var(--soft-paper-edge) !important;
+    background: color-mix(in srgb, var(--soft-paper-card) 96%, white) !important;
+    color: var(--soft-ink) !important;
+    box-shadow: var(--soft-shadow-lg) !important;
+  }
+
+  .soft-admin-shell [class*="text-red"],
+  .soft-admin-shell [class*="text-yellow"],
+  .soft-admin-shell [class*="text-green"],
+  .soft-admin-shell [class*="text-emerald"] {
+    filter: saturate(0.82);
   }
 
   @media (max-width: 920px) {

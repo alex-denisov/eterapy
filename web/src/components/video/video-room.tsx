@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   LiveKitRoom,
@@ -35,9 +35,12 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
   const lkUrl = process.env.NEXT_PUBLIC_LIVEKIT_URL ?? "ws://localhost:7880";
 
   useEffect(() => {
-    fetch(`/api/video/token?bookingId=${bookingId}`)
+    let cancelled = false;
+    const tokenTimer = window.setTimeout(() => {
+      fetch(`/api/video/token?bookingId=${bookingId}`)
       .then(r => r.json())
       .then(d => {
+        if (cancelled) return;
         if (d.token) {
           setToken(d.token);
           setConnecting(false);
@@ -46,15 +49,30 @@ export function VideoRoom({ bookingId, role, participantName, otherPartyName, pr
           setConnecting(false);
         }
       })
-      .catch(() => { setError("Ошибка подключения"); setConnecting(false); });
+      .catch(() => {
+        if (!cancelled) {
+          setError("Ошибка подключения");
+          setConnecting(false);
+        }
+      });
+    }, 0);
 
     // Получаем videoSessionId и startedAt
-    fetch(`/api/video/session?bookingId=${bookingId}`)
+    const sessionTimer = window.setTimeout(() => {
+      fetch(`/api/video/session?bookingId=${bookingId}`)
       .then(r => r.json())
       .then(d => {
+        if (cancelled) return;
         if (d.session?.id) setVideoSessionId(d.session.id);
         if (d.session?.startedAt) setSessionStartedAt(new Date(d.session.startedAt));
-      });
+      })
+      .catch(() => {});
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(tokenTimer);
+      window.clearTimeout(sessionTimer);
+    };
   }, [bookingId]);
 
   if (connecting) {
@@ -146,19 +164,27 @@ function VideoRoomInner({
 
   // Отправляем запрос об активации сессии один раз при монтировании
   useEffect(() => {
-    fetch("/api/video/session", {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      fetch("/api/video/session", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ bookingId, status: "ACTIVE" }),
     })
       .then(r => r.json())
       .then(d => {
+        if (cancelled) return;
         if (d.session?.startedAt) setSessionStartedAt(new Date(d.session.startedAt));
       })
       .catch(() => {});
-  }, [bookingId]);
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [bookingId, setSessionStartedAt]);
 
-  async function handleSessionEnd() {
+  const handleSessionEnd = useCallback(async () => {
     if (sessionEnded) return;
     setSessionEnded(true);
 
@@ -170,7 +196,7 @@ function VideoRoomInner({
 
     room.disconnect();
     setShowEndModal(true);
-  }
+  }, [bookingId, room, sessionEnded]);
 
   // Таймер ограничения длительности сессии
   useEffect(() => {
@@ -182,13 +208,17 @@ function VideoRoomInner({
 
     // Если время уже вышло
     if (now >= endTime) {
-      handleSessionEnd();
+      endTimer.current = setTimeout(() => {
+        void handleSessionEnd();
+      }, 0);
       return;
     }
 
     // Показать предупреждение за 1 минуту
     if (now >= warningTime) {
-      setShowEndModal(true);
+      warningTimer.current = setTimeout(() => {
+        setShowEndModal(true);
+      }, 0);
     } else {
       warningTimer.current = setTimeout(() => {
         setShowEndModal(true);
@@ -204,8 +234,7 @@ function VideoRoomInner({
       if (warningTimer.current) clearTimeout(warningTimer.current);
       if (endTimer.current) clearTimeout(endTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionStartedAt, sessionDurationMin, sessionEnded]);
+  }, [handleSessionEnd, sessionStartedAt, sessionDurationMin, sessionEnded]);
 
   // Периодическая проверка транскрипта на нарушения (каждые 30 сек)
   useEffect(() => {

@@ -62,9 +62,11 @@ export function SlotPicker({
 }) {
   const { data: session, status } = useSession();
 
-  const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [calendarBase] = useState(() => new Date());
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const [todayDateStr, setTodayDateStr] = useState(() => localDateStr());
+  const [selectedMonth, setSelectedMonth] = useState(calendarBase.getMonth());
+  const [selectedYear, setSelectedYear] = useState(calendarBase.getFullYear());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [rates, setRates] = useState<PriceRate[]>([]);
@@ -75,35 +77,63 @@ export function SlotPicker({
   const [booked, setBooked] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now());
+      setTodayDateStr(localDateStr());
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   // Загружаем тарифы
   useEffect(() => {
-    fetch(`/api/rates?practitionerId=${practitionerId}`)
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      fetch(`/api/rates?practitionerId=${practitionerId}`)
       .then(r => r.json())
       .then(d => {
+        if (cancelled) return;
         const enabled = (d.rates ?? []).filter((r: PriceRate) => r.enabled && r.priceRub > 0);
         setRates(enabled);
         if (enabled.length > 0) setSelectedDuration(enabled[0].durationMin);
+      })
+      .catch(() => {
+        if (!cancelled) setRates([]);
       });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [practitionerId]);
 
   // Загружаем слоты при выборе даты + длительности
   useEffect(() => {
     if (!selectedDate || !selectedDuration) return;
-    setLoadingSlots(true);
-    setSelectedSlot(null);
-    fetch(`/api/slots/available?practitionerId=${practitionerId}&date=${selectedDate}&durationMin=${selectedDuration}`)
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setLoadingSlots(true);
+      setSelectedSlot(null);
+      fetch(`/api/slots/available?practitionerId=${practitionerId}&date=${selectedDate}&durationMin=${selectedDuration}`)
       .then(r => r.json())
       .then(d => {
+        if (cancelled) return;
         let slots = d.slots ?? [];
-        if (selectedDate === localDateStr()) {
-          const nowTime = Date.now();
-          slots = slots.filter((slot: AvailableSlot) => new Date(slot.startAt).getTime() > nowTime);
+        if (selectedDate === todayDateStr) {
+          slots = slots.filter((slot: AvailableSlot) => new Date(slot.startAt).getTime() > nowMs);
         }
         setSlots(slots);
         setLoadingSlots(false);
       })
-      .catch(() => setLoadingSlots(false));
-  }, [practitionerId, selectedDate, selectedDuration]);
+      .catch(() => {
+        if (!cancelled) setLoadingSlots(false);
+      });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [practitionerId, selectedDate, selectedDuration, todayDateStr, nowMs]);
 
   async function doBook() {
     if (!selectedSlot || !selectedDuration) return;
@@ -169,7 +199,6 @@ export function SlotPicker({
   }, [selectedYear, selectedMonth, monthDates]);
 
   const selectedRate = rates.find(r => r.durationMin === selectedDuration);
-  const todayDateStr = localDateStr();
   const isTodaySelected = selectedDate === todayDateStr;
 
   if (booked) {
@@ -178,7 +207,7 @@ export function SlotPicker({
         <p className="text-3xl mb-2">✅</p>
         <p className="font-heading text-lg font-semibold text-green-400">Запись оформлена!</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Статус в <a href={appUrl("/cabinet/bookings")} className="text-primary hover:underline">кабинете</a>.
+          Встреча с {practitionerName} появится в <a href={appUrl("/cabinet/bookings")} className="text-primary hover:underline">кабинете</a>.
         </p>
       </div>
     );
@@ -187,7 +216,7 @@ export function SlotPicker({
   if (rates.length === 0) {
     return (
       <div className="mt-4 rounded-lg border border-border/30 bg-card/20 px-4 py-3">
-        <p className="text-sm text-muted-foreground">Практик пока не настроил расписание.</p>
+        <p className="text-sm text-muted-foreground">{practitionerName} пока не настроил(а) расписание.</p>
       </div>
     );
   }
@@ -306,7 +335,7 @@ export function SlotPicker({
                 {slots.map((slot, i) => {
                   const isSelected = selectedSlot?.startAt === slot.startAt;
                   const slotDate = new Date(slot.startAt);
-                  const isSoon = isTodaySelected && slotDate.getTime() - Date.now() < 3600000; // < 1 часа
+                  const isSoon = isTodaySelected && slotDate.getTime() - nowMs < 3600000; // < 1 часа
                   return (
                     <button key={i} onClick={() => setSelectedSlot(isSelected ? null : slot)}
                       className={`rounded-lg border px-3 py-1.5 text-sm font-mono font-medium transition-all relative ${

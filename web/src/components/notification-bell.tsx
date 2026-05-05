@@ -128,16 +128,26 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
     }
   }, []);
 
-  // Initial load + polling
+  // Initial load + polling. The zero-delay timer keeps React Compiler happy by
+  // avoiding direct state changes during the effect setup phase.
   useEffect(() => {
-    load();
+    const initial = window.setTimeout(() => {
+      void load();
+    }, 0);
     const t = setInterval(load, POLL_MS);
-    return () => clearInterval(t);
+    return () => {
+      window.clearTimeout(initial);
+      clearInterval(t);
+    };
   }, [load]);
 
   // Refresh on open (best-effort immediacy)
   useEffect(() => {
-    if (open) load();
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [open, load]);
 
   // Close on outside click
@@ -185,11 +195,11 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label={`Уведомления${unreadCount > 0 ? `, непрочитанных: ${unreadCount}` : ""}`}
-        className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-card/30 px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground"
+        className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-card/30 px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground soft-notification-trigger"
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-navy/90" />
+          <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[var(--soft-terracotta)] ring-1 ring-white/80" />
         )}
       </button>
 
@@ -197,7 +207,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
         <div
           role="dialog"
           aria-label="Уведомления"
-          className={`absolute z-50 mt-2 w-[300px] rounded-xl border border-border/40 bg-navy/95 shadow-xl backdrop-blur-xl ${isHeader ? "right-0" : "left-0"}`}
+          className={`soft-notification-popover absolute z-50 mt-2 w-[300px] rounded-xl border border-border/40 bg-navy/95 shadow-xl backdrop-blur-xl ${isHeader ? "right-0" : "left-0"}`}
           style={{ animation: "notificationSlideIn 0.15s ease-out" }}
         >
           <div className="flex items-center justify-between border-b border-border/30 px-4 py-3">

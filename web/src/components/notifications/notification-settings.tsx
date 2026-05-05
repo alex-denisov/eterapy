@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   getEventsForRole,
@@ -41,15 +41,6 @@ const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
   { value: 1,    label: "1 ч" },
 ];
 
-const EVENT_META: Record<string, { label: string; description: string }> = {};
-
-function initMeta(role: UserRole) {
-  const events = getEventsForRole(role);
-  events.forEach((e) => {
-    EVENT_META[e.event] = { label: e.label, description: e.description };
-  });
-}
-
 /** Telegram SVG-иконка */
 function TelegramIcon({ className }: { className?: string }) {
   return (
@@ -83,19 +74,25 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   const [checkingTelegram, setCheckingTelegram] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
 
-  // Инициализация метаданных для роли
   useEffect(() => {
-    initMeta(role);
-  }, [role]);
-
-  useEffect(() => {
-    fetch("/api/notifications/preferences")
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      fetch("/api/notifications/preferences")
       .then(r => r.json())
       .then(d => {
+        if (cancelled) return;
         setPrefs(d.prefs ?? []);
         if (d.quietHours) setQuietHours(d.quietHours);
         setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
       });
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, []);
 
   const applyTelegramStatus = useCallback((d: TelegramStatus) => {
@@ -280,8 +277,11 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     }
   }
 
-  const events = useMemo(() => getEventsForRole(role), [role]);
-  const groupedEvents = useMemo(() => {
+  const events = getEventsForRole(role);
+  const eventMeta = Object.fromEntries(
+    events.map((event) => [event.event, { label: event.label, description: event.description }]),
+  ) as Record<string, { label: string; description: string }>;
+  const groupedEvents = (() => {
     const groups = new Map<NotificationCategory, typeof events>();
     for (const event of events) {
       const group = groups.get(event.category) ?? [];
@@ -289,14 +289,16 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
       groups.set(event.category, group);
     }
     return Array.from(groups.entries());
-  }, [events]);
+  })();
 
-  if (loading) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем настройки...</div>;
+  if (loading) {
+    return <div className="soft-card animate-pulse p-5 text-sm text-[var(--soft-ink-faint)]">Загружаем настройки...</div>;
+  }
 
   return (
     <div className="space-y-6">
       {/* Telegram-привязка */}
-      <div className="rounded-xl border border-border/30 bg-card/20 p-5">
+      <div className="soft-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="font-semibold flex items-center gap-2">
@@ -309,20 +311,20 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
           {tgStatus.linked ? (
             <div className="flex items-center gap-3 shrink-0">
               <div className="text-right">
-                <p className="text-xs text-green-400 font-medium">✓ Привязан</p>
+                <p className="text-xs font-medium text-[var(--soft-sage)]">Привязан</p>
                 {tgStatus.username && (
                   <p className="text-xs text-muted-foreground/70">@{tgStatus.username}</p>
                 )}
               </div>
               <button onClick={unlinkTelegram}
-                className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10">
+                className="rounded-lg border border-[var(--soft-paper-edge)] px-3 py-1.5 text-xs text-[var(--soft-bordeaux)] hover:bg-[var(--soft-paper-deep)]">
                 Отвязать
               </button>
             </div>
           ) : (
             <div className="shrink-0 text-right">
               <button onClick={generateTelegramLink} disabled={generatingLink}
-                className="rounded-lg bg-blue-500/15 border border-blue-500/30 px-3 py-1.5 text-xs text-blue-400 hover:bg-blue-500/20 disabled:opacity-50">
+                className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-lilac-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--soft-bordeaux)] hover:bg-[var(--soft-apricot)] disabled:opacity-50">
                 {generatingLink ? "Генерация..." : "Привязать Telegram"}
               </button>
               {tgLinkUrl && tgLinkExpiry && (
@@ -331,20 +333,20 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                     Ожидаем подтверждение. Ссылка действует до {tgLinkExpiry.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                   <a href={tgLinkUrl} target="_blank" rel="noopener noreferrer"
-                    className="block rounded-lg bg-blue-500/20 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-500/30 font-medium">
-                    → Открыть бота для привязки
+                    className="block rounded-lg bg-[var(--soft-apricot)] px-3 py-1.5 text-xs font-medium text-[var(--soft-bordeaux)] hover:bg-[var(--soft-rose)]">
+                    Открыть бота для привязки
                   </a>
                   <button
                     onClick={() => refreshTelegramStatus({ notifyLinked: true })}
                     disabled={checkingTelegram}
-                    className="block w-full rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    className="block w-full rounded-lg border border-[var(--soft-paper-edge)] px-3 py-1.5 text-xs text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)] disabled:opacity-50"
                   >
                     {checkingTelegram ? "Проверяем..." : "Проверить статус"}
                   </button>
                 </div>
               )}
               {telegramError && (
-                <p className="mt-2 max-w-48 text-xs text-red-400" role="status">
+                <p className="mt-2 max-w-48 text-xs text-[var(--soft-terracotta-dark)]" role="status">
                   {telegramError}
                 </p>
               )}
@@ -353,7 +355,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
         </div>
       </div>
 
-      <div className="rounded-xl border border-border/30 bg-card/20 p-5" data-testid="notification-quiet-hours">
+      <div className="soft-card p-5" data-testid="notification-quiet-hours">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h3 className="font-semibold">Тихие часы</h3>
@@ -374,7 +376,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
               type="time"
               value={quietHours.from}
               onChange={e => setQuietHours(prev => ({ ...prev, from: e.target.value }))}
-              className="mt-1 block w-full rounded-lg border border-border/40 bg-card/60 px-3 py-2 text-sm text-foreground"
+              className="mt-1 block w-full rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm"
             />
           </label>
           <label className="text-xs text-muted-foreground/70">
@@ -383,7 +385,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
               type="time"
               value={quietHours.to}
               onChange={e => setQuietHours(prev => ({ ...prev, to: e.target.value }))}
-              className="mt-1 block w-full rounded-lg border border-border/40 bg-card/60 px-3 py-2 text-sm text-foreground"
+              className="mt-1 block w-full rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm"
             />
           </label>
           <label className="text-xs text-muted-foreground/70">
@@ -392,7 +394,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
               type="text"
               value={quietHours.timezone}
               onChange={e => setQuietHours(prev => ({ ...prev, timezone: e.target.value }))}
-              className="mt-1 block w-full rounded-lg border border-border/40 bg-card/60 px-3 py-2 text-sm text-foreground"
+              className="mt-1 block w-full rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm"
               placeholder="Europe/Moscow"
             />
           </label>
@@ -414,8 +416,8 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
           {groupedEvents.map(([category, categoryEvents]) => {
             const categoryMeta = NOTIFICATION_CATEGORY_META[category];
             return (
-              <section key={category} className="overflow-hidden rounded-xl border border-border/30">
-                <div className="flex flex-col gap-3 border-b border-border/10 bg-card/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <section key={category} className="soft-card overflow-hidden">
+                <div className="flex flex-col gap-3 border-b border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold">{categoryMeta.label}</p>
                     <p className="text-xs text-muted-foreground/70">{categoryMeta.description}</p>
@@ -428,12 +430,12 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                         onClick={() => {
                           const allEnabled = categoryEvents.every(({ event }) => getPref(event, channel)?.enabled ?? channel !== "TELEGRAM");
                           if (channel === "TELEGRAM" && !tgStatus.linked && !allEnabled) {
-                            toast("Сначала привяжите Telegram-аккаунт", { icon: "ℹ️" });
+                            toast("Сначала привяжите Telegram-аккаунт");
                             return;
                           }
                           setCategoryChannel(category, channel, !allEnabled);
                         }}
-                        className="rounded-lg border border-border/40 px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 py-1 text-[11px] text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)]"
                       >
                         {channel === "EMAIL" ? "Email" : channel === "TELEGRAM" ? "Telegram" : "Web"}
                       </button>
@@ -442,7 +444,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                 </div>
                 <div className="divide-y divide-border/10">
                   {categoryEvents.map(({ event }) => {
-                    const meta = EVENT_META[event];
+                    const meta = eventMeta[event];
                     if (!meta) return null;
 
                     const emailPref = getPref(event, "EMAIL");
@@ -503,7 +505,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                               disabled={!tgStatus.linked && !tgEnabled}
                               onToggle={() => {
                                 if (!tgStatus.linked && !tgEnabled) {
-                                  toast("Сначала привяжите Telegram-аккаунт", { icon: "ℹ️" });
+                                  toast("Сначала привяжите Telegram-аккаунт");
                                   return;
                                 }
                                 updatePref(event, "TELEGRAM", { enabled: !tgEnabled });
@@ -530,7 +532,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
       </div>
 
       <button onClick={saveAll} disabled={saving}
-        className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-navy disabled:opacity-50">
+        className="soft-button soft-button-primary disabled:opacity-50">
         {saving ? "Сохранение..." : "Сохранить настройки"}
       </button>
     </div>

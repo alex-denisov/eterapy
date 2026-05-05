@@ -127,23 +127,23 @@ export function AdminShell({
     });
 
   return (
-    <div data-testid="admin-shell" data-shell-role={role} className="premium-page flex min-h-screen bg-background">
+    <div data-testid="admin-shell" data-shell-role={role} className="soft-clarity-page soft-admin-shell flex min-h-screen">
       <aside
         data-testid="admin-shell-sidebar"
-        className="sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto border-r border-brand-lavender/15 bg-card/50 px-3 py-5 shadow-[var(--shadow-surface)] backdrop-blur-xl md:flex"
+        className="soft-admin-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
         style={{ top: "var(--header-height)" }}
       >
-        <div className="mb-5 border-b border-border/20 px-2 pb-4">
+        <div className="mb-5 border-b border-[var(--soft-paper-edge)] px-2 pb-4">
           <BrandSignature compact />
         </div>
         <div className="mb-5 px-2" data-testid="admin-shell-user">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-card)] border border-brand-lavender/25 bg-brand-lavender/15 text-sm font-semibold text-brand-lavender-light">
+            <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
               {initial}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
-              <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? "Администратор"}</p>
+              <p className="text-xs text-[var(--soft-ink-faint)]">{ROLE_LABELS[role] ?? "Администратор"}</p>
             </div>
           </div>
         </div>
@@ -154,10 +154,10 @@ export function AdminShell({
             return (
             <Link key={item.href} href={item.href}
               data-testid="admin-shell-nav-item"
-              className={`flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+              className={`soft-admin-nav-link flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                 isActive(item.href)
-                  ? "bg-brand-lavender/14 text-brand-lavender-light font-medium"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "is-active font-medium"
+                  : ""
               }`}>
               <Icon className="h-4 w-4 shrink-0" />
               {item.label}
@@ -165,14 +165,14 @@ export function AdminShell({
           )})}
         </nav>
 
-        <div className="border-t border-border/20 pt-2 mt-2">
+        <div className="mt-2 border-t border-[var(--soft-paper-edge)] pt-2">
           <Link href={adminUrl("/admin/settings")}
-            className="flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm text-muted-foreground transition-colors duration-[var(--motion-base)] hover:bg-muted hover:text-foreground">
+            className="soft-admin-nav-link flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]">
             <Settings className="h-4 w-4 shrink-0" />
             Настройки
           </Link>
           <button onClick={() => { window.location.href = logoutUrl(); }}
-            className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm text-muted-foreground transition-colors duration-[var(--motion-base)] hover:bg-muted hover:text-foreground">
+            className="soft-admin-nav-link flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]">
             <LogOut className="h-4 w-4 shrink-0" />
             Выйти
           </button>
@@ -180,13 +180,13 @@ export function AdminShell({
       </aside>
 
       {/* Mobile nav */}
-      <div data-testid="admin-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-brand-lavender/15 bg-navy/96 shadow-[0_-18px_50px_rgba(0,0,0,0.34)] backdrop-blur-xl md:hidden">
+      <div data-testid="admin-shell-mobile-nav" className="soft-admin-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
         {mobileNav.map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href}
               className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
-                isActive(item.href) ? "text-brand-lavender-light" : "text-muted-foreground"
+                isActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
               }`}>
               <Icon className="h-5 w-5" />
               {item.label.split(" ")[0]}

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Lora, Geist } from "next/font/google";
 import "./globals.css";
 import "./v4-soft.css";
 import { Header } from "@/components/header";
@@ -10,21 +9,6 @@ import { HashScroll } from "@/components/hash-scroll";
 import { brandAssets } from "@/lib/brand-assets";
 import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
-
-const geist = Geist({
-  variable: "--font-sans",
-  subsets: ["latin", "cyrillic"],
-  display: "swap",
-  preload: true,
-});
-
-const lora = Lora({
-  variable: "--font-heading",
-  subsets: ["latin", "cyrillic"],
-  style: ["normal", "italic"],
-  display: "swap",
-  preload: true,
-});
 
 const homeMetadata = createPublicPageMetadata("/");
 
@@ -65,7 +49,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${geist.variable} ${lora.variable} h-full`}>
+    <html lang="ru" className="h-full">
       <body className="min-h-full flex flex-col">
         <Providers>
           <HashScroll />

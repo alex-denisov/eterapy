@@ -11,9 +11,6 @@ function requireSuperAdmin(role?: string) {
   return role === "SUPERADMIN";
 }
 
-export { ALL_PERMISSIONS };
-export type { Permission };
-
 function normalizePermissions(value: unknown): Permission[] {
   if (!Array.isArray(value)) return [];
 
