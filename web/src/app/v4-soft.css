@@ -716,6 +716,120 @@
     padding: 1.35rem;
   }
 
+  .soft-public-page {
+    min-height: 100vh;
+    padding-bottom: clamp(3rem, 7vw, 5.5rem);
+  }
+
+  .soft-public-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.48fr);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+    padding-block: clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem);
+  }
+
+  .soft-public-hero-centered {
+    display: flex;
+    max-width: 54rem;
+    flex-direction: column;
+    align-items: center;
+    margin-inline: auto;
+    padding-block: clamp(3rem, 7vw, 5.5rem) 2rem;
+    text-align: center;
+  }
+
+  .soft-public-section {
+    padding-block: clamp(1.75rem, 4vw, 3rem);
+  }
+
+  .soft-public-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .soft-public-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .soft-plan-card,
+  .soft-library-card,
+  .soft-practitioner-card {
+    padding: 1.25rem;
+  }
+
+  .soft-plan-card:hover,
+  .soft-library-card:hover,
+  .soft-practitioner-card:hover {
+    border-color: var(--soft-terracotta);
+    box-shadow: var(--soft-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .soft-price {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .soft-avatar {
+    display: grid;
+    width: 4.5rem;
+    aspect-ratio: 1;
+    place-items: center;
+    border: 1px solid rgba(214, 117, 88, 0.22);
+    border-radius: 1.3rem;
+    background:
+      radial-gradient(circle at 50% 52%, rgba(246, 190, 123, 0.86), transparent 24%),
+      conic-gradient(from 220deg, rgba(214, 117, 88, 0.82), rgba(244, 217, 193, 0.88), transparent 40%, rgba(168, 155, 201, 0.82), rgba(219, 211, 234, 0.9), transparent 74%, rgba(214, 117, 88, 0.82));
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: 1.85rem;
+    font-weight: 700;
+    box-shadow: var(--soft-shadow-md);
+  }
+
+  .soft-timeline {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .soft-timeline-item {
+    display: grid;
+    grid-template-columns: 3.2rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+    padding: 1.05rem;
+  }
+
+  .soft-step-number {
+    display: grid;
+    width: 2.5rem;
+    aspect-ratio: 1;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--soft-apricot);
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-weight: 700;
+  }
+
+  .soft-booking-card {
+    position: sticky;
+    top: 5.5rem;
+    padding: 1.35rem;
+  }
+
+  .soft-form-panel {
+    padding: clamp(1.25rem, 3vw, 2rem);
+  }
+
   @media (max-width: 920px) {
     .soft-hero-grid {
       grid-template-columns: 1fr;
@@ -731,12 +845,19 @@
 
     .soft-products-hero,
     .soft-product-detail-hero,
-    .soft-product-detail-grid {
+    .soft-product-detail-grid,
+    .soft-public-hero {
       grid-template-columns: 1fr;
     }
 
-    .soft-products-grid {
+    .soft-products-grid,
+    .soft-public-grid,
+    .soft-public-grid-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .soft-booking-card {
+      position: static;
     }
   }
 
@@ -776,7 +897,9 @@
     }
 
     .soft-products-grid,
-    .soft-product-angles {
+    .soft-product-angles,
+    .soft-public-grid,
+    .soft-public-grid-2 {
       grid-template-columns: 1fr;
     }
 

@@ -213,7 +213,27 @@ export function Header() {
   const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const softPublicHeader = (pathname === "/" || pathname.startsWith("/all-modalities/checkin") || pathname.startsWith("/products")) && !isAuthenticated;
+  const softPublicPrefixes = [
+    "/",
+    "/about",
+    "/all-modalities",
+    "/experts",
+    "/help",
+    "/how-it-works",
+    "/how-to-choose",
+    "/legal",
+    "/library",
+    "/modalities",
+    "/pricing",
+    "/products",
+    "/practitioner",
+    "/practitioners",
+    "/specialists",
+    "/tools",
+  ];
+  const softPublicHeader = softPublicPrefixes.some((prefix) => (
+    prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )) && !isAuthenticated;
 
   return (
     <header
