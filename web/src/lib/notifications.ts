@@ -9,22 +9,10 @@ import {
   queueNotificationDelivery,
   type NotificationDeliveryChannel,
 } from "@/lib/notification-delivery";
+import type { NotifEvent } from "@/lib/notification-events";
 import { getQuietHoursDelayMs, getUserQuietHours } from "@/lib/notification-preference-settings";
 
-export type NotifEvent =
-  | "BOOKING_REQUESTED"
-  | "BOOKING_CONFIRMED"
-  | "BOOKING_CANCELLED"
-  | "BOOKING_REMINDER"
-  | "SESSION_STARTED"
-  | "SESSION_COMPLETED"
-  | "REVIEW_REQUESTED"
-  | "NEW_REVIEW"
-  | "PAYMENT_RECEIVED"
-  | "PAYOUT_SCHEDULED"
-  | "BALANCE_TOPUP"
-  | "CARD_LINKED"
-  | "CARD_REMOVED";
+export { ALL_EVENTS, DEFAULT_EMAIL_EVENTS, type NotifEvent } from "@/lib/notification-events";
 
 export interface NotifPayload {
   userId: string;
@@ -119,29 +107,4 @@ export async function getUserNotificationPrefs(userId: string) {
   return prefs;
 }
 
-/** Дефолтные настройки для нового пользователя */
-export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
-  "BOOKING_REQUESTED",
-  "BOOKING_CONFIRMED",
-  "BOOKING_CANCELLED",
-  "BOOKING_REMINDER",
-  "SESSION_COMPLETED",
-  "REVIEW_REQUESTED",
-];
-
 export const DEFAULT_TELEGRAM_EVENTS: NotifEvent[] = [];
-
-export const ALL_EVENTS: Array<{ event: NotifEvent; label: string; description: string }> = [
-  { event: "BOOKING_REQUESTED", label: "Новая запись",         description: "Когда клиент запросил сессию" },
-  { event: "BOOKING_CONFIRMED", label: "Запись подтверждена",  description: "Когда практик подтвердил вашу запись" },
-  { event: "BOOKING_CANCELLED", label: "Запись отменена",      description: "Когда сессия была отменена" },
-  { event: "BOOKING_REMINDER",  label: "Напоминание о сессии", description: "За N часов до начала сессии" },
-  { event: "SESSION_STARTED",   label: "Сессия началась",      description: "Когда открыт видеочат" },
-  { event: "SESSION_COMPLETED", label: "Сессия завершена",     description: "После окончания сессии" },
-  { event: "REVIEW_REQUESTED",  label: "Просьба оставить отзыв", description: "После завершённой сессии" },
-  { event: "NEW_REVIEW",        label: "Новый отзыв",          description: "Когда клиент оставил отзыв (для практика)" },
-  { event: "PAYMENT_RECEIVED",  label: "Платёж получен",       description: "Подтверждение оплаты" },
-  { event: "BALANCE_TOPUP",     label: "Пополнение баланса",   description: "Успешное пополнение кошелька" },
-  { event: "CARD_LINKED",       label: "Карта привязана",      description: "Новая карта добавлена для быстрой оплаты" },
-  { event: "CARD_REMOVED",      label: "Карта отвязана",       description: "Привязанная карта удалена" },
-];

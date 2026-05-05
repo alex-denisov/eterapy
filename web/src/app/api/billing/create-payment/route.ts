@@ -1,7 +1,10 @@
 /**
  * POST /api/billing/create-payment
  * Создаёт платёж в ЮKassa и возвращает confirmation URL для редиректа.
- * Body: { amountKopecks: number, description?: string }
+ * Body:
+ * - balance top-up: { amountKopecks: number, description?: string }
+ * - product unlock: { productKey: string }
+ * - subscription start: { planKey: string }
  */
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
@@ -10,6 +13,7 @@ import { yukassaFetch } from "@/lib/yukassa";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -19,11 +23,16 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const amountKopecks = Number(body.amountKopecks);
-  const description = body.description || `Пополнение баланса на сайте ETerapy`;
-
-  if (!amountKopecks || amountKopecks < 100) {
-    return errorWithRequestContext("INVALID_AMOUNT", "Минимальная сумма 100 копеек (1 ₽)", 400, context);
+  let purchase: ResolvedBillingPurchase;
+  try {
+    purchase = resolveBillingPurchase(body);
+  } catch (err) {
+    return errorWithRequestContext(
+      "INVALID_PURCHASE",
+      err instanceof Error ? err.message : "Некорректный платеж",
+      400,
+      context
+    );
   }
 
   // Valid return URL — always a full absolute URL
@@ -42,17 +51,21 @@ export async function POST(req: NextRequest) {
     }>("/payments", {
       method: "POST",
       body: {
-        amount: { value: (amountKopecks / 100).toFixed(2), currency: "RUB" },
+        amount: { value: (purchase.amountKopecks / 100).toFixed(2), currency: "RUB" },
         confirmation: {
           type: "redirect",
           return_url: returnUrl,
         },
         notification_url: notificationUrl,
         capture: true,
-        description,
+        description: purchase.description,
         metadata: {
           userId: session.user.id,
-          amountKopecks: String(amountKopecks),
+          amountKopecks: String(purchase.amountKopecks),
+          purchaseKind: purchase.metadata.purchaseKind,
+          productKey: purchase.metadata.productKey,
+          planKey: purchase.metadata.planKey,
+          checkoutSource: purchase.metadata.checkoutSource,
         },
       },
     });
@@ -65,11 +78,12 @@ export async function POST(req: NextRequest) {
     await db.transaction.create({
       data: {
         userId: session.user.id,
-        amount: amountKopecks,
+        amount: purchase.amountKopecks,
         status: "PENDING",
         provider: "yookassa",
         providerPaymentId: payment.id,
-        description,
+        description: purchase.description,
+        metadata: purchase.metadata,
       },
     });
 
@@ -78,7 +92,8 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       provider: "yookassa",
       providerPaymentId: payment.id,
-      amountKopecks,
+      amountKopecks: purchase.amountKopecks,
+      purchaseKind: purchase.kind,
     });
 
     return jsonWithRequestContext({
@@ -91,7 +106,7 @@ export async function POST(req: NextRequest) {
       requestId: context.requestId,
       userId: session.user.id,
       provider: "yookassa",
-      amountKopecks,
+      amountKopecks: purchase?.amountKopecks,
       error: serializeError(err),
     });
     const message = err instanceof Error ? err.message : "Ошибка создания платежа";

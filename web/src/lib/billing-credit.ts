@@ -13,6 +13,13 @@
  */
 import db from "./db";
 import { notify } from "./notifications";
+import { createRefund } from "./yukassa";
+import {
+  getBillingTransactionMetadata,
+  grantEntitlementForTransaction,
+  recordCreditLedgerEntry,
+  revokeEntitlementsForTransaction,
+} from "./entitlements";
 
 interface YookassaCardSnapshot {
   id: string;
@@ -59,9 +66,30 @@ export async function creditSucceededPayment(
       where: { id: transaction.id },
       data: { status: "SUCCEEDED" },
     });
-    await tx.user.update({
+
+    const entitlementGrant = await grantEntitlementForTransaction(tx, transaction);
+    if (entitlementGrant.kind !== "balance") {
+      return {
+        userId: transaction.userId,
+        amount: transaction.amount,
+        newCard: null,
+        entitlementGrant,
+      };
+    }
+
+    const updatedUser = await tx.user.update({
       where: { id: transaction.userId },
       data: { balance: { increment: transaction.amount } },
+      select: { balance: true },
+    });
+    await recordCreditLedgerEntry(tx, {
+      userId: transaction.userId,
+      amountKopecks: transaction.amount,
+      balanceAfterKopecks: updatedUser.balance,
+      type: "TOPUP",
+      transactionId: transaction.id,
+      description: transaction.description,
+      metadata: transaction.metadata ?? undefined,
     });
 
     let newCard: { last4: string; brand: string } | null = null;
@@ -89,7 +117,7 @@ export async function creditSucceededPayment(
         newCard = { last4: pm.card.last4, brand };
       }
     }
-    return { userId: transaction.userId, amount: transaction.amount, newCard };
+    return { userId: transaction.userId, amount: transaction.amount, newCard, entitlementGrant };
   });
 
   if (!result) return false;
@@ -110,6 +138,22 @@ export async function creditSucceededPayment(
     }).catch((e) => console.error("[billing-credit] CARD_LINKED notify error:", e));
   }
 
+  if (result.entitlementGrant.kind === "product") {
+    notify({
+      userId: result.userId,
+      event: "PRODUCT_UNLOCKED",
+      data: { productKey: result.entitlementGrant.productKey },
+    }).catch((e) => console.error("[billing-credit] PRODUCT_UNLOCKED notify error:", e));
+  }
+
+  if (result.entitlementGrant.kind === "subscription") {
+    notify({
+      userId: result.userId,
+      event: "SUBSCRIPTION_STARTED",
+      data: { planKey: result.entitlementGrant.planKey },
+    }).catch((e) => console.error("[billing-credit] SUBSCRIPTION_STARTED notify error:", e));
+  }
+
   return true;
 }
 
@@ -124,6 +168,86 @@ export async function cancelPendingPayment(providerPaymentId: string): Promise<b
     data: { status: "CANCELLED" },
   });
   return true;
+}
+
+export async function refundSucceededTransaction(input: {
+  transactionId: string;
+  reason: string;
+}): Promise<{ refunded: boolean; providerRefundId?: string | null }> {
+  const transaction = await db.transaction.findUnique({
+    where: { id: input.transactionId },
+    include: { user: { select: { balance: true } } },
+  });
+
+  if (!transaction || transaction.status === "REFUNDED") {
+    return { refunded: false, providerRefundId: null };
+  }
+  if (transaction.status !== "SUCCEEDED") {
+    throw new Error("Возврат доступен только для успешной транзакции");
+  }
+
+  const metadata = getBillingTransactionMetadata(transaction);
+  if (metadata.purchaseKind === "balance" && transaction.user.balance < transaction.amount) {
+    throw new Error("Недостаточно баланса для безопасного возврата пополнения");
+  }
+
+  const providerRefund = transaction.provider === "yookassa" && transaction.providerPaymentId
+    ? await createRefund({
+      paymentId: transaction.providerPaymentId,
+      amountKopecks: Math.abs(transaction.amount),
+    })
+    : null;
+
+  await db.$transaction(async (tx) => {
+    const fresh = await tx.transaction.findUnique({
+      where: { id: transaction.id },
+      include: { user: { select: { balance: true } } },
+    });
+    if (!fresh || fresh.status !== "SUCCEEDED") return;
+
+    const freshMetadata = getBillingTransactionMetadata(fresh);
+    if (freshMetadata.purchaseKind === "balance") {
+      if (fresh.user.balance < fresh.amount) {
+        throw new Error("Недостаточно баланса для безопасного возврата пополнения");
+      }
+      const updatedUser = await tx.user.update({
+        where: { id: fresh.userId },
+        data: { balance: { decrement: fresh.amount } },
+        select: { balance: true },
+      });
+      await recordCreditLedgerEntry(tx, {
+        userId: fresh.userId,
+        amountKopecks: -Math.abs(fresh.amount),
+        balanceAfterKopecks: updatedUser.balance,
+        type: "BALANCE_REFUND",
+        source: "yookassa_refund",
+        transactionId: fresh.id,
+        description: input.reason || fresh.description,
+        metadata: {
+          ...freshMetadata,
+          refundReason: input.reason,
+          providerRefundId: providerRefund?.id,
+        },
+      });
+    } else {
+      await revokeEntitlementsForTransaction(tx, fresh, input.reason);
+    }
+
+    await tx.transaction.update({
+      where: { id: fresh.id },
+      data: {
+        status: "REFUNDED",
+        metadata: {
+          ...freshMetadata,
+          refundReason: input.reason,
+          providerRefundId: providerRefund?.id,
+          providerRefundStatus: providerRefund?.status,
+        },
+      },
+    });
+  });
+
+  return { refunded: true, providerRefundId: providerRefund?.id ?? null };
 }
 
 /** Thin alias used by callers who have the full YooKassa payment object. */

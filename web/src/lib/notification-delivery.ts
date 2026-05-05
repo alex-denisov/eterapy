@@ -154,6 +154,14 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
       return { title: "Запланированная выплата", body: `${data.date}: ${data.totalRub} ₽ (${data.practitionerCount})`, href: "/admin/payouts" };
     case "BALANCE_TOPUP":
       return { title: "Баланс пополнен", body: `+${data.amountRub} ₽`, href: "/cabinet/billing" };
+    case "PRODUCT_UNLOCKED":
+      return { title: "Продукт открыт", body: data.productKey, href: "/cabinet/billing" };
+    case "SUBSCRIPTION_STARTED":
+      return { title: "Подписка активна", body: `Тариф ${data.planKey}`, href: "/cabinet/billing" };
+    case "SUBSCRIPTION_CANCELLED":
+      return { title: "Подписка отменена", body: `Тариф ${data.planKey}`, href: "/cabinet/billing" };
+    case "SUBSCRIPTION_PAYMENT_FAILED":
+      return { title: "Платёж подписки не прошёл", body: `Тариф ${data.planKey}`, href: "/cabinet/billing" };
     case "CARD_LINKED":
       return { title: "Карта привязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
     case "CARD_REMOVED":
@@ -188,6 +196,14 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `🏦 Запланированная выплата\n${data.date}: ${data.totalRub} ₽ для ${data.practitionerCount} практиков.`;
     case "BALANCE_TOPUP":
       return `💳 Баланс пополнен\nНа ваш счёт зачислено ${data.amountRub} ₽.\n<a href="${baseUrl}/cabinet/billing">Открыть кошелёк →</a>`;
+    case "PRODUCT_UNLOCKED":
+      return `✨ Продукт открыт\nДоступ к ${data.productKey} активен.\n<a href="${baseUrl}/cabinet/billing">Открыть доступы →</a>`;
+    case "SUBSCRIPTION_STARTED":
+      return `✨ Подписка активна\nТариф ${data.planKey} подключён.\n<a href="${baseUrl}/cabinet/billing">Управлять подпиской →</a>`;
+    case "SUBSCRIPTION_CANCELLED":
+      return `Подписка отменена\nТариф ${data.planKey}. Подробности доступны в биллинге.\n<a href="${baseUrl}/cabinet/billing">Открыть биллинг →</a>`;
+    case "SUBSCRIPTION_PAYMENT_FAILED":
+      return `Платёж подписки не прошёл\nТариф ${data.planKey} требует внимания.\n<a href="${baseUrl}/cabinet/billing">Проверить оплату →</a>`;
     case "CARD_LINKED":
       return `🔗 Карта привязана\n${data.brand} •••• ${data.last4} теперь доступна для быстрой оплаты.`;
     case "CARD_REMOVED":

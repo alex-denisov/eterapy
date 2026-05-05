@@ -34,6 +34,33 @@ interface BillingTransaction {
   createdAt: string;
 }
 
+interface BillingLedgerEntry {
+  id: string;
+  amountRub: string | number;
+  type: string;
+  description: string | null;
+  createdAt: string;
+}
+
+interface BillingEntitlement {
+  id: string;
+  productKey: string;
+  source: string;
+  status: string;
+  active: boolean;
+  validUntil: string | null;
+}
+
+interface BillingSubscription {
+  id: string;
+  planKey: string;
+  status: string;
+  active: boolean;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
 function getBrandIcon(brand: string) {
   const b = brand.toLowerCase();
   if (b.includes("visa")) return "VISA";
@@ -61,6 +88,9 @@ export default function BillingPage() {
   const [savingCard, setSavingCard] = useState(false);
   const [payingWithSaved, setPayingWithSaved] = useState(false);
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
+  const [ledger, setLedger] = useState<BillingLedgerEntry[]>([]);
+  const [entitlements, setEntitlements] = useState<BillingEntitlement[]>([]);
+  const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
 
   // Cards
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
@@ -83,7 +113,18 @@ export default function BillingPage() {
 
     fetch("/api/billing/transactions")
       .then(r => r.json())
-      .then(d => { setTransactions(d.transactions ?? []); })
+      .then(d => {
+        setTransactions(d.transactions ?? []);
+        setLedger(d.ledger ?? []);
+      })
+      .catch(() => {});
+
+    fetch("/api/billing/entitlements")
+      .then(r => r.json())
+      .then(d => {
+        setEntitlements(d.entitlements ?? []);
+        setSubscriptions(d.subscriptions ?? []);
+      })
       .catch(() => {});
   }, [session]);
 
@@ -122,6 +163,7 @@ export default function BillingPage() {
       if (balRes?.balanceRub) setBalanceRub(balRes.balanceRub);
       if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
       if (txRes?.transactions) setTransactions(txRes.transactions);
+      if (txRes?.ledger) setLedger(txRes.ledger);
 
       const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
       attempts += 1;
@@ -281,7 +323,9 @@ export default function BillingPage() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold">Ваш план</h2>
-            <Badge variant="secondary" className="bg-primary/10 text-primary">Бесплатный</Badge>
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              {subscriptions.find((sub) => sub.active)?.planKey ?? "Бесплатный"}
+            </Badge>
           </div>
           <ul className="space-y-2">
             {FEATURES.map((f, i) => (
@@ -291,6 +335,54 @@ export default function BillingPage() {
               </li>
             ))}
           </ul>
+          {subscriptions.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {subscriptions.slice(0, 3).map((subscription) => (
+                <div key={subscription.id} className="rounded-lg border border-border/20 bg-background/40 p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">Тариф {subscription.planKey}</span>
+                    <span className={subscription.active ? "text-green-500" : "text-muted-foreground"}>
+                      {subscription.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {subscription.currentPeriodEnd
+                      ? `Доступ до ${new Date(subscription.currentPeriodEnd).toLocaleDateString("ru-RU")}`
+                      : "Период не ограничен"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/40 bg-card/50">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Открытые продукты</h2>
+            <Badge variant="secondary">{entitlements.filter((item) => item.active).length}</Badge>
+          </div>
+          {entitlements.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Платные углубления появятся здесь после успешной оплаты.</p>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {entitlements.slice(0, 8).map((entitlement) => (
+                <div key={entitlement.id} className="rounded-lg border border-border/20 bg-background/40 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium">{entitlement.productKey}</span>
+                    <span className={entitlement.active ? "text-xs text-green-500" : "text-xs text-muted-foreground"}>
+                      {entitlement.active ? "Активен" : entitlement.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Источник: {entitlement.source}
+                    {entitlement.validUntil ? ` · до ${new Date(entitlement.validUntil).toLocaleDateString("ru-RU")}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -464,6 +556,26 @@ export default function BillingPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {ledger.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Кредитный ledger</h3>
+              <div className="space-y-2">
+                {ledger.slice(0, 8).map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between rounded-lg bg-background/35 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{entry.description || entry.type}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(entry.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <p className={`text-sm font-semibold ${Number(entry.amountRub) >= 0 ? "text-green-400" : "text-destructive"}`}>
+                      {Number(entry.amountRub) >= 0 ? "+" : ""}{Number(entry.amountRub).toFixed(2)} ₽
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>

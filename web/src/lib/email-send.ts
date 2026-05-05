@@ -59,6 +59,10 @@ const SUBJECTS: Record<NotifEvent, string> = {
   PAYMENT_RECEIVED:   "Платёж получен — ETerapy",
   PAYOUT_SCHEDULED:   "Запланированная выплата — ETerapy",
   BALANCE_TOPUP:      "Баланс пополнен — ETerapy",
+  PRODUCT_UNLOCKED:   "Продукт открыт — ETerapy",
+  SUBSCRIPTION_STARTED: "Подписка активна — ETerapy",
+  SUBSCRIPTION_CANCELLED: "Подписка отменена — ETerapy",
+  SUBSCRIPTION_PAYMENT_FAILED: "Платёж подписки не прошёл — ETerapy",
   CARD_LINKED:        "Карта привязана — ETerapy",
   CARD_REMOVED:       "Карта отвязана — ETerapy",
 };
@@ -163,6 +167,51 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
            <p style="margin:0;color:#C9A84C;font-weight:700;font-size:22px">+${data.amountRub} ₽</p>`
         )}
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
+      `;
+    case "PRODUCT_UNLOCKED":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Продукт открыт</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Доступ</p>
+           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:18px">${data.productKey}</p>`
+        )}
+        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Результат уже доступен в вашем кабинете. Если страница была открыта во время оплаты, обновите её.</p>
+        ${btn(`${BASE_URL}/cabinet/billing`, "Открыть доступы")}
+      `;
+    case "SUBSCRIPTION_STARTED":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Подписка активна</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Тариф</p>
+           <p style="margin:0;color:#C9A84C;font-weight:700;font-size:18px">${data.planKey}</p>`
+        )}
+        ${btn(`${BASE_URL}/cabinet/billing`, "Управлять подпиской")}
+      `;
+    case "SUBSCRIPTION_CANCELLED":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Подписка отменена</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Тариф</p>
+           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.planKey}</p>`,
+          "rgba(245,158,11,0.2)"
+        )}
+        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Доступ сохранится до конца оплаченного периода, если он указан в кабинете.</p>
+        ${btn(`${BASE_URL}/cabinet/billing`, "Открыть биллинг")}
+      `;
+    case "SUBSCRIPTION_PAYMENT_FAILED":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Платёж подписки не прошёл</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Тариф</p>
+           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.planKey}</p>`,
+          "rgba(239,68,68,0.2)"
+        )}
+        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Проверьте способ оплаты, чтобы доступ не прервался.</p>
+        ${btn(`${BASE_URL}/cabinet/billing`, "Проверить оплату")}
       `;
     case "CARD_LINKED":
       return `

@@ -26,6 +26,10 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   PAYMENT_RECEIVED: Wallet,
   PAYOUT_SCHEDULED: Wallet,
   BALANCE_TOPUP: Wallet,
+  PRODUCT_UNLOCKED: Wallet,
+  SUBSCRIPTION_STARTED: Wallet,
+  SUBSCRIPTION_CANCELLED: Wallet,
+  SUBSCRIPTION_PAYMENT_FAILED: Wallet,
   CARD_LINKED: Wallet,
   CARD_REMOVED: Wallet,
 };
@@ -42,6 +46,10 @@ const ICON_BG_MAP: Record<NotifEvent, string> = {
   PAYMENT_RECEIVED: "bg-sky-500/15 text-sky-400",
   PAYOUT_SCHEDULED: "bg-sky-500/15 text-sky-400",
   BALANCE_TOPUP: "bg-sky-500/15 text-sky-400",
+  PRODUCT_UNLOCKED: "bg-sky-500/15 text-sky-400",
+  SUBSCRIPTION_STARTED: "bg-sky-500/15 text-sky-400",
+  SUBSCRIPTION_CANCELLED: "bg-amber-500/15 text-amber-400",
+  SUBSCRIPTION_PAYMENT_FAILED: "bg-rose-500/15 text-rose-400",
   CARD_LINKED: "bg-sky-500/15 text-sky-400",
   CARD_REMOVED: "bg-sky-500/15 text-sky-400",
 };

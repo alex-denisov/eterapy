@@ -17,6 +17,11 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  const ledger = await db.creditLedgerEntry.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
 
   return NextResponse.json({
     transactions: transactions.map((t) => ({
@@ -28,6 +33,18 @@ export async function GET() {
       provider: t.provider,
       description: t.description,
       createdAt: t.createdAt,
+      metadata: t.metadata,
+    })),
+    ledger: ledger.map((entry) => ({
+      id: entry.id,
+      amountKopecks: entry.amountKopecks,
+      amountRub: (entry.amountKopecks / 100).toFixed(2),
+      balanceAfterKopecks: entry.balanceAfterKopecks,
+      type: entry.type,
+      source: entry.source,
+      transactionId: entry.transactionId,
+      description: entry.description,
+      createdAt: entry.createdAt,
     })),
   });
 }

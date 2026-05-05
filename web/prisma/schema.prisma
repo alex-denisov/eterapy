@@ -63,6 +63,9 @@ model User {
   balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
   transactions        Transaction[]
   savedCards          SavedCard[]
+  entitlements        ProductEntitlement[]
+  subscriptions       UserSubscription[]
+  creditLedgerEntries CreditLedgerEntry[]
 
   @@map("users")
 }
@@ -464,6 +467,10 @@ enum NotificationEvent {
   PAYMENT_RECEIVED       // Платёж получен
   PAYOUT_SCHEDULED       // Запланированная выплата практикам (для superadmin)
   BALANCE_TOPUP          // Пополнение баланса (для клиента/практика)
+  PRODUCT_UNLOCKED       // Платный продукт открыт
+  SUBSCRIPTION_STARTED   // Подписка активирована
+  SUBSCRIPTION_CANCELLED // Подписка отменена
+  SUBSCRIPTION_PAYMENT_FAILED // Платеж подписки не прошел
   CARD_LINKED            // Новая карта привязана
   CARD_REMOVED           // Карта отвязана
 }
@@ -906,6 +913,7 @@ model Transaction {
   provider    String   @default("yookassa")  // "yookassa", "internal", "manual"
   providerPaymentId String?    // YooKassa payment ID
   description String?
+  metadata    Json?
   createdAt   DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -920,4 +928,70 @@ enum TransactionStatus {
   SUCCEEDED
   CANCELLED
   REFUNDED
+}
+
+// ─── v5 Entitlements and Subscriptions ───────────────────────────────────────
+
+model ProductEntitlement {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productKey    String
+  source        String   @default("purchase") // purchase | subscription | trial | manual | refund_restore
+  status        String   @default("ACTIVE")   // ACTIVE | REVOKED | EXPIRED | REFUNDED
+  transactionId String?
+  validFrom     DateTime @default(now())
+  validUntil    DateTime?
+  consumedAt    DateTime?
+  revokedAt     DateTime?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, status, productKey])
+  @@index([transactionId])
+  @@index([validUntil])
+  @@map("product_entitlements")
+}
+
+model UserSubscription {
+  id                     String   @id @default(cuid())
+  userId                 String
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planKey                String
+  status                 String   @default("TRIALING") // TRIALING | ACTIVE | PAST_DUE | CANCELLED | EXPIRED
+  provider               String   @default("yookassa")
+  providerSubscriptionId String?
+  trialEndsAt            DateTime?
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean  @default(false)
+  cancelledAt            DateTime?
+  metadata               Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([planKey, status])
+  @@index([providerSubscriptionId])
+  @@map("user_subscriptions")
+}
+
+model CreditLedgerEntry {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amountKopecks       Int
+  balanceAfterKopecks Int?
+  currency            String   @default("RUB")
+  type                String   // TOPUP | PRODUCT_PURCHASE | SUBSCRIPTION_CHARGE | REFUND | ADJUSTMENT
+  source              String   @default("yookassa")
+  transactionId       String?
+  description         String?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([transactionId])
+  @@map("credit_ledger_entries")
 }

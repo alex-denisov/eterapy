@@ -15,6 +15,10 @@ export type NotifEvent =
   | "PAYMENT_RECEIVED"
   | "PAYOUT_SCHEDULED"
   | "BALANCE_TOPUP"
+  | "PRODUCT_UNLOCKED"
+  | "SUBSCRIPTION_STARTED"
+  | "SUBSCRIPTION_CANCELLED"
+  | "SUBSCRIPTION_PAYMENT_FAILED"
   | "CARD_LINKED"
   | "CARD_REMOVED";
 
@@ -126,6 +130,34 @@ export const ALL_EVENTS: Array<{
     category: "payments",
     label: "Пополнение баланса",
     description: "Успешное пополнение кошелька",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "PRODUCT_UNLOCKED",
+    category: "payments",
+    label: "Продукт открыт",
+    description: "После успешной оплаты углубления или отчета",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "SUBSCRIPTION_STARTED",
+    category: "payments",
+    label: "Подписка активна",
+    description: "После старта пробного периода или оплаты подписки",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "SUBSCRIPTION_CANCELLED",
+    category: "payments",
+    label: "Подписка отменена",
+    description: "После отмены подписки",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "SUBSCRIPTION_PAYMENT_FAILED",
+    category: "payments",
+    label: "Платеж подписки не прошел",
+    description: "Когда продление подписки требует внимания",
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {

@@ -1,7 +1,7 @@
 /**
  * POST /api/billing/pay-with-saved-card
- * Быстрое пополнение баланса с использованием привязанной карты.
- * Body: { cardId: string, amountKopecks: number }
+ * Быстрая оплата с использованием привязанной карты.
+ * Body: { cardId: string, amountKopecks?: number, productKey?: string, planKey?: string }
  */
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { applyPaymentResult } from "@/lib/billing-credit";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -20,15 +21,22 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { cardId, amountKopecks } = body;
+  const { cardId } = body;
 
   if (!cardId) {
     return errorWithRequestContext("CARD_ID_REQUIRED", "cardId required", 400, context);
   }
 
-  const amount = Number(amountKopecks);
-  if (!amount || amount < 100) {
-    return errorWithRequestContext("INVALID_AMOUNT", "Минимальная сумма 100 копеек (1 ₽)", 400, context);
+  let purchase: ResolvedBillingPurchase;
+  try {
+    purchase = resolveBillingPurchase(body);
+  } catch (err) {
+    return errorWithRequestContext(
+      "INVALID_PURCHASE",
+      err instanceof Error ? err.message : "Некорректный платеж",
+      400,
+      context
+    );
   }
 
   // Находим карту пользователя
@@ -39,8 +47,6 @@ export async function POST(req: NextRequest) {
   if (!card) {
     return errorWithRequestContext("CARD_NOT_FOUND", "Карта не найдена", 404, context);
   }
-
-  const description = `Пополнение баланса ${amount / 100} ₽`;
 
   try {
     // Создаём платёж с использованием сохранённого payment method
@@ -53,17 +59,21 @@ export async function POST(req: NextRequest) {
       method: "POST",
       body: {
         amount: {
-          value: (amount / 100).toFixed(2),
+          value: (purchase.amountKopecks / 100).toFixed(2),
           currency: "RUB",
         },
         capture: true,
         payment_method_id: card.paymentMethodId,
         customer_id: session.user.id,
-        description,
+        description: purchase.description,
         metadata: {
           userId: session.user.id,
-          amountKopecks: String(amount),
+          amountKopecks: String(purchase.amountKopecks),
           cardId,
+          purchaseKind: purchase.metadata.purchaseKind,
+          productKey: purchase.metadata.productKey,
+          planKey: purchase.metadata.planKey,
+          checkoutSource: purchase.metadata.checkoutSource,
         },
       },
     });
@@ -71,11 +81,12 @@ export async function POST(req: NextRequest) {
     await db.transaction.create({
       data: {
         userId: session.user.id,
-        amount,
+        amount: purchase.amountKopecks,
         status: "PENDING",
         provider: "yookassa",
         providerPaymentId: payment.id,
-        description,
+        description: purchase.description,
+        metadata: purchase.metadata,
       },
     });
 
@@ -89,7 +100,8 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       provider: "yookassa",
       providerPaymentId: payment.id,
-      amountKopecks: amount,
+      amountKopecks: purchase.amountKopecks,
+      purchaseKind: purchase.kind,
       status: payment.status,
       credited: outcome === "credited",
     });
@@ -107,7 +119,7 @@ export async function POST(req: NextRequest) {
       userId: session.user.id,
       provider: "yookassa",
       cardId,
-      amountKopecks: amount,
+      amountKopecks: purchase?.amountKopecks,
       error: serializeError(err),
     });
     return errorWithRequestContext(
