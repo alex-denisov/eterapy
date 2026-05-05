@@ -1,75 +1,63 @@
-import { PremiumSection } from "@/components/v5/premium";
+import { Compass, Leaf, Sparkles, Waypoints } from "lucide-react";
 
 const steps = [
   {
     number: "01",
-    title: "Задайте вопрос",
-    description:
-      "Начните с живой формулировки ситуации. Регистрация не нужна до момента сохранения или покупки.",
+    title: "Опишите своими словами",
+    description: "Без формы и категорий. Так, как рассказали бы близкому человеку за кофе.",
+    icon: Sparkles,
   },
   {
     number: "02",
-    title: "Уточните контекст",
-    description:
-      "Диалог задаёт несколько коротких вопросов, распознаёт сложность и останавливает небезопасные сценарии.",
+    title: "Несколько уточнений",
+    description: "Мы задаём 2-4 коротких вопроса, чтобы понять контекст. Можно пропустить.",
+    icon: Waypoints,
   },
   {
     number: "03",
-    title: "Получите первичный ответ",
-    description:
-      "Ответ показывает суть запроса, возможные перспективы и бережный следующий шаг без давления.",
+    title: "Первичный разбор",
+    description: "Что мы услышали, главная развилка, на что обратить внимание, безопасный шаг.",
+    icon: Compass,
   },
   {
     number: "04",
-    title: "Выберите глубину",
-    description:
-      "Можно сохранить ответ, заказать отчёт, пройти маршрут или перейти к рекомендованному специалисту.",
+    title: "Углубление по выбору",
+    description: "Ракурсы, разбор переписки, совместимость, маршрут или встреча со специалистом.",
+    icon: Leaf,
   },
 ];
 
 export function HowItWorksSection() {
   return (
-    <PremiumSection
-      className="px-4"
-      eyebrow="Как это работает"
-      title={
-        <>
-          От первого вопроса <span className="text-brand-soft-gold">до ясности</span>
-        </>
-      }
-      lead="Четыре спокойных шага: без выбора специалиста на старте и без давления на покупку."
-    >
-      <ol id="how-it-works" className="relative mx-auto max-w-3xl pl-0">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-[2.25rem] top-2 bottom-2 hidden w-px bg-gradient-to-b from-transparent via-brand-soft-gold/35 to-transparent sm:block"
-        />
-        {steps.map((step, index) => (
-          <li
-            key={step.number}
-            className="group relative grid grid-cols-[auto_1fr] items-start gap-x-5 gap-y-2 py-6 sm:gap-x-8"
-            style={{
-              animation: `landingTimelineRise var(--motion-celebrate) var(--ease-soft) ${index * 90}ms both`,
-            }}
-          >
-            <span className="relative flex h-[4.5rem] w-[4.5rem] items-center justify-center font-heading text-3xl italic text-brand-soft-gold/85 sm:h-20 sm:w-20 sm:text-4xl">
-              <span
-                aria-hidden="true"
-                className="absolute inset-2 rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,215,154,0.18),transparent_70%)] transition-opacity duration-[var(--motion-base)] ease-[var(--ease-standard)] group-hover:opacity-100"
-              />
-              <span className="relative">{step.number}</span>
-            </span>
-            <div className="pt-1.5">
-              <h3 className="font-heading text-2xl font-medium leading-tight text-foreground">
-                {step.title}
-              </h3>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-                {step.description}
-              </p>
+    <section id="how-it-works" className="soft-shell py-16 md:py-24">
+      <div className="mb-8 flex flex-col justify-between gap-6 md:mb-12 md:flex-row md:items-end">
+        <div>
+          <div className="soft-eyebrow">Как это работает</div>
+          <h2 className="soft-h1 mt-3 max-w-2xl">
+            Четыре шага от вопроса <span className="soft-italic">к ясности</span>
+          </h2>
+        </div>
+        <div className="inline-flex w-fit rotate-[-1.5deg] rounded-md border border-[#eed9a1] bg-[#fff6d6] px-3 py-1 font-heading text-xl italic text-[#6b4a1e] shadow-[0_2px_0_rgba(0,0,0,0.04)]">
+          5-7 минут
+        </div>
+      </div>
+
+      <ol className="soft-map-grid">
+        {steps.map((step) => (
+          <li key={step.number} className="soft-card soft-step-card col-span-12 p-6 md:col-span-3">
+            <div className="flex items-start justify-between gap-4">
+              <span className="font-heading text-2xl italic text-[var(--soft-terracotta-dark)]">
+                {step.number}
+              </span>
+              <step.icon className="size-6 text-[var(--soft-ink-faint)]" aria-hidden="true" />
             </div>
+            <h3 className="soft-h3 mt-5">{step.title}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              {step.description}
+            </p>
           </li>
         ))}
       </ol>
-    </PremiumSection>
+    </section>
   );
 }

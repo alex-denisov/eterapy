@@ -1,75 +1,85 @@
-import { BadgeCheck, Scale, WalletCards } from "lucide-react";
-import { PremiumCard, PremiumSection } from "@/components/v5/premium";
+import { Check, LockKeyhole, X } from "lucide-react";
 
-const trustItems = [
-  {
-    icon: BadgeCheck,
-    title: "Трёхуровневая верификация",
-    points: [
-      "Уровень 1 — подтверждение личности",
-      "Уровень 2 — этическая проверка (тест-консультации)",
-      "Уровень 3 — репутация из оплаченных сессий",
-    ],
-    note: "Мы проверяем кто этот человек и как он работает — но не пытаемся проверить предсказательные способности. Честно.",
-  },
-  {
-    icon: Scale,
-    title: "Этический кодекс",
-    points: [
-      "Запрет запугивания и манипуляций",
-      "Запрет гарантий результатов",
-      "Запрет агрессивных допродаж",
-      "Запрет контактов вне платформы без согласия",
-    ],
-    note: "Нарушение: предупреждение → снижение видимости → приостановка → блокировка.",
-  },
-  {
-    icon: WalletCards,
-    title: "Защита денег",
-    points: [
-      "Фиксированная цена, известна до бронирования",
-      "Средства удерживаются до завершения сессии",
-      "Возврат при нарушении этического кодекса",
-      "Возврат при неявке или техническом сбое",
-    ],
-    note: "«Не понравилось предсказание» — не основание для возврата. Мы защищаем обе стороны.",
-  },
+const helps = [
+  "сформулировать вопрос, когда трудно подобрать слова",
+  "посмотреть на ситуацию с разных сторон",
+  "отделить факты от чувств и предположений",
+  "увидеть один безопасный следующий шаг",
+  "сохранить инсайты в личной карте",
+  "при необходимости найти специалиста",
+];
+
+const doesNotPromise = [
+  "предсказать будущее как факт",
+  "вернуть человека, который уходит",
+  "поставить диагноз или вылечить",
+  "заменить психолога, врача или юриста",
+  "принять решение за вас",
+  "гарантировать конкретный результат",
+];
+
+const privacy = [
+  ["Приватность", "Мы не показываем рекламу, не продаём данные и не публикуем вопросы без согласия."],
+  ["Этика", "Запрещены запугивание, гарантии результата и агрессивные допродажи."],
+  ["Безопасность", "Кризисные, медицинские, юридические и финансовые темы получают безопасное направление."],
 ];
 
 export function TrustSection() {
   return (
-    <PremiumSection
-      className="px-4"
-      eyebrow="Доверие"
-      title={<>Не слова, а <span className="text-brand-soft-gold">механизмы</span></>}
-      lead="Каждый элемент доверия подкреплен системой: проверка, этика, прозрачные платежи."
-    >
-        <div className="grid gap-4 md:grid-cols-3">
-          {trustItems.map((item, index) => (
-            <PremiumCard
-              key={item.title}
-              variant={index === 1 ? "glow-lavender" : "inset"}
-              className="p-6"
-            >
-              <item.icon className="size-6 text-primary" aria-hidden="true" />
-              <h3 className="mt-4 font-heading text-2xl font-medium">{item.title}</h3>
-              <ul className="mt-4 space-y-2">
-                {item.points.map((point) => (
-                  <li
-                    key={point}
-                    className="flex items-start gap-2 text-sm text-muted-foreground"
-                  >
-                    <span className="mt-1 text-primary" aria-hidden="true">•</span>
-                    {point}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-4 text-xs italic text-muted-foreground/70">
-                {item.note}
-              </p>
-            </PremiumCard>
-          ))}
+    <section className="soft-shell py-16 md:py-24">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="soft-card p-7 md:p-8" style={{ background: "linear-gradient(150deg, #fffcf5, #f4d9c1)" }}>
+          <div className="soft-eyebrow">мы помогаем</div>
+          <h2 className="soft-h2 mt-3">сформулировать, услышать, увидеть варианты</h2>
+          <div className="mt-6 grid gap-3">
+            {helps.map((item) => (
+              <div key={item} className="flex items-start gap-3 text-sm leading-relaxed text-[var(--soft-ink)]">
+                <Check className="mt-0.5 size-5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
         </div>
-    </PremiumSection>
+
+        <div className="soft-card-flat p-7 md:p-8">
+          <div className="soft-eyebrow">мы не обещаем</div>
+          <h2 className="soft-h2 mt-3">того, чего никто честно обещать не может</h2>
+          <div className="mt-6 grid gap-3">
+            {doesNotPromise.map((item) => (
+              <div key={item} className="flex items-start gap-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                <X className="mt-0.5 size-5 shrink-0 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="soft-card soft-dark-panel mt-8 p-7 md:p-10">
+        <div className="grid gap-8 md:grid-cols-[1.08fr_1fr] md:items-center">
+          <div>
+            <div className="soft-eyebrow text-[#f4d9c1]/70">почему нам доверяют</div>
+            <h2 className="soft-h1 mt-3">
+              Приватность как <span className="italic text-[#f4d9c1]">основа</span>, а не пункт меню
+            </h2>
+            <p className="mt-5 text-lg leading-relaxed text-[#e8c4b8]">
+              Разборы остаются вашими. Любой результат можно скрыть, удалить или
+              сохранить в личную карту без публикации.
+            </p>
+          </div>
+          <div className="grid gap-4">
+            {privacy.map(([title, text]) => (
+              <div key={title} className="flex items-start gap-3">
+                <LockKeyhole className="mt-1 size-5 shrink-0 text-[#f4d9c1]" aria-hidden="true" />
+                <div>
+                  <div className="font-semibold text-[#fbf0e1]">{title}</div>
+                  <div className="mt-1 text-sm leading-relaxed text-[#e8c4b8]">{text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }

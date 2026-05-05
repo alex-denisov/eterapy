@@ -1,22 +1,28 @@
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { BrandLogo } from "@/components/brand/brand-mark";
+import { cn } from "@/lib/utils";
 
-export function Footer() {
+export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
+  const soft = variant === "soft";
+
   return (
-    <footer data-testid="public-shell-footer" className="border-t border-brand-warm-gold/15 bg-navy/96">
+    <footer
+      data-testid="public-shell-footer"
+      className={cn("border-t border-brand-warm-gold/15 bg-navy/96", soft && "soft-footer")}
+    >
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="grid gap-8 md:grid-cols-4">
           <div>
-            <BrandLogo height={38} />
-            <p className="mt-2 text-sm text-muted-foreground">
+            <BrandLogo height={38} theme={soft ? "light" : "dark"} />
+            <p className={cn("mt-2 text-sm text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
               Диалоговая платформа ясности. Бережно, красиво и без давления.
             </p>
           </div>
 
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">Клиентам</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className={cn("space-y-2 text-sm text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
               <li><Link href="/all-modalities/checkin" className="hover:text-foreground">Задать вопрос</Link></li>
               <li><Link href="/products" className="hover:text-foreground">Продукты</Link></li>
               <li><Link href="/products/deep-report" className="hover:text-foreground">Глубокий отчет</Link></li>
@@ -30,7 +36,7 @@ export function Footer() {
 
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">Практикам</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className={cn("space-y-2 text-sm text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
               <li><Link href="/practitioners/apply" className="hover:text-foreground">Стать практиком</Link></li>
               <li><Link href="/practitioner" className="hover:text-foreground">Кабинет практика</Link></li>
               <li><Link href="/about#commission" className="hover:text-foreground">Условия и комиссия</Link></li>
@@ -40,7 +46,7 @@ export function Footer() {
 
           <div>
             <h4 className="mb-3 text-sm font-semibold text-foreground">О проекте</h4>
-            <ul className="space-y-2 text-sm text-muted-foreground">
+            <ul className={cn("space-y-2 text-sm text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
               <li><Link href="/about" className="hover:text-foreground">О нас</Link></li>
               <li><Link href="/help" className="hover:text-foreground">Поддержка и жалобы</Link></li>
               <li><Link href="/#faq" className="hover:text-foreground">FAQ</Link></li>
@@ -50,9 +56,9 @@ export function Footer() {
           </div>
         </div>
 
-        <Separator className="my-8 bg-border/40" />
+        <Separator className={cn("my-8 bg-border/40", soft && "bg-[var(--soft-paper-edge)]")} />
 
-        <div className="flex flex-col items-center justify-between gap-4 text-xs text-muted-foreground md:flex-row">
+        <div className={cn("flex flex-col items-center justify-between gap-4 text-xs text-muted-foreground md:flex-row", soft && "text-[var(--soft-ink-faint)]")}>
           <p>© {new Date().getFullYear()} ETerapy. Все права защищены.</p>
           <p className="max-w-xl text-center md:text-right">
             Все услуги носят развлекательный и ознакомительный характер. ETerapy не является

@@ -1,0 +1,424 @@
+/*
+ * ETerapy Design v4 — Soft Clarity.
+ * Production adaptation of docs/Design/v4/style.css.
+ * Keep selectors scoped to .soft-* so the rollout can proceed page by page.
+ */
+
+@layer components {
+  .soft-clarity-page,
+  .soft-header,
+  .soft-footer {
+    --soft-paper: #fbf6ee;
+    --soft-paper-deep: #f3ead9;
+    --soft-paper-edge: #e9ddc6;
+    --soft-paper-card: #fffcf5;
+    --soft-ink: #2a2422;
+    --soft-ink-soft: #5b514c;
+    --soft-ink-faint: #8a7e76;
+    --soft-terracotta: #d67558;
+    --soft-terracotta-dark: #b85b40;
+    --soft-bordeaux: #5c2a2c;
+    --soft-rose: #e8c4b8;
+    --soft-apricot: #f4d9c1;
+    --soft-lilac: #a89bc9;
+    --soft-lilac-soft: #dbd3ea;
+    --soft-sage: #9bae94;
+    --soft-sage-soft: #d6decc;
+    --soft-halo-1: #f4c9a8;
+    --soft-halo-2: #e8b8d1;
+    --soft-halo-3: #d9c9e8;
+    --soft-radius-sm: 0.5rem;
+    --soft-radius-md: 0.875rem;
+    --soft-radius-lg: 1.375rem;
+    --soft-radius-xl: 2rem;
+    --soft-shadow-sm: 0 1px 2px rgba(60, 30, 20, 0.06);
+    --soft-shadow-md: 0 6px 22px -10px rgba(60, 30, 20, 0.18), 0 2px 6px rgba(60, 30, 20, 0.04);
+    --soft-shadow-lg: 0 28px 60px -28px rgba(60, 30, 20, 0.28), 0 8px 18px -10px rgba(60, 30, 20, 0.08);
+  }
+
+  .soft-clarity-page {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(214, 117, 88, 0.08), transparent 34rem),
+      radial-gradient(circle at 88% 82%, rgba(168, 155, 201, 0.1), transparent 38rem),
+      linear-gradient(180deg, var(--soft-paper) 0%, #fff9f0 52%, var(--soft-paper) 100%);
+    color: var(--soft-ink);
+  }
+
+  .soft-clarity-page::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(92, 42, 44, 0.035) 0 1px, transparent 1px),
+      radial-gradient(circle at 80% 30%, rgba(214, 117, 88, 0.03) 0 1px, transparent 1px);
+    background-size: 26px 26px, 34px 34px;
+    mix-blend-mode: multiply;
+    opacity: 0.6;
+  }
+
+  .soft-clarity-page > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .soft-shell {
+    width: min(100% - 2rem, 77.5rem);
+    margin-inline: auto;
+  }
+
+  .soft-shell-narrow {
+    width: min(100% - 2rem, 54rem);
+    margin-inline: auto;
+  }
+
+  .soft-eyebrow {
+    color: var(--soft-ink-faint);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .soft-display {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(3rem, 6.4vw, 6rem);
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.02;
+    text-wrap: balance;
+  }
+
+  .soft-h1 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(2.25rem, 4vw, 3.5rem);
+    font-weight: 500;
+    line-height: 1.06;
+    text-wrap: balance;
+  }
+
+  .soft-h2 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: 500;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+
+  .soft-h3 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.22;
+  }
+
+  .soft-lede {
+    color: var(--soft-ink-soft);
+    font-family: var(--font-heading);
+    font-size: clamp(1.18rem, 1.7vw, 1.5rem);
+    font-weight: 400;
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+
+  .soft-italic {
+    color: var(--soft-terracotta-dark);
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .soft-card {
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-lg);
+    background: var(--soft-paper-card);
+    box-shadow: var(--soft-shadow-sm);
+  }
+
+  .soft-card-flat {
+    border-radius: var(--soft-radius-lg);
+    background: var(--soft-paper-deep);
+  }
+
+  .soft-chip {
+    display: inline-flex;
+    min-height: 2rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 999px;
+    background: var(--soft-paper-card);
+    padding: 0.43rem 0.88rem;
+    color: var(--soft-ink-soft);
+    font-size: 0.82rem;
+    transition-property: border-color, color, background-color, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .soft-chip:hover {
+    border-color: var(--soft-terracotta);
+    color: var(--soft-terracotta-dark);
+  }
+
+  .soft-chip-warm {
+    border-color: transparent;
+    background: var(--soft-apricot);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-badge {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    gap: 0.36rem;
+    border-radius: 999px;
+    background: var(--soft-sage-soft);
+    padding: 0.25rem 0.62rem;
+    color: #3a4a36;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .soft-badge-warm {
+    background: var(--soft-apricot);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-button {
+    display: inline-flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.85rem 1.35rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    transition-property: background-color, border-color, box-shadow, color, filter, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .soft-button:active {
+    transform: scale(0.96);
+  }
+
+  .soft-button-primary {
+    background: var(--soft-terracotta);
+    color: #fff8f1;
+    box-shadow: 0 10px 26px -12px rgba(214, 117, 88, 0.72), inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+  }
+
+  .soft-button-primary:hover {
+    background: var(--soft-terracotta-dark);
+  }
+
+  .soft-button-ghost {
+    border-color: rgba(92, 42, 44, 0.18);
+    background: transparent;
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-button-ghost:hover {
+    border-color: rgba(92, 42, 44, 0.32);
+    background: rgba(92, 42, 44, 0.05);
+  }
+
+  .soft-header {
+    border-bottom-color: rgba(232, 220, 198, 0.72) !important;
+    background: rgba(251, 246, 238, 0.82) !important;
+    box-shadow: 0 10px 40px rgba(60, 30, 20, 0.06) !important;
+    color: var(--soft-ink);
+  }
+
+  .soft-header [data-soft-nav="link"] {
+    color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-header [data-soft-nav="link"]:hover,
+  .soft-header [data-soft-nav="link"][data-active="true"] {
+    background: rgba(92, 42, 44, 0.055) !important;
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-footer {
+    border-top: 1px solid var(--soft-paper-edge) !important;
+    background: var(--soft-paper) !important;
+    color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-footer h4,
+  .soft-footer a:hover {
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-footer .text-foreground {
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-footer .text-muted-foreground {
+    color: var(--soft-ink-faint) !important;
+  }
+
+  .soft-hero {
+    padding-block: clamp(3.5rem, 8vw, 6rem) 3rem;
+  }
+
+  .soft-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(20rem, 0.8fr);
+    gap: clamp(2rem, 5vw, 4.5rem);
+    align-items: center;
+  }
+
+  .soft-halo-stage {
+    position: relative;
+    display: grid;
+    min-height: 28rem;
+    place-items: center;
+  }
+
+  .soft-halo-stage::before {
+    content: "";
+    position: absolute;
+    width: min(42rem, 84vw);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 30% 35%, var(--soft-halo-1) 0%, transparent 55%),
+      radial-gradient(circle at 70% 30%, var(--soft-halo-2) 0%, transparent 50%),
+      radial-gradient(circle at 50% 75%, var(--soft-halo-3) 0%, transparent 55%);
+    filter: blur(42px);
+    opacity: 0.8;
+    animation: softHaloBreathe 12s ease-in-out infinite;
+  }
+
+  .soft-ask-card {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 45rem);
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-xl);
+    background: color-mix(in srgb, var(--soft-paper-card) 94%, white);
+    box-shadow: var(--soft-shadow-lg);
+    padding: clamp(1.1rem, 2.2vw, 1.75rem);
+  }
+
+  .soft-question-input {
+    width: 100%;
+    min-height: 6.25rem;
+    resize: none;
+    border: 0;
+    background: transparent;
+    color: var(--soft-ink);
+    font-family: var(--font-heading);
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+    line-height: 1.32;
+    outline: 0;
+  }
+
+  .soft-question-input::placeholder {
+    color: var(--soft-ink-faint);
+    font-style: italic;
+  }
+
+  .soft-ask-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px solid var(--soft-paper-edge);
+    margin-top: 0.75rem;
+    padding-top: 1rem;
+  }
+
+  .soft-topic-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .soft-map-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .soft-step-card,
+  .soft-product-card,
+  .soft-question-card {
+    transition-property: border-color, box-shadow, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .soft-step-card:hover,
+  .soft-product-card:hover,
+  .soft-question-card:hover {
+    border-color: var(--soft-terracotta);
+    box-shadow: var(--soft-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .soft-dark-panel {
+    background: var(--soft-bordeaux);
+    color: var(--soft-apricot);
+  }
+
+  .soft-dark-panel .soft-h1,
+  .soft-dark-panel .soft-h2,
+  .soft-dark-panel .soft-h3 {
+    color: #fbf0e1;
+  }
+
+  @media (max-width: 920px) {
+    .soft-hero-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .soft-halo-stage {
+      min-height: 22rem;
+    }
+
+    .soft-map-grid {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .soft-clarity-page::before {
+      opacity: 0.42;
+    }
+
+    .soft-display {
+      font-size: clamp(2.7rem, 15vw, 3.35rem);
+    }
+
+    .soft-ask-foot {
+      align-items: stretch;
+      flex-direction: column;
+    }
+  }
+}
+
+@keyframes softHaloBreathe {
+  0%,
+  100% {
+    opacity: 0.76;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.94;
+    transform: scale(1.08) rotate(8deg);
+  }
+}

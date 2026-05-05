@@ -1,36 +1,31 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { HaloVisual } from "@/components/v5/premium";
-import { buttonVariants } from "@/lib/button-variants";
-import { cn } from "@/lib/utils";
 
 export function CTASection() {
   return (
-    <section className="relative overflow-hidden px-4 py-16 md:py-24">
-      <div className="premium-shell halo-waterline relative mx-auto max-w-4xl overflow-hidden px-5 py-10 text-center md:px-10 md:py-14">
-        <HaloVisual className="mb-4 max-w-[150px]" />
-        <h2 className="premium-title text-3xl md:text-5xl">
-          Начните с одного <span className="text-brand-soft-gold">честного вопроса</span>
-        </h2>
-        <p className="premium-lead mx-auto mt-4 max-w-2xl">
-          Бесплатный первичный ответ за несколько минут. Без привязки карты.
-        </p>
-
-        <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link
-            href="/all-modalities/checkin"
-            className={cn(buttonVariants({ size: "lg" }), "min-w-[220px] text-base")}
-            data-analytics-event="dialogue_cta_clicked"
-            data-analytics-target="/all-modalities/checkin"
-          >
-            Начать диалог
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-
-        <p className="mt-8 text-xs text-muted-foreground/50">
-          Специалист появляется как следующий шаг, когда контекст уже понятен.
-        </p>
+    <section className="soft-shell py-16 text-center md:py-24">
+      <div className="inline-flex rotate-[-1.5deg] rounded-md border border-[#eed9a1] bg-[#fff6d6] px-3 py-1 font-heading text-xl italic text-[#6b4a1e] shadow-[0_2px_0_rgba(0,0,0,0.04)]">
+        первый разбор бесплатно
+      </div>
+      <h2 className="soft-display mx-auto mt-6 max-w-3xl">
+        С чего <span className="soft-italic">начнём?</span>
+      </h2>
+      <p className="soft-lede mx-auto mt-5 max-w-2xl">
+        Бесплатный первичный ответ за несколько минут. Специалист появляется как следующий шаг, когда контекст уже понятен.
+      </p>
+      <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <Link
+          href="/all-modalities/checkin"
+          className="soft-button soft-button-primary min-w-56"
+          data-analytics-event="dialogue_cta_clicked"
+          data-analytics-target="/all-modalities/checkin"
+        >
+          Начать диалог
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+        <Link href="/how-it-works" className="soft-button soft-button-ghost min-w-56">
+          Сначала почитать
+        </Link>
       </div>
     </section>
   );

@@ -2,9 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AIProvider } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const AIProvider = {
+  OPENAI: "OPENAI",
+  ANTHROPIC: "ANTHROPIC",
+  FIREWORKS: "FIREWORKS",
+  OPENROUTER: "OPENROUTER",
+} as const;
+
+export type AIProvider = (typeof AIProvider)[keyof typeof AIProvider];
 
 type ProviderRow = {
   provider: AIProvider;

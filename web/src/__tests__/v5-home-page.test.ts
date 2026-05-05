@@ -21,11 +21,14 @@ describe("v5 public home page", () => {
     expect(hero).not.toContain("Найти практика");
   });
 
-  it("keeps the landing hero organic and free of framed PNG artwork", () => {
+  it("keeps the landing hero organic, v4-soft, and free of framed PNG artwork", () => {
     const hero = source("components/landing/hero.tsx");
+    const page = source("app/page.tsx");
 
     expect(hero).toContain("<HaloSymbol");
-    expect(hero).toContain("landing-question-surface");
+    expect(hero).toContain("soft-ask-card");
+    expect(hero).toContain("soft-question-input");
+    expect(page).toContain('data-ui-version="design-v4-soft-clarity"');
     expect(hero).not.toContain("HaloVisual");
     expect(hero).not.toContain("premium-shell");
     expect(hero).not.toContain("next/image");
@@ -47,8 +50,8 @@ describe("v5 public home page", () => {
     const cta = source("components/landing/cta.tsx");
     const howItWorks = source("components/landing/how-it-works.tsx");
 
-    expect(howItWorks).toContain("Задайте вопрос");
-    expect(howItWorks).toContain("Выберите глубину");
+    expect(howItWorks).toContain("Опишите своими словами");
+    expect(howItWorks).toContain("Углубление по выбору");
     expect(cta).toContain("Специалист появляется как следующий шаг");
     expect(cta).toContain('href="/all-modalities/checkin"');
   });

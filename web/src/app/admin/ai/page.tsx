@@ -5,7 +5,57 @@ import { auth } from "@/lib/auth";
 import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
-import { AIControlCenter } from "./ai-control-center";
+import { AIControlCenter, type AIProvider } from "./ai-control-center";
+
+type RawProvider = {
+  provider: AIProvider;
+  displayName: string;
+  enabled: boolean;
+  priority: number;
+  baseUrl?: string | null;
+  defaultModel?: string | null;
+  timeoutMs: number;
+  inputTokenCostMicros?: number | null;
+  outputTokenCostMicros?: number | null;
+};
+
+type RawPolicy = {
+  feature: string;
+  enabled: boolean;
+  providerOrder: AIProvider[];
+  maxTokens?: number | null;
+  temperature?: number | null;
+  timeoutMs?: number | null;
+  dailyTokenBudget?: number | null;
+  perUserDailyTokenBudget?: number | null;
+};
+
+type RawCredential = {
+  id: string;
+  provider: AIProvider;
+  label: string;
+  apiKeyPreview: string;
+  enabled: boolean;
+  priority: number;
+  baseUrlOverride: string | null;
+  modelOverride: string | null;
+  consecutiveFailures: number;
+  cooldownUntil: Date | null;
+  regionBlocked: boolean;
+  lastUsedAt: Date | null;
+  lastSuccessAt: Date | null;
+  lastErrorAt: Date | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+};
+
+type RawModel = {
+  modelId: string;
+  displayName?: string | null;
+  isFree: boolean;
+  contextWindow?: number | null;
+  fetchedAt: Date;
+};
 
 export default async function AdminAIPage() {
   const session = await auth();
@@ -16,7 +66,12 @@ export default async function AdminAIPage() {
   if (!permissions.includes("ai.configure")) redirect("/admin");
 
   const data = await getAIControlCenterData();
-  const providers = data.providers.map((provider) => ({
+  const rawProviders = data.providers as RawProvider[];
+  const rawPolicies = data.policies as RawPolicy[];
+  const rawCredentials = data.credentials as RawCredential[];
+  const rawModels = data.models as Record<string, RawModel[]>;
+
+  const providers = rawProviders.map((provider) => ({
     provider: provider.provider,
     displayName: provider.displayName,
     enabled: provider.enabled,
@@ -27,7 +82,7 @@ export default async function AdminAIPage() {
     inputTokenCostMicros: provider.inputTokenCostMicros,
     outputTokenCostMicros: provider.outputTokenCostMicros,
   }));
-  const policies = data.policies.map((policy) => ({
+  const policies = rawPolicies.map((policy) => ({
     feature: policy.feature,
     enabled: policy.enabled,
     providerOrder: policy.providerOrder,
@@ -37,7 +92,7 @@ export default async function AdminAIPage() {
     dailyTokenBudget: policy.dailyTokenBudget,
     perUserDailyTokenBudget: policy.perUserDailyTokenBudget,
   }));
-  const credentials = data.credentials.map((credential) => ({
+  const credentials = rawCredentials.map((credential) => ({
     id: credential.id,
     provider: credential.provider,
     label: credential.label,
@@ -57,7 +112,7 @@ export default async function AdminAIPage() {
   }));
 
   const models = Object.fromEntries(
-    Object.entries(data.models).map(([provider, list]) => [
+    Object.entries(rawModels).map(([provider, list]) => [
       provider,
       list.map((model) => ({
         modelId: model.modelId,

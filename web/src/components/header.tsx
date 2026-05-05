@@ -213,13 +213,20 @@ export function Header() {
   const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const softLandingHeader = pathname === "/" && !isAuthenticated;
 
   return (
-    <header data-testid="public-shell-header" className="sticky top-0 z-50 border-b border-brand-warm-gold/15 bg-navy/86 shadow-[0_8px_38px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+    <header
+      data-testid="public-shell-header"
+      className={cn(
+        "sticky top-0 z-50 border-b border-brand-warm-gold/15 bg-navy/86 shadow-[0_8px_38px_rgba(0,0,0,0.28)] backdrop-blur-xl",
+        softLandingHeader && "soft-header",
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href={mainUrl("/")}
           className="flex shrink-0 items-center">
-          <VectorBrandLogo height={38} />
+          <VectorBrandLogo height={38} theme={softLandingHeader ? "light" : "dark"} />
         </Link>
 
         {/* Guest navigation — NEVER shown to authenticated users */}
@@ -228,6 +235,8 @@ export function Header() {
             const active = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link key={item.href} href={item.href}
+                data-soft-nav="link"
+                data-active={active ? "true" : undefined}
                 className={cn("rounded-full px-3 py-2 text-sm transition-colors",
                   active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                 )}>
@@ -269,10 +278,20 @@ export function Header() {
           ) : !isLoading ? (
             <>
               <Link href={mainUrl("/login")}
-                className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "hidden text-muted-foreground md:inline-flex")}>
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "hidden md:inline-flex",
+                  softLandingHeader ? "soft-button-ghost text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
+                )}>
                 Войти
               </Link>
-              <Link href={mainUrl("/all-modalities/checkin")} className={cn(buttonVariants({ size: "sm" }))}>
+              <Link
+                href={mainUrl("/all-modalities/checkin")}
+                className={cn(
+                  buttonVariants({ size: "sm" }),
+                  softLandingHeader && "soft-button-primary text-white shadow-none",
+                )}
+              >
                 Задать вопрос
               </Link>
             </>

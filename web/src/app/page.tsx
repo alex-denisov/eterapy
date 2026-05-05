@@ -13,7 +13,7 @@ export default async function Home() {
   await auth();
 
   return (
-    <>
+    <div className="soft-clarity-page" data-ui-version="design-v4-soft-clarity">
       <PublicJsonLd route="/" />
       <HomeAnalytics />
       <HeroSection />
@@ -23,6 +23,6 @@ export default async function Home() {
       <ForPractitionersSection />
       <FAQSection />
       <CTASection />
-    </>
+    </div>
   );
 }
