@@ -13,10 +13,11 @@ describe("v5 app shell", () => {
   });
 
   it("uses v5 tokenized shell styling", () => {
+    expect(shell).toContain("soft-clarity-page soft-app-shell");
+    expect(shell).toContain("soft-app-sidebar");
+    expect(shell).toContain("soft-app-mobile-nav");
     expect(shell).toContain("rounded-[var(--radius-control)]");
     expect(shell).toContain("duration-[var(--motion-base)]");
-    expect(shell).toContain("text-brand-soft-gold");
-    expect(shell).toContain("shadow-[var(--shadow-surface)]");
   });
 
   it("sends public product links from the app cabinet back to the public domain", () => {
@@ -24,5 +25,6 @@ describe("v5 app shell", () => {
     expect(clientCabinet).toContain('mainUrl("/products/deep-report")');
     expect(clientCabinet).toContain('mainUrl("/products/seven-days")');
     expect(clientCabinet).toContain('appUrl("/cabinet/action-history")');
+    expect(clientCabinet).toContain('data-testid="client-map-preview"');
   });
 });

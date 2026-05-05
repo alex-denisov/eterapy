@@ -830,6 +830,117 @@
     padding: clamp(1.25rem, 3vw, 2rem);
   }
 
+  .soft-app-shell {
+    --background: var(--soft-paper);
+    --foreground: var(--soft-ink);
+    --card: var(--soft-paper-card);
+    --card-foreground: var(--soft-ink);
+    --muted: var(--soft-paper-deep);
+    --muted-foreground: var(--soft-ink-faint);
+    --border: var(--soft-paper-edge);
+    --primary: var(--soft-terracotta);
+    --primary-foreground: #fff8f1;
+    background:
+      radial-gradient(circle at 15% 8%, rgba(214, 117, 88, 0.08), transparent 30rem),
+      radial-gradient(circle at 88% 74%, rgba(168, 155, 201, 0.12), transparent 38rem),
+      var(--soft-paper);
+    color: var(--soft-ink);
+  }
+
+  .soft-app-shell .premium-page,
+  .soft-app-shell [class*="bg-background"] {
+    background: transparent !important;
+  }
+
+  .soft-app-shell .premium-title,
+  .soft-app-shell .font-heading {
+    color: var(--soft-bordeaux);
+    letter-spacing: 0;
+  }
+
+  .soft-app-shell .premium-eyebrow {
+    color: var(--soft-ink-faint);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .soft-app-shell .premium-card,
+  .soft-app-shell [data-slot="card"],
+  .soft-app-shell .rounded-xl.border,
+  .soft-app-shell .border[class*="rounded"] {
+    border-color: var(--soft-paper-edge) !important;
+    background: color-mix(in srgb, var(--soft-paper-card) 94%, white) !important;
+    box-shadow: var(--soft-shadow-sm) !important;
+    color: var(--soft-ink);
+  }
+
+  .soft-app-shell .premium-input,
+  .soft-app-shell input,
+  .soft-app-shell textarea,
+  .soft-app-shell select {
+    border-color: var(--soft-paper-edge) !important;
+    background: var(--soft-paper-card) !important;
+    color: var(--soft-ink) !important;
+  }
+
+  .soft-app-shell .text-muted-foreground,
+  .soft-app-shell [class*="text-muted-foreground"] {
+    color: var(--soft-ink-faint) !important;
+  }
+
+  .soft-app-shell .text-primary,
+  .soft-app-shell [class*="text-primary"] {
+    color: var(--soft-terracotta-dark) !important;
+  }
+
+  .soft-app-shell .bg-primary,
+  .soft-app-shell [class*="bg-primary"] {
+    background-color: var(--soft-terracotta) !important;
+  }
+
+  .soft-app-sidebar {
+    border-right: 1px solid var(--soft-paper-edge);
+    background: color-mix(in srgb, var(--soft-paper-deep) 88%, white);
+    box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
+  }
+
+  .soft-app-avatar {
+    border: 1px solid rgba(214, 117, 88, 0.2);
+    border-radius: var(--soft-radius-md);
+    background: linear-gradient(140deg, var(--soft-rose), var(--soft-apricot));
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-app-nav-link {
+    color: var(--soft-ink-soft);
+  }
+
+  .soft-app-nav-link:hover,
+  .soft-app-nav-link.is-active {
+    background: var(--soft-paper-card);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-app-nav-link.is-active {
+    box-shadow: inset 3px 0 0 var(--soft-terracotta);
+  }
+
+  .soft-app-mobile-nav {
+    border-top: 1px solid var(--soft-paper-edge);
+    background: rgba(251, 246, 238, 0.92);
+    box-shadow: 0 -18px 48px -30px rgba(60, 30, 20, 0.36);
+    backdrop-filter: blur(16px);
+  }
+
+  .soft-app-shell .soft-map-tile {
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-lg);
+    background: var(--soft-paper-card);
+    box-shadow: var(--soft-shadow-sm);
+  }
+
   @media (max-width: 920px) {
     .soft-hero-grid {
       grid-template-columns: 1fr;

@@ -77,13 +77,13 @@ export default function AIHistoryPage() {
   }
 
   return (
-    <div className="premium-page px-6 py-8 max-w-4xl">
+    <div className="max-w-5xl px-4 py-8 sm:px-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <p className="premium-eyebrow">Моя карта ETerapy</p>
           <h1 className="premium-title mt-2 text-3xl md:text-5xl">История разборов</h1>
         </div>
-        <Link href={appUrl("/cabinet/modalities")} className="text-sm text-primary hover:underline">
+        <Link href={appUrl("/cabinet/modalities")} className="soft-button soft-button-ghost text-sm">
           Открыть направления →
         </Link>
       </div>
@@ -131,7 +131,7 @@ export default function AIHistoryPage() {
             {logs.map(l => {
               const meta = TOOL_LABELS[l.tool] ?? { label: l.tool, icon: "✦" };
               return (
-                <div key={l.id} className="flex items-center gap-3 rounded-xl border border-border/20 bg-card/20 px-4 py-3 hover:bg-card/30 transition-colors">
+                <div key={l.id} className="soft-card flex items-center gap-3 px-4 py-3 transition-colors hover:-translate-y-0.5">
                   <span className="font-heading text-2xl text-primary shrink-0">{meta.icon}</span>
                   <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openLog(l.id)}>
                     <p className="text-sm font-medium truncate">{l.title}</p>
@@ -172,7 +172,7 @@ export default function AIHistoryPage() {
               const meta = TOOL_LABELS[r.tool] ?? { label: r.tool, icon: "✦" };
               const isExpanded = expandedReading?.id === r.id;
               return (
-                <div key={r.id} className="rounded-xl border border-border/20 bg-card/20 px-4 py-3">
+                <div key={r.id} className="soft-card px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className="font-heading text-2xl text-primary shrink-0">{meta.icon}</span>
                     <div className="flex-1 min-w-0">

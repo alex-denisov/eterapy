@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 const FEATURES = [
-  "3 бесплатных сессии в месяц",
-  "Доступ ко всем направлениям",
-  "Без привязки карты",
+  "История вопросов и сохранение выводов",
+  "Моя карта и мягкое возвращение к темам",
+  "Безопасная оплата углублений и сессий",
 ];
 
 interface SavedCard {
@@ -247,7 +247,7 @@ export default function BillingPage() {
   if (!session) { router.push("/login"); return null; }
 
   return (
-    <div className="premium-page mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
       <div>
         <p className="premium-eyebrow">Оплата</p>
         <h1 className="premium-title mt-2 text-3xl md:text-5xl">Баланс и безопасная оплата</h1>

@@ -76,12 +76,12 @@ export function CabinetShell({
   const mobileNav = nav.slice(0, 4);
 
   return (
-    <div data-testid="app-shell" data-shell-role={role} className="premium-page flex min-h-screen bg-background">
+    <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell flex min-h-screen">
       {/* Sidebar — sticky, own scroll */}
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="sticky hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col overflow-y-auto border-r border-brand-warm-gold/15 bg-card/45 px-3 py-5 shadow-[var(--shadow-surface)] backdrop-blur-xl md:flex"
+        className="soft-app-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
         style={{ top: "var(--header-height)" }}
       >
         {/* User badge + Notifications */}
@@ -90,7 +90,7 @@ export function CabinetShell({
         </div>
         <div className="mb-6 px-2" data-testid="app-shell-user">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-card)] border border-brand-warm-gold/25 bg-brand-warm-gold/15 text-sm font-semibold text-brand-soft-gold">
+            <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
               {initial}
             </div>
             <div className="min-w-0">
@@ -107,10 +107,10 @@ export function CabinetShell({
             return (
               <Link key={item.href} href={item.href}
                 data-testid="app-shell-nav-item"
-                className={`flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+                className={`soft-app-nav-link flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                   isActive(item.href)
-                    ? "bg-brand-warm-gold/12 text-brand-soft-gold font-medium"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "is-active font-medium"
+                    : ""
                 }`}>
                 <Icon className="h-4 w-4 shrink-0" />
                 {item.label}
@@ -123,10 +123,10 @@ export function CabinetShell({
         <div className="mt-2 border-t border-border/20 pt-2">
           <Link
             href={appUrl("/cabinet/settings")}
-            className={`flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+            className={`soft-app-nav-link flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
               isActive(appUrl("/cabinet/settings"))
-                ? "bg-brand-warm-gold/12 text-brand-soft-gold font-medium"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                ? "is-active font-medium"
+                : ""
             }`}
           >
             <Settings className="h-4 w-4 shrink-0" />
@@ -134,7 +134,7 @@ export function CabinetShell({
           </Link>
           <button
             onClick={() => { window.location.href = logoutUrl(); }}
-            className="flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm text-muted-foreground transition-colors duration-[var(--motion-base)] hover:bg-muted hover:text-foreground"
+            className="soft-app-nav-link flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             Выйти
@@ -143,7 +143,7 @@ export function CabinetShell({
       </aside>
 
       {/* Mobile nav */}
-      <div data-testid="app-shell-mobile-nav" className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-brand-warm-gold/15 bg-navy/96 shadow-[0_-18px_50px_rgba(0,0,0,0.34)] backdrop-blur-xl md:hidden">
+      <div data-testid="app-shell-mobile-nav" className="soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
         {mobileNav.map((item) => {
           const Icon = item.icon;
           return (
