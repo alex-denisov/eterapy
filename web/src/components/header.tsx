@@ -228,6 +228,7 @@ export function Header() {
     "/products",
     "/practitioner",
     "/practitioners",
+    "/share",
     "/specialists",
     "/tools",
   ];

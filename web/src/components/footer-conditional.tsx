@@ -25,6 +25,7 @@ export function FooterConditional() {
     "/products",
     "/practitioner",
     "/practitioners",
+    "/share",
     "/specialists",
     "/tools",
   ];
