@@ -32,6 +32,7 @@ export function ToolsLayoutClient({
 }) {
   const pathname = usePathname();
   const isLoggedIn = !!user;
+  const softPublicTools = pathname.startsWith("/all-modalities/checkin");
 
   function isActive(href: string) {
     if (href === "/cabinet/modalities") return pathname === "/cabinet/modalities";
@@ -43,9 +44,12 @@ export function ToolsLayoutClient({
     return (
       <>
         {pathname !== "/all-modalities" && (
-          <div className="border-b border-border/30 bg-navy/50">
+          <div className={softPublicTools ? "soft-tools-return" : "border-b border-border/30 bg-navy/50"}>
             <div className="mx-auto flex max-w-6xl items-center px-4 py-2.5">
-              <Link href="/all-modalities" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link
+                href="/all-modalities"
+                className={softPublicTools ? "text-sm" : "text-sm text-muted-foreground hover:text-foreground"}
+              >
                 ← Все направления
               </Link>
             </div>

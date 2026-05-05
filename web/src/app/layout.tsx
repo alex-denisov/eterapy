@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Lora, Geist } from "next/font/google";
 import "./globals.css";
+import "./v4-soft.css";
 import { Header } from "@/components/header";
 import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";

@@ -14,10 +14,10 @@ function doc(relativePath: string) {
 
 describe("design v4 rollout", () => {
   it("keeps the prototype read-only and copies the visual system into production CSS", () => {
-    const globals = source("app/globals.css");
+    const layout = source("app/layout.tsx");
     const softCss = source("app/v4-soft.css");
 
-    expect(globals).toContain('@import "./v4-soft.css";');
+    expect(layout).toContain('import "./v4-soft.css";');
     expect(softCss).toContain("ETerapy Design v4 — Soft Clarity");
     expect(softCss).toContain(".soft-clarity-page");
     expect(softCss).toContain("--soft-paper: #fbf6ee");
@@ -31,7 +31,8 @@ describe("design v4 rollout", () => {
     const rollout = doc("docs/v5-release/08-DESIGN-V4-ROLLOUT.md");
 
     expect(blocks).toContain("M20. Design v4 Emergency Rollout");
-    expect(blocks).toContain("| B187 | M20 | high | B176,B181 | Design v4 landing emergency retrofit | [~]");
+    expect(blocks).toContain("| B187 | M20 | high | B176,B181 | Design v4 landing emergency retrofit | [x]");
+    expect(blocks).toContain("| B188 | M20 | high | B187,B071 | Design v4 dialogue and primary answer | [x]");
     expect(rollout).toContain("docs/Design/v4");
     expect(rollout).toContain("Production Functionality Without v4 UI Reference");
     expect(rollout).toContain("Admin cabinet");

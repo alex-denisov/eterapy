@@ -1,19 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowRight, Bookmark, CheckCircle2, Compass, Loader2, RotateCcw, Send, ShieldCheck } from "lucide-react";
 import { AIShareButton } from "@/components/ai-share-button";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
-import { buttonVariants } from "@/lib/button-variants";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
-import { cn } from "@/lib/utils";
 
 type DialogueMessage = {
   id: string;
@@ -72,6 +68,12 @@ export default function CheckinPage() {
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
     ?? "";
   const safeAnswer = useMemo(() => cleanAnswer(primaryAnswer), [primaryAnswer]);
+
+  useEffect(() => {
+    if (phase === "result" || phase === "safety") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [phase]);
 
   const saveDraft = useCallback((answer: string, currentDialogue: DialoguePayload) => {
     saveGuestResultDraft({
@@ -187,6 +189,7 @@ export default function CheckinPage() {
 
   return (
     <DialogueShell
+      className="soft-clarity-page soft-dialogue-page"
       title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Экстренная поддержка" : "Диалог ясности"}
       description={
         phase === "result"
@@ -200,89 +203,127 @@ export default function CheckinPage() {
       <PublicJsonLd route="/all-modalities/checkin" />
 
       {phase === "question" && (
-        <div data-testid="dialogue-question-step">
-          <Card className="border-brand-warm-gold/25 bg-card/50">
-            <CardContent className="p-5">
-              <label htmlFor="dialogue-question" className="text-sm font-medium text-foreground">
-                Что сейчас хочется понять?
-              </label>
+        <div className="soft-dialogue-start" data-testid="dialogue-question-step">
+          <div className="soft-halo-stage soft-dialogue-halo-stage">
+            <div className="soft-ask-card soft-dialogue-ask-card">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <label htmlFor="dialogue-question" className="soft-eyebrow">
+                  С чего начнем
+                </label>
+                <span className="soft-badge">
+                  <ShieldCheck className="size-3" aria-hidden="true" />
+                  приватно
+                </span>
+              </div>
               <textarea
                 id="dialogue-question"
                 value={question}
                 onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Например: почему я застрял в этом выборе и какой следующий шаг будет бережным?"
-                className="premium-input mt-3 min-h-36 w-full resize-none px-4 py-3 text-base leading-relaxed"
+                placeholder="Расскажите своими словами. Не нужно структурировать — мы поможем."
+                className="soft-question-input"
                 rows={5}
                 data-testid="dialogue-question-input"
               />
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                <Button onClick={startDialogue} disabled={question.trim().length < 3} className="min-h-10" data-testid="dialogue-start-button">
-                  Получить первый ответ
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Button>
-                <p className="text-xs leading-relaxed text-muted-foreground">
+              <div className="soft-ask-foot">
+                <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
                   Регистрация понадобится только если вы захотите сохранить результат.
                 </p>
+                <Button
+                  onClick={startDialogue}
+                  disabled={question.trim().length < 3}
+                  className="soft-button soft-button-primary"
+                  data-testid="dialogue-start-button"
+                >
+                  Отправить
+                  <Send className="size-4" aria-hidden="true" />
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-          <Disclaimer className="mt-5" tone="info" title="Ограничение">
+            </div>
+          </div>
+          <Disclaimer className="soft-dialogue-disclaimer mt-5" tone="info" title="Ограничение">
             Сервис не является медицинской, юридической, финансовой или психологической консультацией.
           </Disclaimer>
         </div>
       )}
 
       {phase === "clarifying" && dialogue && (
-        <div data-testid="dialogue-clarifying-step">
-          <div className="space-y-3">
-            <div className="premium-card p-4">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Ваш вопрос</p>
-              <p className="mt-2 text-sm leading-relaxed">{question || dialogue.title}</p>
+        <div className="soft-dialogue-chat" data-testid="dialogue-clarifying-step">
+          <div className="soft-msg-row soft-msg-row-user">
+            <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+            <div className="soft-msg-bubble soft-msg-bubble-user">
+              {question || dialogue.title}
             </div>
-            <Card className="border-primary/20 bg-card/55">
-              <CardContent className="p-5">
-                <Badge variant="outline" className="border-primary/30 text-primary">
-                  <Sparkles className="size-3" aria-hidden="true" />
-                  Уточняющие вопросы
-                </Badge>
-                <div className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90">
+          </div>
+
+          <div className="soft-msg-row soft-msg-row-assistant">
+            <div className="soft-msg-avatar" aria-hidden="true" />
+            <div>
+              <div className="soft-msg-bubble soft-msg-bubble-assistant">
+                <p>Спасибо, что доверились. Чтобы яснее увидеть ситуацию, разрешите задать пару коротких вопросов — это правда помогает.</p>
+                <div className="mt-4 space-y-2">
                   {(dialogue.clarifyingQuestions ?? []).map((item, index) => (
                     <p key={item} data-testid="dialogue-clarifying-question">
                       {index + 1}. {item}
                     </p>
                   ))}
                 </div>
-                <textarea
-                  value={clarification}
-                  onChange={(event) => setClarification(event.target.value)}
-                  placeholder="Ответьте одним сообщением или пропустите уточнения."
-                  className="premium-input mt-4 min-h-28 w-full resize-none px-4 py-3 text-sm leading-relaxed"
-                  rows={4}
-                  data-testid="dialogue-clarification-input"
-                />
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <Button onClick={() => sendClarification(false)} disabled={!clarification.trim()} data-testid="dialogue-send-clarification">
-                    Продолжить
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </Button>
-                  <Button variant="outline" onClick={() => sendClarification(true)} data-testid="dialogue-skip-clarification">
-                    Пропустить
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {["Понять, что происходит", "Решить, что делать", "И то, и другое"].map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className="soft-chip"
+                    onClick={() => setClarification((current) => current ? `${current}; ${item}` : item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="soft-ask-card soft-dialogue-composer">
+            <label htmlFor="dialogue-clarification" className="sr-only">Ответ на уточнение</label>
+            <textarea
+              id="dialogue-clarification"
+              value={clarification}
+              onChange={(event) => setClarification(event.target.value)}
+              placeholder="Ответьте одним сообщением или пропустите уточнения."
+              className="soft-question-input soft-dialogue-composer-input"
+              rows={4}
+              data-testid="dialogue-clarification-input"
+            />
+            <div className="soft-ask-foot">
+              <Button
+                variant="outline"
+                onClick={() => sendClarification(true)}
+                className="soft-button soft-button-ghost"
+                data-testid="dialogue-skip-clarification"
+              >
+                Пропустить
+              </Button>
+              <Button
+                onClick={() => sendClarification(false)}
+                disabled={!clarification.trim()}
+                className="soft-button soft-button-primary"
+                data-testid="dialogue-send-clarification"
+              >
+                Продолжить
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
       {phase === "processing" && (
-        <div className="premium-card flex min-h-72 flex-col items-center justify-center px-5 text-center" data-testid="dialogue-processing-step">
-          <div className="relative">
-            <div className="h-16 w-16 animate-pulse rounded-full bg-[radial-gradient(circle,var(--dialogue-halo-core),transparent_68%)] shadow-[var(--shadow-halo-soft)]" />
-            <Loader2 className="absolute inset-0 m-auto size-6 animate-spin text-primary" aria-hidden="true" />
+        <div className="soft-card soft-processing-card" data-testid="dialogue-processing-step">
+          <div className="soft-processing-orb">
+            <Loader2 className="absolute inset-0 m-auto size-6 animate-spin text-[var(--soft-bordeaux)]" aria-hidden="true" />
           </div>
-          <p className="mt-5 text-base font-medium text-foreground">Готовлю ответ</p>
-          <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+          <p className="mt-5 font-heading text-2xl text-[var(--soft-bordeaux)]">Готовлю ответ</p>
+          <div className="mt-3 space-y-1 text-sm text-[var(--soft-ink-soft)]">
             {processingLines.map((line) => (
               <p key={line}>{line}</p>
             ))}
@@ -291,7 +332,7 @@ export default function CheckinPage() {
             <div className="mt-5">
               <p className="text-sm text-destructive">{error}</p>
               {retrying && dialogue && (
-                <Button className="mt-3" variant="outline" onClick={() => generateAnswer(dialogue.id)} data-testid="dialogue-retry-answer">
+                <Button className="soft-button soft-button-ghost mt-3" variant="outline" onClick={() => generateAnswer(dialogue.id)} data-testid="dialogue-retry-answer">
                   Попробовать еще раз
                 </Button>
               )}
@@ -301,16 +342,16 @@ export default function CheckinPage() {
       )}
 
       {phase === "safety" && (
-        <div data-testid="dialogue-safety-interrupt">
-          <Disclaimer tone="warning" title="Экстренная поддержка">
+        <div className="soft-card p-6" data-testid="dialogue-safety-interrupt">
+          <Disclaimer className="soft-dialogue-disclaimer" tone="warning" title="Экстренная поддержка">
             Если есть риск причинить вред себе или другому человеку, обратитесь в экстренные службы или к близкому человеку рядом. ETerapy не будет предлагать платные продукты в таком сценарии.
           </Disclaimer>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <Button variant="outline" onClick={reset}>
+            <Button className="soft-button soft-button-ghost" variant="outline" onClick={reset}>
               <RotateCcw className="size-4" aria-hidden="true" />
               Задать другой вопрос
             </Button>
-            <Link href="/legal/ethics" className={cn(buttonVariants({ variant: "ghost" }), "text-muted-foreground")}>
+            <Link href="/legal/ethics" className="soft-button soft-button-ghost">
               Принципы безопасности
             </Link>
           </div>
@@ -318,53 +359,99 @@ export default function CheckinPage() {
       )}
 
       {phase === "result" && dialogue && safeAnswer && (
-        <div data-testid="dialogue-result-step">
-          <Card className="border-primary/20 bg-card/35">
-            <CardContent className="p-5">
-              <div className="mb-4 flex flex-wrap gap-2">
-                {dialogue.topic && <Badge variant="outline">Тема: {dialogue.topic}</Badge>}
-                {dialogue.difficulty && <Badge variant="outline">Сложность: {dialogue.difficulty}</Badge>}
-              </div>
-              <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90" data-testid="dialogue-primary-answer">
-                {safeAnswer}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="soft-answer-flow" data-testid="dialogue-result-step">
+          <div className="mb-5 flex flex-wrap gap-2">
+            <span className="soft-badge">
+              <CheckCircle2 className="size-3" aria-hidden="true" />
+              разбор готов
+            </span>
+            <span className="soft-badge soft-badge-warm">бесплатно</span>
+            {dialogue.topic && <span className="soft-chip">Тема: {dialogue.topic}</span>}
+            {dialogue.difficulty && <span className="soft-chip">Сложность: {dialogue.difficulty}</span>}
+          </div>
 
-          <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} />
+          <article className="soft-card p-5 md:p-7">
+            <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
+            <div className="mt-3 whitespace-pre-wrap font-heading text-[1.18rem] leading-relaxed text-[var(--soft-ink)]" data-testid="dialogue-primary-answer">
+              {safeAnswer}
+            </div>
+          </article>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2" data-testid="dialogue-result-actions">
+          <section className="soft-card-flat mt-4 p-5 md:p-7">
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
+            <h2 className="soft-h3 mt-2">Это про решение прямо сейчас — или про ясность, которой пока не хватает?</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Первичный ответ помогает увидеть контур. Если хочется не спешить, можно сохранить его, вернуться позже или углубить в один из следующих форматов.
+            </p>
+          </section>
+
+          <section className="soft-card mt-4 p-5 md:p-7">
+            <p className="soft-eyebrow">один бережный шаг сегодня</p>
+            <h2 className="soft-h3 mt-2 italic">Запишите одну фразу, которую вы давно хотели сказать себе честно.</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Не отправлять, не доказывать, не решать все сразу. Просто дать мысли форму и посмотреть, что в ней правда.
+            </p>
+          </section>
+
+          <div className="mt-5">
+            <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} />
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3" data-testid="dialogue-result-actions">
             {status === "authenticated" ? (
-              <Button onClick={handleSaveToAccount} disabled={saveState === "saving" || saveState === "saved"} data-testid="save-result-authenticated">
+              <Button
+                onClick={handleSaveToAccount}
+                disabled={saveState === "saving" || saveState === "saved"}
+                className="soft-button soft-button-primary"
+                data-testid="save-result-authenticated"
+              >
+                <Bookmark className="size-4" aria-hidden="true" />
                 {saveState === "saved" ? "Сохранено в кабинете" : saveState === "saving" ? "Сохраняем..." : "Сохранить в кабинет"}
               </Button>
             ) : (
-              <Link href="/register?intent=save-result" className={cn(buttonVariants(), "min-h-10")} data-testid="save-result-register">
+              <Link href="/register?intent=save-result" className="soft-button soft-button-primary" data-testid="save-result-register">
+                <Bookmark className="size-4" aria-hidden="true" />
                 Сохранить ответ
               </Link>
             )}
-            <Link href="/products/deep-report" className={cn(buttonVariants({ variant: "outline" }), "min-h-10")} data-testid="dialogue-deepen-report">
+            <Link href="/products/deep-report" className="soft-button soft-button-ghost" data-testid="dialogue-deepen-report">
+              <Compass className="size-4" aria-hidden="true" />
               Углубить ответ
             </Link>
-            <Link href="/products/perspectives" className={cn(buttonVariants({ variant: "outline" }), "min-h-10")} data-testid="dialogue-deepen-perspectives">
+            <Link href="/products/perspectives" className="soft-button soft-button-ghost" data-testid="dialogue-deepen-perspectives">
               Посмотреть перспективы
             </Link>
-            <Button onClick={reset} variant="ghost" className="text-muted-foreground" data-testid="dialogue-reset">
+            <Button onClick={reset} variant="ghost" className="soft-button soft-button-ghost" data-testid="dialogue-reset">
               <RotateCcw className="size-4" aria-hidden="true" />
               Задать новый вопрос
             </Button>
           </div>
 
+          <div className="mt-10 grid gap-4 md:grid-cols-2">
+            <Link href="/products/perspectives" className="soft-card soft-deepening-card">
+              <p className="soft-eyebrow">рекомендуем</p>
+              <h3 className="soft-h3 mt-2">Ракурсы ответа</h3>
+              <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Разум, чувства, символ и действие на одну страницу.</p>
+              <span className="soft-badge soft-badge-warm mt-4">от 299 ₽</span>
+            </Link>
+            <Link href="/products/seven-days" className="soft-card soft-deepening-card">
+              <p className="soft-eyebrow">маршрут</p>
+              <h3 className="soft-h3 mt-2">7 дней к ясности</h3>
+              <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Если хочется не быстрого ответа, а бережного разговора с собой.</p>
+              <span className="soft-badge soft-badge-warm mt-4">990 ₽</span>
+            </Link>
+          </div>
+
           {status !== "authenticated" && (
-            <p className="mt-3 text-sm text-muted-foreground">
+            <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">
               Ответ сохранится после регистрации. Уже есть аккаунт?{" "}
-              <Link href="/login?intent=save-result" className="text-primary hover:underline">
+              <Link href="/login?intent=save-result" className="font-medium text-[var(--soft-terracotta-dark)] hover:underline">
                 Войти
               </Link>
             </p>
           )}
           {saveState === "error" && <p className="mt-3 text-sm text-destructive">Не удалось сохранить. Попробуйте еще раз.</p>}
-          <Disclaimer className="mt-6" tone="info" title="Ограничение">
+          <Disclaimer className="soft-dialogue-disclaimer mt-6" tone="info" title="Ограничение">
             Первичный ответ помогает увидеть следующий шаг, но не заменяет профильную помощь и не является прогнозом с гарантией.
           </Disclaimer>
         </div>

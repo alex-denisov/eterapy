@@ -213,20 +213,20 @@ export function Header() {
   const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const softLandingHeader = pathname === "/" && !isAuthenticated;
+  const softPublicHeader = (pathname === "/" || pathname.startsWith("/all-modalities/checkin")) && !isAuthenticated;
 
   return (
     <header
       data-testid="public-shell-header"
       className={cn(
         "sticky top-0 z-50 border-b border-brand-warm-gold/15 bg-navy/86 shadow-[0_8px_38px_rgba(0,0,0,0.28)] backdrop-blur-xl",
-        softLandingHeader && "soft-header",
+        softPublicHeader && "soft-header",
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href={mainUrl("/")}
           className="flex shrink-0 items-center">
-          <VectorBrandLogo height={38} theme={softLandingHeader ? "light" : "dark"} />
+          <VectorBrandLogo height={38} theme={softPublicHeader ? "light" : "dark"} />
         </Link>
 
         {/* Guest navigation — NEVER shown to authenticated users */}
@@ -281,7 +281,7 @@ export function Header() {
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "sm" }),
                   "hidden md:inline-flex",
-                  softLandingHeader ? "soft-button-ghost text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
+                  softPublicHeader ? "soft-button-ghost text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
                 Войти
               </Link>
@@ -289,7 +289,7 @@ export function Header() {
                 href={mainUrl("/all-modalities/checkin")}
                 className={cn(
                   buttonVariants({ size: "sm" }),
-                  softLandingHeader && "soft-button-primary text-white shadow-none",
+                  softPublicHeader && "soft-button-primary text-white shadow-none",
                 )}
               >
                 Задать вопрос

@@ -10,5 +10,6 @@ export function FooterConditional() {
   const pathname = usePathname();
   const hide = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
   if (hide) return null;
-  return <Footer variant={pathname === "/" ? "soft" : "dark"} />;
+  const softPublicFooter = pathname === "/" || pathname.startsWith("/all-modalities/checkin");
+  return <Footer variant={softPublicFooter ? "soft" : "dark"} />;
 }
