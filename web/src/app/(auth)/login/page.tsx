@@ -91,9 +91,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-4">
-        <Card className="border-border/40 bg-card/50">
+    <main className="soft-clarity-page soft-public-page min-h-screen">
+      <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md space-y-4">
+        <Card className="soft-card">
           <CardHeader className="text-center">
             <CardTitle className="font-heading text-2xl">Вход в ETerapy</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -205,7 +206,8 @@ export default function LoginPage() {
             </p>
           </div>
         )}
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }

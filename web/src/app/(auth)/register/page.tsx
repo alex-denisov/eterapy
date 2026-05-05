@@ -86,8 +86,9 @@ export default function RegisterPage() {
 
   if (registered) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4">
-        <div className="w-full max-w-md text-center space-y-4">
+      <main className="soft-clarity-page soft-public-page min-h-screen">
+        <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
+        <div className="soft-card w-full max-w-md space-y-4 p-8 text-center">
           <div className="text-5xl">📬</div>
           <h1 className="font-heading text-2xl font-bold">Почти готово!</h1>
           <p className="text-muted-foreground">
@@ -102,13 +103,15 @@ export default function RegisterPage() {
             Перейти в кабинет →
           </Link>
         </div>
-      </div>
+        </section>
+      </main>
     );
   }
 
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md border-border/40 bg-card/50">
+    <main className="soft-clarity-page soft-public-page min-h-screen">
+      <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
+      <Card className="soft-card w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="font-heading text-2xl">Создать аккаунт</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -217,6 +220,7 @@ export default function RegisterPage() {
           </p>
         </CardContent>
       </Card>
-    </div>
+      </section>
+    </main>
   );
 }

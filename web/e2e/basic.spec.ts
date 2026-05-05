@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
 test.describe('ETerapy Homepage', () => {
   test('should load and show main heading', async ({ page }) => {
@@ -16,14 +16,14 @@ test.describe('ETerapy Homepage', () => {
     await page.goto('/');
 
     // Check for essential navigation links
-    const practitionersLink = page.locator('a[href="/practitioners"]');
-    await expect(practitionersLink).toBeVisible();
+    await expect(page.locator('a[href="/products"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/practitioners"]').first()).toBeVisible();
   });
 });
 
 test.describe('Authentication Flow', () => {
   test('should show login page', async ({ page }) => {
-    await page.goto('/auth/login');
+    await page.goto('/login');
 
     await page.waitForLoadState('networkidle');
 
