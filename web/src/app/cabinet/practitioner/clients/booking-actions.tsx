@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+function completionAvailable(sessionStartedAt?: string | null, durationMinutes?: number) {
+  if (!sessionStartedAt || !durationMinutes) return true;
+  const startedAt = new Date(sessionStartedAt).getTime();
+  const required = durationMinutes * 0.75 * 60 * 1000;
+  return Date.now() - startedAt >= required;
+}
+
 export function BookingActions({
   bookingId,
   compact = false,
@@ -19,26 +26,17 @@ export function BookingActions({
 }) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState<string | null>(null);
-  const [canComplete, setCanComplete] = useState(false);
+  const [nowTick, setNowTick] = useState(0);
   const router = useRouter();
 
-  // Check 75% threshold client-side
   useEffect(() => {
-    if (!sessionStartedAt || !durationMinutes) {
-      setCanComplete(true);
-      return;
-    }
-    const startedAt = new Date(sessionStartedAt).getTime();
-    const required = durationMinutes * 0.75 * 60 * 1000;
-    const elapsed = Date.now() - startedAt;
-    setCanComplete(elapsed >= required);
-
     const interval = setInterval(() => {
-      const elapsedNow = Date.now() - startedAt;
-      setCanComplete(elapsedNow >= required);
+      setNowTick((value) => value + 1);
     }, 10000);
     return () => clearInterval(interval);
-  }, [sessionStartedAt, durationMinutes]);
+  }, []);
+
+  const canComplete = nowTick >= 0 && completionAvailable(sessionStartedAt, durationMinutes);
 
   async function updateStatus(status: string) {
     setLoading(true);

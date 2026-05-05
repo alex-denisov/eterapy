@@ -31,8 +31,9 @@ export default async function PractitionerClientsPage() {
   const rest = bookings.filter(b => !["PENDING", "CONFIRMED"].includes(b.status));
 
   return (
-    <div className="px-6 py-8 max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold mb-6">Клиенты и записи</h1>
+    <div className="max-w-5xl px-4 py-8 sm:px-6">
+      <p className="premium-eyebrow">Кабинет практика</p>
+      <h1 className="premium-title mt-2 mb-6 text-3xl md:text-5xl">Клиенты и записи</h1>
 
       {bookings.length === 0 && (
         <p className="text-muted-foreground text-sm">Пока нет записей от клиентов.</p>
@@ -49,7 +50,7 @@ export default async function PractitionerClientsPage() {
                 ? (new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000
                 : 60;
               return (
-                <Card key={b.id} className="border-yellow-500/20 bg-yellow-500/5">
+                <Card key={b.id} className="soft-card border-[rgba(214,117,88,0.28)]">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div>
@@ -86,7 +87,7 @@ export default async function PractitionerClientsPage() {
                 ? (new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000
                 : 60;
               return (
-                <div key={b.id} className="flex items-center justify-between rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
+                <div key={b.id} className="soft-card flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm font-medium">{b.client.name}</p>
                     {b.slot && <p className="text-xs text-muted-foreground">
@@ -124,7 +125,7 @@ export default async function PractitionerClientsPage() {
                 ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
                 : 60;
               return (
-                <div key={b.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-card/10 px-4 py-2.5">
+                <div key={b.id} className="soft-map-tile flex items-center justify-between px-4 py-2.5">
                   <div>
                     <p className="text-sm">{b.client.name}</p>
                     {b.slot && (

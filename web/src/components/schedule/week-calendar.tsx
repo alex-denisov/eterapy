@@ -68,7 +68,7 @@ interface Props {
   onRulesChanged?: () => void;
 }
 
-export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
+export function WeekCalendar({ practitionerId }: Props) {
   const [weekStart, setWeekStart] = useState(() => mondayOfWeek(new Date()));
   const [rules, setRules] = useState<ScheduleRule[]>([]);
   const [blocked, setBlocked] = useState<BlockedSlot[]>([]);
@@ -108,15 +108,14 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
     setBookings(bks);
   }, [practitionerId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   function getRuleForDay(dow: number) { return rules.find(r => r.dayOfWeek === dow); }
-
-  function isWorkingHour(dow: number, hour: number) {
-    const rule = getRuleForDay(dow);
-    if (!rule || !rule.enabled) return false;
-    return hour >= rule.startHour && hour < rule.endHour;
-  }
 
   // Check if an hour is currently booked (has an active booking)
   function getBookingAt(dateStr: string, hour: number): Booking | null {
@@ -246,16 +245,16 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
     <div>
       {/* Навигация + режим редактирования */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button onClick={prevWeek} className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">←</button>
-        <button onClick={toToday} className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">Сегодня</button>
-        <button onClick={nextWeek} className="rounded-lg border border-border/40 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">→</button>
+        <button onClick={prevWeek} className="soft-button soft-button-ghost px-3 py-1.5 text-sm">←</button>
+        <button onClick={toToday} className="soft-button soft-button-ghost px-3 py-1.5 text-sm">Сегодня</button>
+        <button onClick={nextWeek} className="soft-button soft-button-ghost px-3 py-1.5 text-sm">→</button>
         <span className="text-sm font-medium ml-1">{weekLabel}</span>
 
         <div className="ml-auto flex items-center gap-2">
           {!editing ? (
             <button onClick={() => setEditing(true)}
-              className="rounded-lg bg-primary/10 border border-primary/30 px-4 py-1.5 text-sm text-primary font-medium hover:bg-primary/20 transition-colors">
-              ✏️ Редактировать
+              className="soft-button soft-button-ghost px-4 py-1.5 text-sm font-medium">
+              Редактировать
             </button>
           ) : (
             <>
@@ -265,11 +264,11 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                 </span>
               )}
               <button onClick={handleCancel}
-                className="rounded-lg border border-border/40 px-4 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                className="soft-button soft-button-ghost px-4 py-1.5 text-sm">
                 Отменить
               </button>
               <button onClick={handleSave} disabled={saving || pendingCount === 0}
-                className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-navy disabled:opacity-50 transition-colors">
+                className="soft-button soft-button-primary px-4 py-1.5 text-sm disabled:opacity-50">
                 {saving ? "Сохранение..." : "Сохранить"}
               </button>
             </>
@@ -278,18 +277,18 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
       </div>
 
       {editing && (
-        <div className="mb-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-4 py-2 text-xs text-yellow-300">
+        <div className="soft-card mb-3 px-4 py-2 text-xs text-muted-foreground">
           Режим редактирования: нажмите на ячейку чтобы заблокировать/разблокировать время. Нажмите «Сохранить» для применения.
         </div>
       )}
 
       {/* Сетка — П.2 видимые границы */}
-      <div suppressHydrationWarning className="overflow-auto rounded-xl border border-border/30 bg-card/20">
+      <div suppressHydrationWarning className="soft-card overflow-auto">
         <table className="w-full text-xs border-collapse min-w-[580px]">
           <thead>
-            <tr className="bg-[#0f2236]">
+            <tr className="bg-[var(--soft-paper-deep)]">
               {/* Столбец часов */}
-              <th className="w-14 border-r border-border/30 p-2 text-muted-foreground font-normal sticky left-0 bg-[#0f2236] z-10">
+              <th className="sticky left-0 z-10 w-14 border-r border-border/30 bg-[var(--soft-paper-deep)] p-2 font-normal text-muted-foreground">
                 Час
               </th>
               {DOW_ORDER.map((dow, idx) => {
@@ -318,7 +317,7 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
           </thead>
           <tbody>
             {displayHours.map((hour, hIdx) => (
-              <tr key={hour} className={hIdx % 2 === 0 ? "bg-[#0a1520]" : "bg-[#0c1929]"}>
+              <tr key={hour} className={hIdx % 2 === 0 ? "bg-[var(--soft-paper-card)]" : "bg-[var(--soft-paper)]"}>
                 {/* Час — П.2 чёткая граница */}
                 <td className="border-r border-b border-border/20 px-2 py-0 text-center text-muted-foreground/60 font-mono text-[11px] h-8 sticky left-0 bg-inherit z-10 border-r-border/40">
                   {pad2(hour)}:00
@@ -336,16 +335,16 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
 
                   // Clear, high-contrast colors: green=available, red=blocked, blue=booked
                   const cellClassMap: Record<string, string> = {
-                    "unavailable":     "bg-[#0b1016] cursor-default",
+                    "unavailable":     "bg-[var(--soft-paper-edge)]/30 cursor-default",
                     "free":            editing
-                                        ? "bg-emerald-900/60 border border-emerald-600/40 hover:bg-emerald-800/70 cursor-pointer"
-                                        : "bg-emerald-900/50 border border-emerald-600/25",
+                                        ? "bg-emerald-100/80 border border-emerald-500/35 hover:bg-emerald-100 cursor-pointer"
+                                        : "bg-emerald-100/60 border border-emerald-500/20",
                     "blocked":         editing
-                                        ? "bg-red-900/60 border border-red-600/40 hover:bg-red-800/70 cursor-pointer"
-                                        : "bg-red-900/50 border border-red-600/30",
-                    "pending-block":   "bg-amber-900/60 border border-amber-500/50 cursor-pointer",
-                    "pending-unblock": "bg-sky-900/60 border border-sky-500/50 cursor-pointer",
-                    "booked":          "bg-blue-800/70 border border-blue-500/50 cursor-not-allowed",
+                                        ? "bg-rose-100/80 border border-rose-500/35 hover:bg-rose-100 cursor-pointer"
+                                        : "bg-rose-100/60 border border-rose-500/25",
+                    "pending-block":   "bg-amber-100/80 border border-amber-500/45 cursor-pointer",
+                    "pending-unblock": "bg-sky-100/80 border border-sky-500/45 cursor-pointer",
+                    "booked":          "bg-[rgba(168,155,201,0.24)] border border-[var(--soft-lavender)] cursor-not-allowed",
                   };
                   const cellStyle = cellClassMap[state] ?? "";
 
@@ -365,8 +364,8 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
                     >
                       {state === "booked" && booking ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
-                          <span className="text-[9px] font-semibold text-white truncate w-full text-center leading-tight drop-shadow">{booking.clientName.split(" ")[0]}</span>
-                          <span className="text-[8px] text-blue-100 font-medium">{booking.priceRub.toLocaleString("ru-RU")} ₽</span>
+                          <span className="w-full truncate text-center text-[9px] font-semibold leading-tight text-[var(--soft-bordeaux)]">{booking.clientName.split(" ")[0]}</span>
+                          <span className="text-[8px] font-medium text-[var(--soft-ink-faint)]">{booking.priceRub.toLocaleString("ru-RU")} ₽</span>
                         </div>
                       ) : (state === "blocked" || state === "pending-block") ? (
                         <div className="absolute inset-0 flex items-center justify-center">
@@ -389,15 +388,15 @@ export function WeekCalendar({ practitionerId, onRulesChanged }: Props) {
 
       {/* Легенда */}
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span>🟢 Свободно</span>
-        <span>🔴 Заблокировано</span>
-        <span>🔵 Забронировано</span>
+        <span>Свободно</span>
+        <span>Заблокировано</span>
+        <span>Забронировано</span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-2 h-2 rounded-full bg-[#0b1016] border border-border/30" />
+          <span className="inline-block w-2 h-2 rounded-full bg-[var(--soft-paper-edge)] border border-border/30" />
           Недоступно
         </span>
         {editing && <>
-          <span>🟡 Будет заблокировано</span>
+          <span>Будет заблокировано</span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-2 h-2 rounded-full bg-sky-600" />
             Будет разблокировано

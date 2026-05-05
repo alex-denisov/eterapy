@@ -119,15 +119,16 @@ export default async function PractitionerEarningsPage() {
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="px-6 py-8 max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold mb-1">Выплаты и доходы</h1>
+    <div className="max-w-5xl px-4 py-8 sm:px-6">
+      <p className="premium-eyebrow">Финансы практика</p>
+      <h1 className="premium-title mt-2 mb-1 text-3xl md:text-5xl">Выплаты и доходы</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Баланс, движение средств и предстоящие выплаты. Комиссия платформы · {commissionPercent}%
       </p>
 
       {/* Баланс + следующая выплата */}
       <div className="grid gap-3 sm:grid-cols-2 mb-6">
-        <Card className="border-primary/30 bg-primary/5">
+        <Card className="soft-card">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -146,7 +147,7 @@ export default async function PractitionerEarningsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/40 bg-card/50">
+        <Card className="soft-card">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/15 text-green-400">
@@ -174,7 +175,7 @@ export default async function PractitionerEarningsPage() {
           { label: "Уже выплачено", value: `${paidOut.toLocaleString("ru")} ₽`, sub: `${payouts.filter((p) => p.status === "DONE").length} выплат`, color: "text-muted-foreground" },
           { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: `${commissionPercent}% от оборота`, color: "text-muted-foreground" },
         ].map((s) => (
-          <Card key={s.label} className="border-border/40 bg-card/50">
+          <Card key={s.label} className="soft-card">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground mb-1 capitalize">{s.label}</p>
               <p className={`font-heading text-xl font-bold ${s.color}`}>{s.value}</p>
@@ -185,8 +186,8 @@ export default async function PractitionerEarningsPage() {
       </div>
 
       {/* Баннер о графике выплат */}
-      <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground mb-1">📅 График выплат</p>
+      <div className="soft-card mb-6 p-4 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground mb-1">График выплат</p>
         Выплаты начисляются дважды в месяц — <span className="text-foreground">1-го и 15-го числа</span>{" "}
         по московскому времени. На дату выплаты переводится весь доступный баланс за минусом комиссии платформы.
         Реквизиты можно настроить в разделе «Настройки».
@@ -196,11 +197,11 @@ export default async function PractitionerEarningsPage() {
       <div className="mb-6">
         <h2 className="font-semibold mb-3">Движение средств</h2>
         {movements.length === 0 ? (
-          <div className="rounded-xl border border-border/30 bg-card/20 p-8 text-center text-sm text-muted-foreground">
+          <div className="soft-card p-8 text-center text-sm text-muted-foreground">
             Нет движений. Доход появится после первой завершённой сессии.
           </div>
         ) : (
-          <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
+          <div className="soft-card overflow-hidden divide-y divide-border/10">
             {movements.map((m) => {
               const isEarning = m.kind === "earning";
               return (
@@ -237,7 +238,7 @@ export default async function PractitionerEarningsPage() {
       {Object.keys(byMonth).length > 0 && (
         <div className="mb-6">
           <h2 className="font-semibold mb-3">По месяцам</h2>
-          <div className="rounded-xl border border-border/30 overflow-hidden divide-y divide-border/10">
+          <div className="soft-card overflow-hidden divide-y divide-border/10">
             {Object.entries(byMonth).map(([month, data]) => (
               <div key={month} className="flex items-center gap-4 px-4 py-3">
                 <span className="text-sm flex-1 capitalize">{month}</span>

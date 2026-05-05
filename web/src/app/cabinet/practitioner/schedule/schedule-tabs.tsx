@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ScheduleSettings } from "@/components/schedule/schedule-settings";
 import { PriceRatesViewer } from "@/components/schedule/price-rates-viewer";
 
@@ -18,9 +18,9 @@ interface Props {
 }
 
 const TABS = [
-  { id: "calendar", label: "📅 Календарь" },
-  { id: "schedule", label: "⚙️ Рабочие часы" },
-  { id: "rates",    label: "💰 Тарифы" },
+  { id: "calendar", label: "Календарь" },
+  { id: "schedule", label: "Рабочие часы" },
+  { id: "rates",    label: "Тарифы" },
 ];
 
 export function SchedulePageTabs({ practitionerId, initialRules, initialRates }: Props) {
@@ -29,7 +29,7 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
   return (
     <div>
       {/* Табы */}
-      <div className="flex gap-1 mb-6 rounded-xl bg-card/30 border border-border/30 p-1 w-fit">
+      <div className="mb-6 flex w-fit gap-1 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-1">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
@@ -42,9 +42,9 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
 
       {tab === "calendar" && (
         <div>
-          <div className="mb-4 rounded-lg border border-border/30 bg-card/20 p-3 text-xs text-muted-foreground">
-            💡 Нажмите на ячейку чтобы заблокировать/разблокировать время.
-            🟢 Зелёное = свободно, 🔴 красное = заблокировано, 🔵 синее = забронировано.
+          <div className="soft-card mb-4 p-3 text-xs text-muted-foreground">
+            Нажмите на ячейку, чтобы заблокировать или разблокировать время.
+            Зеленое = свободно, красное = заблокировано, синее = забронировано.
           </div>
           <WeekCalendar practitionerId={practitionerId} />
         </div>

@@ -3,9 +3,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { WeekCalendar } from "@/components/schedule/week-calendar";
-import { ScheduleSettings } from "@/components/schedule/schedule-settings";
-import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 import { SchedulePageTabs } from "./schedule-tabs";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 
@@ -26,8 +23,9 @@ export default async function PractitionerSchedulePage() {
   ]);
 
   return (
-    <div className="px-6 py-8 max-w-5xl">
-      <h1 className="font-heading text-2xl font-bold mb-2">Расписание и тарифы</h1>
+    <div className="max-w-6xl px-4 py-8 sm:px-6">
+      <p className="premium-eyebrow">Календарь практика</p>
+      <h1 className="premium-title mt-2 mb-2 text-3xl md:text-5xl">Расписание и тарифы</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Настройте рабочие часы и цены. Клиенты смогут записаться только в доступное время.
       </p>

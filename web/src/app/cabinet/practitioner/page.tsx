@@ -66,7 +66,7 @@ export default async function PractitionerCabinetPage() {
   });
 
   return (
-    <div className="premium-page px-6 py-8 max-w-6xl">
+    <div className="max-w-6xl px-4 py-8 sm:px-6">
       {/* Шапка */}
       <div className="mb-6">
         <p className="premium-eyebrow">Кабинет практика</p>
@@ -85,7 +85,7 @@ export default async function PractitionerCabinetPage() {
           { label: "На балансе",    value: "0 ₽",                                         sub: "выплата в разработке",                  icon: "03", href: "/cabinet/practitioner/earnings" },
           { label: "Цена сессии",   value: `${practitioner.pricePerSession.toLocaleString("ru")} ₽`, sub: "изменяется по заявке", icon: "04", href: null },
         ].map((s) => (
-          <Card key={s.label} className="border-border/40 bg-card/50">
+          <Card key={s.label} className="soft-card">
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <p className="text-sm text-muted-foreground">{s.label}</p>
@@ -193,7 +193,7 @@ export default async function PractitionerCabinetPage() {
           ) : (
             <div className="space-y-2">
               {practitioner.slots.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/30 bg-card/20 px-4 py-2.5">
+                <div key={s.id} className="soft-map-tile flex items-center justify-between px-4 py-2.5">
                   <p className="text-sm">
                     {new Date(s.startAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })}
                   </p>

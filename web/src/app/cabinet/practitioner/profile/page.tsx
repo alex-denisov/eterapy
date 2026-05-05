@@ -19,8 +19,9 @@ export default async function PractitionerProfilePage() {
   if (!practitioner) redirect(appUrl("/cabinet"));
 
   return (
-    <div className="px-6 py-8 max-w-2xl">
-      <h1 className="font-heading text-2xl font-bold mb-2">Мой профиль</h1>
+    <div className="max-w-3xl px-4 py-8 sm:px-6">
+      <p className="premium-eyebrow">Профиль практика</p>
+      <h1 className="premium-title mt-2 mb-2 text-3xl md:text-5xl">Мой профиль</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Информация видна клиентам в каталоге и на вашей странице.
       </p>

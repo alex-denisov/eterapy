@@ -45,7 +45,7 @@ export function PractitionerProfileEditor({
   const [experience, setExperience] = useState(initialData.experience);
   const [specialties, setSpecialties] = useState<string[]>(initialData.specialties);
   const [tagsStr, setTagsStr] = useState(initialData.tags.join(", "));
-  const [languages, setLanguages] = useState<string[]>(initialData.languages.length ? initialData.languages : ["Русский"]);
+  const [languages] = useState<string[]>(initialData.languages.length ? initialData.languages : ["Русский"]);
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -94,7 +94,7 @@ export function PractitionerProfileEditor({
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {/* Аватар */}
-      <Card className="border-border/40 bg-card/50">
+      <Card className="soft-card">
         <CardContent className="p-5">
           <h2 className="font-semibold mb-4">Фото профиля</h2>
           <div className="flex items-center gap-4">
@@ -128,7 +128,7 @@ export function PractitionerProfileEditor({
       </Card>
 
       {/* Основные данные */}
-      <Card className="border-border/40 bg-card/50">
+      <Card className="soft-card">
         <CardContent className="p-5 space-y-4">
           <h2 className="font-semibold">Основная информация</h2>
           <div>
@@ -155,7 +155,7 @@ export function PractitionerProfileEditor({
       </Card>
 
       {/* Специализации */}
-      <Card className="border-border/40 bg-card/50">
+      <Card className="soft-card">
         <CardContent className="p-5">
           <h2 className="font-semibold mb-3">Специализации</h2>
           <div className="flex flex-wrap gap-2">
@@ -174,7 +174,7 @@ export function PractitionerProfileEditor({
       </Card>
 
       {/* Теги */}
-      <Card className="border-border/40 bg-card/50">
+      <Card className="soft-card">
         <CardContent className="p-5">
           <h2 className="font-semibold mb-3">Теги</h2>
           <Input value={tagsStr} onChange={e => setTagsStr(e.target.value)}
@@ -187,7 +187,7 @@ export function PractitionerProfileEditor({
       </Card>
 
       {/* Ссылка на публичный профиль */}
-      <div className="flex items-center gap-3 rounded-xl border border-border/20 bg-card/20 px-4 py-3">
+      <div className="soft-map-tile flex items-center gap-3 px-4 py-3">
         <span className="text-2xl">🔗</span>
         <div className="flex-1">
           <p className="text-sm font-medium">Публичный профиль</p>
