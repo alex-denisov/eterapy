@@ -213,7 +213,7 @@ export function Header() {
   const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const softPublicHeader = (pathname === "/" || pathname.startsWith("/all-modalities/checkin")) && !isAuthenticated;
+  const softPublicHeader = (pathname === "/" || pathname.startsWith("/all-modalities/checkin") || pathname.startsWith("/products")) && !isAuthenticated;
 
   return (
     <header
