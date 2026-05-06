@@ -7,12 +7,12 @@ import { appUrl } from "@/lib/subdomain";
 
 const TOOLS_NAV = [
   { href: appUrl("/cabinet/modalities"), icon: "✦", label: "Все направления" },
-  { href: appUrl("/cabinet/modalities/tarot"), icon: "🃏", label: "Расклад Таро" },
   { href: appUrl("/cabinet/modalities/checkin"), icon: "💬", label: "Рефлексия" },
-  { href: appUrl("/cabinet/modalities/horoscope"), icon: "🌙", label: "Гороскоп" },
-  { href: appUrl("/cabinet/modalities/numerology"), icon: "🔢", label: "Нумерология" },
-  { href: appUrl("/cabinet/modalities/natal"), icon: "⭐", label: "Натальная карта" },
-  { href: appUrl("/cabinet/modalities/guide"), icon: "📖", label: "Личный гид" },
+  { href: appUrl("/cabinet/modalities/checkin?source=legacy-tarot-sidebar"), icon: "🃏", label: "Таро как тема" },
+  { href: appUrl("/cabinet/modalities/checkin?source=legacy-horoscope-sidebar"), icon: "🌙", label: "Гороскоп как тема" },
+  { href: appUrl("/cabinet/modalities/checkin?source=legacy-numerology-sidebar"), icon: "🔢", label: "Нумерология как тема" },
+  { href: appUrl("/cabinet/modalities/checkin?source=legacy-natal-sidebar"), icon: "⭐", label: "Натальная карта как тема" },
+  { href: appUrl("/cabinet/modalities/checkin?source=legacy-guide-sidebar"), icon: "📖", label: "Личный гид как тема" },
 ];
 
 const CLIENT_LINKS = [

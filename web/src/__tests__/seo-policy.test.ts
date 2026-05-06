@@ -35,6 +35,8 @@ describe("v5 SEO routing policy", () => {
     expect(response.headers.get("content-type")).toContain("application/xml");
     expect(body).toContain("<loc>https://eterapy.com/</loc>");
     expect(body).toContain("<loc>https://eterapy.com/all-modalities/checkin</loc>");
+    expect(body).not.toContain("<loc>https://eterapy.com/all-modalities/tarot</loc>");
+    expect(body).not.toContain("<loc>https://eterapy.com/all-modalities/horoscope</loc>");
     expect(body).not.toContain("app.eterapy.com");
     expect(body).not.toContain("admin.eterapy.com");
     expect(body).not.toContain("/cabinet");

@@ -1,22 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
-// Tool pages rendered within the cabinet layout so the sidebar stays intact.
-// These are client components — importing them here is valid in Next.js App Router.
-import TarotPage from "@/app/all-modalities/tarot/page";
 import CheckinPage from "@/app/all-modalities/checkin/page";
-import HoroscopePage from "@/app/all-modalities/horoscope/page";
-import NumerologyPage from "@/app/all-modalities/numerology/page";
-import NatalPage from "@/app/all-modalities/natal/page";
-import GuidePage from "@/app/all-modalities/guide/page";
 
-const SLUG_MAP: Record<string, React.ComponentType> = {
-  tarot: TarotPage,
-  checkin: CheckinPage,
-  horoscope: HoroscopePage,
-  numerology: NumerologyPage,
-  natal: NatalPage,
-  guide: GuidePage,
-};
+const LEGACY_SLUGS = ["tarot", "horoscope", "numerology", "natal", "guide"] as const;
+const ALL_SLUGS = ["checkin", ...LEGACY_SLUGS] as const;
 
 export default async function CabinetModalityPage({
   params,
@@ -24,11 +11,13 @@ export default async function CabinetModalityPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const Page = SLUG_MAP[slug];
-  if (!Page) notFound();
-  return <Page />;
+  if (slug === "checkin") return <CheckinPage />;
+  if ((LEGACY_SLUGS as readonly string[]).includes(slug)) {
+    redirect(`/cabinet/modalities/checkin?source=legacy-${slug}-cabinet`);
+  }
+  notFound();
 }
 
 export function generateStaticParams() {
-  return Object.keys(SLUG_MAP).map((slug) => ({ slug }));
+  return ALL_SLUGS.map((slug) => ({ slug }));
 }

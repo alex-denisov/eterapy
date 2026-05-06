@@ -2,11 +2,11 @@ const toolSlugMap: Record<string, string> = {
   checkin: "checkin",
   reflection: "checkin",
   reflexion: "checkin",
-  tarot: "tarot",
-  natal: "natal",
-  numerology: "numerology",
-  horoscope: "horoscope",
-  guide: "guide",
+  tarot: "checkin?source=legacy-tarot",
+  natal: "checkin?source=legacy-natal",
+  numerology: "checkin?source=legacy-numerology",
+  horoscope: "checkin?source=legacy-horoscope",
+  guide: "checkin?source=legacy-guide",
 };
 
 const directLegacyRedirects: Record<string, string> = {

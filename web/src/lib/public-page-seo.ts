@@ -97,31 +97,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Ответьте на несколько бережных вопросов и получите структурированный первичный ответ по вашей ситуации.",
     schemaKind: "Product",
   },
-  "/all-modalities/guide": {
-    title: "Личный гид — ETerapy",
-    description: "Персональный текст по теме вашего запроса: контекст, возможные смыслы и следующий шаг без давления.",
-    schemaKind: "Product",
-  },
-  "/all-modalities/tarot": {
-    title: "Расклад Таро онлайн — ETerapy",
-    description: "Сформулируйте вопрос и получите бережную интерпретацию расклада Таро с понятным итогом.",
-    schemaKind: "Product",
-  },
-  "/all-modalities/natal": {
-    title: "Натальная карта онлайн — ETerapy",
-    description: "Получите интерпретацию натальной карты по дате, времени и месту рождения в понятном формате.",
-    schemaKind: "Product",
-  },
-  "/all-modalities/numerology": {
-    title: "Нумерология онлайн — ETerapy",
-    description: "Рассчитайте число жизненного пути и получите краткую интерпретацию даты рождения и имени.",
-    schemaKind: "Product",
-  },
-  "/all-modalities/horoscope": {
-    title: "Персональный гороскоп — ETerapy",
-    description: "Ежедневный, недельный или месячный прогноз с мягкой интерпретацией и практичным фокусом.",
-    schemaKind: "Product",
-  },
   "/practitioners": {
     title: "Специалист как следующий шаг — ETerapy",
     description: "Проверенные практики ETerapy доступны как следующий шаг после вопроса, контекста и понятной рекомендации.",

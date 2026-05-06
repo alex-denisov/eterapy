@@ -26,19 +26,19 @@ const entryPoints = [
 
 const legacyTools = [
   {
-    href: "/all-modalities/tarot",
+    href: "/all-modalities/checkin?source=legacy-tarot-card",
     title: "Таро",
-    description: "Сохранено как вторичный тематический вход до полной замены диалогом.",
+    description: "Тематический вход теперь ведет в единый диалог, без отдельной платной развилки.",
   },
   {
-    href: "/all-modalities/horoscope",
+    href: "/all-modalities/checkin?source=legacy-horoscope-card",
     title: "Гороскоп",
-    description: "Будет переосмыслен как формат ежедневной карточки и мягких напоминаний.",
+    description: "Переосмысляется как ежедневная карточка и мягкое напоминание внутри v5.",
   },
   {
-    href: "/all-modalities/natal",
+    href: "/all-modalities/checkin?source=legacy-natal-card",
     title: "Натальная карта",
-    description: "Остается как тематический слой, но не заменяет question-first диалог.",
+    description: "Остается темой для разговора, но не отдельным платным инструментом.",
   },
 ];
 
