@@ -19,27 +19,31 @@ describe("v5 pricing page", () => {
 
   it("publishes v5 price ranges and subscription mechanics", () => {
     const page = source("app/pricing/page.tsx");
+    const plans = source("app/pricing/pricing-plans.tsx");
+    const combined = page + "\n" + plans;
 
     expect(page).toContain('data-testid="pricing-page"');
-    expect(page).toContain("Первичный");
-    expect(page).toContain("4 ракурса ответа");
-    expect(page).toContain("299 ₽");
-    expect(page).toContain("490-990 ₽");
-    expect(page).toContain("299-1490 ₽");
-    expect(page).toContain("590-990 ₽");
-    expect(page).toContain("790-1490 ₽");
-    expect(page).toContain("399-599 ₽/мес");
-    expect(page).toContain("999-1490 ₽/мес");
-    expect(page).toContain("990-2990 ₽/мес");
-    expect(page).toContain("Углублённые отчёты открываются");
+    expect(combined).toContain("Первичный");
+    expect(combined).toContain("4 ракурса ответа");
+    expect(combined).toContain("299 ₽");
+    expect(combined).toContain("490-990 ₽");
+    expect(combined).toContain("299-1490 ₽");
+    expect(combined).toContain("590-990 ₽");
+    expect(combined).toContain("790-1490 ₽");
+    expect(combined).toContain("399-599 ₽/мес");
+    expect(combined).toContain("999-1490 ₽/мес");
+    expect(combined).toContain("990-2990 ₽/мес");
+    expect(combined).toContain("Углублённые отчёты открываются");
   });
 
   it("keeps pricing question-first, with practitioner as a later step", () => {
     const page = source("app/pricing/page.tsx");
+    const plans = source("app/pricing/pricing-plans.tsx");
+    const combined = page + "\n" + plans;
 
-    expect(page).toContain('href="/all-modalities/checkin"');
-    expect(page).toContain('data-testid="pricing-dialogue-cta"');
-    expect(page).toContain("Специалист появляется в рекомендации только после того, как вы изложили суть вопроса");
-    expect(page).not.toContain('href="/practitioners"');
+    expect(combined).toContain('href="/all-modalities/checkin"');
+    expect(combined).toContain('data-testid="pricing-dialogue-cta"');
+    expect(combined).toContain("Специалист появляется в рекомендации только после того, как вы изложили суть вопроса");
+    expect(combined).not.toContain('href="/practitioners"');
   });
 });

@@ -9,8 +9,7 @@ const plans = [
     id: "free",
     name: "Базовый",
     tagline: "Чтобы попробовать",
-    m: 0,
-    y: 0,
+    price: "0 ₽",
     perks: [
       "Первый разбор бесплатно",
       "Доступ к библиотеке вопросов",
@@ -27,8 +26,7 @@ const plans = [
     id: "plus",
     name: "Plus",
     tagline: "Для регулярной практики ясности",
-    m: 490,
-    y: 4900,
+    price: "399-599 ₽/мес",
     perks: [
       "Безлимитные разборы и уточнения",
       "4 ракурса · разбор переписки · совместимость",
@@ -46,8 +44,7 @@ const plans = [
     id: "premium",
     name: "Premium",
     tagline: "С поддержкой проверенного специалиста",
-    m: 1290,
-    y: 12900,
+    price: "999-1490 ₽/мес",
     perks: [
       "Всё из Plus",
       "1 встреча с психологом или коучем в месяц",
@@ -63,13 +60,15 @@ const plans = [
   },
 ];
 
+const practitionerPrice = "990-2990 ₽/мес";
+
 const oneOff = [
   { t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно" },
   { t: "4 ракурса ответа", d: "Разум · Чувства · Символ · Действие", price: "299 ₽" },
-  { t: "Глубокий отчёт", d: "Документ-разбор ситуации", price: "490–990 ₽" },
-  { t: "Разбор переписки", d: "До 50 / 200 / 500 сообщений", price: "299–1 490 ₽" },
-  { t: "Совместимость", d: "Парный отчёт по приглашению", price: "590–990 ₽" },
-  { t: "7 дней к ясности", d: "Один разбор в день, 5–10 мин", price: "790–1 490 ₽" },
+  { t: "Глубокий отчёт", d: "Документ-разбор ситуации", price: "490-990 ₽" },
+  { t: "Разбор переписки", d: "До 50 / 200 / 500 сообщений", price: "299-1490 ₽" },
+  { t: "Совместимость", d: "Парный отчёт по приглашению", price: "590-990 ₽" },
+  { t: "7 дней к ясности", d: "Один разбор в день, 5–10 мин", price: "790-1490 ₽" },
   { t: "Встреча с психологом", d: "50 минут онлайн", price: "от 1 900 ₽" },
   { t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 2 500 ₽" },
   { t: "Парная встреча", d: "Семейный психолог", price: "от 5 000 ₽" },
@@ -111,11 +110,7 @@ export function PricingPlans() {
       {/* Plans */}
       <section className="soft-shell soft-public-section">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {plans.map((plan) => {
-            const price = period === "month" ? plan.m : plan.y;
-            const label = period === "month" ? "/ мес" : "/ год";
-
-            return (
+          {plans.map((plan) => (
               <div
                 key={plan.id}
                 className="soft-card"
@@ -172,26 +167,14 @@ export function PricingPlans() {
                 <p
                   className="font-heading"
                   style={{
-                    fontSize: "2.75rem",
+                    fontSize: "2.25rem",
                     fontWeight: 600,
                     marginTop: "1.25rem",
                     lineHeight: 1,
                     color: plan.dark ? "#f4d9c1" : "var(--soft-bordeaux)",
                   }}
                 >
-                  {price === 0 ? "0 ₽" : price.toLocaleString("ru") + " ₽"}
-                  {price > 0 && (
-                    <span
-                      style={{
-                        fontSize: "1rem",
-                        fontWeight: 400,
-                        opacity: 0.65,
-                        marginLeft: "0.5rem",
-                      }}
-                    >
-                      {label}
-                    </span>
-                  )}
+                  {plan.price}
                 </p>
 
                 <ul className="mt-6 space-y-2.5">
@@ -224,8 +207,7 @@ export function PricingPlans() {
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>
               </div>
-            );
-          })}
+          ))}
         </div>
 
         <p className="mt-6 text-center text-xs" style={{ color: "var(--soft-ink-faint)", maxWidth: "38rem", marginInline: "auto" }}>
@@ -303,6 +285,13 @@ export function PricingPlans() {
                 Подключайтесь к платформе. Мы берём 15–25% комиссии за привязанные через ETerapy сессии.
                 Никаких ежемесячных платежей за листинг. Деньги поступают на счёт еженедельно.
               </p>
+              <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-faint)" }}>
+                Practitioner Pro: {practitionerPrice} — AI-саммари, контекст по согласию, аналитика.
+              </p>
+              <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+                Специалист появляется в рекомендации только после того, как вы изложили суть вопроса,
+                а не как первый экран.
+              </p>
             </div>
             <div className="flex flex-col gap-3">
               {["Свободный график", "Безопасные платежи", "Инструменты совместных сессий"].map((perk) => (
@@ -338,12 +327,16 @@ export function PricingPlans() {
           href="/all-modalities/checkin"
           className="soft-button soft-button-primary mt-7"
           data-analytics-event="dialogue_cta_clicked"
-          data-analytics-target="pricing-bottom"
-          data-testid="pricing-bottom-cta"
+          data-analytics-target="/all-modalities/checkin"
+          data-testid="pricing-dialogue-cta"
         >
           Задать вопрос
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
+        <p className="mt-6 text-xs" style={{ color: "var(--soft-ink-faint)", maxWidth: "36rem", marginInline: "auto" }}>
+          Углублённые отчёты открываются только после вашего явного согласия на покупку.
+          Цена сессии всегда видна до оплаты — никаких сюрпризов при бронировании.
+        </p>
       </section>
     </>
   );
