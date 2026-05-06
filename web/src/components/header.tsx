@@ -213,7 +213,7 @@ export function Header() {
   const isSessionArea = pathname.startsWith("/session");
   const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help");
   const showPublicNav = !isAdminArea && !isSessionArea;
-  const nav = showPublicNav ? GUEST_NAV : [];
+  const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   const softPublicHeader = !isAdminArea;
@@ -237,10 +237,11 @@ export function Header() {
           <VectorBrandLogo height={38} theme={softPublicHeader ? "light" : "dark"} />
         </Link>
 
-        {/* Guest navigation — NEVER shown to authenticated users */}
+        {/* Public navigation stays on eterapy.com even inside app.eterapy.com cabinets. */}
         <nav className="hidden items-center gap-1 md:flex">
           {nav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const itemPathname = new URL(item.href, "https://eterapy.com").pathname;
+            const active = pathname === itemPathname || pathname.startsWith(itemPathname + "/");
             return (
               <Link key={item.href} href={item.href}
                 data-soft-nav="link"
@@ -332,7 +333,7 @@ export function Header() {
               <Link key={item.href} href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn("rounded-xl px-3 py-2.5 text-sm transition-colors",
-                  pathname === item.href ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  pathname === new URL(item.href, "https://eterapy.com").pathname ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                 )}>
                 {item.label}
               </Link>
