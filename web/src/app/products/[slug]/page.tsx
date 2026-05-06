@@ -134,7 +134,7 @@ export default async function ProductPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ dialogueId?: string }>;
+  searchParams?: Promise<{ dialogueId?: string; invite?: string }>;
 }) {
   const { slug } = await params;
   const search = await searchParams;
@@ -215,6 +215,12 @@ export default async function ProductPage({
       {product.slug === "chat-analysis" && (
         <section className="soft-shell">
           <ChatAnalysisActions />
+        </section>
+      )}
+
+      {product.slug === "compatibility" && (
+        <section className="soft-shell">
+          <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} />
         </section>
       )}
 

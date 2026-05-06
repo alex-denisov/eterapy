@@ -67,6 +67,8 @@ model User {
   entitlements        ProductEntitlement[]
   subscriptions       UserSubscription[]
   creditLedgerEntries CreditLedgerEntry[]
+  compatibilitiesCreated Compatibility[] @relation("CompatibilityCreator")
+  compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
 
   @@map("users")
 }
@@ -691,6 +693,8 @@ model ProductResult {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  compatibility Compatibility?
+
   @@index([userId, productKey, updatedAt])
   @@index([dialogueId, productKey])
   @@index([status, updatedAt])
@@ -1020,4 +1024,28 @@ model CreditLedgerEntry {
   @@index([userId, createdAt])
   @@index([transactionId])
   @@map("credit_ledger_entries")
+}
+
+// ─── Compatibility ────────────────────────────────────────────────────────────
+
+model Compatibility {
+  id             String    @id @default(cuid())
+  creatorId      String    @map("creator_id")
+  creator        User      @relation("CompatibilityCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  partnerId      String?   @map("partner_id")
+  partner        User?     @relation("CompatibilityPartner", fields: [partnerId], references: [id], onDelete: SetNull)
+  type           String    // romantic | friendship | business | family
+  status         String    @default("CREATED") // CREATED | INVITED | PARTNER_COMPLETED | READY | DELETED
+  inviteToken    String    @unique @default(cuid()) @map("invite_token")
+  creatorConsent Boolean   @default(false) @map("creator_consent")
+  partnerConsent Boolean   @default(false) @map("partner_consent")
+  reportId       String?   @unique @map("report_id")
+  report         ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([creatorId])
+  @@index([partnerId])
+  @@index([inviteToken])
+  @@map("compatibilities")
 }

@@ -13,7 +13,7 @@ export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
     >
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <BrandLogo height={34} theme={soft ? "light" : "dark"} compact />
+          <BrandLogo height={34} theme={soft ? "light" : "dark"} />
 
           <div className="flex flex-wrap gap-x-10 gap-y-5 text-sm">
             <div>
