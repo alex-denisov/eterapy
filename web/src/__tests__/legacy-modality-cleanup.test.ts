@@ -50,12 +50,20 @@ describe("B084 legacy modality unlock cleanup", () => {
   it("keeps the cabinet modalities entrypoint on the v5 dialogue path", () => {
     const index = source("src/app/cabinet/modalities/page.tsx");
     const slugPage = source("src/app/cabinet/modalities/[slug]/page.tsx");
-    const layout = source("src/app/all-modalities/tools-layout-client.tsx");
 
     expect(slugPage).toContain('redirect(`/cabinet/modalities/checkin?source=legacy-${slug}-cabinet`)');
-    expect(`${index}\n${layout}`).not.toContain("/cabinet/modalities/tarot");
-    expect(`${index}\n${layout}`).not.toContain("/cabinet/modalities/horoscope");
-    expect(`${index}\n${layout}`).not.toContain("/cabinet/modalities/natal");
-    expect(`${index}\n${layout}`).toContain("/cabinet/modalities/checkin");
+    expect(index).not.toContain("/cabinet/modalities/tarot");
+    expect(index).not.toContain("/cabinet/modalities/horoscope");
+    expect(index).not.toContain("/cabinet/modalities/natal");
+    expect(index).toContain('appUrl("/cabinet/modalities/checkin")');
+    expect(index).toContain('mainUrl("/products/deep-report")');
+    expect(index).not.toContain("premium-card");
+    expect(index).not.toContain("premium-chip");
+  });
+
+  it("removes obsolete prototype data modules for old standalone tools", () => {
+    expect(fs.existsSync(path.join(root, "src/data/tarot-cards.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "src/data/numerology.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "src/app/all-modalities/tools-layout-client.tsx"))).toBe(false);
   });
 });

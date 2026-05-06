@@ -1,44 +1,64 @@
 import Link from "next/link";
 import { PageContainer } from "@/components/ui/page-container";
 import {
-  Sparkles,
   MessageCircle,
-  Moon,
-  Hash,
-  Star,
+  FileText,
+  MessagesSquare,
+  HeartHandshake,
+  CalendarDays,
   BookOpen,
+  Map,
 } from "lucide-react";
+import { appUrl, mainUrl } from "@/lib/subdomain";
+import { cn } from "@/lib/utils";
 
 const MODALITIES = [
-  { href: "/cabinet/modalities/checkin", icon: MessageCircle, label: "Диалог ясности", desc: "Короткий вопрос и бережное уточнение контекста" },
-  { href: "/cabinet/modalities/checkin?source=legacy-tarot-cabinet-card", icon: Sparkles, label: "Таро как тема", desc: "Начните с вопроса, а не с отдельной платной развилки" },
-  { href: "/cabinet/modalities/checkin?source=legacy-horoscope-cabinet-card", icon: Moon, label: "Гороскоп как тема", desc: "Мягкий вход в диалог и ежедневные карточки v5" },
-  { href: "/cabinet/modalities/checkin?source=legacy-numerology-cabinet-card", icon: Hash, label: "Нумерология как тема", desc: "Контекст вопроса важнее прежнего отдельного расчета" },
-  { href: "/cabinet/modalities/checkin?source=legacy-natal-cabinet-card", icon: Star, label: "Натальная карта как тема", desc: "Используйте дату и место рождения как часть вопроса" },
-  { href: "/cabinet/modalities/checkin?source=legacy-guide-cabinet-card", icon: BookOpen, label: "Личный гид как тема", desc: "Персональный текст теперь рождается из единого диалога" },
+  { href: appUrl("/cabinet/modalities/checkin"), icon: MessageCircle, label: "Диалог ясности", desc: "Короткий вопрос, бережные уточнения и первичный ответ без оплаты", tone: "warm" },
+  { href: mainUrl("/products/deep-report"), icon: FileText, label: "Глубокий отчет", desc: "Структурированный разбор с рекомендациями, когда первичного ответа мало", tone: "paper" },
+  { href: mainUrl("/products/perspectives"), icon: BookOpen, label: "4 ракурса ответа", desc: "Несколько точек зрения на один вопрос без обещаний и давления", tone: "paper" },
+  { href: mainUrl("/products/chat-analysis"), icon: MessagesSquare, label: "Разбор переписки", desc: "Приватный анализ текста с возможностью удалить источник", tone: "paper" },
+  { href: mainUrl("/products/compatibility"), icon: HeartHandshake, label: "Совместимость", desc: "Парный сценарий только после согласия второго участника", tone: "paper" },
+  { href: mainUrl("/products/seven-days"), icon: CalendarDays, label: "7 дней к ясности", desc: "Мягкий маршрут с ежедневными шагами и финальным отчетом", tone: "paper" },
 ];
 
 export default function ClientModalitiesPage() {
   return (
     <PageContainer>
-      <div className="mb-7">
-        <div className="premium-eyebrow">Сценарии</div>
-        <h1 className="premium-title mt-3 text-3xl md:text-4xl">Сценарии ясности</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Старые направления больше не открывают отдельные платные инструменты. Выберите тему,
-          а ETerapy начнет с единого диалога и сохранит правильный контекст.
-        </p>
-      </div>
+      <section className="soft-card soft-hero-side-card p-6 md:p-8">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div>
+            <div className="soft-eyebrow">Сценарии</div>
+            <h1 className="soft-h1 mt-3">Сценарии ясности</h1>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[var(--soft-ink-soft)]">
+              Все сценарии начинаются с контекста вашего вопроса. Старые отдельные инструменты
+              заменены единым v5-потоком: сначала бесплатное прояснение, затем углубление или
+              специалист только если это действительно уместно.
+            </p>
+          </div>
+          <div className="rounded-[28px] border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.48)] p-5">
+            <div className="flex items-center gap-3">
+              <span className="flex size-12 items-center justify-center rounded-full bg-[rgba(92,42,44,0.08)] text-[var(--soft-bordeaux)]">
+                <Map className="size-5" />
+              </span>
+              <div>
+                <p className="font-semibold text-[var(--soft-ink)]">Один маршрут вместо каталога</p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                  Вы выбираете не “инструмент”, а следующий бережный шаг.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* Горизонтальные табы-подуровни */}
-      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="mt-7 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {MODALITIES.map((t) => {
           const Icon = t.icon;
           return (
             <Link
               key={t.href}
               href={t.href}
-              className="premium-chip shrink-0 hover:border-brand-soft-gold/35 hover:text-brand-soft-gold"
+              className="soft-chip shrink-0"
             >
               <Icon className="h-4 w-4" />
               {t.label}
@@ -47,16 +67,21 @@ export default function ClientModalitiesPage() {
         })}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {MODALITIES.map((t) => {
           const Icon = t.icon;
           return (
             <Link key={t.href} href={t.href}
-              className="premium-card flex items-start gap-4 p-5 transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-brand-soft-gold/35 hover:bg-card/50">
-              <Icon className="h-8 w-8 shrink-0 mt-0.5 text-primary" />
+              className={cn(
+                "soft-card flex items-start gap-4 p-5 transition-[border-color,transform] hover:-translate-y-0.5",
+                t.tone === "warm" ? "border-[rgba(92,42,44,0.2)] bg-[rgba(255,255,255,0.64)]" : "bg-[rgba(255,255,255,0.5)]",
+              )}>
+              <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-full bg-[rgba(214,117,88,0.1)] text-[var(--soft-terracotta-dark)]">
+                <Icon className="h-5 w-5" />
+              </span>
               <div>
-                <p className="font-medium">{t.label}</p>
-                <p className="mt-1 text-xs text-muted-foreground/70 leading-relaxed">{t.desc}</p>
+                <p className="font-semibold text-[var(--soft-ink)]">{t.label}</p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{t.desc}</p>
               </div>
             </Link>
           );
