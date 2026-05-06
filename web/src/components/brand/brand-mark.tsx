@@ -122,20 +122,56 @@ export function HaloMark({
  * looks off due to its dark-background drop shadows.
  */
 export function SoftHaloMark({ size = 38 }: { size?: number }) {
+  const rawId = useId().replace(/:/g, "");
+  const coreId = `softHaloCore-${rawId}`;
+  const goldId = `softHaloGold-${rawId}`;
+  const lilacId = `softHaloLilac-${rawId}`;
   return (
     <span
-      className="inline-block shrink-0 rounded-full"
+      className="relative inline-flex shrink-0 items-center justify-center"
       aria-hidden="true"
       style={{
         width: size,
         height: size,
-        background: [
-          "radial-gradient(circle at 35% 35%, #fff, transparent 38%)",
-          "conic-gradient(from 30deg, var(--soft-halo-1,#f4c9a8), var(--soft-halo-2,#e8b8d1), var(--soft-halo-3,#d9c9e8), var(--soft-halo-1,#f4c9a8))",
-        ].join(","),
-        boxShadow: "0 0 0 1px rgba(60,30,20,0.07), 0 4px 14px -4px rgba(214,117,88,0.38)",
       }}
-    />
+    >
+      <svg viewBox="0 0 120 120" className="h-full w-full overflow-visible" fill="none">
+        <defs>
+          <radialGradient id={coreId} cx="50%" cy="52%" r="42%">
+            <stop offset="0%" stopColor="var(--brand-glow-center, #ffd79a)" stopOpacity="0.95" />
+            <stop offset="38%" stopColor="var(--soft-halo-1, #f4c9a8)" stopOpacity="0.42" />
+            <stop offset="78%" stopColor="var(--soft-halo-3, #d9c9e8)" stopOpacity="0.1" />
+            <stop offset="100%" stopColor="transparent" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id={goldId} x1="21" x2="72" y1="99" y2="16" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--soft-terracotta-dark, #b85b40)" />
+            <stop offset="45%" stopColor="var(--brand-soft-gold, #f2c37d)" />
+            <stop offset="100%" stopColor="#ffe0a5" />
+          </linearGradient>
+          <linearGradient id={lilacId} x1="66" x2="102" y1="17" y2="96" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--soft-lilac-soft, #dbd3ea)" />
+            <stop offset="50%" stopColor="var(--soft-lilac, #a89bc9)" />
+            <stop offset="100%" stopColor="var(--brand-lavender, #8e89d6)" />
+          </linearGradient>
+        </defs>
+        <circle cx="60" cy="62" r="30" fill={`url(#${coreId})`} />
+        <circle cx="60" cy="62" r="15" fill="var(--brand-glow-center, #ffd79a)" opacity="0.3" />
+        <path
+          d="M59.5 18.5C37.2 23.9 22.2 43 22.2 64.9c0 15.8 7.8 29.5 20.1 37.6"
+          stroke={`url(#${goldId})`}
+          strokeWidth="17"
+          strokeLinecap="round"
+        />
+        <path
+          d="M74.2 19.1c14.9 5.3 25.6 19.8 25.6 37.1 0 20-12 36.9-28.5 44.2"
+          stroke={`url(#${lilacId})`}
+          strokeWidth="17"
+          strokeLinecap="round"
+        />
+        <path d="M42.4 29.5c-7.9 6.1-13.1 15.2-14.8 25.1" stroke="#fff7df" strokeWidth="3" strokeLinecap="round" opacity="0.4" />
+        <path d="M81.7 28.2c6 4.2 10.2 10.2 12.1 17" stroke="#f6f0ff" strokeWidth="3" strokeLinecap="round" opacity="0.4" />
+      </svg>
+    </span>
   );
 }
 

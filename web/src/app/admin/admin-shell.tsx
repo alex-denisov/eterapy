@@ -134,7 +134,7 @@ export function AdminShell({
         style={{ top: "var(--header-height)" }}
       >
         <div className="mb-5 border-b border-[var(--soft-paper-edge)] px-2 pb-4">
-          <BrandSignature compact />
+          <BrandSignature compact theme="light" />
         </div>
         <div className="mb-5 px-2" data-testid="admin-shell-user">
           <div className="flex items-center gap-3">

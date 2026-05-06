@@ -236,9 +236,25 @@
 
   .soft-header {
     border-bottom-color: rgba(232, 220, 198, 0.72) !important;
-    background: rgba(251, 246, 238, 0.82) !important;
+    background: color-mix(in srgb, var(--soft-paper) 96%, white) !important;
     box-shadow: 0 10px 40px rgba(60, 30, 20, 0.06) !important;
     color: var(--soft-ink);
+  }
+
+  .soft-header :where(.text-muted-foreground, [class*="text-muted-foreground"]) {
+    color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-header :where(.text-foreground, [class*="text-foreground"]) {
+    color: var(--soft-ink) !important;
+  }
+
+  .soft-header :where(.bg-card\/30, [class*="bg-card/30"]) {
+    background: color-mix(in srgb, var(--soft-paper-card) 86%, transparent) !important;
+  }
+
+  .soft-header :where(.border-border\/40, [class*="border-border/40"]) {
+    border-color: var(--soft-paper-edge) !important;
   }
 
   .soft-header [data-soft-nav="link"] {
@@ -268,6 +284,38 @@
 
   .soft-footer .text-muted-foreground {
     color: var(--soft-ink-faint) !important;
+  }
+
+  .soft-mobile-menu {
+    border-top-color: var(--soft-paper-edge) !important;
+    background: rgba(251, 246, 238, 0.96) !important;
+    color: var(--soft-ink) !important;
+  }
+
+  .soft-mobile-menu :where(.text-muted-foreground, [class*="text-muted-foreground"]) {
+    color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-social-button {
+    border: 1px solid var(--soft-paper-edge);
+    background: var(--soft-paper-card);
+    color: var(--soft-ink-soft);
+  }
+
+  .soft-social-button:hover {
+    border-color: var(--soft-terracotta);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-email-banner {
+    border-bottom: 1px solid rgba(214, 117, 88, 0.24);
+    background: linear-gradient(90deg, rgba(244, 217, 193, 0.82), rgba(219, 211, 234, 0.48));
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-email-banner strong,
+  .soft-email-banner button {
+    color: var(--soft-terracotta-dark);
   }
 
   .soft-tools-return {
@@ -785,6 +833,15 @@
     padding: 1.25rem;
   }
 
+  .soft-library-card {
+    display: flex;
+    min-height: 20rem;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.5rem;
+    text-decoration: none;
+  }
+
   .soft-plan-card:hover,
   .soft-library-card:hover,
   .soft-practitioner-card:hover {
@@ -1060,6 +1117,10 @@
     .soft-public-grid,
     .soft-public-grid-2 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .soft-hero-side-card {
+      max-width: 34rem;
     }
 
     .soft-booking-card {

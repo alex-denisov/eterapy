@@ -209,11 +209,19 @@ export function Header() {
   // Скрываем header на странице видеосессии
   if (pathname.startsWith("/session")) return null;
 
-  // Пока загружается — показываем пустой хедер без навигации (без мигания гостевых ссылок)
-  const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
+  const isAdminArea = pathname.startsWith("/admin");
+  const isSessionArea = pathname.startsWith("/session");
+  const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help");
+  const showPublicNav = !isAdminArea && !isSessionArea;
+  const nav = showPublicNav ? GUEST_NAV : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const softPublicHeader = !pathname.startsWith("/admin");
+  const softPublicHeader = !isAdminArea;
+  const cabinetHref = session?.user?.role === "PRACTITIONER"
+    ? appUrl("/cabinet/practitioner")
+    : session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN"
+      ? adminUrl("/admin")
+      : appUrl("/cabinet");
 
   return (
     <header
@@ -250,30 +258,35 @@ export function Header() {
         <div className="flex items-center gap-2">
           {isAuthenticated && session ? (
             <>
-              {/* Balance — button styled like notification bell */}
-              <Link
-                href={appUrl("/cabinet/billing")}
-                aria-label={`Баланс: ${balanceRub} ₽. Открыть раздел пополнения`}
-                className="hidden min-h-10 items-center gap-1.5 rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground sm:flex"
-              >
-                <Wallet className="h-4 w-4" />
-                <span className="tabular-nums">{balanceRub} ₽</span>
-              </Link>
-
-              {/* Help — button styled like notification bell */}
-              <Link
-                href={appUrl("/help")}
-                aria-label="Помощь"
-                className="flex min-h-10 items-center justify-center rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground"
-              >
-                <HelpCircle className="h-4 w-4" />
-              </Link>
-
-              {/* Notification bell */}
-              <NotificationBell variant="header" />
-
-              {/* User menu */}
-              <UserMenu session={session} balanceKopecks={balanceKopecks} />
+              {isAppArea ? (
+                <>
+                  <Link
+                    href={appUrl("/cabinet/billing")}
+                    aria-label={`Баланс: ${balanceRub} ₽. Открыть раздел пополнения`}
+                    className="hidden min-h-10 items-center gap-1.5 rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground sm:flex"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    <span className="tabular-nums">{balanceRub} ₽</span>
+                  </Link>
+                  <Link
+                    href={appUrl("/help")}
+                    aria-label="Помощь"
+                    className="flex min-h-10 items-center justify-center rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                  </Link>
+                  <NotificationBell variant="header" />
+                  <UserMenu session={session} balanceKopecks={balanceKopecks} />
+                </>
+              ) : (
+                <Link
+                  href={cabinetHref}
+                  className="soft-button soft-button-primary min-h-10 px-4 py-2 text-sm"
+                  data-testid="header-cabinet-cta"
+                >
+                  Личный кабинет
+                </Link>
+              )}
             </>
           ) : !isLoading ? (
             <>
@@ -313,7 +326,7 @@ export function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border/40 bg-navy/96 px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl md:hidden animate-in slide-in-from-top-2 duration-200">
+        <div className="border-t border-border/40 bg-navy/96 px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl md:hidden animate-in slide-in-from-top-2 duration-200 soft-mobile-menu">
           <nav className="flex flex-col gap-1">
             {nav.map((item) => (
               <Link key={item.href} href={item.href}
@@ -334,10 +347,16 @@ export function Header() {
                   <Wallet className="size-4" aria-hidden="true" />
                   {balanceRub} ₽
                 </div>
-                <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
-                  className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
-                  Выйти
-                </button>
+                <Link href={cabinetHref} onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">
+                  Личный кабинет
+                </Link>
+                {isAppArea && (
+                  <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
+                    className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
+                    Выйти
+                  </button>
+                )}
               </>
             ) : !isLoading ? (
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">

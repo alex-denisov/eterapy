@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { SoftHaloMark } from "@/components/brand/brand-mark";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
@@ -50,27 +51,48 @@ export default function HowItWorksPage() {
     <main className="soft-clarity-page soft-public-page" data-testid="how-it-works-page">
       <PublicJsonLd route="/how-it-works" />
 
-      <section className="soft-shell soft-public-section" style={{ paddingBlock: "clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)" }}>
-        <p className="soft-eyebrow">Путь ETerapy v5</p>
-        <h1 className="soft-h1 mt-4" style={{ maxWidth: "42rem" }}>От вопроса к ясному следующему шагу</h1>
-        <p className="soft-lede mt-5" style={{ maxWidth: "36rem" }}>
-          v5 убирает выбор из каталога как первый шаг. Сначала платформа помогает понять ситуацию,
-          затем предлагает глубину продукта или специалиста, если это уместно.
-        </p>
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-          <Link
-            href="/checkin"
-            className="soft-button soft-button-primary"
-            data-analytics-event="dialogue_cta_clicked"
-            data-analytics-target="/checkin"
-            data-testid="how-it-works-dialogue-cta"
-          >
-            Задать вопрос
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-          <Link href="/pricing" className="soft-button soft-button-ghost">
-            Тарифы
-          </Link>
+      <section className="soft-shell soft-public-hero">
+        <div>
+          <p className="soft-eyebrow">Путь ETerapy v5</p>
+          <h1 className="soft-h1 mt-4" style={{ maxWidth: "42rem" }}>От вопроса к ясному следующему шагу</h1>
+          <p className="soft-lede mt-5" style={{ maxWidth: "36rem" }}>
+            v5 убирает выбор из каталога как первый шаг. Сначала платформа помогает понять ситуацию,
+            затем предлагает глубину продукта или специалиста, если это уместно.
+          </p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href="/checkin"
+              className="soft-button soft-button-primary"
+              data-analytics-event="dialogue_cta_clicked"
+              data-analytics-target="/checkin"
+              data-testid="how-it-works-dialogue-cta"
+            >
+              Задать вопрос
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+            <Link href="/pricing" className="soft-button soft-button-ghost">
+              Тарифы
+            </Link>
+          </div>
+        </div>
+        <div className="soft-card soft-form-panel soft-hero-side-card">
+          <div className="mb-5 flex items-center justify-between">
+            <SoftHaloMark size={56} />
+            <span className="soft-badge soft-badge-warm">5–7 минут</span>
+          </div>
+          <h2 className="soft-h3">Что происходит внутри диалога</h2>
+          <div className="mt-5 space-y-3">
+            {["сохраняем контекст вопроса", "задаем короткие уточнения", "останавливаем рискованные сценарии", "отдаем понятный следующий шаг"].map((item) => (
+              <div key={item} className="flex items-start gap-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <div className="soft-card-flat mt-5 flex items-start gap-3 p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+            <span>Экстренная поддержка включается до любых платных предложений.</span>
+          </div>
         </div>
       </section>
 

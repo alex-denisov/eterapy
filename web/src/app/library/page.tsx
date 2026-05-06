@@ -77,8 +77,7 @@ export default async function LibraryPage({
             <Link
               key={entry.slug}
               href={`/library/${entry.slug}`}
-              className="soft-card block"
-              style={{ padding: "1.5rem", textDecoration: "none" }}
+              className="soft-card soft-library-card block"
               data-testid={`library-card-${entry.slug}`}
             >
               <div className="flex items-center justify-between gap-3">
@@ -110,8 +109,7 @@ export default async function LibraryPage({
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                   {entry.reactions} {entry.reactions === 1 ? "отклик" : "откликов"}
                 </span>
-                <Link
-                  href="/checkin"
+                <span
                   className="soft-button"
                   style={{
                     fontSize: "0.75rem",
@@ -122,10 +120,9 @@ export default async function LibraryPage({
                     color: "var(--soft-terracotta-dark)",
                     textDecoration: "none",
                   }}
-                  onClick={(e) => e.stopPropagation()}
                 >
                   Похожий разбор →
-                </Link>
+                </span>
               </div>
             </Link>
           ))}

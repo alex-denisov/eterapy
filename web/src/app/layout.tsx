@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 import "./v4-soft.css";
 import { Header } from "@/components/header";
@@ -11,6 +12,20 @@ import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 const homeMetadata = createPublicPageMetadata("/");
+
+const headingFont = Cormorant_Garamond({
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-heading-v4",
+  display: "swap",
+});
+
+const bodyFont = Manrope({
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-body-v4",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   ...homeMetadata,
@@ -49,7 +64,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className="h-full">
+    <html lang="ru" className={`${bodyFont.variable} ${headingFont.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Providers>
           <HashScroll />

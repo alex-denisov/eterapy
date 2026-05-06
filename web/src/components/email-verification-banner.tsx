@@ -40,12 +40,12 @@ export function EmailVerificationBanner() {
   }
 
   return (
-    <div className="border-b border-yellow-500/30 bg-yellow-500/10 px-4 py-2.5">
+    <div className="soft-email-banner px-4 py-2.5">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-yellow-300">
+        <div className="flex items-center gap-2 text-sm">
           <span>⚠</span>
           <span>
-            Подтвердите email <strong className="text-yellow-200">{session.user?.email}</strong> — 
+            Подтвердите email <strong>{session.user?.email}</strong> —
             проверьте входящие письма.
           </span>
         </div>
@@ -53,13 +53,13 @@ export function EmailVerificationBanner() {
           <button
             onClick={resend}
             disabled={sending}
-            className="text-xs text-yellow-300 underline hover:text-yellow-200 disabled:opacity-60"
+            className="text-xs underline disabled:opacity-60"
           >
             {sending ? "Отправляем..." : "Отправить повторно"}
           </button>
           <button
             onClick={() => setDismissed(true)}
-            className="text-yellow-400/60 hover:text-yellow-300 text-sm"
+            className="text-sm opacity-60 hover:opacity-100"
             aria-label="Закрыть"
           >
             ✕

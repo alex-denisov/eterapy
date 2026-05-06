@@ -12,7 +12,7 @@ function csp() {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vk.com https://*.vk.com https://id.vk.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vk.com https://*.vk.com https://id.vk.com https://www.googletagmanager.com https://mc.yandex.ru",
     "connect-src 'self' https: wss: ws:",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
