@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { BrandSignature, HaloMark } from "@/components/brand/brand-mark";
+import { BrandSignature, SoftHaloMark } from "@/components/brand/brand-mark";
 
 interface DialogueShellProps {
   title: string;
@@ -33,9 +33,9 @@ export function DialogueShell({
       />
       <div className="relative mx-auto w-full max-w-3xl">
         <header className="mb-6">
-          <div className="mb-6 flex items-center justify-between gap-4 border-b border-border/25 pb-4">
-            <BrandSignature compact />
-            <HaloMark size={34} />
+          <div className="mb-6 flex items-center justify-between gap-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] pb-4">
+            <BrandSignature compact theme="light" />
+            <SoftHaloMark size={32} />
           </div>
           <p className="premium-eyebrow">{kicker}</p>
           <h1 className="premium-title mt-2 text-3xl md:text-5xl">{title}</h1>

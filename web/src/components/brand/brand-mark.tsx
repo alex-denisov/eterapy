@@ -121,7 +121,7 @@ export function HaloMark({
  * Used when the surface is light (cream/paper), where the Aurora SVG halo
  * looks off due to its dark-background drop shadows.
  */
-function SoftHaloMark({ size = 38 }: { size?: number }) {
+export function SoftHaloMark({ size = 38 }: { size?: number }) {
   return (
     <span
       className="inline-block shrink-0 rounded-full"
@@ -239,18 +239,29 @@ export function BrandLogo({
 export function BrandSignature({
   compact = false,
   className,
+  theme = "dark",
 }: {
   compact?: boolean;
   className?: string;
+  theme?: BrandTheme;
 }) {
+  const mark =
+    theme === "light" ? (
+      <SoftHaloMark size={compact ? 30 : 38} />
+    ) : (
+      <HaloSymbol size={compact ? 30 : 38} glow={!compact} />
+    );
   return (
     <div className={cn("flex items-center gap-3", className)}>
-      <HaloSymbol size={compact ? 30 : 38} glow={!compact} />
+      {mark}
       <div className="min-w-0">
-        <div className="font-heading text-xl font-medium leading-none tracking-normal text-foreground">
+        <div
+          className="font-heading text-xl font-medium leading-none tracking-normal"
+          style={{ color: theme === "light" ? "var(--soft-bordeaux, #5c2a2c)" : undefined }}
+        >
           ETerapy
         </div>
-        {!compact && (
+        {!compact && theme === "dark" && (
           <div className="mt-1 text-[0.56rem] font-semibold uppercase tracking-[0.18em] text-brand-soft-gold">
             Ясность · Диалог · Понимание
           </div>

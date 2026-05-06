@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Compass, FileText, MessageSquareText, Route, ShieldCheck } from "lucide-react";
+import { ArrowRight, Compass, FileText, MessageSquareText, Route } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { v5Products } from "@/lib/v5-products";
 
@@ -72,20 +72,6 @@ export default function ToolsPage() {
           </div>
         </div>
 
-        <aside className="soft-card soft-form-panel">
-          <ShieldCheck className="size-6 text-[var(--soft-terracotta)]" aria-hidden="true" />
-          <h2 className="soft-h3 mt-4">Что изменилось</h2>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Публичные страницы направлений сохраняются для понятных ссылок и SEO, но CTA,
-            аналитика и пользовательский путь ведут в единый диалог.
-          </p>
-          <div className="soft-card-flat mt-5 p-4">
-            <p className="text-sm font-semibold text-[var(--soft-bordeaux)]">Новый порядок</p>
-            <p className="mt-2 text-sm leading-6 text-[var(--soft-ink-soft)]">
-              Вопрос → уточнение → первичный ответ → продукт/подписка → специалист, если он действительно помогает.
-            </p>
-          </div>
-        </aside>
       </section>
 
       <section className="soft-shell soft-public-section">

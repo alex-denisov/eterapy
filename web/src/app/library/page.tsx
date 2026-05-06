@@ -77,16 +77,43 @@ export default async function LibraryPage({
             <Link
               key={entry.slug}
               href={`/library/${entry.slug}`}
-              className="soft-card soft-library-card block text-decoration-none"
+              className="soft-card block"
+              style={{ padding: "1.5rem", textDecoration: "none" }}
               data-testid={`library-card-${entry.slug}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="soft-chip soft-chip-warm">{entry.topic}</span>
-                <span className="text-xs text-[var(--soft-ink-faint)]">{entry.reactions} откликов</span>
+                <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>анонимно</span>
               </div>
-              <h2 className="soft-h3 mt-5">{entry.question}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{entry.summary}</p>
-              <p className="mt-5 text-sm font-semibold text-[var(--soft-terracotta-dark)]">Читать разбор</p>
+              <p
+                className="font-heading mt-4 leading-snug"
+                style={{ fontSize: "1.05rem", fontStyle: "italic", color: "var(--soft-ink)" }}
+              >
+                «{entry.question}»
+              </p>
+              <div
+                className="mt-4 pt-4"
+                style={{ borderTop: "1px solid var(--soft-paper-edge)" }}
+              >
+                <p className="soft-eyebrow">инсайт</p>
+                <p
+                  className="mt-2 text-sm leading-relaxed"
+                  style={{ color: "var(--soft-ink-soft)", fontStyle: "italic" }}
+                >
+                  {entry.summary}
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+                  {entry.reactions} откликов
+                </span>
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--soft-terracotta-dark)" }}
+                >
+                  Похожий разбор →
+                </span>
+              </div>
             </Link>
           ))}
         </div>

@@ -85,8 +85,8 @@ export function CabinetShell({
         style={{ top: "var(--header-height)" }}
       >
         {/* User badge + Notifications */}
-        <div className="mb-5 border-b border-border/20 px-2 pb-4">
-          <BrandSignature compact />
+        <div className="mb-5 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4">
+          <BrandSignature compact theme="light" />
         </div>
         <div className="mb-6 px-2" data-testid="app-shell-user">
           <div className="flex items-center gap-3">

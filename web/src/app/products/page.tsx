@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { v5Products } from "@/lib/v5-products";
@@ -35,14 +35,6 @@ export default function ProductsPage() {
               Посмотреть цены
             </Link>
           </div>
-        </div>
-        <div className="soft-card soft-products-guard">
-          <ShieldCheck className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-          <p className="soft-eyebrow mt-4">правило v5</p>
-          <h2 className="soft-h3 mt-2">Оплата открывает результат через entitlement, не через UI.</h2>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Ошибка оплаты не открывает продукт. Исходники переписки удаляются отдельно, а совместимость требует согласия партнера.
-          </p>
         </div>
       </section>
 

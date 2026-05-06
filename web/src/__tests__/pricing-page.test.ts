@@ -17,7 +17,7 @@ describe("v5 pricing page", () => {
     expect(source("components/footer.tsx")).toContain('href="/pricing"');
   });
 
-  it("publishes v5 price ranges and subscription mechanics", () => {
+  it("publishes v5 prices and subscription mechanics", () => {
     const page = source("app/pricing/page.tsx");
     const plans = source("app/pricing/pricing-plans.tsx");
     const combined = page + "\n" + plans;
@@ -30,9 +30,15 @@ describe("v5 pricing page", () => {
     expect(combined).toContain("299-1490 ₽");
     expect(combined).toContain("590-990 ₽");
     expect(combined).toContain("790-1490 ₽");
-    expect(combined).toContain("399-599 ₽/мес");
-    expect(combined).toContain("999-1490 ₽/мес");
-    expect(combined).toContain("990-2990 ₽/мес");
+    // Plus: month 599 / year 399
+    expect(combined).toContain("599 ₽/мес");
+    expect(combined).toContain("399 ₽/мес");
+    // Premium: month 1490 / year 999
+    expect(combined).toContain("1490 ₽/мес");
+    expect(combined).toContain("999 ₽/мес");
+    // Practitioner Pro: month 2990 / year 990
+    expect(combined).toContain("2990 ₽/мес");
+    expect(combined).toContain("990 ₽/мес");
     expect(combined).toContain("Углублённые отчёты открываются");
   });
 

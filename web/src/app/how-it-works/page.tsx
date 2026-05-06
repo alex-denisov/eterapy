@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
-import { Disclaimer } from "@/components/ui/disclaimer";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 export const metadata = createPublicPageMetadata("/how-it-works");
@@ -76,16 +75,6 @@ export default function HowItWorksPage() {
           </div>
         </div>
 
-        <aside className="soft-card soft-form-panel">
-          <h2 className="soft-h3">Главное правило</h2>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Специалист и покупка появляются после контекста. Это снижает случайные бронирования,
-            лишнюю тревогу и неподходящие предложения.
-          </p>
-          <Disclaimer className="mt-4 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">
-            ETerapy не заменяет врача, психолога, юриста или финансового консультанта.
-          </Disclaimer>
-        </aside>
       </section>
 
       <section className="soft-shell soft-public-section" aria-label="Путь пользователя">

@@ -9,7 +9,8 @@ const plans = [
     id: "free",
     name: "Базовый",
     tagline: "Чтобы попробовать",
-    price: "0 ₽",
+    monthPrice: "0 ₽",
+    yearPrice: "0 ₽",
     perks: [
       "Первый разбор бесплатно",
       "Доступ к библиотеке вопросов",
@@ -26,7 +27,8 @@ const plans = [
     id: "plus",
     name: "Plus",
     tagline: "Для регулярной практики ясности",
-    price: "399-599 ₽/мес",
+    monthPrice: "599 ₽/мес",
+    yearPrice: "399 ₽/мес",
     perks: [
       "Безлимитные разборы и уточнения",
       "4 ракурса · разбор переписки · совместимость",
@@ -44,7 +46,8 @@ const plans = [
     id: "premium",
     name: "Premium",
     tagline: "С поддержкой проверенного специалиста",
-    price: "999-1490 ₽/мес",
+    monthPrice: "1490 ₽/мес",
+    yearPrice: "999 ₽/мес",
     perks: [
       "Всё из Plus",
       "1 встреча с психологом или коучем в месяц",
@@ -60,7 +63,7 @@ const plans = [
   },
 ];
 
-const practitionerPrice = "990-2990 ₽/мес";
+const practitionerPrices = { month: "2990 ₽/мес", year: "990 ₽/мес" };
 
 const oneOff = [
   { t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно" },
@@ -174,7 +177,7 @@ export function PricingPlans() {
                     color: plan.dark ? "#f4d9c1" : "var(--soft-bordeaux)",
                   }}
                 >
-                  {plan.price}
+                  {period === "year" ? plan.yearPrice : plan.monthPrice}
                 </p>
 
                 <ul className="mt-6 space-y-2.5">
@@ -286,7 +289,7 @@ export function PricingPlans() {
                 Никаких ежемесячных платежей за листинг. Деньги поступают на счёт еженедельно.
               </p>
               <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-faint)" }}>
-                Practitioner Pro: {practitionerPrice} — AI-саммари, контекст по согласию, аналитика.
+                Practitioner Pro: {period === "year" ? practitionerPrices.year : practitionerPrices.month} — AI-саммари, контекст по согласию, аналитика.
               </p>
               <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                 Специалист появляется в рекомендации только после того, как вы изложили суть вопроса,
