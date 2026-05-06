@@ -37,3 +37,12 @@ vendor/
 coverage/
 .cache/
 tmp/
+
+# SWC cache
+.swc/
+# Build artifacts
+*.tsbuildinfo
+.next/trace
+.next/trace-build
+# OS files (already there, but ensure)
+.DS_Store

@@ -64,13 +64,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   
   const result = await db.productResult.findFirst({
     where: { id, userId, productKey: PRODUCT_KEY, deletedAt: null },
-    select: { id: true, status: true, metadata: true },
   });
   if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
   
   if (parsed.data.action === "delete_source") {
     const metadata = result.metadata as { sourceText?: string | null; sourceDeletedAt?: string | null } | null;
-    if (metadata?.sourceDeletedAt) return jsonWithRequestContext({ result: serialize(result as any) }, { status: 200 }, context); // Already deleted
+    if (metadata?.sourceDeletedAt) return jsonWithRequestContext({ result: serialize(result) }, { status: 200 }, context); // Already deleted
     
     // We update metadata to include sourceDeletedAt and remove sourceText to save space/privacy.
     const updatedMetadata = {
