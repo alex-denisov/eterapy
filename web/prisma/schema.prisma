@@ -69,6 +69,7 @@ model User {
   creditLedgerEntries CreditLedgerEntry[]
   compatibilitiesCreated Compatibility[] @relation("CompatibilityCreator")
   compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
+  clarityRoutes          ClarityRoute[]
 
   @@map("users")
 }
@@ -639,6 +640,7 @@ model Dialogue {
 
   messages       DialogueMessage[]
   productResults ProductResult[]
+  clarityRoutes  ClarityRoute[]
 
   @@index([userId, updatedAt])
   @@index([guestSessionId, updatedAt])
@@ -694,6 +696,7 @@ model ProductResult {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   compatibility Compatibility?
+  clarityRoute  ClarityRoute?
 
   @@index([userId, productKey, updatedAt])
   @@index([dialogueId, productKey])
@@ -1048,4 +1051,27 @@ model Compatibility {
   @@index([partnerId])
   @@index([inviteToken])
   @@map("compatibilities")
+  }
+
+  // ─── 7 Days to Clarity ────────────────────────────────────────────────────────
+
+  model ClarityRoute {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dialogueId  String?   @map("dialogue_id")
+  dialogue    Dialogue? @relation(fields: [dialogueId], references: [id], onDelete: SetNull)
+  title       String
+  status      String    @default("ACTIVE") // ACTIVE | PAUSED | COMPLETED | CANCELLED
+  currentDay  Int       @default(1) @map("current_day")
+  reportId    String?   @unique @map("report_id")
+  report      ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("clarity_routes")
 }
