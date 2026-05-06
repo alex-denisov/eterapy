@@ -9,6 +9,7 @@ on:
       - '.gitignore'
       - '.github/ISSUE_TEMPLATE/**'
       - '.artifacts/**'
+      - '.agents/**'
       - '.qwen/**'
       - '.claude/**'
       - '.gemini/**'
@@ -354,9 +355,12 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          MAX_ATTEMPTS=15
-          DELAY=4
+          MAX_ATTEMPTS=30
+          DELAY=6
           STATUS=000
+
+          echo "Waiting 10s for PM2 zero-downtime reload to complete..."
+          sleep 10
 
           for i in $(seq 1 $MAX_ATTEMPTS); do
             STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo "000")
