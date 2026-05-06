@@ -12,7 +12,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const { id } = await params;
   
   const result = await db.compatibility.findFirst({
-    where: { id, creatorId: userId, deletedAt: null },
+    where: { id, creatorId: userId, status: { not: "DELETED" } },
   });
   if (!result) return errorWithRequestContext("NOT_FOUND", "Compatibility not found", 404, context);
   
