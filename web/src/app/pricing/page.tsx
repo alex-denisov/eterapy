@@ -72,12 +72,11 @@ const subscriptions = [
   },
 ];
 
-const marginRules = [
-  "бесплатный продукт ведет к глубине, но не давит на кризисные запросы",
-  "реферальные бонусы начисляются внутренними кредитами",
-  "бонусами нельзя оплатить 100% живой консультации",
-  "открытие платного результата всегда entitlement-based",
-  "цены и пакеты управляются из админки",
+const guarantees = [
+  "Цена сессии всегда видна до оплаты — никаких сюрпризов при бронировании",
+  "Платить можно картой через защищённую кассу: деньги удерживаются до завершения сессии",
+  "Реферальные бонусы и кредиты платформы нельзя использовать для 100% оплаты живой консультации",
+  "Углублённые отчёты открываются только после вашего явного согласия на покупку",
 ];
 
 export default function PricingPage() {
@@ -119,23 +118,24 @@ export default function PricingPage() {
           <h2 className="soft-h3 mt-5">Живые консультации</h2>
           <p className="soft-price mt-3">1500-12000 ₽</p>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Цена сессии видна до бронирования. Комиссия платформы зависит от источника клиента:
-            ETerapy-поток, ссылка специалиста или пилотные условия.
+            Цена указана на странице специалиста, её видно ещё до того, как вы нажмёте «Забронировать».
+            Оплата проходит через защищённую кассу: деньги поступают специалисту только после
+            завершения встречи.
           </p>
           <Disclaimer className="mt-4 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">
-            Специалист не является первым экраном продукта: рекомендация появляется после контекста.
+            Специалист появляется в рекомендации только после того, как вы изложили суть вопроса,
+            а не как первый экран.
           </Disclaimer>
         </aside>
       </section>
 
       <section className="soft-shell soft-public-section">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
-          <div>
-            <p className="soft-eyebrow">Разовые продукты</p>
-            <h2 className="soft-h2 mt-3">Покупка только после понятного результата</h2>
-          </div>
-          <p className="max-w-md text-sm leading-relaxed text-[var(--soft-ink-faint)]">
-            Финальные значения настраиваются в админке, а доступ открывается через entitlement-ом, не UI-состоянием.
+        <div>
+          <p className="soft-eyebrow">Разовые продукты</p>
+          <h2 className="soft-h2 mt-3">Покупка только после того, как вы увидели результат</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-faint)]">
+            Первичный ответ — бесплатно. Платный продукт предлагается, когда есть смысл идти глубже,
+            а не с первого экрана.
           </p>
         </div>
         <div className="soft-public-grid mt-6">
@@ -182,11 +182,14 @@ export default function PricingPage() {
 
       <section className="soft-shell soft-public-section">
         <div className="soft-card soft-form-panel">
-          <h2 className="soft-h2">Правила защиты маржи</h2>
+          <h2 className="soft-h2">Как устроена оплата</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Мы стараемся сделать так, чтобы у вас не было неприятных сюрпризов ни с ценой, ни с условиями.
+          </p>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {marginRules.map((rule) => (
-              <div key={rule} className="soft-chip w-full justify-start whitespace-normal rounded-[var(--soft-radius-md)] p-4 text-sm leading-relaxed">
-                {rule}
+            {guarantees.map((item) => (
+              <div key={item} className="soft-chip w-full justify-start whitespace-normal rounded-[var(--soft-radius-md)] p-4 text-sm leading-relaxed">
+                {item}
               </div>
             ))}
           </div>

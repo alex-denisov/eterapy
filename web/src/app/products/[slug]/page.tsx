@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, CalendarDays, CheckCircle2, FileText, LockKeyhole, MessageSquareText, ShieldCheck, Users } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { DeepReportActions } from "@/components/products/deep-report-actions";
+import { PerspectivesActions } from "@/components/products/perspectives-actions";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -128,10 +130,13 @@ function ProductIcon({ slug }: { slug: V5Product["slug"] }) {
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ dialogueId?: string }>;
 }) {
   const { slug } = await params;
+  const search = await searchParams;
   const product = getV5Product(slug);
   if (!product) notFound();
 
@@ -193,6 +198,18 @@ export default async function ProductPage({
           </div>
         </div>
       </section>
+
+      {product.slug === "deep-report" && (
+        <section className="soft-shell">
+          <DeepReportActions dialogueId={search?.dialogueId ?? null} />
+        </section>
+      )}
+
+      {product.slug === "perspectives" && (
+        <section className="soft-shell">
+          <PerspectivesActions dialogueId={search?.dialogueId ?? null} />
+        </section>
+      )}
 
       <section className="soft-shell pb-20">
         <div className="soft-card soft-product-legal">

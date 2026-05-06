@@ -189,11 +189,7 @@ export default async function proxy(request: NextRequest) {
     if (pathname === "/login" || pathname === "/register") {
       return applyRobotsPolicy(redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context), host, pathname);
     }
-    // Landing page for logged-in user → their cabinet
-    if (pathname === "/") {
-      return applyRobotsPolicy(redirectAbs(domainForPath(homePathForRole(role)), homePathForRole(role), context), host, pathname);
-    }
-    // Other public pages (practitioners catalog, modalities, help, legal, how-to-choose, about) stay accessible
+    // Landing and all other public pages stay accessible for logged-in users
     return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
   }
 

@@ -117,6 +117,29 @@ export function HaloMark({
 }
 
 /**
+ * Soft Clarity brand mark — CSS gradient circle matching docs/Design/v4.
+ * Used when the surface is light (cream/paper), where the Aurora SVG halo
+ * looks off due to its dark-background drop shadows.
+ */
+function SoftHaloMark({ size = 38 }: { size?: number }) {
+  return (
+    <span
+      className="inline-block shrink-0 rounded-full"
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        background: [
+          "radial-gradient(circle at 35% 35%, #fff, transparent 38%)",
+          "conic-gradient(from 30deg, var(--soft-halo-1,#f4c9a8), var(--soft-halo-2,#e8b8d1), var(--soft-halo-3,#d9c9e8), var(--soft-halo-1,#f4c9a8))",
+        ].join(","),
+        boxShadow: "0 0 0 1px rgba(60,30,20,0.07), 0 4px 14px -4px rgba(214,117,88,0.38)",
+      }}
+    />
+  );
+}
+
+/**
  * Word-only mark — "ETerapy" set in Fraunces (display heading).
  */
 function Wordmark({
@@ -156,12 +179,18 @@ export function VectorBrandLogo({
   className?: string;
   compact?: boolean;
 }) {
+  const mark =
+    theme === "light" ? (
+      <SoftHaloMark size={height} />
+    ) : (
+      <HaloSymbol size={height} glow={!compact} />
+    );
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <HaloSymbol size={height} glow={!compact} />
+      {mark}
       <span className="inline-flex min-w-0 flex-col">
         <Wordmark theme={theme} fontSize={Math.max(21, height * 0.58)} />
-        {!compact && (
+        {!compact && theme === "dark" && (
           <span className="mt-1 hidden text-[0.42rem] font-bold uppercase leading-none tracking-[0.22em] text-brand-soft-gold sm:inline">
             Ясность · Диалог · Понимание
           </span>
@@ -188,9 +217,15 @@ export function BrandLogo({
   /** @deprecated kept for prop compatibility; no-op since the logo is SVG, not an Image */
   priority?: boolean;
 }) {
+  const mark =
+    theme === "light" ? (
+      <SoftHaloMark size={height} />
+    ) : (
+      <HaloSymbol size={height} glow={false} />
+    );
   return (
     <span className={cn("inline-flex items-center gap-3", className)} style={{ height }}>
-      <HaloSymbol size={height} glow={false} />
+      {mark}
       <Wordmark theme={theme} fontSize={Math.max(20, height * 0.62)} />
     </span>
   );

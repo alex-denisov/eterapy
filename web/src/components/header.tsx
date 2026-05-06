@@ -17,7 +17,7 @@ const GUEST_NAV = [
   { href: "/products", label: "Продукты" },
   { href: "/library", label: "Библиотека" },
   { href: "/pricing", label: "Цены" },
-  { href: "/practitioners", label: "Практики" },
+  { href: "/practitioners", label: "Специалисты" },
   { href: "/#faq", label: "FAQ" },
 ];
 

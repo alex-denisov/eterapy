@@ -33,8 +33,8 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('data-testid="save-result-authenticated"');
     expect(page).toContain('data-testid="save-result-register"');
     expect(page).toContain('data-testid="dialogue-deepen-report"');
-    expect(page).toContain('href="/products/deep-report"');
+    expect(page).toContain("/products/deep-report?dialogueId=${dialogue.id}");
     expect(page).toContain('data-testid="dialogue-deepen-perspectives"');
-    expect(page).toContain('href="/products/perspectives"');
+    expect(page).toContain('href={`/products/perspectives?dialogueId=${dialogue.id}`}');
   });
 });

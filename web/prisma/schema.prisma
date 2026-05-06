@@ -60,6 +60,7 @@ model User {
   aiSessionLogs       AISessionLog[]
   aiGatewayRequests   AIRequest[]
   dialogues           Dialogue[]
+  productResults      ProductResult[]
   balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
   transactions        Transaction[]
   savedCards          SavedCard[]
@@ -635,6 +636,7 @@ model Dialogue {
   deletedAt      DateTime?        @map("deleted_at")
 
   messages       DialogueMessage[]
+  productResults ProductResult[]
 
   @@index([userId, updatedAt])
   @@index([guestSessionId, updatedAt])
@@ -669,6 +671,30 @@ enum DialogueMessageRole {
   USER
   ASSISTANT
   SYSTEM
+}
+
+model ProductResult {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dialogueId  String?   @map("dialogue_id")
+  dialogue    Dialogue? @relation(fields: [dialogueId], references: [id], onDelete: SetNull)
+  productKey  String    @map("product_key")
+  status      String    @default("PREVIEW") // PREVIEW | READY | DELETED
+  title       String
+  previewText String?   @map("preview_text")
+  resultText  String?   @map("result_text")
+  savedAt     DateTime? @map("saved_at")
+  exportedAt  DateTime? @map("exported_at")
+  deletedAt   DateTime? @map("deleted_at")
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, productKey, updatedAt])
+  @@index([dialogueId, productKey])
+  @@index([status, updatedAt])
+  @@map("product_results")
 }
 
 // Сохранённые результаты AI-инструментов для истории в кабинете

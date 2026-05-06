@@ -414,11 +414,11 @@ export default function CheckinPage() {
                 Сохранить ответ
               </Link>
             )}
-            <Link href="/products/deep-report" className="soft-button soft-button-ghost" data-testid="dialogue-deepen-report">
+            <Link href={`/products/deep-report?dialogueId=${dialogue.id}`} className="soft-button soft-button-ghost" data-testid="dialogue-deepen-report">
               <Compass className="size-4" aria-hidden="true" />
               Углубить ответ
             </Link>
-            <Link href="/products/perspectives" className="soft-button soft-button-ghost" data-testid="dialogue-deepen-perspectives">
+            <Link href={`/products/perspectives?dialogueId=${dialogue.id}`} className="soft-button soft-button-ghost" data-testid="dialogue-deepen-perspectives">
               Посмотреть перспективы
             </Link>
             <Button onClick={reset} variant="ghost" className="soft-button soft-button-ghost" data-testid="dialogue-reset">
@@ -428,7 +428,7 @@ export default function CheckinPage() {
           </div>
 
           <div className="mt-10 grid gap-4 md:grid-cols-2">
-            <Link href="/products/perspectives" className="soft-card soft-deepening-card">
+            <Link href={`/products/perspectives?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
               <p className="soft-eyebrow">рекомендуем</p>
               <h3 className="soft-h3 mt-2">Ракурсы ответа</h3>
               <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Разум, чувства, символ и действие на одну страницу.</p>

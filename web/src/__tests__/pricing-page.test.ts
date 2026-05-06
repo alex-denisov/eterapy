@@ -31,7 +31,7 @@ describe("v5 pricing page", () => {
     expect(page).toContain("399-599 ₽/мес");
     expect(page).toContain("999-1490 ₽/мес");
     expect(page).toContain("990-2990 ₽/мес");
-    expect(page).toContain("entitlement-ом");
+    expect(page).toContain("Углублённые отчёты открываются");
   });
 
   it("keeps pricing question-first, with practitioner as a later step", () => {
@@ -39,7 +39,7 @@ describe("v5 pricing page", () => {
 
     expect(page).toContain('href="/all-modalities/checkin"');
     expect(page).toContain('data-testid="pricing-dialogue-cta"');
-    expect(page).toContain("Специалист не является первым экраном продукта");
+    expect(page).toContain("Специалист появляется в рекомендации только после того, как вы изложили суть вопроса");
     expect(page).not.toContain('href="/practitioners"');
   });
 });

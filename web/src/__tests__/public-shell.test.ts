@@ -27,7 +27,7 @@ describe("v5 public shell", () => {
 
     expect(header).toContain('label: "Задать вопрос"');
     expect(header).toContain('href: "/all-modalities/checkin"');
-    expect(header.indexOf('label: "Задать вопрос"')).toBeLessThan(header.indexOf('label: "Практики"'));
+    expect(header.indexOf('label: "Задать вопрос"')).toBeLessThan(header.indexOf('label: "Специалисты"'));
     expect(header).toContain('data-testid="public-shell-header"');
     expect(source("src/components/footer.tsx")).toContain('data-testid="public-shell-footer"');
   });

@@ -60,7 +60,7 @@ export default async function PractitionersPage() {
       <section className="soft-shell soft-public-hero">
         <div>
           <p className="soft-eyebrow">Специалист как следующий шаг</p>
-          <h1 className="soft-h1 mt-4">Сначала контекст вопроса, потом подходящий практик</h1>
+          <h1 className="soft-h1 mt-4">Сначала контекст вопроса, потом подходящий специалист</h1>
           <p className="soft-lede mt-5 max-w-2xl">
             ETerapy больше не ведет пользователя в каталог без понимания ситуации.
             Задайте вопрос, получите первичный ответ и только затем выбирайте специалиста,
@@ -91,8 +91,8 @@ export default async function PractitionersPage() {
             <div>
               <h2 className="soft-h3">Рекомендация после ответа</h2>
               <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                Пользователь видит 2-3 практиков с объяснением, почему они подходят под тему,
-                формат и уровень сложности запроса.
+                Вы увидите 2-3 специалиста с объяснением, почему они подходят под тему,
+                формат и уровень сложности вашего вопроса.
               </p>
             </div>
           </div>
