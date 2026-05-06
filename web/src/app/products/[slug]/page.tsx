@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays, CheckCircle2, FileText, LockKeyhole, MessageS
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
+import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -208,6 +209,12 @@ export default async function ProductPage({
       {product.slug === "perspectives" && (
         <section className="soft-shell">
           <PerspectivesActions dialogueId={search?.dialogueId ?? null} />
+        </section>
+      )}
+
+      {product.slug === "chat-analysis" && (
+        <section className="soft-shell">
+          <ChatAnalysisActions />
         </section>
       )}
 
