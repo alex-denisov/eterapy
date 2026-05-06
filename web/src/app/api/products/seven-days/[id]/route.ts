@@ -40,3 +40,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   return jsonWithRequestContext({ result: updated }, { status: 200 }, context);
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  const { id } = await params;
+  
+  const route = await db.clarityRoute.findFirst({
+    where: { id, userId, status: { not: "DELETED" } },
+  });
+  if (!route) return errorWithRequestContext("NOT_FOUND", "Route not found", 404, context);
+  
+  await db.clarityRoute.update({ where: { id }, data: { status: "CANCELLED" } });
+  return jsonWithRequestContext({ ok: true }, { status: 200 }, context);
+}
