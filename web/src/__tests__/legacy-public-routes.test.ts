@@ -10,6 +10,8 @@ describe("legacy public route redirects", () => {
     ["/tools/checkin", "/all-modalities/checkin"],
     ["/tools/reflection", "/all-modalities/checkin"],
     ["/tools/guide", "/all-modalities/checkin?source=legacy-guide"],
+    ["/all-modalities/tarot", "/all-modalities/checkin?source=legacy-tarot"],
+    ["/all-modalities/guide", "/all-modalities/checkin?source=legacy-guide"],
     ["/modalities/horoscope", "/all-modalities/checkin?source=legacy-horoscope"],
     ["/modalities/natal", "/all-modalities/checkin?source=legacy-natal"],
     ["/modalities/numerology", "/all-modalities/checkin?source=legacy-numerology"],
@@ -26,7 +28,7 @@ describe("legacy public route redirects", () => {
   it("does not redirect current canonical public pages", () => {
     expect(legacyPublicRedirect("/")).toBeNull();
     expect(legacyPublicRedirect("/all-modalities")).toBeNull();
-    expect(legacyPublicRedirect("/all-modalities/tarot")).toBeNull();
+    expect(legacyPublicRedirect("/all-modalities/checkin")).toBeNull();
     expect(legacyPublicRedirect("/practitioners/some-specialist")).toBeNull();
   });
 });

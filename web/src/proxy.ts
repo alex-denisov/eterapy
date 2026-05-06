@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { getSessionFromCookie } from "@/lib/session-from-cookie";
 import { applyRequestContextHeaders, requestContextFromHeaders } from "@/lib/request-context";
 import { shouldNoIndex } from "@/lib/seo";
+import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 
 const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
@@ -36,6 +37,11 @@ function withRequestContext<T extends NextResponse>(
 
 function redirect(url: string, request: NextRequest, context: { requestId: string; correlationId: string }) {
   return withRequestContext(NextResponse.redirect(new URL(url, request.url)), context);
+}
+
+function withOriginalSearch(target: string, search: string): string {
+  if (!search) return target;
+  return `${target}${target.includes("?") ? "&" : "?"}${search.slice(1)}`;
 }
 
 function redirectAbs(domain: string, pathname: string, context: { requestId: string; correlationId: string }) {
@@ -80,6 +86,7 @@ export default async function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
   const { role } = await getSessionFromCookie(request);
+  const legacyTarget = legacyPublicRedirect(pathname);
 
   if (ALWAYS_ALLOW.some(p => pathname.startsWith(p))) {
     return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
@@ -87,6 +94,9 @@ export default async function proxy(request: NextRequest) {
 
   // ─── No-subdomain mode (local dev): only enforce path-level auth ───
   if (!USE_SUBDOMAINS) {
+    if (legacyTarget) {
+      return applyRobotsPolicy(redirect(withOriginalSearch(legacyTarget, request.nextUrl.search), request, context), host, pathname);
+    }
     if ((pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) && !role) {
       return applyRobotsPolicy(redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context), host, pathname);
     }
@@ -159,6 +169,10 @@ export default async function proxy(request: NextRequest) {
   // Normalise www → apex already handled by nginx; just in case
   if (host === `www.${MAIN_DOMAIN}`) {
     return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, pathname, context), host, pathname);
+  }
+
+  if (legacyTarget) {
+    return applyRobotsPolicy(redirect(withOriginalSearch(legacyTarget, request.nextUrl.search), request, context), host, pathname);
   }
 
   // Logged-in user hitting main domain
