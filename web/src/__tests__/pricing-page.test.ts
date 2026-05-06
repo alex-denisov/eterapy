@@ -14,7 +14,7 @@ describe("v5 pricing page", () => {
     expect(publicSeoRoutes).toContain("/pricing");
     expect(publicPageSeo["/pricing"].title).toBe("Цены и тарифы ETerapy");
     expect(source("components/header.tsx")).toContain('href: "/pricing"');
-    expect(source("components/footer.tsx")).toContain('href="/pricing"');
+    expect(source("components/footer.tsx")).toContain('mainUrl("/pricing")');
   });
 
   it("publishes v5 prices and subscription mechanics", () => {

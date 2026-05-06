@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand/brand-mark";
+import { mainUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 
 export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
@@ -19,28 +20,28 @@ export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
             <div>
               <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>Клиентам</p>
               <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href="/checkin" className={linkCls}>Задать вопрос</Link></li>
-                <li><Link href="/products" className={linkCls}>Продукты</Link></li>
-                <li><Link href="/library" className={linkCls}>Библиотека</Link></li>
-                <li><Link href="/pricing" className={linkCls}>Цены</Link></li>
+                <li><Link href={mainUrl("/checkin")} className={linkCls}>Задать вопрос</Link></li>
+                <li><Link href={mainUrl("/products")} className={linkCls}>Продукты</Link></li>
+                <li><Link href={mainUrl("/library")} className={linkCls}>Библиотека</Link></li>
+                <li><Link href={mainUrl("/pricing")} className={linkCls}>Цены</Link></li>
               </ul>
             </div>
 
             <div>
               <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>Специалистам</p>
               <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href="/practitioners/apply" className={linkCls}>Стать специалистом</Link></li>
-                <li><Link href="/legal/ethics" className={linkCls}>Этический кодекс</Link></li>
+                <li><Link href={mainUrl("/practitioners/apply")} className={linkCls}>Стать специалистом</Link></li>
+                <li><Link href={mainUrl("/legal/ethics")} className={linkCls}>Этический кодекс</Link></li>
               </ul>
             </div>
 
             <div>
               <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>О проекте</p>
               <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href="/about" className={linkCls}>О нас</Link></li>
-                <li><Link href="/help" className={linkCls}>Поддержка</Link></li>
-                <li><Link href="/legal/privacy" className={linkCls}>Конфиденциальность</Link></li>
-                <li><Link href="/legal/offer" className={linkCls}>Оферта</Link></li>
+                <li><Link href={mainUrl("/about")} className={linkCls}>О нас</Link></li>
+                <li><Link href={mainUrl("/help")} className={linkCls}>Поддержка</Link></li>
+                <li><Link href={mainUrl("/legal/privacy")} className={linkCls}>Конфиденциальность</Link></li>
+                <li><Link href={mainUrl("/legal/offer")} className={linkCls}>Оферта</Link></li>
               </ul>
             </div>
           </div>
