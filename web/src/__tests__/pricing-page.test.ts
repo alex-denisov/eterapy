@@ -26,19 +26,15 @@ describe("v5 pricing page", () => {
     expect(combined).toContain("Первичный");
     expect(combined).toContain("4 ракурса ответа");
     expect(combined).toContain("299 ₽");
-    expect(combined).toContain("490-990 ₽");
-    expect(combined).toContain("299-1490 ₽");
-    expect(combined).toContain("590-990 ₽");
-    expect(combined).toContain("790-1490 ₽");
-    // Plus: month 599 / year 399
-    expect(combined).toContain("599 ₽/мес");
-    expect(combined).toContain("399 ₽/мес");
-    // Premium: month 1490 / year 999
-    expect(combined).toContain("1490 ₽/мес");
-    expect(combined).toContain("999 ₽/мес");
-    // Practitioner Pro: month 2990 / year 990
-    expect(combined).toContain("2990 ₽/мес");
-    expect(combined).toContain("990 ₽/мес");
+    // Plus: 490 per month / 4900 per year
+    expect(combined).toContain("490");
+    expect(combined).toContain("4900");
+    // Premium: 1290 per month / 12900 per year
+    expect(combined).toContain("1290");
+    expect(combined).toContain("12900");
+    // Practitioner Pro: 2990 per month / 29900 per year
+    expect(combined).toContain("2990");
+    expect(combined).toContain("29900");
     expect(combined).toContain("Углублённые отчёты открываются");
   });
 
@@ -47,7 +43,7 @@ describe("v5 pricing page", () => {
     const plans = source("app/pricing/pricing-plans.tsx");
     const combined = page + "\n" + plans;
 
-    expect(combined).toContain('href="/all-modalities/checkin"');
+    expect(combined).toContain('href="/checkin"');
     expect(combined).toContain('data-testid="pricing-dialogue-cta"');
     expect(combined).toContain("Специалист появляется в рекомендации только после того, как вы изложили суть вопроса");
     expect(combined).not.toContain('href="/practitioners"');

@@ -249,7 +249,7 @@ export async function sendBookingCancelledClient(d: BookingEmailData, cancelledB
         ${cancelledBy === "practitioner" ? "практиком" : "вами"}.
         ${cancelledBy === "practitioner" ? "Мы сожалеем о неудобстве. Вы можете вернуться к вопросу и выбрать следующий шаг заново." : ""}
       </p>
-      ${btn(`${APP_URL}/all-modalities/checkin`, "Задать новый вопрос")}
+      ${btn(`${APP_URL}/checkin`, "Задать новый вопрос")}
     `),
   });
 }

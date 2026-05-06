@@ -149,7 +149,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
         <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Сначала пройдите диалог ясности, чтобы мы могли взглянуть на ваш конкретный вопрос с разных сторон.
         </p>
-        <Link href="/all-modalities/checkin?nextProduct=perspectives" className="soft-button soft-button-primary mt-5">
+        <Link href="/checkin?nextProduct=perspectives" className="soft-button soft-button-primary mt-5">
           Начать с вопроса
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>

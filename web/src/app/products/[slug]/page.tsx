@@ -155,10 +155,10 @@ export default async function ProductPage({
           <p className="soft-lede mt-5 max-w-3xl">{product.summary}</p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/all-modalities/checkin"
+              href="/checkin"
               className="soft-button soft-button-primary"
               data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/all-modalities/checkin"
+              data-analytics-target="/checkin"
               data-testid="product-dialogue-cta"
             >
               {product.cta}

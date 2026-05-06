@@ -62,7 +62,7 @@ describe("B085 deep report product", () => {
   it("wires the product detail page and dialogue result into the deep report flow", () => {
     const detailPage = source("src/app/products/[slug]/page.tsx");
     const actions = source("src/components/products/deep-report-actions.tsx");
-    const dialoguePage = source("src/app/all-modalities/checkin/page.tsx");
+    const dialoguePage = source("src/app/checkin/page.tsx");
 
     expect(detailPage).toContain("<DeepReportActions");
     expect(actions).toContain('data-testid="deep-report-actions"');

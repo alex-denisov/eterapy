@@ -12,7 +12,7 @@ export default function NotFound() {
       </p>
       <div className="mt-8 flex gap-3">
         <Link href="/" className={cn(buttonVariants())}>На главную</Link>
-        <Link href="/all-modalities/checkin" className={cn(buttonVariants({ variant: "outline" }), "border-border/40 text-muted-foreground")}>
+        <Link href="/checkin" className={cn(buttonVariants({ variant: "outline" }), "border-border/40 text-muted-foreground")}>
           Задать вопрос
         </Link>
       </div>

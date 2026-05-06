@@ -342,6 +342,30 @@
     font-style: italic;
   }
 
+  .soft-input {
+    background: var(--soft-paper-card) !important;
+    border: 1px solid var(--soft-paper-edge) !important;
+    border-radius: var(--radius-control, 0.625rem) !important;
+    color: var(--soft-ink) !important;
+    height: 2.75rem;
+  }
+
+  .soft-input::placeholder {
+    color: var(--soft-ink-faint) !important;
+    opacity: 1;
+  }
+
+  .soft-input:focus,
+  .soft-input:focus-visible {
+    border-color: var(--soft-terracotta) !important;
+    box-shadow: 0 0 0 3px rgba(214, 117, 88, 0.12) !important;
+    outline: none !important;
+  }
+
+  .soft-input.border-destructive {
+    border-color: var(--destructive) !important;
+  }
+
   .soft-ask-foot {
     display: flex;
     align-items: center;

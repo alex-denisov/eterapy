@@ -14,7 +14,7 @@ describe("v5 public home page", () => {
     expect(hero).toContain('data-testid="v5-home-hero"');
     expect(hero).toContain('data-testid="v5-question-entry"');
     expect(hero).toContain('name="question"');
-    expect(hero).toContain('action="/all-modalities/checkin"');
+    expect(hero).toContain('action="/checkin"');
     expect(hero).toContain("Начать диалог");
     expect(hero).toContain('data-analytics-event="dialogue_cta_clicked"');
     expect(hero).not.toContain('href="/practitioners"');
@@ -25,7 +25,7 @@ describe("v5 public home page", () => {
     const hero = source("components/landing/hero.tsx");
     const page = source("app/page.tsx");
 
-    expect(hero).toContain("<HaloSymbol");
+    expect(hero).toContain("<SoftHaloMark");
     expect(hero).toContain("soft-ask-card");
     expect(hero).toContain("soft-question-input");
     expect(page).toContain('data-ui-version="design-v4-soft-clarity"');
@@ -53,6 +53,6 @@ describe("v5 public home page", () => {
     expect(howItWorks).toContain("Опишите своими словами");
     expect(howItWorks).toContain("Углубление по выбору");
     expect(cta).toContain("Специалист появляется как следующий шаг");
-    expect(cta).toContain('href="/all-modalities/checkin"');
+    expect(cta).toContain('href="/checkin"');
   });
 });

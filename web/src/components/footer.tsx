@@ -19,7 +19,7 @@ export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
             <div>
               <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>Клиентам</p>
               <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href="/all-modalities/checkin" className={linkCls}>Задать вопрос</Link></li>
+                <li><Link href="/checkin" className={linkCls}>Задать вопрос</Link></li>
                 <li><Link href="/products" className={linkCls}>Продукты</Link></li>
                 <li><Link href="/library" className={linkCls}>Библиотека</Link></li>
                 <li><Link href="/pricing" className={linkCls}>Цены</Link></li>

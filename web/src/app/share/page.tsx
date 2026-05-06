@@ -27,7 +27,7 @@ export default function ShareLandingPage() {
               Можно задать свой вопрос и получить бережный первичный разбор.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={mainUrl("/all-modalities/checkin")} className="soft-button soft-button-primary">
+              <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary">
                 Задать свой вопрос
               </Link>
               <Link href={mainUrl("/how-it-works")} className="soft-button soft-button-ghost">

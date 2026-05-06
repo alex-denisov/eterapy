@@ -121,14 +121,14 @@ export default function HowToChoosePage() {
             Не уверены нужен ли вам практик? Начните с бесплатного вопроса:
             ETerapy уточнит контекст и предложит следующий шаг без давления.
           </p>
-          <Link href="/all-modalities/checkin" className={cn(buttonVariants(), "text-sm")}>
+          <Link href="/checkin" className={cn(buttonVariants(), "text-sm")}>
             Задать вопрос →
           </Link>
         </section>
 
         {/* CTA */}
         <div className="text-center pt-4">
-          <Link href="/all-modalities/checkin" className={cn(buttonVariants(), "px-8 py-3 text-base")}>
+          <Link href="/checkin" className={cn(buttonVariants(), "px-8 py-3 text-base")}>
             Получить первичный ответ
           </Link>
         </div>

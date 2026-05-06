@@ -68,11 +68,11 @@ export default async function PractitionersPage() {
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/all-modalities/checkin"
+              href="/checkin"
               className="soft-button soft-button-primary"
               data-testid="practitioner-secondary-dialogue-cta"
               data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/all-modalities/checkin"
+              data-analytics-target="/checkin"
             >
               Задать вопрос
               <ArrowRight className="size-4" aria-hidden="true" />

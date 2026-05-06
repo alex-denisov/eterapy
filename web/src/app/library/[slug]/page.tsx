@@ -101,10 +101,10 @@ export default async function LibraryEntryPage({
           </p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/all-modalities/checkin"
+              href="/checkin"
               className="soft-button soft-button-primary"
               data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/all-modalities/checkin"
+              data-analytics-target="/checkin"
               data-testid="library-entry-dialogue-cta"
             >
               Получить персональный разбор

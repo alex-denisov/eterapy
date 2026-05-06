@@ -149,7 +149,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
         <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Сначала пройдите диалог ясности, чтобы отчет не был абстрактным и не терял контекст.
         </p>
-        <Link href="/all-modalities/checkin?nextProduct=deep-report" className="soft-button soft-button-primary mt-5">
+        <Link href="/checkin?nextProduct=deep-report" className="soft-button soft-button-primary mt-5">
           Начать с вопроса
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>

@@ -133,7 +133,7 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
         <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Сначала ответьте на пару вопросов в диалоге, чтобы мы могли подобрать 7 шагов для вас.
         </p>
-        <Link href="/all-modalities/checkin?nextProduct=seven-days" className="soft-button soft-button-primary mt-5">
+        <Link href="/checkin?nextProduct=seven-days" className="soft-button soft-button-primary mt-5">
           Начать с вопроса
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>

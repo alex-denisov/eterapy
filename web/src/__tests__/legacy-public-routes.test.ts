@@ -2,20 +2,21 @@ import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 
 describe("legacy public route redirects", () => {
   it.each([
-    ["/modalities", "/all-modalities"],
-    ["/modalities/", "/all-modalities"],
-    ["/tools", "/all-modalities"],
-    ["/tools/", "/all-modalities"],
-    ["/modalities/tarot", "/all-modalities/checkin?source=legacy-tarot"],
-    ["/tools/checkin", "/all-modalities/checkin"],
-    ["/tools/reflection", "/all-modalities/checkin"],
-    ["/tools/guide", "/all-modalities/checkin?source=legacy-guide"],
-    ["/all-modalities/tarot", "/all-modalities/checkin?source=legacy-tarot"],
-    ["/all-modalities/guide", "/all-modalities/checkin?source=legacy-guide"],
-    ["/modalities/horoscope", "/all-modalities/checkin?source=legacy-horoscope"],
-    ["/modalities/natal", "/all-modalities/checkin?source=legacy-natal"],
-    ["/modalities/numerology", "/all-modalities/checkin?source=legacy-numerology"],
-    ["/modalities/unknown", "/all-modalities"],
+    ["/modalities", "/checkin"],
+    ["/modalities/", "/checkin"],
+    ["/tools", "/checkin"],
+    ["/tools/", "/checkin"],
+    ["/all-modalities", "/checkin"],
+    ["/modalities/tarot", "/checkin?source=legacy-tarot"],
+    ["/tools/checkin", "/checkin"],
+    ["/tools/reflection", "/checkin"],
+    ["/tools/guide", "/checkin?source=legacy-guide"],
+    ["/all-modalities/tarot", "/checkin?source=legacy-tarot"],
+    ["/all-modalities/guide", "/checkin?source=legacy-guide"],
+    ["/modalities/horoscope", "/checkin?source=legacy-horoscope"],
+    ["/modalities/natal", "/checkin?source=legacy-natal"],
+    ["/modalities/numerology", "/checkin?source=legacy-numerology"],
+    ["/modalities/unknown", "/checkin"],
     ["/specialists", "/practitioners"],
     ["/experts", "/practitioners"],
     ["/catalog", "/practitioners"],
@@ -27,8 +28,7 @@ describe("legacy public route redirects", () => {
 
   it("does not redirect current canonical public pages", () => {
     expect(legacyPublicRedirect("/")).toBeNull();
-    expect(legacyPublicRedirect("/all-modalities")).toBeNull();
-    expect(legacyPublicRedirect("/all-modalities/checkin")).toBeNull();
+    expect(legacyPublicRedirect("/checkin")).toBeNull();
     expect(legacyPublicRedirect("/practitioners/some-specialist")).toBeNull();
   });
 });

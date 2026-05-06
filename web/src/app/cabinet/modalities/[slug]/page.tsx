@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import CheckinPage from "@/app/all-modalities/checkin/page";
+import CheckinPage from "@/app/checkin/page";
 
 const LEGACY_SLUGS = ["tarot", "horoscope", "numerology", "natal", "guide"] as const;
 const ALL_SLUGS = ["checkin", ...LEGACY_SLUGS] as const;

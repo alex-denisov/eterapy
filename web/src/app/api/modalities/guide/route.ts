@@ -4,7 +4,7 @@ export async function POST() {
   return NextResponse.json(
     {
       error: "Старый платный инструмент заменён question-first диалогом ETerapy v5.",
-      redirectTo: "/all-modalities/checkin?source=legacy-guide-api",
+      redirectTo: "/checkin?source=legacy-guide-api",
     },
     { status: 410 },
   );

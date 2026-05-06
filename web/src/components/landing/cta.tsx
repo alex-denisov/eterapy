@@ -15,10 +15,10 @@ export function CTASection() {
       </p>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Link
-          href="/all-modalities/checkin"
+          href="/checkin"
           className="soft-button soft-button-primary min-w-56"
           data-analytics-event="dialogue_cta_clicked"
-          data-analytics-target="/all-modalities/checkin"
+          data-analytics-target="/checkin"
         >
           Начать диалог
           <ArrowRight className="size-4" aria-hidden="true" />

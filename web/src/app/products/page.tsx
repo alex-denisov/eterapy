@@ -11,30 +11,28 @@ export default function ProductsPage() {
     <main className="soft-clarity-page soft-products-page" data-testid="products-page">
       <PublicJsonLd route="/products" />
 
-      <section className="soft-shell soft-products-hero">
-        <div>
-          <p className="soft-eyebrow">Продукты ETerapy</p>
-          <h1 className="soft-display mt-3">
-            Углубление после <span className="soft-italic">первичного ответа</span>
-          </h1>
-          <p className="soft-lede mt-5 max-w-3xl">
-            Каждый продукт начинается от контекста вопроса: сначала диалог ясности, затем платная глубина, маршрут, совместимость, карта или специалист.
-          </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/all-modalities/checkin"
-              className="soft-button soft-button-primary"
-              data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/all-modalities/checkin"
-              data-testid="products-dialogue-cta"
-            >
-              Задать вопрос
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-            <Link href="/pricing" className="soft-button soft-button-ghost">
-              Посмотреть цены
-            </Link>
-          </div>
+      <section className="soft-shell soft-public-section" style={{ paddingBlock: "clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)" }}>
+        <p className="soft-eyebrow">Продукты ETerapy</p>
+        <h1 className="soft-display mt-3" style={{ maxWidth: "42rem" }}>
+          Углубление после <span className="soft-italic">первичного ответа</span>
+        </h1>
+        <p className="soft-lede mt-5" style={{ maxWidth: "36rem" }}>
+          Каждый продукт начинается от контекста вопроса: сначала диалог ясности, затем платная глубина, маршрут, совместимость, карта или специалист.
+        </p>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/checkin"
+            className="soft-button soft-button-primary"
+            data-analytics-event="dialogue_cta_clicked"
+            data-analytics-target="/checkin"
+            data-testid="products-dialogue-cta"
+          >
+            Задать вопрос
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+          <Link href="/pricing" className="soft-button soft-button-ghost">
+            Посмотреть цены
+          </Link>
         </div>
       </section>
 

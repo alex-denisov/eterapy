@@ -7,7 +7,7 @@ function source(relativePath: string) {
 
 describe("B071-B074 dialogue flow UI", () => {
   it("uses the v5 dialogue APIs instead of the old check-in generator", () => {
-    const page = source("src/app/all-modalities/checkin/page.tsx");
+    const page = source("src/app/checkin/page.tsx");
 
     expect(page).toContain('requestJson<{ dialogue: DialoguePayload }>("/api/dialogues"');
     expect(page).toContain("/api/dialogues/${dialogueId}/answer");
@@ -16,7 +16,7 @@ describe("B071-B074 dialogue flow UI", () => {
   });
 
   it("covers question, clarification, processing, safety, and result states", () => {
-    const page = source("src/app/all-modalities/checkin/page.tsx");
+    const page = source("src/app/checkin/page.tsx");
 
     expect(page).toContain('data-testid="dialogue-question-step"');
     expect(page).toContain('data-testid="dialogue-clarifying-step"');
@@ -27,7 +27,7 @@ describe("B071-B074 dialogue flow UI", () => {
   });
 
   it("offers save, share, and deepen actions after the primary answer", () => {
-    const page = source("src/app/all-modalities/checkin/page.tsx");
+    const page = source("src/app/checkin/page.tsx");
 
     expect(page).toContain("<AIShareButton");
     expect(page).toContain('data-testid="save-result-authenticated"');

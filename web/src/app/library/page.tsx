@@ -29,10 +29,10 @@ export default async function LibraryPage({
         </p>
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
-            href="/all-modalities/checkin"
+            href="/checkin"
             className="soft-button soft-button-primary"
             data-analytics-event="dialogue_cta_clicked"
-            data-analytics-target="/all-modalities/checkin"
+            data-analytics-target="/checkin"
             data-testid="library-dialogue-cta"
           >
             У меня похожий вопрос
@@ -92,10 +92,13 @@ export default async function LibraryPage({
                 «{entry.question}»
               </p>
               <div
-                className="mt-4 pt-4"
-                style={{ borderTop: "1px solid var(--soft-paper-edge)" }}
+                className="mt-4 py-4"
+                style={{
+                  borderTop: "1px solid var(--soft-paper-edge)",
+                  borderBottom: "1px solid var(--soft-paper-edge)",
+                }}
               >
-                <p className="soft-eyebrow">инсайт</p>
+                <p className="soft-eyebrow">фрагмент разбора</p>
                 <p
                   className="mt-2 text-sm leading-relaxed"
                   style={{ color: "var(--soft-ink-soft)", fontStyle: "italic" }}
@@ -105,14 +108,24 @@ export default async function LibraryPage({
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                  {entry.reactions} откликов
+                  {entry.reactions} {entry.reactions === 1 ? "отклик" : "откликов"}
                 </span>
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: "var(--soft-terracotta-dark)" }}
+                <Link
+                  href="/checkin"
+                  className="soft-button"
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "0.35rem 0.85rem",
+                    borderRadius: "999px",
+                    border: "1px solid var(--soft-paper-edge)",
+                    background: "var(--soft-paper-card)",
+                    color: "var(--soft-terracotta-dark)",
+                    textDecoration: "none",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 >
                   Похожий разбор →
-                </span>
+                </Link>
               </div>
             </Link>
           ))}

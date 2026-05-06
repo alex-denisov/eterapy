@@ -16,7 +16,7 @@ describe("v5 dialogue shell", () => {
   });
 
   it("wraps the current check-in dialogue flow", () => {
-    const checkin = source("src/app/all-modalities/checkin/page.tsx");
+    const checkin = source("src/app/checkin/page.tsx");
 
     expect(checkin).toContain('from "@/components/dialogue/dialogue-shell"');
     expect(checkin).toContain("<DialogueShell");

@@ -1,19 +1,20 @@
 const toolSlugMap: Record<string, string> = {
-  checkin: "checkin",
-  reflection: "checkin",
-  reflexion: "checkin",
-  tarot: "checkin?source=legacy-tarot",
-  natal: "checkin?source=legacy-natal",
-  numerology: "checkin?source=legacy-numerology",
-  horoscope: "checkin?source=legacy-horoscope",
-  guide: "checkin?source=legacy-guide",
+  checkin: "/checkin",
+  reflection: "/checkin",
+  reflexion: "/checkin",
+  tarot: "/checkin?source=legacy-tarot",
+  natal: "/checkin?source=legacy-natal",
+  numerology: "/checkin?source=legacy-numerology",
+  horoscope: "/checkin?source=legacy-horoscope",
+  guide: "/checkin?source=legacy-guide",
 };
 
 const directToolRedirects = new Set(["tarot", "natal", "numerology", "horoscope", "guide"]);
 
 const directLegacyRedirects: Record<string, string> = {
-  "/modalities": "/all-modalities",
-  "/tools": "/all-modalities",
+  "/modalities": "/checkin",
+  "/tools": "/checkin",
+  "/all-modalities": "/checkin",
   "/specialists": "/practitioners",
   "/experts": "/practitioners",
   "/catalog": "/practitioners",
@@ -34,12 +35,12 @@ export function legacyPublicRedirect(pathname: string): string | null {
 
   const directToolMatch = normalized.match(/^\/all-modalities\/([^/]+)$/);
   if (directToolMatch && directToolRedirects.has(directToolMatch[1])) {
-    return `/all-modalities/checkin?source=legacy-${directToolMatch[1]}`;
+    return `/checkin?source=legacy-${directToolMatch[1]}`;
   }
 
   const match = normalized.match(/^\/(?:modalities|tools)\/([^/]+)$/);
   if (!match) return null;
 
   const mappedSlug = toolSlugMap[match[1]];
-  return mappedSlug ? `/all-modalities/${mappedSlug}` : "/all-modalities";
+  return mappedSlug ?? "/checkin";
 }

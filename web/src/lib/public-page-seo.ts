@@ -92,9 +92,14 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Сервисы ETerapy от вопроса: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
     schemaKind: "Product",
   },
+  "/checkin": {
+    title: "Диалог ясности — ETerapy",
+    description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",
+    schemaKind: "Product",
+  },
   "/all-modalities/checkin": {
-    title: "Рефлексия по вопросу — ETerapy",
-    description: "Ответьте на несколько бережных вопросов и получите структурированный первичный ответ по вашей ситуации.",
+    title: "Диалог ясности — ETerapy",
+    description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",
     schemaKind: "Product",
   },
   "/practitioners": {

@@ -22,9 +22,9 @@ describe("B193 share/referral surfaces", () => {
     const footer = source("src/components/footer-conditional.tsx");
 
     expect(page).toContain('data-testid="public-share-landing"');
-    expect(page).toContain('href={mainUrl("/all-modalities/checkin")}');
+    expect(page).toContain('href={mainUrl("/checkin")}');
     expect(page).toContain("обезличены");
-    expect(header).toContain('"/share"');
+    expect(header).toContain('softPublicHeader');
     expect(footer).toContain('"/share"');
   });
 });

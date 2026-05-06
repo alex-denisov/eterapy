@@ -12,7 +12,7 @@ import { Wallet, HelpCircle } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
 const GUEST_NAV = [
-  { href: "/all-modalities/checkin", label: "Задать вопрос" },
+  { href: "/checkin", label: "Задать вопрос" },
   { href: "/how-it-works", label: "Как работает" },
   { href: "/products", label: "Продукты" },
   { href: "/library", label: "Библиотека" },
@@ -213,31 +213,7 @@ export function Header() {
   const nav = !isAuthenticated && !isLoading ? GUEST_NAV : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const softPublicPrefixes = [
-    "/",
-    "/about",
-    "/all-modalities",
-    "/auth",
-    "/experts",
-    "/help",
-    "/how-it-works",
-    "/how-to-choose",
-    "/legal",
-    "/library",
-    "/login",
-    "/modalities",
-    "/pricing",
-    "/products",
-    "/practitioner",
-    "/practitioners",
-    "/register",
-    "/share",
-    "/specialists",
-    "/tools",
-  ];
-  const softPublicHeader = softPublicPrefixes.some((prefix) => (
-    prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`)
-  )) && !isAuthenticated;
+  const softPublicHeader = !pathname.startsWith("/admin");
 
   return (
     <header
@@ -310,7 +286,7 @@ export function Header() {
                 Войти
               </Link>
               <Link
-                href={mainUrl("/all-modalities/checkin")}
+                href={mainUrl("/checkin")}
                 className={cn(
                   buttonVariants({ size: "sm" }),
                   softPublicHeader && "soft-button-primary text-white shadow-none",
@@ -367,7 +343,7 @@ export function Header() {
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
                 <Link href={mainUrl("/login")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
-                <Link href={mainUrl("/all-modalities/checkin")} onClick={() => setMobileOpen(false)}
+                <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Задать вопрос</Link>
               </div>
             ) : null}

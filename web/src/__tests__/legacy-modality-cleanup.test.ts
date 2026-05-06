@@ -13,7 +13,7 @@ describe("B084 legacy modality unlock cleanup", () => {
   it.each(legacyTools)("redirects the old %s page into the v5 question-first dialogue", (tool) => {
     const page = source(`src/app/all-modalities/${tool}/page.tsx`);
 
-    expect(page).toContain(`redirect("/all-modalities/checkin?source=legacy-${tool}")`);
+    expect(page).toContain(`redirect("/checkin?source=legacy-${tool}")`);
     expect(page).not.toContain('"use client"');
     expect(page).not.toContain("PaywallScreen");
     expect(page).not.toContain("getFullReadingPriceKopecks");
@@ -24,7 +24,7 @@ describe("B084 legacy modality unlock cleanup", () => {
     const route = source(`src/app/api/modalities/${tool}/route.ts`);
 
     expect(route).toContain("{ status: 410 }");
-    expect(route).toContain(`/all-modalities/checkin?source=legacy-${tool}-api`);
+    expect(route).toContain(`/checkin?source=legacy-${tool}-api`);
     expect(route).not.toContain("checkAndRecordToolSession");
     expect(route).not.toContain("getFullReadingPriceKopecks");
     expect(route).not.toContain("balanceKopecks");
@@ -37,10 +37,10 @@ describe("B084 legacy modality unlock cleanup", () => {
     expect(fs.existsSync(path.join(root, "src/lib/tool-limit-server.ts"))).toBe(false);
   });
 
-  it("keeps the all-modalities index from linking directly to removed paid-tool pages", () => {
+  it("keeps the all-modalities index redirecting to canonical checkin, not to paid-tool pages", () => {
     const page = source("src/app/all-modalities/page.tsx");
 
-    expect(page).toContain("/all-modalities/checkin?source=legacy-tarot-card");
+    expect(page).toContain('redirect("/checkin")');
     expect(page).not.toContain('href="/all-modalities/tarot"');
     expect(page).not.toContain('href="/all-modalities/horoscope"');
     expect(page).not.toContain('href="/all-modalities/natal"');

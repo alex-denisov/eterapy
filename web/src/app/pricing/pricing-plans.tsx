@@ -9,8 +9,8 @@ const plans = [
     id: "free",
     name: "Базовый",
     tagline: "Чтобы попробовать",
-    monthPrice: "0 ₽",
-    yearPrice: "0 ₽",
+    monthPrice: 0,
+    yearPrice: 0,
     perks: [
       "Первый разбор бесплатно",
       "Доступ к библиотеке вопросов",
@@ -18,7 +18,7 @@ const plans = [
       "Карточка для шеринга — 2 шаблона",
     ],
     cta: "Начать",
-    href: "/all-modalities/checkin",
+    href: "/checkin",
     featured: false,
     dark: false,
     style: {} as React.CSSProperties,
@@ -27,8 +27,8 @@ const plans = [
     id: "plus",
     name: "Plus",
     tagline: "Для регулярной практики ясности",
-    monthPrice: "599 ₽/мес",
-    yearPrice: "399 ₽/мес",
+    monthPrice: 490,
+    yearPrice: 4900,
     perks: [
       "Безлимитные разборы и уточнения",
       "4 ракурса · разбор переписки · совместимость",
@@ -37,7 +37,7 @@ const plans = [
       "Скидка 10% на встречи со специалистами",
     ],
     cta: "Подключить Plus",
-    href: "/all-modalities/checkin",
+    href: "/cabinet/billing",
     featured: true,
     dark: false,
     style: { background: "linear-gradient(160deg, #f4d9c1, #f8e6d1)" } as React.CSSProperties,
@@ -46,8 +46,8 @@ const plans = [
     id: "premium",
     name: "Premium",
     tagline: "С поддержкой проверенного специалиста",
-    monthPrice: "1490 ₽/мес",
-    yearPrice: "999 ₽/мес",
+    monthPrice: 1290,
+    yearPrice: 12900,
     perks: [
       "Всё из Plus",
       "1 встреча с психологом или коучем в месяц",
@@ -56,27 +56,32 @@ const plans = [
       "Скидка 20% на дополнительные встречи",
     ],
     cta: "Подключить Premium",
-    href: "/all-modalities/checkin",
+    href: "/cabinet/billing",
     featured: false,
     dark: true,
     style: { background: "var(--soft-bordeaux, #5c2a2c)" } as React.CSSProperties,
   },
 ];
 
-const practitionerPrices = { month: "2990 ₽/мес", year: "990 ₽/мес" };
+const practitionerPrices = { month: 2990, year: 29900 };
 
 const oneOff = [
   { t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно" },
   { t: "4 ракурса ответа", d: "Разум · Чувства · Символ · Действие", price: "299 ₽" },
-  { t: "Глубокий отчёт", d: "Документ-разбор ситуации", price: "490-990 ₽" },
-  { t: "Разбор переписки", d: "До 50 / 200 / 500 сообщений", price: "299-1490 ₽" },
-  { t: "Совместимость", d: "Парный отчёт по приглашению", price: "590-990 ₽" },
-  { t: "7 дней к ясности", d: "Один разбор в день, 5–10 мин", price: "790-1490 ₽" },
+  { t: "Глубокий отчёт", d: "Документ-разбор ситуации", price: "от 490 ₽" },
+  { t: "Разбор переписки", d: "До 50 / 200 / 500 сообщений", price: "от 299 ₽" },
+  { t: "Совместимость", d: "Парный отчёт по приглашению", price: "от 590 ₽" },
+  { t: "7 дней к ясности", d: "Один разбор в день, 5–10 мин", price: "от 790 ₽" },
   { t: "Встреча с психологом", d: "50 минут онлайн", price: "от 1 900 ₽" },
   { t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 2 500 ₽" },
   { t: "Парная встреча", d: "Семейный психолог", price: "от 5 000 ₽" },
   { t: "Совместная сессия", d: "Эзотерик + психотерапевт", price: "от 4 500 ₽", soon: true },
 ];
+
+function formatPrice(n: number): string {
+  if (n === 0) return "Бесплатно";
+  return n.toLocaleString("ru-RU") + " ₽";
+}
 
 export function PricingPlans() {
   const [period, setPeriod] = useState<"month" | "year">("month");
@@ -113,13 +118,18 @@ export function PricingPlans() {
       {/* Plans */}
       <section className="soft-shell soft-public-section">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-          {plans.map((plan) => (
+          {plans.map((plan) => {
+            const price = period === "year" ? plan.yearPrice : plan.monthPrice;
+            const periodLabel = period === "year" ? "в год" : "в месяц";
+            return (
               <div
                 key={plan.id}
                 className="soft-card"
                 style={{
                   position: "relative",
                   padding: "1.75rem",
+                  display: "flex",
+                  flexDirection: "column",
                   outline: plan.featured ? "2px solid var(--soft-terracotta-dark, #b85b40)" : "none",
                   outlineOffset: "0",
                   color: plan.dark ? "#fbf0e1" : "var(--soft-ink)",
@@ -167,20 +177,33 @@ export function PricingPlans() {
                   {plan.tagline}
                 </p>
 
-                <p
-                  className="font-heading"
-                  style={{
-                    fontSize: "2.25rem",
-                    fontWeight: 600,
-                    marginTop: "1.25rem",
-                    lineHeight: 1,
-                    color: plan.dark ? "#f4d9c1" : "var(--soft-bordeaux)",
-                  }}
-                >
-                  {period === "year" ? plan.yearPrice : plan.monthPrice}
-                </p>
+                <div style={{ marginTop: "1.25rem" }}>
+                  <span
+                    className="font-heading"
+                    style={{
+                      fontSize: "2.25rem",
+                      fontWeight: 600,
+                      lineHeight: 1,
+                      color: plan.dark ? "#f4d9c1" : "var(--soft-bordeaux)",
+                    }}
+                    data-testid={`pricing-plan-price-${plan.id}`}
+                  >
+                    {formatPrice(price)}
+                  </span>
+                  {price > 0 && (
+                    <span
+                      style={{
+                        fontSize: "0.8rem",
+                        marginLeft: "0.5rem",
+                        opacity: plan.dark ? 0.65 : 0.55,
+                      }}
+                    >
+                      {periodLabel}
+                    </span>
+                  )}
+                </div>
 
-                <ul className="mt-6 space-y-2.5">
+                <ul className="mt-6 flex-1 space-y-2.5">
                   {plan.perks.map((perk) => (
                     <li key={perk} className="flex items-start gap-2.5 text-sm">
                       <CheckCircle2
@@ -210,7 +233,8 @@ export function PricingPlans() {
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>
               </div>
-          ))}
+            );
+          })}
         </div>
 
         <p className="mt-6 text-center text-xs" style={{ color: "var(--soft-ink-faint)", maxWidth: "38rem", marginInline: "auto" }}>
@@ -235,9 +259,10 @@ export function PricingPlans() {
             {oneOff.map((item, i) => (
               <div
                 key={item.t}
-                className="flex items-center justify-between gap-4 border-t py-4 first:border-t-0 sm:[&:nth-child(2)]:border-t-0"
+                className="flex items-center justify-between gap-4 py-4"
                 style={{
-                  borderColor: "var(--soft-paper-edge)",
+                  borderTop: i > 1 ? "1px solid var(--soft-paper-edge)" : i === 1 ? "none" : "none",
+                  borderRight: i % 2 === 0 ? "1px solid var(--soft-paper-edge)" : "none",
                   opacity: item.soon ? 0.6 : 1,
                   paddingLeft: i % 2 === 1 ? "1.25rem" : "0",
                   paddingRight: i % 2 === 0 ? "1.25rem" : "0",
@@ -289,7 +314,7 @@ export function PricingPlans() {
                 Никаких ежемесячных платежей за листинг. Деньги поступают на счёт еженедельно.
               </p>
               <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-faint)" }}>
-                Practitioner Pro: {period === "year" ? practitionerPrices.year : practitionerPrices.month} — AI-саммари, контекст по согласию, аналитика.
+                Practitioner Pro: {formatPrice(period === "year" ? practitionerPrices.year : practitionerPrices.month)} {period === "year" ? "в год" : "в месяц"} — AI-саммари, контекст по согласию, аналитика.
               </p>
               <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                 Специалист появляется в рекомендации только после того, как вы изложили суть вопроса,
@@ -327,10 +352,10 @@ export function PricingPlans() {
           Первый разбор — бесплатно, без карты, без регистрации.
         </p>
         <Link
-          href="/all-modalities/checkin"
+          href="/checkin"
           className="soft-button soft-button-primary mt-7"
           data-analytics-event="dialogue_cta_clicked"
-          data-analytics-target="/all-modalities/checkin"
+          data-analytics-target="/checkin"
           data-testid="pricing-dialogue-cta"
         >
           Задать вопрос

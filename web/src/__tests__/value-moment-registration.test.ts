@@ -9,7 +9,7 @@ function source(relativePath: string) {
 
 describe("B051 value-moment registration", () => {
   it("offers save/register only after a check-in result exists", () => {
-    const page = source("src/app/all-modalities/checkin/page.tsx");
+    const page = source("src/app/checkin/page.tsx");
 
     expect(page).toContain("saveGuestResultDraft");
     expect(page).toContain("primaryAnswer");

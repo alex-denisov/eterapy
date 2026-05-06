@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, LockKeyhole } from "lucide-react";
-import { HaloSymbol } from "@/components/brand/brand-mark";
+import { SoftHaloMark } from "@/components/brand/brand-mark";
 
 const topics = [
   "Отношения",
@@ -57,10 +57,10 @@ export function HeroSection() {
         <div className="soft-halo-stage mt-10">
           <div className="soft-ask-card" data-testid="v5-question-entry">
             <div className="mb-3 flex items-center gap-2">
-              <HaloSymbol size={18} glow={false} title="" />
+              <SoftHaloMark size={14} />
               <span className="soft-eyebrow">Диалог ясности</span>
             </div>
-            <form action="/all-modalities/checkin" data-testid="question-entry">
+            <form action="/checkin" data-testid="question-entry">
               <label htmlFor="home-question" className="sr-only">
                 Что сейчас хочется понять?
               </label>
@@ -82,7 +82,7 @@ export function HeroSection() {
                   type="submit"
                   className="soft-button soft-button-primary"
                   data-analytics-event="dialogue_cta_clicked"
-                  data-analytics-target="/all-modalities/checkin"
+                  data-analytics-target="/checkin"
                   data-testid="home-dialogue-cta"
                 >
                   Начать диалог
@@ -99,10 +99,10 @@ export function HeroSection() {
             {topics.map((topic) => (
               <Link
                 key={topic}
-                href={`/all-modalities/checkin?question=${encodeURIComponent(`${topic}: `)}`}
+                href={`/checkin?question=${encodeURIComponent(`${topic}: `)}`}
                 className="soft-chip"
                 data-analytics-event="dialogue_topic_clicked"
-                data-analytics-target="/all-modalities/checkin"
+                data-analytics-target="/checkin"
               >
                 {topic}
               </Link>

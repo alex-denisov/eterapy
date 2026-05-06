@@ -31,6 +31,7 @@ export const publicSeoRoutes = [
   "/products/seven-days",
   "/products/my-map",
   "/all-modalities",
+  "/checkin",
   "/all-modalities/checkin",
   "/practitioners",
   "/practitioners/apply",

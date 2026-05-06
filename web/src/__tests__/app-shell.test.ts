@@ -21,7 +21,7 @@ describe("v5 app shell", () => {
   });
 
   it("sends public product links from the app cabinet back to the public domain", () => {
-    expect(clientCabinet).toContain('mainUrl("/all-modalities/checkin")');
+    expect(clientCabinet).toContain('mainUrl("/checkin")');
     expect(clientCabinet).toContain('mainUrl("/products/deep-report")');
     expect(clientCabinet).toContain('mainUrl("/products/seven-days")');
     expect(clientCabinet).toContain('appUrl("/cabinet/action-history")');

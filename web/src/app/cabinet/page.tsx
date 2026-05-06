@@ -43,7 +43,7 @@ export default async function ClientCabinetPage() {
           <h1 className="premium-title mt-2 text-3xl md:text-5xl">Добрый вечер, {firstName}</h1>
           <p className="mt-2 text-muted-foreground text-sm">{session.user?.email}</p>
         </div>
-        <Link href={mainUrl("/all-modalities/checkin")} className="soft-button soft-button-primary w-full sm:w-auto">
+        <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary w-full sm:w-auto">
           Новый разбор
         </Link>
       </div>
@@ -116,7 +116,7 @@ export default async function ClientCabinetPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { href: mainUrl("/all-modalities/checkin"), icon: "01", label: "Диалог ясности", desc: "Первичный ответ по вопросу" },
+            { href: mainUrl("/checkin"), icon: "01", label: "Диалог ясности", desc: "Первичный ответ по вопросу" },
             { href: mainUrl("/products/deep-report"), icon: "02", label: "Глубокий отчет", desc: "Развернутое углубление" },
             { href: mainUrl("/products/seven-days"), icon: "03", label: "7 дней к ясности", desc: "Короткий маршрут на неделю" },
             { href: appUrl("/cabinet/action-history"), icon: "04", label: "Моя карта", desc: "Сохраненные выводы" },

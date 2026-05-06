@@ -27,9 +27,9 @@ describe("v5 product pages", () => {
     const detailPage = source("app/products/[slug]/page.tsx");
 
     expect(indexPage).toContain('data-testid="products-page"');
-    expect(indexPage).toContain('href="/all-modalities/checkin"');
+    expect(indexPage).toContain('href="/checkin"');
     expect(detailPage).toContain('data-testid="product-dialogue-cta"');
-    expect(detailPage).toContain('href="/all-modalities/checkin"');
+    expect(detailPage).toContain('href="/checkin"');
     expect(indexPage).not.toContain('href="/practitioners"');
     expect(detailPage).not.toContain('href="/practitioners"');
   });

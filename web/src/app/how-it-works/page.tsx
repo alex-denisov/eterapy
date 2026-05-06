@@ -50,31 +50,28 @@ export default function HowItWorksPage() {
     <main className="soft-clarity-page soft-public-page" data-testid="how-it-works-page">
       <PublicJsonLd route="/how-it-works" />
 
-      <section className="soft-shell soft-public-hero">
-        <div>
-          <p className="soft-eyebrow">Путь ETerapy v5</p>
-          <h1 className="soft-h1 mt-4">От вопроса к ясному следующему шагу</h1>
-          <p className="soft-lede mt-5 max-w-2xl">
-            v5 убирает выбор из каталога как первый шаг. Сначала платформа помогает понять ситуацию,
-            затем предлагает глубину продукта или специалиста, если это уместно.
-          </p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/all-modalities/checkin"
-              className="soft-button soft-button-primary"
-              data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/all-modalities/checkin"
-              data-testid="how-it-works-dialogue-cta"
-            >
-              Задать вопрос
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-            <Link href="/all-modalities" className="soft-button soft-button-ghost">
-              Посмотреть сервисы
-            </Link>
-          </div>
+      <section className="soft-shell soft-public-section" style={{ paddingBlock: "clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem)" }}>
+        <p className="soft-eyebrow">Путь ETerapy v5</p>
+        <h1 className="soft-h1 mt-4" style={{ maxWidth: "42rem" }}>От вопроса к ясному следующему шагу</h1>
+        <p className="soft-lede mt-5" style={{ maxWidth: "36rem" }}>
+          v5 убирает выбор из каталога как первый шаг. Сначала платформа помогает понять ситуацию,
+          затем предлагает глубину продукта или специалиста, если это уместно.
+        </p>
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/checkin"
+            className="soft-button soft-button-primary"
+            data-analytics-event="dialogue_cta_clicked"
+            data-analytics-target="/checkin"
+            data-testid="how-it-works-dialogue-cta"
+          >
+            Задать вопрос
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+          <Link href="/pricing" className="soft-button soft-button-ghost">
+            Тарифы
+          </Link>
         </div>
-
       </section>
 
       <section className="soft-shell soft-public-section" aria-label="Путь пользователя">
