@@ -13,10 +13,10 @@ describe("v5 public shell", () => {
 
     expect(brand).toContain("function HaloSymbol");
     expect(brand).toContain("function VectorBrandLogo");
-    // The brand mark must be rendered as inline SVG, not as a next/image PNG.
+    // The brand mark must be rendered as CSS conic-gradient (v4 design), not as a next/image PNG.
     expect(brand).not.toContain('from "next/image"');
     expect(brand).not.toContain("brandAssets.logos");
-    expect(brand).toContain("<svg");
+    expect(brand).toContain("conic-gradient");
     expect(header).toContain("<VectorBrandLogo");
     expect(footer).toContain("<BrandLogo");
     expect(header).not.toContain('src="/logo.svg"');

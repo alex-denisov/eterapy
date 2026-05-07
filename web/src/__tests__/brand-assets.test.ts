@@ -17,8 +17,8 @@ describe("design v4 brand assets", () => {
     expect(layout).toContain('manifest: "/site.webmanifest"');
     expect(layout).not.toContain("brandAssets");
     expect(icon).toContain("#FBF6EE");
-    expect(icon).toContain("#D67558");
-    expect(icon).toContain("#A89BC9");
+    expect(icon).toContain("#F4C9A8");
+    expect(icon).toContain("#D9C9E8");
     expect(fs.existsSync(publicPath("/favicon.ico"))).toBe(true);
     expect(manifest.icons).toEqual([
       expect.objectContaining({ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }),

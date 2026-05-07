@@ -19,7 +19,6 @@ import {
   LogOut,
 } from "lucide-react";
 import { appUrl, logoutUrl, toPathname } from "@/lib/subdomain";
-import { BrandSignature } from "@/components/brand/brand-mark";
 
 interface NavItem {
   href: string;
@@ -86,17 +85,14 @@ export function CabinetShell({
         data-shell-role={role}
         className="soft-app-sidebar sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto px-4 py-5 md:flex"
       >
-        {/* User badge + Notifications */}
-        <div className="mb-5 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4">
-          <BrandSignature compact theme="light" />
-        </div>
-        <div className="mb-6 px-2" data-testid="app-shell-user">
+        {/* User badge */}
+        <div className="mb-5 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
           <div className="flex items-center gap-3">
             <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
               {initial}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{user?.name ?? "Пользователь"}</p>
+              <p className="truncate text-sm font-medium">{user?.name ?? "Мой кабинет"}</p>
               <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
             </div>
           </div>
