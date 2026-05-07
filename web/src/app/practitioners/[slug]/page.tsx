@@ -198,7 +198,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
                       style={{ padding: "12px 16px", background: "var(--soft-paper-deep)", borderRadius: 12 }}
                     >
                       <div>
-                        <div style={{ fontWeight: 600 }}>{rate.label ?? "Индивидуальная сессия"}</div>
+                        <div style={{ fontWeight: 600 }}>Индивидуальная сессия</div>
                         <div className="text-xs text-[var(--soft-ink-faint)] mt-0.5">{rate.durationMin} мин · онлайн</div>
                       </div>
                       <div
