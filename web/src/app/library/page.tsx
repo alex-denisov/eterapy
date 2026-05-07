@@ -36,9 +36,6 @@ export default async function LibraryPage({
           >
             У меня похожий вопрос
           </Link>
-          <Link href="/how-it-works" className="soft-button soft-button-ghost">
-            Как работает разбор
-          </Link>
         </div>
       </section>
 

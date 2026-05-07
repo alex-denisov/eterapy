@@ -8,42 +8,29 @@ export const metadata = createPublicPageMetadata("/how-it-works");
 const steps = [
   {
     step: "01",
-    title: "Опишите своими словами",
-    text: "Без формы и категорий. Так, как рассказали бы близкому человеку за кофе.",
+    title: "Вы пишете своими словами",
+    text: "Без формы, категорий и обязательных полей. Можно так, как рассказали бы близкому человеку: путано, эмоционально, с многоточиями.",
   },
   {
     step: "02",
-    title: "Несколько уточнений",
-    text: "Мы задаём 2–4 коротких вопроса, чтобы понять контекст. Можно пропустить.",
+    title: "Мы задаём 2–4 коротких вопроса",
+    text: "Чтобы понять контекст: с чем связано, как давно, что уже пробовали, чего хочется на выходе. Любой вопрос можно пропустить.",
   },
   {
     step: "03",
-    title: "Первичный разбор",
-    text: "Что мы услышали, главная развилка, на что обратить внимание, безопасный шаг.",
+    title: "Получаете первичный разбор",
+    text: "Что мы услышали, главная развилка, что обратило внимание (факты / чувства / предположения), безопасный следующий шаг.",
   },
   {
     step: "04",
-    title: "Углубление по выбору",
-    text: "Ракурсы, разбор переписки, совместимость, маршрут или встреча со специалистом.",
+    title: "Углубляетесь, если хочется",
+    text: "4 ракурса, разбор переписки, совместимость, маршрут «7 дней», встреча со специалистом, или совместная сессия — выбираете сами.",
   },
-];
-
-const helps = [
-  "сформулировать вопрос, когда трудно подобрать слова",
-  "посмотреть на ситуацию с разных сторон",
-  "отделить факты от чувств и предположений",
-  "увидеть один безопасный следующий шаг",
-  "сохранить инсайты в личной карте",
-  "при необходимости найти специалиста",
-];
-
-const notHelps = [
-  "предсказать будущее как факт",
-  "вернуть человека, который уходит",
-  "поставить диагноз или вылечить",
-  "заменить психолога, врача или юриста",
-  "принять решение за вас",
-  "гарантировать конкретный результат",
+  {
+    step: "05",
+    title: "Сохраняете в карту",
+    text: "Все разборы складываются в личную карту: видны темы, паттерны, повторы. Можно поделиться карточкой, можно удалить всё в один клик.",
+  },
 ];
 
 export default function HowItWorksPage() {
@@ -51,156 +38,101 @@ export default function HowItWorksPage() {
     <main className="soft-clarity-page soft-public-page" data-testid="how-it-works-page">
       <PublicJsonLd route="/how-it-works" />
 
-      {/* Hero */}
-      <section className="soft-shell" style={{ paddingTop: 64, paddingBottom: 24 }}>
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div style={{ maxWidth: 680 }}>
-            <p className="soft-eyebrow">как это работает</p>
-            <h1 className="soft-h1 mt-3">
-              Четыре шага от вопроса <span className="soft-italic">к ясности</span>
-            </h1>
-          </div>
-          <span
-            aria-label="Занимает 5–7 минут"
+      <section className="soft-shell" style={{ paddingTop: 64, paddingBottom: 24, maxWidth: 880, margin: "0 auto" }}>
+        <p className="soft-eyebrow">как это работает</p>
+        <h1 className="soft-h1 mt-3">
+          Тёплый, короткий путь от <span className="soft-italic">«не понимаю, что со мной»</span> к ясному следующему шагу
+        </h1>
+
+        {/* Quote card */}
+        <div className="soft-card mt-8" style={{ padding: 28 }}>
+          <p
             style={{
-              display: "inline-block",
-              background: "#FFF6D6",
-              border: "1px solid #EED9A1",
-              padding: "6px 14px",
               fontFamily: "var(--font-heading, serif)",
               fontStyle: "italic",
-              fontSize: 18,
-              color: "#6B4A1E",
-              borderRadius: 4,
-              transform: "rotate(-1.5deg)",
-              boxShadow: "0 2px 0 rgba(0,0,0,.04)",
-              flexShrink: 0,
+              fontSize: 24,
+              color: "var(--soft-bordeaux)",
+              lineHeight: 1.4,
             }}
           >
-            5–7 минут
-          </span>
+            «ETerapy — это не предсказание и не терапия. Это пространство, где можно сформулировать важный вопрос — и услышать его в полной тишине».
+          </p>
         </div>
 
-        {/* Steps grid */}
-        <div className="soft-map-grid" style={{ marginTop: 8 }}>
+        {/* 5 steps */}
+        <div className="mt-4 flex flex-col gap-4">
           {steps.map((s) => (
             <div
               key={s.step}
               className="soft-card"
-              style={{ gridColumn: "span 3", padding: 22 }}
+              style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: 24, alignItems: "center", padding: 22 }}
             >
               <span
                 style={{
                   fontFamily: "var(--font-heading, serif)",
                   fontStyle: "italic",
+                  fontSize: 44,
                   color: "var(--soft-terracotta-dark)",
-                  fontSize: 22,
-                  display: "block",
-                  marginBottom: 14,
+                  lineHeight: 1,
                 }}
               >
                 {s.step}
               </span>
-              <p
-                style={{
-                  fontFamily: "var(--font-heading, serif)",
-                  fontSize: 22,
-                  lineHeight: 1.2,
-                  color: "var(--soft-bordeaux)",
-                  fontWeight: 500,
-                  marginBottom: 10,
-                }}
-              >
-                {s.title}
-              </p>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                {s.text}
-              </p>
+              <div>
+                <p
+                  style={{
+                    fontFamily: "var(--font-heading, serif)",
+                    fontSize: 20,
+                    lineHeight: 1.2,
+                    color: "var(--soft-bordeaux)",
+                    fontWeight: 500,
+                    marginBottom: 8,
+                  }}
+                >
+                  {s.title}
+                </p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                  {s.text}
+                </p>
+              </div>
             </div>
           ))}
         </div>
-      </section>
 
-      {/* Help vs not help */}
-      <section className="soft-shell" style={{ marginTop: 64 }}>
-        <div className="grid gap-6 md:grid-cols-2">
-          <div
-            className="soft-card"
-            style={{ background: "linear-gradient(150deg, #FFFCF5, #F4D9C1)", padding: 28 }}
+        {/* Safety card */}
+        <div className="soft-card mt-8" style={{ background: "var(--soft-bordeaux)", color: "#F4D9C1", padding: 28 }}>
+          <p className="soft-eyebrow" style={{ color: "#F4D9C1", opacity: 0.7 }}>важно</p>
+          <h3
+            style={{
+              fontFamily: "var(--font-heading, serif)",
+              fontSize: 20,
+              fontWeight: 500,
+              color: "#FBF0E1",
+              marginTop: 8,
+              marginBottom: 12,
+            }}
           >
-            <p className="soft-eyebrow">мы помогаем</p>
-            <h2 className="soft-h3 mt-3" style={{ marginBottom: 20 }}>
-              сформулировать, услышать, увидеть варианты
-            </h2>
-            <div className="flex flex-col gap-3">
-              {helps.map((x) => (
-                <div key={x} className="flex items-start gap-3">
-                  <span
-                    style={{
-                      color: "var(--soft-terracotta-dark)",
-                      fontSize: 16,
-                      lineHeight: 1.5,
-                      flexShrink: 0,
-                      fontWeight: 700,
-                    }}
-                  >
-                    ✓
-                  </span>
-                  <span style={{ fontSize: 15 }}>{x}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="soft-card-flat" style={{ padding: 28 }}>
-            <p className="soft-eyebrow">мы не обещаем</p>
-            <h2 className="soft-h3 mt-3" style={{ marginBottom: 20 }}>
-              того, чего никто честно обещать не может
-            </h2>
-            <div className="flex flex-col gap-3">
-              {notHelps.map((x) => (
-                <div key={x} className="flex items-start gap-3">
-                  <span
-                    style={{
-                      color: "var(--soft-ink-faint)",
-                      fontSize: 16,
-                      lineHeight: 1.5,
-                      flexShrink: 0,
-                      fontWeight: 700,
-                    }}
-                  >
-                    ×
-                  </span>
-                  <span style={{ fontSize: 15, color: "var(--soft-ink-soft)" }}>{x}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+            Когда мы перенаправим к человеку
+          </h3>
+          <ul style={{ lineHeight: 1.7, paddingLeft: 18, color: "#E8C4B8", fontSize: 14.5 }}>
+            <li>Если в разборе появляются мысли о самоповреждении — мы остановимся и дадим контакты экстренных служб.</li>
+            <li>Если вопрос про насилие, угрозу безопасности, юридические или медицинские риски — направим к специалисту.</li>
+            <li>Если за 2–3 разбора тема не сдвигается — предложим встречу с проверенным психологом, коучем или юристом.</li>
+          </ul>
         </div>
-      </section>
 
-      {/* CTA */}
-      <section className="soft-shell" style={{ marginTop: 64, paddingBottom: 80 }}>
-        <div className="soft-card soft-form-panel" style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
-          <p className="soft-eyebrow">первый разбор бесплатно</p>
-          <h2 className="soft-h2 mt-3">С чего начнём?</h2>
-          <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-            Без регистрации. Анонимно. Занимает 5–7 минут.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3 mt-6">
-            <Link
-              href="/checkin"
-              className="soft-button soft-button-primary"
-              data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/checkin"
-              data-testid="how-it-works-dialogue-cta"
-            >
-              Начать диалог
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-            <Link href="/practitioners" className="soft-button soft-button-ghost">
-              Найти специалиста
-            </Link>
-          </div>
+        {/* CTA */}
+        <div className="mt-12 text-center" style={{ paddingBottom: 80 }}>
+          <Link
+            href="/checkin"
+            className="soft-button soft-button-primary"
+            data-analytics-event="dialogue_cta_clicked"
+            data-analytics-target="/checkin"
+            data-testid="how-it-works-dialogue-cta"
+          >
+            Начать диалог
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
         </div>
       </section>
     </main>

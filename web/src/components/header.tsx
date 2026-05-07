@@ -245,7 +245,7 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         <Link href={mainUrl("/")}
           className="flex shrink-0 items-center">
-          <VectorBrandLogo height={38} theme={softPublicHeader ? "light" : "dark"} />
+          <VectorBrandLogo height={28} theme={softPublicHeader ? "light" : "dark"} />
         </Link>
 
         {/* Public navigation stays on eterapy.com even inside app.eterapy.com cabinets. */}

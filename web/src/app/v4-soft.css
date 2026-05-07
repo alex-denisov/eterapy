@@ -235,6 +235,16 @@
     background: rgba(92, 42, 44, 0.05);
   }
 
+  .soft-button-soft {
+    background: var(--soft-paper-deep);
+    color: var(--soft-bordeaux);
+    border-color: var(--soft-paper-edge);
+  }
+
+  .soft-button-soft:hover {
+    background: var(--soft-apricot);
+  }
+
   .soft-header {
     border-bottom-color: rgba(232, 220, 198, 0.72) !important;
     background: color-mix(in srgb, var(--soft-paper) 96%, white) !important;
@@ -382,6 +392,7 @@
     filter: blur(42px);
     opacity: 0.8;
     animation: softHaloBreathe 12s ease-in-out infinite;
+    pointer-events: none;
   }
 
   .soft-ask-card {

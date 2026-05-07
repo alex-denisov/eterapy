@@ -14,11 +14,16 @@ const AVATAR_GRADIENTS = [
 ];
 
 const CATEGORY_FILTERS = [
-  { id: "all", label: "Все направления" },
-  { id: "psy", label: "Психология" },
-  { id: "coach", label: "Коучинг" },
-  { id: "legal", label: "Юристы" },
-  { id: "finance", label: "Финансы" },
+  { id: "all", label: "Все направления", live: true },
+  { id: "psy", label: "Психология", live: true },
+  { id: "coach", label: "Коучинг", live: true },
+  { id: "legal", label: "Юристы", live: true },
+  { id: "finance", label: "Финансы", live: true },
+  { id: "tarot", label: "Таро", live: false },
+  { id: "astro", label: "Астрология", live: false },
+  { id: "numero", label: "Нумерология", live: false },
+  { id: "joint", label: "Совместные сессии", live: false },
+  { id: "edu", label: "Обучение", live: false },
 ];
 
 type Practitioner = {
@@ -77,11 +82,14 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
           {CATEGORY_FILTERS.map((c) => (
             <button
               key={c.id}
+              disabled={!c.live}
               className={["soft-chip transition-colors", cat === c.id ? "soft-chip-warm" : ""].join(" ")}
-              onClick={() => setCat(c.id)}
+              onClick={() => c.live && setCat(c.id)}
               aria-pressed={cat === c.id}
+              style={{ opacity: c.live ? 1 : 0.4, cursor: c.live ? "pointer" : "not-allowed" }}
             >
               {c.label}
+              {!c.live && <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>· скоро</span>}
             </button>
           ))}
         </div>
@@ -165,7 +173,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                 {p.specialties.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {p.specialties.slice(0, 3).map((s) => (
-                      <span key={s} className="soft-chip soft-chip-soft px-2 py-1 text-[11.5px]">{s}</span>
+                      <span key={s} className="soft-chip soft-chip-warm px-2 py-1 text-[11.5px]">{s}</span>
                     ))}
                   </div>
                 )}
@@ -174,7 +182,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
 
                 <div className="flex items-end justify-between">
                   <div>
-                    <p className="text-[11px] text-[var(--soft-ink-faint)]">от {p.minDuration} мин</p>
+                    <p className="text-[11px] text-[var(--soft-ink-faint)]">{p.minDuration} мин · от</p>
                     <p
                       style={{ fontSize: 20, fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)", fontWeight: 600 }}
                     >

@@ -1,10 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="52%" r="58%">
-      <stop offset="0%" stop-color="#fff8ec"/>
-      <stop offset="56%" stop-color="#fbf6ee"/>
-      <stop offset="100%" stop-color="#f3ead9"/>
-    </radialGradient>
     <radialGradient id="core" cx="50%" cy="54%" r="42%">
       <stop offset="0%" stop-color="#ffd79a" stop-opacity="0.95"/>
       <stop offset="38%" stop-color="#f2c37d" stop-opacity="0.44"/>
@@ -25,7 +20,6 @@
       <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ffd79a" flood-opacity="0.2"/>
     </filter>
   </defs>
-  <rect width="128" height="128" rx="32" fill="url(#bg)"/>
   <circle cx="64" cy="66" r="34" fill="url(#core)"/>
   <path d="M62 20C39 26 24 45 24 68c0 15 7 28 19 36" fill="none" stroke="url(#gold)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)"/>
   <path d="M78 20c16 6 27 21 27 39 0 20-12 37-30 45" fill="none" stroke="url(#lilac)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)"/>

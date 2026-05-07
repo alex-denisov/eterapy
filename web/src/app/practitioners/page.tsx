@@ -1,7 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
@@ -55,35 +53,16 @@ export default async function PractitionersPage() {
               Только те, кому <span className="soft-italic">мы доверяем сами</span>
             </h1>
             <p className="soft-lede mt-3">
-              Специалист как следующий шаг — после того, как вы сформулировали вопрос.
-              Сначала контекст вопроса, затем подбор. Это не основной вход в продукт.
-            </p>
-            <p className="mt-2 text-sm text-[var(--soft-ink-faint)]">
               Каждый специалист проходит проверку диплома, опыта и подписывает этический кодекс.
               Цена видна до записи. Жалоба — в один клик.
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/checkin"
-                className="soft-button soft-button-primary"
-                data-testid="practitioner-secondary-dialogue-cta"
-                data-analytics-event="dialogue_cta_clicked"
-                data-analytics-target="/checkin"
-              >
-                Задать вопрос
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-              <Link href="/how-it-works" className="soft-button soft-button-ghost">
-                Как работает подбор
-              </Link>
-            </div>
           </div>
 
-          <div className="soft-card p-5" style={{ maxWidth: 320 }}>
+          <div className="soft-card-flat p-5" style={{ maxWidth: 320 }}>
             <p className="soft-eyebrow mb-3">скоро в каталоге</p>
             <div className="flex flex-wrap gap-2">
               {["Таро", "Астрология", "Нумерология", "Совместные сессии", "Обучение"].map((label) => (
-                <span key={label} className="soft-chip text-xs px-3 py-1.5 opacity-70">
+                <span key={label} className="soft-chip soft-chip-warm" style={{ fontSize: 12, padding: "5px 10px" }}>
                   {label}
                 </span>
               ))}

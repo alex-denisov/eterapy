@@ -24,7 +24,7 @@ const privacy = [
   ["Безопасность", "Кризисные, медицинские, юридические и финансовые темы получают безопасное направление."],
 ];
 
-export function TrustSection() {
+export function TrustPromisesSection() {
   return (
     <section className="soft-shell py-16 md:py-24">
       <div className="grid gap-5 lg:grid-cols-2">
@@ -54,8 +54,14 @@ export function TrustSection() {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
 
-      <div className="soft-card soft-dark-panel mt-8 p-7 md:p-10">
+export function TrustPrivacySection() {
+  return (
+    <section className="soft-shell py-16 md:py-24">
+      <div className="soft-card soft-dark-panel p-7 md:p-10">
         <div className="grid gap-8 md:grid-cols-[1.08fr_1fr] md:items-center">
           <div>
             <div className="soft-eyebrow text-[#f4d9c1]/70">почему нам доверяют</div>
@@ -63,8 +69,8 @@ export function TrustSection() {
               Приватность как <span className="italic text-[#f4d9c1]">основа</span>, а не пункт меню
             </h2>
             <p className="mt-5 text-lg leading-relaxed text-[#e8c4b8]">
-              Разборы остаются вашими. Любой результат можно скрыть, удалить или
-              сохранить в личную карту без публикации.
+              Мы не показываем рекламу. Не продаём данные. Не пишем имена в карточках для шеринга.
+              Любой разбор можно удалить одним кликом.
             </p>
           </div>
           <div className="grid gap-4">
@@ -81,5 +87,15 @@ export function TrustSection() {
         </div>
       </div>
     </section>
+  );
+}
+
+/** @deprecated Use TrustPromisesSection + TrustPrivacySection instead */
+export function TrustSection() {
+  return (
+    <>
+      <TrustPromisesSection />
+      <TrustPrivacySection />
+    </>
   );
 }

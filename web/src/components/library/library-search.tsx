@@ -107,10 +107,7 @@ export function LibrarySearch({
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                   {entry.reactions} прошли разбор
                 </span>
-                <span
-                  className="soft-chip"
-                  style={{ fontSize: 12, padding: "5px 10px" }}
-                >
+                <span className="soft-button soft-button-soft" style={{ fontSize: 12, padding: "5px 10px" }}>
                   Похожий разбор →
                 </span>
               </div>

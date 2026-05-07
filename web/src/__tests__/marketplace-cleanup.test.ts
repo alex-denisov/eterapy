@@ -10,11 +10,12 @@ function source(relativePath: string) {
 describe("B048 marketplace-first cleanup", () => {
   it("makes the public practitioners page a secondary post-context surface", () => {
     const page = source("src/app/practitioners/page.tsx");
+    const grid = source("src/app/practitioners/practitioners-grid.tsx");
 
-    expect(page).toContain("Специалист как следующий шаг");
-    expect(page).toContain("Сначала контекст вопроса");
-    expect(page).toContain('href="/checkin"');
-    expect(page).toContain("Это не основной вход в продукт");
+    // v4 redesign: hero no longer has duplicate CTA buttons — the post-context CTA lives in the grid
+    expect(page).toContain("проверенные специалисты");
+    expect(page).toContain("мы доверяем сами");
+    expect(grid).toContain('href="/checkin"');
     expect(page).not.toContain("Каталог практиков");
     expect(page).not.toContain("PractitionersCatalog");
   });

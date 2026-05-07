@@ -15,16 +15,16 @@ describe("v5 how-it-works page", () => {
     expect(publicPageSeo["/how-it-works"].title).toBe("Как работает ETerapy");
   });
 
-  it("explains the four-step clarity path", () => {
+  it("explains the five-step clarity path", () => {
     const page = source("app/how-it-works/page.tsx");
 
     expect(page).toContain('data-testid="how-it-works-page"');
-    expect(page).toContain("Опишите своими словами");
-    expect(page).toContain("Несколько уточнений");
-    expect(page).toContain("Первичный разбор");
-    expect(page).toContain("Углубление по выбору");
-    expect(page).toContain("мы помогаем");
-    expect(page).toContain("мы не обещаем");
+    expect(page).toContain("Вы пишете своими словами");
+    expect(page).toContain("Мы задаём 2–4 коротких вопроса");
+    expect(page).toContain("первичный разбор");
+    expect(page).toContain("Углубляетесь, если хочется");
+    expect(page).toContain("Сохраняете в карту");
+    expect(page).toContain("Когда мы перенаправим к человеку");
   });
 
   it("links public navigation to the durable route, not only the home anchor", () => {
