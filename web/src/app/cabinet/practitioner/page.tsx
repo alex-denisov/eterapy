@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { appUrl, loginUrl } from "@/lib/subdomain";
+import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 async function getPractitionerData(userId: string) {
   return db.practitioner.findUnique({
@@ -295,7 +295,7 @@ export default async function PractitionerCabinetPage() {
             <Link href={appUrl("/cabinet/practitioner/profile")} className="soft-button soft-button-primary">
               Заполнить интерес
             </Link>
-            <Link href="/how-it-works" className="soft-chip text-sm">
+            <Link href={mainUrl("/how-it-works")} className="soft-chip text-sm">
               Узнать подробнее
             </Link>
           </div>
