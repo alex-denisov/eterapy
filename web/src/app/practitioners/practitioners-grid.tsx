@@ -13,18 +13,33 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #DBD3EA, #F4D5C8)",
 ];
 
-const CATEGORY_FILTERS = [
+const CATEGORY_FILTERS: Array<{ id: string; label: string; live: boolean; note?: string }> = [
   { id: "all", label: "Все направления", live: true },
   { id: "psy", label: "Психология", live: true },
   { id: "coach", label: "Коучинг", live: true },
   { id: "legal", label: "Юристы", live: true },
   { id: "finance", label: "Финансы", live: true },
-  { id: "tarot", label: "Таро", live: false },
-  { id: "astro", label: "Астрология", live: false },
-  { id: "numero", label: "Нумерология", live: false },
-  { id: "joint", label: "Совместные сессии", live: false },
-  { id: "edu", label: "Обучение", live: false },
+  { id: "tarot", label: "Таро", live: true },
+  { id: "astro", label: "Астрология", live: true },
+  { id: "numero", label: "Нумерология", live: true },
+  { id: "joint", label: "Совместные сессии", live: false, note: "пилот" },
+  { id: "edu", label: "Обучение", live: false, note: "скоро" },
 ];
+
+const SPECIALTY_LABELS: Record<string, string> = {
+  TAROT: "Таро",
+  ASTROLOGY: "Астрология",
+  NUMEROLOGY: "Нумерология",
+  PSYCHIC: "Интуитивные практики",
+  RUNES: "Руны",
+  DREAMS: "Сны",
+  RELATIONSHIPS: "Отношения",
+  SELF_ESTEEM: "Самооценка",
+  ANXIETY: "Тревога",
+  CAREER: "Карьера",
+  FAMILY: "Семья",
+  FINANCE: "Финансы",
+};
 
 type Practitioner = {
   id: string;
@@ -43,11 +58,19 @@ type Practitioner = {
 
 function detectCategory(p: Practitioner): string {
   const title = (p.title ?? "").toLowerCase();
+  const specialties = p.specialties.map((s) => s.toLowerCase());
+  if (specialties.includes("tarot") || title.includes("таролог") || title.includes("таро")) return "tarot";
+  if (specialties.includes("astrology") || title.includes("астролог")) return "astro";
+  if (specialties.includes("numerology") || title.includes("нумеролог")) return "numero";
   if (title.includes("психолог") || title.includes("терапевт") || title.includes("психиатр")) return "psy";
   if (title.includes("коуч")) return "coach";
   if (title.includes("юрист") || title.includes("адвокат") || title.includes("правов")) return "legal";
   if (title.includes("финанс") || title.includes("бухгалтер") || title.includes("эконом")) return "finance";
   return "psy";
+}
+
+function normalizeSpecialty(s: string) {
+  return SPECIALTY_LABELS[s] ?? s.toLocaleLowerCase("ru-RU");
 }
 
 export function PractitionersGrid({ practitioners }: { practitioners: Practitioner[] }) {
@@ -89,7 +112,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
               style={{ opacity: c.live ? 1 : 0.4, cursor: c.live ? "pointer" : "not-allowed" }}
             >
               {c.label}
-              {!c.live && <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>· скоро</span>}
+              {!c.live && <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>· {c.note}</span>}
             </button>
           ))}
         </div>
@@ -122,7 +145,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
               className="soft-card cursor-pointer overflow-hidden"
               style={{ padding: 0, display: "flex", flexDirection: "column" }}
               onClick={() => { window.location.href = `/practitioners/${p.slug}`; }}
-              data-testid="practitioner-card"
+              data-testid={`practitioner-card-${p.slug}`}
             >
               {/* Gradient header */}
               <div style={{ height: 120, background: gradient, position: "relative", flexShrink: 0 }}>
@@ -173,7 +196,9 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                 {p.specialties.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {p.specialties.slice(0, 3).map((s) => (
-                      <span key={s} className="soft-chip soft-chip-warm px-2 py-1 text-[11.5px]">{s}</span>
+                      <span key={s} className="soft-chip soft-chip-warm px-2 py-1 text-[11.5px]">
+                        {normalizeSpecialty(s)}
+                      </span>
                     ))}
                   </div>
                 )}

@@ -148,7 +148,7 @@ export default async function PractitionersPage() {
           </div>
 
           <div className="soft-card-flat p-5" style={{ maxWidth: 320 }}>
-            <p className="soft-eyebrow mb-3">скоро в каталоге</p>
+            <p className="soft-eyebrow mb-3">дополнительные форматы</p>
             <div className="flex flex-wrap gap-2">
               {["Таро", "Астрология", "Нумерология", "Совместные сессии", "Обучение"].map((label) => (
                 <span key={label} className="soft-chip soft-chip-warm" style={{ fontSize: 12, padding: "5px 10px" }}>
@@ -157,7 +157,7 @@ export default async function PractitionersPage() {
               ))}
             </div>
             <p className="mt-3 text-xs text-[var(--soft-ink-faint)]">
-              Таро, астрология, нумерология и совместные сессии — в листе ожидания.
+              Каталог расширяется постепенно: проверка, этический кодекс и цена до записи обязательны для всех форматов.
             </p>
           </div>
         </div>
