@@ -18,8 +18,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [bookingCount, recentBookings, userData] = await Promise.all([
-    db.booking.count({ where: { clientId: userId } }),
+  const [recentBookings, userData, dialogueCount, recentDialogues, productCount, activeRoutes] = await Promise.all([
     db.booking.findMany({
       where: { clientId: userId },
       orderBy: { createdAt: "desc" },
@@ -27,13 +26,32 @@ export default async function ClientCabinetPage() {
       include: { practitioner: { include: { user: { select: { name: true } } } } },
     }),
     db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
+    db.dialogue.count({ where: { userId, deletedAt: null } }),
+    db.dialogue.findMany({
+      where: { userId, deletedAt: null },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+      select: { id: true, title: true, status: true, topic: true, updatedAt: true },
+    }),
+    db.productResult.count({ where: { userId, deletedAt: null } }),
+    db.clarityRoute.findMany({
+      where: { userId, status: { in: ["ACTIVE", "PAUSED"] } },
+      orderBy: { updatedAt: "desc" },
+      take: 2,
+      select: { id: true, title: true, status: true, currentDay: true },
+    }),
   ]);
 
   const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
 
-  const mapProgress = Math.min(bookingCount * 18 + 28, 100);
+  const mapProgress = Math.min(dialogueCount * 14 + productCount * 18 + activeRoutes.length * 12 + 18, 100);
+  const nextAction = activeRoutes[0]
+    ? { href: mainUrl("/products/seven-days"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
+    : recentDialogues[0]
+      ? { href: mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`), label: "Вернуться к последнему вопросу", hint: recentDialogues[0].status === "ANSWERED" ? "ответ уже готов" : "можно продолжить" }
+      : { href: mainUrl("/checkin"), label: "Задать первый вопрос", hint: "начните с бесплатного первичного ответа" };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -61,9 +79,9 @@ export default async function ClientCabinetPage() {
             <div className="h-full rounded-full bg-[var(--soft-terracotta)] transition-all" style={{ width: `${mapProgress}%` }} />
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <span className="soft-chip soft-chip-warm">{bookingCount} записей</span>
-            <span className="soft-chip">диалоги</span>
-            <span className="soft-chip">отчеты</span>
+            <span className="soft-chip soft-chip-warm">{dialogueCount} вопросов</span>
+            <span className="soft-chip">{productCount} результатов</span>
+            <span className="soft-chip">{activeRoutes.length} маршрутов</span>
             <Link href={appUrl("/cabinet/action-history")} className="soft-chip">Открыть карту →</Link>
           </div>
         </section>
@@ -76,6 +94,38 @@ export default async function ClientCabinetPage() {
           <Link href={appUrl("/cabinet/billing")} className="soft-button soft-button-ghost mt-5 w-full">
             Пополнить
           </Link>
+        </section>
+      </div>
+
+      <div className="mb-8 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="soft-card p-6" data-testid="client-next-action">
+          <p className="soft-eyebrow">Следующий шаг</p>
+          <h2 className="soft-h3 mt-3">{nextAction.label}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{nextAction.hint}</p>
+          <Link href={nextAction.href} className="soft-button soft-button-primary mt-5">
+            Продолжить
+          </Link>
+        </section>
+        <section className="soft-card p-6" data-testid="client-recent-questions">
+          <div className="flex items-center justify-between gap-3">
+            <p className="soft-eyebrow">Мои вопросы</p>
+            <Link href={appUrl("/cabinet/questions")} className="text-sm font-semibold text-[var(--soft-bordeaux)]">
+              Все →
+            </Link>
+          </div>
+          <div className="mt-4 space-y-3">
+            {recentDialogues.length === 0 ? (
+              <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">Здесь появятся последние диалоги.</p>
+            ) : recentDialogues.map((dialogue) => (
+              <Link key={dialogue.id} href={mainUrl(`/checkin?dialogueId=${dialogue.id}`)}
+                className="block rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.45)] p-3 transition-colors hover:border-[var(--soft-terracotta)]">
+                <p className="line-clamp-1 text-sm font-semibold text-[var(--soft-ink)]">{dialogue.title}</p>
+                <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
+                  {dialogue.topic ?? "вопрос"} · {dialogue.status.toLowerCase()} · {dialogue.updatedAt.toLocaleDateString("ru-RU")}
+                </p>
+              </Link>
+            ))}
+          </div>
         </section>
       </div>
 

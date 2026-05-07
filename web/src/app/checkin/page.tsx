@@ -63,6 +63,10 @@ export default function CheckinPage() {
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [retrying, setRetrying] = useState(false);
+  const [restoring, setRestoring] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
+  });
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
@@ -74,6 +78,47 @@ export default function CheckinPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [phase]);
+
+  useEffect(() => {
+    const dialogueId = new URLSearchParams(window.location.search).get("dialogueId");
+    if (!dialogueId) return;
+    let cancelled = false;
+
+    async function restoreDialogue() {
+      setError("");
+      setRestoring(true);
+      try {
+        const response = await fetch(`/api/dialogues/${dialogueId}`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Диалог не найден");
+        if (cancelled) return;
+        const restored = data.dialogue as DialoguePayload;
+        setDialogue(restored);
+        setQuestion(restored.messages.find((message) => message.role === "USER")?.content ?? restored.title);
+        setPhase(
+          restored.status === "ANSWERED"
+            ? "result"
+            : restored.status === "SAFETY_INTERRUPTED"
+              ? "safety"
+              : restored.status === "AWAITING_USER"
+                ? "clarifying"
+                : "processing",
+        );
+      } catch (err) {
+        if (!cancelled) {
+          setPhase("question");
+          setError(err instanceof Error ? err.message : "Не удалось восстановить диалог");
+        }
+      } finally {
+        if (!cancelled) setRestoring(false);
+      }
+    }
+
+    void restoreDialogue();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const saveDraft = useCallback((answer: string, currentDialogue: DialoguePayload) => {
     saveGuestResultDraft({
@@ -226,11 +271,11 @@ export default function CheckinPage() {
               />
               <div className="soft-ask-foot">
                 <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                  Регистрация понадобится только если вы захотите сохранить результат.
+                  {restoring ? "Восстанавливаю сохраненный диалог..." : "Регистрация понадобится только если вы захотите сохранить результат."}
                 </p>
                 <Button
                   onClick={startDialogue}
-                  disabled={question.trim().length < 3}
+                  disabled={restoring || question.trim().length < 3}
                   className="soft-button soft-button-primary"
                   data-testid="dialogue-start-button"
                 >

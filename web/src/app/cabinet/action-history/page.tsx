@@ -65,13 +65,13 @@ export default function AIHistoryPage() {
   }, []);
 
   async function openLog(id: string) {
-    const res = await fetch(`/api/ai/history/${id}`);
+    const res = await fetch(`/api/modalities/history/${id}`);
     const d = await res.json();
     if (d.log) setSelected(d.log);
   }
 
   async function deleteLog(id: string) {
-    await fetch(`/api/ai/history/${id}`, { method: "DELETE" });
+    await fetch(`/api/modalities/history/${id}`, { method: "DELETE" });
     setLogs(prev => prev.filter(l => l.id !== id));
     toast.success("Запись удалена");
   }
@@ -123,7 +123,7 @@ export default function AIHistoryPage() {
             icon="✦"
             title="Нет сохранённых сессий"
             description="Результаты направлений сохраняются автоматически"
-            actionHref={appUrl("/cabinet/modalities")}
+            actionHref={appUrl("/cabinet/questions")}
             actionLabel="Попробовать направления"
           />
         ) : (

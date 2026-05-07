@@ -7,6 +7,7 @@ import {
   Users,
   CalendarDays,
   Compass,
+  MessageCircle,
   History,
   Wallet,
   Settings,
@@ -27,6 +28,7 @@ interface NavItem {
 
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Обзор" },
+  { href: appUrl("/cabinet/questions"), icon: MessageCircle, label: "Мои вопросы" },
   { href: appUrl("/cabinet/practitioners"), icon: Users, label: "Специалисты" },
   { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Мои записи" },
   { href: appUrl("/cabinet/modalities"), icon: Compass, label: "Направления" },

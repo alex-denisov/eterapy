@@ -7,7 +7,7 @@ import { generateDialogueClarifyingQuestions } from "@/lib/dialogue-clarifier";
 import db from "@/lib/db";
 import { createGuestSessionCookieValue, GUEST_SESSION_COOKIE } from "@/lib/guest-session";
 import { GET as listDialogues, POST as createDialogue } from "@/app/api/dialogues/route";
-import { GET as getDialogue, POST as respondDialogue } from "@/app/api/dialogues/[id]/route";
+import { DELETE as deleteDialogue, GET as getDialogue, POST as respondDialogue } from "@/app/api/dialogues/[id]/route";
 
 jest.mock("@/lib/auth", () => ({
   __esModule: true,
@@ -313,6 +313,65 @@ describe("v5 dialogue API", () => {
     expect(response.status).toBe(401);
     expect(body.code).toBe("UNAUTHORIZED");
     expect(mockDb.dialogue.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("soft-deletes only the registered owner's dialogue", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-1", role: "CLIENT" },
+      expires: "2026-04-29T12:00:00.000Z",
+    });
+    mockDb.dialogue.findFirst.mockResolvedValue({ id: "dlg-owned" });
+    mockDb.dialogue.update.mockResolvedValue({ id: "dlg-owned" });
+
+    const response = await deleteDialogue(
+      request("https://app.eterapy.com/api/dialogues/dlg-owned", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "dlg-owned" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(mockDb.dialogue.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        id: "dlg-owned",
+        userId: "user-1",
+        deletedAt: null,
+      },
+      select: { id: true },
+    }));
+    expect(mockDb.dialogue.update).toHaveBeenCalledWith({
+      where: { id: "dlg-owned" },
+      data: {
+        status: "DELETED",
+        deletedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("does not delete another user's dialogue", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-1", role: "CLIENT" },
+      expires: "2026-04-29T12:00:00.000Z",
+    });
+    mockDb.dialogue.findFirst.mockResolvedValue(null);
+
+    const response = await deleteDialogue(
+      request("https://app.eterapy.com/api/dialogues/dlg-victim", { method: "DELETE" }),
+      { params: Promise.resolve({ id: "dlg-victim" }) },
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body.code).toBe("NOT_FOUND");
+    expect(mockDb.dialogue.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        id: "dlg-victim",
+        userId: "user-1",
+        deletedAt: null,
+      },
+      select: { id: true },
+    }));
+    expect(mockDb.dialogue.update).not.toHaveBeenCalled();
   });
 
   it("lets the owner answer clarifying questions and moves dialogue to processing", async () => {

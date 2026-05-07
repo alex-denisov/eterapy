@@ -186,3 +186,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     },
   }, { status: 200 }, context);
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const guestSessionId = userId ? null : readGuestSessionId(request);
+  const whereOwner = ownerWhere(userId, guestSessionId);
+
+  if (!whereOwner) {
+    return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  }
+
+  const { id } = await params;
+  const dialogue = await db.dialogue.findFirst({
+    where: {
+      id,
+      ...whereOwner,
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (!dialogue) {
+    return errorWithRequestContext("NOT_FOUND", "Dialogue not found", 404, context);
+  }
+
+  await db.dialogue.update({
+    where: { id: dialogue.id },
+    data: {
+      status: "DELETED",
+      deletedAt: new Date(),
+    },
+  });
+
+  return jsonWithRequestContext({ ok: true }, { status: 200 }, context);
+}
