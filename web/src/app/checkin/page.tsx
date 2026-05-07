@@ -417,12 +417,12 @@ export default function CheckinPage() {
 
           <article className="soft-card p-5 md:p-7">
             <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
-            <div className="mt-3 whitespace-pre-wrap font-heading text-[1.18rem] leading-relaxed text-[var(--soft-ink)]" data-testid="dialogue-primary-answer">
+            <div className="mt-3 whitespace-pre-wrap font-heading text-[19px] leading-relaxed text-[var(--soft-ink)]" data-testid="dialogue-primary-answer">
               {safeAnswer}
             </div>
           </article>
 
-          <section className="soft-card-flat mt-4 p-5 md:p-7">
+          <section className="soft-card-flat mt-4 p-5 md:p-7" style={{ background: "var(--soft-paper-deep)", border: 0 }}>
             <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
             <h2 className="soft-h3 mt-2">Это про решение прямо сейчас — или про ясность, которой пока не хватает?</h2>
             <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
@@ -430,9 +430,9 @@ export default function CheckinPage() {
             </p>
           </section>
 
-          <section className="soft-card mt-4 p-5 md:p-7">
-            <p className="soft-eyebrow">один бережный шаг сегодня</p>
-            <h2 className="soft-h3 mt-2 italic">Запишите одну фразу, которую вы давно хотели сказать себе честно.</h2>
+          <section className="soft-card soft-safe-step-card mt-4 p-5 md:p-7">
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">один безопасный шаг сегодня</p>
+            <h2 className="soft-h3 mt-2 font-heading italic">Запишите одну фразу, которую вы давно хотели сказать себе честно.</h2>
             <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               Не отправлять, не доказывать, не решать все сразу. Просто дать мысли форму и посмотреть, что в ней правда.
             </p>
@@ -473,17 +473,32 @@ export default function CheckinPage() {
           </div>
 
           <div className="mt-10 grid gap-4 md:grid-cols-2">
-            <Link href={`/products/perspectives?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
-              <p className="soft-eyebrow">рекомендуем</p>
-              <h3 className="soft-h3 mt-2">Ракурсы ответа</h3>
-              <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Разум, чувства, символ и действие на одну страницу.</p>
+            <Link href={`/products/perspectives?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card soft-deepening-card-featured">
+              <div className="flex items-start justify-between gap-2">
+                <p className="soft-eyebrow">рекомендуем</p>
+                <Compass className="size-[22px] shrink-0 text-[#f4d9c1]" aria-hidden="true" />
+              </div>
+              <h3 className="soft-h3 mt-3">4 ракурса ответа</h3>
+              <p className="mt-1.5 text-sm">Разум · Чувства · Символ · Действие — на одну страницу</p>
               <span className="soft-badge soft-badge-warm mt-4">299 ₽</span>
             </Link>
             <Link href="/products/seven-days" className="soft-card soft-deepening-card">
               <p className="soft-eyebrow">маршрут</p>
-              <h3 className="soft-h3 mt-2">7 дней к ясности</h3>
-              <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Если хочется не быстрого ответа, а бережного разговора с собой.</p>
+              <h3 className="soft-h3 mt-3">7 дней к ясности</h3>
+              <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Если хочется не быстрого ответа, а бережного разговора с собой.</p>
               <span className="soft-badge soft-badge-warm mt-4">990 ₽</span>
+            </Link>
+            <Link href={`/practitioners/catalog?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
+              <p className="soft-eyebrow">специалист</p>
+              <h3 className="soft-h3 mt-3">Психолог по теме</h3>
+              <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Проверенные специалисты, которые работают с вашей темой.</p>
+              <span className="soft-badge soft-badge-lilac mt-4">от 1 900 ₽</span>
+            </Link>
+            <Link href={`/products/deep-report?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
+              <p className="soft-eyebrow">отчёт</p>
+              <h3 className="soft-h3 mt-3">Глубокий отчёт</h3>
+              <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">10–15 страниц с разбором сценариев и сохранением в карте.</p>
+              <span className="soft-badge soft-badge-warm mt-4">590 ₽</span>
             </Link>
           </div>
 

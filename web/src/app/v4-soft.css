@@ -700,6 +700,34 @@
     transform: translateY(-2px);
   }
 
+  .soft-deepening-card-featured {
+    background: var(--soft-bordeaux);
+    color: #f4d9c1;
+    border-color: transparent;
+  }
+
+  .soft-deepening-card-featured .soft-eyebrow {
+    color: #e8c4b8;
+  }
+
+  .soft-deepening-card-featured .soft-h3 {
+    color: #fbf0e1;
+  }
+
+  .soft-deepening-card-featured p {
+    color: #e8c4b8;
+  }
+
+  .soft-deepening-card-featured:hover {
+    border-color: transparent;
+    opacity: 0.9;
+  }
+
+  .soft-safe-step-card {
+    border-color: var(--soft-terracotta);
+    background: linear-gradient(140deg, #fffcf5, #f4d9c1);
+  }
+
   .soft-products-page,
   .soft-product-detail-page {
     min-height: 100vh;
