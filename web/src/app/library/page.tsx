@@ -22,10 +22,9 @@ export default async function LibraryPage({
 
       <section className="soft-shell soft-public-hero-centered">
         <p className="soft-eyebrow">Библиотека анонимных вопросов</p>
-        <h1 className="soft-h1 mt-4">Похожие вопросы без раскрытия личных данных</h1>
+        <h1 className="soft-h1 mt-4">Кто-то <span className="soft-italic">уже спросил</span> то же, что и вы</h1>
         <p className="soft-lede mt-5">
-          Здесь публикуются только модерируемые и обезличенные вопросы. Комментариев нет:
-          вместо обсуждения пользователь может открыть персональный диалог по похожей теме.
+          Все вопросы публикуются только после обезличивания и модерации. Без комментариев и драмы.
         </p>
         <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
@@ -44,33 +43,24 @@ export default async function LibraryPage({
       </section>
 
       <section className="soft-shell soft-public-section">
-        <div className="soft-card soft-form-panel">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="soft-h3">Темы библиотеки</h2>
-              <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">Комментарии отключены, реакции обезличены.</p>
-            </div>
-            <div className="flex min-h-11 items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 text-sm text-[var(--soft-ink-faint)]">
-              <Search className="size-4" aria-hidden="true" />
-              <span>{entries.length} опубликованных вопросов</span>
-            </div>
-          </div>
-
-          <nav className="mt-5 flex flex-wrap gap-2" aria-label="Фильтр тем">
-            <Link href="/library" className={`soft-chip ${!activeTopic ? "soft-chip-warm" : ""}`}>
-              Все темы
+        <nav className="soft-library-filter-row" aria-label="Фильтр тем">
+          <Link href="/library" className={`soft-chip ${!activeTopic ? "soft-chip-warm" : ""}`}>
+            Все
+          </Link>
+          {topics.map((topic) => (
+            <Link
+              key={topic}
+              href={`/library?topic=${encodeURIComponent(topic)}`}
+              className={`soft-chip ${activeTopic === topic ? "soft-chip-warm" : ""}`}
+            >
+              {topic}
             </Link>
-            {topics.map((topic) => (
-              <Link
-                key={topic}
-                href={`/library?topic=${encodeURIComponent(topic)}`}
-                className={`soft-chip ${activeTopic === topic ? "soft-chip-warm" : ""}`}
-              >
-                {topic}
-              </Link>
-            ))}
-          </nav>
-        </div>
+          ))}
+          <span className="ml-auto hidden min-h-8 items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 text-sm text-[var(--soft-ink-faint)] lg:inline-flex">
+            <Search className="size-4" aria-hidden="true" />
+            {entries.length} вопросов
+          </span>
+        </nav>
 
         <div className="soft-public-grid mt-6">
           {entries.map((entry) => (
@@ -84,10 +74,7 @@ export default async function LibraryPage({
                 <span className="soft-chip soft-chip-warm">{entry.topic}</span>
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>анонимно</span>
               </div>
-              <p
-                className="font-heading mt-4 leading-snug"
-                style={{ fontSize: "1.05rem", fontStyle: "italic", color: "var(--soft-ink)" }}
-              >
+              <p className="soft-library-question mt-4">
                 «{entry.question}»
               </p>
               <div
@@ -107,7 +94,7 @@ export default async function LibraryPage({
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                  {entry.reactions} {entry.reactions === 1 ? "отклик" : "откликов"}
+                  {entry.reactions.toLocaleString("ru-RU")} прошли разбор
                 </span>
                 <span
                   className="soft-button"

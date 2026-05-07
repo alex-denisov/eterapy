@@ -29,8 +29,7 @@ describe("anonymous question library", () => {
     const detailPage = source("app/library/[slug]/page.tsx");
 
     expect(listPage).toContain('data-testid="anonymous-library-page"');
-    expect(listPage).toContain("Комментарии");
-    expect(listPage).toContain("нет");
+    expect(listPage).toContain("Без комментариев и драмы");
     expect(listPage).toContain('data-testid="library-dialogue-cta"');
     expect(detailPage).toContain('data-testid="library-entry-dialogue-cta"');
     expect(detailPage).toContain("Вопрос обезличен и прошел модерацию");

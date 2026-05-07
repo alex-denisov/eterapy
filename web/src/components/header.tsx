@@ -12,13 +12,10 @@ import { Wallet, HelpCircle } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
 const GUEST_NAV = [
-  { href: "/checkin", label: "Задать вопрос" },
   { href: "/how-it-works", label: "Как работает" },
-  { href: "/products", label: "Продукты" },
   { href: "/library", label: "Библиотека" },
-  { href: "/pricing", label: "Цены" },
   { href: "/practitioners", label: "Специалисты" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/pricing", label: "Тарифы" },
 ];
 
 function useBalance(userId: string | null | undefined) {
@@ -141,9 +138,9 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Меню пользователя"
-        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground"
+        className="flex items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)]"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-xs font-bold text-[var(--soft-bordeaux)]">
           {name.charAt(0).toUpperCase()}
         </span>
         <span className="hidden md:block">{name}</span>
@@ -156,12 +153,12 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="user-menu"
-          className="absolute right-0 top-full z-50 mt-1 min-w-[200px] rounded-xl border border-border/40 bg-navy/95 shadow-xl outline-none backdrop-blur-xl"
+          className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink)] shadow-[var(--soft-shadow-lg)] outline-none backdrop-blur-xl"
         >
-          <div className="border-b border-border/30 px-4 py-3">
+          <div className="border-b border-[var(--soft-paper-edge)] px-4 py-3">
             <p className="text-sm font-medium">{session.user?.name}</p>
-            <p className="text-xs text-muted-foreground">{session.user?.email}</p>
-            <p className="mt-1 flex items-center gap-1 text-xs text-primary">
+            <p className="text-xs text-[var(--soft-ink-faint)]">{session.user?.email}</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--soft-terracotta-dark)]">
               <Wallet className="size-3" aria-hidden="true" />
               {rub} ₽
             </p>
@@ -175,19 +172,19 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
                 tabIndex={focusedIndex === i ? 0 : -1}
                 onClick={() => closeAndFocus()}
                 onFocus={() => setFocusedIndex(i)}
-                className="block min-h-[44px] px-4 py-2.5 text-sm text-muted-foreground outline-none transition-colors hover:bg-white/5 hover:text-foreground focus:bg-white/5 focus:text-foreground"
+                className="block min-h-[44px] px-4 py-2.5 text-sm text-[var(--soft-ink-soft)] outline-none transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] focus:bg-[var(--soft-paper-deep)] focus:text-[var(--soft-bordeaux)]"
               >
                 {item.label}
               </Link>
             ))}
           </div>
-          <div className="border-t border-border/30 py-1">
+          <div className="border-t border-[var(--soft-paper-edge)] py-1">
             <button
               role="menuitem"
               tabIndex={focusedIndex === allItems.length - 1 ? 0 : -1}
               onClick={() => { closeAndFocus(); window.location.href = logoutUrl(); }}
               onFocus={() => setFocusedIndex(allItems.length - 1)}
-              className="w-full min-h-[44px] px-4 py-2.5 text-left text-sm text-muted-foreground outline-none transition-colors hover:bg-white/5 hover:text-foreground focus:bg-white/5 focus:text-foreground"
+              className="w-full min-h-[44px] px-4 py-2.5 text-left text-sm text-[var(--soft-ink-soft)] outline-none transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] focus:bg-[var(--soft-paper-deep)] focus:text-[var(--soft-bordeaux)]"
             >
               Выйти из аккаунта
             </button>
@@ -203,7 +200,6 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAuthenticated = status === "authenticated" && !!session;
-  const isLoading = status === "loading";
   const balanceKopecks = useBalance(session?.user?.id ?? null);
 
   // Скрываем header на странице видеосессии
@@ -264,7 +260,7 @@ export function Header() {
                   <Link
                     href={appUrl("/cabinet/billing")}
                     aria-label={`Баланс: ${balanceRub} ₽. Открыть раздел пополнения`}
-                    className="hidden min-h-10 items-center gap-1.5 rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground sm:flex"
+                    className="hidden min-h-10 items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm font-medium text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)] sm:flex"
                   >
                     <Wallet className="h-4 w-4" />
                     <span className="tabular-nums">{balanceRub} ₽</span>
@@ -272,7 +268,7 @@ export function Header() {
                   <Link
                     href={appUrl("/help")}
                     aria-label="Помощь"
-                    className="flex min-h-10 items-center justify-center rounded-full border border-border/40 bg-card/30 px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground"
+                    className="flex min-h-10 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm font-medium text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)]"
                   >
                     <HelpCircle className="h-4 w-4" />
                   </Link>
@@ -282,14 +278,14 @@ export function Header() {
               ) : (
                 <Link
                   href={cabinetHref}
-                  className="soft-button soft-button-primary min-h-10 px-4 py-2 text-sm"
+                  className="soft-button soft-button-ghost min-h-10 px-4 py-2 text-sm"
                   data-testid="header-cabinet-cta"
                 >
-                  Личный кабинет
+                  Мой кабинет
                 </Link>
               )}
             </>
-          ) : !isLoading ? (
+          ) : (
             <>
               <Link href={mainUrl("/login")}
                 className={cn(
@@ -306,15 +302,9 @@ export function Header() {
                   softPublicHeader && "soft-button-primary text-white shadow-none",
                 )}
               >
-                Задать вопрос
+                Начать диалог
               </Link>
             </>
-          ) : (
-            /* Loading skeleton — invisible spacer to prevent layout shift */
-            <div className="hidden md:flex items-center gap-2" aria-hidden="true">
-              <div className="w-16 h-8 rounded-lg bg-white/5" />
-              <div className="w-16 h-8 rounded-lg bg-white/5" />
-            </div>
           )}
           <button
             className="ml-1 flex h-10 w-10 items-center justify-center rounded-full border border-border/40 text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground md:hidden"
@@ -359,14 +349,14 @@ export function Header() {
                   </button>
                 )}
               </>
-            ) : !isLoading ? (
+            ) : (
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
                 <Link href={mainUrl("/login")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
                 <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
-                  className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Задать вопрос</Link>
+                  className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Начать диалог</Link>
               </div>
-            ) : null}
+            )}
           </nav>
         </div>
       )}

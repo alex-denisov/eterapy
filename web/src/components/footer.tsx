@@ -20,10 +20,10 @@ export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
             <div>
               <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>Клиентам</p>
               <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href={mainUrl("/checkin")} className={linkCls}>Задать вопрос</Link></li>
+                <li><Link href={mainUrl("/checkin")} className={linkCls}>Диалог ясности</Link></li>
                 <li><Link href={mainUrl("/products")} className={linkCls}>Продукты</Link></li>
                 <li><Link href={mainUrl("/library")} className={linkCls}>Библиотека</Link></li>
-                <li><Link href={mainUrl("/pricing")} className={linkCls}>Цены</Link></li>
+                <li><Link href={mainUrl("/pricing")} className={linkCls}>Тарифы</Link></li>
               </ul>
             </div>
 

@@ -258,12 +258,15 @@
   }
 
   .soft-header [data-soft-nav="link"] {
+    border-radius: 0 !important;
+    border-bottom: 1px solid transparent;
     color: var(--soft-ink-soft) !important;
   }
 
   .soft-header [data-soft-nav="link"]:hover,
   .soft-header [data-soft-nav="link"][data-active="true"] {
-    background: rgba(92, 42, 44, 0.055) !important;
+    background: transparent !important;
+    border-bottom-color: var(--soft-terracotta);
     color: var(--soft-bordeaux) !important;
   }
 
@@ -297,14 +300,16 @@
   }
 
   .soft-social-button {
-    border: 1px solid var(--soft-paper-edge);
-    background: var(--soft-paper-card);
-    color: var(--soft-ink-soft);
+    border: 1px solid #0077ff;
+    background: #0077ff;
+    color: #ffffff;
+    box-shadow: 0 10px 24px -16px rgba(0, 119, 255, 0.68);
   }
 
   .soft-social-button:hover {
-    border-color: var(--soft-terracotta);
-    color: var(--soft-bordeaux);
+    border-color: #006be6;
+    background: #006be6;
+    color: #ffffff;
   }
 
   .soft-email-banner {
@@ -655,10 +660,16 @@
   .soft-products-hero,
   .soft-product-detail-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.42fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(2rem, 5vw, 4rem);
     align-items: center;
     padding-block: clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem);
+  }
+
+  .soft-products-hero {
+    max-width: 54rem;
+    margin-inline: auto;
+    text-align: center;
   }
 
   .soft-products-guard,
@@ -795,10 +806,20 @@
 
   .soft-public-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.48fr);
-    gap: clamp(2rem, 5vw, 4rem);
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    gap: clamp(1.25rem, 4vw, 2rem);
+    align-items: start;
+    max-width: 54rem;
     padding-block: clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem);
+  }
+
+  .soft-public-quote {
+    padding: clamp(1.25rem, 3vw, 2rem);
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(1.35rem, 2.3vw, 1.75rem);
+    font-style: italic;
+    line-height: 1.42;
   }
 
   .soft-public-hero-centered {
@@ -840,6 +861,21 @@
     justify-content: space-between;
     padding: 1.5rem;
     text-decoration: none;
+  }
+
+  .soft-library-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 2rem;
+  }
+
+  .soft-library-card .soft-library-question {
+    color: var(--soft-ink);
+    font-family: var(--font-heading);
+    font-size: clamp(1.05rem, 1.55vw, 1.2rem);
+    font-style: italic;
+    line-height: 1.42;
   }
 
   .soft-plan-card:hover,

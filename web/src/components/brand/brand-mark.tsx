@@ -191,7 +191,7 @@ function Wordmark({
     <span
       className={cn(
         "font-heading font-semibold leading-none tracking-normal",
-        theme === "light" ? "text-brand-midnight" : "text-foreground",
+        theme === "light" ? "text-[var(--soft-bordeaux,#5c2a2c)]" : "text-foreground",
         className,
       )}
       style={{ fontSize }}

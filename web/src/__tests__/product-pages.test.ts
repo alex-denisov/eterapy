@@ -46,7 +46,7 @@ describe("v5 product pages", () => {
   });
 
   it("links public shell product navigation to durable product pages", () => {
-    expect(source("components/header.tsx")).toContain('href: "/products"');
+    expect(source("components/header.tsx")).toContain('href: "/pricing"');
     expect(source("components/footer.tsx")).toContain('mainUrl("/products")');
   });
 });

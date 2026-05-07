@@ -40,6 +40,7 @@ export const metadata: Metadata = {
   ],
   icons: {
     icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
       { url: brandAssets.favicon.ico, sizes: "any" },
       { url: brandAssets.favicon.png16, type: "image/png", sizes: "16x16" },
       { url: brandAssets.favicon.png32, type: "image/png", sizes: "32x32" },
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#081223",
+  themeColor: "#FBF6EE",
 };
 
 export default function RootLayout({

@@ -30,8 +30,8 @@ describe("brand production assets", () => {
     expect(manifest).toEqual(expect.objectContaining({
       name: "ETerapy",
       short_name: "ETerapy",
-      theme_color: "#081223",
-      background_color: "#081223",
+      theme_color: "#FBF6EE",
+      background_color: "#FBF6EE",
       display: "standalone",
     }));
     expect(manifest.icons).toEqual(expect.arrayContaining([

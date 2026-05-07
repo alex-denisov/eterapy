@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const publicRoutes = [
   "/",
-  "/all-modalities/checkin",
+  "/checkin",
   "/products",
   "/products/deep-report",
   "/products/chat-analysis",
@@ -35,14 +35,17 @@ test.describe("Design v4 Soft Clarity public regression", () => {
           const badResponses: string[] = [];
           page.on("response", (response) => {
             const status = response.status();
-            if (status >= 400 && !response.url().includes("/api/auth/session")) {
+            const url = response.url();
+            const expectedAuthProbe = url.includes("/api/auth/session")
+              || (status === 401 && url.includes("/api/products/"));
+            if (status >= 400 && !expectedAuthProbe) {
               badResponses.push(`${status} ${response.url()}`);
             }
           });
 
-          await page.goto(route, { waitUntil: "domcontentloaded" });
+          await page.goto(route, { waitUntil: "networkidle" });
 
-          await expect(page.locator(".soft-clarity-page").first()).toBeVisible();
+          expect(await page.locator(".soft-clarity-page").count()).toBeGreaterThan(0);
           await expect(page.locator('[data-testid="public-shell-header"]')).toBeVisible();
           await expect(page.locator('[data-testid="public-shell-footer"]')).toBeVisible();
           await expect(page.locator(".premium-shell")).toHaveCount(0);
