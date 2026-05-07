@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LockKeyhole, MessageCircle, Route, Sparkles } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
@@ -61,6 +61,25 @@ export default function HowItWorksPage() {
             сформулировать важный вопрос — и услышать его в полной тишине».
           </div>
         </div>
+        <aside className="soft-card soft-public-side-note" aria-label="Суть механики ETerapy">
+          <p className="soft-eyebrow">в центре сценария</p>
+          <h2 className="soft-h3 mt-3">Один вопрос, несколько бережных шагов</h2>
+          <div className="mt-5 grid gap-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            {[
+              { icon: MessageCircle, text: "Сначала живой вопрос и уточнения, а не выбор специалиста." },
+              { icon: Sparkles, text: "Первичный ответ остается бесплатным моментом ценности." },
+              { icon: Route, text: "Платное углубление появляется только если оно уместно." },
+              { icon: LockKeyhole, text: "Приватность и безопасность встроены в каждый шаг." },
+            ].map((item) => (
+              <div key={item.text} className="flex items-start gap-3">
+                <span className="soft-step-number shrink-0" style={{ width: "2.1rem" }}>
+                  <item.icon className="size-4" aria-hidden="true" />
+                </span>
+                <span>{item.text}</span>
+              </div>
+            ))}
+          </div>
+        </aside>
       </section>
 
       <section className="soft-shell soft-public-section" aria-label="Путь пользователя">

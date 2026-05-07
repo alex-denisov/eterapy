@@ -7,7 +7,8 @@
 @layer components {
   .soft-clarity-page,
   .soft-header,
-  .soft-footer {
+  .soft-footer,
+  .soft-email-banner {
     --soft-paper: #fbf6ee;
     --soft-paper-deep: #f3ead9;
     --soft-paper-edge: #e9ddc6;
@@ -214,13 +215,13 @@
   }
 
   .soft-button-primary {
-    background: var(--soft-terracotta);
-    color: #fff8f1;
-    box-shadow: 0 10px 26px -12px rgba(214, 117, 88, 0.72), inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+    background: var(--soft-terracotta) !important;
+    color: #fff8f1 !important;
+    box-shadow: 0 10px 26px -12px rgba(214, 117, 88, 0.72), inset 0 -2px 0 rgba(0, 0, 0, 0.08) !important;
   }
 
   .soft-button-primary:hover {
-    background: var(--soft-terracotta-dark);
+    background: var(--soft-terracotta-dark) !important;
   }
 
   .soft-button-ghost {
@@ -251,6 +252,16 @@
 
   .soft-header :where(.bg-card\/30, [class*="bg-card/30"]) {
     background: color-mix(in srgb, var(--soft-paper-card) 86%, transparent) !important;
+  }
+
+  .soft-header :where(.bg-primary, [class*="bg-primary"]) {
+    background: var(--soft-terracotta) !important;
+    color: #fff8f1 !important;
+    box-shadow: 0 10px 26px -12px rgba(214, 117, 88, 0.72) !important;
+  }
+
+  .soft-header :where(.bg-primary, [class*="bg-primary"]):hover {
+    background: var(--soft-terracotta-dark) !important;
   }
 
   .soft-header :where(.border-border\/40, [class*="border-border/40"]) {
@@ -300,16 +311,16 @@
   }
 
   .soft-social-button {
-    border: 1px solid #0077ff;
-    background: #0077ff;
-    color: #ffffff;
-    box-shadow: 0 10px 24px -16px rgba(0, 119, 255, 0.68);
+    border: 1px solid var(--soft-paper-edge);
+    background: var(--soft-paper-card);
+    color: var(--soft-bordeaux);
+    box-shadow: var(--soft-shadow-sm);
   }
 
   .soft-social-button:hover {
-    border-color: #006be6;
-    background: #006be6;
-    color: #ffffff;
+    border-color: var(--soft-terracotta);
+    background: var(--soft-apricot);
+    color: var(--soft-bordeaux);
   }
 
   .soft-email-banner {
@@ -536,6 +547,14 @@
     color: var(--soft-ink-soft) !important;
   }
 
+  .soft-dialogue-disclaimer :where([class*="text-muted"], .text-muted-foreground) {
+    color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-dialogue-disclaimer :where(.text-foreground, [class*="text-foreground"]) {
+    color: var(--soft-bordeaux) !important;
+  }
+
   .soft-dialogue-chat {
     display: flex;
     flex-direction: column;
@@ -667,9 +686,38 @@
   }
 
   .soft-products-hero {
-    max-width: 54rem;
-    margin-inline: auto;
-    text-align: center;
+    max-width: none;
+    grid-template-columns: minmax(0, 0.95fr) minmax(18rem, 0.65fr);
+    text-align: left;
+  }
+
+  .soft-products-hero .soft-lede {
+    margin-inline: 0 !important;
+  }
+
+  .soft-products-hero-actions {
+    justify-content: flex-start;
+  }
+
+  .soft-products-preview {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(1.25rem, 3vw, 2rem);
+  }
+
+  .soft-products-preview::before {
+    content: "";
+    position: absolute;
+    inset: -35% -20% auto auto;
+    width: 18rem;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background:
+      radial-gradient(circle at 46% 52%, rgba(255, 215, 154, 0.44), transparent 22%),
+      radial-gradient(circle at 30% 40%, rgba(244, 201, 168, 0.4), transparent 45%),
+      radial-gradient(circle at 72% 34%, rgba(168, 155, 201, 0.38), transparent 48%);
+    filter: blur(16px);
+    opacity: 0.9;
   }
 
   .soft-products-guard,
@@ -682,6 +730,18 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1rem;
+  }
+
+  .soft-product-tile {
+    min-width: 0;
+  }
+
+  .soft-products-grid > .soft-product-tile:last-child:nth-child(3n + 1) {
+    grid-column: span 3;
+  }
+
+  .soft-products-grid > .soft-product-tile:last-child:nth-child(3n + 1) p {
+    max-width: 38rem;
   }
 
   .soft-product-tile {
@@ -806,11 +866,21 @@
 
   .soft-public-hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.92fr) minmax(18rem, 0.68fr);
     gap: clamp(1.25rem, 4vw, 2rem);
     align-items: start;
-    max-width: 54rem;
+    max-width: 72rem;
     padding-block: clamp(3rem, 7vw, 6rem) clamp(2rem, 5vw, 4rem);
+  }
+
+  .soft-public-hero-full {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 54rem;
+  }
+
+  .soft-public-side-note {
+    align-self: center;
+    padding: clamp(1.25rem, 2.5vw, 2rem);
   }
 
   .soft-public-quote {
@@ -1203,7 +1273,11 @@
     .soft-product-angles,
     .soft-public-grid,
     .soft-public-grid-2 {
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr !important;
+    }
+
+    .soft-products-grid > .soft-product-tile:last-child:nth-child(3n + 1) {
+      grid-column: auto;
     }
 
     .soft-compat-grid {

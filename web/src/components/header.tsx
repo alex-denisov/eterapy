@@ -208,6 +208,10 @@ export function Header() {
   const isAdminArea = pathname.startsWith("/admin");
   const isSessionArea = pathname.startsWith("/session");
   const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help");
+  const hideGlobalHeader = isAdminArea || pathname.startsWith("/cabinet") || isSessionArea;
+
+  if (hideGlobalHeader) return null;
+
   const showPublicNav = !isAdminArea && !isSessionArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 
@@ -299,7 +303,7 @@ export function Header() {
                 href={mainUrl("/checkin")}
                 className={cn(
                   buttonVariants({ size: "sm" }),
-                  softPublicHeader && "soft-button-primary text-white shadow-none",
+                  softPublicHeader && "soft-button-primary !bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
               >
                 Начать диалог
@@ -354,7 +358,7 @@ export function Header() {
                 <Link href={mainUrl("/login")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
                 <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
-                  className={cn(buttonVariants({ size: "sm" }), "flex-1")}>Начать диалог</Link>
+                  className={cn(buttonVariants({ size: "sm" }), "flex-1 !bg-[var(--soft-terracotta)] !text-white")}>Начать диалог</Link>
               </div>
             )}
           </nav>

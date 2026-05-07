@@ -26,6 +26,27 @@ describe("design v4 rollout", () => {
     expect(softCss).not.toContain("@import");
   });
 
+  it("locks the visual regression fixes requested from the v4 prototype audit", () => {
+    const layout = source("app/layout.tsx");
+    const header = source("components/header.tsx");
+    const register = source("app/(auth)/register/page.tsx");
+    const vkButton = source("components/vkid-button.tsx");
+    const softCss = source("app/v4-soft.css");
+    const pricing = source("app/pricing/pricing-plans.tsx");
+
+    expect(layout).toContain('url: "/icon.svg"');
+    expect(header).toContain('pathname.startsWith("/cabinet")');
+    expect(header).toContain('data-testid="header-cabinet-cta"');
+    expect(register).toContain("<VKIDButton />");
+    expect(vkButton).toContain('fill="currentColor"');
+    expect(vkButton).toContain("soft-social-button");
+    expect(softCss).toContain(".soft-products-preview");
+    expect(softCss).toContain("grid-template-columns: 1fr !important");
+    expect(softCss).toContain(".soft-email-banner");
+    expect(pricing).not.toMatch(/Скидк[аи][^"]*встреч/i);
+    expect(pricing).toContain("Встречи со специалистами оплачиваются отдельно по полной цене");
+  });
+
   it("tracks the emergency v4 rollout as the current design priority", () => {
     const blocks = doc("docs/v5-release/02-BLOCKS.md");
     const rollout = doc("docs/v5-release/08-DESIGN-V4-ROLLOUT.md");

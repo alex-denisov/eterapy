@@ -89,17 +89,17 @@ export default function RegisterPage() {
       <main className="soft-clarity-page soft-public-page min-h-screen">
         <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
         <div className="soft-card w-full max-w-md space-y-4 p-8 text-center">
-          <div className="text-5xl">📬</div>
-          <h1 className="font-heading text-2xl font-bold">Почти готово!</h1>
-          <p className="text-muted-foreground">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[var(--soft-apricot)] font-heading text-2xl text-[var(--soft-bordeaux)]">✉</div>
+          <h1 className="font-heading text-2xl font-medium text-[var(--soft-bordeaux)]">Почти готово!</h1>
+          <p className="text-[var(--soft-ink-soft)]">
             {guestResultSaved ? "Ваш ответ сохранён в кабинете. " : ""}
-            Мы отправили письмо на <strong className="text-foreground">{email}</strong>.
+            Мы отправили письмо на <strong className="text-[var(--soft-bordeaux)]">{email}</strong>.
             Перейдите по ссылке в письме чтобы подтвердить аккаунт.
           </p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--soft-ink-faint)]">
             Не получили? Проверьте папку «Спам».
           </p>
-          <Link href={appUrl("/cabinet")} className="block text-sm text-primary hover:underline">
+          <Link href={appUrl("/cabinet")} className="block text-sm font-semibold text-[var(--soft-terracotta-dark)] hover:underline">
             Перейти в кабинет →
           </Link>
         </div>
@@ -113,8 +113,8 @@ export default function RegisterPage() {
       <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
       <Card className="soft-card w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="font-heading text-2xl">Создать аккаунт</CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <CardTitle className="font-heading text-2xl font-medium text-[var(--soft-bordeaux)]">Создать аккаунт</CardTitle>
+          <p className="text-sm text-[var(--soft-ink-soft)]">
             {isSavingResult ? "Сохраните уже полученный ответ и вернитесь к нему позже" : "Регистрация после первого полезного шага"}
           </p>
         </CardHeader>
@@ -130,7 +130,7 @@ export default function RegisterPage() {
                 onChange={(e) => { setName(sanitizeName(e.target.value)); setNameError(null); }}
                 required
                 autoComplete="name"
-                className={`bg-background/50 ${nameError ? "border-destructive" : ""}`}
+                className={`soft-input ${nameError ? "border-destructive" : ""}`}
               />
               {nameError && <p className="text-xs text-destructive mt-1">{nameError}</p>}
             </div>
@@ -144,17 +144,17 @@ export default function RegisterPage() {
                 onChange={(e) => { setEmail(sanitizeEmail(e.target.value)); setEmailError(null); }}
                 required
                 autoComplete="email"
-                className={`bg-background/50 ${emailError ? "border-destructive" : ""}`}
+                className={`soft-input ${emailError ? "border-destructive" : ""}`}
               />
               {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
               {duplicateEmail && (
-                <div className="mt-2 rounded-[var(--radius-card)] border border-border/40 bg-background/50 p-3 text-sm text-muted-foreground" data-testid="duplicate-email-state">
-                  <p className="font-medium text-foreground">Аккаунт с этим email уже есть.</p>
+                <div className="mt-2 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-ink-soft)]" data-testid="duplicate-email-state">
+                  <p className="font-medium text-[var(--soft-bordeaux)]">Аккаунт с этим email уже есть.</p>
                   <div className="mt-2 flex flex-wrap gap-3">
-                    <Link href={`/login?email=${encodeURIComponent(email)}${isSavingResult ? "&intent=save-result" : ""}`} className="text-primary hover:underline">
+                    <Link href={`/login?email=${encodeURIComponent(email)}${isSavingResult ? "&intent=save-result" : ""}`} className="text-[var(--soft-terracotta-dark)] hover:underline">
                       Войти
                     </Link>
-                    <Link href={`/auth/forgot-password?email=${encodeURIComponent(email)}`} className="text-primary hover:underline">
+                    <Link href={`/auth/forgot-password?email=${encodeURIComponent(email)}`} className="text-[var(--soft-terracotta-dark)] hover:underline">
                       Сбросить пароль
                     </Link>
                   </div>
@@ -172,10 +172,10 @@ export default function RegisterPage() {
               required
               minLength={8}
               autoComplete="new-password"
-              className="bg-background/50"
+              className="soft-input"
             />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="soft-button soft-button-primary w-full justify-center" disabled={loading}>
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -186,22 +186,22 @@ export default function RegisterPage() {
               )}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="mt-4 text-center text-sm text-[var(--soft-ink-soft)]">
             Уже есть аккаунт?{" "}
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="font-medium text-[var(--soft-terracotta-dark)] hover:underline">
               Войти
             </Link>
           </p>
           <div className="mt-4">
             <div className="relative flex items-center my-3">
-              <div className="flex-1 border-t border-border/30" />
-              <span className="mx-3 text-xs text-muted-foreground">или через</span>
-              <div className="flex-1 border-t border-border/30" />
+              <div className="flex-1 border-t border-[var(--soft-paper-edge)]" />
+              <span className="mx-3 text-xs text-[var(--soft-ink-faint)]">или через</span>
+              <div className="flex-1 border-t border-[var(--soft-paper-edge)]" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               <VKIDButton />
               <button type="button" onClick={() => signIn("google", { callbackUrl: homePathForRole("CLIENT") })}
-                className="flex items-center justify-center gap-2 rounded-lg border border-border/40 bg-card/30 px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-border/70 hover:text-foreground">
+                className="flex items-center justify-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2.5 text-sm font-medium text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)]">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -212,7 +212,7 @@ export default function RegisterPage() {
               </button>
             </div>
           </div>
-          <p className="mt-3 text-center text-xs text-muted-foreground/60">
+          <p className="mt-3 text-center text-xs text-[var(--soft-ink-faint)]">
             Регистрируясь, вы соглашаетесь с{" "}
             <Link href="/legal/offer" className="hover:underline">офертой</Link>
             {" "}и{" "}

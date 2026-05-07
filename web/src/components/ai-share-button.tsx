@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Download, Link as LinkIcon, Send, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,7 +69,11 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   const [templateIndex, setTemplateIndex] = useState(0);
   const [hideQuestion, setHideQuestion] = useState(true);
   const [showWatermark, setShowWatermark] = useState(true);
-  const [durableShareUrl, setDurableShareUrl] = useState<string | null>(null);
+  const shareKey = useMemo(
+    () => JSON.stringify({ hideQuestion, showWatermark, resultText, tool }),
+    [hideQuestion, showWatermark, resultText, tool],
+  );
+  const [durableShare, setDurableShare] = useState<{ key: string; url: string } | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -98,10 +102,6 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
     };
   }, [open, handleClose]);
 
-  useEffect(() => {
-    setDurableShareUrl(null);
-  }, [hideQuestion, showWatermark, resultText, tool]);
-
   async function saveToHistory() {
     if (saved) return;
     try {
@@ -121,7 +121,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   }
 
   async function ensureShareUrl() {
-    if (durableShareUrl) return durableShareUrl;
+    if (durableShare?.key === shareKey) return durableShare.url;
     try {
       const res = await fetch("/api/share", {
         method: "POST",
@@ -137,7 +137,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.share?.url) {
-        setDurableShareUrl(data.share.url);
+        setDurableShare({ key: shareKey, url: data.share.url });
         return data.share.url as string;
       }
     } catch {
