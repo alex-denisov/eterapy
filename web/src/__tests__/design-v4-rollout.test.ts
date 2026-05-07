@@ -36,6 +36,8 @@ describe("design v4 rollout", () => {
 
     expect(layout).toContain('url: "/icon.svg"');
     expect(header).toContain('pathname.startsWith("/cabinet")');
+    expect(header).toContain('hostname.startsWith("app.")');
+    expect(header).toContain('hostname.startsWith("admin.")');
     expect(header).toContain('data-testid="header-cabinet-cta"');
     expect(register).toContain("<VKIDButton />");
     expect(vkButton).toContain('fill="currentColor"');

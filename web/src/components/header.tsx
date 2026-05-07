@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
@@ -17,6 +17,14 @@ const GUEST_NAV = [
   { href: "/practitioners", label: "Специалисты" },
   { href: "/pricing", label: "Тарифы" },
 ];
+
+function subscribeToHostnameStore() {
+  return () => {};
+}
+
+function getHostnameSnapshot() {
+  return typeof window === "undefined" ? "" : window.location.hostname;
+}
 
 function useBalance(userId: string | null | undefined) {
   const [balanceKopecks, setBalanceKopecks] = useState(0);
@@ -199,6 +207,7 @@ export function Header() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hostname = useSyncExternalStore(subscribeToHostnameStore, getHostnameSnapshot, () => "");
   const isAuthenticated = status === "authenticated" && !!session;
   const balanceKopecks = useBalance(session?.user?.id ?? null);
 
@@ -207,8 +216,10 @@ export function Header() {
 
   const isAdminArea = pathname.startsWith("/admin");
   const isSessionArea = pathname.startsWith("/session");
+  const isAppHost = hostname.startsWith("app.");
+  const isAdminHost = hostname.startsWith("admin.");
   const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help");
-  const hideGlobalHeader = isAdminArea || pathname.startsWith("/cabinet") || isSessionArea;
+  const hideGlobalHeader = isAdminArea || isAdminHost || isAppHost || pathname.startsWith("/cabinet") || isSessionArea;
 
   if (hideGlobalHeader) return null;
 
