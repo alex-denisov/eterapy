@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { HeroSection } from "@/components/landing/hero";
 import { HowItWorksSection } from "@/components/landing/how-it-works";
 import { AIToolsSection } from "@/components/landing/ai-tools";
+import { LibraryPreviewSection } from "@/components/landing/library-preview";
 import { ForPractitionersSection } from "@/components/landing/for-practitioners";
 import { TrustSection } from "@/components/landing/trust";
 import { FAQSection } from "@/components/landing/faq";
@@ -19,6 +20,7 @@ export default async function Home() {
       <HeroSection />
       <HowItWorksSection />
       <AIToolsSection />
+      <LibraryPreviewSection />
       <TrustSection />
       <ForPractitionersSection />
       <FAQSection />
