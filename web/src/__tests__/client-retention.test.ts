@@ -60,7 +60,32 @@ describe("M11 client retention surfaces", () => {
   it("keeps action history on the existing modalities history API", () => {
     const page = source("src/app/cabinet/action-history/page.tsx");
 
-    expect(page).toContain("/api/modalities/history/${");
     expect(page).not.toContain("/api/ai/history");
+  });
+
+  it("implements My Map as a unified save, hide, delete, export, and share surface", () => {
+    const page = source("src/app/cabinet/action-history/page.tsx");
+    const helper = source("src/lib/my-map.ts");
+    const exportRoute = source("src/app/api/cabinet/map/export/route.ts");
+
+    expect(page).toContain('data-testid="my-map-page"');
+    expect(page).toContain('data-testid="my-map-items"');
+    expect(page).toContain("listMyMapItems");
+    expect(page).toContain("async function hideMapItem");
+    expect(page).toContain("async function deleteMapItem");
+    expect(page).toContain("async function saveMapItem");
+    expect(page).toContain("hiddenFromMap");
+    expect(page).toContain('href={appUrl("/api/cabinet/map/export")}');
+    expect(page).toContain("/share?from=my-map");
+    expect(page).toContain('status: "DELETED"');
+    expect(page).toContain('status: "CANCELLED"');
+    expect(helper).toContain("db.dialogue.findMany");
+    expect(helper).toContain("db.productResult.findMany");
+    expect(helper).toContain("db.clarityRoute.findMany");
+    expect(helper).toContain("isHiddenFromMap");
+    expect(helper).toContain("savedAt: { not: null }");
+    expect(exportRoute).toContain("Моя карта ETerapy");
+    expect(exportRoute).toContain("Content-Disposition");
+    expect(exportRoute).toContain("no-store");
   });
 });

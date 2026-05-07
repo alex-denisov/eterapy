@@ -1,236 +1,202 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import type { Prisma } from "@prisma/client";
+import { Download, EyeOff, Map, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { appUrl } from "@/lib/subdomain";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { SkeletonCard } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import db from "@/lib/db";
+import { listMyMapItems, mergeMapMetadata, type MyMapItemKind } from "@/lib/my-map";
+import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
-const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
-  TAROT:      { label: "Таро",         icon: "01" },
-  CHECKIN:    { label: "Диалог ясности", icon: "02" },
-  NATAL:      { label: "Натальная карта", icon: "03" },
-  NUMEROLOGY: { label: "Нумерология",  icon: "04" },
-  HOROSCOPE:  { label: "Гороскоп",     icon: "05" },
-  GUIDE:      { label: "Личный гид",   icon: "06" },
-  BOOKING:    { label: "Запись к практику", icon: "07" },
-};
-
-interface LogEntry {
-  id: string;
-  tool: string;
-  title: string;
-  createdAt: string;
+function shareHref(title: string, topic: string) {
+  return mainUrl(`/share?from=my-map&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
 }
 
-interface FullReading {
-  id: string;
-  tool: string;
-  title: string;
-  createdAt: string;
-  costKopecks: number;
-  prompt: string | null;
-  result: string;
+async function hideMapItem(formData: FormData) {
+  "use server";
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+  const kind = String(formData.get("kind") ?? "") as MyMapItemKind;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  if (kind === "dialogue") {
+    const item = await db.dialogue.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
+    if (item) await db.dialogue.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
+  }
+  if (kind === "product") {
+    const item = await db.productResult.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
+    if (item) await db.productResult.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
+  }
+  if (kind === "route") {
+    const item = await db.clarityRoute.findFirst({ where: { id, userId: session.user.id, status: { not: "CANCELLED" } }, select: { id: true, metadata: true } });
+    if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
+  }
+
+  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet");
 }
 
-export default function AIHistoryPage() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [fullReadings, setFullReadings] = useState<FullReading[]>([]);
-  const [loadingReadings, setLoadingReadings] = useState(true);
-  const [selected, setSelected] = useState<{ tool: string; title: string; prompt: string | null; result: string } | null>(null);
-  const [expandedReading, setExpandedReading] = useState<FullReading | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "readings">("all");
+async function deleteMapItem(formData: FormData) {
+  "use server";
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+  const kind = String(formData.get("kind") ?? "") as MyMapItemKind;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
 
-  useEffect(() => {
-    fetch("/api/modalities/history?limit=50")
-      .then(r => r.json())
-      .then(d => { setLogs(d.logs ?? []); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/cabinet/full-readings")
-      .then(r => r.json())
-      .then(d => { setFullReadings(d.readings ?? []); setLoadingReadings(false); })
-      .catch(() => setLoadingReadings(false));
-  }, []);
-
-  async function openLog(id: string) {
-    const res = await fetch(`/api/modalities/history/${id}`);
-    const d = await res.json();
-    if (d.log) setSelected(d.log);
+  if (kind === "dialogue") {
+    await db.dialogue.updateMany({
+      where: { id, userId: session.user.id, deletedAt: null },
+      data: { status: "DELETED", deletedAt: new Date() },
+    });
+  }
+  if (kind === "product") {
+    await db.productResult.updateMany({
+      where: { id, userId: session.user.id, deletedAt: null },
+      data: { status: "DELETED", deletedAt: new Date() },
+    });
+  }
+  if (kind === "route") {
+    await db.clarityRoute.updateMany({
+      where: { id, userId: session.user.id, status: { not: "CANCELLED" } },
+      data: { status: "CANCELLED", metadata: { deletedFromMapAt: new Date().toISOString() } as Prisma.InputJsonObject },
+    });
   }
 
-  async function deleteLog(id: string) {
-    await fetch(`/api/modalities/history/${id}`, { method: "DELETE" });
-    setLogs(prev => prev.filter(l => l.id !== id));
-    toast.success("Запись удалена");
-  }
+  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet");
+}
+
+async function saveMapItem(formData: FormData) {
+  "use server";
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await db.productResult.updateMany({
+    where: { id, userId: session.user.id, status: "READY", deletedAt: null },
+    data: { savedAt: new Date() },
+  });
+
+  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet");
+}
+
+export default async function MyMapPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+
+  const items = await listMyMapItems(session.user.id);
+  const productCount = items.filter((item) => item.kind === "product").length;
+  const routeCount = items.filter((item) => item.kind === "route").length;
+  const dialogueCount = items.filter((item) => item.kind === "dialogue").length;
 
   return (
-    <div className="max-w-5xl px-4 py-8 sm:px-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6" data-testid="my-map-page">
+      <div className="mb-8 grid gap-5 lg:grid-cols-[1fr_0.75fr] lg:items-end">
         <div>
-          <p className="premium-eyebrow">Моя карта ETerapy</p>
-          <h1 className="premium-title mt-2 text-3xl md:text-5xl">История разборов</h1>
+          <p className="soft-eyebrow">Моя карта ETerapy</p>
+          <h1 className="soft-h1 mt-2">Ваш путь к ясности</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Здесь собираются вопросы, сохраненные результаты и маршруты. Можно скрыть лишнее,
+            удалить то, что больше не нужно, экспортировать карту или поделиться безопасной карточкой.
+          </p>
         </div>
-        <Link href={appUrl("/cabinet/modalities")} className="soft-button soft-button-ghost text-sm">
-          Открыть направления →
-        </Link>
+        <div className="flex flex-wrap gap-2 lg:justify-end">
+          <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary">
+            Новый вопрос
+          </Link>
+          <a href={appUrl("/api/cabinet/map/export")} className="soft-button soft-button-ghost">
+            <Download className="size-4" />
+            Экспорт
+          </a>
+        </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setActiveTab("all")}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            activeTab === "all"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          }`}
-        >
-          Все действия
-        </button>
-        <button
-          onClick={() => setActiveTab("readings")}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            activeTab === "readings"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/80"
-          }`}
-        >
-          История раскладов
-        </button>
-      </div>
-
-      {activeTab === "all" && (
-        loading ? (
-          <div className="space-y-2">
-            <SkeletonCard lines={2} />
-            <SkeletonCard lines={2} />
-            <SkeletonCard lines={2} />
+      <section className="soft-card soft-form-panel mb-6" data-testid="my-map-summary">
+        <div className="grid gap-4 sm:grid-cols-4">
+          <div>
+            <p className="soft-eyebrow">Всего</p>
+            <p className="mt-2 font-heading text-4xl text-[var(--soft-bordeaux)]">{items.length}</p>
           </div>
-        ) : logs.length === 0 ? (
-          <EmptyState
-            icon="✦"
-            title="Нет сохранённых сессий"
-            description="Результаты направлений сохраняются автоматически"
-            actionHref={appUrl("/cabinet/questions")}
-            actionLabel="Попробовать направления"
-          />
-        ) : (
-          <div className="space-y-2">
-            {logs.map(l => {
-              const meta = TOOL_LABELS[l.tool] ?? { label: l.tool, icon: "✦" };
-              return (
-                <div key={l.id} className="soft-card flex items-center gap-3 px-4 py-3 transition-colors hover:-translate-y-0.5">
-                  <span className="font-heading text-2xl text-primary shrink-0">{meta.icon}</span>
-                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openLog(l.id)}>
-                    <p className="text-sm font-medium truncate">{l.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {meta.label} · {new Date(l.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
+          <div>
+            <p className="soft-eyebrow">Вопросы</p>
+            <p className="mt-2 font-heading text-4xl text-[var(--soft-bordeaux)]">{dialogueCount}</p>
+          </div>
+          <div>
+            <p className="soft-eyebrow">Результаты</p>
+            <p className="mt-2 font-heading text-4xl text-[var(--soft-bordeaux)]">{productCount}</p>
+          </div>
+          <div>
+            <p className="soft-eyebrow">Маршруты</p>
+            <p className="mt-2 font-heading text-4xl text-[var(--soft-bordeaux)]">{routeCount}</p>
+          </div>
+        </div>
+      </section>
+
+      {items.length === 0 ? (
+        <section className="soft-card p-8 text-center">
+          <Map className="mx-auto size-10 text-[var(--soft-terracotta-dark)]" />
+          <h2 className="soft-h3 mt-4">Карта пока пустая</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Начните с вопроса или сохраните готовый результат. Мы покажем только то,
+            что помогает вернуться к важным выводам.
+          </p>
+          <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-5">
+            Задать вопрос
+          </Link>
+        </section>
+      ) : (
+        <div className="grid gap-3" data-testid="my-map-items">
+          {items.map((item) => (
+            <article key={`${item.kind}:${item.id}`} className="soft-card p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="soft-chip soft-chip-warm">{item.eyebrow}</span>
+                    <span className="soft-chip">{item.status.toLowerCase()}</span>
+                    <span className="soft-chip">{item.updatedAt.toLocaleDateString("ru-RU")}</span>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => openLog(l.id)}
-                      className="text-xs text-primary hover:underline">Открыть</button>
-                    <button onClick={() => deleteLog(l.id)}
-                      className="text-xs text-muted-foreground/50 hover:text-red-400 transition-colors">×</button>
-                  </div>
+                  <h2 className="mt-3 font-heading text-2xl font-medium text-[var(--soft-ink)]">{item.title}</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">{item.description}</p>
                 </div>
-              );
-            })}
-          </div>
-        )
-      )}
-
-      {activeTab === "readings" && (
-        loadingReadings ? (
-          <div className="space-y-2">
-            <SkeletonCard lines={2} />
-            <SkeletonCard lines={2} />
-          </div>
-        ) : fullReadings.length === 0 ? (
-          <EmptyState
-            icon="✦"
-            title="Нет полных раскладов"
-            description="Полные расклады появляются здесь после оплаты"
-            actionHref={appUrl("/cabinet/modalities")}
-            actionLabel="Перейти к инструментам"
-          />
-        ) : (
-          <div className="space-y-2">
-            {fullReadings.map(r => {
-              const meta = TOOL_LABELS[r.tool] ?? { label: r.tool, icon: "✦" };
-              const isExpanded = expandedReading?.id === r.id;
-              return (
-                <div key={r.id} className="soft-card px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="font-heading text-2xl text-primary shrink-0">{meta.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{r.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {meta.label} · {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })} · {(r.costKopecks / 100).toLocaleString("ru-RU")} ₽
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setExpandedReading(isExpanded ? null : r)}
-                      className="text-xs text-primary hover:underline shrink-0"
-                    >
-                      {isExpanded ? "Свернуть" : "Посмотреть результат"}
-                    </button>
-                  </div>
-                  {isExpanded && expandedReading && (
-                    <div className="mt-4 pt-4 border-t border-border/20 space-y-3">
-                      {expandedReading.prompt && (
-                        <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Запрос</p>
-                          <p className="text-sm text-muted-foreground bg-card/30 rounded-lg px-3 py-2">{expandedReading.prompt}</p>
-                        </div>
-                      )}
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Результат</p>
-                        <div className="text-sm leading-relaxed whitespace-pre-wrap">{expandedReading.result}</div>
-                      </div>
-                    </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Link href={item.href} className="soft-button soft-button-ghost">
+                    Открыть
+                  </Link>
+                  {item.kind === "product" && (
+                    <form action={saveMapItem}>
+                      <input type="hidden" name="id" value={item.id} />
+                      <button type="submit" className="soft-button soft-button-ghost">Сохранить</button>
+                    </form>
                   )}
+                  <a href={shareHref(item.title, item.shareTopic)} className="soft-button soft-button-ghost">
+                    <Share2 className="size-4" />
+                    Поделиться
+                  </a>
+                  <form action={hideMapItem}>
+                    <input type="hidden" name="kind" value={item.kind} />
+                    <input type="hidden" name="id" value={item.id} />
+                    <button type="submit" className="soft-button soft-button-ghost">
+                      <EyeOff className="size-4" />
+                      Скрыть
+                    </button>
+                  </form>
+                  <form action={deleteMapItem}>
+                    <input type="hidden" name="kind" value={item.kind} />
+                    <input type="hidden" name="id" value={item.id} />
+                    <button type="submit" className="soft-button soft-button-ghost text-[var(--soft-bordeaux)]">
+                      <Trash2 className="size-4" />
+                      Удалить
+                    </button>
+                  </form>
                 </div>
-              );
-            })}
-          </div>
-        )
-      )}
-
-      {/* Модальное окно просмотра */}
-      {selected && (
-        <Dialog open={!!selected} onOpenChange={(isOpen) => { if (!isOpen) setSelected(null); }}>
-          <DialogContent className="max-w-2xl max-h-[80vh]" showCloseButton>
-            <DialogHeader>
-              <DialogTitle>{selected.title}</DialogTitle>
-              <DialogDescription>{TOOL_LABELS[selected.tool]?.label}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {selected.prompt && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Запрос</p>
-                  <p className="text-sm text-muted-foreground bg-card/30 rounded-lg px-3 py-2">{selected.prompt}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Результат</p>
-                <div className="text-sm leading-relaxed whitespace-pre-wrap">{selected.result}</div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </article>
+          ))}
+        </div>
       )}
     </div>
   );
