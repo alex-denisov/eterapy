@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { ArrowRight, Download, LockKeyhole, Save, Trash2, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -44,6 +45,7 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function ChatAnalysisActions() {
+  const { status: authStatus } = useSession();
   const [result, setResult] = useState<ChatAnalysisResult | null>(null);
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
@@ -51,6 +53,9 @@ export function ChatAnalysisActions() {
   const [sourceText, setSourceText] = useState("");
 
   useEffect(() => {
+    if (authStatus !== "authenticated") {
+      return;
+    }
     let cancelled = false;
     jsonRequest<ApiPayload>("/api/products/chat-analysis")
       .then((payload) => {
@@ -62,7 +67,7 @@ export function ChatAnalysisActions() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authStatus]);
 
   async function createPreview() {
     if (!sourceText.trim()) return;
