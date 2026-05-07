@@ -280,7 +280,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
     indexable: true,
   },
   {
-    slug: "hochu-mira-no-opять-skandal",
+    slug: "hochu-mira-no-opyat-skandal",
     topic: "Отношения",
     question: "Мы с партнёром снова поругались из-за мелочи. Почему каждый разговор превращается в конфликт?",
     summary: "Повторяющиеся конфликты из-за мелочей почти всегда сигнализируют о чём-то большем — накопленной обиде, несовпадающих ожиданиях или усталости.",
