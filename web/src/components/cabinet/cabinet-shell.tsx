@@ -14,8 +14,9 @@ import {
   UserPen,
   Star,
   Banknote,
+  Bookmark,
+  Lock,
   LogOut,
-  HelpCircle,
 } from "lucide-react";
 import { appUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 import { BrandSignature } from "@/components/brand/brand-mark";
@@ -27,24 +28,24 @@ interface NavItem {
 }
 
 const CLIENT_NAV: NavItem[] = [
-  { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Обзор" },
-  { href: appUrl("/cabinet/questions"), icon: MessageCircle, label: "Мои вопросы" },
-  { href: appUrl("/cabinet/practitioners"), icon: Users, label: "Специалисты" },
-  { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Мои записи" },
-  { href: appUrl("/cabinet/modalities"), icon: Compass, label: "Направления" },
-  { href: appUrl("/cabinet/action-history"), icon: History, label: "Моя карта" },
-  { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Баланс и оплата" },
-  { href: appUrl("/help"), icon: HelpCircle, label: "Помощь" },
+  { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Главная" },
+  { href: appUrl("/cabinet/action-history"), icon: Compass, label: "Моя карта" },
+  { href: appUrl("/cabinet/questions"), icon: History, label: "История разборов" },
+  { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Записи" },
+  { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Подписка и оплата" },
+  { href: appUrl("/cabinet/settings"), icon: Settings, label: "Настройки" },
 ];
 
 const PRACTITIONER_NAV: NavItem[] = [
-  { href: appUrl("/cabinet/practitioner"), icon: LayoutDashboard, label: "Обзор" },
+  { href: appUrl("/cabinet/practitioner"), icon: LayoutDashboard, label: "Сводка" },
   { href: appUrl("/cabinet/practitioner/profile"), icon: UserPen, label: "Мой профиль" },
+  { href: appUrl("/cabinet/practitioner/services"), icon: Bookmark, label: "Услуги и цены" },
   { href: appUrl("/cabinet/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
+  { href: appUrl("/cabinet/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
   { href: appUrl("/cabinet/practitioner/clients"), icon: Users, label: "Клиенты" },
-  { href: appUrl("/cabinet/practitioner/reviews"), icon: Star, label: "Отзывы" },
   { href: appUrl("/cabinet/practitioner/earnings"), icon: Banknote, label: "Выплаты" },
-  { href: appUrl("/help"), icon: HelpCircle, label: "Помощь" },
+  { href: appUrl("/cabinet/practitioner/reviews"), icon: Star, label: "Отзывы" },
+  { href: appUrl("/cabinet/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -121,19 +122,8 @@ export function CabinetShell({
           })}
         </nav>
 
-        {/* Divider + Settings + Sign out */}
+        {/* Sign out */}
         <div className="mt-2 border-t border-border/20 pt-2">
-          <Link
-            href={appUrl("/cabinet/settings")}
-            className={`soft-app-nav-link flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
-              isActive(appUrl("/cabinet/settings"))
-                ? "is-active font-medium"
-                : ""
-            }`}
-          >
-            <Settings className="h-4 w-4 shrink-0" />
-            Настройки
-          </Link>
           <button
             onClick={() => { window.location.href = logoutUrl(); }}
             className="soft-app-nav-link flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"

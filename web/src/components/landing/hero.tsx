@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, LockKeyhole } from "lucide-react";
-import { SoftHaloMark } from "@/components/brand/brand-mark";
+import { ArrowRight } from "lucide-react";
+import { HeroQuestionInput } from "@/components/landing/hero-question-input";
 
 const topics = [
   "Отношения",
@@ -10,6 +10,8 @@ const topics = [
   "Самооценка",
   "Тревога",
   "Деньги",
+  "Родительство",
+  "Дружба",
   "Одиночество",
 ];
 
@@ -55,42 +57,7 @@ export function HeroSection() {
         </div>
 
         <div className="soft-halo-stage mt-10">
-          <div className="soft-ask-card" data-testid="v5-question-entry">
-            <div className="mb-3 flex items-center gap-2">
-              <SoftHaloMark size={14} />
-              <span className="soft-eyebrow">Диалог ясности</span>
-            </div>
-            <form action="/checkin" data-testid="question-entry">
-              <label htmlFor="home-question" className="sr-only">
-                Что сейчас хочется понять?
-              </label>
-              <textarea
-                id="home-question"
-                name="question"
-                rows={3}
-                minLength={3}
-                placeholder="Расскажите своими словами. Не нужно структурировать — мы поможем."
-                className="soft-question-input"
-                data-testid="home-question-input"
-              />
-              <div className="soft-ask-foot">
-                <div className="flex items-center gap-2 text-sm text-[var(--soft-ink-faint)]">
-                  <LockKeyhole className="size-4" aria-hidden="true" />
-                  <span>Приватно. Не публикуется без согласия.</span>
-                </div>
-                <button
-                  type="submit"
-                  className="soft-button soft-button-primary"
-                  data-analytics-event="dialogue_cta_clicked"
-                  data-analytics-target="/checkin"
-                  data-testid="home-dialogue-cta"
-                >
-                  Начать диалог
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </button>
-              </div>
-            </form>
-          </div>
+          <HeroQuestionInput />
         </div>
 
         <div className="mx-auto mt-6 max-w-3xl text-center">
