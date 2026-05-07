@@ -336,6 +336,15 @@ jobs:
               echo "▶ pm2 startOrReload"
               pm2 startOrReload /home/admin/eterapy/deploy/ecosystem.config.js --update-env
               pm2 save --force
+
+              echo "▶ worker health"
+              sleep 3
+              WORKER_STATUS="$(pm2 jlist | node -e 'let data="";process.stdin.on("data",c=>data+=c);process.stdin.on("end",()=>{const apps=JSON.parse(data);const w=apps.find(a=>a.name==="eterapy-worker");process.stdout.write(w?.pm2_env?.status || "missing")})')"
+              echo "eterapy-worker PM2 → $WORKER_STATUS"
+              if [ "$WORKER_STATUS" != "online" ]; then
+                pm2 logs eterapy-worker --lines 100 --nostream || true
+                exit 1
+              fi
           REMOTE
 
       - name: Cleanup SSH key
