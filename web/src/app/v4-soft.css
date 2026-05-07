@@ -169,7 +169,8 @@
     color: var(--soft-terracotta-dark);
   }
 
-  .soft-chip-warm {
+  .soft-chip-warm,
+  .soft-chip-soft {
     border-color: transparent;
     background: var(--soft-apricot);
     color: var(--soft-bordeaux);
@@ -192,6 +193,11 @@
   .soft-badge-warm {
     background: var(--soft-apricot);
     color: var(--soft-bordeaux);
+  }
+
+  .soft-badge-lilac {
+    background: var(--soft-lilac-soft);
+    color: #4a3e5e;
   }
 
   .soft-button {
@@ -243,6 +249,11 @@
 
   .soft-button-soft:hover {
     background: var(--soft-apricot);
+  }
+
+  .soft-button-lg {
+    padding: 1.12rem 1.88rem;
+    font-size: 1rem;
   }
 
   .soft-header {
@@ -878,19 +889,23 @@
   }
 
   .soft-angle-1 {
-    background: #fffcf5;
+    background: linear-gradient(140deg, #f4d9c1, #f8e6d1);
+    color: var(--soft-bordeaux);
   }
 
   .soft-angle-2 {
-    background: #f8e3da;
+    background: linear-gradient(140deg, #e8c4b8, #f4d5c8);
+    color: var(--soft-bordeaux);
   }
 
   .soft-angle-3 {
-    background: #e6def2;
+    background: linear-gradient(140deg, #dbd3ea, #e8e1f2);
+    color: #4a3e5e;
   }
 
   .soft-angle-4 {
-    background: #eef2e4;
+    background: linear-gradient(140deg, #d6decc, #e5ebdc);
+    color: #3a4a36;
   }
 
   .soft-product-legal {

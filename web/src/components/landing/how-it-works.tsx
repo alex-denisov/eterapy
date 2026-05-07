@@ -30,7 +30,7 @@ const steps = [
 export function HowItWorksSection() {
   return (
     <section id="how-it-works" className="soft-shell py-16 md:py-24">
-      <div className="mb-8 flex flex-col justify-between gap-6 md:mb-12 md:flex-row md:items-end">
+      <div className="mb-8 flex flex-col justify-between gap-6 md:mb-12 md:flex-row md:items-center">
         <div>
           <div className="soft-eyebrow">Как это работает</div>
           <h2 className="soft-h1 mt-3 max-w-2xl">

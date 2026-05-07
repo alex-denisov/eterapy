@@ -10,17 +10,14 @@ export function CTASection() {
       <h2 className="soft-display mx-auto mt-6 max-w-3xl">
         С чего <span className="soft-italic">начнём?</span>
       </h2>
-      <p className="soft-lede mx-auto mt-5 max-w-2xl">
-        Бесплатный первичный ответ за несколько минут. Специалист появляется как следующий шаг, когда контекст уже понятен.
-      </p>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Link
           href="/checkin"
-          className="soft-button soft-button-primary min-w-56"
+          className="soft-button soft-button-primary soft-button-lg"
           data-analytics-event="dialogue_cta_clicked"
           data-analytics-target="/checkin"
         >
-          Начать диалог
+          Начать диалог ясности
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
         <Link href="/how-it-works" className="soft-button soft-button-ghost min-w-56">

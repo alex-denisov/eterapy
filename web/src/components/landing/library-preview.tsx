@@ -15,11 +15,11 @@ export function LibraryPreviewSection() {
 
   return (
     <section className="soft-shell py-16 md:py-24">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="soft-eyebrow">библиотека анонимных вопросов</div>
           <h2 className="soft-h1 mt-2">
-            С этим <em className="italic">приходят многие</em>
+            С этим <span className="soft-italic">приходят многие</span>
           </h2>
         </div>
         <Link href="/library" className="soft-button soft-button-ghost">
@@ -33,14 +33,14 @@ export function LibraryPreviewSection() {
           <Link
             key={entry.slug}
             href={`/library/${entry.slug}`}
-            className="soft-card flex cursor-pointer flex-col gap-3 p-5 no-underline transition-shadow hover:shadow-[0_4px_18px_-8px_rgba(60,30,20,.14)]"
+            className="soft-card soft-question-card flex cursor-pointer flex-col gap-3 p-5 no-underline"
           >
-            <span className="soft-chip soft-chip-soft self-start px-3 py-1 text-xs">
+            <span className="soft-chip soft-chip-warm self-start" style={{ fontSize: 13, padding: "4px 9px" }}>
               {entry.topic}
             </span>
             <p
-              className="flex-1 text-sm italic leading-relaxed text-[var(--soft-ink-soft)]"
-              style={{ fontFamily: "var(--font-heading, serif)" }}
+              className="flex-1 italic leading-snug text-[var(--soft-ink)]"
+              style={{ fontFamily: "var(--font-heading, serif)", fontSize: 19, lineHeight: 1.35 }}
             >
               «{entry.question}»
             </p>

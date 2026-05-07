@@ -15,7 +15,7 @@ describe("v5 public home page", () => {
     expect(hero).toContain('data-testid="v5-question-entry"');
     expect(hero).toContain('name="question"');
     expect(hero).toContain('action="/checkin"');
-    expect(hero).toContain("Начать диалог");
+    expect(hero).toContain("Получить разбор");
     expect(hero).toContain('data-analytics-event="dialogue_cta_clicked"');
     expect(hero).toContain("PLACEHOLDERS[phIdx]");
     expect(hero).toContain("setQuestion(`${topic}: `)");
@@ -55,7 +55,7 @@ describe("v5 public home page", () => {
 
     expect(howItWorks).toContain("Опишите своими словами");
     expect(howItWorks).toContain("Углубление по выбору");
-    expect(cta).toContain("Специалист появляется как следующий шаг");
+    expect(cta).toContain("Начать диалог ясности");
     expect(cta).toContain('href="/checkin"');
   });
 });

@@ -44,7 +44,7 @@ export function HeroSection() {
         <div className="mx-auto max-w-[58rem] text-center">
           <div className="mb-5 flex flex-wrap items-center justify-center gap-3">
             <span className="soft-badge soft-badge-warm">Бесплатный первый разбор</span>
-            <span className="text-sm text-[var(--soft-ink-faint)]">без регистрации до сохранения</span>
+            <span className="text-sm text-[var(--soft-ink-faint)]">· без регистрации</span>
           </div>
 
           <h1 id="home-hero-title" className="soft-display">
@@ -90,7 +90,7 @@ export function HeroSection() {
                   data-analytics-target="/checkin"
                   data-testid="home-dialogue-cta"
                 >
-                  Начать диалог
+                  Получить разбор
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </button>
               </div>
