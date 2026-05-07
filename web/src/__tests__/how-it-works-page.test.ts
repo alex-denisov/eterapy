@@ -15,15 +15,16 @@ describe("v5 how-it-works page", () => {
     expect(publicPageSeo["/how-it-works"].title).toBe("Как работает ETerapy");
   });
 
-  it("explains the free-to-paid-to-practitioner path", () => {
+  it("explains the four-step clarity path", () => {
     const page = source("app/how-it-works/page.tsx");
 
     expect(page).toContain('data-testid="how-it-works-page"');
-    expect(page).toContain("Вопрос вместо каталога");
-    expect(page).toContain("Бесплатный первичный ответ");
-    expect(page).toContain("Платная глубина или подписка");
-    expect(page).toContain("Специалист как следующий шаг");
-    expect(page).toContain("нет платного CTA в кризисе");
+    expect(page).toContain("Опишите своими словами");
+    expect(page).toContain("Несколько уточнений");
+    expect(page).toContain("Первичный разбор");
+    expect(page).toContain("Углубление по выбору");
+    expect(page).toContain("мы помогаем");
+    expect(page).toContain("мы не обещаем");
   });
 
   it("links public navigation to the durable route, not only the home anchor", () => {
