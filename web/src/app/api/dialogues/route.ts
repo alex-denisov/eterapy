@@ -11,6 +11,7 @@ import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-
 import { generateDialogueClarifyingQuestions } from "@/lib/dialogue-clarifier";
 import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { markReferralMeaningfulAction } from "@/lib/share-referral";
 
 const MAX_DIALOGUES_LIMIT = 50;
 
@@ -257,6 +258,17 @@ export async function POST(request: NextRequest) {
   const cookie = cookieCarrier.headers.get("set-cookie");
   if (cookie) response.headers.set("set-cookie", cookie);
   if (guest) response.headers.set("X-Guest-Session", guest.created ? "created" : "existing");
+
+  if (userId) {
+    void markReferralMeaningfulAction({
+      request,
+      userId,
+      action: "dialogue_created",
+      entityId: dialogue.id,
+    }).catch(() => {
+      // Referral reward bookkeeping must not break the dialogue flow.
+    });
+  }
 
   return response;
 }

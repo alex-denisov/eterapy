@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { notify } from "@/lib/notifications";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { mainUrl } from "@/lib/subdomain";
 
 function serialize(card: Awaited<ReturnType<typeof getOrCreateDailyCard>>["card"]) {
   return {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
         title: card.title,
         body: card.body,
         prompt: card.prompt,
+        shareUrl: mainUrl(`/share?from=daily-card&topic=${encodeURIComponent(card.title)}`),
       },
       requestId: context.requestId,
     });

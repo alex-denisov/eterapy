@@ -4,6 +4,7 @@ import { sendVerificationEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
 import { validateName, validateEmail } from "@/lib/validation";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
+import { attachReferralToRegisteredUser } from "@/lib/share-referral";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await usersDb.create({ email, name, password });
+    await attachReferralToRegisteredUser({ request: req, userId: user.id }).catch((referralErr) => {
+      console.error("[register] referral attach failed:", referralErr);
+    });
 
     // Отправляем письмо подтверждения
     try {

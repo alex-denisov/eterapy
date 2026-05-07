@@ -69,6 +69,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   const [templateIndex, setTemplateIndex] = useState(0);
   const [hideQuestion, setHideQuestion] = useState(true);
   const [showWatermark, setShowWatermark] = useState(true);
+  const [durableShareUrl, setDurableShareUrl] = useState<string | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -97,6 +98,10 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
     };
   }, [open, handleClose]);
 
+  useEffect(() => {
+    setDurableShareUrl(null);
+  }, [hideQuestion, showWatermark, resultText, tool]);
+
   async function saveToHistory() {
     if (saved) return;
     try {
@@ -115,22 +120,50 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
     }
   }
 
-  function publicText() {
+  async function ensureShareUrl() {
+    if (durableShareUrl) return durableShareUrl;
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceType: tool.toLowerCase(),
+          sourceLabel: TOOL_LABELS[tool] ?? tool,
+          topic: TOOL_LABELS[tool] ?? tool,
+          previewText: insightPreview(resultText),
+          hideQuestion,
+          showWatermark,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.share?.url) {
+        setDurableShareUrl(data.share.url);
+        return data.share.url as string;
+      }
+    } catch {
+      // Static share fallback keeps the UI usable if attribution is unavailable.
+    }
+    return shareLandingUrl(tool);
+  }
+
+  function publicText(url: string) {
     const label = TOOL_LABELS[tool] ?? "разбор";
     const question = hideQuestion ? "" : `\n\nМой вопрос: ${title}`;
-    return `Инсайт из ETerapy (${label})${question}\n\n${insightPreview(resultText)}\n\nПопробовать бережный разбор: ${shareLandingUrl(tool)}`;
+    return `Инсайт из ETerapy (${label})${question}\n\n${insightPreview(resultText)}\n\nПопробовать бережный разбор: ${url}`;
   }
 
   async function copyInviteLink() {
     await saveToHistory();
-    await navigator.clipboard.writeText(shareLandingUrl(tool));
+    const url = await ensureShareUrl();
+    await navigator.clipboard.writeText(url);
     setOpen(false);
     toast.success("Ссылка скопирована");
   }
 
   async function copySafeText() {
     await saveToHistory();
-    await navigator.clipboard.writeText(publicText());
+    const url = await ensureShareUrl();
+    await navigator.clipboard.writeText(publicText(url));
     setOpen(false);
     toast.success("Обезличенный текст скопирован");
   }
@@ -138,7 +171,8 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   async function shareToTelegram() {
     setSharing(true);
     await saveToHistory();
-    const url = `https://t.me/share/url?url=${encodeURIComponent(shareLandingUrl(tool))}&text=${encodeURIComponent(publicText())}`;
+    const shareUrl = await ensureShareUrl();
+    const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(publicText(shareUrl))}`;
     window.open(url, "_blank", "noopener,noreferrer");
     setSharing(false);
     setOpen(false);
@@ -148,7 +182,8 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
   async function shareToVK() {
     setSharing(true);
     await saveToHistory();
-    const url = `https://vk.com/share.php?url=${encodeURIComponent(shareLandingUrl(tool))}&title=${encodeURIComponent("ETerapy: инсайт дня")}&description=${encodeURIComponent(insightPreview(resultText))}`;
+    const shareUrl = await ensureShareUrl();
+    const url = `https://vk.com/share.php?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent("ETerapy: инсайт дня")}&description=${encodeURIComponent(insightPreview(resultText))}`;
     window.open(url, "_blank", "noopener,noreferrer");
     setSharing(false);
     setOpen(false);
@@ -156,7 +191,8 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
 
   async function downloadSafeText() {
     await saveToHistory();
-    const blob = new Blob([publicText()], { type: "text/plain;charset=utf-8" });
+    const shareUrl = await ensureShareUrl();
+    const blob = new Blob([publicText(shareUrl)], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

@@ -71,6 +71,9 @@ model User {
   compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
   clarityRoutes          ClarityRoute[]
   dailyCards             DailyCard[]
+  shareLinks             ShareLink[] @relation("ShareLinkOwner")
+  referralsGiven         ReferralAttribution[] @relation("ReferralReferrer")
+  referralsReceived      ReferralAttribution[] @relation("ReferralReferredUser")
 
   @@map("users")
 }
@@ -519,6 +522,55 @@ model DailyCard {
   @@unique([userId, cardDate])
   @@index([userId, createdAt])
   @@map("daily_cards")
+}
+
+model ShareLink {
+  id             String   @id @default(cuid())
+  token          String   @unique
+  ownerUserId    String?  @map("owner_user_id")
+  owner          User?    @relation("ShareLinkOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  sourceType     String   @map("source_type")
+  sourceId       String?  @map("source_id")
+  sourceLabel    String?  @map("source_label")
+  topic          String?
+  previewText    String   @map("preview_text")
+  hideQuestion   Boolean  @default(true) @map("hide_question")
+  showWatermark  Boolean  @default(true) @map("show_watermark")
+  openedCount    Int      @default(0) @map("opened_count")
+  lastOpenedAt   DateTime? @map("last_opened_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  referrals      ReferralAttribution[]
+
+  @@index([ownerUserId, createdAt])
+  @@index([sourceType, sourceId])
+  @@map("share_links")
+}
+
+model ReferralAttribution {
+  id                 String   @id @default(cuid())
+  shareLinkId        String?  @map("share_link_id")
+  shareLink          ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
+  referrerUserId     String?  @map("referrer_user_id")
+  referrer           User?    @relation("ReferralReferrer", fields: [referrerUserId], references: [id], onDelete: SetNull)
+  referredUserId     String?  @map("referred_user_id")
+  referredUser       User?    @relation("ReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+  visitorHash        String   @map("visitor_hash")
+  source             String   @default("share")
+  status             String   @default("OPENED") // OPENED | REGISTERED | REWARDED | BLOCKED
+  blockedReason      String?  @map("blocked_reason")
+  meaningfulActionAt DateTime? @map("meaningful_action_at")
+  rewardGrantedAt    DateTime? @map("reward_granted_at")
+  metadata           Json?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@unique([shareLinkId, visitorHash])
+  @@index([referrerUserId, status])
+  @@index([referredUserId])
+  @@index([visitorHash])
+  @@map("referral_attributions")
 }
 
 // ─── Platform Settings ────────────────────────────────────────────────────────

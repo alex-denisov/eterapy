@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BrandLogo } from "@/components/brand/brand-mark";
 import { mainUrl } from "@/lib/subdomain";
+import { ShareAttribution } from "@/app/share/share-attribution";
 
 export const metadata = {
   title: "ETerapy — мягкое приглашение к ясности",
@@ -9,9 +10,20 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
-export default function ShareLandingPage() {
+export default async function ShareLandingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const token = firstParam(params?.token);
+  const source = firstParam(params?.from) ?? "share";
+  const topic = firstParam(params?.topic);
+  const checkinUrl = mainUrl(`/checkin?source=share${token ? `&ref=${encodeURIComponent(token)}` : ""}`);
+
   return (
     <main className="soft-clarity-page min-h-screen bg-[var(--soft-paper)]">
+      <ShareAttribution token={token} source={source} topic={topic} />
       <section className="soft-section px-4 py-16 sm:px-6 lg:py-24" data-testid="public-share-landing">
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
           <div>
@@ -26,8 +38,13 @@ export default function ShareLandingPage() {
               Вам прислали обезличенный инсайт ETerapy. Здесь нет чужих имен, приватных вопросов или ссылок на профиль.
               Можно задать свой вопрос и получить бережный первичный разбор.
             </p>
+            {topic && (
+              <p className="mt-5 inline-flex rounded-full border border-[var(--soft-paper-edge)] bg-white/55 px-4 py-2 text-sm text-[var(--soft-ink-soft)]">
+                Тема приглашения: {topic}
+              </p>
+            )}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary">
+              <Link href={checkinUrl} className="soft-button soft-button-primary" data-analytics-event="share_dialogue_cta_clicked" data-analytics-surface="public_share" data-analytics-target={source}>
                 Задать свой вопрос
               </Link>
               <Link href={mainUrl("/how-it-works")} className="soft-button soft-button-ghost">
@@ -57,4 +74,9 @@ export default function ShareLandingPage() {
       </section>
     </main>
   );
+}
+
+function firstParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }

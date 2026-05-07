@@ -211,7 +211,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "CARD_REMOVED":
       return `🗑 Карта отвязана\n${data.brand} •••• ${data.last4} удалена из списка карт.`;
     case "DAILY_CARD":
-      return `Карта дня ETerapy\n<b>${data.title}</b>\n${data.body}\n<a href="${baseUrl}/cabinet">Открыть кабинет →</a>`;
+      return `Карта дня ETerapy\n<b>${data.title}</b>\n${data.body}\n<a href="${baseUrl}/cabinet">Открыть кабинет →</a>${data.shareUrl ? `\n<a href="${data.shareUrl}">Поделиться бережно →</a>` : ""}`;
     default:
       return `ETerapy: уведомление`;
   }
