@@ -20,16 +20,21 @@ export default async function LibraryPage({
     <main className="soft-clarity-page soft-public-page" data-testid="anonymous-library-page">
       <PublicJsonLd route="/library" />
 
-      <section className="soft-shell soft-public-hero-centered">
-        <p className="soft-eyebrow">Библиотека анонимных вопросов</p>
-        <h1 className="soft-h1 mt-4">Кто-то <span className="soft-italic">уже спросил</span> то же, что и вы</h1>
-        <p className="soft-lede mt-5">
-          Все вопросы публикуются только после обезличивания и модерации. Без комментариев и драмы.
-        </p>
-        <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
+      {/* Hero — between layout matching v4 */}
+      <section className="soft-shell" style={{ paddingTop: 40, paddingBottom: 24 }}>
+        <div className="flex flex-wrap items-center justify-between gap-6">
+          <div>
+            <p className="soft-eyebrow">библиотека анонимных вопросов</p>
+            <h1 className="soft-h1 mt-2">
+              Кто-то <span className="soft-italic">уже спросил</span> то же, что и вы
+            </h1>
+            <p className="soft-lede mt-3" style={{ maxWidth: 600 }}>
+              Все вопросы публикуются только после обезличивания и модерации. Без комментариев и драмы.
+            </p>
+          </div>
           <Link
             href="/checkin"
-            className="soft-button soft-button-primary"
+            className="soft-button soft-button-primary shrink-0"
             data-analytics-event="dialogue_cta_clicked"
             data-analytics-target="/checkin"
             data-testid="library-dialogue-cta"
@@ -39,7 +44,7 @@ export default async function LibraryPage({
         </div>
       </section>
 
-      <section className="soft-shell soft-public-section">
+      <section className="soft-shell" style={{ paddingBottom: 80 }}>
         <LibrarySearch entries={entries} topics={topics} activeTopic={activeTopic} />
       </section>
     </main>

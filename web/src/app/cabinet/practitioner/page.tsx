@@ -5,7 +5,6 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
-import { getBookingStatus } from "@/lib/booking-status";
 
 async function getPractitionerData(userId: string) {
   return db.practitioner.findUnique({
@@ -39,13 +38,14 @@ export default async function PractitionerCabinetPage() {
     return (
       <div className="px-6 py-8 text-center">
         <h1 className="font-heading text-xl font-bold">Профиль практика не настроен</h1>
-        <p className="mt-2 text-muted-foreground text-sm">Обратитесь в поддержку: support@eterapy.com</p>
+        <p className="mt-2 text-sm text-[var(--soft-ink-faint)]">Обратитесь в поддержку: support@eterapy.com</p>
       </div>
     );
   }
 
   const rating = practitioner.reviewCount > 0 ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1) : "—";
   const st = STATUS_LABELS[practitioner.status as keyof typeof STATUS_LABELS] ?? STATUS_LABELS.ACTIVE;
+  const firstName = practitioner.user.name?.split(" ")[0] ?? "Специалист";
 
   // Pending bookings
   const pendingBookings = await db.booking.findMany({
@@ -59,146 +59,187 @@ export default async function PractitionerCabinetPage() {
   const upcomingBookings = await db.booking.findMany({
     where: { practitionerId: practitioner.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] } },
     include: { client: { select: { name: true, email: true } }, slot: true },
-    orderBy: { createdAt: "desc" },
-    take: 10,
+    orderBy: { createdAt: "asc" },
+    take: 5,
   });
 
   return (
-    <div className="max-w-6xl px-4 py-8 sm:px-6">
-      {/* Шапка */}
-      <div className="mb-6">
-        <p className="soft-eyebrow">Кабинет практика</p>
-        <div className="mt-2 flex items-center gap-3 flex-wrap">
-          <h1 className="soft-h1">Добрый вечер, {practitioner.user.name}</h1>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              borderRadius: 999,
-              padding: "3px 12px",
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              letterSpacing: "0.04em",
-              background: st.bg,
-              color: st.color,
-            }}
-          >
-            {st.label}
-          </span>
-        </div>
-        <p className="mt-1 text-muted-foreground">{practitioner.title}</p>
-      </div>
-
-      {/* Статистика */}
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Рейтинг",       value: rating,                                       sub: `${practitioner.reviewCount} отзывов`,   icon: "01",  href: "/cabinet/practitioner/reviews" },
-          { label: "Сессий всего",  value: String(practitioner.sessionCount),             sub: "за всё время",                          icon: "02", href: null },
-          { label: "На балансе",    value: "0 ₽",                                         sub: "выплата в разработке",                  icon: "03", href: "/cabinet/practitioner/earnings" },
-          { label: "Цена сессии",   value: `${practitioner.pricePerSession.toLocaleString("ru")} ₽`, sub: "изменяется по заявке", icon: "04", href: null },
-        ].map((s) => (
-          <div key={s.label} className="soft-card p-5">
-            <div className="flex items-start justify-between">
-              <p className="soft-eyebrow">{s.label}</p>
-              <span
-                style={{
-                  fontFamily: "var(--font-heading, serif)",
-                  fontStyle: "italic",
-                  color: "var(--soft-terracotta-dark)",
-                  fontSize: 18,
-                }}
-              >
-                {s.icon}
-              </span>
-            </div>
-            <p
-              className="mt-2"
+    <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
+      {/* v4 header: eyebrow "сводка" + h1 + action buttons */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="soft-eyebrow">сводка</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h1 className="soft-h1">
+              Здравствуйте, <span className="soft-italic">{firstName}</span>
+            </h1>
+            <span
               style={{
-                fontFamily: "var(--font-heading, serif)",
-                fontSize: 28,
-                fontWeight: 600,
-                color: "var(--soft-bordeaux)",
+                display: "inline-flex",
+                alignItems: "center",
+                borderRadius: 999,
+                padding: "3px 12px",
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                background: st.bg,
+                color: st.color,
               }}
             >
-              {s.value}
-            </p>
-            {s.href ? (
-              <Link href={s.href} className="mt-1 block text-xs" style={{ color: "var(--soft-terracotta-dark)" }}>{s.sub} →</Link>
-            ) : (
-              <p className="mt-1 text-xs" style={{ color: "var(--soft-ink-faint)" }}>{s.sub}</p>
-            )}
+              {st.label}
+            </span>
           </div>
-        ))}
+          <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">{practitioner.title}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href={appUrl("/cabinet/practitioner/schedule")} className="soft-button soft-button-ghost">
+            Открыть расписание
+          </Link>
+          <Link href={appUrl("/cabinet/practitioner/services")} className="soft-button soft-button-primary">
+            Добавить услугу
+          </Link>
+        </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
-        {/* Новые запросы */}
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold">Новые запросы</h2>
-            <Link href={appUrl("/cabinet/practitioner/clients")} className="text-sm text-primary hover:underline">Все →</Link>
-          </div>
-          {pendingBookings.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Нет новых запросов</p>
-          ) : (
-            <div className="space-y-2">
-              {pendingBookings.map((b) => {
-                const durationMinutes = b.slot
-                  ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
-                  : 60;
-                return (
-                  <div key={b.id} className="flex items-center justify-between rounded-xl border border-yellow-500/20 bg-yellow-500/5 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{b.client.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {b.slot
-                          ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                          : "Время не указано"}
-                        {" · "}{durationMinutes} мин
-                      </p>
-                      <p className="text-xs text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
-                    </div>
-                    <PendingActions bookingId={b.id} />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* v4 4-col stat grid — first card with gradient */}
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div
+          className="soft-card p-5"
+          style={{ background: "linear-gradient(140deg, #E8C4B8, #F4D5C8)" }}
+        >
+          <p className="soft-eyebrow">заявок на неделю</p>
+          <p
+            style={{
+              fontFamily: "var(--font-heading, serif)",
+              fontSize: 32,
+              color: "var(--soft-bordeaux)",
+              fontWeight: 600,
+              marginTop: 8,
+            }}
+          >
+            {pendingBookings.length}
+          </p>
+          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">ожидают подтверждения</p>
         </div>
 
-        {/* Подтверждённые сессии */}
-        <div>
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow">встреч проведено</p>
+          <p
+            style={{
+              fontFamily: "var(--font-heading, serif)",
+              fontSize: 32,
+              color: "var(--soft-bordeaux)",
+              fontWeight: 600,
+              marginTop: 8,
+            }}
+          >
+            {practitioner.sessionCount}
+          </p>
+          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">за всё время</p>
+        </div>
+
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow">рейтинг</p>
+          <p
+            style={{
+              fontFamily: "var(--font-heading, serif)",
+              fontSize: 32,
+              color: "var(--soft-bordeaux)",
+              fontWeight: 600,
+              marginTop: 8,
+            }}
+          >
+            {rating}
+          </p>
+          <Link
+            href={appUrl("/cabinet/practitioner/reviews")}
+            className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
+          >
+            {practitioner.reviewCount} отзывов →
+          </Link>
+        </div>
+
+        <div
+          className="soft-card p-5"
+          style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}
+        >
+          <p className="soft-eyebrow">к выплате</p>
+          <p
+            style={{
+              fontFamily: "var(--font-heading, serif)",
+              fontSize: 32,
+              color: "var(--soft-bordeaux)",
+              fontWeight: 600,
+              marginTop: 8,
+            }}
+          >
+            0 ₽
+          </p>
+          <Link
+            href={appUrl("/cabinet/practitioner/earnings")}
+            className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
+          >
+            выплата в разработке →
+          </Link>
+        </div>
+      </div>
+
+      {/* v4: schedule + requests side-by-side (1.4fr / 1fr) */}
+      <div className="grid gap-4 md:grid-cols-[1.4fr_1fr] mb-4">
+        {/* Расписание / подтверждённые сессии */}
+        <div className="soft-card p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold">Подтверждённые</h2>
-            <Link href={appUrl("/cabinet/practitioner/clients")} className="text-sm text-primary hover:underline">Все →</Link>
+            <p className="soft-eyebrow">расписание · ближайшее</p>
+            <Link href={appUrl("/cabinet/practitioner/schedule")} className="soft-chip text-xs">
+              Все слоты →
+            </Link>
           </div>
           {upcomingBookings.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Нет подтверждённых сессий</p>
+            <p className="text-sm text-[var(--soft-ink-faint)]">Нет подтверждённых сессий</p>
           ) : (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {upcomingBookings.map((b) => {
-                const durationMinutes = b.slot
+                const clientName = b.client.name ?? b.client.email ?? "Клиент";
+                const timeStr = b.slot
+                  ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                  : "Время не указано";
+                const durationMin = b.slot
                   ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
-                  : 60;
-                const st = getBookingStatus(b.status);
+                  : 50;
+                const isPending = b.status === "PENDING";
                 return (
-                  <div key={b.id} className="flex items-center justify-between rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium">{b.client.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {b.slot
-                          ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                          : "Время не указано"}
-                        {" · "}{durationMinutes} мин
-                      </p>
-                      <p className="text-xs text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between"
+                    style={{ padding: "12px 14px", background: "var(--soft-paper-deep)", borderRadius: 12 }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <span
+                        style={{
+                          fontFamily: "var(--font-heading, serif)",
+                          color: "var(--soft-bordeaux)",
+                          fontWeight: 500,
+                          fontSize: 13,
+                          width: 130,
+                        }}
+                      >
+                        {timeStr}
+                      </span>
+                      <div>
+                        <p style={{ fontWeight: 500, fontSize: 14 }}>{clientName}</p>
+                        <p className="text-xs text-[var(--soft-ink-faint)]">Индивидуальная · {durationMin} мин</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${st.color}`}>{st.label}</span>
-                      {(b.status === "CONFIRMED" || b.status === "IN_PROGRESS") && (
-                        <a href={`/session/${b.id}`} className="text-xs text-green-400 hover:underline">Войти →</a>
-                      )}
-                    </div>
+                    <span
+                      className="soft-badge"
+                      style={{
+                        fontSize: 11,
+                        background: isPending ? "var(--soft-rose)" : "var(--soft-sage, #d6decc)",
+                        color: "var(--soft-bordeaux)",
+                      }}
+                    >
+                      {isPending ? "ждёт согласования" : "подтверждено"}
+                    </span>
                   </div>
                 );
               })}
@@ -206,45 +247,67 @@ export default async function PractitionerCabinetPage() {
           )}
         </div>
 
-        {/* Ближайшие слоты */}
-        <div>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold">Ближайшие слоты</h2>
-            <Link href={appUrl("/cabinet/practitioner/schedule")} className="text-sm text-primary hover:underline">Расписание →</Link>
-          </div>
-          {practitioner.slots.length === 0 ? (
-            <div>
-              <p className="text-sm text-muted-foreground">Нет свободных слотов</p>
-              <Link href={appUrl("/cabinet/practitioner/schedule")} className="mt-2 inline-block text-sm text-primary hover:underline">
-                Добавить слоты →
-              </Link>
-            </div>
+        {/* Новые заявки */}
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow mb-4">новые заявки</p>
+          {pendingBookings.length === 0 ? (
+            <p className="text-sm text-[var(--soft-ink-faint)]">Нет новых запросов</p>
           ) : (
-            <div className="space-y-2">
-              {practitioner.slots.map((s) => (
-                <div key={s.id} className="soft-map-tile flex items-center justify-between px-4 py-2.5">
-                  <p className="text-sm">
-                    {new Date(s.startAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" })}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(s.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                    {" – "}
-                    {new Date(s.endAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              ))}
+            <div className="flex flex-col gap-3">
+              {pendingBookings.slice(0, 3).map((b) => {
+                const clientName = b.client.name ?? b.client.email ?? "Клиент";
+                return (
+                  <div key={b.id} className="soft-card-flat p-3.5">
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>
+                        {clientName[0]}. {clientName.split(" ")[1]?.[0] ? `${clientName.split(" ")[1][0]}.` : ""}
+                      </span>
+                      <span className="soft-badge soft-badge-lilac" style={{ fontSize: 10 }}>новая</span>
+                    </div>
+                    <p className="text-xs text-[var(--soft-ink-soft)] leading-relaxed mb-2">
+                      {b.slot
+                        ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                        : "Время не указано"}{" "}
+                      · {b.priceRub.toLocaleString("ru")} ₽
+                    </p>
+                    <div className="flex gap-2">
+                      <PendingActions bookingId={b.id} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* v4: lilac gradient "новый формат" banner */}
+      <div className="soft-card p-5" style={{ background: "linear-gradient(140deg, #DBD3EA, #E8E1F2)" }}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div style={{ maxWidth: 520 }}>
+            <p className="soft-eyebrow">новый формат</p>
+            <h3 className="soft-h3 mt-2">Совместные сессии: эзотерик + психотерапевт</h3>
+            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
+              Запускаем парные встречи. Если интересно работать в паре с астрологом или таро-практиком — заполните короткую форму.
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <Link href={appUrl("/cabinet/practitioner/profile")} className="soft-button soft-button-primary">
+              Заполнить интерес
+            </Link>
+            <Link href="/how-it-works" className="soft-chip text-sm">
+              Узнать подробнее
+            </Link>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// Server-side — нельзя использовать useState, делаем placeholder
 function PendingActions({ bookingId: _bookingId }: { bookingId: string }) {
   void _bookingId;
   return (
-    <span className="text-xs text-yellow-400">Ожидает</span>
+    <span className="soft-chip text-xs" style={{ color: "var(--soft-ink-faint)" }}>Ожидает</span>
   );
 }

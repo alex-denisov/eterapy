@@ -83,7 +83,7 @@ export function CabinetShell({
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="soft-app-sidebar sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto px-4 py-5 md:flex"
+        className="soft-app-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto px-3.5 py-5 md:flex"
       >
         {/* User badge */}
         <div className="mb-5 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">

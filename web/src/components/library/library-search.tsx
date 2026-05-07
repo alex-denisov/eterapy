@@ -2,7 +2,6 @@
 
 import { useState, useDeferredValue } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
 import type { AnonymousLibraryEntry } from "@/data/anonymous-library";
 
 export function LibrarySearch({
@@ -30,26 +29,7 @@ export function LibrarySearch({
 
   return (
     <>
-      {/* Search input */}
-      <div className="relative mb-6 mt-2">
-        <Search
-          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-[var(--soft-ink-faint)]"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск по вопросам…"
-          aria-label="Поиск вопросов в библиотеке"
-          className="w-full rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] py-2.5 pl-11 pr-4 text-sm outline-none transition-colors placeholder:text-[var(--soft-ink-faint)] focus:border-[var(--soft-terracotta)] focus:ring-1 focus:ring-[var(--soft-terracotta)]"
-        />
-        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--soft-ink-faint)]">
-          {filtered.length} {filtered.length === 1 ? "вопрос" : filtered.length >= 2 && filtered.length <= 4 ? "вопроса" : "вопросов"}
-        </span>
-      </div>
-
-      {/* Topic filter chips */}
+      {/* Topic filter chips — v4 style row */}
       <nav className="soft-library-filter-row mb-6" aria-label="Фильтр тем">
         <Link href="/library" className={`soft-chip ${!activeTopic && !query ? "soft-chip-warm" : ""}`}>
           Все
@@ -61,18 +41,35 @@ export function LibrarySearch({
             className={`soft-chip ${activeTopic === topic ? "soft-chip-warm" : ""}`}
           >
             {topic}
+            {activeTopic === topic && <span style={{ opacity: 0.7, marginLeft: 4 }}>×</span>}
           </Link>
         ))}
       </nav>
+
+      {/* Inline search — minimal, matches ask-input aesthetic */}
+      <div className="mb-8">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск по вопросам…"
+          aria-label="Поиск вопросов в библиотеке"
+          className="soft-question-input"
+          style={{ minHeight: 44, fontSize: 15 }}
+        />
+        {query && (
+          <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
+            {filtered.length}{" "}
+            {filtered.length === 1 ? "вопрос" : filtered.length >= 2 && filtered.length <= 4 ? "вопроса" : "вопросов"}
+          </p>
+        )}
+      </div>
 
       {/* Results */}
       {filtered.length === 0 ? (
         <div className="py-12 text-center">
           <p className="text-[var(--soft-ink-soft)]">Ничего не найдено по запросу «{query}».</p>
-          <button
-            className="soft-chip mt-4"
-            onClick={() => setQuery("")}
-          >
+          <button className="soft-chip mt-4" onClick={() => setQuery("")}>
             Сбросить поиск
           </button>
         </div>
@@ -86,7 +83,9 @@ export function LibrarySearch({
               data-testid={`library-card-${entry.slug}`}
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="soft-chip soft-chip-warm">{entry.topic}</span>
+                <span className="soft-chip soft-chip-warm" style={{ fontSize: 13, padding: "4px 9px" }}>
+                  {entry.topic}
+                </span>
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>анонимно</span>
               </div>
               <p className="soft-library-question mt-4">«{entry.question}»</p>

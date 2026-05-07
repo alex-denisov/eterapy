@@ -405,15 +405,17 @@ export default function CheckinPage() {
 
       {phase === "result" && dialogue && safeAnswer && (
         <div className="soft-answer-flow" data-testid="dialogue-result-step">
-          <div className="mb-5 flex flex-wrap gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button onClick={reset} className="soft-chip">
+              ← Новый вопрос
+            </button>
             <span className="soft-badge">
               <CheckCircle2 className="size-3" aria-hidden="true" />
               разбор готов
             </span>
             <span className="soft-badge soft-badge-warm">бесплатно</span>
-            {dialogue.topic && <span className="soft-chip">Тема: {dialogue.topic}</span>}
-            {dialogue.difficulty && <span className="soft-chip">Сложность: {dialogue.difficulty}</span>}
           </div>
+          <p className="soft-eyebrow">первичный разбор</p>
 
           <article className="soft-card p-5 md:p-7">
             <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
