@@ -100,8 +100,8 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
         </div>
       </div>
 
-      {/* v4 list */}
-      <div className="space-y-3" data-testid="specialists-v4-list">
+      {/* v4 card grid */}
+      <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 lg:grid-cols-3" data-testid="specialists-v4-list">
         {sorted.map((p) => {
           const initial = (p.name ?? "?")[0].toUpperCase();
           const gradient = AVATAR_GRADIENTS[p.gradIdx];
@@ -111,18 +111,32 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
           return (
             <article
               key={p.id}
-              className="soft-card soft-specialist-row cursor-pointer overflow-hidden p-4"
+              className="soft-card cursor-pointer overflow-hidden"
+              style={{ padding: 0, display: "flex", flexDirection: "column" }}
               onClick={() => { window.location.href = `/practitioners/${p.slug}`; }}
               data-testid="practitioner-card"
             >
-              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+              {/* Gradient header */}
+              <div style={{ height: 120, background: gradient, position: "relative", flexShrink: 0 }}>
+                {p.verified && (
+                  <div style={{ position: "absolute", top: 14, left: 16, display: "flex", gap: 6 }}>
+                    <span
+                      className="inline-flex items-center gap-1"
+                      style={{ background: "rgba(255,255,255,.72)", color: "var(--soft-bordeaux)", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999 }}
+                    >
+                      <BadgeCheck className="size-3" aria-hidden="true" />
+                      Проверен
+                    </span>
+                  </div>
+                )}
+                {/* Circle avatar overlapping header bottom */}
                 <div
-                  className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--soft-radius-lg)] shadow-md"
                   style={{
-                    background: gradient,
-                    fontFamily: "var(--font-heading, serif)",
-                    fontSize: 30,
-                    fontWeight: 500,
+                    position: "absolute", left: 24, bottom: -36,
+                    width: 80, height: 80, borderRadius: "50%",
+                    background: "var(--soft-paper-card)",
+                    display: "grid", placeItems: "center",
+                    fontFamily: "var(--font-heading, serif)", fontSize: 36, fontWeight: 500,
                     color: "var(--soft-bordeaux)",
                     boxShadow: "0 4px 14px rgba(60,30,20,.15), inset 0 0 0 4px var(--soft-paper-card)",
                   }}
@@ -130,61 +144,55 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                 >
                   {initial}
                 </div>
+              </div>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p
-                      className="text-xl font-semibold leading-tight"
-                      style={{ fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)" }}
-                    >
-                      {displayName}
-                    </p>
-                    {p.verified && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--soft-apricot)] px-2.5 py-1 text-xs font-semibold text-[var(--soft-bordeaux)]">
-                        <BadgeCheck className="size-3" aria-hidden="true" />
-                        Проверен
-                      </span>
-                    )}
-                    {displayRating && (
-                      <span className="text-xs font-semibold text-[var(--soft-bordeaux)]">★ {displayRating} · {p.reviewCount}</span>
-                    )}
+              {/* Card body — padding-top compensates for the overlapping avatar */}
+              <div style={{ padding: "44px 22px 22px", flex: 1, display: "flex", flexDirection: "column" }}>
+                <p
+                  style={{ fontSize: 22, fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)", fontWeight: 500, lineHeight: 1.2 }}
+                >
+                  {displayName}
+                </p>
+                <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{p.title}</p>
+                {p.bio && (
+                  <p
+                    className="mt-3 flex-1 text-sm italic leading-snug text-[var(--soft-ink-soft)]"
+                    style={{ fontFamily: "var(--font-heading, serif)", lineHeight: 1.4 }}
+                  >
+                    «{p.bio}»
+                  </p>
+                )}
+                {p.specialties.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {p.specialties.slice(0, 3).map((s) => (
+                      <span key={s} className="soft-chip soft-chip-soft px-2 py-1 text-[11.5px]">{s}</span>
+                    ))}
                   </div>
-                  <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{p.title}</p>
-                  {p.bio && (
-                    <p
-                      className="mt-2 max-w-2xl text-sm italic leading-snug text-[var(--soft-ink-soft)] line-clamp-2"
-                      style={{ fontFamily: "var(--font-heading, serif)" }}
-                    >
-                      «{p.bio}»
-                    </p>
-                  )}
-                  {p.specialties.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {p.specialties.slice(0, 4).map((s) => (
-                        <span key={s} className="soft-chip soft-chip-soft px-2 py-1 text-xs">{s}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
 
-                <div className="flex shrink-0 flex-row items-center justify-between gap-4 md:w-56 md:flex-col md:items-end">
-                  <div className="md:text-right">
-                    <p className="text-[10px] text-[var(--soft-ink-faint)]">от {p.minDuration} мин</p>
+                <hr style={{ margin: "16px 0 14px", borderColor: "var(--soft-paper-edge)", borderTopWidth: 1, borderStyle: "solid" }} />
+
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className="text-[11px] text-[var(--soft-ink-faint)]">от {p.minDuration} мин</p>
                     <p
-                      className="text-xl font-semibold"
-                      style={{ fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)" }}
+                      style={{ fontSize: 20, fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)", fontWeight: 600 }}
                     >
                       {p.pricePerSession.toLocaleString("ru")} ₽
                     </p>
                   </div>
-                  <Link
-                    href={`/practitioners/${p.slug}`}
-                    className="soft-button soft-button-primary justify-center text-sm"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Записаться
-                  </Link>
+                  {displayRating && (
+                    <span className="text-xs font-semibold text-[var(--soft-bordeaux)]">★ {displayRating} · {p.reviewCount}</span>
+                  )}
                 </div>
+
+                <Link
+                  href={`/practitioners/${p.slug}`}
+                  className="soft-button soft-button-primary mt-3 w-full justify-center text-sm"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Записаться
+                </Link>
               </div>
             </article>
           );
