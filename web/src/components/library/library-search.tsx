@@ -90,11 +90,29 @@ export function LibrarySearch({
                 <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>анонимно</span>
               </div>
               <p className="soft-library-question mt-4">«{entry.question}»</p>
-              <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                {entry.summary}
-              </p>
-              <div className="mt-4 flex items-center gap-3 text-xs text-[var(--soft-ink-faint)]">
-                <span>{entry.reactions} отзывов</span>
+              <div
+                style={{
+                  padding: "12px 0",
+                  borderTop: "1px solid var(--soft-paper-edge)",
+                  borderBottom: "1px solid var(--soft-paper-edge)",
+                  margin: "12px 0",
+                }}
+              >
+                <p className="soft-eyebrow mb-2">фрагмент разбора</p>
+                <p className="text-sm leading-relaxed" style={{ fontStyle: "italic", color: "var(--soft-ink-soft)" }}>
+                  {entry.summary}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+                  {entry.reactions} прошли разбор
+                </span>
+                <span
+                  className="soft-chip"
+                  style={{ fontSize: 12, padding: "5px 10px" }}
+                >
+                  Похожий разбор →
+                </span>
               </div>
             </Link>
           ))}

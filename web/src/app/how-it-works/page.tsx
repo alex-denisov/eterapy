@@ -1,48 +1,49 @@
 import Link from "next/link";
-import { ArrowRight, LockKeyhole, MessageCircle, Route, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 export const metadata = createPublicPageMetadata("/how-it-works");
 
-const stages = [
+const steps = [
   {
     step: "01",
-    title: "Вопрос вместо каталога",
-    text: "Пользователь начинает с живой формулировки ситуации. Система не просит выбирать практика до того, как понятен контекст.",
-    mechanics: ["анонимная сессия", "SEO-атрибуция источника", "сохранение после момента ценности"],
+    title: "Опишите своими словами",
+    text: "Без формы и категорий. Так, как рассказали бы близкому человеку за кофе.",
   },
   {
     step: "02",
-    title: "Уточняющий диалог",
-    text: "Диалог задает 2-5 коротких вопросов, распознает сложность темы и останавливает кризисные сценарии до монетизации.",
-    mechanics: ["быстрые ответы", "пропуск уточнений", "восстановление после обновления", "Экстренная поддержка"],
+    title: "Несколько уточнений",
+    text: "Мы задаём 2–4 коротких вопроса, чтобы понять контекст. Можно пропустить.",
   },
   {
     step: "03",
-    title: "Бесплатный первичный ответ",
-    text: "Пользователь получает структурированное отражение: что происходит, какие есть перспективы и какой следующий шаг уместен.",
-    mechanics: ["сохранить", "поделиться", "углубить", "нет платного CTA в кризисе"],
+    title: "Первичный разбор",
+    text: "Что мы услышали, главная развилка, на что обратить внимание, безопасный шаг.",
   },
   {
     step: "04",
-    title: "Платная глубина или подписка",
-    text: "Если нужно больше, ETerapy предлагает deep report, перспективы, совместимость, 7-дневный маршрут или подписку.",
-    mechanics: ["entitlement", "пробный период", "отмена", "повтор после ошибки оплаты"],
-  },
-  {
-    step: "05",
-    title: "Специалист как следующий шаг",
-    text: "Практик появляется не как витрина, а как рекомендация после контекста: 2-3 специалиста, rationale, формат и цена.",
-    mechanics: ["объяснение рекомендации", "фиксированные пакеты", "уведомления о записи"],
+    title: "Углубление по выбору",
+    text: "Ракурсы, разбор переписки, совместимость, маршрут или встреча со специалистом.",
   },
 ];
 
-const safeguards = [
-  "медицинские, юридические и финансовые темы получают безопасную направляющую копию",
-  "кризисные запросы фиксируются для аудита безопасности и не показывают платные предложения",
-  "Telegram/email/web уведомления зависят от согласий и preference center",
-  "платные результаты открываются только через entitlement, а не через UI-состояние",
+const helps = [
+  "сформулировать вопрос, когда трудно подобрать слова",
+  "посмотреть на ситуацию с разных сторон",
+  "отделить факты от чувств и предположений",
+  "увидеть один безопасный следующий шаг",
+  "сохранить инсайты в личной карте",
+  "при необходимости найти специалиста",
+];
+
+const notHelps = [
+  "предсказать будущее как факт",
+  "вернуть человека, который уходит",
+  "поставить диагноз или вылечить",
+  "заменить психолога, врача или юриста",
+  "принять решение за вас",
+  "гарантировать конкретный результат",
 ];
 
 export default function HowItWorksPage() {
@@ -50,73 +51,156 @@ export default function HowItWorksPage() {
     <main className="soft-clarity-page soft-public-page" data-testid="how-it-works-page">
       <PublicJsonLd route="/how-it-works" />
 
-      <section className="soft-shell soft-public-hero">
-        <div>
-          <p className="soft-eyebrow">как это работает</p>
-          <h1 className="soft-h1 mt-4">
-            Тёплый, короткий путь от <span className="soft-italic">«не понимаю, что со мной»</span> к ясному следующему шагу
-          </h1>
-          <div className="soft-card soft-public-quote mt-8">
-            «ETerapy — это не предсказание и не терапия. Это пространство, где можно
-            сформулировать важный вопрос — и услышать его в полной тишине».
+      {/* Hero */}
+      <section className="soft-shell" style={{ paddingTop: 64, paddingBottom: 24 }}>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+          <div style={{ maxWidth: 680 }}>
+            <p className="soft-eyebrow">как это работает</p>
+            <h1 className="soft-h1 mt-3">
+              Четыре шага от вопроса <span className="soft-italic">к ясности</span>
+            </h1>
           </div>
+          <span
+            aria-label="Занимает 5–7 минут"
+            style={{
+              display: "inline-block",
+              background: "#FFF6D6",
+              border: "1px solid #EED9A1",
+              padding: "6px 14px",
+              fontFamily: "var(--font-heading, serif)",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "#6B4A1E",
+              borderRadius: 4,
+              transform: "rotate(-1.5deg)",
+              boxShadow: "0 2px 0 rgba(0,0,0,.04)",
+              flexShrink: 0,
+            }}
+          >
+            5–7 минут
+          </span>
         </div>
-        <aside className="soft-card soft-public-side-note" aria-label="Суть механики ETerapy">
-          <p className="soft-eyebrow">в центре сценария</p>
-          <h2 className="soft-h3 mt-3">Один вопрос, несколько бережных шагов</h2>
-          <div className="mt-5 grid gap-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            {[
-              { icon: MessageCircle, text: "Сначала живой вопрос и уточнения, а не выбор специалиста." },
-              { icon: Sparkles, text: "Первичный ответ остается бесплатным моментом ценности." },
-              { icon: Route, text: "Платное углубление появляется только если оно уместно." },
-              { icon: LockKeyhole, text: "Приватность и безопасность встроены в каждый шаг." },
-            ].map((item) => (
-              <div key={item.text} className="flex items-start gap-3">
-                <span className="soft-step-number shrink-0" style={{ width: "2.1rem" }}>
-                  <item.icon className="size-4" aria-hidden="true" />
-                </span>
-                <span>{item.text}</span>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </section>
 
-      <section className="soft-shell soft-public-section" aria-label="Путь пользователя">
-        <div className="soft-timeline">
-          {stages.map((stage) => (
-            <article key={stage.step} className="soft-card soft-timeline-item md:grid-cols-[4rem_minmax(0,1fr)_3.5rem]">
-              <span className="soft-step-number">{stage.step}</span>
-              <div>
-                <h2 className="soft-h3">{stage.title}</h2>
-                <p className="mt-2 leading-relaxed text-[var(--soft-ink-soft)]">{stage.text}</p>
-              </div>
-              <span className="hidden text-3xl text-[var(--soft-ink-faint)] md:block" aria-hidden="true">✦</span>
-            </article>
+        {/* Steps grid */}
+        <div className="soft-map-grid" style={{ marginTop: 8 }}>
+          {steps.map((s) => (
+            <div
+              key={s.step}
+              className="soft-card"
+              style={{ gridColumn: "span 3", padding: 22 }}
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-heading, serif)",
+                  fontStyle: "italic",
+                  color: "var(--soft-terracotta-dark)",
+                  fontSize: 22,
+                  display: "block",
+                  marginBottom: 14,
+                }}
+              >
+                {s.step}
+              </span>
+              <p
+                style={{
+                  fontFamily: "var(--font-heading, serif)",
+                  fontSize: 22,
+                  lineHeight: 1.2,
+                  color: "var(--soft-bordeaux)",
+                  fontWeight: 500,
+                  marginBottom: 10,
+                }}
+              >
+                {s.title}
+              </p>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                {s.text}
+              </p>
+            </div>
           ))}
         </div>
       </section>
 
-      <section className="soft-shell soft-public-section">
-        <div className="soft-card soft-form-panel">
-          <h2 className="soft-h2">Когда мы перенаправим к человеку</h2>
-          <div className="soft-public-grid-2 mt-5">
-            {safeguards.map((item) => (
-              <div key={item} className="soft-card-flat p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                {item}
-              </div>
-            ))}
-          </div>
-          <Link
-            href="/checkin"
-            className="soft-button soft-button-primary mt-6"
-            data-analytics-event="dialogue_cta_clicked"
-            data-analytics-target="/checkin"
-            data-testid="how-it-works-dialogue-cta"
+      {/* Help vs not help */}
+      <section className="soft-shell" style={{ marginTop: 64 }}>
+        <div className="grid gap-6 md:grid-cols-2">
+          <div
+            className="soft-card"
+            style={{ background: "linear-gradient(150deg, #FFFCF5, #F4D9C1)", padding: 28 }}
           >
-            Начать диалог
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+            <p className="soft-eyebrow">мы помогаем</p>
+            <h2 className="soft-h3 mt-3" style={{ marginBottom: 20 }}>
+              сформулировать, услышать, увидеть варианты
+            </h2>
+            <div className="flex flex-col gap-3">
+              {helps.map((x) => (
+                <div key={x} className="flex items-start gap-3">
+                  <span
+                    style={{
+                      color: "var(--soft-terracotta-dark)",
+                      fontSize: 16,
+                      lineHeight: 1.5,
+                      flexShrink: 0,
+                      fontWeight: 700,
+                    }}
+                  >
+                    ✓
+                  </span>
+                  <span style={{ fontSize: 15 }}>{x}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="soft-card-flat" style={{ padding: 28 }}>
+            <p className="soft-eyebrow">мы не обещаем</p>
+            <h2 className="soft-h3 mt-3" style={{ marginBottom: 20 }}>
+              того, чего никто честно обещать не может
+            </h2>
+            <div className="flex flex-col gap-3">
+              {notHelps.map((x) => (
+                <div key={x} className="flex items-start gap-3">
+                  <span
+                    style={{
+                      color: "var(--soft-ink-faint)",
+                      fontSize: 16,
+                      lineHeight: 1.5,
+                      flexShrink: 0,
+                      fontWeight: 700,
+                    }}
+                  >
+                    ×
+                  </span>
+                  <span style={{ fontSize: 15, color: "var(--soft-ink-soft)" }}>{x}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="soft-shell" style={{ marginTop: 64, paddingBottom: 80 }}>
+        <div className="soft-card soft-form-panel" style={{ maxWidth: 600, margin: "0 auto", textAlign: "center" }}>
+          <p className="soft-eyebrow">первый разбор бесплатно</p>
+          <h2 className="soft-h2 mt-3">С чего начнём?</h2>
+          <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+            Без регистрации. Анонимно. Занимает 5–7 минут.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 mt-6">
+            <Link
+              href="/checkin"
+              className="soft-button soft-button-primary"
+              data-analytics-event="dialogue_cta_clicked"
+              data-analytics-target="/checkin"
+              data-testid="how-it-works-dialogue-cta"
+            >
+              Начать диалог
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+            <Link href="/practitioners" className="soft-button soft-button-ghost">
+              Найти специалиста
+            </Link>
+          </div>
         </div>
       </section>
     </main>

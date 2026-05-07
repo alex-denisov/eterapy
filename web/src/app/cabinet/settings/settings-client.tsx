@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
 import { validateBirthDate, formatDateForServer } from "@/lib/date-utils";
@@ -124,26 +123,26 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
 
   return (
     <div className="px-6 py-8 max-w-3xl">
-      <h1 className="font-heading text-2xl font-bold mb-6">Настройки</h1>
+      <p className="soft-eyebrow">Настройки аккаунта</p>
+      <h1 className="soft-h2 mt-2 mb-6">Настройки</h1>
 
       {/* Табы */}
-      <div className="flex gap-1 mb-6 border-b border-border/20 pb-3">
+      <div className="flex flex-wrap gap-1.5 mb-6" style={{ borderBottom: "1px solid var(--soft-paper-edge)", paddingBottom: 12 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+            className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors ${
               activeTab === t.id
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-muted-foreground hover:text-foreground"
+                ? "soft-chip-warm font-medium"
+                : "soft-chip"
             }`}>
-            <span>{t.icon}</span> {t.label}
+            {t.label}
           </button>
         ))}
       </div>
 
       {/* Профиль */}
       {activeTab === "profile" && (
-        <Card className="border-border/40 bg-card/50">
-          <CardContent className="p-6">
+        <div className="soft-card p-6">
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div className="flex items-center gap-4">
                 <button type="button" onClick={() => fileRef.current?.click()} className="relative group shrink-0">
@@ -194,8 +193,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                 {saving ? "Сохранение..." : "Сохранить профиль"}
               </Button>
             </form>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
       {/* Расширенный профиль */}
@@ -203,28 +201,26 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
 
       {/* Безопасность */}
       {activeTab === "security" && (
-        <Card className="border-border/40 bg-card/50">
-          <CardContent className="p-6">
-            <h2 className="font-semibold mb-5">Смена пароля</h2>
+        <div className="soft-card p-6">
+            <h2 className="soft-h3 mb-5">Смена пароля</h2>
             <form onSubmit={handleSavePassword} className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm text-muted-foreground">Текущий пароль</label>
-                <Input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="current-password" className="bg-card/50" />
+                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Текущий пароль</label>
+                <Input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="current-password" />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-muted-foreground">Новый пароль</label>
-                <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" className="bg-card/50" />
+                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Новый пароль</label>
+                <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-muted-foreground">Повторите новый пароль</label>
-                <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" className="bg-card/50" />
+                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Повторите новый пароль</label>
+                <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" />
               </div>
               <Button type="submit" disabled={savingPwd || !currentPwd || !newPwd}>
                 {savingPwd ? "Сохранение..." : "Изменить пароль"}
               </Button>
             </form>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
       {/* Уведомления */}
@@ -234,9 +230,8 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
 
       {/* Удаление */}
       {activeTab === "danger" && (
-        <Card className="border-destructive/20 bg-destructive/5">
-          <CardContent className="p-6">
-            <h2 className="font-semibold text-destructive mb-3">
+        <div className="soft-card-flat p-6" style={{ border: "1px solid rgba(176,32,32,.15)" }}>
+            <h2 className="soft-h3 mb-3" style={{ color: "#b02020" }}>
               {role === "PRACTITIONER" ? "Деактивация аккаунта" : "Удаление аккаунта"}
             </h2>
             <div className="mb-5 rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4">
@@ -272,8 +267,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                 {deleting ? "Деактивация..." : role === "PRACTITIONER" ? "Деактивировать аккаунт" : "Удалить аккаунт"}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+        </div>
       )}
     </div>
   );
@@ -400,10 +394,9 @@ function ExtendedProfileTab() {
   if (!loaded) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем...</div>;
 
   return (
-    <Card className="border-border/40 bg-card/50">
-      <CardContent className="p-6 space-y-6">
+    <div className="soft-card p-6 space-y-6">
         <div>
-          <h2 className="font-semibold mb-1">Профиль</h2>
+          <h2 className="soft-h3 mb-1">Расширенный профиль</h2>
           <p className="text-sm text-muted-foreground">
             Эти данные используются только для персонализации результатов.
             Они не передаются практикам и не отображаются публично.
@@ -538,7 +531,6 @@ function ExtendedProfileTab() {
         <Button onClick={handleSave} disabled={saving}>
           {saving ? "Сохранение..." : "Сохранить"}
         </Button>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

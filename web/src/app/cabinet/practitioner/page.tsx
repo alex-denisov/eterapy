@@ -5,8 +5,6 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl } from "@/lib/subdomain";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
 
 async function getPractitionerData(userId: string) {
@@ -25,10 +23,10 @@ async function getPractitionerData(userId: string) {
 }
 
 const STATUS_LABELS = {
-  ACTIVE:    { label: "Активен",       color: "bg-green-500/10 text-green-400" },
-  PENDING:   { label: "На проверке",   color: "bg-yellow-500/10 text-yellow-400" },
-  SUSPENDED: { label: "Приостановлен", color: "bg-destructive/10 text-destructive" },
-  BLOCKED:   { label: "Заблокирован",  color: "bg-destructive/20 text-destructive" },
+  ACTIVE:    { label: "Активен",       bg: "rgba(155,174,148,.22)", color: "#3a4a36" },
+  PENDING:   { label: "На проверке",   bg: "rgba(244,217,193,.8)", color: "var(--soft-bordeaux)" },
+  SUSPENDED: { label: "Приостановлен", bg: "rgba(220,60,60,.08)",   color: "#b02020" },
+  BLOCKED:   { label: "Заблокирован",  bg: "rgba(220,60,60,.15)",   color: "#b02020" },
 };
 
 export default async function PractitionerCabinetPage() {
@@ -69,10 +67,24 @@ export default async function PractitionerCabinetPage() {
     <div className="max-w-6xl px-4 py-8 sm:px-6">
       {/* Шапка */}
       <div className="mb-6">
-        <p className="premium-eyebrow">Кабинет практика</p>
+        <p className="soft-eyebrow">Кабинет практика</p>
         <div className="mt-2 flex items-center gap-3 flex-wrap">
-          <h1 className="premium-title text-3xl md:text-5xl">Добрый вечер, {practitioner.user.name}</h1>
-          <Badge className={st.color}>{st.label}</Badge>
+          <h1 className="soft-h1">Добрый вечер, {practitioner.user.name}</h1>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              borderRadius: 999,
+              padding: "3px 12px",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              background: st.bg,
+              color: st.color,
+            }}
+          >
+            {st.label}
+          </span>
         </div>
         <p className="mt-1 text-muted-foreground">{practitioner.title}</p>
       </div>
@@ -85,20 +97,37 @@ export default async function PractitionerCabinetPage() {
           { label: "На балансе",    value: "0 ₽",                                         sub: "выплата в разработке",                  icon: "03", href: "/cabinet/practitioner/earnings" },
           { label: "Цена сессии",   value: `${practitioner.pricePerSession.toLocaleString("ru")} ₽`, sub: "изменяется по заявке", icon: "04", href: null },
         ].map((s) => (
-          <Card key={s.label} className="soft-card">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between">
-                <p className="text-sm text-muted-foreground">{s.label}</p>
-                <span className="font-heading text-xl text-primary">{s.icon}</span>
-              </div>
-              <p className="mt-1 font-heading text-2xl font-bold text-primary">{s.value}</p>
-              {s.href ? (
-                <Link href={s.href} className="mt-0.5 block text-xs text-primary hover:underline">{s.sub} →</Link>
-              ) : (
-                <p className="mt-0.5 text-xs text-muted-foreground">{s.sub}</p>
-              )}
-            </CardContent>
-          </Card>
+          <div key={s.label} className="soft-card p-5">
+            <div className="flex items-start justify-between">
+              <p className="soft-eyebrow">{s.label}</p>
+              <span
+                style={{
+                  fontFamily: "var(--font-heading, serif)",
+                  fontStyle: "italic",
+                  color: "var(--soft-terracotta-dark)",
+                  fontSize: 18,
+                }}
+              >
+                {s.icon}
+              </span>
+            </div>
+            <p
+              className="mt-2"
+              style={{
+                fontFamily: "var(--font-heading, serif)",
+                fontSize: 28,
+                fontWeight: 600,
+                color: "var(--soft-bordeaux)",
+              }}
+            >
+              {s.value}
+            </p>
+            {s.href ? (
+              <Link href={s.href} className="mt-1 block text-xs" style={{ color: "var(--soft-terracotta-dark)" }}>{s.sub} →</Link>
+            ) : (
+              <p className="mt-1 text-xs" style={{ color: "var(--soft-ink-faint)" }}>{s.sub}</p>
+            )}
+          </div>
         ))}
       </div>
 
@@ -165,7 +194,7 @@ export default async function PractitionerCabinetPage() {
                       <p className="text-xs text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge className={st.color}>{st.label}</Badge>
+                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${st.color}`}>{st.label}</span>
                       {(b.status === "CONFIRMED" || b.status === "IN_PROGRESS") && (
                         <a href={`/session/${b.id}`} className="text-xs text-green-400 hover:underline">Войти →</a>
                       )}

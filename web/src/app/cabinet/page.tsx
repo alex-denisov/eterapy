@@ -61,8 +61,8 @@ export default async function ClientCabinetPage() {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="premium-eyebrow">Кабинет клиента</p>
-          <h1 className="premium-title mt-2 text-3xl md:text-5xl">Добрый вечер, {firstName}</h1>
+          <p className="soft-eyebrow">Кабинет клиента</p>
+          <h1 className="soft-h1 mt-2">Добрый вечер, {firstName}</h1>
           <p className="mt-2 text-muted-foreground text-sm">{session.user?.email}</p>
         </div>
         <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary w-full sm:w-auto">
