@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { ArrowRight, FileText, HeartHandshake, MessageSquareText } from "lucide-react";
+import Link from "next/link";
+import { ServiceCatalog } from "@/components/products/service-catalog";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
-import { v5Products } from "@/lib/v5-products";
 
 export const metadata = createPublicPageMetadata("/products");
 
@@ -64,27 +64,10 @@ export default function ProductsPage() {
 
       <section className="soft-shell pb-20">
         <div className="mb-6">
-          <p className="soft-eyebrow">Сценарии</p>
-          <h2 className="soft-h2 mt-2">Все способы углубления</h2>
+          <p className="soft-eyebrow">форматы и услуги</p>
+          <h2 className="soft-h2 mt-2">Выберите глубину или следующего человека</h2>
         </div>
-        <div className="soft-products-grid">
-          {v5Products.map((product) => (
-            <Link
-              key={product.slug}
-              href={product.route}
-              className="soft-card soft-product-tile"
-              data-testid={`product-card-${product.slug}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <p className="soft-eyebrow">{product.eyebrow}</p>
-                <span className="soft-badge soft-badge-warm">{product.price}</span>
-              </div>
-              <h2 className="soft-h3 mt-5">{product.name}</h2>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
-              <p className="mt-5 text-sm font-semibold text-[var(--soft-terracotta-dark)]">Подробнее</p>
-            </Link>
-          ))}
-        </div>
+        <ServiceCatalog showFooterLink={false} />
       </section>
     </main>
   );

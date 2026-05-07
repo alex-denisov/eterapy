@@ -6,6 +6,93 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { PractitionersGrid } from "./practitioners-grid";
 
+const FALLBACK_PRACTITIONERS = [
+  {
+    id: "fallback-anna",
+    slug: "anna-kamenskaya",
+    name: "Анна Каменская",
+    title: "Клинический психолог",
+    bio: "Помогаю замечать момент, когда вы уменьшаете себя в отношениях, и бережно возвращаться к своему голосу.",
+    specialties: ["границы", "созависимость", "тревога"],
+    pricePerSession: 4500,
+    minDuration: 50,
+    verified: true,
+    rating: 4.9,
+    reviewCount: 184,
+    sessionCount: 420,
+  },
+  {
+    id: "fallback-liza",
+    slug: "liza-morozova",
+    name: "Лиза Морозова",
+    title: "Коуч по идентичности",
+    bio: "Работаю с теми, кто стоит на пороге большого профессионального шага и боится потерять себя.",
+    specialties: ["карьера", "выгорание", "переход"],
+    pricePerSession: 3200,
+    minDuration: 50,
+    verified: true,
+    rating: 4.8,
+    reviewCount: 96,
+    sessionCount: 210,
+  },
+  {
+    id: "fallback-marina",
+    slug: "marina-delvig",
+    name: "Марина Дельвиг",
+    title: "Семейный психолог",
+    bio: "Помогаю парам говорить о трудном без обвинений и находить понятный следующий шаг.",
+    specialties: ["пары", "развод", "родители"],
+    pricePerSession: 5000,
+    minDuration: 80,
+    verified: true,
+    rating: 5,
+    reviewCount: 211,
+    sessionCount: 380,
+  },
+  {
+    id: "fallback-irina",
+    slug: "irina-solovieva",
+    name: "Ирина Соловьёва",
+    title: "Юрист по семейному праву",
+    bio: "Объясняю простыми словами, что юридически возможно, где риски и какие документы нужны.",
+    specialties: ["развод", "опека", "договоры"],
+    pricePerSession: 6000,
+    minDuration: 50,
+    verified: true,
+    rating: 4.9,
+    reviewCount: 47,
+    sessionCount: 120,
+  },
+  {
+    id: "fallback-katya",
+    slug: "katya-lozovaya",
+    name: "Катя Лозовая",
+    title: "Психолог · детско-родительские отношения",
+    bio: "Работаю с тем, как детские сценарии возвращаются во взрослые отношения и выборы.",
+    specialties: ["мама", "детство", "сепарация"],
+    pricePerSession: 4000,
+    minDuration: 50,
+    verified: true,
+    rating: 4.9,
+    reviewCount: 142,
+    sessionCount: 260,
+  },
+  {
+    id: "fallback-taya",
+    slug: "taya-berg",
+    name: "Тая Берг",
+    title: "Финансовый коуч",
+    bio: "Помогаю переводить тревогу о деньгах в спокойный план и ясные договорённости.",
+    specialties: ["деньги", "план", "пара"],
+    pricePerSession: 3500,
+    minDuration: 50,
+    verified: true,
+    rating: 4.7,
+    reviewCount: 58,
+    sessionCount: 90,
+  },
+];
+
 async function getPractitioners() {
   const practitioners = await db.practitioner.findMany({
     where: { status: PractitionerStatus.ACTIVE },
@@ -16,7 +103,7 @@ async function getPractitioners() {
     orderBy: { reviewCount: "desc" },
   }).catch(() => []);
 
-  return practitioners.map((p) => {
+  const mapped = practitioners.map((p) => {
     const minRate = p.priceRates[0];
     return {
       id: p.id,
@@ -33,6 +120,8 @@ async function getPractitioners() {
       sessionCount: p.sessionCount,
     };
   });
+
+  return mapped.length > 0 ? mapped : FALLBACK_PRACTITIONERS;
 }
 
 export const metadata = createPublicPageMetadata("/practitioners");

@@ -483,6 +483,7 @@
 
   .soft-step-card,
   .soft-product-card,
+  .soft-service-card,
   .soft-question-card {
     transition-property: border-color, box-shadow, transform;
     transition-duration: var(--motion-base);
@@ -491,6 +492,7 @@
 
   .soft-step-card:hover,
   .soft-product-card:hover,
+  .soft-service-card:hover,
   .soft-question-card:hover {
     border-color: var(--soft-terracotta);
     box-shadow: var(--soft-shadow-md);
@@ -1116,6 +1118,23 @@
     color: var(--soft-ink);
   }
 
+  .soft-app-layout {
+    display: grid;
+    min-height: 100vh;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 2rem;
+    align-items: start;
+    padding-block: 2rem 5rem;
+  }
+
+  .soft-app-main > .max-w-6xl,
+  .soft-app-main > [class*="max-w-"] {
+    width: 100%;
+    max-width: none;
+    padding-inline: 0 !important;
+    padding-top: 0 !important;
+  }
+
   .soft-app-shell .premium-page,
   .soft-app-shell [class*="bg-background"],
   .soft-admin-shell .premium-page,
@@ -1198,6 +1217,16 @@
     box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
   }
 
+  .soft-app-sidebar-card {
+    max-height: calc(100vh - 7rem);
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-lg);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18)),
+      color-mix(in srgb, var(--soft-paper-deep) 92%, white);
+    box-shadow: var(--soft-shadow-sm);
+  }
+
   .soft-app-avatar {
     border: 1px solid rgba(214, 117, 88, 0.2);
     border-radius: var(--soft-radius-md);
@@ -1231,6 +1260,14 @@
     background: rgba(251, 246, 238, 0.92);
     box-shadow: 0 -18px 48px -30px rgba(60, 30, 20, 0.36);
     backdrop-filter: blur(16px);
+  }
+
+  @media (max-width: 767px) {
+    .soft-app-layout {
+      display: block;
+      width: min(100% - 1rem, 77.5rem);
+      padding-block: 1rem 5.5rem;
+    }
   }
 
   .soft-app-shell .soft-map-tile,

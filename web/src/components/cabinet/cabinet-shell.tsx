@@ -74,19 +74,20 @@ export function CabinetShell({
     return pathname.startsWith(itemPath);
   }
 
-  // Для мобильного навигации — первые 4 пункта + Баланс (5)
+  // Для мобильной навигации — первые 4 пункта.
   const mobileNav = nav.slice(0, 4);
 
   return (
-    <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell flex min-h-screen">
-      {/* Sidebar — sticky, own scroll */}
+    <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell min-h-screen">
+      <div className="soft-shell soft-app-layout">
+      {/* Sidebar — v4 card-style navigation */}
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="soft-app-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto px-3.5 py-5 md:flex"
+        className="soft-app-sidebar-card sticky top-20 hidden shrink-0 flex-col overflow-y-auto p-3.5 md:flex"
       >
         {/* User badge */}
-        <div className="mb-5 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
+        <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
           <div className="flex items-center gap-3">
             <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
               {initial}
@@ -146,9 +147,10 @@ export function CabinetShell({
       </div>
 
       {/* Main */}
-      <main data-testid="app-shell-main" className="min-w-0 flex-1 pb-20 md:pb-0">
+      <main data-testid="app-shell-main" className="soft-app-main min-w-0 pb-20 md:pb-0">
         {children}
       </main>
+      </div>
     </div>
   );
 }

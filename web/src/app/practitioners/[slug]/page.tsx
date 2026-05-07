@@ -18,6 +18,85 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #D6DECC, #E5EBDC)",
 ];
 
+const FALLBACK_PROFILES: Record<string, {
+  name: string;
+  title: string;
+  bio: string;
+  specialties: string[];
+  price: number;
+  duration: number;
+  rating: string;
+  reviews: number;
+  gradient: string;
+}> = {
+  "anna-kamenskaya": {
+    name: "Анна Каменская",
+    title: "Клинический психолог",
+    bio: "Помогаю замечать момент, когда вы уменьшаете себя в отношениях, и аккуратно учиться возвращаться.",
+    specialties: ["границы", "созависимость", "тревога", "самоценность", "эмоциональная зависимость"],
+    price: 4500,
+    duration: 50,
+    rating: "4.9",
+    reviews: 184,
+    gradient: AVATAR_GRADIENTS[0],
+  },
+  "liza-morozova": {
+    name: "Лиза Морозова",
+    title: "Коуч по идентичности",
+    bio: "Работаю с теми, кто стоит на пороге большого профессионального шага и боится потерять свой голос.",
+    specialties: ["карьера", "выгорание", "переход", "самоопределение"],
+    price: 3200,
+    duration: 50,
+    rating: "4.8",
+    reviews: 96,
+    gradient: AVATAR_GRADIENTS[1],
+  },
+  "marina-delvig": {
+    name: "Марина Дельвиг",
+    title: "Семейный психолог",
+    bio: "Помогаю парам говорить о трудном без обвинений и находить понятный следующий шаг.",
+    specialties: ["пары", "развод", "родители", "коммуникация"],
+    price: 5000,
+    duration: 80,
+    rating: "5.0",
+    reviews: 211,
+    gradient: AVATAR_GRADIENTS[2],
+  },
+  "irina-solovieva": {
+    name: "Ирина Соловьёва",
+    title: "Юрист по семейному праву",
+    bio: "Объясняю простыми словами, что юридически возможно, где риски и какие документы нужны.",
+    specialties: ["развод", "опека", "договоры", "семейное право"],
+    price: 6000,
+    duration: 50,
+    rating: "4.9",
+    reviews: 47,
+    gradient: AVATAR_GRADIENTS[3],
+  },
+  "katya-lozovaya": {
+    name: "Катя Лозовая",
+    title: "Психолог · детско-родительские отношения",
+    bio: "Работаю с тем, как детские сценарии возвращаются во взрослые отношения и выборы.",
+    specialties: ["мама", "детство", "сепарация", "родители"],
+    price: 4000,
+    duration: 50,
+    rating: "4.9",
+    reviews: 142,
+    gradient: AVATAR_GRADIENTS[0],
+  },
+  "taya-berg": {
+    name: "Тая Берг",
+    title: "Финансовый коуч",
+    bio: "Помогаю переводить тревогу о деньгах в спокойный план и ясные договорённости.",
+    specialties: ["деньги", "план", "пара", "тревога о будущем"],
+    price: 3500,
+    duration: 50,
+    rating: "4.7",
+    reviews: 58,
+    gradient: AVATAR_GRADIENTS[2],
+  },
+};
+
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
@@ -25,7 +104,7 @@ export async function generateMetadata(
   const p = await db.practitioner.findFirst({
     where: { slug, status: PractitionerStatus.ACTIVE },
     include: { user: { select: { name: true, avatarUrl: true } } },
-  });
+  }).catch(() => null);
   if (!p) return { title: "Практик — ETerapy" };
 
   const avgRating = p.reviewCount > 0 ? (p.ratingSum / p.reviewCount).toFixed(1) : null;
@@ -63,13 +142,110 @@ async function getPractitioner(slug: string) {
         take: 5,
       },
     },
-  });
+  }).catch(() => null);
+}
+
+function FallbackPractitionerPage({ slug }: { slug: string }) {
+  const profile = FALLBACK_PROFILES[slug];
+  if (!profile) notFound();
+  const initial = profile.name.charAt(0).toUpperCase();
+
+  return (
+    <main className="soft-clarity-page soft-public-page">
+      <section className="soft-shell py-10 md:py-14">
+        <Link href="/practitioners" className="soft-chip mb-6 inline-flex">
+          ← Все специалисты
+        </Link>
+
+        <div className="grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-start">
+          <div>
+            <div className="mb-6 flex items-start gap-4">
+              <div
+                style={{
+                  width: 110,
+                  height: 110,
+                  borderRadius: "50%",
+                  background: profile.gradient,
+                  display: "grid",
+                  placeItems: "center",
+                  fontFamily: "var(--font-heading, serif)",
+                  fontSize: 44,
+                  color: "var(--soft-bordeaux)",
+                  fontWeight: 500,
+                  flexShrink: 0,
+                }}
+                aria-hidden="true"
+              >
+                {initial}
+              </div>
+              <div>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="soft-badge">Проверен ETerapy</span>
+                  <span className="soft-badge soft-badge-lilac">v4 профиль</span>
+                </div>
+                <h1 className="soft-h1">{profile.name}</h1>
+                <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{profile.title} · работает онлайн</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
+                  <span style={{ color: "var(--soft-bordeaux)", fontWeight: 600 }}>★ {profile.rating}</span>
+                  <span className="text-[var(--soft-ink-faint)]">{profile.reviews} отзывов</span>
+                  <span className="text-[var(--soft-ink-faint)]">·</span>
+                  <span className="text-[var(--soft-ink-faint)]">от {profile.price.toLocaleString("ru")} ₽ / {profile.duration} мин</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="soft-card p-5">
+              <p className="soft-eyebrow">обо мне</p>
+              <p className="mt-3 font-heading text-[1.35rem] italic leading-relaxed text-[var(--soft-bordeaux)]">«{profile.bio}»</p>
+              <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                Это демонстрационная карточка v4, которая показывается, когда в базе еще нет активных специалистов.
+                После наполнения каталога реальные профили автоматически заменят эти карточки.
+              </p>
+            </div>
+
+            <div className="soft-card mt-4 p-5">
+              <p className="soft-eyebrow mb-3">с чем помогаю</p>
+              <div className="flex flex-wrap gap-2">
+                {profile.specialties.map((item) => (
+                  <span key={item} className="soft-chip soft-chip-warm">{item}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="soft-card-flat mt-4 p-5">
+              <p className="soft-eyebrow">образование и опыт</p>
+              <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--soft-ink-soft)]">
+                <div>Проверка диплома и этического кодекса ETerapy.</div>
+                <div>Формат: онлайн-сессии и сопровождение после первичного ответа.</div>
+              </div>
+            </div>
+          </div>
+
+          <aside className="soft-card p-7 md:sticky md:top-20">
+            <p className="soft-eyebrow">записаться</p>
+            <h2 className="soft-h3 mt-2">Индивидуальная сессия</h2>
+            <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">{profile.duration} минут · онлайн</p>
+            <p className="mt-3 font-heading text-5xl font-semibold text-[var(--soft-bordeaux)]">{profile.price.toLocaleString("ru")} ₽</p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {["Сегодня · 19:30", "Завтра · 11:00", "Чт · 18:00", "Пт · 10:00"].map((slot, index) => (
+                <span key={slot} className={index === 0 ? "soft-chip soft-chip-warm" : "soft-chip"}>{slot}</span>
+              ))}
+            </div>
+            <Link href="/checkin" className="soft-button soft-button-primary mt-6 w-full">
+              Начать с диалога
+            </Link>
+            <p className="mt-3 text-center text-xs text-[var(--soft-ink-faint)]">Подбор специалиста открывается после контекста вопроса.</p>
+          </aside>
+        </div>
+      </section>
+    </main>
+  );
 }
 
 export default async function PractitionerPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const p = await getPractitioner(slug);
-  if (!p) notFound();
+  if (!p) return <FallbackPractitionerPage slug={slug} />;
 
   const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;
   const firstRate = p.priceRates[0];

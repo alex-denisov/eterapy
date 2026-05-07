@@ -14,11 +14,11 @@ describe("v5 app shell", () => {
 
   it("uses v5 tokenized shell styling", () => {
     expect(shell).toContain("soft-clarity-page soft-app-shell");
-    expect(shell).toContain("soft-app-sidebar");
+    expect(shell).toContain("soft-shell soft-app-layout");
+    expect(shell).toContain("soft-app-sidebar-card");
     expect(shell).toContain("soft-app-mobile-nav");
     expect(shell).toContain("rounded-[var(--soft-radius-md)]");
-    expect(shell).toContain("sticky top-0");
-    expect(shell).toContain("h-screen");
+    expect(shell).toContain("sticky top-20");
     expect(shell).toContain("duration-[var(--motion-base)]");
   });
 
