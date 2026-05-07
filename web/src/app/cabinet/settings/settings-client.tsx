@@ -239,6 +239,16 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
             <h2 className="font-semibold text-destructive mb-3">
               {role === "PRACTITIONER" ? "Деактивация аккаунта" : "Удаление аккаунта"}
             </h2>
+            <div className="mb-5 rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4">
+              <p className="text-sm font-semibold text-[var(--soft-ink)]">Экспорт личных данных</p>
+              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+                Скачайте копию профиля, вопросов, результатов, маршрутов, записей и уведомлений перед удалением.
+              </p>
+              <button type="button" onClick={() => { window.location.href = "/api/auth/export-data"; }}
+                className="soft-button soft-button-ghost mt-3 inline-flex">
+                Скачать JSON
+              </button>
+            </div>
             {role === "PRACTITIONER" ? (
               <p className="text-sm text-muted-foreground mb-4">
                 Аккаунт будет скрыт из каталога. Для восстановления или полного удаления данных напишите на{" "}

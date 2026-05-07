@@ -32,6 +32,7 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   SUBSCRIPTION_PAYMENT_FAILED: Wallet,
   CARD_LINKED: Wallet,
   CARD_REMOVED: Wallet,
+  DAILY_CARD: Star,
 };
 
 const ICON_BG_MAP: Record<NotifEvent, string> = {
@@ -52,6 +53,7 @@ const ICON_BG_MAP: Record<NotifEvent, string> = {
   SUBSCRIPTION_PAYMENT_FAILED: "bg-rose-500/15 text-rose-400",
   CARD_LINKED: "bg-sky-500/15 text-sky-400",
   CARD_REMOVED: "bg-sky-500/15 text-sky-400",
+  DAILY_CARD: "bg-violet-500/15 text-violet-400",
 };
 
 function relTime(iso: string): string {

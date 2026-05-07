@@ -5,12 +5,49 @@
  */
 "use client";
 
+import { useEffect } from "react";
 import Script from "next/script";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export function Analytics() {
+  useEffect(() => {
+    function send(eventName: string, params: Record<string, string>) {
+      const win = window as typeof window & {
+        gtag?: (...args: unknown[]) => void;
+        ym?: (id: string, method: string, event: string, params?: Record<string, string>) => void;
+      };
+      win.gtag?.("event", eventName, params);
+      if (YANDEX_ID) win.ym?.(YANDEX_ID, "reachGoal", eventName, params);
+    }
+
+    function onCustom(event: Event) {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      if (!detail?.event) return;
+      const { event: eventName, ...params } = detail as { event: string } & Record<string, string>;
+      send(eventName, params);
+    }
+
+    function onClick(event: MouseEvent) {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-analytics-event]")
+        : null;
+      if (!target?.dataset.analyticsEvent) return;
+      send(target.dataset.analyticsEvent, {
+        surface: target.dataset.analyticsSurface ?? "global",
+        target: target.dataset.analyticsTarget ?? target.getAttribute("href") ?? "",
+      });
+    }
+
+    window.addEventListener("eterapy:analytics", onCustom);
+    document.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener("eterapy:analytics", onCustom);
+      document.removeEventListener("click", onClick);
+    };
+  }, []);
+
   return (
     <>
       {/* Яндекс.Метрика */}

@@ -166,6 +166,8 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
       return { title: "Карта привязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
     case "CARD_REMOVED":
       return { title: "Карта отвязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
+    case "DAILY_CARD":
+      return { title: data.title || "Карта дня", body: data.body || "Один бережный фокус на сегодня", href: "/cabinet" };
     default:
       return { title: "Уведомление", body: "" };
   }
@@ -208,6 +210,8 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `🔗 Карта привязана\n${data.brand} •••• ${data.last4} теперь доступна для быстрой оплаты.`;
     case "CARD_REMOVED":
       return `🗑 Карта отвязана\n${data.brand} •••• ${data.last4} удалена из списка карт.`;
+    case "DAILY_CARD":
+      return `Карта дня ETerapy\n<b>${data.title}</b>\n${data.body}\n<a href="${baseUrl}/cabinet">Открыть кабинет →</a>`;
     default:
       return `ETerapy: уведомление`;
   }

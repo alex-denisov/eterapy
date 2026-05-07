@@ -70,6 +70,7 @@ model User {
   compatibilitiesCreated Compatibility[] @relation("CompatibilityCreator")
   compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
   clarityRoutes          ClarityRoute[]
+  dailyCards             DailyCard[]
 
   @@map("users")
 }
@@ -477,6 +478,7 @@ enum NotificationEvent {
   SUBSCRIPTION_PAYMENT_FAILED // Платеж подписки не прошел
   CARD_LINKED            // Новая карта привязана
   CARD_REMOVED           // Карта отвязана
+  DAILY_CARD             // Ежедневная карта ясности
 }
 
 enum NotificationChannel {
@@ -499,6 +501,24 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model DailyCard {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardDate  DateTime @map("card_date")
+  title     String
+  body      String
+  prompt    String
+  metadata  Json?
+  sharedAt  DateTime? @map("shared_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, cardDate])
+  @@index([userId, createdAt])
+  @@map("daily_cards")
 }
 
 // ─── Platform Settings ────────────────────────────────────────────────────────

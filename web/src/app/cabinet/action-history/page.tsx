@@ -108,7 +108,10 @@ export default async function MyMapPage() {
           <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary">
             Новый вопрос
           </Link>
-          <a href={appUrl("/api/cabinet/map/export")} className="soft-button soft-button-ghost">
+          <a href={appUrl("/api/cabinet/map/export")} className="soft-button soft-button-ghost"
+            data-analytics-event="my_map_export_clicked"
+            data-analytics-surface="my_map"
+            data-analytics-target="export">
             <Download className="size-4" />
             Экспорт
           </a>
@@ -172,14 +175,20 @@ export default async function MyMapPage() {
                       <button type="submit" className="soft-button soft-button-ghost">Сохранить</button>
                     </form>
                   )}
-                  <a href={shareHref(item.title, item.shareTopic)} className="soft-button soft-button-ghost">
+                  <a href={shareHref(item.title, item.shareTopic)} className="soft-button soft-button-ghost"
+                    data-analytics-event="my_map_share_clicked"
+                    data-analytics-surface="my_map"
+                    data-analytics-target={item.kind}>
                     <Share2 className="size-4" />
                     Поделиться
                   </a>
                   <form action={hideMapItem}>
                     <input type="hidden" name="kind" value={item.kind} />
                     <input type="hidden" name="id" value={item.id} />
-                    <button type="submit" className="soft-button soft-button-ghost">
+                    <button type="submit" className="soft-button soft-button-ghost"
+                      data-analytics-event="my_map_hide_clicked"
+                      data-analytics-surface="my_map"
+                      data-analytics-target={item.kind}>
                       <EyeOff className="size-4" />
                       Скрыть
                     </button>
@@ -187,7 +196,10 @@ export default async function MyMapPage() {
                   <form action={deleteMapItem}>
                     <input type="hidden" name="kind" value={item.kind} />
                     <input type="hidden" name="id" value={item.id} />
-                    <button type="submit" className="soft-button soft-button-ghost text-[var(--soft-bordeaux)]">
+                    <button type="submit" className="soft-button soft-button-ghost text-[var(--soft-bordeaux)]"
+                      data-analytics-event="my_map_delete_clicked"
+                      data-analytics-surface="my_map"
+                      data-analytics-target={item.kind}>
                       <Trash2 className="size-4" />
                       Удалить
                     </button>

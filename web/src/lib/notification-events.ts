@@ -20,10 +20,11 @@ export type NotifEvent =
   | "SUBSCRIPTION_CANCELLED"
   | "SUBSCRIPTION_PAYMENT_FAILED"
   | "CARD_LINKED"
-  | "CARD_REMOVED";
+  | "CARD_REMOVED"
+  | "DAILY_CARD";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
-export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "system";
+export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "retention" | "system";
 
 export const NOTIFICATION_CATEGORY_META: Record<NotificationCategory, { label: string; description: string }> = {
   booking: {
@@ -41,6 +42,10 @@ export const NOTIFICATION_CATEGORY_META: Record<NotificationCategory, { label: s
   payments: {
     label: "Платежи",
     description: "Баланс, карты, выплаты и платежные события.",
+  },
+  retention: {
+    label: "Практики ясности",
+    description: "Карта дня, маршруты и бережные напоминания.",
   },
   system: {
     label: "Системные",
@@ -174,6 +179,13 @@ export const ALL_EVENTS: Array<{
     description: "Привязанная карта удалена",
     roles: ["CLIENT", "PRACTITIONER"],
   },
+  {
+    event: "DAILY_CARD",
+    category: "retention",
+    label: "Карта дня",
+    description: "Один бережный фокус на день",
+    roles: ["CLIENT"],
+  },
 ];
 
 /** Фильтрация событий по роли пользователя */
@@ -188,4 +200,5 @@ export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
   "BOOKING_REMINDER",
   "SESSION_COMPLETED",
   "REVIEW_REQUESTED",
+  "DAILY_CARD",
 ];

@@ -88,4 +88,67 @@ describe("M11 client retention surfaces", () => {
     expect(exportRoute).toContain("Content-Disposition");
     expect(exportRoute).toContain("no-store");
   });
+
+  it("adds a once-per-day daily card with notification support", () => {
+    const schema = source("prisma/schema.prisma");
+    const migration = source("prisma/migrations/20260507033000_add_daily_cards/migration.sql");
+    const dailyCard = source("src/lib/daily-card.ts");
+    const route = source("src/app/api/cabinet/daily-card/route.ts");
+    const dashboard = source("src/app/cabinet/page.tsx");
+    const events = source("src/lib/notification-events.ts");
+    const delivery = source("src/lib/notification-delivery.ts");
+
+    expect(schema).toContain("model DailyCard");
+    expect(schema).toContain("@@unique([userId, cardDate])");
+    expect(schema).toContain("DAILY_CARD");
+    expect(migration).toContain("CREATE TABLE \"daily_cards\"");
+    expect(migration).toContain("ADD VALUE IF NOT EXISTS 'DAILY_CARD'");
+    expect(dailyCard).toContain("getOrCreateDailyCard");
+    expect(dailyCard).toContain("findUnique");
+    expect(dailyCard).toContain("userId_cardDate");
+    expect(route).toContain("event: \"DAILY_CARD\"");
+    expect(route).toContain("action === \"notify\"");
+    expect(route).toContain("action === \"share\"");
+    expect(dashboard).toContain('data-testid="client-daily-card"');
+    expect(events).toContain("Практики ясности");
+    expect(delivery).toContain("case \"DAILY_CARD\"");
+  });
+
+  it("keeps milestones gentle and non-coercive", () => {
+    const dashboard = source("src/app/cabinet/page.tsx");
+
+    expect(dashboard).toContain('data-testid="client-gentle-milestones"');
+    expect(dashboard).toContain("Мягкий ритм");
+    expect(dashboard).toContain("нет штрафов, дедлайнов и давления");
+    expect(dashboard).toContain("db.dailyCard.count");
+  });
+
+  it("lets users export allowed personal data before account deletion", () => {
+    const route = source("src/app/api/auth/export-data/route.ts");
+    const settings = source("src/app/cabinet/settings/settings-client.tsx");
+
+    expect(route).toContain("db.dialogue.findMany");
+    expect(route).toContain("db.productResult.findMany");
+    expect(route).toContain("db.clarityRoute.findMany");
+    expect(route).toContain("db.dailyCard.findMany");
+    expect(route).toContain("eterapy-personal-data.json");
+    expect(settings).toContain("/api/auth/export-data");
+    expect(settings).toContain("Экспорт личных данных");
+    expect(settings).toContain("Удаление аккаунта");
+  });
+
+  it("tracks retention actions through the global analytics listener", () => {
+    const analytics = source("src/components/analytics.tsx");
+    const dashboard = source("src/app/cabinet/page.tsx");
+    const map = source("src/app/cabinet/action-history/page.tsx");
+
+    expect(analytics).toContain("[data-analytics-event]");
+    expect(analytics).toContain("eterapy:analytics");
+    expect(dashboard).toContain("daily_card_question_clicked");
+    expect(dashboard).toContain("daily_card_share_clicked");
+    expect(map).toContain("my_map_export_clicked");
+    expect(map).toContain("my_map_share_clicked");
+    expect(map).toContain("my_map_hide_clicked");
+    expect(map).toContain("my_map_delete_clicked");
+  });
 });

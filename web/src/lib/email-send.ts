@@ -65,6 +65,7 @@ const SUBJECTS: Record<NotifEvent, string> = {
   SUBSCRIPTION_PAYMENT_FAILED: "Платёж подписки не прошёл — ETerapy",
   CARD_LINKED:        "Карта привязана — ETerapy",
   CARD_REMOVED:       "Карта отвязана — ETerapy",
+  DAILY_CARD:         "Карта дня — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
@@ -235,6 +236,17 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
         )}
         <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Если вы не совершали это действие — свяжитесь с поддержкой.</p>
         ${btn(`${BASE_URL}/cabinet/billing`, "Открыть кошелёк")}
+      `;
+    case "DAILY_CARD":
+      return `
+        <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Карта дня</h1>
+        ${greeting}
+        ${infoBox(
+          `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Сегодняшний фокус</p>
+           <p style="margin:0;color:#f8fafc;font-weight:600;font-size:18px">${data.title}</p>`
+        )}
+        <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.body}</p>
+        ${btn(`${BASE_URL}/cabinet`, "Открыть кабинет")}
       `;
     default:
       return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;

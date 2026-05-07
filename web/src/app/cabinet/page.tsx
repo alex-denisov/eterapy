@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
@@ -18,7 +19,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentBookings, userData, dialogueCount, recentDialogues, productCount, activeRoutes] = await Promise.all([
+  const [recentBookings, userData, dialogueCount, recentDialogues, productCount, activeRoutes, dailyCardResult, dailyCardCount] = await Promise.all([
     db.booking.findMany({
       where: { clientId: userId },
       orderBy: { createdAt: "desc" },
@@ -40,6 +41,8 @@ export default async function ClientCabinetPage() {
       take: 2,
       select: { id: true, title: true, status: true, currentDay: true },
     }),
+    getOrCreateDailyCard(userId),
+    db.dailyCard.count({ where: { userId } }),
   ]);
 
   const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
@@ -52,6 +55,7 @@ export default async function ClientCabinetPage() {
     : recentDialogues[0]
       ? { href: mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`), label: "Вернуться к последнему вопросу", hint: recentDialogues[0].status === "ANSWERED" ? "ответ уже готов" : "можно продолжить" }
       : { href: mainUrl("/checkin"), label: "Задать первый вопрос", hint: "начните с бесплатного первичного ответа" };
+  const dailyCard = dailyCardResult.card;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -128,6 +132,58 @@ export default async function ClientCabinetPage() {
           </div>
         </section>
       </div>
+
+      <section className="soft-card soft-form-panel mb-8" data-testid="client-daily-card">
+        <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+          <div>
+            <p className="soft-eyebrow">Карта дня</p>
+            <h2 className="mt-3 font-heading text-3xl font-medium text-[var(--soft-bordeaux)]">{dailyCard.title}</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{dailyCard.body}</p>
+          </div>
+          <div className="rounded-3xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.5)] p-5">
+            <p className="soft-eyebrow">Вопрос для себя</p>
+            <p className="mt-3 font-heading text-2xl text-[var(--soft-ink)]">{dailyCard.prompt}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href={mainUrl(`/checkin?question=${encodeURIComponent(dailyCard.prompt)}`)}
+                className="soft-button soft-button-primary"
+                data-analytics-event="daily_card_question_clicked"
+                data-analytics-surface="client_dashboard"
+                data-analytics-target="daily_card_prompt">
+                Разобрать вопрос
+              </Link>
+              <a href={mainUrl(`/share?from=daily-card&topic=${encodeURIComponent(dailyCard.title)}`)}
+                className="soft-button soft-button-ghost"
+                data-analytics-event="daily_card_share_clicked"
+                data-analytics-surface="client_dashboard"
+                data-analytics-target="daily_card_share">
+                Поделиться
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="soft-card p-6 mb-8" data-testid="client-gentle-milestones">
+        <p className="soft-eyebrow">Мягкий ритм</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.48)] p-4">
+            <p className="font-heading text-3xl text-[var(--soft-bordeaux)]">{dailyCardCount}</p>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">карт дня открыто</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.48)] p-4">
+            <p className="font-heading text-3xl text-[var(--soft-bordeaux)]">{dialogueCount}</p>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">вопросов сохранено</p>
+          </div>
+          <div className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.48)] p-4">
+            <p className="font-heading text-3xl text-[var(--soft-bordeaux)]">{productCount}</p>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">результатов в карте</p>
+          </div>
+        </div>
+        <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Здесь нет штрафов, дедлайнов и давления. Ритм нужен только как напоминание,
+          что маленькие возвращения к себе тоже считаются.
+        </p>
+      </section>
 
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
