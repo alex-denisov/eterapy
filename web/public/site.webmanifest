@@ -1,0 +1,19 @@
+{
+  "name": "ETerapy",
+  "short_name": "ETerapy",
+  "description": "Диалог ясности, бережные разборы и личная карта вопросов.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#FBF6EE",
+  "background_color": "#FBF6EE",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

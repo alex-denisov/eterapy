@@ -51,7 +51,7 @@ describe("v5 billing entitlements", () => {
   });
 
   it("keeps product prices server-side", () => {
-    expect(getProductPriceKopecks("deep-report")).toBe(99000);
+    expect(getProductPriceKopecks("deep-report")).toBe(59000);
     expect(getProductPriceKopecks("primary-answer")).toBeNull();
     expect(getSubscriptionPlan("plus")?.includedProducts).toContain("deep-report");
   });
@@ -61,7 +61,7 @@ describe("v5 billing entitlements", () => {
       purchaseKind: "balance",
       checkoutSource: undefined,
     });
-    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(99_000);
+    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(59_000);
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
       kind: "subscription",
       amountKopecks: 299_000,
@@ -76,7 +76,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 99000,
+      amount: 59000,
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -112,7 +112,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 99000,
+      amount: 59000,
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -133,7 +133,7 @@ describe("v5 billing entitlements", () => {
     }));
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: 99000,
+        amountKopecks: 59000,
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-1",

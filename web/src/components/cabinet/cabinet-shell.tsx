@@ -84,8 +84,7 @@ export function CabinetShell({
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="soft-app-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
-        style={{ top: "var(--header-height)" }}
+        className="soft-app-sidebar sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto px-4 py-5 md:flex"
       >
         {/* User badge + Notifications */}
         <div className="mb-5 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4">
@@ -104,13 +103,13 @@ export function CabinetShell({
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 space-y-0.5">
+        <nav className="flex-1 space-y-1">
           {nav.map((item) => {
             const Icon = item.icon;
             return (
               <Link key={item.href} href={item.href}
                 data-testid="app-shell-nav-item"
-                className={`soft-app-nav-link flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+                className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                   isActive(item.href)
                     ? "is-active font-medium"
                     : ""
@@ -126,7 +125,7 @@ export function CabinetShell({
         <div className="mt-2 border-t border-border/20 pt-2">
           <button
             onClick={() => { window.location.href = logoutUrl(); }}
-            className="soft-app-nav-link flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"
+            className="soft-app-nav-link flex min-h-11 w-full items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             Выйти

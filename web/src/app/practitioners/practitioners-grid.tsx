@@ -100,8 +100,8 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {/* v4 list */}
+      <div className="space-y-3" data-testid="specialists-v4-list">
         {sorted.map((p) => {
           const initial = (p.name ?? "?")[0].toUpperCase();
           const gradient = AVATAR_GRADIENTS[p.gradIdx];
@@ -111,24 +111,15 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
           return (
             <article
               key={p.id}
-              className="soft-card cursor-pointer overflow-hidden p-0 flex flex-col"
+              className="soft-card soft-specialist-row cursor-pointer overflow-hidden p-4"
               onClick={() => { window.location.href = `/practitioners/${p.slug}`; }}
               data-testid="practitioner-card"
             >
-              {/* Gradient header */}
-              <div className="relative h-28" style={{ background: gradient }}>
-                {p.verified && (
-                  <div className="absolute left-4 top-3 flex gap-2">
-                    <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: "rgba(255,255,255,.7)", color: "var(--soft-bordeaux)" }}>
-                      Проверен
-                    </span>
-                  </div>
-                )}
-                {/* Avatar circle */}
+              <div className="flex flex-col gap-4 md:flex-row md:items-center">
                 <div
-                  className="absolute -bottom-9 left-5 flex h-[72px] w-[72px] items-center justify-center rounded-full shadow-md"
+                  className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--soft-radius-lg)] shadow-md"
                   style={{
-                    background: "var(--soft-paper-card)",
+                    background: gradient,
                     fontFamily: "var(--font-heading, serif)",
                     fontSize: 30,
                     fontWeight: 500,
@@ -139,36 +130,46 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                 >
                   {initial}
                 </div>
-              </div>
 
-              {/* Card body */}
-              <div className="flex flex-1 flex-col px-5 pb-5 pt-12">
-                <p
-                  className="text-xl font-semibold leading-tight"
-                  style={{ fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)" }}
-                >
-                  {displayName}
-                </p>
-                <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{p.title}</p>
-                {p.bio && (
-                  <p
-                    className="mt-3 flex-1 text-sm italic leading-snug text-[var(--soft-ink-soft)] line-clamp-3"
-                    style={{ fontFamily: "var(--font-heading, serif)" }}
-                  >
-                    «{p.bio}»
-                  </p>
-                )}
-                {p.specialties.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {p.specialties.slice(0, 3).map((s) => (
-                      <span key={s} className="soft-chip soft-chip-soft text-xs px-2 py-1">{s}</span>
-                    ))}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p
+                      className="text-xl font-semibold leading-tight"
+                      style={{ fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)" }}
+                    >
+                      {displayName}
+                    </p>
+                    {p.verified && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[var(--soft-apricot)] px-2.5 py-1 text-xs font-semibold text-[var(--soft-bordeaux)]">
+                        <BadgeCheck className="size-3" aria-hidden="true" />
+                        Проверен
+                      </span>
+                    )}
+                    {displayRating && (
+                      <span className="text-xs font-semibold text-[var(--soft-bordeaux)]">★ {displayRating} · {p.reviewCount}</span>
+                    )}
                   </div>
-                )}
-                <hr className="my-3 border-[var(--soft-paper-edge)]" />
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] text-[var(--soft-ink-faint)]">от {p.minDuration} мин ·</p>
+                  <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{p.title}</p>
+                  {p.bio && (
+                    <p
+                      className="mt-2 max-w-2xl text-sm italic leading-snug text-[var(--soft-ink-soft)] line-clamp-2"
+                      style={{ fontFamily: "var(--font-heading, serif)" }}
+                    >
+                      «{p.bio}»
+                    </p>
+                  )}
+                  {p.specialties.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {p.specialties.slice(0, 4).map((s) => (
+                        <span key={s} className="soft-chip soft-chip-soft px-2 py-1 text-xs">{s}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 flex-row items-center justify-between gap-4 md:w-56 md:flex-col md:items-end">
+                  <div className="md:text-right">
+                    <p className="text-[10px] text-[var(--soft-ink-faint)]">от {p.minDuration} мин</p>
                     <p
                       className="text-xl font-semibold"
                       style={{ fontFamily: "var(--font-heading, serif)", color: "var(--soft-bordeaux)" }}
@@ -176,19 +177,14 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                       {p.pricePerSession.toLocaleString("ru")} ₽
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {displayRating && (
-                      <span className="text-xs font-semibold text-[var(--soft-bordeaux)]">★ {displayRating} · {p.reviewCount}</span>
-                    )}
-                  </div>
+                  <Link
+                    href={`/practitioners/${p.slug}`}
+                    className="soft-button soft-button-primary justify-center text-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Записаться
+                  </Link>
                 </div>
-                <Link
-                  href={`/practitioners/${p.slug}`}
-                  className="soft-button soft-button-primary mt-3 justify-center text-sm"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Записаться
-                </Link>
               </div>
             </article>
           );

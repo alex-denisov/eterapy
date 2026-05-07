@@ -34,8 +34,8 @@ type Product = {
 const PRODUCTS: Product[] = [
   { id: "angles",   title: "4 ракурса ответа",    desc: "Разум · Чувства · Символ · Действие",          price: "299 ₽",        cat: "psy",    kind: "Цифровое",   href: "/products/perspectives",  icon: Compass },
   { id: "report",   title: "Глубокий отчёт",       desc: "Документ-разбор с рекомендациями.",             price: "590 ₽",        cat: "psy",    kind: "Цифровое",   href: "/products/deep-report",   icon: Bookmark },
-  { id: "chat",     title: "Разбор переписки",     desc: "Тон, эмоции, варианты ответа.",                 price: "299–1490 ₽",  cat: "psy",    kind: "Цифровое",   href: "/products/chat-analysis", icon: Sparkles },
-  { id: "compat",   title: "Совместимость",        desc: "Парный отчёт по приглашению.",                  price: "590–990 ₽",   cat: "psy",    kind: "Цифровое",   href: "/products/compatibility", icon: Users },
+  { id: "chat",     title: "Разбор переписки",     desc: "Тон, эмоции, варианты ответа.",                 price: "990 ₽",        cat: "psy",    kind: "Цифровое",   href: "/products/chat-analysis", icon: Sparkles },
+  { id: "compat",   title: "Совместимость",        desc: "Парный отчёт по приглашению.",                  price: "990 ₽",        cat: "psy",    kind: "Цифровое",   href: "/products/compatibility", icon: Users },
   { id: "7days",    title: "7 дней к ясности",     desc: "Маршрут по 5–10 минут в день.",                 price: "990 ₽",        cat: "psy",    kind: "Маршрут",    href: "/products/seven-days",    icon: Calendar },
   { id: "map",      title: "Расширенная карта",    desc: "Годовой разбор паттернов и тем.",               price: "990 ₽",        cat: "psy",    kind: "Цифровое",   href: "/products/my-map",        icon: Compass },
   { id: "psy_live", title: "Встреча с психологом", desc: "50 минут с проверенным специалистом.",          price: "от 1900 ₽",   cat: "psy",    kind: "Встреча",    href: "/practitioners",          icon: Heart },

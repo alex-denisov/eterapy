@@ -352,7 +352,7 @@
   }
 
   .soft-hero {
-    padding-block: clamp(3.5rem, 8vw, 6rem) 3rem;
+    padding-block: clamp(2.25rem, 5vw, 4rem) 3rem;
   }
 
   .soft-hero-grid {
@@ -365,14 +365,14 @@
   .soft-halo-stage {
     position: relative;
     display: grid;
-    min-height: 28rem;
+    min-height: 19rem;
     place-items: center;
   }
 
   .soft-halo-stage::before {
     content: "";
     position: absolute;
-    width: min(42rem, 84vw);
+    width: min(34rem, 78vw);
     aspect-ratio: 1;
     border-radius: 999px;
     background:
@@ -698,6 +698,12 @@
     text-align: left;
   }
 
+  .soft-product-detail-hero {
+    max-width: none;
+    grid-template-columns: minmax(0, 0.95fr) minmax(18rem, 0.52fr);
+    text-align: left;
+  }
+
   .soft-products-hero .soft-lede {
     margin-inline: 0 !important;
   }
@@ -761,6 +767,20 @@
     border-color: var(--soft-terracotta);
     box-shadow: var(--soft-shadow-md);
     transform: translateY(-2px);
+  }
+
+  .soft-specialist-row {
+    text-decoration: none;
+    transition:
+      transform var(--motion-base, 160ms ease),
+      border-color var(--motion-base, 160ms ease),
+      box-shadow var(--motion-base, 160ms ease);
+  }
+
+  .soft-specialist-row:hover {
+    border-color: var(--soft-terracotta);
+    box-shadow: var(--soft-shadow-md);
+    transform: translateY(-1px);
   }
 
   .soft-product-detail-grid {
@@ -1118,7 +1138,9 @@
   .soft-app-sidebar,
   .soft-admin-sidebar {
     border-right: 1px solid var(--soft-paper-edge);
-    background: color-mix(in srgb, var(--soft-paper-deep) 88%, white);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0.18)),
+      color-mix(in srgb, var(--soft-paper-deep) 91%, white);
     box-shadow: 18px 0 42px -34px rgba(60, 30, 20, 0.34);
   }
 
@@ -1138,13 +1160,15 @@
   .soft-app-nav-link.is-active,
   .soft-admin-nav-link:hover,
   .soft-admin-nav-link.is-active {
-    background: var(--soft-paper-card);
+    background: color-mix(in srgb, var(--soft-paper-card) 88%, white);
     color: var(--soft-bordeaux);
   }
 
   .soft-app-nav-link.is-active,
   .soft-admin-nav-link.is-active {
-    box-shadow: inset 3px 0 0 var(--soft-terracotta);
+    box-shadow:
+      inset 3px 0 0 var(--soft-terracotta),
+      0 10px 24px -20px rgba(92, 42, 44, 0.35);
   }
 
   .soft-app-mobile-nav,
@@ -1212,7 +1236,7 @@
     }
 
     .soft-halo-stage {
-      min-height: 22rem;
+      min-height: 18rem;
     }
 
     .soft-map-grid {

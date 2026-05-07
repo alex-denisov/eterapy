@@ -8,7 +8,7 @@
       <stop offset="100%" stop-color="#D9C9E8" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="gold" x1="21" x2="72" y1="99" y2="16" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#B85B40"/>
+      <stop offset="0%" stop-color="#D67558"/>
       <stop offset="48%" stop-color="#F2C37D"/>
       <stop offset="100%" stop-color="#FFE0A5"/>
     </linearGradient>

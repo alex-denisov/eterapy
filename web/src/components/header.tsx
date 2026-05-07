@@ -371,6 +371,10 @@ export function Header() {
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">
                   Личный кабинет
                 </Link>
+                <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
+                  className="rounded-lg bg-[var(--soft-terracotta)] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--soft-terracotta-dark)]">
+                  Начать диалог
+                </Link>
                 {isAppArea && (
                   <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
                     className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">

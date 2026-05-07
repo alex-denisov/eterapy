@@ -16,7 +16,9 @@ describe("v5 app shell", () => {
     expect(shell).toContain("soft-clarity-page soft-app-shell");
     expect(shell).toContain("soft-app-sidebar");
     expect(shell).toContain("soft-app-mobile-nav");
-    expect(shell).toContain("rounded-[var(--radius-control)]");
+    expect(shell).toContain("rounded-[var(--soft-radius-md)]");
+    expect(shell).toContain("sticky top-0");
+    expect(shell).toContain("h-screen");
     expect(shell).toContain("duration-[var(--motion-base)]");
   });
 

@@ -39,6 +39,7 @@ describe("design v4 rollout", () => {
     expect(header).toContain('hostname.startsWith("app.")');
     expect(header).toContain('hostname.startsWith("admin.")');
     expect(header).toContain('data-testid="header-cabinet-cta"');
+    expect(header).toContain('data-testid="header-dialogue-cta"');
     expect(register).toContain("<VKIDButton />");
     expect(vkButton).toContain('fill="currentColor"');
     expect(vkButton).toContain("soft-social-button");
@@ -46,6 +47,7 @@ describe("design v4 rollout", () => {
     expect(softCss).toContain("grid-template-columns: 1fr !important");
     expect(softCss).toContain(".soft-email-banner");
     expect(pricing).not.toMatch(/Скидк[аи][^"]*встреч/i);
+    expect(pricing).not.toMatch(/от 299 ₽|от 490 ₽|от 590 ₽|от 790 ₽/);
     expect(pricing).toContain("Встречи со специалистами оплачиваются отдельно по полной цене");
   });
 

@@ -4,10 +4,10 @@ import { getV5Product, type V5ProductSlug } from "@/lib/v5-products";
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "perspectives": 29900,
-  "deep-report": 99000,
-  "chat-analysis": 149000,
+  "deep-report": 59000,
+  "chat-analysis": 99000,
   "compatibility": 99000,
-  "seven-days": 149000,
+  "seven-days": 99000,
   "my-map": 99000,
 };
 

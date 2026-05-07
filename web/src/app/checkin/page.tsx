@@ -477,7 +477,7 @@ export default function CheckinPage() {
               <p className="soft-eyebrow">рекомендуем</p>
               <h3 className="soft-h3 mt-2">Ракурсы ответа</h3>
               <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Разум, чувства, символ и действие на одну страницу.</p>
-              <span className="soft-badge soft-badge-warm mt-4">от 299 ₽</span>
+              <span className="soft-badge soft-badge-warm mt-4">299 ₽</span>
             </Link>
             <Link href="/products/seven-days" className="soft-card soft-deepening-card">
               <p className="soft-eyebrow">маршрут</p>

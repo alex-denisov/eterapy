@@ -7,7 +7,6 @@ import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
-import { brandAssets } from "@/lib/brand-assets";
 import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
@@ -41,13 +40,11 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
-      { url: brandAssets.favicon.png16, type: "image/png", sizes: "16x16" },
-      { url: brandAssets.favicon.png32, type: "image/png", sizes: "32x32" },
-      { url: brandAssets.favicon.ico, sizes: "any" },
     ],
-    apple: [{ url: brandAssets.favicon.apple180, sizes: "180x180" }],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
-  manifest: brandAssets.favicon.manifest,
+  manifest: "/site.webmanifest",
   openGraph: {
     ...homeMetadata.openGraph,
     type: "website",

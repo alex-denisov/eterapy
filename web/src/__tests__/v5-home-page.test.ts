@@ -17,6 +17,9 @@ describe("v5 public home page", () => {
     expect(hero).toContain('action="/checkin"');
     expect(hero).toContain("Начать диалог");
     expect(hero).toContain('data-analytics-event="dialogue_cta_clicked"');
+    expect(hero).toContain("PLACEHOLDERS[phIdx]");
+    expect(hero).toContain("setQuestion(`${topic}: `)");
+    expect(hero).toContain("home-topic-");
     expect(hero).not.toContain('href="/practitioners"');
     expect(hero).not.toContain("Найти практика");
   });
