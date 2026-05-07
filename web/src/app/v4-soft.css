@@ -325,13 +325,20 @@
 
   .soft-email-banner {
     border-bottom: 1px solid rgba(214, 117, 88, 0.24);
-    background: linear-gradient(90deg, rgba(244, 217, 193, 0.82), rgba(219, 211, 234, 0.48));
+    background:
+      radial-gradient(circle at 15% 50%, rgba(255, 252, 245, 0.58), transparent 16rem),
+      linear-gradient(90deg, #f4d9c1, #f8e6d1);
     color: var(--soft-bordeaux);
+    box-shadow: 0 8px 28px -24px rgba(92, 42, 44, 0.38);
   }
 
   .soft-email-banner strong,
   .soft-email-banner button {
     color: var(--soft-terracotta-dark);
+  }
+
+  .soft-email-banner button:hover {
+    color: var(--soft-bordeaux);
   }
 
   .soft-tools-return {
