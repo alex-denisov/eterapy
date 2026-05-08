@@ -86,16 +86,7 @@ export default async function ClientCabinetPage() {
           <p className="soft-eyebrow">текущая тема</p>
           {currentTheme ? (
             <>
-              <p
-                style={{
-                  fontFamily: "var(--font-heading, serif)",
-                  fontSize: 24,
-                  color: "var(--soft-bordeaux)",
-                  fontWeight: 500,
-                  lineHeight: 1.3,
-                  marginTop: 8,
-                }}
-              >
+              <p className="soft-h3 mt-2 font-medium" style={{ color: "var(--soft-bordeaux)" }}>
                 {currentTheme}
               </p>
               <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
@@ -103,17 +94,7 @@ export default async function ClientCabinetPage() {
               </p>
             </>
           ) : (
-            <p
-              style={{
-                fontFamily: "var(--font-heading, serif)",
-                fontSize: 20,
-                color: "var(--soft-bordeaux)",
-                fontWeight: 500,
-                lineHeight: 1.3,
-                marginTop: 8,
-                fontStyle: "italic",
-              }}
-            >
+            <p className="soft-h3 mt-2 font-medium soft-italic" style={{ color: "var(--soft-bordeaux)" }}>
               Начните первый разбор
             </p>
           )}
@@ -230,8 +211,7 @@ export default async function ClientCabinetPage() {
             <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся последние диалоги.</p>
           ) : recentDialogues.slice(0, 3).map((dialogue) => (
             <Link key={dialogue.id} href={mainUrl(`/checkin?dialogueId=${dialogue.id}`)}
-              className="mb-2 block rounded-[12px] border border-[var(--soft-paper-edge)] p-3 transition-colors hover:border-[var(--soft-terracotta)]"
-              style={{ background: "var(--soft-paper-deep)" }}>
+              className="soft-card-flat mb-2 block p-3 transition-colors hover:border-[var(--soft-terracotta)]">
               <p className="line-clamp-1 text-sm font-semibold" style={{ color: "var(--soft-ink)" }}>{dialogue.title}</p>
               <p className="mt-1 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                 {dialogue.topic ?? "вопрос"} · {dialogue.updatedAt.toLocaleDateString("ru-RU")}
@@ -302,15 +282,7 @@ export default async function ClientCabinetPage() {
       {/* v4: card-flat "подсказка от карты" */}
       <div className="soft-card-flat p-5">
         <p className="soft-eyebrow mb-3">подсказка от карты</p>
-        <p
-          style={{
-            fontFamily: "var(--font-heading, serif)",
-            fontStyle: "italic",
-            fontSize: 19,
-            color: "var(--soft-ink-soft)",
-            lineHeight: 1.5,
-          }}
-        >
+        <p className="soft-h3 mt-2 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
           {currentTheme
             ? `За последние разборы карта замечает тему «${currentTheme}». Возможно, маршрут «7 дней к ясности» сейчас будет уместен.`
             : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}

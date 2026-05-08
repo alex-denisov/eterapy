@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { appUrl } from "@/lib/subdomain";
-import Link from "next/link";
 
 export default function Error({
   error,
@@ -17,22 +16,23 @@ export default function Error({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-destructive/30 bg-card/50 p-8 text-center">
+      <div className="soft-card mx-auto w-full max-w-md border-[var(--soft-terracotta)] p-8 text-center">
         <p className="text-4xl mb-4">⚠️</p>
-        <h2 className="font-heading text-xl font-semibold mb-2">Что-то пошло не так</h2>
-        <p className="text-sm text-muted-foreground mb-6">
+        <h2 className="soft-h3 mb-2 font-semibold">Что-то пошло не так</h2>
+        <p className="mb-6 text-[15px]" style={{ color: "var(--soft-ink-soft)" }}>
           Произошла ошибка при загрузке страницы. Попробуйте обновить.
         </p>
         <div className="flex gap-3 justify-center">
           <button
             onClick={reset}
-            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-navy hover:bg-primary/90 transition-colors"
+            className="soft-button soft-button-primary font-semibold"
           >
             Попробовать снова
           </button>
           <a
             href={appUrl("/cabinet")}
-            className="rounded-lg border border-border/40 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="soft-button soft-button-ghost"
+            style={{ color: "var(--soft-ink-soft)" }}
           >
             В начало
           </a>

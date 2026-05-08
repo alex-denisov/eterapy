@@ -8,7 +8,7 @@ import { PriceRatesViewer } from "@/components/schedule/price-rates-viewer";
 import dynamic from "next/dynamic";
 const WeekCalendar = dynamic(() => import("@/components/schedule/week-calendar").then(m => m.WeekCalendar), {
   ssr: false,
-  loading: () => <div className="h-96 animate-pulse rounded-xl bg-card/30" />,
+  loading: () => <div className="h-96 animate-pulse rounded-xl bg-[rgba(255,255,255,0.015)]" />,
 });
 
 interface Props {
@@ -33,7 +33,7 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+              tab === t.id ? "bg-primary/10 text-primary" : "text-[var(--soft-ink-soft)] hover:text-foreground"
             }`}>
             {t.label}
           </button>
@@ -42,7 +42,7 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
 
       {tab === "calendar" && (
         <div>
-          <div className="soft-card mb-4 p-3 text-xs text-muted-foreground">
+          <div className="soft-card mb-4 p-3 text-xs text-[var(--soft-ink-soft)]">
             Нажмите на ячейку, чтобы заблокировать или разблокировать время.
             Зеленое = свободно, красное = заблокировано, синее = забронировано.
           </div>
@@ -52,7 +52,7 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
 
       {tab === "schedule" && (
         <div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-[var(--soft-ink-soft)] mb-4">
             Укажите стандартные рабочие дни и часы. Клиенты смогут записаться в это время,
             если оно не заблокировано в календаре.
           </p>
@@ -62,7 +62,7 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
 
       {tab === "rates" && (
         <div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-[var(--soft-ink-soft)] mb-4">
             Включайте форматы сессий, которые хотите предлагать. Цены установлены платформой.
           </p>
           <PriceRatesViewer rates={initialRates} practitionerId={practitionerId} />

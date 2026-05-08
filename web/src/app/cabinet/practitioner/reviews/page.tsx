@@ -35,7 +35,7 @@ export default async function PractitionerReviewsPage() {
       </div>
 
       {practitioner.reviews.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Пока нет отзывов. Они появятся после завершённых сессий.</p>
+        <p className="text-[var(--soft-ink-soft)] text-sm">Пока нет отзывов. Они появятся после завершённых сессий.</p>
       ) : (
         <div className="space-y-4">
           {practitioner.reviews.map((r) => (

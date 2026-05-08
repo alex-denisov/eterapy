@@ -134,11 +134,11 @@ export default async function PractitionerEarningsPage() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Текущий баланс</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Текущий баланс</p>
                 <p className="font-heading text-2xl font-bold text-primary tabular-nums">
                   {currentBalance.toLocaleString("ru")} ₽
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
                   К выплате на следующую дату
                 </p>
               </div>
@@ -153,11 +153,11 @@ export default async function PractitionerEarningsPage() {
                 <CalendarClock className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Следующая выплата</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Следующая выплата</p>
                 <p className="font-heading text-2xl font-bold text-foreground">
                   {formatPayoutDate(nextPayoutOn)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
                   Запланировано · {currentBalance.toLocaleString("ru")} ₽
                 </p>
               </div>
@@ -171,21 +171,21 @@ export default async function PractitionerEarningsPage() {
         {[
           { label: monthKey, value: `${monthNet.toLocaleString("ru")} ₽`, sub: `${monthBookings.length} сессий`, color: "text-foreground" },
           { label: "Всего заработано", value: `${accruedNet.toLocaleString("ru")} ₽`, sub: `${completedBookings.length} сессий`, color: "text-foreground" },
-          { label: "Уже выплачено", value: `${paidOut.toLocaleString("ru")} ₽`, sub: `${payouts.filter((p) => p.status === "DONE").length} выплат`, color: "text-muted-foreground" },
-          { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: `${commissionPercent}% от оборота`, color: "text-muted-foreground" },
+          { label: "Уже выплачено", value: `${paidOut.toLocaleString("ru")} ₽`, sub: `${payouts.filter((p) => p.status === "DONE").length} выплат`, color: "text-[var(--soft-ink-soft)]" },
+          { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: `${commissionPercent}% от оборота`, color: "text-[var(--soft-ink-soft)]" },
         ].map((s) => (
           <div key={s.label} className="soft-card">
             <div className="p-4">
-              <p className="text-xs text-muted-foreground mb-1 capitalize">{s.label}</p>
+              <p className="text-xs text-[var(--soft-ink-soft)] mb-1 capitalize">{s.label}</p>
               <p className={`font-heading text-xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
+              <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">{s.sub}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Баннер о графике выплат */}
-      <div className="soft-card mb-6 p-4 text-sm text-muted-foreground">
+      <div className="soft-card mb-6 p-4 text-sm text-[var(--soft-ink-soft)]">
         <p className="font-medium text-foreground mb-1">График выплат</p>
         Выплаты начисляются дважды в месяц — <span className="text-foreground">1-го и 15-го числа</span>{" "}
         по московскому времени. На дату выплаты переводится весь доступный баланс за минусом комиссии платформы.
@@ -196,7 +196,7 @@ export default async function PractitionerEarningsPage() {
       <div className="mb-6">
         <h2 className="font-semibold mb-3">Движение средств</h2>
         {movements.length === 0 ? (
-          <div className="soft-card p-8 text-center text-sm text-muted-foreground">
+          <div className="soft-card p-8 text-center text-sm text-[var(--soft-ink-soft)]">
             Нет движений. Доход появится после первой завершённой сессии.
           </div>
         ) : (
@@ -214,7 +214,7 @@ export default async function PractitionerEarningsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{m.label}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="text-xs text-[var(--soft-ink-soft)] truncate">
                       {formatPayoutDate(m.date)} · {m.sublabel}
                     </p>
                   </div>
@@ -241,8 +241,8 @@ export default async function PractitionerEarningsPage() {
             {Object.entries(byMonth).map(([month, data]) => (
               <div key={month} className="flex items-center gap-4 px-4 py-3">
                 <span className="text-sm flex-1 capitalize">{month}</span>
-                <span className="text-xs text-muted-foreground w-16 text-right">{data.count} сессий</span>
-                <span className="text-sm w-24 text-right text-muted-foreground">
+                <span className="text-xs text-[var(--soft-ink-soft)] w-16 text-right">{data.count} сессий</span>
+                <span className="text-sm w-24 text-right text-[var(--soft-ink-soft)]">
                   {data.revenue.toLocaleString("ru")} ₽
                 </span>
                 <span className="text-sm w-28 text-right font-medium text-green-400">

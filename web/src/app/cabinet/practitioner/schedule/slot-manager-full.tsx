@@ -136,8 +136,8 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
   return (
     <div className="space-y-6">
       {/* Режим добавления */}
-      <Card className="border-border/40 bg-card/30">
-        <CardContent className="p-5">
+      <div className="soft-card">
+        <div className="p-5">
           <h3 className="font-semibold mb-4">Добавить слоты</h3>
 
           {/* Режим */}
@@ -151,7 +151,7 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
             ] as const).map(m => (
               <button key={m.key} onClick={() => setMode(m.key)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                  mode === m.key ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:border-primary/40"
+                  mode === m.key ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-[var(--soft-ink-soft)] hover:border-primary/40"
                 }`}>
                 {m.label}
               </button>
@@ -160,7 +160,7 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
 
           <div className="flex flex-wrap gap-3 items-end">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">
+              <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">
                 {mode === "single" ? "Дата *" : "Начало с *"}
               </label>
               <input type="date" value={date} onChange={e => setDate(e.target.value)}
@@ -170,14 +170,14 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
 
             {mode === "single" && (
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">Время *</label>
+                <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">Время *</label>
                 <input type="time" value={time} onChange={e => setTime(e.target.value)}
                   className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
               </div>
             )}
 
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Длительность</label>
+              <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">Длительность</label>
               <select value={duration} onChange={e => setDuration(Number(e.target.value))}
                 className="rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none">
                 {DURATION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -192,41 +192,41 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
           {/* Рабочие часы для bulk-режимов */}
           {mode !== "single" && (
             <div className="mt-4">
-              <p className="text-xs text-muted-foreground mb-2">Рабочие часы (нажмите чтобы включить/выключить):</p>
+              <p className="text-xs text-[var(--soft-ink-soft)] mb-2">Рабочие часы (нажмите чтобы включить/выключить):</p>
               <div className="flex flex-wrap gap-1.5">
                 {WORK_HOURS.map(h => (
                   <button key={h} onClick={() => toggleHour(h)}
                     className={`rounded border px-2.5 py-1 text-xs transition-colors ${
                       selectedHours.includes(h)
                         ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/30 text-muted-foreground hover:border-primary/30"
+                        : "border-border/30 text-[var(--soft-ink-soft)] hover:border-primary/30"
                     }`}>
                     {h}
                   </button>
                 ))}
               </div>
               {date && selectedHours.length > 0 && (
-                <p className="mt-2 text-xs text-muted-foreground/60">
+                <p className="mt-2 text-xs text-[var(--soft-ink-soft)]/60">
                   Будет создано ≈{selectedHours.length * (mode === "day" ? 1 : mode === "week" ? 7 : mode === "10days" ? 10 : 30)} слотов
                 </p>
               )}
             </div>
           )}
 
-          <p className="mt-3 text-xs text-muted-foreground/60">
+          <p className="mt-3 text-xs text-[var(--soft-ink-soft)]/60">
             Добавленные слоты появятся на вашем профиле — клиенты смогут выбрать удобное время.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Предстоящие */}
       <div>
         <h3 className="font-semibold mb-3">
           Свободные слоты
-          <span className="ml-2 text-sm font-normal text-muted-foreground">({freeCount})</span>
+          <span className="ml-2 text-sm font-normal text-[var(--soft-ink-soft)]">({freeCount})</span>
         </h3>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Нет предстоящих слотов. Добавьте выше.</p>
+          <p className="text-sm text-[var(--soft-ink-soft)]">Нет предстоящих слотов. Добавьте выше.</p>
         ) : (
           <div className="space-y-2">
             {upcoming.map(s => (
@@ -238,7 +238,7 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
                     <p className="text-sm font-medium">
                       {new Date(s.startAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" })}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[var(--soft-ink-soft)]">
                       {new Date(s.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                       {" – "}
                       {new Date(s.endAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
@@ -248,7 +248,7 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
                 </div>
                 {s.available && (
                   <button onClick={() => handleDelete(s.id)}
-                    className="text-xs text-muted-foreground hover:text-destructive transition-colors">
+                    className="text-xs text-[var(--soft-ink-soft)] hover:text-destructive transition-colors">
                     Удалить
                   </button>
                 )}
@@ -261,11 +261,11 @@ export function SlotManagerFull({ practitionerId, initialSlots }: { practitioner
       {/* Прошедшие */}
       {past.length > 0 && (
         <div>
-          <h3 className="font-semibold mb-3 text-muted-foreground text-sm">Прошедшие ({past.length})</h3>
+          <h3 className="font-semibold mb-3 text-[var(--soft-ink-soft)] text-sm">Прошедшие ({past.length})</h3>
           <div className="space-y-1.5">
             {past.slice(-5).reverse().map(s => (
-              <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-card/10 px-4 py-2 opacity-50">
-                <p className="text-xs text-muted-foreground">
+              <div key={s.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-[rgba(255,255,255,0.01)] px-4 py-2 opacity-50">
+                <p className="text-xs text-[var(--soft-ink-soft)]">
                   {new Date(s.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}{" "}
                   {new Date(s.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                 </p>

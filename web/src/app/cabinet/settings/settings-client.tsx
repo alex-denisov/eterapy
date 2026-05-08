@@ -146,7 +146,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div className="flex items-center gap-4">
                 <button type="button" onClick={() => fileRef.current?.click()} className="relative group shrink-0">
-                  <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-border/40 group-hover:border-primary/50 transition-colors">
+                  <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-[var(--soft-paper-edge)] group-hover:border-primary/50 transition-colors">
                     {displayAvatar ? (
                       <Image src={displayAvatar} alt="Аватар" width={64} height={64} className="h-full w-full object-cover" />
                     ) : (
@@ -165,33 +165,33 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                   <button type="button" onClick={() => fileRef.current?.click()} className="text-xs text-primary hover:underline mt-0.5">
                     Загрузить фото
                   </button>
-                  <p className="text-xs text-muted-foreground/60 mt-0.5">JPG, PNG или WebP · до 5 МБ</p>
+                  <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-0.5">JPG, PNG или WebP · до 5 МБ</p>
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm text-muted-foreground">Имя</label>
-                  <Input value={firstName || fn} onChange={e => { setFirstName(sanitizeName(e.target.value)); setNameError(null); }} placeholder="Имя" className={`bg-card/50 ${nameError ? "border-destructive" : ""}`} />
+                  <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">Имя</label>
+                  <Input value={firstName || fn} onChange={e => { setFirstName(sanitizeName(e.target.value)); setNameError(null); }} placeholder="Имя" className={`bg-[rgba(255,255,255,0.035)] ${nameError ? "border-destructive" : ""}`} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm text-muted-foreground">Фамилия</label>
-                  <Input value={lastName || ln} onChange={e => { setLastName(sanitizeName(e.target.value)); setNameError(null); }} placeholder="Фамилия" className={`bg-card/50 ${nameError ? "border-destructive" : ""}`} />
+                  <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">Фамилия</label>
+                  <Input value={lastName || ln} onChange={e => { setLastName(sanitizeName(e.target.value)); setNameError(null); }} placeholder="Фамилия" className={`bg-[rgba(255,255,255,0.035)] ${nameError ? "border-destructive" : ""}`} />
                 </div>
               </div>
               {nameError && <p className="text-xs text-destructive -mt-3">{nameError}</p>}
 
               <div>
-                <label className="mb-1 block text-sm text-muted-foreground">Email</label>
+                <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">Email</label>
                 <Input value={email} disabled className="bg-card/30 opacity-60" />
-                <p className="mt-1 text-xs text-muted-foreground/60">
+                <p className="mt-1 text-xs text-[var(--soft-ink-soft)]/60">
                   Для изменения email напишите: support@eterapy.com
                 </p>
               </div>
 
-              <Button type="submit" disabled={saving}>
+              <button type="submit" disabled={saving} className="soft-button soft-button-primary">
                 {saving ? "Сохранение..." : "Сохранить профиль"}
-              </Button>
+              </button>
             </form>
         </div>
       )}
@@ -216,9 +216,9 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                 <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Повторите новый пароль</label>
                 <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" />
               </div>
-              <Button type="submit" disabled={savingPwd || !currentPwd || !newPwd}>
+              <button type="submit" disabled={savingPwd || !currentPwd || !newPwd} className="soft-button soft-button-primary">
                 {savingPwd ? "Сохранение..." : "Изменить пароль"}
-              </Button>
+              </button>
             </form>
         </div>
       )}
@@ -245,27 +245,27 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
               </button>
             </div>
             {role === "PRACTITIONER" ? (
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-[var(--soft-ink-soft)] mb-4">
                 Аккаунт будет скрыт из каталога. Для восстановления или полного удаления данных напишите на{" "}
                 <a href="mailto:support@eterapy.com" className="text-primary hover:underline">support@eterapy.com</a>.
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-[var(--soft-ink-soft)] mb-4">
                 Аккаунт деактивируется немедленно. Через 10 дней данные будут удалены безвозвратно.
                 Вы можете отменить удаление, войдя в аккаунт в течение 10 дней.
               </p>
             )}
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block text-sm text-muted-foreground">
+                <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">
                   Введите ваш email ({email}) для подтверждения
                 </label>
                 <Input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}
-                  placeholder={email} className="bg-card/50 border-destructive/30 max-w-xs" />
+                  placeholder={email} className="bg-[rgba(255,255,255,0.035)] border-destructive/30 max-w-xs" />
               </div>
-              <Button variant="destructive" disabled={deleteConfirm !== email || deleting} onClick={handleDeleteAccount}>
+              <button type="button" disabled={deleteConfirm !== email || deleting} onClick={handleDeleteAccount} className="soft-button" style={{ background: "#b02020", color: "#fff" }}>
                 {deleting ? "Деактивация..." : role === "PRACTITIONER" ? "Деактивировать аккаунт" : "Удалить аккаунт"}
-              </Button>
+              </button>
             </div>
         </div>
       )}
@@ -391,13 +391,13 @@ function ExtendedProfileTab() {
     setSaving(false);
   }
 
-  if (!loaded) return <div className="animate-pulse text-sm text-muted-foreground">Загружаем...</div>;
+  if (!loaded) return <div className="animate-pulse text-sm text-[var(--soft-ink-soft)]">Загружаем...</div>;
 
   return (
     <div className="soft-card p-6 space-y-6">
         <div>
           <h2 className="soft-h3 mb-1">Расширенный профиль</h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[var(--soft-ink-soft)]">
             Эти данные используются только для персонализации результатов.
             Они не передаются практикам и не отображаются публично.
           </p>
@@ -408,7 +408,7 @@ function ExtendedProfileTab() {
           <p className="text-sm font-medium mb-3">Дата и время рождения</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Дата рождения</label>
+              <label className="text-xs text-[var(--soft-ink-soft)] mb-1 block">Дата рождения</label>
               <Input
                 placeholder="ДД.ММ.ГГГГ"
                 value={birthDate}
@@ -426,14 +426,14 @@ function ExtendedProfileTab() {
                     setDateError("");
                   }
                 }}
-                className={`bg-card/50 ${dateError ? "border-destructive" : ""}`}
+                className={`bg-[rgba(255,255,255,0.035)] ${dateError ? "border-destructive" : ""}`}
               />
               {dateError && <p className="text-xs text-destructive mt-1">{dateError}</p>}
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Время рождения (необязательно)</label>
-              <Input type="time" value={birthTime} onChange={e => setBirthTime(e.target.value)} className="bg-card/50" />
-              <p className="text-xs text-muted-foreground/50 mt-1">Нужно для точной натальной карты</p>
+              <label className="text-xs text-[var(--soft-ink-soft)] mb-1 block">Время рождения (необязательно)</label>
+              <Input type="time" value={birthTime} onChange={e => setBirthTime(e.target.value)} className="bg-[rgba(255,255,255,0.035)]" />
+              <p className="text-xs text-[var(--soft-ink-soft)]/50 mt-1">Нужно для точной натальной карты</p>
             </div>
           </div>
         </div>
@@ -442,7 +442,7 @@ function ExtendedProfileTab() {
         <div>
           <label className="text-sm font-medium mb-1 block">Место рождения</label>
           <Input value={birthPlace} onChange={e => setBirthPlace(sanitizeName(e.target.value))}
-            placeholder="Город" className="bg-card/50" />
+            placeholder="Город" className="bg-[rgba(255,255,255,0.035)]" />
         </div>
 
         {/* Часовой пояс */}
@@ -451,7 +451,7 @@ function ExtendedProfileTab() {
           <select
             value={timezone}
             onChange={e => setTimezone(e.target.value)}
-            className="w-full rounded-lg border border-border/30 bg-card/50 px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            className="w-full rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.035)] px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
           >
             <option value="">Не выбран</option>
             <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>
@@ -479,7 +479,7 @@ function ExtendedProfileTab() {
             <option value="America/Los_Angeles">Лос-Анджелес (UTC-8)</option>
           </select>
           {detectedTimezone && !timezone && (
-            <p className="text-xs text-muted-foreground/50 mt-1">
+            <p className="text-xs text-[var(--soft-ink-soft)]/50 mt-1">
               Определён автоматически: {detectedTimezone}
             </p>
           )}
@@ -494,7 +494,7 @@ function ExtendedProfileTab() {
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   maritalStatus === opt.value
                     ? "border-primary/50 bg-primary/10 text-primary"
-                    : "border-border/30 text-muted-foreground hover:border-border/60"
+                    : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {opt.label}
               </button>
@@ -506,8 +506,8 @@ function ExtendedProfileTab() {
         <div>
           <label className="text-sm font-medium mb-1 block">Чем вы занимаетесь</label>
           <Input value={occupation} onChange={e => setOccupation(sanitizeText(e.target.value, 100))}
-            placeholder="Предприниматель, дизайнер, менеджер..." className="bg-card/50" />
-          <p className="text-xs text-muted-foreground/50 mt-1">{occupation.length} / 100 символов</p>
+            placeholder="Предприниматель, дизайнер, менеджер..." className="bg-[rgba(255,255,255,0.035)]" />
+          <p className="text-xs text-[var(--soft-ink-soft)]/50 mt-1">{occupation.length} / 100 символов</p>
         </div>
 
         {/* Цели */}
@@ -519,18 +519,18 @@ function ExtendedProfileTab() {
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   aiGoals.includes(g.value)
                     ? "border-primary/50 bg-primary/10 text-primary"
-                    : "border-border/30 text-muted-foreground hover:border-border/60"
+                    : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {g.label}
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground/50 mt-2">Выберите все что подходит — это помогает давать более точные результаты</p>
+          <p className="text-xs text-[var(--soft-ink-soft)]/50 mt-2">Выберите все что подходит — это помогает давать более точные результаты</p>
         </div>
 
-        <Button onClick={handleSave} disabled={saving}>
+        <button type="button" onClick={handleSave} disabled={saving} className="soft-button soft-button-primary">
           {saving ? "Сохранение..." : "Сохранить"}
-        </Button>
+        </button>
     </div>
   );
 }

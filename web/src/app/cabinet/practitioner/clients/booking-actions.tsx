@@ -60,7 +60,7 @@ export function BookingActions({
 
   if (done === "CONFIRMED" && !compact) return <span className="text-xs text-green-400">✓ Подтверждено</span>;
   if (done === "COMPLETED") return <span className="text-xs text-primary">✓ Завершено</span>;
-  if (done === "CANCELLED") return <span className="text-xs text-muted-foreground">Отменено</span>;
+  if (done === "CANCELLED") return <span className="text-xs text-[var(--soft-ink-soft)]">Отменено</span>;
 
   if (compact) {
     return (
@@ -75,7 +75,7 @@ export function BookingActions({
           onClick={() => updateStatus("COMPLETED")}
           disabled={loading || !canComplete}
           title={!canComplete ? "Сессию можно завершить после 75% времени" : undefined}
-          className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-xs text-[var(--soft-ink-soft)] hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Завершить
         </button>
@@ -90,7 +90,7 @@ export function BookingActions({
         Подтвердить
       </button>
       <button onClick={() => updateStatus("CANCELLED")} disabled={loading}
-        className="rounded-lg border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50">
+        className="rounded-lg border border-border/40 px-3 py-1.5 text-xs text-[var(--soft-ink-soft)] hover:text-foreground transition-colors disabled:opacity-50">
         Отклонить
       </button>
     </div>

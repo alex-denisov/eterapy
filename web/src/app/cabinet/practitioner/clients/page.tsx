@@ -34,12 +34,12 @@ export default async function PractitionerClientsPage() {
       <h1 className="soft-h1 mt-2 mb-6">Клиенты и записи</h1>
 
       {bookings.length === 0 && (
-        <p className="text-muted-foreground text-sm">Пока нет записей от клиентов.</p>
+        <p className="text-[var(--soft-ink-soft)] text-sm">Пока нет записей от клиентов.</p>
       )}
 
       {pending.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <h2 className="mb-3 text-sm font-semibold text-[var(--soft-ink-soft)] uppercase tracking-wide">
             Новые запросы ({pending.length})
           </h2>
           <div className="space-y-3">
@@ -52,9 +52,9 @@ export default async function PractitionerClientsPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-medium">{b.client.name}</p>
-                      <p className="text-xs text-muted-foreground">{b.client.email}</p>
+                      <p className="text-xs text-[var(--soft-ink-soft)]">{b.client.email}</p>
                       {b.slot && (
-                        <p className="mt-1 text-sm text-muted-foreground">
+                        <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
                           📅 {new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       )}
@@ -76,7 +76,7 @@ export default async function PractitionerClientsPage() {
 
       {confirmed.length > 0 && (
         <section className="mb-8">
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Подтверждённые</h2>
+          <h2 className="mb-3 text-sm font-semibold text-[var(--soft-ink-soft)] uppercase tracking-wide">Подтверждённые</h2>
           <div className="space-y-2">
             {confirmed.map((b) => {
               const durationMinutes = b.slot
@@ -86,7 +86,7 @@ export default async function PractitionerClientsPage() {
                 <div key={b.id} className="soft-card flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm font-medium">{b.client.name}</p>
-                    {b.slot && <p className="text-xs text-muted-foreground">
+                    {b.slot && <p className="text-xs text-[var(--soft-ink-soft)]">
                       {new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>}
                   </div>
@@ -113,7 +113,7 @@ export default async function PractitionerClientsPage() {
 
       {rest.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wide">История</h2>
+          <h2 className="mb-3 text-sm font-semibold text-[var(--soft-ink-soft)] uppercase tracking-wide">История</h2>
           <div className="space-y-1.5">
             {rest.map((b) => {
               const st = getBookingStatus(b.status);
@@ -125,14 +125,14 @@ export default async function PractitionerClientsPage() {
                   <div>
                     <p className="text-sm">{b.client.name}</p>
                     {b.slot && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-[var(--soft-ink-soft)]">
                         {new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                         {" · "}{durationMinutes} мин
                       </p>
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</span>
+                    <span className="text-sm text-[var(--soft-ink-soft)]">{b.priceRub.toLocaleString("ru")} ₽</span>
                     <span className="soft-badge soft-badge-warm">{st.label}</span>
                   </div>
                 </div>

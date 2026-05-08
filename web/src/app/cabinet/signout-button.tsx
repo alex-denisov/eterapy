@@ -1,17 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { logoutUrl } from "@/lib/subdomain";
 
 export function SignOutButton() {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-muted-foreground"
+    <button
+      className="soft-button soft-button-ghost text-sm"
+      style={{ color: "var(--soft-ink-soft)" }}
       onClick={() => { window.location.href = logoutUrl(); }}
     >
       Выйти
-    </Button>
+    </button>
   );
 }

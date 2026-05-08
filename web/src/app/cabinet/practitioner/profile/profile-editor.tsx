@@ -94,8 +94,8 @@ export function PractitionerProfileEditor({
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {/* Аватар */}
-      <Card className="soft-card">
-        <CardContent className="p-5">
+      <div className="soft-card">
+        <div className="p-5">
           <h2 className="font-semibold mb-4">Фото профиля</h2>
           <div className="flex items-center gap-4">
             <button type="button" onClick={() => fileRef.current?.click()}
@@ -120,43 +120,43 @@ export function PractitionerProfileEditor({
                 className="text-xs text-primary hover:underline mt-0.5">
                 Загрузить фото
               </button>
-              <p className="text-xs text-muted-foreground/60 mt-0.5">JPG, PNG или WebP · до 5 МБ</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{initialData.email}</p>
+              <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-0.5">JPG, PNG или WebP · до 5 МБ</p>
+              <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">{initialData.email}</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Основные данные */}
-      <Card className="soft-card">
-        <CardContent className="p-5 space-y-4">
+      <div className="soft-card">
+        <div className="p-5 space-y-4">
           <h2 className="font-semibold">Основная информация</h2>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Заголовок профиля</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Заголовок профиля</label>
             <Input value={title} onChange={e => setTitle(e.target.value)}
               placeholder="Таролог · Астролог · 7 лет практики"
-              className="bg-card/50" />
-            <p className="text-xs text-muted-foreground/60 mt-1">
+              className="bg-[rgba(255,255,255,0.035)]" />
+            <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-1">
               Отображается в каталоге. Коротко и ёмко.
             </p>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Биография</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Биография</label>
             <textarea value={bio} onChange={e => setBio(e.target.value)}
               placeholder="Расскажите о вашем пути, методах работы и чём вы помогаете..."
-              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2 text-sm resize-none h-32 focus:outline-none focus:border-primary/50" />
+              className="w-full rounded-lg border border-border/40 bg-[rgba(255,255,255,0.035)] px-3 py-2 text-sm resize-none h-32 focus:outline-none focus:border-primary/50" />
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Опыт работы</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Опыт работы</label>
             <Input value={experience} onChange={e => setExperience(e.target.value)}
-              placeholder="5 лет" className="bg-card/50 max-w-xs" />
+              placeholder="5 лет" className="bg-[rgba(255,255,255,0.035)] max-w-xs" />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Специализации */}
-      <Card className="soft-card">
-        <CardContent className="p-5">
+      <div className="soft-card">
+        <div className="p-5">
           <h2 className="font-semibold mb-3">Специализации</h2>
           <div className="flex flex-wrap gap-2">
             {SPECIALTIES.map(s => (
@@ -164,34 +164,34 @@ export function PractitionerProfileEditor({
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   specialties.includes(s.value)
                     ? "border-primary/50 bg-primary/10 text-primary"
-                    : "border-border/30 text-muted-foreground hover:border-border/60"
+                    : "border-border/30 text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {s.label}
               </button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Теги */}
-      <Card className="soft-card">
-        <CardContent className="p-5">
+      <div className="soft-card">
+        <div className="p-5">
           <h2 className="font-semibold mb-3">Теги</h2>
           <Input value={tagsStr} onChange={e => setTagsStr(e.target.value)}
             placeholder="отношения, карьера, самопознание, нумерология имени"
-            className="bg-card/50" />
-          <p className="text-xs text-muted-foreground/60 mt-1">
+            className="bg-[rgba(255,255,255,0.035)]" />
+          <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-1">
             Через запятую. Помогают клиентам найти вас по запросу.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Ссылка на публичный профиль */}
       <div className="soft-map-tile flex items-center gap-3 px-4 py-3">
         <span className="text-2xl">🔗</span>
         <div className="flex-1">
           <p className="text-sm font-medium">Публичный профиль</p>
-          <p className="text-xs text-muted-foreground">Клиенты видят ваш профиль по этой ссылке</p>
+          <p className="text-xs text-[var(--soft-ink-soft)]">Клиенты видят ваш профиль по этой ссылке</p>
         </div>
         <a href={`/cabinet/practitioners/${practitionerId}`} target="_blank"
           className="text-xs text-primary hover:underline">

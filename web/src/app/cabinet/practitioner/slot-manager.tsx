@@ -36,22 +36,22 @@ export function SlotManager({ practitionerId }: { practitionerId: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-border/40 bg-card/30 p-4">
+    <div className="rounded-xl border border-border/40 bg-[rgba(255,255,255,0.015)] p-4">
       <h3 className="mb-3 font-medium">Добавить слот</h3>
       <div className="flex flex-wrap gap-3 items-end">
         <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Дата</label>
+          <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">Дата</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             min={new Date().toISOString().split("T")[0]}
             className="rounded-lg border border-border/40 bg-background/50 px-3 py-1.5 text-sm focus:border-primary focus:outline-none" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Время</label>
+          <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">Время</label>
           <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
             className="rounded-lg border border-border/40 bg-background/50 px-3 py-1.5 text-sm focus:border-primary focus:outline-none" />
         </div>
         <div>
-          <label className="mb-1 block text-xs text-muted-foreground">Длительность</label>
+          <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">Длительность</label>
           <select value={duration} onChange={(e) => setDuration(Number(e.target.value))}
             className="rounded-lg border border-border/40 bg-background/50 px-3 py-1.5 text-sm focus:border-primary focus:outline-none">
             <option value={30}>30 мин</option>

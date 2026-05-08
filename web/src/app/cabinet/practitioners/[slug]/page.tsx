@@ -2,8 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
@@ -30,7 +28,7 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <span className="flex items-center gap-0.5 text-sm">
       {[1, 2, 3, 4, 5].map((i) => (
-        <span key={i} className={i <= stars ? "text-primary" : "text-border/60"}>★</span>
+        <span key={i} className={i <= stars ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-paper-edge)]"}>★</span>
       ))}
       <span className="ml-1 font-medium">{rating.toFixed(1)}</span>
     </span>
@@ -47,12 +45,12 @@ export default async function CabinetPractitionerPage({ params }: { params: Prom
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumbs */}
-      <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href={appUrl("/cabinet")} className="hover:text-foreground">Кабинет</Link>
+      <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--soft-ink-soft)]">
+        <Link href={appUrl("/cabinet")} className="hover:text-[var(--soft-ink)]">Кабинет</Link>
         <span>/</span>
-        <Link href={appUrl("/cabinet/practitioners")} className="hover:text-foreground">Практики</Link>
+        <Link href={appUrl("/cabinet/practitioners")} className="hover:text-[var(--soft-ink)]">Практики</Link>
         <span>/</span>
-        <span className="text-foreground">{p.user.name}</span>
+        <span className="text-[var(--soft-ink)]">{p.user.name}</span>
       </nav>
 
       {/* Header */}
@@ -60,65 +58,65 @@ export default async function CabinetPractitionerPage({ params }: { params: Prom
         {p.user.avatarUrl ? (
           <img src={p.user.avatarUrl} alt={p.user.name} className="h-16 w-16 rounded-full object-cover" />
         ) : (
-          <div className="h-16 w-16 rounded-full bg-primary/20 flex items-center justify-center text-xl font-bold text-primary">
+          <div className="h-16 w-16 rounded-full bg-[rgba(255,255,255,0.035)] flex items-center justify-center text-xl font-bold text-[var(--soft-bordeaux)]">
             {p.user.name[0]}
           </div>
         )}
         <div>
           <h1 className="font-heading text-2xl font-bold">{p.user.name}</h1>
-          <p className="text-muted-foreground">{p.title}</p>
+          <p className="text-[var(--soft-ink-soft)]">{p.title}</p>
           {rating > 0 && (
             <div className="mt-1 flex items-center gap-2">
               <StarRating rating={rating} />
-              <span className="text-xs text-muted-foreground">({p.reviewCount} отзывов)</span>
+              <span className="text-xs text-[var(--soft-ink-soft)]">({p.reviewCount} отзывов)</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Bio */}
-      <Card className="mb-6 border-border/30 bg-card/30">
-        <CardContent className="p-6">
+      <div className="soft-card mb-6">
+        <div className="p-6">
           <h2 className="font-heading text-lg font-semibold mb-3">О практикe</h2>
-          <p className="text-foreground/80 whitespace-pre-wrap">{p.bio}</p>
+          <p className="text-[var(--soft-ink)] whitespace-pre-wrap">{p.bio}</p>
           {p.experience && (
-            <p className="mt-3 text-sm text-muted-foreground">Опыт: {p.experience}</p>
+            <p className="mt-3 text-sm text-[var(--soft-ink-soft)]">Опыт: {p.experience}</p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             {p.specialties.map((s) => (
-              <Badge key={s} variant="secondary">{SPECIALTY_LABELS[s] ?? s}</Badge>
+              <span key={s} className="soft-chip text-xs">{SPECIALTY_LABELS[s] ?? s}</span>
             ))}
           </div>
           {p.tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {p.tags.map((t) => (
-                <span key={t} className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">{t}</span>
+                <span key={t} className="rounded bg-[rgba(255,255,255,0.035)] px-2 py-0.5 text-xs text-[var(--soft-bordeaux)]">{t}</span>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Price rates */}
       {p.priceRates.length > 0 && (
-        <Card className="mb-6 border-border/30 bg-card/30">
-          <CardContent className="p-6">
+        <div className="soft-card mb-6">
+          <div className="p-6">
             <h2 className="font-heading text-lg font-semibold mb-3">Стоимость сессий</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {p.priceRates.map((rate) => (
-                <div key={rate.id} className="flex items-center justify-between rounded-lg border border-border/20 bg-card/50 p-4">
+                <div key={rate.id} className="flex items-center justify-between rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.015)] p-4">
                   <div>
                     <p className="font-medium">{rate.durationMin} мин</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-[var(--soft-ink-soft)]">
                       {rate.enabled ? "Активен" : "Отключен"}
                     </p>
                   </div>
-                  <p className="text-lg font-bold text-primary">{rate.priceRub.toLocaleString("ru")} ₽</p>
+                  <p className="text-lg font-bold text-[var(--soft-bordeaux)]">{rate.priceRub.toLocaleString("ru")} ₽</p>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Booking */}
@@ -129,25 +127,25 @@ export default async function CabinetPractitionerPage({ params }: { params: Prom
 
       {/* Reviews */}
       {p.reviews.length > 0 && (
-        <Card className="mt-6 border-border/30 bg-card/30">
-          <CardContent className="p-6">
+        <div className="soft-card mt-6">
+          <div className="p-6">
             <h2 className="font-heading text-lg font-semibold mb-4">Отзывы</h2>
             <div className="space-y-4">
               {p.reviews.map((r) => (
-                <div key={r.id} className="rounded-lg border border-border/20 p-4">
+                <div key={r.id} className="rounded-lg border border-[var(--soft-paper-edge)] p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{r.author.name}</span>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {r.rating && <span className="text-primary">{"★".repeat(r.rating)}</span>}
+                    <span className="text-sm font-medium text-[var(--soft-ink)]">{r.author.name}</span>
+                    <div className="flex items-center gap-1 text-xs text-[var(--soft-ink-soft)]">
+                      {r.rating && <span className="text-[var(--soft-bordeaux)]">{"★".repeat(r.rating)}</span>}
                       <span>{new Date(r.createdAt).toLocaleDateString("ru")}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-foreground/80">{r.text}</p>
+                  <p className="text-sm text-[var(--soft-ink)] opacity-80">{r.text}</p>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );
