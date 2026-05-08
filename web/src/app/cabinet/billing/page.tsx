@@ -109,6 +109,16 @@ export default function BillingPage() {
       .then(d => {
         setTransactions(d.transactions ?? []);
         setLedger(d.ledger ?? []);
+        const hasPending = (d.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
+        if (hasPending) {
+          fetch("/api/billing/reconcile", { method: "POST" })
+            .then(() => {
+              fetch("/api/billing/balance").then(r2 => r2.json()).then(d2 => { setBalanceRub(d2.balanceRub); }).catch(() => {});
+              fetch("/api/billing/transactions").then(r2 => r2.json()).then(d2 => { setTransactions(d2.transactions ?? []); setLedger(d2.ledger ?? []); }).catch(() => {});
+              fetch("/api/billing/cards").then(r2 => r2.json()).then(d2 => { setLinkedCards(d2.cards ?? []); }).catch(() => {});
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {});
 
@@ -507,7 +517,23 @@ export default function BillingPage() {
 
       {/* Payment history */}
       <div className="soft-card p-6">
-        <div className="soft-eyebrow mb-4">история платежей</div>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <span className="soft-eyebrow">история платежей</span>
+          {transactions.some(t => t.status === "PENDING") && (
+            <button
+              onClick={() => {
+                fetch("/api/billing/reconcile", { method: "POST" })
+                  .then(() => loadData())
+                  .then(() => toast.success("Статус обновлён"))
+                  .catch(() => toast.error("Не удалось проверить статус"));
+              }}
+              className="soft-chip"
+              style={{ fontSize: 11 }}
+            >
+              Проверить статус
+            </button>
+          )}
+        </div>
         {transactions.length === 0 ? (
           <div className="py-8 text-center text-sm" style={{ color: "var(--soft-ink-faint)" }}>
             <p>Операций пока нет</p>
@@ -532,7 +558,7 @@ export default function BillingPage() {
                     {t.status === "SUCCEEDED" 
                       ? "Оплачено" 
                       : t.status === "PENDING" 
-                        ? (now - new Date(t.createdAt).getTime() > 30 * 60 * 1000 ? "Не завершён" : "В обработке") 
+                        ? "В обработке" 
                         : "Отменён"}
                   </span>
                 </div>
