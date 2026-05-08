@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
     return errorWithRequestContext("CARD_NOT_FOUND", "Карта не найдена", 404, context);
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
+  const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
+
   try {
     // Создаём платёж с использованием сохранённого payment method
     const payment = await yukassaFetch<{
@@ -55,6 +59,7 @@ export async function POST(req: NextRequest) {
       status: string;
       paid: boolean;
       amount: { value: string; currency: string };
+      confirmation?: { confirmation_url?: string };
     }>("/payments", {
       method: "POST",
       body: {
@@ -66,6 +71,11 @@ export async function POST(req: NextRequest) {
         payment_method_id: card.paymentMethodId,
         customer_id: session.user.id,
         description: purchase.description,
+        confirmation: {
+          type: "redirect",
+          return_url: returnUrl,
+        },
+        notification_url: notificationUrl,
         metadata: {
           userId: session.user.id,
           amountKopecks: String(purchase.amountKopecks),
@@ -112,6 +122,7 @@ export async function POST(req: NextRequest) {
       status: payment.status,
       paid: payment.paid,
       credited: outcome === "credited",
+      confirmationUrl: payment.confirmation?.confirmation_url,
     }, undefined, context);
   } catch (err: unknown) {
     log.error("billing-saved-card-payment-failed", {

@@ -83,6 +83,12 @@ export default function BillingPage() {
   const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const loadData = useCallback(() => {
     if (!session) return;
@@ -172,7 +178,7 @@ export default function BillingPage() {
       });
       const data = await res.json();
       if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
+        window.location.assign(data.confirmationUrl);
       } else {
         toast.error(data.error || "Ошибка создания платежа");
       }
@@ -196,7 +202,7 @@ export default function BillingPage() {
       });
       const data = await res.json();
       if (data.confirmationUrl) {
-        window.location.href = data.confirmationUrl;
+        window.location.assign(data.confirmationUrl);
       } else {
         toast.error(data.error || "Ошибка привязки карты");
       }
@@ -232,7 +238,9 @@ export default function BillingPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        if (data.paid || data.credited) {
+        if (data.confirmationUrl) {
+          window.location.assign(data.confirmationUrl);
+        } else if (data.paid || data.credited) {
           toast.success(`Баланс пополнен на ${topUpAmount} ₽`);
           loadData();
         } else {
@@ -499,7 +507,11 @@ export default function BillingPage() {
                     {Number(t.amountRub) > 0 ? "+" : ""}{Number(t.amountRub).toFixed(2)} ₽
                   </span>
                   <span className="soft-badge soft-badge-warm" style={{ fontSize: 11 }}>
-                    {t.status === "SUCCEEDED" ? "Оплачено" : t.status === "PENDING" ? "В обработке" : "Отменён"}
+                    {t.status === "SUCCEEDED" 
+                      ? "Оплачено" 
+                      : t.status === "PENDING" 
+                        ? (now - new Date(t.createdAt).getTime() > 30 * 60 * 1000 ? "Не завершён" : "В обработке") 
+                        : "Отменён"}
                   </span>
                 </div>
               </div>
