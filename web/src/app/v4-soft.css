@@ -39,7 +39,6 @@
 
   .soft-clarity-page {
     position: relative;
-    overflow: hidden;
     background:
       radial-gradient(circle at 12% 18%, rgba(214, 117, 88, 0.08), transparent 34rem),
       radial-gradient(circle at 88% 82%, rgba(168, 155, 201, 0.1), transparent 38rem),
