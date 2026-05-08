@@ -3,38 +3,40 @@
 import { usePathname } from "next/navigation";
 import { Footer } from "./footer";
 
-// Маршруты где footer не нужен (кабинеты, инструменты для авторизованных, видеосессии)
-const HIDDEN_PREFIXES = ["/cabinet", "/admin", "/session"];
+const HIDDEN_PREFIXES = ["/admin", "/session"];
+
+const SOFT_PREFIXES = [
+  "/",
+  "/about",
+  "/all-modalities",
+  "/auth",
+  "/cabinet",
+  "/checkin",
+  "/experts",
+  "/help",
+  "/how-it-works",
+  "/how-to-choose",
+  "/legal",
+  "/library",
+  "/login",
+  "/modalities",
+  "/pricing",
+  "/products",
+  "/practitioner",
+  "/practitioners",
+  "/register",
+  "/share",
+  "/specialists",
+  "/tools",
+];
 
 export function FooterConditional() {
   const pathname = usePathname();
   const hide = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
   if (hide) return null;
-  const softPublicPrefixes = [
-    "/",
-    "/about",
-    "/all-modalities",
-    "/auth",
-    "/checkin",
-    "/experts",
-    "/help",
-    "/how-it-works",
-    "/how-to-choose",
-    "/legal",
-    "/library",
-    "/login",
-    "/modalities",
-    "/pricing",
-    "/products",
-    "/practitioner",
-    "/practitioners",
-    "/register",
-    "/share",
-    "/specialists",
-    "/tools",
-  ];
-  const softPublicFooter = softPublicPrefixes.some((prefix) => (
+
+  const isSoft = SOFT_PREFIXES.some((prefix) => (
     prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(`${prefix}/`)
   ));
-  return <Footer variant={softPublicFooter ? "soft" : "dark"} />;
+  return <Footer variant={isSoft ? "soft" : "dark"} />;
 }

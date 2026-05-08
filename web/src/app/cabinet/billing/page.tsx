@@ -131,7 +131,7 @@ export default function BillingPage() {
     let cancelled = false;
     let attempts = 0;
     const maxAttempts = 6;
-    let initialBalance = balanceRub;
+    const initialBalance = balanceRub;
 
     async function reconcileAndRefresh() {
       // Attempt reconcile first — don't assume success

@@ -21,8 +21,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
-// Only look at the last 30 minutes — older PENDING rows are almost certainly dead.
-const LOOKBACK_MS = 30 * 60 * 1000;
+const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
