@@ -3,8 +3,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getBookingStatus } from "@/lib/booking-status";
 import { BookingActions } from "./booking-actions";
 import { appUrl, loginUrl } from "@/lib/subdomain";
@@ -31,9 +29,9 @@ export default async function PractitionerClientsPage() {
   const rest = bookings.filter(b => !["PENDING", "CONFIRMED"].includes(b.status));
 
   return (
-    <div className="max-w-5xl px-4 py-8 sm:px-6">
-      <p className="premium-eyebrow">Кабинет практика</p>
-      <h1 className="premium-title mt-2 mb-6 text-3xl md:text-5xl">Клиенты и записи</h1>
+    <div className="p-6 md:p-8 max-w-5xl">
+      <div className="soft-eyebrow">Кабинет практика</div>
+      <h1 className="soft-h1 mt-2 mb-6">Клиенты и записи</h1>
 
       {bookings.length === 0 && (
         <p className="text-muted-foreground text-sm">Пока нет записей от клиентов.</p>
@@ -50,28 +48,26 @@ export default async function PractitionerClientsPage() {
                 ? (new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000
                 : 60;
               return (
-                <Card key={b.id} className="soft-card border-[rgba(214,117,88,0.28)]">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{b.client.name}</p>
-                        <p className="text-xs text-muted-foreground">{b.client.email}</p>
-                        {b.slot && (
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            📅 {new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        )}
-                        <p className="mt-1 text-sm font-medium text-primary">{b.priceRub.toLocaleString("ru")} ₽</p>
-                      </div>
-                      <BookingActions
-                        bookingId={b.id}
-                        status={b.status}
-                        sessionStartedAt={b.startedAt?.toISOString() ?? b.slot?.startAt.toISOString()}
-                        durationMinutes={durationMinutes}
-                      />
+                <div key={b.id} className="soft-card p-5" style={{ border: "1px solid rgba(214,117,88,0.28)" }}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium">{b.client.name}</p>
+                      <p className="text-xs text-muted-foreground">{b.client.email}</p>
+                      {b.slot && (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          📅 {new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      )}
+                      <p className="mt-1 text-sm font-medium text-primary">{b.priceRub.toLocaleString("ru")} ₽</p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <BookingActions
+                      bookingId={b.id}
+                      status={b.status}
+                      sessionStartedAt={b.startedAt?.toISOString() ?? b.slot?.startAt.toISOString()}
+                      durationMinutes={durationMinutes}
+                    />
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -137,7 +133,7 @@ export default async function PractitionerClientsPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm text-muted-foreground">{b.priceRub.toLocaleString("ru")} ₽</span>
-                    <Badge className={st.color}>{st.label}</Badge>
+                    <span className="soft-badge soft-badge-warm">{st.label}</span>
                   </div>
                 </div>
               );

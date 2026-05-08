@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { ReviewModal } from "@/components/review-modal";
 import { appUrl } from "@/lib/subdomain";
@@ -53,7 +51,6 @@ export default function ClientBookingsPage() {
         setBookings(list);
         setLoading(false);
 
-        // Автооткрытие модалки отзыва если ?review= в URL
         const reviewId = searchParams.get("review");
         if (reviewId) {
           const b = list.find((b: Booking) => b.id === reviewId);
@@ -89,18 +86,14 @@ export default function ClientBookingsPage() {
     finally { setCancelling(null); setCancelConfirm(null); }
   }
 
-  // Предстоящие: PENDING/CONFIRMED/IN_PROGRESS (ожидают подтверждения или активны)
-  // Если у слота будущее время — upcoming; если прошедшее — past.
   function isUpcoming(b: Booking): boolean {
     if (!["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(b.status)) return false;
     if (b.slot?.startAt) {
       return new Date(b.slot.startAt) > new Date();
     }
-    // Нет слота — считаем предстоящей (ожидает назначения времени)
     return true;
   }
 
-  // Прошедшие: COMPLETED/CANCELLED/EXPIRED или PENDING/CONFIRMED/IN_PROGRESS с прошедшим временем
   function isPast(b: Booking): boolean {
     if (["COMPLETED", "CANCELLED", "EXPIRED"].includes(b.status)) return true;
     if (["PENDING", "CONFIRMED", "IN_PROGRESS"].includes(b.status) && b.slot?.startAt) {
@@ -120,9 +113,9 @@ export default function ClientBookingsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        <div className="premium-eyebrow">Календарь</div>
-        <h1 className="premium-title mt-3 mb-6 text-3xl">Мои записи</h1>
+      <div className="p-6 md:p-8">
+        <div className="soft-eyebrow">Записи</div>
+        <h1 className="soft-h1 mt-2 mb-6">Мои записи</h1>
         <div className="space-y-3">
           <SkeletonCard lines={2} />
           <SkeletonCard lines={2} />
@@ -151,31 +144,32 @@ export default function ClientBookingsPage() {
 
     if (isPastCard) {
       return (
-        <div key={b.id}
-          className="premium-card flex items-center justify-between gap-4 px-4 py-3">
+        <div key={b.id} className="soft-card-flat flex items-center justify-between gap-4"
+          style={{ padding: "12px 16px" }}>
           <div>
             <p className="text-sm font-medium">{b.practitioner?.name}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs mt-0.5" style={{ color: "var(--soft-ink-faint)" }}>
               {b.slot?.startAt ? new Date(b.slot.startAt).toLocaleDateString("ru-RU") : new Date(b.createdAt).toLocaleDateString("ru-RU")}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <p className="text-sm text-primary">{b.priceRub.toLocaleString("ru")} ₽</p>
-            <Badge className={`text-xs ${st.color}`}>{st.label}</Badge>
+            <span style={{ fontFamily: "var(--font-heading)", color: "var(--soft-bordeaux)", fontWeight: 600 }}>
+              {b.priceRub.toLocaleString("ru")} ₽
+            </span>
+            <span className="soft-badge soft-badge-warm" style={{ fontSize: 11 }}>{st.label}</span>
             {canReview && (
-              <button
-                onClick={() => setReviewBooking(b)}
-                className="text-xs text-primary hover:underline">
+              <button onClick={() => setReviewBooking(b)} className="soft-chip" style={{ fontSize: 12 }}>
                 Отзыв
               </button>
             )}
             {b.review && (
-              <span className="text-xs text-muted-foreground/60">Отзыв оставлен</span>
+              <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>Отзыв оставлен</span>
             )}
             {b.status === "COMPLETED" && (
               <button
                 onClick={() => setComplaintBooking(b)}
-                className="text-xs text-muted-foreground/50 hover:text-red-400 transition-colors">
+                className="text-xs transition-colors hover:opacity-70"
+                style={{ color: "var(--soft-ink-faint)" }}>
                 Жалоба
               </button>
             )}
@@ -184,60 +178,60 @@ export default function ClientBookingsPage() {
       );
     }
 
-    // Upcoming card (полная карточка)
     return (
-      <Card key={b.id}>
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-medium">{b.practitioner?.name}</p>
-                <Badge className={st.color}>{st.label}</Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {formatSlotDate(b.slot?.startAt)}
-              </p>
-              <p className="text-sm font-medium text-primary mt-1">
-                {b.priceRub.toLocaleString("ru")} ₽
-              </p>
+      <div key={b.id} className="soft-card" style={{ padding: 20 }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-medium">{b.practitioner?.name}</p>
+              <span className="soft-badge soft-badge-warm" style={{ fontSize: 11 }}>{st.label}</span>
             </div>
-            {(b.status === "PENDING" || (b.status === "CONFIRMED" && b.slot && new Date(b.slot.startAt) > new Date())) && (
-              <button
-                onClick={() => requestCancel(b.id)}
-                disabled={cancelling === b.id}
-                className="shrink-0 text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50">
-                {cancelling === b.id ? "..." : "Отменить"}
-              </button>
-            )}
+            <p className="text-sm mt-1" style={{ color: "var(--soft-ink-soft)" }}>
+              {formatSlotDate(b.slot?.startAt)}
+            </p>
+            <p className="text-sm font-medium mt-1" style={{ fontFamily: "var(--font-heading)", color: "var(--soft-bordeaux)" }}>
+              {b.priceRub.toLocaleString("ru")} ₽
+            </p>
           </div>
-          {b.status === "CONFIRMED" && (
-            <div className="mt-3 flex items-center justify-between rounded-[var(--radius-control)] border border-emerald-400/25 bg-emerald-400/10 px-3 py-2">
-              <p className="text-xs text-emerald-200">Сессия подтверждена</p>
-              <a href={b.sessionUrl ?? `/session/${b.id}`}
-                className="rounded-full bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))] px-3 py-1.5 text-xs font-semibold text-navy transition-[filter,transform] hover:brightness-105 active:scale-[0.96]">
-                Войти в сессию
-              </a>
-            </div>
+          {(b.status === "PENDING" || (b.status === "CONFIRMED" && b.slot && new Date(b.slot.startAt) > new Date())) && (
+            <button
+              onClick={() => requestCancel(b.id)}
+              disabled={cancelling === b.id}
+              className="shrink-0 text-xs transition-colors disabled:opacity-50"
+              style={{ color: "var(--soft-ink-faint)" }}>
+              {cancelling === b.id ? "..." : "Отменить"}
+            </button>
           )}
-          {b.status === "IN_PROGRESS" && (
-            <div className="mt-3 flex items-center justify-between rounded-[var(--radius-control)] border border-brand-lavender/25 bg-brand-lavender/10 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-brand-soft-gold animate-pulse" />
-                <p className="text-xs text-brand-lavender-light">Сессия идёт</p>
-              </div>
-              <a href={b.sessionUrl ?? `/session/${b.id}`}
-                className="rounded-full border border-brand-lavender/35 bg-brand-lavender/20 px-3 py-1.5 text-xs font-semibold text-brand-lavender-light transition-colors hover:bg-brand-lavender/30">
-                Подключиться
-              </a>
+        </div>
+        {b.status === "CONFIRMED" && (
+          <div className="mt-3 flex items-center justify-between rounded-xl p-3"
+            style={{ background: "rgba(155, 174, 148, 0.15)", border: "1px solid rgba(155, 174, 148, 0.3)" }}>
+            <p className="text-xs" style={{ color: "var(--soft-sage)" }}>Сессия подтверждена</p>
+            <a href={b.sessionUrl ?? `/session/${b.id}`} className="soft-button soft-button-primary"
+              style={{ minHeight: "2rem", padding: "0.4rem 1rem", fontSize: "0.8rem" }}>
+              Войти в сессию
+            </a>
+          </div>
+        )}
+        {b.status === "IN_PROGRESS" && (
+          <div className="mt-3 flex items-center justify-between rounded-xl p-3"
+            style={{ background: "rgba(168, 155, 201, 0.15)", border: "1px solid rgba(168, 155, 201, 0.3)" }}>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full animate-pulse" style={{ background: "var(--soft-terracotta)" }} />
+              <p className="text-xs" style={{ color: "var(--soft-lilac)" }}>Сессия идёт</p>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <a href={b.sessionUrl ?? `/session/${b.id}`} className="soft-button soft-button-ghost"
+              style={{ minHeight: "2rem", padding: "0.4rem 1rem", fontSize: "0.8rem" }}>
+              Подключиться
+            </a>
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+    <div className="p-6 md:p-8">
       {complaintBooking && (
         <ComplaintModal
           open={!!complaintBooking}
@@ -261,7 +255,8 @@ export default function ClientBookingsPage() {
               <button
                 type="button"
                 onClick={() => setCancelConfirm(null)}
-                className="rounded-lg border border-border/40 px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground"
+                className="soft-button soft-button-ghost"
+                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
               >
                 Оставить
               </button>
@@ -269,7 +264,8 @@ export default function ClientBookingsPage() {
                 type="button"
                 onClick={confirmCancel}
                 disabled={cancelling === cancelConfirm.id}
-                className="rounded-lg bg-destructive px-4 py-2.5 text-sm font-semibold text-white hover:bg-destructive/90 disabled:opacity-50"
+                className="soft-button soft-button-primary"
+                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
               >
                 {cancelling === cancelConfirm.id ? "Отмена..." : "Да, отменить"}
               </button>
@@ -285,7 +281,6 @@ export default function ClientBookingsPage() {
           practitionerName={reviewBooking.practitioner?.name ?? "Практик"}
           onSuccess={() => {
             setReviewBooking(null);
-            // Помечаем что отзыв оставлен
             setBookings((prev) => prev.map((b) =>
               b.id === reviewBooking.id ? { ...b, review: { id: "done" } } : b
             ));
@@ -295,17 +290,18 @@ export default function ClientBookingsPage() {
       )}
 
       <div className="mb-6">
-        <div className="premium-eyebrow">Календарь</div>
-        <h1 className="premium-title mt-3 text-3xl md:text-4xl">Мои записи</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        <div className="soft-eyebrow">Записи</div>
+        <h1 className="soft-h1 mt-2">Мои записи</h1>
+        <p className="mt-2 max-w-2xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
           Ближайшие сессии, история встреч, отзывы и обращения в поддержку собраны в одном месте.
         </p>
       </div>
 
       {bookings.length === 0 && (
-        <div className="premium-card py-12 text-center">
-          <p className="text-muted-foreground">Нет записей к практикам</p>
-          <Link href={appUrl("/cabinet/practitioners")} className="mt-4 inline-flex rounded-full border border-brand-soft-gold/30 px-4 py-2 text-sm text-brand-soft-gold transition-colors hover:bg-brand-soft-gold/10">
+        <div className="soft-card-flat py-12 text-center">
+          <p style={{ color: "var(--soft-ink-faint)" }}>Нет записей к практикам</p>
+          <Link href={appUrl("/cabinet/practitioners")}
+            className="soft-chip mt-4 inline-flex">
             Найти практика
           </Link>
         </div>
@@ -321,40 +317,31 @@ export default function ClientBookingsPage() {
                 role="tab"
                 aria-selected={filter === tab.key}
                 onClick={() => setFilter(tab.key)}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                  filter === tab.key
-                    ? "bg-[linear-gradient(180deg,var(--brand-soft-gold),var(--brand-warm-gold))] text-navy shadow-[var(--shadow-halo-gold)]"
-                    : "border border-border/30 bg-card/40 text-muted-foreground hover:bg-card/60 hover:text-foreground"
-                }`}
+                className={filter === tab.key ? "soft-chip soft-chip-warm" : "soft-chip"}
               >
                 {tab.label}
-                <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+                <span className="text-xs opacity-70">{tab.count}</span>
               </button>
             ))}
           </div>
 
-          {/* Filter: upcoming only */}
           {filter === "upcoming" && upcoming.length === 0 && (
-            <div className="premium-card py-12 text-center">
-              <p className="text-muted-foreground">Нет предстоящих записей</p>
+            <div className="soft-card-flat py-12 text-center">
+              <p style={{ color: "var(--soft-ink-faint)" }}>Нет предстоящих записей</p>
             </div>
           )}
 
-          {/* Filter: past only */}
           {filter === "past" && past.length === 0 && (
-            <div className="premium-card py-12 text-center">
-              <p className="text-muted-foreground">Нет прошедших записей</p>
+            <div className="soft-card-flat py-12 text-center">
+              <p style={{ color: "var(--soft-ink-faint)" }}>Нет прошедших записей</p>
             </div>
           )}
 
-          {/* "All" filter: upcoming at top, past section below */}
           {filter === "all" && (
             <>
               {upcoming.length > 0 && (
                 <div className="mb-8">
-                  <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                    Предстоящие
-                  </h2>
+                  <div className="soft-eyebrow mb-3">Предстоящие</div>
                   <div className="space-y-3">
                     {upcoming.map((b) => renderBookingCard(b))}
                   </div>
@@ -365,10 +352,13 @@ export default function ClientBookingsPage() {
                 <div>
                   <button
                     onClick={() => setPastCollapsed(!pastCollapsed)}
-                    className="w-full flex items-center justify-between mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+                    className="w-full flex items-center justify-between mb-3"
                   >
-                    <span>Прошедшие</span>
-                    {pastCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    <div className="soft-eyebrow">Прошедшие</div>
+                    {pastCollapsed
+                      ? <ChevronDown className="w-4 h-4" style={{ color: "var(--soft-ink-faint)" }} />
+                      : <ChevronUp className="w-4 h-4" style={{ color: "var(--soft-ink-faint)" }} />
+                    }
                   </button>
                   {!pastCollapsed && (
                     <div className="space-y-2">
@@ -380,14 +370,12 @@ export default function ClientBookingsPage() {
             </>
           )}
 
-          {/* "Upcoming" filter: just upcoming */}
           {filter === "upcoming" && upcoming.length > 0 && (
             <div className="space-y-3">
               {upcoming.map((b) => renderBookingCard(b))}
             </div>
           )}
 
-          {/* "Past" filter: just past */}
           {filter === "past" && past.length > 0 && (
             <div className="space-y-2">
               {past.map((b) => renderBookingCard(b))}

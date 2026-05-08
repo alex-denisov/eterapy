@@ -19,10 +19,10 @@ export default async function PractitionerProfilePage() {
   if (!practitioner) redirect(appUrl("/cabinet"));
 
   return (
-    <div className="max-w-3xl px-4 py-8 sm:px-6">
-      <p className="premium-eyebrow">Профиль практика</p>
-      <h1 className="premium-title mt-2 mb-2 text-3xl md:text-5xl">Мой профиль</h1>
-      <p className="text-sm text-muted-foreground mb-6">
+    <div className="p-6 md:p-8 max-w-3xl">
+      <div className="soft-eyebrow">Профиль практика</div>
+      <h1 className="soft-h1 mt-2 mb-2">Мой профиль</h1>
+      <p className="text-sm mb-6" style={{ color: "var(--soft-ink-soft)" }}>
         Информация видна клиентам в каталоге и на вашей странице.
       </p>
       <PractitionerProfileEditor

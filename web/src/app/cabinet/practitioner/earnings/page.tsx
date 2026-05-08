@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { Card, CardContent } from "@/components/ui/card";
 import { ArrowDownCircle, ArrowUpCircle, Wallet, CalendarClock } from "lucide-react";
 import { PAYOUT_TZ, formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedule";
 
@@ -119,17 +118,17 @@ export default async function PractitionerEarningsPage() {
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   return (
-    <div className="max-w-5xl px-4 py-8 sm:px-6">
-      <p className="premium-eyebrow">Финансы практика</p>
-      <h1 className="premium-title mt-2 mb-1 text-3xl md:text-5xl">Выплаты и доходы</h1>
-      <p className="text-sm text-muted-foreground mb-6">
+    <div className="p-6 md:p-8 max-w-5xl">
+      <div className="soft-eyebrow">Финансы практика</div>
+      <h1 className="soft-h1 mt-2 mb-1">Выплаты и доходы</h1>
+      <p className="text-sm mb-6" style={{ color: "var(--soft-ink-soft)" }}>
         Баланс, движение средств и предстоящие выплаты. Комиссия платформы · {commissionPercent}%
       </p>
 
       {/* Баланс + следующая выплата */}
       <div className="grid gap-3 sm:grid-cols-2 mb-6">
-        <Card className="soft-card">
-          <CardContent className="p-4">
+        <div className="soft-card">
+          <div className="p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
                 <Wallet className="h-5 w-5" />
@@ -144,11 +143,11 @@ export default async function PractitionerEarningsPage() {
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="soft-card">
-          <CardContent className="p-4">
+        <div className="soft-card">
+          <div className="p-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/15 text-green-400">
                 <CalendarClock className="h-5 w-5" />
@@ -163,8 +162,8 @@ export default async function PractitionerEarningsPage() {
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Итоги */}
@@ -175,13 +174,13 @@ export default async function PractitionerEarningsPage() {
           { label: "Уже выплачено", value: `${paidOut.toLocaleString("ru")} ₽`, sub: `${payouts.filter((p) => p.status === "DONE").length} выплат`, color: "text-muted-foreground" },
           { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: `${commissionPercent}% от оборота`, color: "text-muted-foreground" },
         ].map((s) => (
-          <Card key={s.label} className="soft-card">
-            <CardContent className="p-4">
+          <div key={s.label} className="soft-card">
+            <div className="p-4">
               <p className="text-xs text-muted-foreground mb-1 capitalize">{s.label}</p>
               <p className={`font-heading text-xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{s.sub}</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 

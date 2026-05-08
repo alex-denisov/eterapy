@@ -9,8 +9,8 @@ export default async function PractitionerEthicsPage() {
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   return (
-    <div className="max-w-4xl px-4 py-8 sm:px-6">
-      <h1 className="premium-title text-3xl md:text-5xl mb-6">Этический кодекс</h1>
+    <div className="p-6 md:p-8 max-w-4xl">
+      <h1 className="soft-h1 mb-6">Этический кодекс</h1>
       <div className="soft-card p-6 space-y-4">
         <p className="font-semibold text-[var(--soft-bordeaux)]">Принципы работы специалиста ETerapy</p>
         <ul className="space-y-3 text-sm text-[var(--soft-ink-soft)]">

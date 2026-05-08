@@ -23,8 +23,8 @@ export default async function PractitionerRequestsPage() {
   const requests = practitioner?.bookings ?? [];
 
   return (
-    <div className="max-w-4xl px-4 py-8 sm:px-6">
-      <h1 className="premium-title text-3xl md:text-5xl mb-6">Заявки</h1>
+    <div className="p-6 md:p-8 max-w-4xl">
+      <h1 className="soft-h1 mb-6">Заявки</h1>
       {requests.length === 0 ? (
         <div className="soft-card p-6">
           <p className="text-[var(--soft-ink-soft)]">Новых заявок пока нет.</p>

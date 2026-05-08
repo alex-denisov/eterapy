@@ -9,8 +9,8 @@ export default async function PractitionerServicesPage() {
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   return (
-    <div className="max-w-4xl px-4 py-8 sm:px-6">
-      <h1 className="premium-title text-3xl md:text-5xl mb-6">Услуги и цены</h1>
+    <div className="p-6 md:p-8 max-w-4xl">
+      <h1 className="soft-h1 mb-6">Услуги и цены</h1>
       <div className="soft-card p-6">
         <p className="text-[var(--soft-ink-soft)]">
           Управление услугами и ценами будет доступно в следующем обновлении.

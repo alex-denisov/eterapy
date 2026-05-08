@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { Card, CardContent } from "@/components/ui/card";
 
 export default async function PractitionerReviewsPage() {
   const session = await auth();
@@ -25,12 +24,12 @@ export default async function PractitionerReviewsPage() {
   return (
     <div className="max-w-4xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex items-center gap-4">
-        <h1 className="premium-title text-3xl md:text-5xl">Отзывы</h1>
+        <h1 className="soft-h1">Отзывы</h1>
         {avg && (
-          <div className="flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-4 py-1">
-            <span className="text-primary font-bold">{avg}</span>
-            <span className="text-primary">★</span>
-            <span className="text-xs text-muted-foreground">{practitioner.reviewCount} отзывов</span>
+          <div className="soft-badge soft-badge-warm flex items-center gap-1.5">
+            <span style={{ fontFamily: "var(--font-heading)", fontWeight: 600 }}>{avg}</span>
+            <span>★</span>
+            <span style={{ fontSize: 11 }}>{practitioner.reviewCount} отзывов</span>
           </div>
         )}
       </div>
@@ -40,22 +39,20 @@ export default async function PractitionerReviewsPage() {
       ) : (
         <div className="space-y-4">
           {practitioner.reviews.map((r) => (
-            <Card key={r.id} className="soft-card">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{r.author?.name ?? "Клиент"}</span>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i} className={i < r.rating ? "text-primary" : "text-muted-foreground/30"}>★</span>
-                    ))}
-                  </div>
+            <div key={r.id} className="soft-card p-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">{r.author?.name ?? "Клиент"}</span>
+                <div className="flex items-center gap-1" style={{ color: "var(--soft-terracotta)" }}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i} style={{ opacity: i < r.rating ? 1 : 0.2 }}>★</span>
+                  ))}
                 </div>
-                {r.text && <p className="text-sm text-muted-foreground leading-relaxed">{r.text}</p>}
-                <p className="mt-2 text-xs text-muted-foreground/60">
-                  {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+              {r.text && <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{r.text}</p>}
+              <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+                {new Date(r.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            </div>
           ))}
         </div>
       )}

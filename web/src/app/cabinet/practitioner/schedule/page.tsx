@@ -23,10 +23,10 @@ export default async function PractitionerSchedulePage() {
   ]);
 
   return (
-    <div className="max-w-6xl px-4 py-8 sm:px-6">
-      <p className="premium-eyebrow">Календарь практика</p>
-      <h1 className="premium-title mt-2 mb-2 text-3xl md:text-5xl">Расписание и тарифы</h1>
-      <p className="text-sm text-muted-foreground mb-6">
+    <div className="p-6 md:p-8 max-w-6xl">
+      <div className="soft-eyebrow">Календарь практика</div>
+      <h1 className="soft-h1 mt-2 mb-2">Расписание и тарифы</h1>
+      <p className="text-sm mb-6" style={{ color: "var(--soft-ink-soft)" }}>
         Настройте рабочие часы и цены. Клиенты смогут записаться только в доступное время.
       </p>
       <SchedulePageTabs
