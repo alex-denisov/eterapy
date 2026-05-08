@@ -16,7 +16,7 @@ describe("design v4 brand assets", () => {
     expect(layout).toContain('url: "/icon.svg"');
     expect(layout).toContain('manifest: "/site.webmanifest"');
     expect(layout).not.toContain("brandAssets");
-    expect(icon).toContain("#FBF6EE");
+    // Frameless icon: no background rect (#FBF6EE removed), pure halo gradient
     expect(icon).toContain("#F4C9A8");
     expect(icon).toContain("#D9C9E8");
     // favicon.ico removed — using icon.svg without frame instead
