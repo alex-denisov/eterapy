@@ -84,49 +84,51 @@ export function CabinetShell({
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
-        className="soft-app-sidebar-card sticky top-16 hidden shrink-0 flex-col overflow-y-auto p-3.5 md:flex"
+        className="sticky top-16 hidden shrink-0 self-start md:flex"
       >
-        {/* User badge */}
-        <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
-          <div className="flex items-center gap-3">
-            <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
-              {initial}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{user?.name ?? "Мой кабинет"}</p>
-              <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
+        <div className="soft-app-sidebar-card flex flex-col overflow-y-auto p-3.5">
+          {/* User badge */}
+          <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
+            <div className="flex items-center gap-3">
+              <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
+                {initial}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{user?.name ?? "Мой кабинет"}</p>
+                <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Nav */}
-        <nav className="flex-1 space-y-1">
-          {nav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}
-                data-testid="app-shell-nav-item"
-                className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
-                  isActive(item.href)
-                    ? "is-active font-medium"
-                    : ""
-                }`}>
-                <Icon className="h-4 w-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+          {/* Nav */}
+          <nav className="flex-1 space-y-1">
+            {nav.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href}
+                  data-testid="app-shell-nav-item"
+                  className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+                    isActive(item.href)
+                      ? "is-active font-medium"
+                      : ""
+                  }`}>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
 
-        {/* Sign out */}
-        <div className="mt-2 border-t border-border/20 pt-2">
-          <button
-            onClick={() => { window.location.href = logoutUrl(); }}
-            className="soft-app-nav-link flex min-h-11 w-full items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"
-          >
-            <LogOut className="h-4 w-4 shrink-0" />
-            Выйти
-          </button>
+          {/* Sign out */}
+          <div className="mt-2 border-t border-border/20 pt-2">
+            <button
+              onClick={() => { window.location.href = logoutUrl(); }}
+              className="soft-app-nav-link flex min-h-11 w-full items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              Выйти
+            </button>
+          </div>
         </div>
       </aside>
 
