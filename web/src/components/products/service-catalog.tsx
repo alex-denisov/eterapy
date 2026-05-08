@@ -114,8 +114,8 @@ export function ServiceCatalog({
           const category = CATEGORIES.find((item) => item.id === service.cat);
           const isClickable = !service.soon && service.href !== "#";
           const className = [
-            "soft-card soft-service-card col-span-12 flex min-h-44 flex-col p-6 md:col-span-6 lg:col-span-4",
-            isClickable ? "soft-product-card cursor-pointer" : "",
+            "bg-[var(--paper-card)] border border-[var(--paper-edge)] rounded-[var(--r-lg)] p-7 col-span-12 flex min-h-44 flex-col md:col-span-6 lg:col-span-4",
+            isClickable ? "cursor-pointer hover:border-[var(--terracotta)] hover:shadow-[var(--shadow-md)] hover:-translate-y-1" : "",
             service.soon ? "opacity-85" : "",
           ].join(" ");
           const inner = (

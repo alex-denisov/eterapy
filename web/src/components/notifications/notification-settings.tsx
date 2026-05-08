@@ -73,6 +73,16 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   const [generatingLink, setGeneratingLink] = useState(false);
   const [checkingTelegram, setCheckingTelegram] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
+  const [isRelayConfigured, setIsRelayConfigured] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/diagnostics")
+      .then(r => r.json())
+      .then(d => {
+        if (d.telegram && d.telegram.isTimeout) setIsRelayConfigured(false);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

@@ -216,14 +216,15 @@ export function Header() {
 
   const isAdminArea = pathname.startsWith("/admin");
   const isSessionArea = pathname.startsWith("/session");
-  const isAppHost = hostname.startsWith("app.");
   const isAdminHost = hostname.startsWith("admin.");
+  
+  // Header hidden only on admin subdomain and session pages
+  const shouldHideHeader = isAdminArea || isAdminHost || isSessionArea;
+
+  if (shouldHideHeader) return null;
+
   const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help");
-  const hideGlobalHeader = isAdminArea || isAdminHost || isAppHost || pathname.startsWith("/cabinet") || isSessionArea;
-
-  if (hideGlobalHeader) return null;
-
-  const showPublicNav = !isAdminArea && !isSessionArea;
+  const showPublicNav = !isAppArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 
   const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });

@@ -123,9 +123,9 @@ export function CabinetPractitionersCatalog({
         {filtered.map(p => (
           <div key={p.id}
             onClick={() => router.push(`/cabinet/practitioners/${p.slug}`)}
-            className="group cursor-pointer rounded-xl border border-[var(--soft-paper-edge)] bg-card/40 p-5 transition-all hover:border-primary/40 hover:bg-card/60">
+            className="group cursor-pointer bg-[var(--paper-card)] border border-[var(--paper-edge)] rounded-[var(--r-lg)] p-[22px] flex gap-[18px] transition-[0.2s] hover:border-[var(--terracotta)] hover:shadow-[var(--shadow-md)] hover:-translate-y-[2px]">
             <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-[var(--soft-bordeaux)] ring-1 ring-primary/20">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(140deg,_var(--rose),_var(--apricot))] text-xl font-bold text-[var(--bordeaux)] ring-1 ring-[rgba(255,255,255,0.5)]">
                 {p.name[0]}
               </div>
               <div className="min-w-0 flex-1">
@@ -145,7 +145,7 @@ export function CabinetPractitionersCatalog({
 
             <div className="mt-3 flex flex-wrap gap-1.5">
               {p.specialties.slice(0, 3).map(s => (
-                <Badge key={s} variant="secondary" className="bg-primary/10 text-xs text-[var(--soft-bordeaux)]">
+                <Badge key={s} className="bg-[var(--paper-card)] border border-[var(--paper-edge)] text-[var(--ink-soft)] text-xs">
                   {specialtyLabels[s] ?? s}
                 </Badge>
               ))}

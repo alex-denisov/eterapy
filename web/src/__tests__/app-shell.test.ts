@@ -18,7 +18,7 @@ describe("v5 app shell", () => {
     expect(shell).toContain("soft-app-sidebar-card");
     expect(shell).toContain("soft-app-mobile-nav");
     expect(shell).toContain("rounded-[var(--soft-radius-md)]");
-    expect(shell).toContain("sticky top-20");
+    expect(shell).toContain("sticky top-16");
     expect(shell).toContain("duration-[var(--motion-base)]");
   });
 

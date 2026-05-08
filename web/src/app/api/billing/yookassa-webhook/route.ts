@@ -26,10 +26,12 @@ function safeEqual(a: string, b: string) {
 }
 
 function verifyYookassaAuth(req: NextRequest, requestId: string): boolean {
-  const shopId = process.env.YUKASSA_SHOP_ID;
-  const secretKey = process.env.YUKASSA_SECRET_KEY;
+  const shopId = process.env.YUKASSA_SHOP_ID?.trim();
+  const secretKey = process.env.YUKASSA_SECRET_KEY?.trim();
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Basic ")) {
+  
+  if (!authHeader || !authHeader.toLowerCase().startsWith("basic ")) {
+    log.warn("yookassa-webhook-no-basic-auth", { requestId, hasHeader: !!authHeader });
     return false;
   }
 
@@ -43,7 +45,19 @@ function verifyYookassaAuth(req: NextRequest, requestId: string): boolean {
   }
 
   const expected = `Basic ${Buffer.from(`${shopId}:${secretKey}`).toString("base64")}`;
-  return safeEqual(authHeader, expected);
+  // case-insensitive match for "Basic " prefix but sensitive for credentials
+  const normalizedActual = "Basic " + authHeader.slice(6);
+  const match = safeEqual(normalizedActual, expected);
+  
+  if (!match) {
+    log.error("yookassa-webhook-auth-mismatch", { 
+      requestId,
+      shopIdConfigured: !!shopId,
+      secretKeyConfigured: !!secretKey,
+    });
+  }
+  
+  return match;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
