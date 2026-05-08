@@ -217,7 +217,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
         <div
           role="dialog"
           aria-label="Уведомления"
-          className={`soft-notification-popover absolute z-50 mt-2 w-[300px] rounded-xl border border-border/40 bg-navy/95 shadow-xl backdrop-blur-xl ${isHeader ? "right-0" : "left-0"}`}
+          className={`soft-notification-popover absolute z-50 mt-2 w-[300px] rounded-xl border border-[var(--soft-paper-edge)]/50 bg-[var(--soft-paper-card)]/95 shadow-xl backdrop-blur-xl ${isHeader ? "right-0" : "left-0"}`}
           style={{ animation: "notificationSlideIn 0.15s ease-out" }}
         >
           <div className="flex items-center justify-between border-b border-border/30 px-4 py-3">

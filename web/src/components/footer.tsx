@@ -3,14 +3,14 @@ import { BrandLogo } from "@/components/brand/brand-mark";
 import { mainUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 
-export function Footer({ variant = "dark" }: { variant?: "dark" | "soft" }) {
+export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const soft = variant === "soft";
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
 
   return (
     <footer
       data-testid="public-shell-footer"
-      className={cn("border-t border-brand-warm-gold/15 bg-navy/96", soft && "soft-footer")}
+      className={cn("border-t border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]", soft && "soft-footer")}
     >
       <div className="mx-auto max-w-6xl px-4 py-8">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">

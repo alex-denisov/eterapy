@@ -239,7 +239,7 @@ export function Header() {
     <header
       data-testid="public-shell-header"
       className={cn(
-        "sticky top-0 z-50 border-b border-brand-warm-gold/15 bg-navy/86 shadow-[0_8px_38px_rgba(0,0,0,0.28)] backdrop-blur-xl",
+        "sticky top-0 z-50 border-b border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]/90 shadow-[0_8px_38px_rgba(60,30,20,0.08)] backdrop-blur-xl",
         softPublicHeader && "soft-header",
       )}
     >
@@ -347,7 +347,7 @@ export function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border/40 bg-navy/96 px-4 py-4 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl md:hidden animate-in slide-in-from-top-2 duration-200 soft-mobile-menu">
+        <div className="border-t border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]/96 px-4 py-4 shadow-[0_18px_50px_rgba(60,30,20,0.12)] backdrop-blur-xl md:hidden animate-in slide-in-from-top-2 duration-200 soft-mobile-menu">
           <nav className="flex flex-col gap-1">
             {nav.map((item) => (
               <Link key={item.href} href={item.href}
