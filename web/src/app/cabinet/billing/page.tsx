@@ -128,17 +128,19 @@ export default function BillingPage() {
     const payment = searchParams?.get("payment");
     if (payment !== "success" && payment !== "card-saved") return;
 
-    if (payment === "success") toast.success("Баланс успешно пополнен!");
-    if (payment === "card-saved") toast.success("Карта успешно привязана!");
-
     let cancelled = false;
     let attempts = 0;
     const maxAttempts = 6;
+    let initialBalance = balanceRub;
 
     async function reconcileAndRefresh() {
+      // Attempt reconcile first — don't assume success
+      let reconcileOk = false;
       try {
-        await fetch("/api/billing/reconcile", { method: "POST" });
-      } catch { /* fall through */ }
+        const rec = await fetch("/api/billing/reconcile", { method: "POST" });
+        reconcileOk = rec.ok;
+      } catch { /* network or server error — will retry */ }
+
       if (cancelled) return;
 
       const [balRes, cardsRes, txRes] = await Promise.all([
@@ -154,16 +156,36 @@ export default function BillingPage() {
       if (txRes?.ledger) setLedger(txRes.ledger);
 
       const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
+      const balanceChanged = balRes?.balanceRub && Number(balRes.balanceRub) !== Number(initialBalance);
+
       attempts += 1;
+
+      // Show toast only when we know the outcome
+      if (attempts === 1) {
+        if (payment === "success") {
+          if (balanceChanged) {
+            toast.success("Баланс успешно пополнен!");
+          } else if (!reconcileOk && !stillPending) {
+            toast.error("Не удалось подтвердить платёж. Обновите страницу или обратитесь в поддержку.");
+          }
+          // If still pending, we'll retry silently
+        }
+        if (payment === "card-saved" && !stillPending) {
+          toast.success("Карта успешно привязана!");
+        }
+      }
+
       if (stillPending && attempts < maxAttempts && !cancelled) {
         setTimeout(reconcileAndRefresh, 2000);
+      } else if (stillPending && attempts >= maxAttempts) {
+        toast.error("Платёж обрабатывается. Обновите страницу через минуту.");
       }
     }
 
     reconcileAndRefresh();
     router.replace("/cabinet/billing");
     return () => { cancelled = true; };
-  }, [searchParams, router]);
+  }, [searchParams, router, balanceRub]);
 
   async function handleTopUp() {
     setCreatingPayment(true);
