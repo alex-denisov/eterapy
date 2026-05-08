@@ -46,3 +46,10 @@ tmp/
 .next/trace-build
 # OS files (already there, but ensure)
 .DS_Store
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
