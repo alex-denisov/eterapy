@@ -30,7 +30,8 @@ describe("B193 share/referral surfaces", () => {
     expect(attribution).toContain('fetch("/api/share/visit"');
     expect(attribution).toContain("share_landing_viewed");
     expect(header).toContain('softPublicHeader');
-    expect(footer).toContain('"/share"');
+    expect(footer).toContain('variant="soft"');
+    expect(footer).not.toContain("/share");
   });
 
   it("adds durable referral attribution, anti-fraud and meaningful-action reward rules", () => {
