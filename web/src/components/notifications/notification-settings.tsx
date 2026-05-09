@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import {
   getEventsForRole,
@@ -9,6 +9,12 @@ import {
   type UserRole,
 } from "@/lib/notification-events";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: Record<string, string>) => void;
+  }
+}
 
 type Channel = "EMAIL" | "TELEGRAM" | "WEB";
 
@@ -30,9 +36,6 @@ interface QuietHours {
 interface TelegramStatus {
   linked: boolean;
   username: string | null;
-  pending?: boolean;
-  url?: string | null;
-  expiresAt?: string | null;
 }
 
 const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
@@ -45,12 +48,7 @@ const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
 function TelegramIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 
-      1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 
-      2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.03-2.04 
-      1.3-5.78 3.82-.54.37-1.04.55-1.48.54-.49-.01-1.43-.28-2.13-.51-.86-.28-1.54-.43-1.48-.91.03-.25.38-.51 
-      1.05-.77 4.12-1.79 6.87-2.97 8.25-3.54 3.93-1.62 4.75-1.9 5.28-1.91.12 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 
-      .38z"/>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.03-2.04 1.3-5.78 3.82-.54.37-1.04.55-1.48.54-.49-.01-1.43-.28-2.13-.51-.86-.28-1.54-.43-1.48-.91.03-.25.38-.51 1.05-.77 4.12-1.79 6.87-2.97 8.25-3.54 3.93-1.62 4.75-1.9 5.28-1.91.12 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/>
     </svg>
   );
 }
@@ -65,24 +63,13 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tgStatus, setTgStatus] = useState(telegramStatus);
-  const [tgLinkUrl, setTgLinkUrl] = useState<string | null>(telegramStatus.url ?? null);
-  const [tgLinkExpiry, setTgLinkExpiry] = useState<Date | null>(
-    telegramStatus.expiresAt ? new Date(telegramStatus.expiresAt) : null,
-  );
-  const [generatingLink, setGeneratingLink] = useState(false);
-  const [checkingTelegram, setCheckingTelegram] = useState(false);
+  const [tgStatus, setTgStatus] = useState<TelegramStatus>({
+    linked: Boolean(telegramStatus.linked),
+    username: telegramStatus.username ?? null,
+  });
+  const [tgLinking, setTgLinking] = useState(false);
   const [telegramError, setTelegramError] = useState<string | null>(null);
-  const [isRelayConfigured, setIsRelayConfigured] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/diagnostics")
-      .then(r => r.json())
-      .then(d => {
-        if (d.telegram && d.telegram.isTimeout) setIsRelayConfigured(false);
-      })
-      .catch(() => {});
-  }, []);
+  const widgetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,97 +92,54 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     };
   }, []);
 
-  const applyTelegramStatus = useCallback((d: TelegramStatus) => {
-    setTgStatus({
-      linked: Boolean(d.linked),
-      username: d.username ?? null,
-      pending: Boolean(d.pending),
-      url: d.url ?? null,
-      expiresAt: d.expiresAt ?? null,
-    });
-
-    if (d.linked) {
-      setTgLinkUrl(null);
-      setTgLinkExpiry(null);
-      setTelegramError(null);
-      return;
+  const handleTelegramAuth = useCallback(async (authData: Record<string, string>) => {
+    setTgLinking(true);
+    setTelegramError(null);
+    try {
+      const res = await fetch("/api/notifications/telegram-verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(authData),
+      });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        setTgStatus({ linked: true, username: d.username ?? authData.username ?? null });
+        toast.success("Telegram привязан");
+      } else {
+        setTelegramError(d.error ?? "Не удалось привязать Telegram");
+        toast.error(d.error ?? "Ошибка привязки");
+      }
+    } catch {
+      setTelegramError("Не удалось привязать Telegram. Попробуйте еще раз.");
+      toast.error("Не удалось привязать Telegram");
+    } finally {
+      setTgLinking(false);
     }
-
-    if (d.pending && d.url && d.expiresAt) {
-      setTgLinkUrl(d.url);
-      setTgLinkExpiry(new Date(d.expiresAt));
-      setTelegramError(null);
-      return;
-    }
-
-    setTgLinkUrl(null);
-    setTgLinkExpiry(null);
   }, []);
 
-  const refreshTelegramStatus = useCallback(async ({ notifyLinked = false } = {}) => {
-    setCheckingTelegram(true);
-    try {
-      const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
-      if (!res.ok) throw new Error("STATUS_FAILED");
-      const d = await res.json();
-      const wasLinked = tgStatus.linked;
-      applyTelegramStatus(d);
-      if (notifyLinked && !wasLinked && d.linked) toast.success("Telegram привязан");
-    } catch {
-      setTelegramError("Не удалось проверить статус Telegram. Попробуйте еще раз.");
-    } finally {
-      setCheckingTelegram(false);
-    }
-  }, [applyTelegramStatus, tgStatus.linked]);
-
-  // Пока у пользователя есть активный токен и Telegram ещё не привязан — опрашиваем
-  // статус каждые 3 с. Как только link появится, скрываем блок генерации и показываем "Привязан".
   useEffect(() => {
     if (tgStatus.linked) return;
-    if (!tgLinkUrl || !tgLinkExpiry) return;
-    let cancelled = false;
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?7";
+    script.async = true;
+    script.setAttribute("data-telegram-login", process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "eterapy_bot");
+    script.setAttribute("data-size", "medium");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
+    script.setAttribute("data-request-access", "write");
 
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/notifications/telegram-link", { cache: "no-store" });
-        if (!res.ok) throw new Error("STATUS_FAILED");
-        const d = await res.json();
-        if (cancelled) return;
-        applyTelegramStatus(d);
-        if (d.linked) {
-          toast.success("Telegram привязан");
-        }
-      } catch {
-        if (!cancelled) setTelegramError("Проверка Telegram временно недоступна.");
-      }
+    window.onTelegramAuth = (user: Record<string, string>) => {
+      void handleTelegramAuth(user);
     };
 
-    const id = setInterval(() => {
-      if (tgLinkExpiry && tgLinkExpiry.getTime() < Date.now()) {
-        setTgLinkUrl(null);
-        setTgLinkExpiry(null);
-        setTelegramError("Ссылка истекла. Сгенерируйте новую.");
-        clearInterval(id);
-        return;
-      }
-      poll();
-    }, 3000);
-    poll();
-    return () => { cancelled = true; clearInterval(id); };
-  }, [applyTelegramStatus, tgLinkUrl, tgLinkExpiry, tgStatus.linked]);
+    if (widgetRef.current) {
+      widgetRef.current.innerHTML = "";
+      widgetRef.current.appendChild(script);
+    }
 
-  // На случай возврата на вкладку после ручной привязки без активного токена —
-  // один раз подтягиваем актуальный статус при фокусе/видимости.
-  useEffect(() => {
-    function onVisibility() { if (!document.hidden) refreshTelegramStatus(); }
-    function onFocus() { void refreshTelegramStatus(); }
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onFocus);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onFocus);
+      delete window.onTelegramAuth;
     };
-  }, [refreshTelegramStatus]);
+  }, [handleTelegramAuth, tgStatus.linked]);
 
   function getPref(event: string, channel: Channel): Pref | undefined {
     return prefs.find(p => p.event === event && p.channel === channel);
@@ -246,35 +190,13 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     setSaving(false);
   }
 
-  async function generateTelegramLink() {
-    setGeneratingLink(true);
-    setTelegramError(null);
-    try {
-      const res = await fetch("/api/notifications/telegram-link", { method: "POST" });
-      const d = await res.json();
-      if (res.ok && d.ok) {
-        applyTelegramStatus(d);
-        if (d.linked) toast.success("Telegram уже привязан");
-      } else {
-        const message = d.error ?? "Не удалось создать ссылку Telegram";
-        setTelegramError(message);
-        toast.error(message);
-      }
-    } catch {
-      setTelegramError("Не удалось создать ссылку Telegram. Попробуйте еще раз.");
-      toast.error("Не удалось создать ссылку Telegram");
-    } finally {
-      setGeneratingLink(false);
-    }
-  }
-
   async function unlinkTelegram() {
     setTelegramError(null);
     try {
       const res = await fetch("/api/notifications/telegram-link", { method: "DELETE" });
       const d = await res.json();
       if (res.ok && d.ok) {
-        applyTelegramStatus(d);
+        setTgStatus({ linked: false, username: null });
         toast.success("Telegram отвязан");
       } else {
         const message = d.error ?? "Не удалось отвязать Telegram";
@@ -333,30 +255,13 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
             </div>
           ) : (
             <div className="shrink-0 text-right">
-              <button onClick={generateTelegramLink} disabled={generatingLink}
-                className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-lilac-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--soft-bordeaux)] hover:bg-[var(--soft-apricot)] disabled:opacity-50">
-                {generatingLink ? "Генерация..." : "Привязать Telegram"}
-              </button>
-              {tgLinkUrl && tgLinkExpiry && (
-                <div className="mt-2 space-y-2" data-testid="telegram-link-pending">
-                  <p className="text-xs text-muted-foreground/70">
-                    Ожидаем подтверждение. Ссылка действует до {tgLinkExpiry.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                  <a href={tgLinkUrl} target="_blank" rel="noopener noreferrer"
-                    className="block rounded-lg bg-[var(--soft-apricot)] px-3 py-1.5 text-xs font-medium text-[var(--soft-bordeaux)] hover:bg-[var(--soft-rose)]">
-                    Открыть бота для привязки
-                  </a>
-                  <button
-                    onClick={() => refreshTelegramStatus({ notifyLinked: true })}
-                    disabled={checkingTelegram}
-                    className="block w-full rounded-lg border border-[var(--soft-paper-edge)] px-3 py-1.5 text-xs text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)] disabled:opacity-50"
-                  >
-                    {checkingTelegram ? "Проверяем..." : "Проверить статус"}
-                  </button>
-                </div>
+              {tgLinking ? (
+                <p className="text-xs text-[var(--soft-sage)] animate-pulse mb-1">Привязываем...</p>
+              ) : (
+                <div ref={widgetRef} className="inline-flex" />
               )}
               {telegramError && (
-                <p className="mt-2 max-w-48 text-xs text-[var(--soft-terracotta-dark)]" role="status">
+                <p className="mt-2 max-w-48 text-[10px] text-[var(--soft-terracotta-dark)] text-right" role="status">
                   {telegramError}
                 </p>
               )}

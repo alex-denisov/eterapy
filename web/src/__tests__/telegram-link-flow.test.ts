@@ -1,8 +1,11 @@
 import { readFileSync } from "fs";
 import path from "path";
-import { DELETE, GET, POST } from "@/app/api/notifications/telegram-link/route";
+import { POST } from "@/app/api/notifications/telegram-verify/route";
+import { DELETE } from "@/app/api/notifications/telegram-link/route";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { createHash, createHmac } from "crypto";
+import type { NextRequest } from "next/server";
 
 jest.mock("@/lib/auth", () => ({
   __esModule: true,
@@ -19,6 +22,7 @@ jest.mock("@/lib/db", () => ({
     },
     user: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
     },
   },
@@ -26,104 +30,75 @@ jest.mock("@/lib/db", () => ({
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 
-describe("Telegram link flow", () => {
+function generateValidHash(authData: Record<string, string>, token: string) {
+  const dataCheckString = Object.keys(authData)
+    .sort()
+    .map((key) => `${key}=${authData[key]}`)
+    .join("\n");
+  const secretKey = createHash("sha256").update(token).digest();
+  return createHmac("sha256", secretKey).update(dataCheckString).digest("hex");
+}
+
+describe("Telegram link flow via Widget", () => {
+  const TEST_BOT_TOKEN = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
+
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.TELEGRAM_BOT_USERNAME = "eterapy_test_bot";
+    process.env.TELEGRAM_BOT_TOKEN = TEST_BOT_TOKEN;
     mockAuth.mockResolvedValue({
       user: { id: "user-1", email: "user@example.com" },
       expires: new Date(Date.now() + 60_000).toISOString(),
     });
   });
 
-  it("rejects unauthenticated link status requests", async () => {
-    mockAuth.mockResolvedValueOnce(null);
+  it("verifies a valid telegram login payload and links account", async () => {
+    const authData = {
+      id: "987654321",
+      first_name: "Test",
+      username: "test_user",
+      auth_date: Math.floor(Date.now() / 1000).toString(),
+    };
+    const hash = generateValidHash(authData, TEST_BOT_TOKEN);
 
-    const response = await GET();
-    const body = await response.json();
+    (db.user.findFirst as jest.Mock).mockResolvedValueOnce(null); // Not linked to anyone else
+    (db.telegramLinkToken.deleteMany as jest.Mock).mockResolvedValueOnce({});
+    (db.user.update as jest.Mock).mockResolvedValueOnce({});
 
-    expect(response.status).toBe(401);
-    expect(body).toEqual({ error: "Unauthorized" });
-    expect(db.user.findUnique).not.toHaveBeenCalled();
-  });
-
-  it("returns a pending link without leaking the raw token as a standalone field", async () => {
-    const expiresAt = new Date(Date.now() + 10 * 60_000);
-    (db.user.findUnique as jest.Mock).mockResolvedValueOnce({
-      telegramId: null,
-      telegramUsername: null,
-    });
-    (db.telegramLinkToken.findFirst as jest.Mock).mockResolvedValueOnce({
-      token: "pending-token",
-      expiresAt,
-    });
-
-    const response = await GET();
+    const req = { json: async () => ({ ...authData, hash }) } as unknown as NextRequest;
+    const response = await POST(req);
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body).toEqual({
-      linked: false,
-      username: null,
-      pending: true,
-      url: "https://t.me/eterapy_test_bot?start=pending-token",
-      expiresAt: expiresAt.toISOString(),
+    expect(body.ok).toBe(true);
+    expect(body.linked).toBe(true);
+    expect(db.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { telegramId: "987654321", telegramUsername: "test_user" },
     });
-    expect(body.token).toBeUndefined();
   });
 
-  it("does not create a new pending token when Telegram is already linked", async () => {
-    (db.user.findUnique as jest.Mock).mockResolvedValueOnce({
-      telegramId: "tg-1",
-      telegramUsername: "linked_user",
-    });
+  it("rejects an invalid telegram login payload", async () => {
+    const authData = {
+      id: "987654321",
+      first_name: "Test",
+      username: "test_user",
+      auth_date: Math.floor(Date.now() / 1000).toString(),
+    };
+    
+    // Generate with WRONG token
+    const hash = generateValidHash(authData, "wrong-token");
 
-    const response = await POST();
+    const req = { json: async () => ({ ...authData, hash }) } as unknown as NextRequest;
+    const response = await POST(req);
     const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body).toEqual({
-      ok: true,
-      linked: true,
-      username: "linked_user",
-      pending: false,
-      url: null,
-      expiresAt: null,
-    });
-    expect(db.telegramLinkToken.deleteMany).not.toHaveBeenCalled();
-    expect(db.telegramLinkToken.create).not.toHaveBeenCalled();
+    expect(response.status).toBe(403);
+    expect(body.error).toBe("Invalid Telegram signature");
+    expect(db.user.update).not.toHaveBeenCalled();
   });
 
-  it("rotates pending tokens and returns only the bot URL and expiry", async () => {
-    (db.user.findUnique as jest.Mock).mockResolvedValueOnce({
-      telegramId: null,
-      telegramUsername: null,
-    });
-    (db.telegramLinkToken.create as jest.Mock).mockResolvedValueOnce({});
-
-    const response = await POST();
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual(expect.objectContaining({
-      ok: true,
-      linked: false,
-      pending: true,
-      expiresAt: expect.any(String),
-    }));
-    expect(body.url).toMatch(/^https:\/\/t\.me\/eterapy_test_bot\?start=[a-f0-9]{32}$/);
-    expect(body.token).toBeUndefined();
-    expect(db.telegramLinkToken.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
-    expect(db.telegramLinkToken.create).toHaveBeenCalledWith({
-      data: {
-        token: expect.stringMatching(/^[a-f0-9]{32}$/),
-        userId: "user-1",
-        expiresAt: expect.any(Date),
-      },
-    });
-  });
-
-  it("unlinks Telegram and removes any pending link tokens", async () => {
+  it("unlinks Telegram", async () => {
     (db.telegramLinkToken.deleteMany as jest.Mock).mockResolvedValueOnce({});
     (db.user.update as jest.Mock).mockResolvedValueOnce({});
 
@@ -139,23 +114,20 @@ describe("Telegram link flow", () => {
       url: null,
       expiresAt: null,
     });
-    expect(db.telegramLinkToken.deleteMany).toHaveBeenCalledWith({ where: { userId: "user-1" } });
     expect(db.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: { telegramId: null, telegramUsername: null },
     });
   });
 
-  it("keeps explicit pending, manual check, linked, and error UI states in settings", () => {
+  it("includes the widget script in the component", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src/components/notifications/notification-settings.tsx"),
       "utf8",
     );
 
-    expect(source).toContain("data-testid=\"telegram-link-pending\"");
-    expect(source).toContain("Проверить статус");
-    expect(source).toContain("Telegram уже привязан");
-    expect(source).toContain("Не удалось создать ссылку Telegram");
-    expect(source).toContain("Ссылка истекла");
+    expect(source).toContain("https://telegram.org/js/telegram-widget.js");
+    expect(source).toContain("data-telegram-login");
+    expect(source).toContain("data-onauth");
   });
 });
