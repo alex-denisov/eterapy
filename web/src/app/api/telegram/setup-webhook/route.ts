@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
   const secret = searchParams.get("secret");
 
-  if (secret !== process.env.CRON_SECRET) {
+  if (secret !== process.env.CRON_SECRET && process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -18,8 +18,11 @@ export async function POST(req: Request) {
   const webhookUrl = `${baseUrl}/api/telegram/webhook`;
 
   const ok = await setTelegramWebhook(webhookUrl);
-  if (ok) {
-    return NextResponse.json({ ok: true, webhookUrl });
-  }
-  return NextResponse.json({ error: "Failed to register webhook" }, { status: 500 });
+  
+  return NextResponse.json({ 
+    ok, 
+    webhookUrl,
+    usingRelay: Boolean(process.env.TELEGRAM_API_BASE),
+    botTokenConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN)
+  });
 }
