@@ -118,7 +118,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
   }, []);
 
   useEffect(() => {
-    if (tgStatus.linked) return;
+    if (loading || tgStatus.linked) return;
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?7";
     script.async = true;
@@ -139,7 +139,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     return () => {
       delete window.onTelegramAuth;
     };
-  }, [handleTelegramAuth, tgStatus.linked]);
+  }, [handleTelegramAuth, tgStatus.linked, loading]);
 
   function getPref(event: string, channel: Channel): Pref | undefined {
     return prefs.find(p => p.event === event && p.channel === channel);
