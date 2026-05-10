@@ -10,11 +10,11 @@ function securityHeaders() {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vk.com https://*.vk.com https://id.vk.com https://www.googletagmanager.com https://mc.yandex.ru",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vk.com https://*.vk.com https://id.vk.com https://www.googletagmanager.com https://mc.yandex.ru https://telegram.org https://oauth.telegram.org",
     "connect-src 'self' https: wss: ws:",
     "media-src 'self' blob: https:",
     "worker-src 'self' blob:",
-    "frame-src https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com",
+    "frame-src https://yoomoney.ru https://*.yookassa.ru https://id.vk.com https://vk.com https://oauth.telegram.org https://telegram.org",
     "form-action 'self' https://yoomoney.ru https://*.yookassa.ru",
   ].join("; ");
 
