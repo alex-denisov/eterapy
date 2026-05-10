@@ -185,6 +185,7 @@ jobs:
           LIVEKIT_API_KEY: ${{ secrets.LIVEKIT_API_KEY }}
           LIVEKIT_API_SECRET: ${{ secrets.LIVEKIT_API_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: 'eterapy_deploy_bot'
           NEXT_PUBLIC_APP_URL: 'https://eterapy.com'
           NEXT_PUBLIC_USE_SUBDOMAINS: 'true'
           NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY: 'false'
