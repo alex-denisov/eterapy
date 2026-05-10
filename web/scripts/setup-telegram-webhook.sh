@@ -11,7 +11,7 @@ if [ -z "$BOT_TOKEN" ]; then
   exit 1
 fi
 
-WEBHOOK_URL="${APP_URL}/api/telegram/webhook"
+WEBHOOK_URL="${TELEGRAM_WEBHOOK_URL:-${APP_URL}/api/telegram/webhook}"
 
 echo "Регистрируем webhook: $WEBHOOK_URL"
 

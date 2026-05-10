@@ -14,8 +14,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
-  const webhookUrl = `${baseUrl}/api/telegram/webhook`;
+  const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL
+    || `${process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com"}/api/telegram/webhook`;
 
   const ok = await setTelegramWebhook(webhookUrl);
   

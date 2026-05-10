@@ -1,16 +1,4 @@
 name = "eterapy-telegram-proxy"
-type = "javascript"
-
-# Account ID from Cloudflare dashboard
-# account_id = "<YOUR_ACCOUNT_ID>"
-
-# Routes - not needed for simple proxy
-# We'll use the workers.dev subdomain
-
-compatibility_date = "2026-05-08"
-
-# No KV, D1, or other bindings needed for simple proxy
-
-[vars]
-# Environment variables (if needed)
-# BOT_TOKEN = ""
+main = "telegram-proxy-worker.js"
+compatibility_date = "2024-12-01"
+account_id = "2ba206c757cfa01124463cddb04012a6"

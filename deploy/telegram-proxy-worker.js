@@ -1,57 +1,100 @@
 /**
- * Cloudflare Worker: Telegram Bot API Proxy
- * 
- * Problem: Server in RF cannot reach api.telegram.org directly.
- * Solution: Worker runs on Cloudflare edge (not blocked) and forwards requests.
+ * Cloudflare Worker: Telegram Bidirectional Proxy
+ *
+ * Solves two problems on RF-hosted servers:
+ *   1. Outbound: server → api.telegram.org blocked
+ *      → server calls worker.dev/bot<TOKEN>/method → worker forwards to api.telegram.org
+ *   2. Inbound:  Telegram → server webhook times out
+ *      → Telegram webhook targets worker.dev/webhook → worker forwards to eterapy.com
+ *
+ * Routes:
+ *   /bot<TOKEN>/*  → https://api.telegram.org/bot<TOKEN>/*   (API proxy)
+ *   /webhook       → https://eterapy.com/api/telegram/webhook (webhook relay)
  *
  * Setup:
- * 1. Create worker: `npx wrangler init telegram-proxy --type=javascript`
- * 2. Deploy: `npx wrangler deploy`
- * 3. Set env var in eterapy: TELEGRAM_API_BASE=https://<worker-name>.<account>.workers.dev/bot<TOKEN>
- *
- * The worker forwards all requests to api.telegram.org and returns responses.
+ *   1. Deploy: `npx wrangler deploy`
+ *   2. Set env on VPS: TELEGRAM_API_BASE=https://<worker>.workers.dev/bot<TOKEN>
+ *   3. Register webhook URL: https://<worker>.workers.dev/webhook
+ *      (instead of https://eterapy.com/api/telegram/webhook)
  */
+
+const BACKEND_ORIGIN = "https://eterapy.com";
 
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-    
-    // Reconstruct the full path including the bot token part
-    // Expected format: https://worker.workers.dev/bot<TOKEN>/method
     const path = url.pathname + url.search;
-    
-    // Forward to Telegram API
-    const telegramUrl = `https://api.telegram.org${path}`;
-    
+
+    if (path.startsWith("/webhook")) {
+      return this.relayWebhook(request, path);
+    }
+
+    if (path.startsWith("/bot")) {
+      return this.proxyApi(request, path);
+    }
+
+    return new Response(JSON.stringify({ ok: false, error: "Unknown route" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  },
+
+  async relayWebhook(request, path) {
+    const targetUrl = `${BACKEND_ORIGIN}/api/telegram${path}`;
+
     try {
-      const response = await fetch(telegramUrl, {
+      const headers = new Headers(request.headers);
+      headers.set("Host", new URL(BACKEND_ORIGIN).host);
+
+      const response = await fetch(targetUrl, {
         method: request.method,
-        headers: {
-          'Content-Type': request.headers.get('Content-Type') || 'application/json',
-        },
-        body: request.method !== 'GET' ? request.body : undefined,
+        headers,
+        body: request.method !== "GET" ? request.body : undefined,
       });
-      
-      // Return the response as-is
+
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
         headers: {
-          'Content-Type': response.headers.get('Content-Type') || 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          "Content-Type":
+            response.headers.get("Content-Type") || "application/json",
         },
       });
     } catch (error) {
       return new Response(
-        JSON.stringify({ 
-          ok: false, 
-          error: `Worker proxy error: ${error.message}` 
-        }),
-        { 
-          status: 502, 
-          headers: { 'Content-Type': 'application/json' } 
-        }
+        JSON.stringify({ ok: false, error: `Webhook relay error: ${error.message}` }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
       );
     }
-  }
+  },
+
+  async proxyApi(request, path) {
+    const telegramUrl = `https://api.telegram.org${path}`;
+
+    try {
+      const response = await fetch(telegramUrl, {
+        method: request.method,
+        headers: {
+          "Content-Type":
+            request.headers.get("Content-Type") || "application/json",
+        },
+        body: request.method !== "GET" ? request.body : undefined,
+      });
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: {
+          "Content-Type":
+            response.headers.get("Content-Type") || "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ ok: false, error: `API proxy error: ${error.message}` }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
+      );
+    }
+  },
 };
