@@ -15,22 +15,36 @@
  */
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
-const API_BASE = process.env.TELEGRAM_API_BASE?.trim()
-  || `https://api.telegram.org/bot${BOT_TOKEN}`;
+const DEFAULT_API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const API_BASE = process.env.TELEGRAM_API_BASE?.trim() || DEFAULT_API_BASE;
 
-export function getTelegramRuntimeConfig() {
-  let apiBaseHost = "invalid";
+// Fallback relay if api.telegram.org is blocked
+const PUBLIC_RELAY = `https://tgproxy.eterapy.com/bot${BOT_TOKEN}`;
+
+async function fetchWithFallback(path: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  
   try {
-    apiBaseHost = new URL(API_BASE).host;
-  } catch {
-    apiBaseHost = "invalid";
+    const url = `${API_BASE}/${path}`;
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    if (res.ok) {
+      clearTimeout(timeoutId);
+      return res;
+    }
+    // If it's a 4xx/5xx from Telegram, don't fallback, just return it
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    
+    // Only fallback if we failed to reach the primary API base and haven't tried the relay yet
+    if (API_BASE === DEFAULT_API_BASE) {
+      console.log(`[Telegram] Primary API blocked, trying fallback relay for ${path}`);
+      return fetch(`${PUBLIC_RELAY}/${path}`, options);
+    }
+    throw err;
   }
-
-  return {
-    configured: Boolean(BOT_TOKEN),
-    apiBaseHost,
-    usingRelay: Boolean(process.env.TELEGRAM_API_BASE?.trim()),
-  };
 }
 
 /** Отправляет сообщение в Telegram-чат. chatId — строка (telegramId пользователя) */
@@ -39,21 +53,19 @@ export async function sendTelegram(chatId: string, text: string): Promise<void> 
     console.warn("[Telegram] TELEGRAM_BOT_TOKEN not set, skipping");
     return;
   }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
   try {
-    const res = await fetch(`${API_BASE}/sendMessage`, {
+    const res = await fetchWithFallback("sendMessage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true }),
-      signal: controller.signal,
     });
     if (!res.ok) {
       const err = await res.text();
       throw new Error(`Telegram API error: ${err}`);
     }
-  } finally {
-    clearTimeout(timeout);
+  } catch (err) {
+    console.error("[Telegram] sendMessage failed:", err);
+    throw err;
   }
 }
 
@@ -71,15 +83,6 @@ export function getTelegramLinkUrl(token: string): string {
   return `https://t.me/${botUsername}?start=${token}`;
 }
 
-/** Отправляет Telegram через getUpdates (polling-based) — только для webhook endpoint */
-export async function getBotUpdates(offset?: number) {
-  if (!BOT_TOKEN) return [];
-  const url = `${API_BASE}/getUpdates${offset !== undefined ? `?offset=${offset}` : ""}`;
-  const res = await fetch(url);
-  const d = await res.json();
-  return d.result ?? [];
-}
-
 /** Регистрирует webhook URL в Telegram */
 export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
   if (!BOT_TOKEN) {
@@ -87,7 +90,7 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
     return false;
   }
   try {
-    const res = await fetch(`${API_BASE}/setWebhook`, {
+    const res = await fetchWithFallback("setWebhook", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url: webhookUrl, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET || undefined }),
