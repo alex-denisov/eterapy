@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Lock, X } from "lucide-react";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
 import { approvedLibraryEntries, getApprovedLibraryEntry } from "@/data/anonymous-library";
@@ -51,6 +51,11 @@ export default async function LibraryEntryPage({
   const { slug } = await params;
   const entry = getApprovedLibraryEntry(slug);
   if (!entry) notFound();
+  const relatedEntries = approvedLibraryEntries()
+    .filter((item) => item.slug !== entry.slug && (item.topic === entry.topic || item.reactions >= entry.reactions - 10))
+    .slice(0, 3);
+  const centralFork = entry.perspectives[1] ?? entry.perspectives[0] ?? "Что в этой ситуации требует бережного уточнения?";
+  const publicFragment = entry.perspectives[0] ?? entry.summary;
 
   return (
     <main className="soft-clarity-page soft-public-page" data-testid={`library-entry-${entry.slug}`}>
@@ -69,52 +74,104 @@ export default async function LibraryEntryPage({
       />
 
       <article className="soft-shell-narrow py-12 md:py-16">
-        <Link href="/library" className="text-sm font-semibold text-[var(--soft-ink-faint)] hover:text-[var(--soft-bordeaux)]">
+        <Link href="/library" className="soft-chip soft-chip-warm">
           Назад в библиотеку
         </Link>
 
         <header className="mt-8">
-          <p className="soft-eyebrow">{entry.topic}</p>
-          <h1 className="soft-h1 mt-4">{entry.question}</h1>
-          <p className="soft-lede mt-5">{entry.summary}</p>
-          <Disclaimer className="mt-6 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">
-            Вопрос обезличен и прошел модерацию. Открытых комментариев нет; персональный ответ создается только в вашем диалоге.
-          </Disclaimer>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="soft-chip">{entry.topic}</span>
+            <span className="text-xs text-[var(--soft-ink-faint)]">
+              анонимно · {entry.reactions.toLocaleString("ru-RU")} прошли похожий разбор
+            </span>
+          </div>
+          <h1 className="mt-7 max-w-3xl text-3xl italic leading-snug text-[var(--soft-bordeaux)] md:text-4xl" style={{ fontFamily: "var(--font-heading)" }}>
+            «{entry.question}»
+          </h1>
         </header>
 
-        <section className="soft-public-section">
-          <h2 className="soft-h2">Возможные ракурсы</h2>
-          <ul className="mt-5 grid gap-3">
-            {entry.perspectives.map((item, index) => (
-              <li key={item} className="soft-card soft-timeline-item">
-                <span className="soft-step-number">{index + 1}</span>
-                <span className="leading-relaxed text-[var(--soft-ink-soft)]">{item}</span>
-              </li>
-            ))}
-          </ul>
+        <section className="soft-card mt-8 p-6 md:p-8">
+          <p className="soft-eyebrow">что мы услышали</p>
+          <p className="mt-3 text-xl leading-relaxed text-[var(--soft-ink)]" style={{ fontFamily: "var(--font-heading)" }}>{entry.summary}</p>
         </section>
 
-        <div className="soft-card soft-form-panel mt-6">
-          <h2 className="soft-h3">Получить ответ для своей ситуации</h2>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Публичный пример не заменяет ваш контекст. Начните личный диалог, чтобы система задала уточнения и собрала ответ под вашу ситуацию.
+        <section className="soft-card mt-5 bg-[var(--soft-paper-deep)] p-6 md:p-8">
+          <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
+          <h2 className="soft-h3 mt-3">{centralFork}</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Публичная карточка показывает только безопасный контур. В личном разборе система уточнит факты, чувства,
+            границы и ближайший шаг именно под ваш контекст.
           </p>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        </section>
+
+        <section className="soft-card mt-5 p-6 md:p-8" style={{ background: "linear-gradient(140deg, #fffaf1, #f4d9c1)" }}>
+          <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">фрагмент разбора · открыт публично</p>
+          <p className="mt-4 text-2xl italic leading-snug text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>{publicFragment}</p>
+        </section>
+
+        <section className="soft-card mt-5 border-dashed p-6 md:p-8">
+          <div className="flex items-center gap-3">
+            <Lock className="size-4 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+            <h2 className="text-sm font-semibold text-[var(--soft-bordeaux)]">Скрыто в публичной карточке</h2>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {[
+              "детали запроса автора",
+              "ответы в уточняющем диалоге",
+              "4 ракурса: разум, чувства, символ, действие",
+              "безопасный следующий шаг",
+            ].map((item) => (
+              <div key={item} className="flex items-center gap-3 text-sm text-[var(--soft-ink-soft)]">
+                <X className="size-4 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+          <Disclaimer className="mt-5 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">
+            Мы публикуем только обезличенный вопрос и короткий фрагмент разбора с согласия автора. Всё остальное
+            доступно только в личном разборе.
+          </Disclaimer>
+        </section>
+
+        <section className="soft-card soft-form-panel mt-8 bg-[var(--soft-bordeaux)] p-6 text-[var(--soft-paper)] md:p-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="soft-eyebrow text-[var(--soft-gold)]">а как у вас</p>
+              <h2 className="mt-3 text-2xl font-medium text-[var(--soft-paper)]" style={{ fontFamily: "var(--font-heading)" }}>Похожий вопрос — другой контекст</h2>
+              <p className="mt-2 max-w-lg text-sm leading-relaxed text-[#e8c4b8]">
+                Разбор будет ваш, не этот. Никто не увидит ваших слов без согласия.
+              </p>
+            </div>
             <Link
               href="/checkin"
-              className="soft-button soft-button-primary"
+              className="soft-button shrink-0 bg-[var(--soft-paper-deep)] text-[var(--soft-bordeaux)] hover:bg-[var(--soft-paper)]"
               data-analytics-event="dialogue_cta_clicked"
               data-analytics-target="/checkin"
               data-testid="library-entry-dialogue-cta"
             >
-              Получить персональный разбор
+              Начать свой разбор
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
-            <Link href="/products" className="soft-button soft-button-ghost">
-              Посмотреть продукты
-            </Link>
           </div>
-        </div>
+        </section>
+
+        {relatedEntries.length > 0 && (
+          <section className="mt-12">
+            <p className="soft-eyebrow mb-5">рядом в библиотеке</p>
+            <div className="grid gap-4 md:grid-cols-3">
+              {relatedEntries.map((item) => (
+                <Link key={item.slug} href={`/library/${item.slug}`} className="soft-card soft-library-card block p-5">
+                  <span className="soft-chip soft-chip-warm">{item.topic}</span>
+                  <p className="soft-library-question mt-4">«{item.question}»</p>
+                  <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[var(--soft-terracotta-dark)]">
+                    читать разбор
+                    <ArrowRight className="size-3.5" aria-hidden="true" />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </article>
     </main>
   );

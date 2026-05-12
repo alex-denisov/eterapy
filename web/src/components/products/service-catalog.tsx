@@ -69,10 +69,10 @@ const SERVICES: ServiceCard[] = [
   { id: "coach-live", title: "Коуч-сессия", desc: "Карьера, призвание, переход.", price: "от 2 500 ₽", cat: "coach", kind: "Встреча", href: "/practitioners", icon: Leaf },
   { id: "legal-live", title: "Юридическая консультация", desc: "Семейное право, документы, опека.", price: "от 3 000 ₽", cat: "legal", kind: "Встреча", href: "/practitioners", icon: Lock },
   { id: "finance-live", title: "Финансовый коуч", desc: "Деньги, тревога, личный финансовый план.", price: "от 2 000 ₽", cat: "finance", kind: "Встреча", href: "/practitioners", icon: Bookmark },
-  { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "#", icon: Moon, soon: true },
-  { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "#", icon: Compass, soon: true },
-  { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "#", icon: Sparkles, soon: true },
-  { id: "joint-pair", title: "Эзотерик + психотерапевт", desc: "Совместная сессия двух специалистов.", price: "от 4 500 ₽", cat: "joint", kind: "Встреча", href: "#", icon: Users, soon: true, badge: "новый формат" },
+  { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "/tarot", icon: Moon, soon: true },
+  { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "/astro", icon: Compass, soon: true },
+  { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "/numerology", icon: Sparkles, soon: true },
+  { id: "joint-pair", title: "Эзотерик + психотерапевт", desc: "Совместная сессия двух специалистов.", price: "от 4 500 ₽", cat: "joint", kind: "Встреча", href: "/joint", icon: Users, soon: true, badge: "пилот" },
   { id: "edu-individual", title: "Индивидуальная программа", desc: "6 встреч под ваш запрос.", price: "от 12 000 ₽", cat: "edu", kind: "Программа", href: "#", icon: Bookmark, soon: true },
   { id: "edu-group", title: "Группа: Близость", desc: "8 недель в малой группе.", price: "8 900 ₽", cat: "edu", kind: "Программа", href: "#", icon: Users, soon: true },
 ];
@@ -119,7 +119,7 @@ export function ServiceCatalog({
         {filtered.map((service) => {
           const Icon = service.icon;
           const category = CATEGORIES.find((item) => item.id === service.cat);
-          const isClickable = !service.soon && service.href !== "#";
+          const isClickable = service.href !== "#";
           const className = [
             "soft-service-card col-span-12 flex min-h-44 flex-col rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-7 md:col-span-6 lg:col-span-4",
             isClickable ? "cursor-pointer hover:border-[var(--terracotta)] hover:shadow-[var(--shadow-md)] hover:-translate-y-1" : "",
@@ -145,6 +145,12 @@ export function ServiceCatalog({
               ) : (
                 <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--soft-terracotta-dark)]">
                   Подробнее
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </span>
+              )}
+              {service.soon && isClickable && (
+                <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--soft-terracotta-dark)]">
+                  Открыть waitlist
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </span>
               )}
