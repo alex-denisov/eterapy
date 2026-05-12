@@ -22,6 +22,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
             <div>
               <p className={titleCls}>Продукты</p>
               <ul className={mutedCls}>
+                <li><Link href={mainUrl("/products")} className={linkCls}>Все форматы</Link></li>
                 <li><Link href={mainUrl("/checkin")} className={linkCls}>Диалог ясности</Link></li>
                 <li><Link href={mainUrl("/products/perspectives")} className={linkCls}>4 ракурса</Link></li>
                 <li><Link href={mainUrl("/products/chat-analysis")} className={linkCls}>Разбор переписки</Link></li>
