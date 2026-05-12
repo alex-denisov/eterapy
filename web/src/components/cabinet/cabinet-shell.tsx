@@ -18,6 +18,7 @@ import {
   Lock,
   LogOut,
 } from "lucide-react";
+import { BrandSignature } from "@/components/brand/brand-mark";
 import { appUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 
 interface NavItem {
@@ -87,6 +88,10 @@ export function CabinetShell({
         className="sticky top-16 hidden shrink-0 self-start md:flex"
       >
         <div className="soft-app-sidebar-card flex flex-col overflow-y-auto p-3.5">
+          <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4">
+            <BrandSignature compact theme="light" />
+          </div>
+
           {/* User badge */}
           <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
             <div className="flex items-center gap-3">
@@ -139,7 +144,7 @@ export function CabinetShell({
           return (
             <Link key={item.href} href={item.href}
               className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
-                isActive(item.href) ? "text-brand-soft-gold" : "text-muted-foreground"
+                isActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
               }`}>
               <Icon className="h-5 w-5" />
               {item.label.split(" ")[0]}

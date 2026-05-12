@@ -11,6 +11,7 @@ import {
   Heart,
   Leaf,
   Lock,
+  MessagesSquare,
   Moon,
   Sparkles,
   Users,
@@ -39,6 +40,9 @@ type ServiceCard = {
 
 const CATEGORIES: Category[] = [
   { id: "all", label: "Все форматы", live: true },
+  { id: "digital", label: "Цифровые разборы", live: true, icon: Sparkles },
+  { id: "social", label: "Для двоих и круга", live: true, icon: Users },
+  { id: "practice", label: "Практика", live: true, icon: Calendar },
   { id: "psy", label: "Психология", live: true, icon: Heart },
   { id: "coach", label: "Коучинг", live: true, icon: Leaf },
   { id: "legal", label: "Юристы", live: true, icon: Lock },
@@ -51,13 +55,16 @@ const CATEGORIES: Category[] = [
 ];
 
 const SERVICES: ServiceCard[] = [
-  { id: "primary", title: "Первичный ответ", desc: "Короткий уточняющий диалог и структурированное отражение ситуации.", price: "0 ₽", cat: "psy", kind: "Бесплатный старт", href: "/products/primary-answer", icon: Heart },
-  { id: "angles", title: "4 ракурса ответа", desc: "Разум · чувства · символ · действие.", price: "299 ₽", cat: "psy", kind: "Цифровое", href: "/products/perspectives", icon: Compass },
-  { id: "report", title: "Глубокий отчёт", desc: "Документ-разбор с рекомендациями.", price: "590 ₽", cat: "psy", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
-  { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: "990 ₽", cat: "psy", kind: "Цифровое", href: "/products/chat-analysis", icon: Sparkles },
-  { id: "compat", title: "Совместимость", desc: "Парный отчёт по приглашению и согласию партнёра.", price: "990 ₽", cat: "psy", kind: "Цифровое", href: "/products/compatibility", icon: Users },
-  { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5-10 минут в день.", price: "990 ₽", cat: "psy", kind: "Маршрут", href: "/products/seven-days", icon: Calendar },
-  { id: "map", title: "Моя карта ETerapy", desc: "Личное пространство вопросов, выводов и повторяющихся тем.", price: "990 ₽", cat: "psy", kind: "Приватное", href: "/products/my-map", icon: Compass },
+  { id: "primary", title: "Первичный ответ", desc: "Короткий уточняющий диалог и структурированное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатный старт", href: "/products/primary-answer", icon: Heart },
+  { id: "angles", title: "4 ракурса ответа", desc: "Разум · чувства · символ · действие.", price: "299 ₽", cat: "digital", kind: "Цифровое", href: "/products/perspectives", icon: Compass },
+  { id: "report", title: "Глубокий отчёт", desc: "Базовый, стандартный или Pro-документ с рекомендациями.", price: "490–990 ₽", cat: "digital", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
+  { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: "299–1 290 ₽", cat: "digital", kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
+  { id: "compat", title: "Совместимость", desc: "Парный отчёт по приглашению и согласию партнёра.", price: "790 ₽", cat: "social", kind: "Для двоих", href: "/products/compatibility", icon: Users },
+  { id: "circle", title: "Круг ясности", desc: "Бережный групповой формат: 2–5 участников и общий вопрос.", price: "790 ₽", cat: "social", kind: "Для круга", href: "/circle", icon: Users },
+  { id: "pair", title: "Разобраться вдвоём", desc: "Отдельные ответы, взаимное согласие и общий результат.", price: "790 ₽", cat: "social", kind: "Для двоих", href: "/pair", icon: Heart },
+  { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5-10 минут в день.", price: "990 ₽", cat: "practice", kind: "Маршрут", href: "/products/seven-days", icon: Calendar },
+  { id: "practice", title: "Практика ясности", desc: "Ежедневные короткие вопросы, миссии и мягкий ритм.", price: "0–199 ₽", cat: "practice", kind: "Практика", href: "/missions", icon: Leaf },
+  { id: "map", title: "Моя карта ETerapy", desc: "Личное пространство вопросов, выводов и повторяющихся тем.", price: "990 ₽", cat: "practice", kind: "Приватное", href: "/products/my-map", icon: Compass },
   { id: "psy-live", title: "Встреча с психологом", desc: "50 минут с проверенным специалистом.", price: "от 1 900 ₽", cat: "psy", kind: "Встреча", href: "/practitioners", icon: Heart },
   { id: "coach-live", title: "Коуч-сессия", desc: "Карьера, призвание, переход.", price: "от 2 500 ₽", cat: "coach", kind: "Встреча", href: "/practitioners", icon: Leaf },
   { id: "legal-live", title: "Юридическая консультация", desc: "Семейное право, документы, опека.", price: "от 3 000 ₽", cat: "legal", kind: "Встреча", href: "/practitioners", icon: Lock },
@@ -114,7 +121,7 @@ export function ServiceCatalog({
           const category = CATEGORIES.find((item) => item.id === service.cat);
           const isClickable = !service.soon && service.href !== "#";
           const className = [
-            "bg-[var(--paper-card)] border border-[var(--paper-edge)] rounded-[var(--r-lg)] p-7 col-span-12 flex min-h-44 flex-col md:col-span-6 lg:col-span-4",
+            "soft-service-card col-span-12 flex min-h-44 flex-col rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-7 md:col-span-6 lg:col-span-4",
             isClickable ? "cursor-pointer hover:border-[var(--terracotta)] hover:shadow-[var(--shadow-md)] hover:-translate-y-1" : "",
             service.soon ? "opacity-85" : "",
           ].join(" ");

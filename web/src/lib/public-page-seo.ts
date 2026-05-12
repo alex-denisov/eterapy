@@ -42,6 +42,26 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Прозрачные цены v5: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности, подписки и Practitioner Pro.",
     schemaKind: "Product",
   },
+  "/missions": {
+    title: "Миссии и практика ясности — ETerapy",
+    description: "Короткая ежедневная практика ETerapy: мягкие миссии, карта дня, кредиты и возвращение к себе без давления.",
+    schemaKind: "Product",
+  },
+  "/circle": {
+    title: "Круг ясности — ETerapy",
+    description: "Групповой формат для 2–5 участников: общий вопрос, приватные ответы, согласие и бережный итоговый разбор.",
+    schemaKind: "Product",
+  },
+  "/pair": {
+    title: "Разобраться вдвоём — ETerapy",
+    description: "Парный формат ETerapy: каждый отвечает отдельно, результат открывается по согласию и помогает начать спокойный разговор.",
+    schemaKind: "Product",
+  },
+  "/telegram": {
+    title: "ETerapy в Telegram",
+    description: "Диалог ясности, ежедневные карточки и мягкие напоминания ETerapy в Telegram с управлением приватностью.",
+    schemaKind: "WebPage",
+  },
   "/library": {
     title: "Библиотека анонимных вопросов — ETerapy",
     description: "Модерируемая SEO-библиотека обезличенных вопросов с короткими разборами, темами, реакциями и входом в персональный диалог.",

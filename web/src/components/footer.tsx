@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const soft = variant === "soft";
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
+  const mutedCls = cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]");
+  const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
 
   return (
     <footer
@@ -16,32 +18,44 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <BrandLogo height={34} theme={soft ? "light" : "dark"} />
 
-          <div className="flex flex-wrap gap-x-10 gap-y-5 text-sm">
+          <div className="grid gap-x-10 gap-y-5 text-sm sm:grid-cols-3">
             <div>
-              <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>Клиентам</p>
-              <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
+              <p className={titleCls}>Продукты</p>
+              <ul className={mutedCls}>
                 <li><Link href={mainUrl("/checkin")} className={linkCls}>Диалог ясности</Link></li>
-                <li><Link href={mainUrl("/products")} className={linkCls}>Продукты</Link></li>
-                <li><Link href={mainUrl("/library")} className={linkCls}>Библиотека</Link></li>
+                <li><Link href={mainUrl("/products/perspectives")} className={linkCls}>4 ракурса</Link></li>
+                <li><Link href={mainUrl("/products/chat-analysis")} className={linkCls}>Разбор переписки</Link></li>
+                <li><Link href={mainUrl("/products/seven-days")} className={linkCls}>7 дней к ясности</Link></li>
+                <li><Link href={mainUrl("/circle")} className={linkCls}>Круг ясности</Link></li>
+                <li><Link href={mainUrl("/pair")} className={linkCls}>Разобраться вдвоём</Link></li>
+                <li><Link href={mainUrl("/missions")} className={linkCls}>Практика ясности</Link></li>
+                <li><Link href={mainUrl("/telegram")} className={linkCls}>В Telegram</Link></li>
                 <li><Link href={mainUrl("/pricing")} className={linkCls}>Тарифы</Link></li>
               </ul>
             </div>
 
             <div>
-              <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>Специалистам</p>
-              <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href={mainUrl("/practitioners/apply")} className={linkCls}>Стать специалистом</Link></li>
-                <li><Link href={mainUrl("/legal/ethics")} className={linkCls}>Этический кодекс</Link></li>
+              <p className={titleCls}>Направления</p>
+              <ul className={mutedCls}>
+                <li><Link href={mainUrl("/practitioners")} className={linkCls}>Психология и коучинг</Link></li>
+                <li><Link href={mainUrl("/how-to-choose")} className={linkCls}>Таро · скоро</Link></li>
+                <li><Link href={mainUrl("/how-to-choose")} className={linkCls}>Астрология · скоро</Link></li>
+                <li><Link href={mainUrl("/how-to-choose")} className={linkCls}>Нумерология · скоро</Link></li>
+                <li><Link href={mainUrl("/practitioners")} className={linkCls}>Совместная сессия · пилот</Link></li>
+                <li><Link href={mainUrl("/products/my-map")} className={linkCls}>Моя карта</Link></li>
+                <li><Link href={mainUrl("/library")} className={linkCls}>Библиотека вопросов</Link></li>
               </ul>
             </div>
 
             <div>
-              <p className={cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground")}>О проекте</p>
-              <ul className={cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]")}>
-                <li><Link href={mainUrl("/about")} className={linkCls}>О нас</Link></li>
-                <li><Link href={mainUrl("/help")} className={linkCls}>Поддержка</Link></li>
-                <li><Link href={mainUrl("/legal/privacy")} className={linkCls}>Конфиденциальность</Link></li>
-                <li><Link href={mainUrl("/legal/offer")} className={linkCls}>Оферта</Link></li>
+              <p className={titleCls}>Помощь</p>
+              <ul className={mutedCls}>
+                <li><Link href={mainUrl("/help")} className={linkCls}>Поддержка и FAQ</Link></li>
+                <li><Link href={mainUrl("/legal/privacy")} className={linkCls}>Приватность</Link></li>
+                <li><Link href={mainUrl("/legal/ethics")} className={linkCls}>Этический кодекс</Link></li>
+                <li><Link href={mainUrl("/legal/offer")} className={linkCls}>Договор-оферта</Link></li>
+                <li><Link href={mainUrl("/practitioners/apply")} className={linkCls}>Стать специалистом</Link></li>
+                <li><Link href={mainUrl("/about")} className={linkCls}>О проекте</Link></li>
               </ul>
             </div>
           </div>

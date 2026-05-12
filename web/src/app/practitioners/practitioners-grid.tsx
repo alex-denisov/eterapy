@@ -85,18 +85,6 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
     sort === "rating" ? b.rating - a.rating : 0,
   );
 
-  if (sorted.length === 0) {
-    return (
-      <div className="soft-card p-8 text-center">
-        <p className="text-[var(--soft-ink-soft)]">Специалисты в этом направлении появятся совсем скоро.</p>
-        <Link href="/checkin" className="soft-button soft-button-primary mt-4 inline-flex">
-          Начать с диалога
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <>
       {/* Filters + sort row */}
@@ -131,15 +119,33 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
         </div>
       </div>
 
-      {/* v4 card grid */}
-      <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 lg:grid-cols-3" data-testid="specialists-v4-list">
-        {sorted.map((p) => {
+      {sorted.length === 0 ? (
+        <div className="soft-card p-8 text-center" data-testid="specialists-empty-state">
+          <p className="soft-eyebrow">скоро в каталоге</p>
+          <h2 className="soft-h3 mt-2">В этом направлении пока нет открытых слотов</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Каталог расширяется постепенно: каждый специалист проходит проверку,
+            подписывает этический кодекс и показывает цену до записи.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <button type="button" className="soft-button soft-button-ghost" onClick={() => setCat("all")}>
+              Показать всех
+            </button>
+            <Link href="/checkin" className="soft-button soft-button-primary inline-flex">
+              Начать с диалога
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 lg:grid-cols-3" data-testid="specialists-v4-list">
+          {sorted.map((p) => {
           const initial = (p.name ?? "?")[0].toUpperCase();
           const gradient = AVATAR_GRADIENTS[p.gradIdx];
           const displayRating = p.reviewCount > 0 ? (p.rating).toFixed(1) : null;
           const displayName = p.name ?? "Специалист";
 
-          return (
+            return (
             <article
               key={p.id}
               className="soft-card cursor-pointer overflow-hidden"
@@ -228,9 +234,10 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                 </Link>
               </div>
             </article>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Bottom CTA */}
       <div className="soft-card mt-8 p-6 text-center" style={{ background: "var(--soft-paper-deep)" }}>

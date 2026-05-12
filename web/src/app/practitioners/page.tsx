@@ -91,6 +91,48 @@ const FALLBACK_PRACTITIONERS = [
     reviewCount: 58,
     sessionCount: 90,
   },
+  {
+    id: "fallback-sofia",
+    slug: "sofia-mirnaya",
+    name: "София Мирная",
+    title: "Таро-практик · метафорические расклады",
+    bio: "Использую символы как язык вопросов, а не как предсказание будущего.",
+    specialties: ["TAROT", "отношения", "выбор"],
+    pricePerSession: 3000,
+    minDuration: 50,
+    verified: true,
+    rating: 4.8,
+    reviewCount: 74,
+    sessionCount: 160,
+  },
+  {
+    id: "fallback-elena",
+    slug: "elena-orlova",
+    name: "Елена Орлова",
+    title: "Астролог · психологический разбор карты",
+    bio: "Помогаю смотреть на натальную карту как на карту склонностей и вопросов для себя.",
+    specialties: ["ASTROLOGY", "самоопределение", "переход"],
+    pricePerSession: 4200,
+    minDuration: 80,
+    verified: true,
+    rating: 4.9,
+    reviewCount: 63,
+    sessionCount: 130,
+  },
+  {
+    id: "fallback-nika",
+    slug: "nika-sokol",
+    name: "Ника Сокол",
+    title: "Нумеролог · коуч по личным циклам",
+    bio: "Бережно перевожу числовые модели в вопросы о выборе, ритме и ответственности.",
+    specialties: ["NUMEROLOGY", "ритм", "цели"],
+    pricePerSession: 2800,
+    minDuration: 50,
+    verified: true,
+    rating: 4.7,
+    reviewCount: 52,
+    sessionCount: 118,
+  },
 ];
 
 async function getPractitioners() {
@@ -121,7 +163,11 @@ async function getPractitioners() {
     };
   });
 
-  return mapped.length > 0 ? mapped : FALLBACK_PRACTITIONERS;
+  if (mapped.length === 0) return FALLBACK_PRACTITIONERS;
+
+  const realSlugs = new Set(mapped.map((item) => item.slug));
+  const missingReferenceProfiles = FALLBACK_PRACTITIONERS.filter((item) => !realSlugs.has(item.slug));
+  return [...mapped, ...missingReferenceProfiles];
 }
 
 export const metadata = createPublicPageMetadata("/practitioners");

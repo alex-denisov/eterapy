@@ -15,9 +15,9 @@ import { persistGuestResultDraftToAccount } from "@/lib/guest-result-cache";
 const TEST_ACCOUNTS = [
   { label: "Клиент", email: "client@test.eterapy.com", password: "test1234", href: "/cabinet" },
   { label: "Практик", email: "practitioner@test.eterapy.com", password: "test1234", href: "/cabinet/practitioner" },
-  { label: "Админ", email: "admin@test.eterapy.com", password: "test1234", href: "/admin" },
+  { label: "Админ", email: "admin@test.eterapy.com", password: "admin1234", href: "/admin" },
   { label: "СуперАдмин", email: "superadmin@test.eterapy.com", password: "test1234", href: "/admin" },
-  { label: "Модератор", email: "moderator@test.eterapy.com", password: "test1234", href: "/admin" },
+  { label: "Модератор", email: "moderator@test.eterapy.com", password: "admin1234", href: "/admin" },
 ];
 
 export default function LoginPage() {

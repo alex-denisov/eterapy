@@ -1,27 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
   <defs>
-    <radialGradient id="core" cx="50%" cy="54%" r="42%">
-      <stop offset="0%" stop-color="#ffd79a" stop-opacity="0.95"/>
-      <stop offset="38%" stop-color="#f2c37d" stop-opacity="0.44"/>
-      <stop offset="100%" stop-color="#a89bc9" stop-opacity="0"/>
+    <linearGradient id="halo" x1="0" y1="1" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#F4C9A8"/>
+      <stop offset="50%" stop-color="#E8B8D1"/>
+      <stop offset="100%" stop-color="#D9C9E8"/>
+    </linearGradient>
+    <radialGradient id="hi" cx="35%" cy="35%" r="38%">
+      <stop offset="0%" stop-color="white"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="gold" x1="26" x2="73" y1="105" y2="18" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#b85b40"/>
-      <stop offset="52%" stop-color="#f2c37d"/>
-      <stop offset="100%" stop-color="#ffe0a5"/>
-    </linearGradient>
-    <linearGradient id="lilac" x1="69" x2="106" y1="18" y2="102" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#dbd3ea"/>
-      <stop offset="48%" stop-color="#a89bc9"/>
-      <stop offset="100%" stop-color="#8e89d6"/>
-    </linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#5c2a2c" flood-opacity="0.18"/>
-      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ffd79a" flood-opacity="0.2"/>
-    </filter>
   </defs>
-  <circle cx="64" cy="66" r="34" fill="url(#core)"/>
-  <path d="M62 20C39 26 24 45 24 68c0 15 7 28 19 36" fill="none" stroke="url(#gold)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)"/>
-  <path d="M78 20c16 6 27 21 27 39 0 20-12 37-30 45" fill="none" stroke="url(#lilac)" stroke-width="18" stroke-linecap="round" filter="url(#shadow)"/>
-  <circle cx="64" cy="66" r="12" fill="#ffd79a" opacity="0.42"/>
+  <circle cx="60" cy="60" r="42" fill="url(#halo)"/>
+  <circle cx="60" cy="60" r="42" fill="url(#hi)"/>
 </svg>
