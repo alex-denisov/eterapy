@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { CircleActions } from "@/components/products/circle-actions";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 export const metadata = createPublicPageMetadata("/circle");
@@ -11,7 +12,13 @@ const steps = [
   "ETerapy собирает общий бережный итог без раскрытия приватных ответов.",
 ];
 
-export default function CirclePage() {
+export default async function CirclePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ invite?: string }>;
+}) {
+  const search = await searchParams;
+
   return (
     <main className="soft-clarity-page soft-public-page" data-testid="circle-page">
       <PublicJsonLd route="/circle" />
@@ -66,6 +73,9 @@ export default function CirclePage() {
             </div>
           </aside>
         </div>
+      </section>
+      <section className="soft-shell pb-16">
+        <CircleActions inviteToken={search?.invite ?? null} />
       </section>
     </main>
   );

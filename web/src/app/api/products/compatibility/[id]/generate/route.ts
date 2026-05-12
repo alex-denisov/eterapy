@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
 import { generateCompatibility } from "@/lib/compatibility";
+import { buildPairTeaser, dialogueToPrivateText } from "@/lib/social-clarity";
 
 const PRODUCT_KEY = "compatibility";
 
@@ -30,17 +31,51 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!compatibility) return errorWithRequestContext("NOT_FOUND", "Not found", 404, context);
   if (compatibility.creatorId !== userId) return errorWithRequestContext("FORBIDDEN", "Only creator can generate", 403, context);
 
-  // Both consents required (B089)
-  if (compatibility.status !== "PARTNER_COMPLETED" || !compatibility.partnerConsent) {
+  if (
+    compatibility.status !== "PARTNER_COMPLETED"
+    || !compatibility.partnerConsent
+    || !compatibility.creatorConsent
+    || !compatibility.creatorDialogueId
+    || !compatibility.partnerDialogueId
+  ) {
     return errorWithRequestContext("CONFLICT", "Partner has not completed their part", 409, context);
   }
 
-  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
-  if (!hasEntitlement) return errorWithRequestContext("PAYMENT_REQUIRED", "Нужна оплата", 402, context);
+  const [creatorDialogue, partnerDialogue] = await Promise.all([
+    db.dialogue.findFirst({
+      where: { id: compatibility.creatorDialogueId, userId: compatibility.creatorId },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    }),
+    db.dialogue.findFirst({
+      where: { id: compatibility.partnerDialogueId, userId: compatibility.partnerId ?? undefined },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
+    }),
+  ]);
 
-  // Here we would fetch both dialogues. Since we didn't store dialogueId, we'll use placeholder text for now.
-  const creatorText = "Creator perspective text placeholder";
-  const partnerText = "Partner perspective text placeholder";
+  const creatorText = dialogueToPrivateText(creatorDialogue);
+  const partnerText = dialogueToPrivateText(partnerDialogue);
+  if (!creatorText || !partnerText) {
+    return errorWithRequestContext("CONFLICT", "Not enough dialogue context", 409, context);
+  }
+
+  const teaserText = buildPairTeaser({
+    creatorText,
+    partnerText,
+    relationType: compatibility.type,
+  });
+
+  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  if (!hasEntitlement) {
+    const updated = await db.compatibility.update({
+      where: { id },
+      data: { teaserText },
+    });
+    return jsonWithRequestContext(
+      { error: teaserText, code: "PAYMENT_REQUIRED", hasEntitlement, result: updated, teaserText },
+      { status: 402 },
+      context
+    );
+  }
 
   const generated = await generateCompatibility({
     creatorId: userId,
@@ -58,8 +93,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       productKey: PRODUCT_KEY,
       title: "Разбор совместимости",
       status: "READY",
+      previewText: teaserText,
       resultText: generated.text,
       metadata: {
+        compatibilityId: compatibility.id,
+        creatorDialogueId: compatibility.creatorDialogueId,
+        partnerDialogueId: compatibility.partnerDialogueId,
         generationMetadata: generated.metadata,
       },
     },
@@ -71,6 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: {
       status: "READY",
       creatorConsent: true,
+      teaserText,
       reportId: productResult.id,
     },
   });

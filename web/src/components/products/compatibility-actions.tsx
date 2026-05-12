@@ -57,7 +57,7 @@ export function CompatibilityActions({
   const [copied, setCopied] = useState(false);
   
   // Partner's part
-  const [partnerDialogueId, setPartnerDialogueId] = useState<string | null>(dialogueId ?? null);
+  const partnerDialogueId = dialogueId ?? null;
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +150,7 @@ export function CompatibilityActions({
 
   function copyInviteLink() {
     if (!result?.inviteToken) return;
-    const url = `${window.location.origin}/products/compatibility?invite=${result.inviteToken}`;
+    const url = `${window.location.origin}/pair?invite=${result.inviteToken}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -235,7 +235,7 @@ export function CompatibilityActions({
           <div className="flex items-center gap-2">
             <input 
               readOnly 
-              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/products/compatibility?invite=${result.inviteToken}`} 
+              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pair?invite=${result.inviteToken}`}
               className="soft-question-input flex-1 py-2 text-sm" 
             />
             <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">
@@ -261,7 +261,7 @@ export function CompatibilityActions({
       {result && result.status === "READY" && (
         <div className="mt-5">
           <p className="text-sm text-green-700">Разбор готов и доступен обоим партнерам в личном кабинете.</p>
-          <Link href={`/cabinet/results/${result.reportId}`} className="soft-button soft-button-primary mt-4">
+          <Link href="/cabinet/map" className="soft-button soft-button-primary mt-4">
             Посмотреть разбор
           </Link>
         </div>

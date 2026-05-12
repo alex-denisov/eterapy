@@ -1,12 +1,14 @@
 import type { Prisma, Transaction } from "@prisma/client";
 import db from "@/lib/db";
-import { getV5Product, type V5ProductSlug } from "@/lib/v5-products";
+import { type V5ProductSlug } from "@/lib/v5-products";
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "perspectives": 29900,
   "deep-report": 69000,
   "chat-analysis": 89000,
   "compatibility": 79000,
+  "circle": 79000,
+  "pair": 79000,
   "seven-days": 99000,
   "my-map": 99000,
 };
@@ -16,6 +18,8 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "deep-report": 2,
   "chat-analysis": 3,
   "compatibility": 3,
+  "circle": 3,
+  "pair": 3,
   "seven-days": 4,
   "my-map": 2,
 };
@@ -129,7 +133,7 @@ export function getSubscriptionPlan(planKey: string) {
 }
 
 export function isKnownPaidProduct(productKey: string): productKey is V5ProductSlug {
-  return Boolean(getV5Product(productKey) && productKey !== "primary-answer");
+  return Object.prototype.hasOwnProperty.call(V5_PRODUCT_PRICES_KOPECKS, productKey);
 }
 
 export function resolveBillingPurchase(input: {
@@ -225,7 +229,10 @@ export async function userHasActiveEntitlement(userId: string, productKey: strin
 
   return (subscriptions ?? []).some((subscription) => {
     const plan = getSubscriptionPlan(subscription.planKey);
-    return Boolean(plan?.includedProducts.includes(productKey as V5ProductSlug));
+    return Boolean(
+      plan?.includedProducts.includes(productKey as V5ProductSlug)
+      || (subscription.planKey === "premium" && ["circle", "pair"].includes(productKey))
+    );
   });
 }
 

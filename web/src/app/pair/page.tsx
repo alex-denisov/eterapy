@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { ArrowRight, HeartHandshake, LockKeyhole } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
 export const metadata = createPublicPageMetadata("/pair");
 
-export default function PairPage() {
+export default async function PairPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ invite?: string; dialogueId?: string }>;
+}) {
+  const search = await searchParams;
+
   return (
     <main className="soft-clarity-page soft-public-page" data-testid="pair-page">
       <PublicJsonLd route="/pair" />
@@ -48,6 +55,9 @@ export default function PairPage() {
             </div>
           </div>
         </div>
+      </section>
+      <section className="soft-shell pb-16">
+        <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} />
       </section>
     </main>
   );

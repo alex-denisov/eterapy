@@ -17,6 +17,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   });
 
   if (!result) return errorWithRequestContext("NOT_FOUND", "Invite not found", 404, context);
+  if (result.inviteExpiresAt && result.inviteExpiresAt <= new Date()) {
+    return errorWithRequestContext("GONE", "Invite expired", 410, context);
+  }
 
   // If partner is already set and it's not this user, forbid
   if (result.partnerId && result.partnerId !== userId) {

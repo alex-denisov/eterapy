@@ -5,6 +5,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { inviteExpiryDate } from "@/lib/social-clarity";
 
 const PRODUCT_KEY = "compatibility";
 
@@ -58,12 +59,11 @@ export async function POST(request: NextRequest) {
       creatorId: userId,
       type: input.type,
       status: "INVITED",
-      creatorConsent: false, // will give consent at generation time or here
+      creatorDialogueId: input.dialogueId,
+      inviteExpiresAt: inviteExpiryDate(7),
+      creatorConsent: true,
     },
   });
-
-  // We should also link the dialogue to the compatibility, but dialogue is for ProductResult.
-  // Actually, we can just return it.
 
   return jsonWithRequestContext({ hasEntitlement, result: compatibility }, { status: 200 }, context);
 }

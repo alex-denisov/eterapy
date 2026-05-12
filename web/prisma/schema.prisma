@@ -70,6 +70,8 @@ model User {
   clarityCreditLedgerEntries ClarityCreditLedgerEntry[]
   compatibilitiesCreated Compatibility[] @relation("CompatibilityCreator")
   compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
+  clarityCirclesCreated ClarityCircle[] @relation("ClarityCircleCreator")
+  clarityCircleParticipations ClarityCircleParticipant[]
   clarityRoutes          ClarityRoute[]
   dailyCards             DailyCard[]
   shareLinks             ShareLink[] @relation("ShareLinkOwner")
@@ -769,6 +771,7 @@ model ProductResult {
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
   compatibility Compatibility?
+  clarityCircle ClarityCircle?
   clarityRoute  ClarityRoute?
 
   @@index([userId, productKey, updatedAt])
@@ -1133,8 +1136,14 @@ model Compatibility {
   type           String    // romantic | friendship | business | family
   status         String    @default("CREATED") // CREATED | INVITED | PARTNER_COMPLETED | READY | DELETED
   inviteToken    String    @unique @default(cuid()) @map("invite_token")
+  inviteExpiresAt DateTime? @map("invite_expires_at")
+  creatorDialogueId String? @map("creator_dialogue_id")
+  partnerDialogueId String? @map("partner_dialogue_id")
   creatorConsent Boolean   @default(false) @map("creator_consent")
   partnerConsent Boolean   @default(false) @map("partner_consent")
+  teaserText     String?   @map("teaser_text")
+  riskScore      Int       @default(0) @map("risk_score")
+  riskFlags      String[]  @default([]) @map("risk_flags")
   reportId       String?   @unique @map("report_id")
   report         ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -1143,8 +1152,54 @@ model Compatibility {
   @@index([creatorId])
   @@index([partnerId])
   @@index([inviteToken])
+  @@index([inviteExpiresAt])
   @@map("compatibilities")
   }
+
+model ClarityCircle {
+  id              String    @id @default(cuid())
+  creatorId       String    @map("creator_id")
+  creator         User      @relation("ClarityCircleCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  question        String
+  topic           String?
+  status          String    @default("INVITING") // INVITING | READY | DELETED
+  inviteToken     String    @unique @default(cuid()) @map("invite_token")
+  inviteExpiresAt DateTime  @map("invite_expires_at")
+  teaserText      String?   @map("teaser_text")
+  reportId        String?   @unique @map("report_id")
+  report          ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  metadata        Json?
+  participants    ClarityCircleParticipant[]
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([creatorId, status, createdAt])
+  @@index([inviteToken])
+  @@index([inviteExpiresAt])
+  @@map("clarity_circles")
+}
+
+model ClarityCircleParticipant {
+  id          String    @id @default(cuid())
+  circleId    String    @map("circle_id")
+  circle      ClarityCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  userId      String?   @map("user_id")
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  displayName String?   @map("display_name")
+  answerText  String    @map("answer_text")
+  consent     Boolean   @default(false)
+  status      String    @default("SUBMITTED") // SUBMITTED | HIDDEN | DELETED
+  riskScore   Int       @default(0) @map("risk_score")
+  riskFlags   String[]  @default([]) @map("risk_flags")
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([circleId, userId])
+  @@index([circleId, status, createdAt])
+  @@index([userId])
+  @@map("clarity_circle_participants")
+}
 
   // ─── 7 Days to Clarity ────────────────────────────────────────────────────────
 

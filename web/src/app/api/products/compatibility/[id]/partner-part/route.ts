@@ -25,6 +25,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   if (!compatibility) return errorWithRequestContext("NOT_FOUND", "Not found", 404, context);
+  if (compatibility.inviteExpiresAt && compatibility.inviteExpiresAt <= new Date()) {
+    return errorWithRequestContext("GONE", "Invite expired", 410, context);
+  }
+  if (compatibility.creatorId === userId) {
+    return errorWithRequestContext("FORBIDDEN", "Creator cannot submit partner part", 403, context);
+  }
   
   // Can't submit again
   if (compatibility.status !== "INVITED" && compatibility.status !== "CREATED") {
@@ -36,15 +42,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
   if (!dialogue) return errorWithRequestContext("NOT_FOUND", "Dialogue not found", 404, context);
 
-  // Store dialogue ID in metadata or relation? Since Compatibility doesn't have a partnerDialogueId field, we can use ProductResult metadata eventually.
-  // Wait, I didn't add dialogue ids to Compatibility model. Let's just update the status to PARTNER_COMPLETED for the test.
+  const riskFlags = [
+    ...(compatibility.creatorId === userId ? ["same_user"] : []),
+  ];
 
   const updated = await db.compatibility.update({
     where: { id },
     data: {
       partnerId: userId,
+      partnerDialogueId: parsed.data.dialogueId,
       partnerConsent: parsed.data.partnerConsent,
       status: "PARTNER_COMPLETED",
+      riskFlags,
+      riskScore: riskFlags.length * 60,
     },
   });
 
