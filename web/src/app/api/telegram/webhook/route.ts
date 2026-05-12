@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { sendTelegram } from "@/lib/telegram";
+import { formatTelegramGrowthMessage, resolveTelegramGrowthPayload } from "@/lib/telegram-growth";
 import { log, serializeError } from "@/lib/logger";
 import { claimWebhookEvent, completeWebhookEvent, failWebhookEvent } from "@/lib/webhook-idempotency";
 
@@ -83,6 +84,13 @@ export async function POST(req: NextRequest) {
           `👋 Добро пожаловать в ETerapy!\n\nЧтобы получать уведомления, привяжите Telegram к своему аккаунту:\n\n1. Войдите на <a href="${baseUrl}">ETerapy</a>\n2. Перейдите в Настройки → Уведомления\n3. Нажмите Привязать Telegram`
         );
         await completeWebhookEvent(claim.event.id, { result: "start-help" });
+        return NextResponse.json({ ok: true });
+      }
+
+      const growthEntry = resolveTelegramGrowthPayload(token);
+      if (growthEntry) {
+        await safeSend(chatId, formatTelegramGrowthMessage(growthEntry));
+        await completeWebhookEvent(claim.event.id, { result: `growth:${growthEntry.key}` });
         return NextResponse.json({ ok: true });
       }
 

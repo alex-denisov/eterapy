@@ -2,10 +2,9 @@ import Link from "next/link";
 import { ArrowRight, Bell, MessageCircle, ShieldCheck } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
+import { getTelegramStartUrl, TELEGRAM_GROWTH_ENTRIES } from "@/lib/telegram-growth";
 
 export const metadata = createPublicPageMetadata("/telegram");
-
-const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL ?? "https://t.me/eterapy_bot";
 
 export default function TelegramPage() {
   return (
@@ -22,7 +21,7 @@ export default function TelegramPage() {
             канал поддержки, а не единственная точка доступа к ETerapy.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href={botUrl} className="soft-button soft-button-primary" data-testid="telegram-bot-link">
+            <a href={getTelegramStartUrl("dialogue")} className="soft-button soft-button-primary" data-testid="telegram-bot-link">
               Открыть Telegram
               <ArrowRight className="size-4" aria-hidden="true" />
             </a>
@@ -33,6 +32,17 @@ export default function TelegramPage() {
         </div>
       </section>
       <section className="soft-shell soft-public-section pb-20">
+        <div className="mb-8">
+          <p className="soft-eyebrow">точки входа</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-4" data-testid="telegram-growth-deeplinks">
+            {TELEGRAM_GROWTH_ENTRIES.map((entry) => (
+              <a key={entry.key} href={getTelegramStartUrl(entry.startPayload)} className="soft-card p-4 transition-transform hover:-translate-y-0.5">
+                <h2 className="soft-h3 text-base">{entry.label}</h2>
+                <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">{entry.description}</p>
+              </a>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-4 md:grid-cols-3">
           {[
             { icon: MessageCircle, title: "Быстрый вход", text: "Ссылка из Telegram ведёт в нужный сценарий с attribution." },
