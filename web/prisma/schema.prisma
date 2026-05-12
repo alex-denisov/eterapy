@@ -67,6 +67,7 @@ model User {
   entitlements        ProductEntitlement[]
   subscriptions       UserSubscription[]
   creditLedgerEntries CreditLedgerEntry[]
+  clarityCreditLedgerEntries ClarityCreditLedgerEntry[]
   compatibilitiesCreated Compatibility[] @relation("CompatibilityCreator")
   compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
   clarityRoutes          ClarityRoute[]
@@ -1099,6 +1100,26 @@ model CreditLedgerEntry {
   @@index([userId, createdAt])
   @@index([transactionId])
   @@map("credit_ledger_entries")
+}
+
+model ClarityCreditLedgerEntry {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Int
+  balanceAfter  Int?
+  type          String    // grant | spend | expire | clawback | adjustment
+  source        String    // referral | mission | purchase | subscription | admin | product
+  sourceEventId String?
+  status        String    @default("confirmed") // pending | confirmed | revoked | expired
+  expiresAt     DateTime?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, status, createdAt])
+  @@index([source, sourceEventId])
+  @@index([expiresAt])
+  @@map("clarity_credit_ledger_entries")
 }
 
 // ─── Compatibility ────────────────────────────────────────────────────────────

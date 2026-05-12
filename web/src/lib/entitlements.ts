@@ -4,11 +4,20 @@ import { getV5Product, type V5ProductSlug } from "@/lib/v5-products";
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "perspectives": 29900,
-  "deep-report": 59000,
-  "chat-analysis": 99000,
-  "compatibility": 99000,
+  "deep-report": 69000,
+  "chat-analysis": 89000,
+  "compatibility": 79000,
   "seven-days": 99000,
   "my-map": 99000,
+};
+
+export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
+  "perspectives": 1,
+  "deep-report": 2,
+  "chat-analysis": 3,
+  "compatibility": 3,
+  "seven-days": 4,
+  "my-map": 2,
 };
 
 export const V5_SUBSCRIPTION_PLANS: Record<string, {
@@ -16,36 +25,58 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
   amountKopecks: number;
   trialDays: number;
   includedProducts: V5ProductSlug[];
+  creditsPerPeriod: number;
 }> = {
+  plus: {
+    name: "Plus",
+    amountKopecks: 49900,
+    trialDays: 7,
+    includedProducts: ["primary-answer", "perspectives", "my-map"],
+    creditsPerPeriod: 5,
+  },
+  premium: {
+    name: "Premium",
+    amountKopecks: 129000,
+    trialDays: 7,
+    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
+    creditsPerPeriod: 15,
+  },
+  // Deprecated legacy aliases are kept readable so older subscriptions do not
+  // lose access abruptly, but new checkout should use plus/premium only.
   start: {
-    name: "Start",
+    name: "Legacy Start",
     amountKopecks: 149000,
     trialDays: 0,
     includedProducts: ["primary-answer", "my-map"],
-  },
-  plus: {
-    name: "Plus",
-    amountKopecks: 299000,
-    trialDays: 7,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "my-map"],
+    creditsPerPeriod: 0,
   },
   deep: {
-    name: "Deep",
+    name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
     includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
+    creditsPerPeriod: 0,
   },
   accompaniment: {
-    name: "Accompaniment",
+    name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
     includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
+    creditsPerPeriod: 0,
   },
   practitioner_pro: {
     name: "Practitioner Pro",
-    amountKopecks: 399000,
+    amountKopecks: 149000,
     trialDays: 7,
     includedProducts: [],
+    creditsPerPeriod: 0,
+  },
+  practitioner_pro_plus: {
+    name: "Practitioner Pro+",
+    amountKopecks: 299000,
+    trialDays: 7,
+    includedProducts: [],
+    creditsPerPeriod: 0,
   },
 };
 
@@ -87,6 +118,10 @@ export function getBillingTransactionMetadata(transaction: Pick<Transaction, "me
 
 export function getProductPriceKopecks(productKey: string): number | null {
   return V5_PRODUCT_PRICES_KOPECKS[productKey] ?? null;
+}
+
+export function getProductCreditCost(productKey: string): number | null {
+  return V5_PRODUCT_CREDIT_COSTS[productKey] ?? null;
 }
 
 export function getSubscriptionPlan(planKey: string) {

@@ -48,7 +48,8 @@ describe("B193 share/referral surfaces", () => {
     expect(shareApi).toContain("createSafeShareLink");
     expect(visitApi).toContain("setReferralCookie");
     expect(referral).toContain("self_referral");
-    expect(referral).toContain("pending_manual_credit");
+    expect(referral).toContain("REWARD_PENDING");
+    expect(referral).toContain("recordClarityCreditEntry");
     expect(register).toContain("attachReferralToRegisteredUser");
     expect(dialogues).toContain("markReferralMeaningfulAction");
   });

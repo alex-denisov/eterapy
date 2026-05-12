@@ -3,6 +3,7 @@ import type { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 
 import db from "@/lib/db";
+import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { mainUrl } from "@/lib/subdomain";
 
 export const REFERRAL_COOKIE = "eterapy_ref";
@@ -184,32 +185,66 @@ export async function markReferralMeaningfulAction(input: {
   if (!token) return null;
   const shareLink = await db.shareLink.findUnique({ where: { token } });
   if (!shareLink || !shareLink.ownerUserId || shareLink.ownerUserId === input.userId) return null;
+  const ownerUserId = shareLink.ownerUserId;
   const visitorHash = visitorHashFromRequest(input.request);
   const now = new Date();
-  return db.referralAttribution.upsert({
-    where: {
-      shareLinkId_visitorHash: {
-        shareLinkId: shareLink.id,
-        visitorHash,
+  return db.$transaction(async (tx) => {
+    const existing = await tx.referralAttribution.findUnique({
+      where: {
+        shareLinkId_visitorHash: {
+          shareLinkId: shareLink.id,
+          visitorHash,
+        },
       },
-    },
-    create: {
-      shareLinkId: shareLink.id,
-      referrerUserId: shareLink.ownerUserId,
-      referredUserId: input.userId,
-      visitorHash,
-      source: shareLink.sourceType,
-      status: "REWARDED",
-      meaningfulActionAt: now,
-      rewardGrantedAt: now,
-      metadata: { action: input.action, entityId: input.entityId, reward: "pending_manual_credit" },
-    },
-    update: {
-      referredUserId: input.userId,
-      status: "REWARDED",
-      meaningfulActionAt: now,
-      rewardGrantedAt: now,
-      metadata: { action: input.action, entityId: input.entityId, reward: "pending_manual_credit" },
-    },
+      select: { id: true, rewardGrantedAt: true, blockedReason: true, status: true },
+    });
+
+    const attribution = await tx.referralAttribution.upsert({
+      where: {
+        shareLinkId_visitorHash: {
+          shareLinkId: shareLink.id,
+          visitorHash,
+        },
+      },
+      create: {
+        shareLinkId: shareLink.id,
+        referrerUserId: shareLink.ownerUserId,
+        referredUserId: input.userId,
+        visitorHash,
+        source: shareLink.sourceType,
+        status: "REWARD_PENDING",
+        meaningfulActionAt: now,
+        rewardGrantedAt: now,
+        metadata: { action: input.action, entityId: input.entityId, reward: "pending_credit", credits: 1 },
+      },
+      update: {
+        referredUserId: input.userId,
+        status: existing?.blockedReason ? "BLOCKED" : "REWARD_PENDING",
+        meaningfulActionAt: now,
+        rewardGrantedAt: existing?.rewardGrantedAt ?? now,
+        metadata: { action: input.action, entityId: input.entityId, reward: "pending_credit", credits: 1 },
+      },
+    });
+
+    if (!existing?.rewardGrantedAt && !existing?.blockedReason) {
+      const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+      await recordClarityCreditEntry(tx, {
+        userId: ownerUserId,
+        amount: 1,
+        type: "grant",
+        source: "referral",
+        sourceEventId: attribution.id,
+        status: "pending",
+        expiresAt,
+        metadata: {
+          action: input.action,
+          entityId: input.entityId,
+          referredUserId: input.userId,
+          hold: "meaningful_action_pending_review",
+        } as Prisma.InputJsonObject,
+      });
+    }
+
+    return attribution;
   });
 }

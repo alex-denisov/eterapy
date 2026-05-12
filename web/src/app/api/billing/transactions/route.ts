@@ -22,6 +22,11 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  const clarityCredits = await db.clarityCreditLedgerEntry.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
 
   return NextResponse.json({
     transactions: transactions.map((t) => ({
@@ -44,6 +49,17 @@ export async function GET() {
       source: entry.source,
       transactionId: entry.transactionId,
       description: entry.description,
+      createdAt: entry.createdAt,
+    })),
+    clarityCredits: clarityCredits.map((entry) => ({
+      id: entry.id,
+      amount: entry.amount,
+      balanceAfter: entry.balanceAfter,
+      type: entry.type,
+      source: entry.source,
+      sourceEventId: entry.sourceEventId,
+      status: entry.status,
+      expiresAt: entry.expiresAt,
       createdAt: entry.createdAt,
     })),
   });

@@ -18,7 +18,26 @@ interface Practitioner {
   lastPayout: string | null;
 }
 
-export function PaymentsPanel({ practitioners }: { practitioners: Practitioner[] }) {
+interface ClarityCreditAuditEntry {
+  id: string;
+  userName: string;
+  userEmail: string;
+  amount: number;
+  balanceAfter: number | null;
+  type: string;
+  source: string;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export function PaymentsPanel({
+  practitioners,
+  clarityCredits,
+}: {
+  practitioners: Practitioner[];
+  clarityCredits: ClarityCreditAuditEntry[];
+}) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comment, setComment] = useState<Record<string, string>>({});
@@ -31,7 +50,11 @@ export function PaymentsPanel({ practitioners }: { practitioners: Practitioner[]
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   }
@@ -153,6 +176,55 @@ export function PaymentsPanel({ practitioners }: { practitioners: Practitioner[]
         * Оборот считается по всем завершённым сессиям за всё время. Фактические выплаты
         отслеживаются вручную до интеграции ЮKassa Payout API.
       </p>
+
+      <div className="mt-8 rounded-xl border border-border/30 overflow-hidden" data-testid="admin-clarity-credit-audit">
+        <div className="flex items-center justify-between border-b border-border/20 bg-card/30 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold">Аудит кредитов ясности</h2>
+            <p className="text-xs text-muted-foreground">Источник, статус, срок действия и clawback-события</p>
+          </div>
+          <Badge variant="outline">{clarityCredits.length}</Badge>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-card/20">
+            <tr>
+              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Пользователь</th>
+              <th className="p-3 text-right text-xs text-muted-foreground font-medium">Кредиты</th>
+              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Тип / источник</th>
+              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Статус</th>
+              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Срок</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/10">
+            {clarityCredits.map((entry) => (
+              <tr key={entry.id} className="hover:bg-white/2">
+                <td className="p-3">
+                  <p className="font-medium">{entry.userName}</p>
+                  <p className="text-xs text-muted-foreground">{entry.userEmail}</p>
+                </td>
+                <td className="p-3 text-right font-semibold tabular-nums">
+                  {entry.amount > 0 ? "+" : ""}{entry.amount}
+                  {entry.balanceAfter !== null && (
+                    <span className="ml-1 text-[10px] text-muted-foreground">→ {entry.balanceAfter}</span>
+                  )}
+                </td>
+                <td className="p-3 text-muted-foreground">
+                  {entry.type} · {entry.source}
+                </td>
+                <td className="p-3">
+                  <Badge variant={entry.status === "confirmed" ? "default" : "outline"}>{entry.status}</Badge>
+                </td>
+                <td className="p-3 text-muted-foreground">
+                  {entry.expiresAt ? new Date(entry.expiresAt).toLocaleDateString("ru-RU") : "без срока"}
+                </td>
+              </tr>
+            ))}
+            {clarityCredits.length === 0 && (
+              <tr><td colSpan={5} className="py-10 text-center text-sm text-muted-foreground">Пока нет операций по кредитам ясности</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

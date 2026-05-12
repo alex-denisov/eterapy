@@ -17,6 +17,7 @@ jest.mock("@/lib/db", () => ({
 import db from "@/lib/db";
 import {
   getProductPriceKopecks,
+  getProductCreditCost,
   getSubscriptionPlan,
   grantEntitlementForTransaction,
   revokeEntitlementsForTransaction,
@@ -51,9 +52,21 @@ describe("v5 billing entitlements", () => {
   });
 
   it("keeps product prices server-side", () => {
-    expect(getProductPriceKopecks("deep-report")).toBe(59000);
+    expect(getProductPriceKopecks("perspectives")).toBe(29900);
+    expect(getProductPriceKopecks("deep-report")).toBe(69000);
+    expect(getProductPriceKopecks("chat-analysis")).toBe(89000);
+    expect(getProductPriceKopecks("compatibility")).toBe(79000);
+    expect(getProductPriceKopecks("seven-days")).toBe(99000);
     expect(getProductPriceKopecks("primary-answer")).toBeNull();
-    expect(getSubscriptionPlan("plus")?.includedProducts).toContain("deep-report");
+    expect(getProductCreditCost("deep-report")).toBe(2);
+    expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
+      amountKopecks: 49_900,
+      creditsPerPeriod: 5,
+    }));
+    expect(getSubscriptionPlan("premium")).toEqual(expect.objectContaining({
+      amountKopecks: 129_000,
+      creditsPerPeriod: 15,
+    }));
   });
 
   it("resolves checkout intent server-side for balance, products, and subscriptions", () => {
@@ -61,10 +74,14 @@ describe("v5 billing entitlements", () => {
       purchaseKind: "balance",
       checkoutSource: undefined,
     });
-    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(59_000);
+    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
       kind: "subscription",
-      amountKopecks: 299_000,
+      amountKopecks: 49_900,
+    }));
+    expect(resolveBillingPurchase({ planKey: "premium" })).toEqual(expect.objectContaining({
+      kind: "subscription",
+      amountKopecks: 129_000,
     }));
     expect(() => resolveBillingPurchase({ productKey: "deep-report", planKey: "plus" })).toThrow(
       "Нельзя одновременно оплатить продукт и подписку"
@@ -76,7 +93,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 59000,
+      amount: 69000,
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -98,8 +115,15 @@ describe("v5 billing entitlements", () => {
     mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
     mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "plus" }]);
 
-    await expect(userHasActiveEntitlement("user-1", "deep-report")).resolves.toBe(true);
+    await expect(userHasActiveEntitlement("user-1", "perspectives")).resolves.toBe(true);
+
+    mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
+    mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "plus" }]);
     await expect(userHasActiveEntitlement("user-1", "chat-analysis")).resolves.toBe(false);
+
+    mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
+    mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "premium" }]);
+    await expect(userHasActiveEntitlement("user-1", "deep-report")).resolves.toBe(true);
   });
 
   it("revokes product entitlements and records a refund ledger entry", async () => {
@@ -112,7 +136,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 59000,
+      amount: 69000,
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -133,7 +157,7 @@ describe("v5 billing entitlements", () => {
     }));
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: 59000,
+        amountKopecks: 69000,
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-1",

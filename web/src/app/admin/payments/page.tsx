@@ -22,6 +22,14 @@ export default async function AdminPaymentsPage() {
     orderBy: { createdAt: "desc" },
   });
 
+  const clarityCreditEntries = await db.clarityCreditLedgerEntry.findMany({
+    include: {
+      user: { select: { name: true, email: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
+
   const list = practitioners.map(p => {
     const commission = (p.commissionPercent ?? 25) / 100;
     const totalRevenue = p.bookings.reduce((s, b) => s + b.priceRub, 0);
@@ -53,6 +61,19 @@ export default async function AdminPaymentsPage() {
     ? Math.round((totals.platform / totals.revenue) * 100)
     : 0;
 
+  const clarityCredits = clarityCreditEntries.map((entry) => ({
+    id: entry.id,
+    userName: entry.user.name ?? "Пользователь",
+    userEmail: entry.user.email,
+    amount: entry.amount,
+    balanceAfter: entry.balanceAfter,
+    type: entry.type,
+    source: entry.source,
+    status: entry.status,
+    expiresAt: entry.expiresAt?.toISOString() ?? null,
+    createdAt: entry.createdAt.toISOString(),
+  }));
+
   return (
     <div className="px-6 py-8">
       <div className="mb-6">
@@ -78,7 +99,7 @@ export default async function AdminPaymentsPage() {
         ))}
       </div>
 
-      <PaymentsPanel practitioners={list} />
+      <PaymentsPanel practitioners={list} clarityCredits={clarityCredits} />
     </div>
   );
 }
