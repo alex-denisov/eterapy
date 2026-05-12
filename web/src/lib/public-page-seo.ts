@@ -47,6 +47,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Короткая ежедневная практика ETerapy: мягкие миссии, карта дня, кредиты и возвращение к себе без давления.",
     schemaKind: "Product",
   },
+  "/practice": {
+    title: "Практика ясности — ETerapy",
+    description: "Ежедневная мягкая практика ETerapy: один вопрос, короткое возвращение к себе, кредиты ясности и напоминания без давления.",
+    schemaKind: "Product",
+  },
   "/circle": {
     title: "Круг ясности — ETerapy",
     description: "Групповой формат для 2–5 участников: общий вопрос, приватные ответы, согласие и бережный итоговый разбор.",

@@ -519,6 +519,8 @@ model DailyCard {
   prompt    String
   metadata  Json?
   sharedAt  DateTime? @map("shared_at")
+  completedAt DateTime? @map("completed_at")
+  reflectionText String? @map("reflection_text")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

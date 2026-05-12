@@ -3,8 +3,10 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
+import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
@@ -19,7 +21,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, userData, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount] = await Promise.all([
+  const [recentDialogues, upcomingBooking, userData, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -42,6 +44,7 @@ export default async function ClientCabinetPage() {
     }),
     getOrCreateDailyCard(userId),
     db.dailyCard.count({ where: { userId } }),
+    getClarityCreditBalance(userId),
   ]);
 
   const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
@@ -121,6 +124,9 @@ export default async function ClientCabinetPage() {
               Баланс: {balanceRub.toLocaleString("ru")} ₽
             </p>
           )}
+          <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+            Кредиты ясности: {clarityCredits}
+          </p>
           <Link href={appUrl("/cabinet/billing")} className="soft-chip mt-4 inline-block">
             Управлять →
           </Link>
@@ -252,6 +258,7 @@ export default async function ClientCabinetPage() {
                 Поделиться
               </a>
             </div>
+            <DailyPracticeActions completed={Boolean(dailyCard.completedAt)} />
           </div>
         </div>
       </section>
@@ -259,7 +266,7 @@ export default async function ClientCabinetPage() {
       {/* Gentle milestones */}
       <section className="soft-card mb-4 p-5" data-testid="client-gentle-milestones">
         <p className="soft-eyebrow">Мягкий ритм</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
             <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{dailyCardCount}</p>
             <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>карт дня открыто</p>
@@ -271,6 +278,10 @@ export default async function ClientCabinetPage() {
           <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
             <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{productCount}</p>
             <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>результатов в карте</p>
+          </div>
+          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
+            <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{clarityCredits}</p>
+            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>кредитов ясности</p>
           </div>
         </div>
         <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
