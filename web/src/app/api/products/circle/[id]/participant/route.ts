@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
+import { assessCircleParticipantRisk, socialRiskMetadata } from "@/lib/social-antiabuse";
 
 const postSchema = z.object({
   answerText: z.string().trim().min(10).max(4000),
@@ -22,7 +24,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   const circle = await db.clarityCircle.findUnique({
     where: { id },
-    include: { participants: { where: { status: "SUBMITTED" }, select: { id: true, userId: true } } },
+    include: {
+      participants: {
+        where: { status: "SUBMITTED" },
+        select: { id: true, userId: true, answerText: true, deviceHash: true },
+      },
+    },
   });
 
   if (!circle || circle.status === "DELETED") return errorWithRequestContext("NOT_FOUND", "Circle not found", 404, context);
@@ -33,24 +40,62 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const answerText = parsed.data.answerText;
-  const tooFast = circle.createdAt.getTime() > Date.now() - 10_000;
-  const duplicate = circle.participants.some((participant) => participant.id && answerText.length < 20);
-  const riskFlags = [
-    ...(tooFast ? ["fast_answer"] : []),
-    ...(duplicate ? ["short_duplicate_risk"] : []),
-  ];
+  const fingerprint = requestFingerprint(request);
+  const risk = assessCircleParticipantRisk({
+    circleCreatedAt: circle.createdAt,
+    creatorIpHash: circle.creatorIpHash,
+    creatorDeviceHash: circle.creatorDeviceHash,
+    existingAnswers: circle.participants.map((participant) => participant.answerText),
+    existingDeviceHashes: circle.participants.map((participant) => participant.deviceHash),
+    answerText,
+    fingerprint,
+  });
 
-  const participant = await db.clarityCircleParticipant.create({
-    data: {
-      circleId: id,
-      userId,
-      displayName: parsed.data.displayName ?? session?.user?.name ?? "Участник",
-      answerText,
-      consent: parsed.data.consent,
-      riskScore: riskFlags.length * 20,
-      riskFlags,
-      metadata: { source: "circle_invite", version: "v4.1" },
-    },
+  const participant = await db.$transaction(async (tx) => {
+    const created = await tx.clarityCircleParticipant.create({
+      data: {
+        circleId: id,
+        userId,
+        displayName: parsed.data.displayName ?? session?.user?.name ?? "Участник",
+        answerText,
+        consent: parsed.data.consent,
+        status: risk.shouldHide ? "HIDDEN" : "SUBMITTED",
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
+        ipHash: fingerprint.ipHash,
+        userAgentHash: fingerprint.userAgentHash,
+        deviceHash: fingerprint.deviceHash,
+        answerHash: risk.answerHash,
+        submittedAfterMs: risk.submittedAfterMs,
+        metadata: {
+          source: "circle_invite",
+          version: "v4.1",
+          ...socialRiskMetadata({
+            rewardEligible: risk.rewardEligible,
+            submittedAfterMs: risk.submittedAfterMs,
+            moderation: risk.shouldHide ? "hidden" : risk.shouldReview ? "review" : "accepted",
+          }),
+        },
+      },
+    });
+
+    if (risk.shouldReview) {
+      await logFraudEvent(tx, {
+        subjectType: "circle_participant",
+        subjectId: created.id,
+        actorUserId: userId,
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
+        action: risk.shouldHide ? "circle_answer_hidden" : "circle_answer_review",
+        status: "review",
+        ipHash: fingerprint.ipHash,
+        userAgentHash: fingerprint.userAgentHash,
+        deviceHash: fingerprint.deviceHash,
+        metadata: { circleId: id, rewardEligible: risk.rewardEligible },
+      });
+    }
+
+    return created;
   });
 
   const updated = await db.clarityCircle.findUnique({

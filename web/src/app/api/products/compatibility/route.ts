@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
 import { inviteExpiryDate } from "@/lib/social-clarity";
+import { requestFingerprint } from "@/lib/antifraud";
 
 const PRODUCT_KEY = "compatibility";
 
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
   });
   if (!dialogue) return errorWithRequestContext("NOT_FOUND", "Dialogue not found", 404, context);
 
+  const fingerprint = requestFingerprint(request);
   const compatibility = await db.compatibility.create({
     data: {
       creatorId: userId,
@@ -62,6 +64,9 @@ export async function POST(request: NextRequest) {
       creatorDialogueId: input.dialogueId,
       inviteExpiresAt: inviteExpiryDate(7),
       creatorConsent: true,
+      creatorIpHash: fingerprint.ipHash,
+      creatorUserAgentHash: fingerprint.userAgentHash,
+      creatorDeviceHash: fingerprint.deviceHash,
     },
   });
 

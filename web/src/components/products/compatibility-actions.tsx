@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Copy, CheckCircle2, RefreshCcw, LockKeyhole } from "lucide-react";
+import { ArrowRight, Copy, CheckCircle2, Flag, RefreshCcw, LockKeyhole, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type CompatibilityResult = {
@@ -115,6 +115,27 @@ export function CompatibilityActions({
     }
   }
 
+  async function declineInvite(report = false) {
+    if (!result?.id) return;
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const payload = await jsonRequest<ApiPayload>(`/api/products/compatibility/${result.id}/decline`, {
+        method: "POST",
+        body: JSON.stringify({
+          report,
+          reason: report ? "Приглашение кажется небезопасным или нежелательным" : "Партнер отказался от участия",
+        }),
+      });
+      setResult(payload.result ?? null);
+      setMessage(report ? "Приглашение отправлено на проверку." : "Приглашение отклонено.");
+      setStatus("idle");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось обновить приглашение");
+      setStatus("error");
+    }
+  }
+
   async function generateReport() {
     if (!result?.id) return;
     setStatus("loading");
@@ -177,10 +198,20 @@ export function CompatibilityActions({
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
         ) : (
-          <Button onClick={submitPartnerPart} disabled={status === "loading"} className="soft-button soft-button-primary mt-5">
-            Отправить свои ответы и дать согласие
-            <CheckCircle2 className="size-4" aria-hidden="true" />
-          </Button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={submitPartnerPart} disabled={status === "loading"} className="soft-button soft-button-primary">
+              Отправить свои ответы и дать согласие
+              <CheckCircle2 className="size-4" aria-hidden="true" />
+            </Button>
+            <Button onClick={() => declineInvite(false)} disabled={status === "loading"} className="soft-button soft-button-ghost" data-testid="pair-decline-invite">
+              <XCircle className="size-4" aria-hidden="true" />
+              Отклонить
+            </Button>
+            <Button onClick={() => declineInvite(true)} disabled={status === "loading"} className="soft-button soft-button-ghost" data-testid="pair-report-invite">
+              <Flag className="size-4" aria-hidden="true" />
+              Пожаловаться
+            </Button>
+          </div>
         )}
       </div>
     );
@@ -255,6 +286,14 @@ export function CompatibilityActions({
             <LockKeyhole className="size-4" aria-hidden="true" />
             {status === "paying" ? "Открываем оплату..." : "Получить разбор (требуется согласие)"}
           </Button>
+        </div>
+      )}
+
+      {result && (result.status === "DECLINED" || result.status === "REVIEW") && (
+        <div className="mt-5 rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-bordeaux)]">
+          {result.status === "REVIEW"
+            ? "Приглашение остановлено и отправлено на проверку."
+            : "Партнер отклонил приглашение. Можно вернуться к своему разбору без совместного отчета."}
         </div>
       )}
 

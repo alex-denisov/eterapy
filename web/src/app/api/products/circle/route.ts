@@ -6,6 +6,7 @@ import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { inviteExpiryDate } from "@/lib/social-clarity";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { requestFingerprint } from "@/lib/antifraud";
 
 const PRODUCT_KEY = "circle";
 
@@ -43,12 +44,16 @@ export async function POST(request: NextRequest) {
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid payload", 400, context);
 
+  const fingerprint = requestFingerprint(request);
   const circle = await db.clarityCircle.create({
     data: {
       creatorId: userId,
       question: parsed.data.question,
       topic: parsed.data.topic,
       inviteExpiresAt: inviteExpiryDate(7),
+      creatorIpHash: fingerprint.ipHash,
+      creatorUserAgentHash: fingerprint.userAgentHash,
+      creatorDeviceHash: fingerprint.deviceHash,
       metadata: {
         entry: "circle",
         version: "v4.1",

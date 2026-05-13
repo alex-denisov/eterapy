@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Copy, RefreshCcw, Users } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy, Flag, RefreshCcw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type CircleParticipant = {
@@ -149,6 +149,27 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
     }
   }
 
+  async function reportParticipant(participantId: string) {
+    if (!circle?.id) return;
+    setStatus("loading");
+    setMessage(null);
+    try {
+      await jsonRequest(`/api/products/circle/${circle.id}/report`, {
+        method: "POST",
+        body: JSON.stringify({ participantId, reason: "Ответ нарушает границы круга" }),
+      });
+      setCircle({
+        ...circle,
+        participants: circle.participants.filter((participant) => participant.id !== participantId),
+      });
+      setMessage("Ответ скрыт и отправлен на проверку.");
+      setStatus("idle");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось отправить жалобу");
+      setStatus("error");
+    }
+  }
+
   function copyInviteLink() {
     if (!circle?.inviteToken) return;
     const url = `${window.location.origin}/circle?invite=${circle.inviteToken}`;
@@ -226,6 +247,20 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
               <span>до {new Date(circle.inviteExpiresAt).toLocaleDateString("ru-RU")}</span>
             </div>
           </div>
+          {circle.participants.length > 0 && (
+            <div className="space-y-2" data-testid="circle-participant-review-list">
+              {circle.participants.map((participant) => (
+                <div key={participant.id} className="flex items-center justify-between gap-3 rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] px-3 py-2 text-sm">
+                  <span className="truncate text-[var(--soft-ink-soft)]">
+                    {participant.displayName || "Участник"} · {participant.riskFlags.length ? "нужна внимательность" : "ответ принят"}
+                  </span>
+                  <Button onClick={() => reportParticipant(participant.id)} className="soft-button soft-button-ghost shrink-0" title="Пожаловаться">
+                    <Flag className="size-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <input
               readOnly

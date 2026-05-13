@@ -40,6 +40,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   ) {
     return errorWithRequestContext("CONFLICT", "Partner has not completed their part", 409, context);
   }
+  if (compatibility.riskScore >= 70 || compatibility.riskFlags.includes("toxicity_detected")) {
+    return errorWithRequestContext("REVIEW_REQUIRED", "Разбор требует проверки модератором", 409, context);
+  }
 
   const [creatorDialogue, partnerDialogue] = await Promise.all([
     db.dialogue.findFirst({
@@ -99,6 +102,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         compatibilityId: compatibility.id,
         creatorDialogueId: compatibility.creatorDialogueId,
         partnerDialogueId: compatibility.partnerDialogueId,
+        riskScore: compatibility.riskScore,
+        riskFlags: compatibility.riskFlags,
         generationMetadata: generated.metadata,
       },
     },

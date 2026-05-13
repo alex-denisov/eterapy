@@ -1221,6 +1221,17 @@ model Compatibility {
   teaserText     String?   @map("teaser_text")
   riskScore      Int       @default(0) @map("risk_score")
   riskFlags      String[]  @default([]) @map("risk_flags")
+  creatorIpHash  String?   @map("creator_ip_hash")
+  creatorUserAgentHash String? @map("creator_user_agent_hash")
+  creatorDeviceHash String? @map("creator_device_hash")
+  partnerIpHash  String?   @map("partner_ip_hash")
+  partnerUserAgentHash String? @map("partner_user_agent_hash")
+  partnerDeviceHash String? @map("partner_device_hash")
+  partnerSubmittedAfterMs Int? @map("partner_submitted_after_ms")
+  reportedAt     DateTime? @map("reported_at")
+  reportedReason String?   @map("reported_reason")
+  declinedAt     DateTime? @map("declined_at")
+  metadata       Json?
   reportId       String?   @unique @map("report_id")
   report         ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -1230,6 +1241,8 @@ model Compatibility {
   @@index([partnerId])
   @@index([inviteToken])
   @@index([inviteExpiresAt])
+  @@index([creatorDeviceHash, createdAt])
+  @@index([partnerDeviceHash, createdAt])
   @@map("compatibilities")
   }
 
@@ -1245,6 +1258,9 @@ model ClarityCircle {
   teaserText      String?   @map("teaser_text")
   reportId        String?   @unique @map("report_id")
   report          ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  creatorIpHash   String?   @map("creator_ip_hash")
+  creatorUserAgentHash String? @map("creator_user_agent_hash")
+  creatorDeviceHash String? @map("creator_device_hash")
   metadata        Json?
   participants    ClarityCircleParticipant[]
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -1253,6 +1269,7 @@ model ClarityCircle {
   @@index([creatorId, status, createdAt])
   @@index([inviteToken])
   @@index([inviteExpiresAt])
+  @@index([creatorDeviceHash, createdAt])
   @@map("clarity_circles")
 }
 
@@ -1268,6 +1285,13 @@ model ClarityCircleParticipant {
   status      String    @default("SUBMITTED") // SUBMITTED | HIDDEN | DELETED
   riskScore   Int       @default(0) @map("risk_score")
   riskFlags   String[]  @default([]) @map("risk_flags")
+  ipHash      String?   @map("ip_hash")
+  userAgentHash String? @map("user_agent_hash")
+  deviceHash  String?  @map("device_hash")
+  answerHash  String?  @map("answer_hash")
+  submittedAfterMs Int? @map("submitted_after_ms")
+  reportedAt  DateTime? @map("reported_at")
+  reportedReason String? @map("reported_reason")
   metadata    Json?
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -1275,6 +1299,8 @@ model ClarityCircleParticipant {
   @@unique([circleId, userId])
   @@index([circleId, status, createdAt])
   @@index([userId])
+  @@index([circleId, deviceHash])
+  @@index([answerHash, createdAt])
   @@map("clarity_circle_participants")
 }
 

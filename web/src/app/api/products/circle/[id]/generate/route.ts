@@ -30,14 +30,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (!circle || circle.status === "DELETED") return errorWithRequestContext("NOT_FOUND", "Circle not found", 404, context);
   if (circle.creatorId !== userId) return errorWithRequestContext("FORBIDDEN", "Only creator can generate", 403, context);
-  if (circle.participants.length < 2) {
+  const eligibleParticipants = circle.participants.filter((participant) => !participant.riskFlags.includes("same_device_as_creator"));
+  if (eligibleParticipants.length < 2) {
     return errorWithRequestContext("CONFLICT", "Нужно минимум два ответа участников", 409, context);
   }
 
   const teaserText = buildCircleTeaser({
     question: circle.question,
-    participantCount: circle.participants.length,
-    answers: circle.participants.map((participant) => participant.answerText),
+    participantCount: eligibleParticipants.length,
+    answers: eligibleParticipants.map((participant) => participant.answerText),
   });
 
   const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   const reportText = buildCircleReport({
     question: circle.question,
-    answers: circle.participants.map((participant, index) => ({
+    answers: eligibleParticipants.map((participant, index) => ({
       name: participant.displayName ?? `Участник ${index + 1}`,
       text: participant.answerText,
     })),
@@ -72,8 +73,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       resultText: reportText,
       metadata: {
         circleId: circle.id,
-        participantCount: circle.participants.length,
+        participantCount: eligibleParticipants.length,
         riskFlags: circle.participants.flatMap((participant) => participant.riskFlags),
+        blockedParticipantCount: circle.participants.length - eligibleParticipants.length,
       },
     },
   });
