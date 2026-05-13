@@ -2,9 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import QRCode from "qrcode";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
+import {
+  practitionerPrecheckUrl,
+  practitionerTelegramStartUrl,
+  practitionerWidgetSnippet,
+} from "@/lib/practitioner-links";
 
 export default async function PractitionerServicesPage() {
   const session = await auth();
@@ -29,6 +35,23 @@ export default async function PractitionerServicesPage() {
         enabled: true,
       }];
   const commissionPercent = practitioner.commissionPercent ?? 25;
+  const precheckUrl = practitionerPrecheckUrl(practitioner.slug, {
+    source: "practitioner",
+    channel: "profile-link",
+    practitioner: practitioner.slug,
+    practitionerId: practitioner.id,
+    entry: "practitioner_precheck",
+  });
+  const telegramUrl = practitionerTelegramStartUrl(practitioner.id);
+  const widgetSnippet = practitionerWidgetSnippet(practitioner.slug, `practitioner-${practitioner.id}`);
+  const qrDataUrl = await QRCode.toDataURL(precheckUrl, {
+    margin: 1,
+    width: 168,
+    color: {
+      dark: "#6d2832",
+      light: "#fff8f1",
+    },
+  });
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
@@ -45,6 +68,48 @@ export default async function PractitionerServicesPage() {
           Настроить расписание
         </Link>
       </div>
+
+      <section className="soft-card mb-4 p-5 md:p-6" data-testid="practitioner-acquisition-kit">
+        <div className="grid gap-5 lg:grid-cols-[1fr_180px] lg:items-center">
+          <div>
+            <p className="soft-eyebrow">каналы записи</p>
+            <h2 className="soft-h2 mt-2">Личная ссылка предразбора</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Публикуйте её в профиле, рассылке или Telegram. Клиент сначала формулирует вопрос,
+              ETerapy фиксирует attribution, а затем ведёт к записи без скидок на вашу ставку.
+            </p>
+            <div className="mt-4 grid gap-3">
+              <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3">
+                <p className="text-xs text-[var(--soft-ink-faint)]">Precheck URL</p>
+                <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{precheckUrl}</code>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3">
+                  <p className="text-xs text-[var(--soft-ink-faint)]">Telegram deeplink</p>
+                  <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{telegramUrl}</code>
+                </div>
+                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3">
+                  <p className="text-xs text-[var(--soft-ink-faint)]">Script widget</p>
+                  <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{widgetSnippet}</code>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href={precheckUrl} className="soft-button soft-button-primary" target="_blank" rel="noopener noreferrer">
+                Открыть предразбор
+              </Link>
+              <Link href={mainUrl(`/api/widgets/practitioner-precheck.js?slug=${encodeURIComponent(practitioner.slug)}`)} className="soft-button soft-button-ghost" target="_blank" rel="noopener noreferrer">
+                Проверить widget
+              </Link>
+            </div>
+          </div>
+          <div className="mx-auto rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-3 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrDataUrl} alt={`QR-код предразбора ${practitioner.slug}`} width={168} height={168} className="h-[168px] w-[168px]" />
+            <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">QR для кабинета / визитки</p>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
         <section className="soft-card p-5 md:p-6">

@@ -242,8 +242,15 @@ function FallbackPractitionerPage({ slug }: { slug: string }) {
   );
 }
 
-export default async function PractitionerPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function PractitionerPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ precheck?: string; source?: string }>;
+}) {
   const { slug } = await params;
+  const query = await searchParams;
   const p = await getPractitioner(slug);
   if (!p) return <FallbackPractitionerPage slug={slug} />;
 
@@ -256,6 +263,7 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
   const specialties = (p.specialties as string[]).map((s) => SPECIALTY_LABELS[s] ?? s);
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
+  const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
 
   return (
     <main className="soft-clarity-page soft-public-page">
@@ -455,6 +463,11 @@ export default async function PractitionerPage({ params }: { params: Promise<{ s
             <div className="soft-card p-7">
               <p className="soft-eyebrow">записаться</p>
               <h3 className="soft-h3 mt-2">Индивидуальная сессия</h3>
+              {cameFromPrecheck && (
+                <div className="mt-3 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]" data-testid="precheck-booking-context">
+                  Предразбор сохранён. Выберите время, а контекст вопроса останется связанным с этим переходом.
+                </div>
+              )}
               <p className="text-sm text-[var(--soft-ink-faint)] mt-1">
                 {firstRate?.durationMin ?? 50} минут · онлайн
               </p>

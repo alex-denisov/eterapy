@@ -51,6 +51,7 @@ describe("B213 channel attribution model", () => {
     expect(register).toContain("markChannelConversion");
     expect(register).toContain('conversionType: "registration"');
     expect(dialogues).toContain('conversionType: "dialogue_created"');
+    expect(source("src/app/api/bookings/route.ts")).toContain('conversionType: "booking_requested"');
     expect(helper).toContain("recordChannelTouch");
     expect(helper).toContain("markChannelConversion");
     expect(helper).toContain("firstEntryPath");

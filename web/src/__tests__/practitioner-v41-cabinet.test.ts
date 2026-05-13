@@ -25,6 +25,8 @@ describe("B207 practitioner v4.1 cabinet", () => {
     expect(page).toContain("комиссия платформы");
     expect(page).toContain("Без скидок на встречи");
     expect(page).toContain('mainUrl("/joint")');
+    expect(page).toContain("practitioner-acquisition-kit");
+    expect(page).toContain("Личная ссылка предразбора");
     expect(page).not.toContain("будет доступно в следующем обновлении");
   });
 

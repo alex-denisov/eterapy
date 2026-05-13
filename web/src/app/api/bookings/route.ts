@@ -15,6 +15,7 @@ import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
 import { chargeClientForSession } from "@/lib/session-charge";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
+import { markChannelConversion } from "@/lib/channel-attribution";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,12 @@ export async function POST(req: NextRequest) {
       notify({ userId: practitioner.userId, event: "BOOKING_REQUESTED", data: {
         clientName: booking.client.name, date: slotDate, time: slotTime,
       }}),
+      markChannelConversion({
+        request: req,
+        userId: session.user.id,
+        conversionType: "booking_requested",
+        conversionId: booking.id,
+      }),
     ]).then((results) => {
       results.forEach((r, i) => {
         if (r.status === "rejected") console.error(`[booking notify ${i}]`, r.reason);
