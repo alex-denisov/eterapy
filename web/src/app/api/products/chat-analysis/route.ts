@@ -6,7 +6,14 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
-import { buildChatAnalysisPreview, buildChatAnalysisTitle, generateChatAnalysis } from "@/lib/chat-analysis";
+import {
+  ChatAnalysisInputError,
+  buildChatAnalysisPreview,
+  buildChatAnalysisTitle,
+  extractChatTextFromScreenshot,
+  generateChatAnalysis,
+  maskChatAnalysisPii,
+} from "@/lib/chat-analysis";
 
 const PRODUCT_KEY = "chat-analysis";
 
@@ -14,6 +21,11 @@ const postSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("upload_preview"),
     sourceText: z.string().min(10).max(10000),
+  }),
+  z.object({
+    action: z.literal("screenshot_preview"),
+    imageDataUrl: z.string().min(100).max(6_000_000),
+    fileName: z.string().max(200).optional(),
   }),
   z.object({
     action: z.literal("generate"),
@@ -32,7 +44,14 @@ function serializeResult(result: {
   deletedAt: Date | null;
   metadata: Prisma.JsonValue;
 }) {
-  const metadata = result.metadata as { sourceText?: string | null; sourceDeletedAt?: string | null } | null;
+  const metadata = result.metadata as {
+    sourceText?: string | null;
+    sourceDeletedAt?: string | null;
+    sourceKind?: string | null;
+    recognizedText?: string | null;
+    piiMasked?: boolean | null;
+    screenshot?: { stored?: boolean | null } | null;
+  } | null;
   return {
     id: result.id,
     productKey: result.productKey,
@@ -45,6 +64,10 @@ function serializeResult(result: {
     metadata: {
       sourceText: metadata?.sourceDeletedAt ? null : metadata?.sourceText, // Hide source if deleted
       sourceDeletedAt: metadata?.sourceDeletedAt ?? null,
+      sourceKind: metadata?.sourceKind ?? "text",
+      recognizedText: metadata?.sourceDeletedAt ? null : metadata?.recognizedText ?? null,
+      piiMasked: Boolean(metadata?.piiMasked),
+      screenshotStored: Boolean(metadata?.screenshot?.stored),
     },
   };
 }
@@ -82,8 +105,8 @@ export async function POST(request: NextRequest) {
   const input = parsed.data;
 
   if (input.action === "upload_preview") {
-    // Basic anonymization for preview
-    const previewText = buildChatAnalysisPreview(input.sourceText);
+    const maskedSourceText = maskChatAnalysisPii(input.sourceText);
+    const previewText = buildChatAnalysisPreview(maskedSourceText);
     
     // Check if we already have a preview in progress to overwrite or create a new one
     const existing = await db.productResult.findFirst({
@@ -97,7 +120,13 @@ export async function POST(request: NextRequest) {
           data: {
             title: buildChatAnalysisTitle(input.sourceText),
             previewText,
-            metadata: { sourceText: input.sourceText },
+            metadata: {
+              sourceKind: "text",
+              sourceText: maskedSourceText,
+              piiMasked: true,
+              sourceRawStored: false,
+              uploadPreviewedAt: new Date().toISOString(),
+            },
           },
         })
       : await db.productResult.create({
@@ -107,11 +136,73 @@ export async function POST(request: NextRequest) {
             title: buildChatAnalysisTitle(input.sourceText),
             status: "PREVIEW",
             previewText,
-            metadata: { sourceText: input.sourceText },
+            metadata: {
+              sourceKind: "text",
+              sourceText: maskedSourceText,
+              piiMasked: true,
+              sourceRawStored: false,
+              uploadPreviewedAt: new Date().toISOString(),
+            },
           },
         });
 
     return jsonWithRequestContext({ hasEntitlement, result: serializeResult(result), generated: false }, { status: 200 }, context);
+  }
+
+  if (input.action === "screenshot_preview") {
+    try {
+      const extraction = await extractChatTextFromScreenshot({
+        imageDataUrl: input.imageDataUrl,
+        userId,
+        requestId: context.requestId,
+      });
+      const maskedSourceText = maskChatAnalysisPii(extraction.recognizedText);
+      const previewText = buildChatAnalysisPreview(maskedSourceText);
+
+      const existing = await db.productResult.findFirst({
+        where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const metadata = {
+        sourceKind: "screenshot",
+        sourceText: maskedSourceText,
+        recognizedText: maskedSourceText,
+        piiMasked: true,
+        sourceRawStored: false,
+        imageStored: false,
+        fileName: input.fileName ?? null,
+        uploadPreviewedAt: new Date().toISOString(),
+        ocr: extraction.metadata,
+      };
+
+      const result = existing
+        ? await db.productResult.update({
+            where: { id: existing.id },
+            data: {
+              title: buildChatAnalysisTitle(maskedSourceText),
+              previewText,
+              metadata,
+            },
+          })
+        : await db.productResult.create({
+            data: {
+              userId,
+              productKey: PRODUCT_KEY,
+              title: buildChatAnalysisTitle(maskedSourceText),
+              status: "PREVIEW",
+              previewText,
+              metadata,
+            },
+          });
+
+      return jsonWithRequestContext({ hasEntitlement, result: serializeResult(result), generated: false }, { status: 200 }, context);
+    } catch (error) {
+      if (error instanceof ChatAnalysisInputError) {
+        return errorWithRequestContext(error.code, error.message, 400, context);
+      }
+      throw error;
+    }
   }
 
   if (input.action === "generate") {
@@ -142,6 +233,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           ...(metadata ?? {}),
           generationMetadata: generated.metadata,
+          generationConfirmedAt: new Date().toISOString(),
         },
       },
     });

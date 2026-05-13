@@ -14,9 +14,15 @@ export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
   [AIProvider.OPENROUTER]: "OpenRouter",
 };
 
+export type AIGatewayContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type AIGatewayMessageContent = string | AIGatewayContentBlock[];
+
 export interface AIGatewayMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: AIGatewayMessageContent;
 }
 
 export interface AIGatewayRequestInput {

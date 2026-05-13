@@ -31,15 +31,57 @@ interface AnthropicAdapterOptions {
   fetchImpl?: typeof fetch;
 }
 
+type AnthropicContent =
+  | string
+  | Array<
+    | { type: "text"; text: string }
+    | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+  >;
+
+function dataUrlToAnthropicSource(url: string) {
+  const match = /^data:(image\/(?:png|jpeg|webp));base64,([a-zA-Z0-9+/=]+)$/.exec(url);
+  if (!match) return null;
+  return {
+    type: "image" as const,
+    source: {
+      type: "base64" as const,
+      media_type: match[1],
+      data: match[2],
+    },
+  };
+}
+
+function toAnthropicContent(content: AIGatewayMessage["content"]): AnthropicContent {
+  if (typeof content === "string") return content;
+  const blocks: Exclude<AnthropicContent, string> = [];
+  for (const block of content) {
+    if (block.type === "text") {
+      blocks.push({ type: "text", text: block.text });
+      continue;
+    }
+    const source = dataUrlToAnthropicSource(block.image_url.url);
+    blocks.push(source ?? { type: "text", text: "[unsupported image source omitted]" });
+  }
+  return blocks.length > 0 ? blocks : "";
+}
+
+function contentToSystemText(content: AIGatewayMessage["content"]) {
+  if (typeof content === "string") return content;
+  return content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n\n");
+}
+
 function splitSystem(messages: AIGatewayMessage[]) {
   const system = messages
     .filter((message) => message.role === "system")
-    .map((message) => message.content)
+    .map((message) => contentToSystemText(message.content))
     .join("\n\n")
     .trim();
   const conversation = messages
     .filter((message) => message.role !== "system")
-    .map((message) => ({ role: message.role as "user" | "assistant", content: message.content }));
+    .map((message) => ({ role: message.role as "user" | "assistant", content: toAnthropicContent(message.content) }));
 
   return {
     system: system || undefined,

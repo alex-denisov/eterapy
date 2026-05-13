@@ -9,6 +9,7 @@ import {
   type AIProviderHealth,
 } from "@/lib/ai-gateway/adapters";
 import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
+import type { AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_OPENROUTER_MODEL = "openrouter/free";
@@ -32,7 +33,7 @@ interface OpenRouterClientLike {
       create: (
         body: {
           model: string;
-          messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+          messages: Array<{ role: "system" | "user" | "assistant"; content: AIGatewayMessageContent }>;
           max_tokens?: number;
           temperature?: number;
         },
@@ -80,7 +81,7 @@ export function createOpenRouterAdapter(options: OpenRouterAdapterOptions = {}):
         ...attributionHeaders(options),
         ...cloudflareGatewayAuthHeaders(options.baseURL ?? DEFAULT_BASE_URL),
       },
-    })
+    }) as unknown as OpenRouterClientLike
     : null);
 
   function requireClient() {

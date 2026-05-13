@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Download, LockKeyhole, Save, Trash2, EyeOff } from "lucide-react";
+import { ArrowRight, Download, EyeOff, FileImage, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type ChatAnalysisResult = {
@@ -15,6 +15,10 @@ type ChatAnalysisResult = {
   metadata?: {
     sourceText?: string | null;
     sourceDeletedAt?: string | null;
+    sourceKind?: string | null;
+    recognizedText?: string | null;
+    piiMasked?: boolean | null;
+    screenshotStored?: boolean | null;
   };
 };
 
@@ -51,6 +55,7 @@ export function ChatAnalysisActions() {
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [sourceText, setSourceText] = useState("");
+  const [screenshotName, setScreenshotName] = useState<string | null>(null);
 
   useEffect(() => {
     if (authStatus !== "authenticated") {
@@ -81,9 +86,40 @@ export function ChatAnalysisActions() {
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
       setSourceText(""); // clear input after upload
+      setScreenshotName(null);
       setStatus("idle");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось загрузить переписку");
+      setStatus("error");
+    }
+  }
+
+  async function uploadScreenshot(file: File | null) {
+    if (!file) return;
+    setStatus("loading");
+    setMessage(null);
+    setScreenshotName(file.name);
+    try {
+      const imageDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+        reader.readAsDataURL(file);
+      });
+      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
+        method: "POST",
+        body: JSON.stringify({
+          action: "screenshot_preview",
+          imageDataUrl,
+          fileName: file.name,
+        }),
+      });
+      setHasEntitlement(Boolean(payload.hasEntitlement));
+      setResult(payload.result ?? null);
+      setSourceText("");
+      setStatus("idle");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось распознать скриншот");
       setStatus("error");
     }
   }
@@ -187,8 +223,28 @@ export function ChatAnalysisActions() {
       {!result && (
         <>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Мы анонимизируем имена на «Я» и «Собеседник» перед разбором. Пожалуйста, удалите телефоны, адреса и другие чувствительные данные перед загрузкой.
+            Можно вставить текст или загрузить скриншот. Мы покажем распознанный текст перед разбором, замаскируем контакты и не сохраним изображение.
           </p>
+          <label className="soft-button soft-button-ghost mt-4 inline-flex cursor-pointer items-center">
+            <FileImage className="size-4" aria-hidden="true" />
+            {status === "loading" && screenshotName ? "Распознаем..." : "Загрузить скриншот"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              disabled={status === "loading"}
+              onChange={(event) => {
+                void uploadScreenshot(event.target.files?.[0] ?? null);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          {screenshotName && (
+            <p className="mt-2 text-xs text-[var(--soft-ink-soft)]">
+              <Upload className="mr-1 inline size-3" aria-hidden="true" />
+              {screenshotName}
+            </p>
+          )}
           <textarea
             value={sourceText}
             onChange={(e) => setSourceText(e.target.value)}
@@ -210,10 +266,21 @@ export function ChatAnalysisActions() {
 
       {result?.previewText && !result?.resultText && (
         <>
+          {result.metadata?.sourceKind === "screenshot" && result.metadata?.recognizedText && (
+            <div className="soft-card-flat mt-5 whitespace-pre-wrap p-4 text-sm leading-relaxed text-[var(--soft-ink)]">
+              <p className="soft-eyebrow mb-2 text-[var(--soft-bordeaux)]">Распознанный текст</p>
+              {result.metadata.recognizedText}
+            </div>
+          )}
           <div className="soft-card-flat mt-5 whitespace-pre-wrap p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             <p className="soft-eyebrow mb-2 text-[var(--soft-bordeaux)]">Предпросмотр анонимизации</p>
             {result.previewText}
           </div>
+          {result.metadata?.piiMasked && (
+            <p className="mt-3 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+              Контакты и прямые идентификаторы замаскированы до анализа. Нажатие на полный разбор подтверждает, что распознанный текст можно использовать.
+            </p>
+          )}
           <Button onClick={generateReport} disabled={status === "loading" || status === "paying"} className="soft-button soft-button-primary mt-5">
             <LockKeyhole className="size-4" aria-hidden="true" />
             {status === "paying" ? "Открываем оплату..." : "Получить полный разбор"}

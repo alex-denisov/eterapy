@@ -12,6 +12,7 @@ import {
   cloudflareGatewayAuthHeaders,
   isCloudflareAIGatewayUrl as isCloudflareGatewayUrl,
 } from "@/lib/ai-gateway/cloudflare-gateway";
+import type { AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
@@ -44,7 +45,7 @@ interface OpenAIClientLike {
       create: (
         body: {
           model: string;
-          messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+          messages: Array<{ role: "system" | "user" | "assistant"; content: AIGatewayMessageContent }>;
           max_tokens?: number;
           temperature?: number;
         },
@@ -79,7 +80,7 @@ export function createOpenAIAdapter(options: OpenAIAdapterOptions = {}): AIGatew
       apiKey: options.apiKey ?? "",
       baseURL: options.baseURL,
       ...(Object.keys(cfHeaders).length > 0 ? { defaultHeaders: cfHeaders } : {}),
-    })
+    }) as unknown as OpenAIClientLike
     : null);
 
   function requireClient() {

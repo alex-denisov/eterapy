@@ -8,6 +8,7 @@ import {
   type AIGatewayCompletionResponse,
   type AIProviderHealth,
 } from "@/lib/ai-gateway/adapters";
+import type { AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_FIREWORKS_MODEL = "accounts/fireworks/models/llama-v3p1-8b-instruct";
@@ -20,7 +21,7 @@ interface FireworksClientLike {
       create: (
         body: {
           model: string;
-          messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
+          messages: Array<{ role: "system" | "user" | "assistant"; content: AIGatewayMessageContent }>;
           max_tokens?: number;
           temperature?: number;
         },
@@ -53,7 +54,7 @@ export function createFireworksAdapter(options: FireworksAdapterOptions = {}): A
     ? new OpenAI({
       apiKey: options.apiKey ?? "",
       baseURL: options.baseURL ?? DEFAULT_BASE_URL,
-    })
+    }) as unknown as FireworksClientLike
     : null);
 
   function requireClient() {

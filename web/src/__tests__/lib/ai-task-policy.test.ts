@@ -14,6 +14,7 @@ describe("AI task taxonomy and default routing policy", () => {
       "dialogue-router",
       "safety-classification",
       "product-deep-report",
+      "product-chat-analysis-ocr",
       "product-chat-analysis",
       "session-summary",
       "session-compliance",
@@ -30,11 +31,14 @@ describe("AI task taxonomy and default routing policy", () => {
   it("keeps sensitive and compliance defaults on direct providers", () => {
     const safety = getDefaultAIRoutingPolicy("safety_classification");
     const compliance = getDefaultAIRoutingPolicy("session-compliance");
+    const chatOcr = getDefaultAIRoutingPolicy("product-chat-analysis-ocr");
 
     expect(safety?.providerOrder).toEqual([AIProvider.OPENAI, AIProvider.ANTHROPIC]);
     expect(compliance?.providerOrder).toEqual([AIProvider.OPENAI, AIProvider.ANTHROPIC]);
+    expect(chatOcr?.providerOrder).toEqual([AIProvider.OPENAI, AIProvider.ANTHROPIC]);
     expect(safety?.fallbackNotes).toContain("No OpenRouter");
     expect(compliance?.fallbackNotes).toContain("human");
+    expect(chatOcr?.fallbackNotes).toContain("screenshots stay on direct providers");
   });
 
   it("marks database policies while still showing default taxonomy metadata", () => {

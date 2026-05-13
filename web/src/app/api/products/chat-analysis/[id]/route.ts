@@ -23,7 +23,14 @@ function serialize(result: {
   updatedAt: Date;
   metadata: Prisma.JsonValue;
 }) {
-  const metadata = result.metadata as { sourceText?: string | null; sourceDeletedAt?: string | null } | null;
+  const metadata = result.metadata as {
+    sourceText?: string | null;
+    sourceDeletedAt?: string | null;
+    sourceKind?: string | null;
+    recognizedText?: string | null;
+    piiMasked?: boolean | null;
+    screenshot?: { stored?: boolean | null } | null;
+  } | null;
   return {
     id: result.id,
     productKey: result.productKey,
@@ -38,6 +45,10 @@ function serialize(result: {
     metadata: {
       sourceText: metadata?.sourceDeletedAt ? null : metadata?.sourceText, // Hide source if deleted
       sourceDeletedAt: metadata?.sourceDeletedAt ?? null,
+      sourceKind: metadata?.sourceKind ?? "text",
+      recognizedText: metadata?.sourceDeletedAt ? null : metadata?.recognizedText ?? null,
+      piiMasked: Boolean(metadata?.piiMasked),
+      screenshotStored: Boolean(metadata?.screenshot?.stored),
     },
   };
 }
@@ -68,13 +79,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
   
   if (parsed.data.action === "delete_source") {
-    const metadata = result.metadata as { sourceText?: string | null; sourceDeletedAt?: string | null } | null;
+    const metadata = result.metadata as { sourceText?: string | null; recognizedText?: string | null; sourceDeletedAt?: string | null } | null;
     if (metadata?.sourceDeletedAt) return jsonWithRequestContext({ result: serialize(result) }, { status: 200 }, context); // Already deleted
     
     // We update metadata to include sourceDeletedAt and remove sourceText to save space/privacy.
     const updatedMetadata = {
       ...(metadata ?? {}),
       sourceText: null, // Nullify raw text
+      recognizedText: null,
       sourceDeletedAt: new Date().toISOString(),
     };
     
