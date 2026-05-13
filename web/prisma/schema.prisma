@@ -574,6 +574,11 @@ model ReferralAttribution {
   source             String   @default("share")
   status             String   @default("OPENED") // OPENED | REGISTERED | REWARDED | BLOCKED
   blockedReason      String?  @map("blocked_reason")
+  riskScore          Int      @default(0) @map("risk_score")
+  riskFlags          String[] @default([]) @map("risk_flags")
+  ipHash             String?  @map("ip_hash")
+  userAgentHash      String?  @map("user_agent_hash")
+  deviceHash         String?  @map("device_hash")
   meaningfulActionAt DateTime? @map("meaningful_action_at")
   rewardGrantedAt    DateTime? @map("reward_granted_at")
   metadata           Json?
@@ -584,7 +589,30 @@ model ReferralAttribution {
   @@index([referrerUserId, status])
   @@index([referredUserId])
   @@index([visitorHash])
+  @@index([ipHash, createdAt])
+  @@index([deviceHash, createdAt])
   @@map("referral_attributions")
+}
+
+model FraudEvent {
+  id            String   @id @default(cuid())
+  subjectType   String   @map("subject_type")
+  subjectId     String?  @map("subject_id")
+  actorUserId   String?  @map("actor_user_id")
+  riskScore     Int      @default(0) @map("risk_score")
+  riskFlags     String[] @default([]) @map("risk_flags")
+  action        String
+  status        String   @default("logged") // logged | blocked | review | clawback | resolved
+  ipHash        String?  @map("ip_hash")
+  userAgentHash String?  @map("user_agent_hash")
+  deviceHash    String?  @map("device_hash")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([subjectType, subjectId])
+  @@index([actorUserId, createdAt])
+  @@index([status, createdAt])
+  @@map("fraud_events")
 }
 
 model ChannelAttribution {

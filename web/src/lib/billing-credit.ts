@@ -20,6 +20,7 @@ import {
   recordCreditLedgerEntry,
   revokeEntitlementsForTransaction,
 } from "./entitlements";
+import { clawbackReferralRewardsForUser } from "./share-referral";
 
 interface YookassaCardSnapshot {
   id: string;
@@ -245,6 +246,12 @@ export async function refundSucceededTransaction(input: {
         },
       },
     });
+  });
+
+  await clawbackReferralRewardsForUser({
+    referredUserId: transaction.userId,
+    reason: `refund:${input.reason}`,
+    sourceEventId: transaction.id,
   });
 
   return { refunded: true, providerRefundId: providerRefund?.id ?? null };

@@ -7,6 +7,7 @@ export type ClarityCreditType = "grant" | "spend" | "expire" | "clawback" | "adj
 export type ClarityCreditSource = "referral" | "mission" | "daily_practice" | "purchase" | "subscription" | "admin" | "product";
 
 const ACTIVE_STATUSES: ClarityCreditStatus[] = ["pending", "confirmed"];
+const SPENDABLE_STATUSES: ClarityCreditStatus[] = ["confirmed"];
 
 function isNotExpired(expiresAt: Date | null, now = new Date()) {
   return !expiresAt || expiresAt > now;
@@ -18,6 +19,20 @@ export async function getClarityCreditBalance(
 ): Promise<number> {
   const entries = await tx.clarityCreditLedgerEntry.findMany({
     where: { userId, status: { in: ACTIVE_STATUSES } },
+    select: { amount: true, expiresAt: true },
+  });
+
+  return entries.reduce((sum, entry) => (
+    isNotExpired(entry.expiresAt) ? sum + entry.amount : sum
+  ), 0);
+}
+
+export async function getSpendableClarityCreditBalance(
+  userId: string,
+  tx: Prisma.TransactionClient = db,
+): Promise<number> {
+  const entries = await tx.clarityCreditLedgerEntry.findMany({
+    where: { userId, status: { in: SPENDABLE_STATUSES } },
     select: { amount: true, expiresAt: true },
   });
 
@@ -96,7 +111,7 @@ export async function spendClarityCreditsForProduct(input: {
   }
 
   return db.$transaction(async (tx) => {
-    const balance = await getClarityCreditBalance(input.userId, tx);
+    const balance = await getSpendableClarityCreditBalance(input.userId, tx);
     if (balance < cost) {
       throw new Error("Недостаточно кредитов");
     }

@@ -5,6 +5,7 @@ import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { mainUrl } from "@/lib/subdomain";
+import { assessReferralRisk, logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 
 export const REFERRAL_COOKIE = "eterapy_ref";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -89,6 +90,7 @@ export async function recordShareVisit(input: {
   if (!shareLink || shareLink.revokedAt) return { status: "missing" as const, shareLink: null };
 
   const visitorHash = visitorHashFromRequest(input.request);
+  const fingerprint = requestFingerprint(input.request);
   const isSelfReferral = Boolean(input.currentUserId && input.currentUserId === shareLink.ownerUserId);
   await db.shareLink.update({
     where: { id: shareLink.id },
@@ -110,9 +112,14 @@ export async function recordShareVisit(input: {
       referrerUserId: shareLink.ownerUserId,
       referredUserId: isSelfReferral ? input.currentUserId ?? null : null,
       visitorHash,
+      ipHash: fingerprint.ipHash,
+      userAgentHash: fingerprint.userAgentHash,
+      deviceHash: fingerprint.deviceHash,
       source: shareLink.sourceType,
       status: isSelfReferral ? "BLOCKED" : "OPENED",
       blockedReason: isSelfReferral ? "self_referral" : null,
+      riskScore: isSelfReferral ? 100 : 0,
+      riskFlags: isSelfReferral ? ["self_referral"] : [],
       metadata: {
         topic: shareLink.topic,
         sourceLabel: shareLink.sourceLabel,
@@ -122,9 +129,17 @@ export async function recordShareVisit(input: {
       ? {
           status: "BLOCKED",
           blockedReason: "self_referral",
+          riskScore: 100,
+          riskFlags: ["self_referral"],
           referredUserId: input.currentUserId ?? null,
+          ipHash: fingerprint.ipHash,
+          userAgentHash: fingerprint.userAgentHash,
+          deviceHash: fingerprint.deviceHash,
         }
       : {
+          ipHash: fingerprint.ipHash,
+          userAgentHash: fingerprint.userAgentHash,
+          deviceHash: fingerprint.deviceHash,
           metadata: {
             topic: shareLink.topic,
             sourceLabel: shareLink.sourceLabel,
@@ -149,6 +164,7 @@ export async function attachReferralToRegisteredUser(input: {
   const shareLink = await db.shareLink.findUnique({ where: { token } });
   if (!shareLink || shareLink.revokedAt) return null;
   const visitorHash = visitorHashFromRequest(input.request);
+  const fingerprint = requestFingerprint(input.request);
   const isSelfReferral = shareLink.ownerUserId === input.userId;
 
   return db.referralAttribution.upsert({
@@ -163,14 +179,24 @@ export async function attachReferralToRegisteredUser(input: {
       referrerUserId: shareLink.ownerUserId,
       referredUserId: input.userId,
       visitorHash,
+      ipHash: fingerprint.ipHash,
+      userAgentHash: fingerprint.userAgentHash,
+      deviceHash: fingerprint.deviceHash,
       source: shareLink.sourceType,
       status: isSelfReferral ? "BLOCKED" : "REGISTERED",
       blockedReason: isSelfReferral ? "self_referral" : null,
+      riskScore: isSelfReferral ? 100 : 0,
+      riskFlags: isSelfReferral ? ["self_referral"] : [],
     },
     update: {
       referredUserId: input.userId,
       status: isSelfReferral ? "BLOCKED" : "REGISTERED",
       blockedReason: isSelfReferral ? "self_referral" : null,
+      riskScore: isSelfReferral ? 100 : 0,
+      riskFlags: isSelfReferral ? ["self_referral"] : [],
+      ipHash: fingerprint.ipHash,
+      userAgentHash: fingerprint.userAgentHash,
+      deviceHash: fingerprint.deviceHash,
     },
   });
 }
@@ -187,6 +213,7 @@ export async function markReferralMeaningfulAction(input: {
   if (!shareLink || !shareLink.ownerUserId || shareLink.ownerUserId === input.userId) return null;
   const ownerUserId = shareLink.ownerUserId;
   const visitorHash = visitorHashFromRequest(input.request);
+  const fingerprint = requestFingerprint(input.request);
   const now = new Date();
   return db.$transaction(async (tx) => {
     const existing = await tx.referralAttribution.findUnique({
@@ -198,6 +225,14 @@ export async function markReferralMeaningfulAction(input: {
       },
       select: { id: true, rewardGrantedAt: true, blockedReason: true, status: true },
     });
+    const risk = await assessReferralRisk({
+      tx,
+      referrerUserId: shareLink.ownerUserId,
+      referredUserId: input.userId,
+      visitorHash,
+      fingerprint,
+    });
+    const blockedReason = existing?.blockedReason ?? (risk.shouldBlockReward ? risk.riskFlags.join(",") || "high_risk_referral" : null);
 
     const attribution = await tx.referralAttribution.upsert({
       where: {
@@ -211,22 +246,50 @@ export async function markReferralMeaningfulAction(input: {
         referrerUserId: shareLink.ownerUserId,
         referredUserId: input.userId,
         visitorHash,
+        ipHash: fingerprint.ipHash,
+        userAgentHash: fingerprint.userAgentHash,
+        deviceHash: fingerprint.deviceHash,
         source: shareLink.sourceType,
-        status: "REWARD_PENDING",
+        status: blockedReason ? "BLOCKED" : "REWARD_PENDING",
+        blockedReason,
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
         meaningfulActionAt: now,
-        rewardGrantedAt: now,
-        metadata: { action: input.action, entityId: input.entityId, reward: "pending_credit", credits: 1 },
+        rewardGrantedAt: blockedReason ? null : now,
+        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "pending_credit", credits: blockedReason ? 0 : 1 },
       },
       update: {
         referredUserId: input.userId,
-        status: existing?.blockedReason ? "BLOCKED" : "REWARD_PENDING",
+        status: blockedReason ? "BLOCKED" : "REWARD_PENDING",
+        blockedReason,
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
+        ipHash: fingerprint.ipHash,
+        userAgentHash: fingerprint.userAgentHash,
+        deviceHash: fingerprint.deviceHash,
         meaningfulActionAt: now,
-        rewardGrantedAt: existing?.rewardGrantedAt ?? now,
-        metadata: { action: input.action, entityId: input.entityId, reward: "pending_credit", credits: 1 },
+        rewardGrantedAt: blockedReason ? existing?.rewardGrantedAt ?? null : existing?.rewardGrantedAt ?? now,
+        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "pending_credit", credits: blockedReason ? 0 : 1 },
       },
     });
 
-    if (!existing?.rewardGrantedAt && !existing?.blockedReason) {
+    if (blockedReason) {
+      await logFraudEvent(tx, {
+        subjectType: "referral",
+        subjectId: attribution.id,
+        actorUserId: input.userId,
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
+        action: "referral_reward_blocked",
+        status: "blocked",
+        ipHash: fingerprint.ipHash,
+        userAgentHash: fingerprint.userAgentHash,
+        deviceHash: fingerprint.deviceHash,
+        metadata: { referrerUserId: shareLink.ownerUserId, action: input.action, entityId: input.entityId } as Prisma.InputJsonObject,
+      });
+    }
+
+    if (!blockedReason && !existing?.rewardGrantedAt) {
       const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
       await recordClarityCreditEntry(tx, {
         userId: ownerUserId,
@@ -243,8 +306,74 @@ export async function markReferralMeaningfulAction(input: {
           hold: "meaningful_action_pending_review",
         } as Prisma.InputJsonObject,
       });
+      await logFraudEvent(tx, {
+        subjectType: "referral",
+        subjectId: attribution.id,
+        actorUserId: input.userId,
+        riskScore: risk.riskScore,
+        riskFlags: risk.riskFlags,
+        action: "referral_reward_pending",
+        status: "logged",
+        ipHash: fingerprint.ipHash,
+        userAgentHash: fingerprint.userAgentHash,
+        deviceHash: fingerprint.deviceHash,
+        metadata: { referrerUserId: shareLink.ownerUserId, action: input.action, entityId: input.entityId } as Prisma.InputJsonObject,
+      });
     }
 
     return attribution;
   });
+}
+
+export async function clawbackReferralRewardsForUser(input: {
+  referredUserId: string;
+  reason: string;
+  sourceEventId?: string | null;
+}) {
+  const attributions = await db.referralAttribution.findMany({
+    where: {
+      referredUserId: input.referredUserId,
+      status: { in: ["REWARD_PENDING", "REWARDED", "REWARD_CONFIRMED"] },
+      referrerUserId: { not: null },
+    },
+    select: { id: true, referrerUserId: true, riskScore: true, riskFlags: true },
+  });
+
+  for (const attribution of attributions) {
+    await db.$transaction(async (tx) => {
+      await tx.referralAttribution.update({
+        where: { id: attribution.id },
+        data: {
+          status: "REWARD_REVOKED",
+          blockedReason: input.reason,
+          riskFlags: Array.from(new Set([...attribution.riskFlags, "refund_clawback"])),
+        },
+      });
+      await recordClarityCreditEntry(tx, {
+        userId: attribution.referrerUserId!,
+        amount: -1,
+        type: "clawback",
+        source: "referral",
+        sourceEventId: input.sourceEventId ?? attribution.id,
+        status: "confirmed",
+        metadata: {
+          reason: input.reason,
+          referredUserId: input.referredUserId,
+          attributionId: attribution.id,
+        } as Prisma.InputJsonObject,
+      });
+      await logFraudEvent(tx, {
+        subjectType: "referral",
+        subjectId: attribution.id,
+        actorUserId: input.referredUserId,
+        riskScore: Math.max(attribution.riskScore, 80),
+        riskFlags: Array.from(new Set([...attribution.riskFlags, "refund_clawback"])),
+        action: "referral_reward_clawback",
+        status: "clawback",
+        metadata: { reason: input.reason, sourceEventId: input.sourceEventId } as Prisma.InputJsonObject,
+      });
+    });
+  }
+
+  return { clawedBack: attributions.length };
 }

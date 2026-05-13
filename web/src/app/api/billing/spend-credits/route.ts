@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
-import { getClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
+import { getSpendableClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { getProductCreditCost, isKnownPaidProduct } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -42,10 +42,10 @@ export async function POST(req: NextRequest) {
       });
 
       if (existing) {
-        return { alreadyUnlocked: true, creditCost, balanceAfter: await getClarityCreditBalance(session.user.id, tx) };
+        return { alreadyUnlocked: true, creditCost, balanceAfter: await getSpendableClarityCreditBalance(session.user.id, tx) };
       }
 
-      const balance = await getClarityCreditBalance(session.user.id, tx);
+      const balance = await getSpendableClarityCreditBalance(session.user.id, tx);
       if (balance < creditCost) {
         throw new Error("Недостаточно кредитов");
       }

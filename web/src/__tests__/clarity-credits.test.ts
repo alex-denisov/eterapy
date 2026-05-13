@@ -33,7 +33,7 @@ describe("M21 clarity credits", () => {
     const route = source("src/app/api/billing/spend-credits/route.ts");
 
     expect(route).toContain("await auth()");
-    expect(route).toContain("getClarityCreditBalance");
+    expect(route).toContain("getSpendableClarityCreditBalance");
     expect(route).toContain("recordClarityCreditEntry");
     expect(route).toContain('source: "credits"');
     expect(route).toContain("INSUFFICIENT_CREDITS");
