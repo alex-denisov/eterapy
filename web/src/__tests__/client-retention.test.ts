@@ -21,12 +21,12 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain("mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`)");
   });
 
-  it("adds My Questions to the cabinet navigation", () => {
+  it("adds v4.1 history navigation to the cabinet", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
     expect(shell).toContain('appUrl("/cabinet/questions")');
-    expect(shell).toContain('"Мои вопросы"');
-    expect(shell).toContain("MessageCircle");
+    expect(shell).toContain('"История разборов"');
+    expect(shell).toContain("History");
   });
 
   it("lets clients browse, continue, and soft-delete their own questions", () => {
