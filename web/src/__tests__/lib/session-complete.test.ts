@@ -61,11 +61,15 @@ function bookingFixture(overrides: Partial<{
   commissionPercent: number;
   complaints: { id: string; status: string }[];
   practitionerUserId: string;
+  riskScore: number;
+  riskFlags: string[];
 }> = {}) {
   return {
     id: "b1",
     status: overrides.status ?? "IN_PROGRESS",
     priceRub: overrides.priceRub ?? 3000,
+    riskScore: overrides.riskScore ?? 0,
+    riskFlags: overrides.riskFlags ?? [],
     startedAt: overrides.startedAt ?? new Date(NOW - 50 * 60 * 1000), // 50 min ago
     practitioner: {
       id: "p1",
@@ -119,6 +123,10 @@ describe("completeBookingAtSessionEnd", () => {
         amountKopecks: 225_000,
         status: PAYOUT_STATUS_PENDING,
         initiatedBy: "uAdmin",
+        availableAt: expect.any(Date),
+        holdReason: "payout_delay",
+        riskScore: 0,
+        riskFlags: [],
       },
       select: expect.any(Object),
     });

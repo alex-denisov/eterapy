@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { aiComplete } from "@/lib/ai";
+import { logFraudEvent } from "@/lib/antifraud";
+import {
+  detectPractitionerTextRisk,
+  holdPractitionerPayoutsForBooking,
+  PRACTITIONER_HIGH_RISK_SCORE,
+} from "@/lib/practitioner-antifraud";
 
 const PLATFORM_RULES = `Правила платформы ETerapy:
 1. Запрещено запугивание и угрозы
@@ -59,12 +65,60 @@ export async function POST(req: NextRequest) {
   if (!videoSessionId || !text) return NextResponse.json({ error: "Данные неполны" }, { status: 400 });
 
   const violation = await checkViolations(text);
+  const textRisk = detectPractitionerTextRisk(text);
 
   if (isFinal) {
-    await db.videoSession.update({
+    const videoSession = await db.videoSession.update({
       where: { id: videoSessionId },
       data: { transcriptText: text },
-    }).catch(() => {});
+      select: {
+        id: true,
+        bookingId: true,
+        booking: { select: { practitionerId: true } },
+      },
+    }).catch(() => null);
+
+    if (videoSession && (violation || textRisk.riskScore >= PRACTITIONER_HIGH_RISK_SCORE)) {
+      await db.$transaction(async (tx) => {
+        await tx.booking.update({
+          where: { id: videoSession.bookingId },
+          data: {
+            riskScore: { increment: Math.max(60, textRisk.riskScore) },
+            riskFlags: { push: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"] },
+          },
+        });
+        await tx.practitioner.update({
+          where: { id: videoSession.booking.practitionerId },
+          data: {
+            riskScore: { increment: textRisk.riskFlags.includes("external_payment_signal") ? 30 : 15 },
+            riskFlags: { push: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"] },
+          },
+        });
+        await logFraudEvent(tx, {
+          subjectType: "booking",
+          subjectId: videoSession.bookingId,
+          actorUserId: session.user.id,
+          action: textRisk.riskFlags.includes("external_payment_signal")
+            ? "practitioner_external_payment_detected"
+            : "practitioner_compliance_signal",
+          status: "review",
+          riskScore: Math.max(60, textRisk.riskScore),
+          riskFlags: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"],
+          metadata: {
+            practitionerId: videoSession.booking.practitionerId,
+            videoSessionId,
+            violation,
+          },
+        });
+      });
+      await holdPractitionerPayoutsForBooking({
+        bookingId: videoSession.bookingId,
+        actorUserId: session.user.id,
+        reason: textRisk.riskFlags.includes("external_payment_signal") ? "external_payment_signal" : "session_compliance_signal",
+        riskScore: Math.max(80, textRisk.riskScore),
+        riskFlags: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"],
+      });
+    }
   }
 
   return NextResponse.json({ ok: true, violation });

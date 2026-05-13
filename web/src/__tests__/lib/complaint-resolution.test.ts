@@ -7,6 +7,7 @@ jest.mock("@/lib/db", () => ({
   default: {
     complaint: { findUnique: jest.fn(), update: jest.fn() },
     payout: { findFirst: jest.fn(), updateMany: jest.fn() },
+    booking: { update: jest.fn() },
     user: { update: jest.fn() },
     transaction: { create: jest.fn() },
     auditLog: { create: jest.fn() },
@@ -27,6 +28,7 @@ import { resolveComplaint } from "@/lib/complaint-resolution";
 type MockedPrisma = {
   complaint: { findUnique: jest.Mock; update: jest.Mock };
   payout: { findFirst: jest.Mock; updateMany: jest.Mock };
+  booking: { update: jest.Mock };
   user: { update: jest.Mock };
   transaction: { create: jest.Mock };
   auditLog: { create: jest.Mock };
@@ -39,6 +41,7 @@ function reset() {
   mockDb.complaint.update.mockReset();
   mockDb.payout.findFirst.mockReset();
   mockDb.payout.updateMany.mockReset();
+  mockDb.booking.update.mockReset();
   mockDb.user.update.mockReset();
   mockDb.transaction.create.mockReset();
   mockDb.auditLog.create.mockReset();
@@ -47,6 +50,7 @@ function reset() {
     cb({
       complaint: { update: mockDb.complaint.update },
       payout: { updateMany: mockDb.payout.updateMany },
+      booking: { update: mockDb.booking.update },
       user: { update: mockDb.user.update },
       transaction: { create: mockDb.transaction.create },
     }),
@@ -99,7 +103,11 @@ describe("resolveComplaint", () => {
     });
     expect(mockDb.payout.updateMany).toHaveBeenCalledWith({
       where: { id: "po1", status: "HELD" },
-      data: { status: "PENDING" },
+      data: { status: "PENDING", holdReason: "payout_delay" },
+    });
+    expect(mockDb.booking.update).toHaveBeenCalledWith({
+      where: { id: "b1" },
+      data: { status: "COMPLETED" },
     });
     expect(mockDb.user.update).not.toHaveBeenCalled();
     expect(mockDb.transaction.create).not.toHaveBeenCalled();
@@ -139,6 +147,10 @@ describe("resolveComplaint", () => {
         status: "SUCCEEDED",
         provider: "internal",
       }),
+    });
+    expect(mockDb.booking.update).toHaveBeenCalledWith({
+      where: { id: "b1" },
+      data: { status: "REFUNDED" },
     });
   });
 

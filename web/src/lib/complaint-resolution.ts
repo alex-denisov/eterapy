@@ -136,15 +136,23 @@ export async function resolveComplaint(
           description: `Возврат по жалобе ${complaint.id}`,
         },
       });
+      await tx.booking.update({
+        where: { id: complaint.booking.id },
+        data: { status: "REFUNDED" },
+      });
       return { payoutAction: "withheld" as const };
     }
 
     if (wantRelease) {
       const flip = await tx.payout.updateMany({
         where: { id: heldPayout.id, status: PAYOUT_STATUS_HELD },
-        data: { status: PAYOUT_STATUS_PENDING },
+        data: { status: PAYOUT_STATUS_PENDING, holdReason: "payout_delay" },
       });
       if (flip.count === 0) return { payoutAction: "none" as const };
+      await tx.booking.update({
+        where: { id: complaint.booking.id },
+        data: { status: "COMPLETED" },
+      });
       return { payoutAction: "released" as const };
     }
 

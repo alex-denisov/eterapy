@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { computePractitionerBalance } from "@/lib/practitioner-balance";
+import { assertPractitionerPayoutAllowed, payoutAvailableAt } from "@/lib/practitioner-antifraud";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -32,6 +33,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Нет средств к выплате" }, { status: 400 });
   }
 
+  const payoutGate = await assertPractitionerPayoutAllowed(id);
+  if (!payoutGate.allowed) {
+    return NextResponse.json(
+      { error: "Выплата удержана до проверки риска", reasons: payoutGate.reasons },
+      { status: 409 },
+    );
+  }
+
   const amountKopecks = balance.currentBalance * 100;
 
   const payout = await db.payout.create({
@@ -40,6 +49,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       amountKopecks,
       status: "PENDING",
       initiatedBy: adminId,
+      availableAt: payoutAvailableAt(),
+      holdReason: "payout_delay",
     },
     select: { id: true, amountKopecks: true, status: true, createdAt: true },
   });

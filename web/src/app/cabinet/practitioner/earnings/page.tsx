@@ -53,7 +53,7 @@ export default async function PractitionerEarningsPage() {
   const paidOut = Math.round(paidOutKopecks / 100);
 
   const pendingPayoutKopecks = payouts
-    .filter((p) => p.status === "PENDING" || p.status === "PROCESSING")
+    .filter((p) => p.status === "PENDING" || p.status === "PROCESSING" || p.status === "HELD")
     .reduce((s, p) => s + p.amountKopecks, 0);
   const pendingPayout = Math.round(pendingPayoutKopecks / 100);
 
@@ -188,8 +188,8 @@ export default async function PractitionerEarningsPage() {
       <div className="soft-card mb-6 p-4 text-sm text-[var(--soft-ink-soft)]">
         <p className="font-medium text-foreground mb-1">График выплат</p>
         Выплаты начисляются дважды в месяц — <span className="text-foreground">1-го и 15-го числа</span>{" "}
-        по московскому времени. На дату выплаты переводится весь доступный баланс за минусом комиссии платформы.
-        Реквизиты можно настроить в разделе «Настройки».
+        по московскому времени. Новые сессии проходят стандартный hold-период 7 дней; жалобы, возвраты и риск-сигналы
+        удерживают выплату до ручной проверки. Реквизиты можно настроить в разделе «Настройки».
       </div>
 
       {/* Движение средств */}

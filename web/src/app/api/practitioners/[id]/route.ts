@@ -13,6 +13,7 @@ export async function GET(
       include: {
         user: { select: { name: true } },
         reviews: {
+          where: { status: "PUBLISHED" },
           include: { author: { select: { name: true } } },
           orderBy: { createdAt: "desc" },
           take: 10,

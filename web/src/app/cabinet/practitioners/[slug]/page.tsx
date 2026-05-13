@@ -15,6 +15,7 @@ async function getPractitioner(slug: string) {
       user: { select: { name: true, avatarUrl: true } },
       priceRates: { where: { enabled: true }, orderBy: { priceRub: "asc" } },
       reviews: {
+        where: { status: "PUBLISHED" },
         include: { author: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
         take: 10,

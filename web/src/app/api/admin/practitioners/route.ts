@@ -28,6 +28,16 @@ export async function PATCH(req: NextRequest) {
   const { practitionerId, status } = await req.json();
   if (!practitionerId || !status) return NextResponse.json({ error: "Данные неполны" }, { status: 400 });
 
+  if (status === "ACTIVE") {
+    const existing = await db.practitioner.findUnique({
+      where: { id: practitionerId },
+      select: { verified: true },
+    });
+    if (!existing?.verified) {
+      return NextResponse.json({ error: "Перед публикацией профиль должен пройти проверку" }, { status: 409 });
+    }
+  }
+
   const updated = await db.practitioner.update({
     where: { id: practitionerId },
     data: { status: status as PractitionerStatus },

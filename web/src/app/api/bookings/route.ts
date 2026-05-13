@@ -16,6 +16,8 @@ import { notify } from "@/lib/notifications";
 import { chargeClientForSession } from "@/lib/session-charge";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { markChannelConversion } from "@/lib/channel-attribution";
+import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
+import { assessBookingRisk } from "@/lib/practitioner-antifraud";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -128,6 +130,31 @@ export async function POST(req: NextRequest) {
     if (practitioner.status !== "ACTIVE") {
       return NextResponse.json({ error: "Практик временно недоступен" }, { status: 409 });
     }
+    if (!practitioner.verified) {
+      return NextResponse.json({ error: "Профиль практика ещё не прошёл проверку" }, { status: 409 });
+    }
+
+    const fingerprint = requestFingerprint(req);
+    const bookingRisk = await db.$transaction((tx) => assessBookingRisk({
+      tx,
+      clientId: session.user.id,
+      practitionerId,
+      fingerprint,
+    }));
+    if (bookingRisk.shouldBlock) {
+      await db.$transaction((tx) => logFraudEvent(tx, {
+        subjectType: "practitioner",
+        subjectId: practitionerId,
+        actorUserId: session.user.id,
+        action: "practitioner_booking_blocked",
+        status: "blocked",
+        riskScore: bookingRisk.riskScore,
+        riskFlags: bookingRisk.riskFlags,
+        ...fingerprint,
+        metadata: { practitionerId },
+      }));
+      return NextResponse.json({ error: "Запись требует проверки поддержки" }, { status: 409 });
+    }
 
     let resolvedSlotId: string | null = null;
 
@@ -193,12 +220,29 @@ export async function POST(req: NextRequest) {
         slotId: resolvedSlotId,
         status: BookingStatus.PENDING,
         priceRub,
+        ...fingerprint,
+        riskScore: bookingRisk.riskScore,
+        riskFlags: bookingRisk.riskFlags,
       },
       include: {
         client: { select: { name: true, email: true } },
         slot: true,
       },
     });
+
+    if (bookingRisk.shouldReview) {
+      await db.$transaction((tx) => logFraudEvent(tx, {
+        subjectType: "booking",
+        subjectId: booking.id,
+        actorUserId: session.user.id,
+        action: "practitioner_booking_review",
+        status: "review",
+        riskScore: bookingRisk.riskScore,
+        riskFlags: bookingRisk.riskFlags,
+        ...fingerprint,
+        metadata: { practitionerId },
+      }));
+    }
 
     // Собираем данные для писем
     const emailData = {

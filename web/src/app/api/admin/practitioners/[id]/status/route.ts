@@ -15,6 +15,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const valid = ["PENDING", "ACTIVE", "SUSPENDED", "BLOCKED"];
   if (!valid.includes(status)) return NextResponse.json({ error: "Неверный статус" }, { status: 400 });
 
+  if (status === "ACTIVE") {
+    const existing = await db.practitioner.findUnique({
+      where: { id },
+      select: { verified: true },
+    });
+    if (!existing?.verified) {
+      return NextResponse.json({ error: "Перед публикацией профиль должен пройти проверку" }, { status: 409 });
+    }
+  }
+
   const p = await db.practitioner.update({
     where: { id },
     data: { status },

@@ -7,6 +7,12 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { Resend } from "resend";
+import { logFraudEvent } from "@/lib/antifraud";
+import {
+  detectPractitionerTextRisk,
+  holdPractitionerPayoutsForBooking,
+  PRACTITIONER_HIGH_RISK_SCORE,
+} from "@/lib/practitioner-antifraud";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? "admin@eterapy.com";
@@ -37,13 +43,62 @@ export async function POST(req: NextRequest) {
   });
   if (existing) return NextResponse.json({ error: "Жалоба на эту сессию уже подана" }, { status: 409 });
 
-  const complaint = await db.complaint.create({
-    data: {
-      bookingId,
-      reportedBy: session.user.id,
-      reason,
-      description: description.trim(),
-    },
+  const textRisk = detectPractitionerTextRisk(description);
+  const complaint = await db.$transaction(async (tx) => {
+    const created = await tx.complaint.create({
+      data: {
+        bookingId,
+        reportedBy: session.user.id,
+        reason,
+        description: description.trim(),
+      },
+    });
+
+    await tx.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: "DISPUTED",
+        riskScore: { increment: Math.max(50, textRisk.riskScore) },
+        riskFlags: { push: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["client_complaint"] },
+      },
+    }).catch(() => null);
+
+    await logFraudEvent(tx, {
+      subjectType: "booking",
+      subjectId: bookingId,
+      actorUserId: session.user.id,
+      action: textRisk.riskFlags.includes("external_payment_signal")
+        ? "practitioner_external_payment_reported"
+        : "practitioner_complaint_reported",
+      status: "review",
+      riskScore: Math.max(50, textRisk.riskScore),
+      riskFlags: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["client_complaint"],
+      metadata: {
+        complaintId: created.id,
+        practitionerId: booking.practitionerId,
+        reason,
+      },
+    });
+
+    if (textRisk.riskScore >= PRACTITIONER_HIGH_RISK_SCORE) {
+      await tx.practitioner.update({
+        where: { id: booking.practitionerId },
+        data: {
+          riskScore: { increment: 20 },
+          riskFlags: { push: textRisk.riskFlags },
+        },
+      });
+    }
+
+    return created;
+  });
+
+  await holdPractitionerPayoutsForBooking({
+    bookingId,
+    actorUserId: session.user.id,
+    reason: "client_complaint",
+    riskScore: Math.max(80, textRisk.riskScore),
+    riskFlags: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["client_complaint"],
   });
 
   await logAudit(session.user.id, "COMPLAINT_SUBMITTED", bookingId, `Причина: ${reason}`);

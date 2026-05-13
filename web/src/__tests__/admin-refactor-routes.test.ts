@@ -89,6 +89,9 @@ describe("admin refactor routes", () => {
   it("lets SUPERADMIN approve or reject practitioners", async () => {
     const { mockAuth, mockDb, patchPractitionerStatus } = await loadModules();
     mockAuth.mockResolvedValue({ user: { id: "superadmin-1", role: "SUPERADMIN" } });
+    mockDb.practitioner.findUnique.mockResolvedValue({
+      verified: true,
+    });
     mockDb.practitioner.update.mockResolvedValue({
       id: "prac-1",
       status: "ACTIVE",

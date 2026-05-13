@@ -24,6 +24,7 @@
  *   - booking.endedAt is now set at completion time.
  */
 import db from "./db";
+import { payoutAvailableAt, payoutHoldMetadata } from "./practitioner-antifraud";
 
 export const PAYOUT_STATUS_PENDING = "PENDING";
 export const PAYOUT_STATUS_HELD = "HELD";
@@ -68,6 +69,8 @@ export async function completeBookingAtSessionEnd(
       id: true,
       status: true,
       priceRub: true,
+      riskScore: true,
+      riskFlags: true,
       startedAt: true,
       practitioner: {
         select: { id: true, userId: true, commissionPercent: true },
@@ -104,7 +107,12 @@ export async function completeBookingAtSessionEnd(
   const hasUnresolvedComplaint = booking.complaints.some(
     (c) => c.status === "OPEN" || c.status === "REVIEWING",
   );
-  const payoutStatus = hasUnresolvedComplaint ? PAYOUT_STATUS_HELD : PAYOUT_STATUS_PENDING;
+  const payoutHold = payoutHoldMetadata({
+    riskScore: booking.riskScore,
+    riskFlags: booking.riskFlags,
+    hasUnresolvedComplaint,
+  });
+  const payoutStatus = payoutHold.status === PAYOUT_STATUS_HELD ? PAYOUT_STATUS_HELD : PAYOUT_STATUS_PENDING;
 
   const payoutRow = await db.$transaction(async (tx) => {
     const flip = await tx.booking.updateMany({
@@ -127,6 +135,10 @@ export async function completeBookingAtSessionEnd(
         amountKopecks,
         status: payoutStatus,
         initiatedBy: actor.userId,
+        availableAt: payoutAvailableAt(),
+        holdReason: payoutHold.holdReason,
+        riskScore: booking.riskScore,
+        riskFlags: booking.riskFlags,
       },
       select: { id: true, amountKopecks: true, status: true },
     });

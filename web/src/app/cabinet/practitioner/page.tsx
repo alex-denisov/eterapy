@@ -12,7 +12,7 @@ async function getPractitionerData(userId: string) {
     where: { userId },
     include: {
       user: { select: { name: true, email: true } },
-      reviews: { orderBy: { createdAt: "desc" }, take: 3 },
+      reviews: { where: { status: "PUBLISHED" }, orderBy: { createdAt: "desc" }, take: 3 },
       slots: {
         where: { available: true, startAt: { gte: new Date() } },
         orderBy: { startAt: "asc" },

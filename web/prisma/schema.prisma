@@ -107,6 +107,9 @@ model Practitioner {
   languages         String[]            @default(["Русский"])
   verified        Boolean             @default(false)
   founding        Boolean             @default(false)
+  riskScore       Int                 @default(0) @map("risk_score")
+  riskFlags       String[]            @default([]) @map("risk_flags")
+  riskReviewedAt  DateTime?           @map("risk_reviewed_at")
   specialties     Specialty[]
   tags            String[]            @default([])
 
@@ -226,6 +229,12 @@ model Booking {
   priceRub       Int
   paymentId      String?       @unique  // ЮKassa / Stripe payment ID
   paymentMethod  String?       // "yukassa" | "stripe"
+  ipHash         String?       @map("ip_hash")
+  userAgentHash  String?       @map("user_agent_hash")
+  deviceHash     String?       @map("device_hash")
+  riskScore      Int           @default(0) @map("risk_score")
+  riskFlags      String[]      @default([]) @map("risk_flags")
+  riskReviewedAt DateTime?     @map("risk_reviewed_at")
 
   // Видеосессия
   roomId         String?       // LiveKit room ID
@@ -247,6 +256,9 @@ model Booking {
 
   @@index([clientId])
   @@index([practitionerId])
+  @@index([ipHash, createdAt])
+  @@index([deviceHash, createdAt])
+  @@index([riskScore, createdAt])
   @@map("bookings")
 }
 
@@ -274,9 +286,15 @@ model Review {
 
   rating         Int          // 1-5
   text           String?
+  status         String       @default("PUBLISHED") // PUBLISHED | REVIEW | HIDDEN
+  riskScore      Int          @default(0) @map("risk_score")
+  riskFlags      String[]     @default([]) @map("risk_flags")
+  metadata       Json?
   createdAt      DateTime     @default(now())
 
   @@index([practitionerId])
+  @@index([status, createdAt])
+  @@index([riskScore, createdAt])
   @@map("reviews")
 }
 
@@ -750,11 +768,17 @@ model Payout {
   status         String       // PENDING / HELD / PROCESSING / DONE / FAILED
   initiatedBy    String       // adminUserId
   externalId     String?      // ЮKassa payout ID
+  availableAt    DateTime?    @map("available_at")
+  holdReason     String?      @map("hold_reason")
+  riskScore      Int          @default(0) @map("risk_score")
+  riskFlags      String[]     @default([]) @map("risk_flags")
   createdAt      DateTime     @default(now())
   processedAt    DateTime?
 
   @@index([practitionerId])
   @@index([bookingId])
+  @@index([status, availableAt])
+  @@index([riskScore, createdAt])
   @@map("payouts")
 }
 
