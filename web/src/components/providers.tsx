@@ -4,6 +4,7 @@ import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { EmailVerificationBanner } from "./email-verification-banner";
 import { ChannelAttributionTracker } from "./channel-attribution-tracker";
+import { PWAInstallPrompt } from "./pwa-install-prompt";
 import { Suspense, type ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -12,6 +13,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <Suspense fallback={null}>
         <ChannelAttributionTracker />
       </Suspense>
+      <PWAInstallPrompt />
       <EmailVerificationBanner />
       {children}
       <Toaster

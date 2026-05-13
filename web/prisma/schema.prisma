@@ -486,6 +486,14 @@ enum NotificationEvent {
   CARD_LINKED            // Новая карта привязана
   CARD_REMOVED           // Карта отвязана
   DAILY_CARD             // Ежедневная карта ясности
+  ABANDONED_CHECKOUT     // Незавершенная оплата
+  REPORT_READY           // Платный отчет готов
+  PARTNER_COMPLETED      // Второй участник завершил свою часть
+  CIRCLE_READY           // Круг ясности готов
+  ROUTE_REMINDER         // Напоминание по маршруту ясности
+  WEEKLY_DIGEST          // Недельный дайджест клиента
+  PRACTITIONER_DIGEST    // Дайджест специалиста
+  COMPLIANCE_ALERT       // Комплаенс-сигнал для админа/модератора
 }
 
 enum NotificationChannel {

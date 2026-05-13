@@ -21,7 +21,15 @@ export type NotifEvent =
   | "SUBSCRIPTION_PAYMENT_FAILED"
   | "CARD_LINKED"
   | "CARD_REMOVED"
-  | "DAILY_CARD";
+  | "DAILY_CARD"
+  | "ABANDONED_CHECKOUT"
+  | "REPORT_READY"
+  | "PARTNER_COMPLETED"
+  | "CIRCLE_READY"
+  | "ROUTE_REMINDER"
+  | "WEEKLY_DIGEST"
+  | "PRACTITIONER_DIGEST"
+  | "COMPLIANCE_ALERT";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
 export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "retention" | "system";
@@ -186,6 +194,62 @@ export const ALL_EVENTS: Array<{
     description: "Один бережный фокус на день",
     roles: ["CLIENT"],
   },
+  {
+    event: "ABANDONED_CHECKOUT",
+    category: "payments",
+    label: "Незавершенная оплата",
+    description: "Мягкое возвращение к оплате продукта или подписки",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "REPORT_READY",
+    category: "retention",
+    label: "Отчет готов",
+    description: "Платный отчет или углубление готово к чтению",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "PARTNER_COMPLETED",
+    category: "retention",
+    label: "Партнер завершил часть",
+    description: "Второй участник завершил совместный сценарий",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "CIRCLE_READY",
+    category: "retention",
+    label: "Круг собран",
+    description: "Достаточно ответов для отчета Круга ясности",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "ROUTE_REMINDER",
+    category: "retention",
+    label: "Напоминание по маршруту",
+    description: "Бережное возвращение к маршруту или практике",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "WEEKLY_DIGEST",
+    category: "retention",
+    label: "Недельный дайджест",
+    description: "Недельная сводка вопросов, практик и мягких выводов",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "PRACTITIONER_DIGEST",
+    category: "retention",
+    label: "Дайджест специалиста",
+    description: "Сводка заявок, встреч, выплат и отзывов",
+    roles: ["PRACTITIONER"],
+  },
+  {
+    event: "COMPLIANCE_ALERT",
+    category: "system",
+    label: "Комплаенс-сигнал",
+    description: "Риск-флаг по сессии или жалобе для проверки человеком",
+    roles: ["ADMIN", "SUPERADMIN", "MODERATOR"],
+  },
 ];
 
 /** Фильтрация событий по роли пользователя */
@@ -201,4 +265,12 @@ export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
   "SESSION_COMPLETED",
   "REVIEW_REQUESTED",
   "DAILY_CARD",
+  "ABANDONED_CHECKOUT",
+  "REPORT_READY",
+  "PARTNER_COMPLETED",
+  "CIRCLE_READY",
+  "ROUTE_REMINDER",
+  "WEEKLY_DIGEST",
+  "PRACTITIONER_DIGEST",
+  "COMPLIANCE_ALERT",
 ];

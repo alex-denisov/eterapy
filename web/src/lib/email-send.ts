@@ -66,6 +66,14 @@ const SUBJECTS: Record<NotifEvent, string> = {
   CARD_LINKED:        "Карта привязана — ETerapy",
   CARD_REMOVED:       "Карта отвязана — ETerapy",
   DAILY_CARD:         "Карта дня — ETerapy",
+  ABANDONED_CHECKOUT: "Вы остановились перед оплатой — ETerapy",
+  REPORT_READY:       "Ваш отчет готов — ETerapy",
+  PARTNER_COMPLETED:  "Партнер завершил свою часть — ETerapy",
+  CIRCLE_READY:       "Круг ясности готов — ETerapy",
+  ROUTE_REMINDER:     "Мягкое напоминание — ETerapy",
+  WEEKLY_DIGEST:      "Ваш недельный дайджест — ETerapy",
+  PRACTITIONER_DIGEST: "Дайджест специалиста — ETerapy",
+  COMPLIANCE_ALERT:   "Комплаенс-сигнал — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
@@ -248,6 +256,22 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
         <p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.body}</p>
         ${btn(`${BASE_URL}/cabinet`, "Открыть кабинет")}
       `;
+    case "ABANDONED_CHECKOUT":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Оплату можно спокойно завершить</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.productName ?? "Выбранный продукт"} останется доступен после оплаты.</p>${btn(data.checkoutUrl ?? `${BASE_URL}/pricing`, "Вернуться к оплате")}`;
+    case "REPORT_READY":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Отчет готов</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.title ?? "Ваш разбор"} можно открыть в кабинете.</p>${btn(data.reportUrl ?? `${BASE_URL}/cabinet/action-history`, "Открыть отчет")}`;
+    case "PARTNER_COMPLETED":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Вторая часть готова</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Партнер завершил свою часть. Можно открыть teaser и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
+    case "CIRCLE_READY":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Круг ясности собран</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Ответов уже достаточно, чтобы собрать общий мягкий вывод.</p>${btn(data.circleUrl ?? `${BASE_URL}/circle`, "Открыть круг")}`;
+    case "ROUTE_REMINDER":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к маршруту</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.body ?? "Один маленький шаг сегодня будет достаточно."}</p>${btn(data.routeUrl ?? `${BASE_URL}/cabinet`, "Продолжить")}`;
+    case "WEEKLY_DIGEST":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Недельный дайджест</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Ваши вопросы и практики собраны в мягкую сводку."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet`, "Открыть")}`;
+    case "PRACTITIONER_DIGEST":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Дайджест кабинета</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Заявки, встречи, выплаты и отзывы за период."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet/practitioner`, "Открыть кабинет")}`;
+    case "COMPLIANCE_ALERT":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Комплаенс-сигнал</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Нужна проверка модератором."}</p>${btn(data.reviewUrl ?? `${BASE_URL}/admin/complaints`, "Открыть проверку")}`;
     default:
       return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;
   }

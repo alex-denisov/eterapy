@@ -168,6 +168,22 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
       return { title: "Карта отвязана", body: `${data.brand} •••• ${data.last4}`, href: "/cabinet/billing" };
     case "DAILY_CARD":
       return { title: data.title || "Карта дня", body: data.body || "Один бережный фокус на сегодня", href: "/cabinet" };
+    case "ABANDONED_CHECKOUT":
+      return { title: "Оплата не завершена", body: data.productName || "Можно вернуться без спешки", href: data.checkoutUrl || "/pricing" };
+    case "REPORT_READY":
+      return { title: "Отчет готов", body: data.title || "Ваш разбор готов к чтению", href: data.reportUrl || "/cabinet/action-history" };
+    case "PARTNER_COMPLETED":
+      return { title: "Партнер завершил часть", body: "Можно открыть совместный teaser", href: data.reportUrl || "/pair" };
+    case "CIRCLE_READY":
+      return { title: "Круг ясности готов", body: "Ответов достаточно для общего вывода", href: data.circleUrl || "/circle" };
+    case "ROUTE_REMINDER":
+      return { title: data.title || "Мягкое напоминание", body: data.body || "Один маленький шаг сегодня", href: data.routeUrl || "/cabinet" };
+    case "WEEKLY_DIGEST":
+      return { title: "Недельный дайджест", body: data.summary || "Ваши практики и вопросы собраны", href: data.digestUrl || "/cabinet" };
+    case "PRACTITIONER_DIGEST":
+      return { title: "Дайджест специалиста", body: data.summary || "Заявки, встречи, выплаты и отзывы", href: data.digestUrl || "/cabinet/practitioner" };
+    case "COMPLIANCE_ALERT":
+      return { title: "Комплаенс-сигнал", body: data.summary || "Нужна проверка модератором", href: data.reviewUrl || "/admin/complaints" };
     default:
       return { title: "Уведомление", body: "" };
   }
@@ -212,6 +228,22 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `🗑 Карта отвязана\n${data.brand} •••• ${data.last4} удалена из списка карт.`;
     case "DAILY_CARD":
       return `Карта дня ETerapy\n<b>${data.title}</b>\n${data.body}\n<a href="${baseUrl}/cabinet">Открыть кабинет →</a>${data.shareUrl ? `\n<a href="${data.shareUrl}">Поделиться бережно →</a>` : ""}`;
+    case "ABANDONED_CHECKOUT":
+      return `Оплату можно завершить\n${data.productName ?? "Выбранный продукт"}.\n<a href="${data.checkoutUrl ?? `${baseUrl}/pricing`}">Вернуться →</a>`;
+    case "REPORT_READY":
+      return `Отчет готов\n${data.title ?? "Ваш разбор готов к чтению"}.\n<a href="${data.reportUrl ?? `${baseUrl}/cabinet/action-history`}">Открыть →</a>`;
+    case "PARTNER_COMPLETED":
+      return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/pair`}">Открыть teaser →</a>`;
+    case "CIRCLE_READY":
+      return `Круг ясности готов\n<a href="${data.circleUrl ?? `${baseUrl}/circle`}">Открыть круг →</a>`;
+    case "ROUTE_REMINDER":
+      return `${data.title ?? "Мягкое напоминание"}\n${data.body ?? "Можно вернуться к маршруту."}\n<a href="${data.routeUrl ?? `${baseUrl}/cabinet`}">Продолжить →</a>`;
+    case "WEEKLY_DIGEST":
+      return `Недельный дайджест\n${data.summary ?? "Ваши практики и вопросы собраны."}\n<a href="${data.digestUrl ?? `${baseUrl}/cabinet`}">Открыть →</a>`;
+    case "PRACTITIONER_DIGEST":
+      return `Дайджест специалиста\n${data.summary ?? "Заявки, встречи, выплаты и отзывы."}\n<a href="${data.digestUrl ?? `${baseUrl}/cabinet/practitioner`}">Открыть кабинет →</a>`;
+    case "COMPLIANCE_ALERT":
+      return `Комплаенс-сигнал\n${data.summary ?? "Нужна проверка модератором."}\n<a href="${data.reviewUrl ?? `${baseUrl}/admin/complaints`}">Открыть →</a>`;
     default:
       return `ETerapy: уведомление`;
   }
