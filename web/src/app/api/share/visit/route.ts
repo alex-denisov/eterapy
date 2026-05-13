@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { recordChannelTouch } from "@/lib/channel-attribution";
 import { recordShareVisit, setReferralCookie } from "@/lib/share-referral";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -27,6 +28,24 @@ export async function POST(request: NextRequest) {
   if (visit.status === "missing") {
     return errorWithRequestContext("SHARE_NOT_FOUND", "Share link not found", 404, context);
   }
+
+  await recordChannelTouch({
+    request,
+    userId: session?.user?.id ?? null,
+    touch: {
+      source: visit.shareLink.sourceType,
+      channel: "share",
+      entryPath: "/share",
+      referralToken: visit.shareLink.token,
+      entryProduct: visit.shareLink.sourceType,
+      metadata: {
+        topic: visit.shareLink.topic,
+        sourceLabel: visit.shareLink.sourceLabel,
+      },
+    },
+  }).catch(() => {
+    // Share attribution remains best-effort and must not block public entry.
+  });
 
   const response = jsonWithRequestContext({
     status: visit.status,

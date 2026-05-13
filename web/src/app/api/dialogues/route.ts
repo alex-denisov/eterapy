@@ -12,6 +12,7 @@ import { generateDialogueClarifyingQuestions } from "@/lib/dialogue-clarifier";
 import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { markReferralMeaningfulAction } from "@/lib/share-referral";
+import { markChannelConversion } from "@/lib/channel-attribution";
 
 const MAX_DIALOGUES_LIMIT = 50;
 
@@ -267,6 +268,14 @@ export async function POST(request: NextRequest) {
       entityId: dialogue.id,
     }).catch(() => {
       // Referral reward bookkeeping must not break the dialogue flow.
+    });
+    void markChannelConversion({
+      request,
+      userId,
+      conversionType: "dialogue_created",
+      conversionId: dialogue.id,
+    }).catch(() => {
+      // Attribution bookkeeping must not break the dialogue flow.
     });
   }
 

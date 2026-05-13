@@ -47,6 +47,7 @@ describe("B193 share/referral surfaces", () => {
     expect(schema).toContain("@@unique([shareLinkId, visitorHash])");
     expect(shareApi).toContain("createSafeShareLink");
     expect(visitApi).toContain("setReferralCookie");
+    expect(visitApi).toContain("recordChannelTouch");
     expect(referral).toContain("self_referral");
     expect(referral).toContain("REWARD_PENDING");
     expect(referral).toContain("recordClarityCreditEntry");

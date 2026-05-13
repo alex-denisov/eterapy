@@ -32,7 +32,9 @@ describe("anonymous question library", () => {
     expect(listPage).toContain("Без комментариев и драмы");
     expect(listPage).toContain('data-testid="library-dialogue-cta"');
     expect(detailPage).toContain('data-testid="library-entry-dialogue-cta"');
-    expect(detailPage).toContain("Вопрос обезличен и прошел модерацию");
+    expect(detailPage).toContain("фрагмент разбора · открыт публично");
+    expect(detailPage).toContain("Мы публикуем только обезличенный вопрос");
+    expect(detailPage).not.toContain("Вопрос обезличен и прошел модерацию");
   });
 
   it("adds only approved and indexable question pages to sitemap", async () => {

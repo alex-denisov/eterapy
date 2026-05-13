@@ -77,6 +77,7 @@ model User {
   shareLinks             ShareLink[] @relation("ShareLinkOwner")
   referralsGiven         ReferralAttribution[] @relation("ReferralReferrer")
   referralsReceived      ReferralAttribution[] @relation("ReferralReferredUser")
+  channelAttributions    ChannelAttribution[]
 
   @@map("users")
 }
@@ -576,6 +577,44 @@ model ReferralAttribution {
   @@index([referredUserId])
   @@index([visitorHash])
   @@map("referral_attributions")
+}
+
+model ChannelAttribution {
+  id               String   @id @default(cuid())
+  visitorHash      String   @unique @map("visitor_hash")
+  userId           String?  @map("user_id")
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source           String   @default("direct")
+  channel          String   @default("web")
+  utmSource        String?  @map("utm_source")
+  utmMedium        String?  @map("utm_medium")
+  utmCampaign      String?  @map("utm_campaign")
+  utmContent       String?  @map("utm_content")
+  utmTerm          String?  @map("utm_term")
+  referralToken    String?  @map("referral_token")
+  practitionerId   String?  @map("practitioner_id")
+  practitionerSlug String?  @map("practitioner_slug")
+  partnerId        String?  @map("partner_id")
+  widgetId         String?  @map("widget_id")
+  entryProduct     String?  @map("entry_product")
+  firstEntryPath   String   @map("first_entry_path")
+  lastEntryPath    String   @map("last_entry_path")
+  firstTouchAt     DateTime @default(now()) @map("first_touch_at")
+  lastTouchAt      DateTime @default(now()) @map("last_touch_at")
+  conversionAt     DateTime? @map("conversion_at")
+  conversionType   String?  @map("conversion_type")
+  conversionId     String?  @map("conversion_id")
+  metadata         Json?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, lastTouchAt])
+  @@index([source, channel, lastTouchAt])
+  @@index([entryProduct, lastTouchAt])
+  @@index([practitionerId, lastTouchAt])
+  @@index([partnerId, lastTouchAt])
+  @@index([widgetId, lastTouchAt])
+  @@map("channel_attributions")
 }
 
 // ─── Platform Settings ────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import { validateName, validateEmail } from "@/lib/validation";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import { attachReferralToRegisteredUser } from "@/lib/share-referral";
+import { markChannelConversion } from "@/lib/channel-attribution";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,6 +35,14 @@ export async function POST(req: NextRequest) {
     const user = await usersDb.create({ email, name, password });
     await attachReferralToRegisteredUser({ request: req, userId: user.id }).catch((referralErr) => {
       console.error("[register] referral attach failed:", referralErr);
+    });
+    await markChannelConversion({
+      request: req,
+      userId: user.id,
+      conversionType: "registration",
+      conversionId: user.id,
+    }).catch((attributionErr) => {
+      console.error("[register] channel attribution conversion failed:", attributionErr);
     });
 
     // Отправляем письмо подтверждения

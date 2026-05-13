@@ -3,11 +3,15 @@
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
 import { EmailVerificationBanner } from "./email-verification-banner";
-import type { ReactNode } from "react";
+import { ChannelAttributionTracker } from "./channel-attribution-tracker";
+import { Suspense, type ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <SessionProvider>
+      <Suspense fallback={null}>
+        <ChannelAttributionTracker />
+      </Suspense>
       <EmailVerificationBanner />
       {children}
       <Toaster

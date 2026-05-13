@@ -4,16 +4,23 @@ import path from "node:path";
 const root = process.cwd();
 
 const legacyTools = ["tarot", "guide", "horoscope", "natal", "numerology"] as const;
+const legacyPageRedirects = {
+  tarot: "/tarot",
+  guide: "/checkin?source=legacy-guide",
+  horoscope: "/checkin?source=legacy-horoscope",
+  natal: "/astro",
+  numerology: "/numerology",
+} satisfies Record<(typeof legacyTools)[number], string>;
 
 function source(relativePath: string) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
 describe("B084 legacy modality unlock cleanup", () => {
-  it.each(legacyTools)("redirects the old %s page into the v5 question-first dialogue", (tool) => {
+  it.each(legacyTools)("redirects the old %s page into the v5 canonical public route", (tool) => {
     const page = source(`src/app/all-modalities/${tool}/page.tsx`);
 
-    expect(page).toContain(`redirect("/checkin?source=legacy-${tool}")`);
+    expect(page).toContain(`redirect("${legacyPageRedirects[tool]}")`);
     expect(page).not.toContain('"use client"');
     expect(page).not.toContain("PaywallScreen");
     expect(page).not.toContain("getFullReadingPriceKopecks");
