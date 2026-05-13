@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { computePractitionerBalance } from "@/lib/practitioner-balance";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 async function getPractitionerData(userId: string) {
@@ -46,6 +47,9 @@ export default async function PractitionerCabinetPage() {
   const rating = practitioner.reviewCount > 0 ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1) : "—";
   const st = STATUS_LABELS[practitioner.status as keyof typeof STATUS_LABELS] ?? STATUS_LABELS.ACTIVE;
   const firstName = practitioner.user.name?.split(" ")[0] ?? "Специалист";
+  const balance = await computePractitionerBalance(practitioner.id);
+  const currentBalance = Math.max(0, balance?.currentBalance ?? 0);
+  const pendingPayout = Math.max(0, balance?.pendingPayout ?? 0);
 
   // Pending bookings
   const pendingBookings = await db.booking.findMany({
@@ -173,14 +177,19 @@ export default async function PractitionerCabinetPage() {
               marginTop: 8,
             }}
           >
-            0 ₽
+            {currentBalance.toLocaleString("ru")} ₽
           </p>
           <Link
             href={appUrl("/cabinet/practitioner/earnings")}
             className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
           >
-            выплата в разработке →
+            открыть выплаты →
           </Link>
+          {pendingPayout > 0 && (
+            <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
+              {pendingPayout.toLocaleString("ru")} ₽ уже в обработке
+            </p>
+          )}
         </div>
       </div>
 

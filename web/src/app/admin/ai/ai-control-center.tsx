@@ -30,6 +30,11 @@ type PolicyRow = {
   feature: string;
   enabled: boolean;
   providerOrder: AIProvider[];
+  tier?: string;
+  title?: string;
+  purpose?: string;
+  fallbackNotes?: string;
+  source?: "default" | "database";
   maxTokens?: number | null;
   temperature?: number | null;
   timeoutMs?: number | null;
@@ -570,10 +575,19 @@ export function AIControlCenter({
             ) : policies.map((policy) => (
               <div key={policy.feature} className="px-4 py-3" data-testid={`ai-policy-${policy.feature}`}>
                 <div className="flex items-center justify-between gap-3">
-                  <p className="font-medium">{policy.feature}</p>
-                  <span className={policy.enabled ? "text-xs text-emerald-300" : "text-xs text-amber-300"}>{policy.enabled ? "включено" : "выключено"}</span>
+                  <div>
+                    <p className="font-medium">{policy.title ?? policy.feature}</p>
+                    <p className="text-xs text-muted-foreground">{policy.feature}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {policy.tier && <span className="rounded-full border border-border/40 px-2 py-0.5 text-[11px] uppercase text-muted-foreground">{policy.tier}</span>}
+                    {policy.source && <span className="rounded-full border border-border/40 px-2 py-0.5 text-[11px] text-muted-foreground">{policy.source === "default" ? "дефолт" : "БД"}</span>}
+                    <span className={policy.enabled ? "text-xs text-emerald-300" : "text-xs text-amber-300"}>{policy.enabled ? "включено" : "выключено"}</span>
+                  </div>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{policy.providerOrder.join(" -> ") || "порядок по умолчанию"}</p>
+                {policy.purpose && <p className="mt-2 text-xs text-muted-foreground">{policy.purpose}</p>}
+                {policy.fallbackNotes && <p className="mt-1 text-xs text-muted-foreground">Fallback: {policy.fallbackNotes}</p>}
               </div>
             ))}
           </div>

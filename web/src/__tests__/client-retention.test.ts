@@ -18,6 +18,7 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain("db.productResult.count");
     expect(page).toContain("db.clarityRoute.findMany");
     expect(page).toContain('appUrl("/cabinet/questions")');
+    expect(page).toContain("История разборов");
     expect(page).toContain("mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`)");
   });
 

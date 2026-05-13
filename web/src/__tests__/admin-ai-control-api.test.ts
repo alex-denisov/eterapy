@@ -100,6 +100,17 @@ describe("admin AI control API", () => {
     expect(body.providers[0]).toEqual(expect.objectContaining({
       provider: AIProvider.OPENROUTER,
     }));
+    expect(body.policies).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        feature: "dialogue-primary-answer",
+        tier: "free",
+        source: "default",
+      }),
+      expect.objectContaining({
+        feature: "session-compliance",
+        tier: "compliance",
+      }),
+    ]));
   });
 
   it("updates provider config and writes audit", async () => {

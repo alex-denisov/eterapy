@@ -10,6 +10,7 @@ import {
   buildCloudflareGatewayUrl,
   getCloudflareGatewayConfig,
 } from "@/lib/ai-gateway/cloudflare-gateway";
+import { mergeAITaskPolicies } from "@/lib/ai-gateway/task-policy";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -42,7 +43,7 @@ const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
 ];
 
 export async function getAIControlCenterData(period = aiBudgetPeriod()) {
-  const [storedProviders, policies, usage, credentials, openaiModels, anthropicModels, fireworksModels, openrouterModels] = await Promise.all([
+  const [storedProviders, policyRows, usage, credentials, openaiModels, anthropicModels, fireworksModels, openrouterModels] = await Promise.all([
     db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] }),
     db.aIRoutingPolicy.findMany({ orderBy: { feature: "asc" } }),
     getAIUsageLedger(period),
@@ -89,7 +90,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod()) {
 
   return {
     providers,
-    policies,
+    policies: mergeAITaskPolicies(policyRows),
     usage,
     credentials,
     models,

@@ -208,7 +208,7 @@ export default async function ClientCabinetPage() {
         </section>
         <section className="soft-card p-5" data-testid="client-recent-questions">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="soft-eyebrow">Мои вопросы</p>
+            <p className="soft-eyebrow">История разборов</p>
             <Link href={appUrl("/cabinet/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
               Все →
             </Link>

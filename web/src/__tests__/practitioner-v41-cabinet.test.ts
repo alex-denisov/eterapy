@@ -5,6 +5,16 @@ const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 describe("B207 practitioner v4.1 cabinet", () => {
+  it("uses real practitioner payout balance on the dashboard", () => {
+    const page = source("src/app/cabinet/practitioner/page.tsx");
+
+    expect(page).toContain("computePractitionerBalance");
+    expect(page).toContain("currentBalance.toLocaleString");
+    expect(page).toContain("pendingPayout.toLocaleString");
+    expect(page).toContain("открыть выплаты");
+    expect(page).not.toContain("выплата в разработке");
+  });
+
   it("renders services and prices from practitioner rates instead of a placeholder", () => {
     const page = source("src/app/cabinet/practitioner/services/page.tsx");
 

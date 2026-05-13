@@ -20,6 +20,7 @@ import {
   type AIRoutingPolicyConfig,
   type AIRoutingProviderConfig,
 } from "@/lib/ai-gateway/routing";
+import { getDefaultAIRoutingPolicy } from "@/lib/ai-gateway/task-policy";
 import {
   enforceAIBudget,
   estimateAICostMicros,
@@ -123,7 +124,7 @@ async function loadProviderConfigs(): Promise<AIRoutingProviderConfig[]> {
 
 async function loadPolicy(feature: string): Promise<AIRoutingPolicyConfig | null> {
   const row = await db.aIRoutingPolicy.findUnique({ where: { feature } });
-  if (!row) return null;
+  if (!row) return getDefaultAIRoutingPolicy(feature);
   return {
     feature: row.feature,
     enabled: row.enabled,

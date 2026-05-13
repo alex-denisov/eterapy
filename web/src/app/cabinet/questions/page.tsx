@@ -66,8 +66,8 @@ export default async function CabinetQuestionsPage() {
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6" data-testid="client-questions-page">
       <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="soft-eyebrow">Мои вопросы</p>
-          <h1 className="soft-h1 mt-2">История диалогов</h1>
+          <p className="soft-eyebrow">История разборов</p>
+          <h1 className="soft-h1 mt-2">Все сохраненные вопросы</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Здесь собраны ваши вопросы и первичные ответы. Можно вернуться к диалогу,
             продолжить уточнения или удалить вопрос из кабинета.
