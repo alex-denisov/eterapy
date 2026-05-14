@@ -14,7 +14,6 @@ import {
   Maximize2,
   Minimize2,
   Eye,
-  Dot,
   StopCircle,
   Circle,
   Sparkles,
@@ -88,7 +87,9 @@ export function VideoControls({
       });
       const d = await res.json();
       if (d.summary) {
-        toast.success("Резюме сессии готово", { description: "Доступно в кабинете практика" });
+        toast.success("Резюме сессии готово", {
+          description: d.clientFollowupDraft ? "Черновик для клиента и заметки практика сохранены" : "Доступно в кабинете практика",
+        });
       } else {
         toast.error(d.error ?? "Нет транскрипта для резюме");
       }

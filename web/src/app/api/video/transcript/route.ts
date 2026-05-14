@@ -1,162 +1,246 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { aiComplete } from "@/lib/ai";
 import { logFraudEvent } from "@/lib/antifraud";
+import { requestContextFromHeaders } from "@/lib/request-context";
+import {
+  buildSessionTranscript,
+  generateSessionSummary,
+  reviewSessionCompliance,
+} from "@/lib/session-ai-pipeline";
 import {
   detectPractitionerTextRisk,
   holdPractitionerPayoutsForBooking,
   PRACTITIONER_HIGH_RISK_SCORE,
 } from "@/lib/practitioner-antifraud";
 
-const PLATFORM_RULES = `Правила платформы ETerapy:
-1. Запрещено запугивание и угрозы
-2. Запрещены манипуляции и давление
-3. Запрещены гарантии результата ("это точно произойдёт", "100% гарантия")
-4. Запрещены агрессивные допродажи во время сессии
-5. Запрещены оскорбления и дискриминация
-6. Запрещён сбор личных данных клиента (адрес, паспорт и т.д.)
-7. Запрещены контакты вне платформы без явного согласия клиента`;
+const segmentSchema = z.object({
+  speakerRole: z.enum(["client", "practitioner", "unknown"]).optional(),
+  speakerLabel: z.string().max(80).optional(),
+  text: z.string().min(1).max(6000),
+  startedAtMs: z.number().int().min(0).max(12 * 60 * 60 * 1000).optional(),
+  endedAtMs: z.number().int().min(0).max(12 * 60 * 60 * 1000).optional(),
+  isFinal: z.boolean().optional(),
+});
 
-const VIOLATION_PATTERNS = [
-  /умрёшь|умрете|проклятие|порча|сглаз/i,
-  /гарантирую|точно произойдёт|100%|обязательно случится/i,
-  /переведите деньги|оплатите сейчас|скидка только сегодня/i,
-  /ваш адрес|паспорт|СНИЛС|ИНН/i,
-  /пишите мне в телеграм|мой номер телефона|напишите лично/i,
-];
+const postSchema = z.object({
+  videoSessionId: z.string().min(1),
+  text: z.string().max(60_000).optional(),
+  segments: z.array(segmentSchema).max(600).optional(),
+  isFinal: z.boolean().optional(),
+  sttProvider: z.string().max(80).optional(),
+  sttSource: z.enum(["browser_speech_recognition", "uploaded_audio", "manual", "livekit", "unknown"]).optional(),
+});
 
-async function checkViolations(text: string): Promise<string | null> {
-  // Быстрая проверка по паттернам — без API
-  for (const pattern of VIOLATION_PATTERNS) {
-    if (pattern.test(text)) {
-      return "Обнаружено потенциальное нарушение правил платформы. Убедитесь в этичности консультации.";
-    }
-  }
+const putSchema = z.object({
+  videoSessionId: z.string().min(1),
+});
 
-  if (text.length < 50) return null;
-
-  try {
-    const result = await aiComplete({
-      feature: "session-compliance",
-      messages: [
-        {
-          role: "system",
-          content: `Ты модератор платформы онлайн-консультаций. Анализируй текст на нарушения правил.\n\n${PLATFORM_RULES}\n\nОтвечай ТОЛЬКО в формате JSON: {"violation": true/false, "reason": "краткое описание или null"}`,
+async function getScopedVideoSession(videoSessionId: string, userId: string) {
+  return db.videoSession.findFirst({
+    where: {
+      id: videoSessionId,
+      booking: {
+        OR: [
+          { clientId: userId },
+          { practitioner: { userId } },
+        ],
+      },
+    },
+    include: {
+      booking: {
+        select: {
+          id: true,
+          clientId: true,
+          practitionerId: true,
+          practitioner: { select: { userId: true } },
         },
-        { role: "user", content: `Транскрипт последних 30 секунд: "${text.slice(-500)}"` },
-      ],
-      maxTokens: 150,
-      temperature: 0,
-    });
-    const parsed = JSON.parse(result.text.match(new RegExp("\\{[^]*\\}"))?.[0] ?? "{}");
-    if (parsed.violation && parsed.reason) return String(parsed.reason);
-  } catch { /* ignore */ }
+      },
+    },
+  });
+}
 
+function quickComplianceWarning(text: string) {
+  const risk = detectPractitionerTextRisk(text);
+  if (risk.riskFlags.includes("external_payment_signal")) {
+    return "Похоже, в разговоре есть просьба об оплате или контакте вне платформы. Это нужно проверить.";
+  }
+  if (risk.riskScore >= PRACTITIONER_HIGH_RISK_SCORE) {
+    return "Обнаружен потенциальный комплаенс-сигнал. Убедитесь, что консультация остается этичной и безопасной.";
+  }
   return null;
 }
 
-/** POST /api/video/transcript — анализ транскрипта на нарушения */
+/** POST /api/video/transcript — STT transcript ingest + compliance evidence chain. */
 export async function POST(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const userId = session?.user?.id;
+  if (!userId) return NextResponse.json({ error: "Не авторизован", requestId: context.requestId }, { status: 401 });
 
-  const { videoSessionId, text, isFinal } = await req.json();
-  if (!videoSessionId || !text) return NextResponse.json({ error: "Данные неполны" }, { status: 400 });
+  const parsed = postSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Данные неполны", requestId: context.requestId }, { status: 400 });
 
-  const violation = await checkViolations(text);
-  const textRisk = detectPractitionerTextRisk(text);
+  const videoSession = await getScopedVideoSession(parsed.data.videoSessionId, userId);
+  if (!videoSession) return NextResponse.json({ error: "Сессия не найдена", requestId: context.requestId }, { status: 404 });
 
-  if (isFinal) {
-    const videoSession = await db.videoSession.update({
-      where: { id: videoSessionId },
-      data: { transcriptText: text },
-      select: {
-        id: true,
-        bookingId: true,
-        booking: { select: { practitionerId: true } },
-      },
-    }).catch(() => null);
-
-    if (videoSession && (violation || textRisk.riskScore >= PRACTITIONER_HIGH_RISK_SCORE)) {
-      await db.$transaction(async (tx) => {
-        await tx.booking.update({
-          where: { id: videoSession.bookingId },
-          data: {
-            riskScore: { increment: Math.max(60, textRisk.riskScore) },
-            riskFlags: { push: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"] },
-          },
-        });
-        await tx.practitioner.update({
-          where: { id: videoSession.booking.practitionerId },
-          data: {
-            riskScore: { increment: textRisk.riskFlags.includes("external_payment_signal") ? 30 : 15 },
-            riskFlags: { push: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"] },
-          },
-        });
-        await logFraudEvent(tx, {
-          subjectType: "booking",
-          subjectId: videoSession.bookingId,
-          actorUserId: session.user.id,
-          action: textRisk.riskFlags.includes("external_payment_signal")
-            ? "practitioner_external_payment_detected"
-            : "practitioner_compliance_signal",
-          status: "review",
-          riskScore: Math.max(60, textRisk.riskScore),
-          riskFlags: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"],
-          metadata: {
-            practitionerId: videoSession.booking.practitionerId,
-            videoSessionId,
-            violation,
-          },
-        });
-      });
-      await holdPractitionerPayoutsForBooking({
-        bookingId: videoSession.bookingId,
-        actorUserId: session.user.id,
-        reason: textRisk.riskFlags.includes("external_payment_signal") ? "external_payment_signal" : "session_compliance_signal",
-        riskScore: Math.max(80, textRisk.riskScore),
-        riskFlags: textRisk.riskFlags.length > 0 ? textRisk.riskFlags : ["session_compliance_signal"],
-      });
-    }
+  const transcriptText = buildSessionTranscript({
+    text: parsed.data.text,
+    segments: parsed.data.segments,
+  });
+  if (transcriptText.length < 10) {
+    return NextResponse.json({ error: "Транскрипт слишком короткий", requestId: context.requestId }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, violation });
+  const quickWarning = quickComplianceWarning(transcriptText);
+  if (!parsed.data.isFinal) {
+    return NextResponse.json({ ok: true, violation: quickWarning, requestId: context.requestId });
+  }
+
+  const compliance = await reviewSessionCompliance({
+    transcriptText,
+    userId,
+    requestId: context.requestId,
+  });
+
+  const transcriptMetadata: Prisma.InputJsonObject = {
+    stt: {
+      provider: parsed.data.sttProvider ?? "browser",
+      source: parsed.data.sttSource ?? "unknown",
+      diarization: parsed.data.segments?.some((segment) => segment.speakerRole || segment.speakerLabel) ? "speaker_labels" : "none",
+      segmentCount: parsed.data.segments?.length ?? 0,
+      finalizedAt: new Date().toISOString(),
+    },
+    capturedByUserId: userId,
+    requestId: context.requestId,
+  };
+
+  await db.videoSession.update({
+    where: { id: videoSession.id },
+    data: {
+      transcriptText,
+      transcriptMetadata,
+      complianceStatus: compliance.status,
+      complianceRiskScore: compliance.riskScore,
+      complianceEvidence: {
+        status: compliance.status,
+        riskScore: compliance.riskScore,
+        riskFlags: compliance.riskFlags,
+        severity: compliance.severity,
+        summary: compliance.summary,
+        evidenceQuotes: compliance.evidenceQuotes,
+        moderatorRecommendation: compliance.moderatorRecommendation,
+        metadata: compliance.metadata,
+      },
+      complianceReviewedAt: new Date(),
+    },
+  });
+
+  if (compliance.status !== "clear") {
+    await db.$transaction(async (tx) => {
+      await tx.booking.update({
+        where: { id: videoSession.bookingId },
+        data: {
+          riskScore: { increment: Math.max(60, compliance.riskScore) },
+          riskFlags: { push: compliance.riskFlags.length > 0 ? compliance.riskFlags : ["session_compliance_signal"] },
+        },
+      });
+      await tx.practitioner.update({
+        where: { id: videoSession.booking.practitionerId },
+        data: {
+          riskScore: { increment: compliance.riskFlags.includes("external_payment_signal") ? 30 : 15 },
+          riskFlags: { push: compliance.riskFlags.length > 0 ? compliance.riskFlags : ["session_compliance_signal"] },
+        },
+      });
+      await logFraudEvent(tx, {
+        subjectType: "booking",
+        subjectId: videoSession.bookingId,
+        actorUserId: userId,
+        action: compliance.riskFlags.includes("external_payment_signal")
+          ? "practitioner_external_payment_detected"
+          : "practitioner_compliance_signal",
+        status: "review",
+        riskScore: Math.max(60, compliance.riskScore),
+        riskFlags: compliance.riskFlags.length > 0 ? compliance.riskFlags : ["session_compliance_signal"],
+        metadata: {
+          practitionerId: videoSession.booking.practitionerId,
+          videoSessionId: videoSession.id,
+          severity: compliance.severity,
+          summary: compliance.summary,
+          evidenceQuotes: compliance.evidenceQuotes,
+          moderatorRecommendation: compliance.moderatorRecommendation,
+        },
+      });
+    });
+    await holdPractitionerPayoutsForBooking({
+      bookingId: videoSession.bookingId,
+      actorUserId: userId,
+      reason: compliance.riskFlags.includes("external_payment_signal") ? "external_payment_signal" : "session_compliance_signal",
+      riskScore: Math.max(80, compliance.riskScore),
+      riskFlags: compliance.riskFlags.length > 0 ? compliance.riskFlags : ["session_compliance_signal"],
+    });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    violation: quickWarning,
+    compliance: {
+      status: compliance.status,
+      riskScore: compliance.riskScore,
+      severity: compliance.severity,
+      riskFlags: compliance.riskFlags,
+      evidenceQuotes: compliance.evidenceQuotes,
+    },
+    requestId: context.requestId,
+  });
 }
 
-/** PUT /api/video/transcript — AI резюме сессии для практика */
+/** PUT /api/video/transcript — Practitioner Pro summary package. */
 export async function PUT(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
   const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
-
+  const userId = session?.user?.id;
+  if (!userId) return NextResponse.json({ error: "Не авторизован", requestId: context.requestId }, { status: 401 });
   if (session.user?.role !== "PRACTITIONER") {
-    return NextResponse.json({ error: "Только для практиков" }, { status: 403 });
+    return NextResponse.json({ error: "Только для практиков", requestId: context.requestId }, { status: 403 });
   }
 
-  const { videoSessionId } = await req.json();
-  const vs = await db.videoSession.findUnique({ where: { id: videoSessionId } });
-  if (!vs?.transcriptText) {
-    return NextResponse.json({ error: "Транскрипт недоступен" }, { status: 404 });
+  const parsed = putSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Данные неполны", requestId: context.requestId }, { status: 400 });
+
+  const videoSession = await db.videoSession.findFirst({
+    where: {
+      id: parsed.data.videoSessionId,
+      booking: { practitioner: { userId } },
+    },
+  });
+  if (!videoSession?.transcriptText) {
+    return NextResponse.json({ error: "Транскрипт недоступен", requestId: context.requestId }, { status: 404 });
   }
 
-  try {
-    const result = await aiComplete({
-      feature: "session-summary",
-      messages: [
-        {
-          role: "system",
-          content: "Ты помощник для практиков эзотерики. Составь структурированное резюме консультации на русском языке: ключевые темы, запросы клиента, данные советы, дальнейшие шаги. Формат: Markdown.",
-        },
-        { role: "user", content: vs.transcriptText },
-      ],
-      maxTokens: 1500,
-    });
+  const result = await generateSessionSummary({
+    transcriptText: videoSession.transcriptText,
+    userId,
+    requestId: context.requestId,
+  });
 
-    const summary = result.text;
-    await db.videoSession.update({ where: { id: videoSessionId }, data: { summaryText: summary } });
-    return NextResponse.json({ ok: true, summary });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Ошибка AI";
-    return NextResponse.json({ error: msg }, { status: 503 });
-  }
+  await db.videoSession.update({
+    where: { id: videoSession.id },
+    data: {
+      summaryText: result.summaryText,
+      practitionerNotesText: result.practitionerNotesText,
+      clientFollowupDraft: result.clientFollowupDraft,
+      summaryMetadata: result.metadata,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    summary: result.summaryText,
+    practitionerNotes: result.practitionerNotesText,
+    clientFollowupDraft: result.clientFollowupDraft,
+    requestId: context.requestId,
+  });
 }

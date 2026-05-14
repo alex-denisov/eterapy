@@ -24,6 +24,48 @@ interface VideoRoomProps {
   sessionDurationMin: number;
 }
 
+type SpeechRecognitionEventLike = Event & {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+};
+
+type SpeechRecognitionLike = EventTarget & {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+type TranscriptSegment = {
+  speakerRole: "client" | "practitioner";
+  speakerLabel: string;
+  text: string;
+  startedAtMs: number;
+  endedAtMs: number;
+  isFinal: boolean;
+};
+
+function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
+  if (typeof window === "undefined") return null;
+  const speechWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+}
+
 export function VideoRoom({ bookingId, role, participantName, otherPartyName, priceRub, sessionDurationMin }: VideoRoomProps) {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
@@ -158,6 +200,9 @@ function VideoRoomInner({
   const [sessionEnded, setSessionEnded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const transcriptBuffer = useRef<string>("");
+  const transcriptSegments = useRef<TranscriptSegment[]>([]);
+  const sttStartedAt = useRef<number | null>(null);
+  const speechRecognition = useRef<SpeechRecognitionLike | null>(null);
   const transcriptTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const endTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,9 +229,32 @@ function VideoRoomInner({
     };
   }, [bookingId, setSessionStartedAt]);
 
+  const flushTranscript = useCallback(async (isFinal: boolean) => {
+    if (!videoSessionId) return;
+    const text = transcriptBuffer.current.trim();
+    if (!text || text.length < 20) return;
+    try {
+      const res = await fetch("/api/video/transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoSessionId,
+          text,
+          segments: transcriptSegments.current.slice(-600),
+          isFinal,
+          sttProvider: "web_speech_api",
+          sttSource: "browser_speech_recognition",
+        }),
+      });
+      const d = await res.json();
+      if (d.violation) setViolation(d.violation);
+    } catch { /* ignore */ }
+  }, [videoSessionId]);
+
   const handleSessionEnd = useCallback(async () => {
     if (sessionEnded) return;
     setSessionEnded(true);
+    await flushTranscript(true);
 
     await fetch("/api/video/session", {
       method: "PATCH",
@@ -196,7 +264,7 @@ function VideoRoomInner({
 
     room.disconnect();
     setShowEndModal(true);
-  }, [bookingId, room, sessionEnded]);
+  }, [bookingId, flushTranscript, room, sessionEnded]);
 
   // Таймер ограничения длительности сессии
   useEffect(() => {
@@ -227,7 +295,7 @@ function VideoRoomInner({
 
     // Завершить сессию по окончании
     endTimer.current = setTimeout(() => {
-      handleSessionEnd();
+      void handleSessionEnd();
     }, endTime - now);
 
     return () => {
@@ -236,28 +304,64 @@ function VideoRoomInner({
     };
   }, [handleSessionEnd, sessionStartedAt, sessionDurationMin, sessionEnded]);
 
+  useEffect(() => {
+    if (!videoSessionId) return;
+    const Recognition = getSpeechRecognitionConstructor();
+    if (!Recognition) return;
+
+    const recognition = new Recognition();
+    speechRecognition.current = recognition;
+    sttStartedAt.current ??= Date.now();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "ru-RU";
+    recognition.onresult = (event) => {
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = result?.[0]?.transcript?.trim();
+        if (!text || !result?.isFinal) continue;
+        const now = Date.now();
+        const startedAt = sttStartedAt.current ?? now;
+        const startedAtMs = Math.max(0, now - startedAt - 3000);
+        const endedAtMs = Math.max(startedAtMs, now - startedAt);
+        transcriptSegments.current.push({
+          speakerRole: role,
+          speakerLabel: role === "client" ? "Клиент" : "Практик",
+          text,
+          startedAtMs,
+          endedAtMs,
+          isFinal: true,
+        });
+        transcriptBuffer.current = `${transcriptBuffer.current}\n${role === "client" ? "Клиент" : "Практик"}: ${text}`.trim();
+      }
+    };
+    recognition.onerror = () => undefined;
+    recognition.onend = () => {
+      if (!sessionEnded) {
+        try { recognition.start(); } catch { /* already started or blocked */ }
+      }
+    };
+    try { recognition.start(); } catch { /* browser may require prior mic permission */ }
+
+    return () => {
+      recognition.onend = null;
+      try { recognition.stop(); } catch { /* ignore */ }
+      speechRecognition.current = null;
+    };
+  }, [role, sessionEnded, videoSessionId]);
+
   // Периодическая проверка транскрипта на нарушения (каждые 30 сек)
   useEffect(() => {
     if (!videoSessionId) return;
     transcriptTimer.current = setInterval(async () => {
-      const text = transcriptBuffer.current.trim();
-      if (!text || text.length < 20) return;
-
-      try {
-        const res = await fetch("/api/video/transcript", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoSessionId, text, isFinal: false }),
-        });
-        const d = await res.json();
-        if (d.violation) setViolation(d.violation);
-      } catch { /* ignore */ }
+      await flushTranscript(false);
     }, 30000);
 
     return () => { if (transcriptTimer.current) clearInterval(transcriptTimer.current); };
-  }, [videoSessionId]);
+  }, [flushTranscript, videoSessionId]);
 
   async function handleLeave() {
+    await flushTranscript(true);
     // Завершаем сессию
     await fetch("/api/video/session", {
       method: "PATCH",

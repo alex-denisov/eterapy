@@ -26,6 +26,20 @@ interface Complaint {
   recordingUrl: string | null;
   recordingExpiry: string | null;
   summaryText: string | null;
+  practitionerNotesText: string | null;
+  clientFollowupDraft: string | null;
+  sessionTranscriptText: string | null;
+  complianceStatus: string | null;
+  complianceRiskScore: number | null;
+  complianceEvidence: {
+    status: string;
+    riskScore: number;
+    riskFlags: string[];
+    severity: string;
+    summary: string;
+    evidenceQuotes: string[];
+    moderatorRecommendation: string;
+  } | null;
   sessionMessages: Array<{ text: string | null; fileName: string | null; fileUrl: string | null; senderName: string; createdAt: string }>;
 }
 
@@ -173,9 +187,43 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                     </div>
 
                     {/* Артефакты сессии */}
-                    {(c.transcriptText || c.recordingUrl || (c.sessionMessages?.length ?? 0) > 0 || c.summaryText) && (
+                    {(c.transcriptText || c.recordingUrl || (c.sessionMessages?.length ?? 0) > 0 || c.summaryText || c.sessionTranscriptText || c.complianceEvidence) && (
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Артефакты сессии</p>
+                        {c.complianceEvidence && (
+                          <div className="mb-3 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              <Badge className="bg-yellow-500/10 text-yellow-300 text-xs">
+                                Compliance: {c.complianceEvidence.status}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                Риск {c.complianceRiskScore ?? c.complianceEvidence.riskScore}/100 · {c.complianceEvidence.severity}
+                              </span>
+                            </div>
+                            {c.complianceEvidence.summary && (
+                              <p className="mb-2 text-xs text-muted-foreground">{c.complianceEvidence.summary}</p>
+                            )}
+                            {c.complianceEvidence.riskFlags.length > 0 && (
+                              <p className="mb-2 text-xs text-muted-foreground">
+                                Флаги: {c.complianceEvidence.riskFlags.join(", ")}
+                              </p>
+                            )}
+                            {c.complianceEvidence.evidenceQuotes.length > 0 && (
+                              <div className="mb-2 space-y-1">
+                                {c.complianceEvidence.evidenceQuotes.map((quote, index) => (
+                                  <blockquote key={`${quote}-${index}`} className="border-l border-yellow-500/30 pl-2 text-xs text-muted-foreground">
+                                    {quote}
+                                  </blockquote>
+                                ))}
+                              </div>
+                            )}
+                            {c.complianceEvidence.moderatorRecommendation && (
+                              <p className="text-xs text-yellow-200/80">
+                                Рекомендация: {c.complianceEvidence.moderatorRecommendation}
+                              </p>
+                            )}
+                          </div>
+                        )}
                         {c.recordingUrl && (
                           <div className="mb-3">
                             <p className="text-xs text-muted-foreground mb-1">🎬 Запись сессии</p>
@@ -189,6 +237,24 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                           <div className="mb-3">
                             <p className="text-xs text-muted-foreground mb-1">📝 AI-резюме</p>
                             <p className="text-xs text-muted-foreground whitespace-pre-line bg-card/30 rounded-lg p-3 max-h-40 overflow-auto">{c.summaryText}</p>
+                          </div>
+                        )}
+                        {c.practitionerNotesText && (
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">Заметки для практика</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-line bg-card/30 rounded-lg p-3 max-h-40 overflow-auto">{c.practitionerNotesText}</p>
+                          </div>
+                        )}
+                        {c.clientFollowupDraft && (
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">Черновик сообщения клиенту</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-line bg-card/30 rounded-lg p-3 max-h-40 overflow-auto">{c.clientFollowupDraft}</p>
+                          </div>
+                        )}
+                        {c.sessionTranscriptText && (
+                          <div className="mb-3">
+                            <p className="text-xs text-muted-foreground mb-1">STT-транскрипт</p>
+                            <p className="text-xs text-muted-foreground whitespace-pre-line bg-card/30 rounded-lg p-3 max-h-60 overflow-auto">{c.sessionTranscriptText}</p>
                           </div>
                         )}
                         {c.transcriptText && (

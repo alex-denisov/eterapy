@@ -312,11 +312,20 @@ model VideoSession {
   recordingExpiry DateTime?     // 24h TTL
   transcriptText  String?       // full transcript after session
   summaryText     String?       // AI summary for practitioner
+  clientFollowupDraft String?   @map("client_followup_draft")
+  practitionerNotesText String? @map("practitioner_notes_text")
+  transcriptMetadata Json?      @map("transcript_metadata")
+  summaryMetadata Json?         @map("summary_metadata")
+  complianceStatus String       @default("not_reviewed") @map("compliance_status")
+  complianceRiskScore Int       @default(0) @map("compliance_risk_score")
+  complianceEvidence Json?      @map("compliance_evidence")
+  complianceReviewedAt DateTime? @map("compliance_reviewed_at")
   createdAt       DateTime      @default(now())
 
   messages        ChatMessage[]
 
   @@index([bookingId])
+  @@index([complianceStatus, complianceRiskScore])
   @@map("video_sessions")
 }
 

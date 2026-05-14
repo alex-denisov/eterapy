@@ -3,6 +3,16 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 
+function scopedBookingWhere(bookingId: string, userId: string) {
+  return {
+    id: bookingId,
+    OR: [
+      { clientId: userId },
+      { practitioner: { userId } },
+    ],
+  };
+}
+
 /** GET /api/video/session?bookingId=xxx — получить сессию с историей чата */
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -11,8 +21,11 @@ export async function GET(req: NextRequest) {
   const bookingId = req.nextUrl.searchParams.get("bookingId");
   if (!bookingId) return NextResponse.json({ error: "bookingId обязателен" }, { status: 400 });
 
-  const videoSession = await db.videoSession.findUnique({
-    where: { bookingId },
+  const videoSession = await db.videoSession.findFirst({
+    where: {
+      bookingId,
+      booking: scopedBookingWhere(bookingId, session.user.id),
+    },
     include: {
       messages: {
         include: { sender: { select: { id: true, name: true } } },
@@ -33,8 +46,19 @@ export async function PATCH(req: NextRequest) {
   const { bookingId, status, transcriptText, summaryText } = await req.json();
   if (!bookingId) return NextResponse.json({ error: "bookingId обязателен" }, { status: 400 });
 
+  const videoSession = await db.videoSession.findFirst({
+    where: {
+      bookingId,
+      booking: scopedBookingWhere(bookingId, session.user.id),
+    },
+    include: {
+      booking: { select: { practitioner: { select: { userId: true } } } },
+    },
+  });
+  if (!videoSession) return NextResponse.json({ error: "Сессия не найдена" }, { status: 404 });
+
   const updated = await db.videoSession.update({
-    where: { bookingId },
+    where: { id: videoSession.id },
     data: {
       ...(status ? { status } : {}),
       ...(transcriptText !== undefined ? { transcriptText } : {}),
@@ -49,11 +73,7 @@ export async function PATCH(req: NextRequest) {
 
   // Если сессия завершена — завершаем booking единым путём (75% гейт, holds, payout)
   if (status === "ENDED") {
-    const booking = await db.booking.findUnique({
-      where: { id: bookingId },
-      select: { practitioner: { select: { userId: true } } },
-    });
-    const isPractitioner = booking?.practitioner.userId === session.user.id;
+    const isPractitioner = videoSession.booking.practitioner.userId === session.user.id;
     const outcome = await completeBookingAtSessionEnd(bookingId, {
       userId: session.user.id,
       isPractitioner,

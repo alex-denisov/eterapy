@@ -44,6 +44,28 @@ export default async function AdminComplaintsPage() {
 
   const openCount = complaints.filter(c => c.status === "OPEN").length;
 
+  function asSessionComplianceEvidence(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const item = value as {
+      status?: unknown;
+      riskScore?: unknown;
+      riskFlags?: unknown;
+      severity?: unknown;
+      summary?: unknown;
+      evidenceQuotes?: unknown;
+      moderatorRecommendation?: unknown;
+    };
+    return {
+      status: typeof item.status === "string" ? item.status : "review",
+      riskScore: typeof item.riskScore === "number" ? item.riskScore : 0,
+      riskFlags: Array.isArray(item.riskFlags) ? item.riskFlags.map(String) : [],
+      severity: typeof item.severity === "string" ? item.severity : "medium",
+      summary: typeof item.summary === "string" ? item.summary : "",
+      evidenceQuotes: Array.isArray(item.evidenceQuotes) ? item.evidenceQuotes.map(String) : [],
+      moderatorRecommendation: typeof item.moderatorRecommendation === "string" ? item.moderatorRecommendation : "",
+    };
+  }
+
   return (
     <PageContainer maxWidth="full">
       <div className="mb-6 flex items-center justify-between">
@@ -85,6 +107,12 @@ export default async function AdminComplaintsPage() {
         recordingUrl: c.booking.videoSession?.recordingUrl ?? null,
         recordingExpiry: c.booking.videoSession?.recordingExpiry?.toISOString() ?? null,
         summaryText: c.booking.videoSession?.summaryText ?? null,
+        practitionerNotesText: c.booking.videoSession?.practitionerNotesText ?? null,
+        clientFollowupDraft: c.booking.videoSession?.clientFollowupDraft ?? null,
+        sessionTranscriptText: c.booking.videoSession?.transcriptText ?? null,
+        complianceStatus: c.booking.videoSession?.complianceStatus ?? null,
+        complianceRiskScore: c.booking.videoSession?.complianceRiskScore ?? null,
+        complianceEvidence: asSessionComplianceEvidence(c.booking.videoSession?.complianceEvidence),
         sessionMessages: c.booking.videoSession?.messages.map(m => ({
           text: m.text,
           fileName: m.fileName,
