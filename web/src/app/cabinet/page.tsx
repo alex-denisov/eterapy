@@ -7,6 +7,7 @@ import { DailyPracticeActions } from "@/components/cabinet/daily-practice-action
 import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
+import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
@@ -21,7 +22,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, userData, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits] = await Promise.all([
+  const [recentDialogues, upcomingBooking, userData, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -34,6 +35,15 @@ export default async function ClientCabinetPage() {
       include: { practitioner: { include: { user: { select: { name: true } } } } },
     }),
     db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
+    db.userSubscription.findFirst({
+      where: {
+        userId,
+        status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { planKey: true, status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+    }),
     db.dialogue.count({ where: { userId, deletedAt: null } }),
     db.productResult.count({ where: { userId, deletedAt: null } }),
     db.clarityRoute.findMany({
@@ -49,6 +59,12 @@ export default async function ClientCabinetPage() {
 
   const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
+  const subscriptionLabel = getSubscriptionPlanLabel(activeSubscription?.planKey);
+  const subscriptionStatus = activeSubscription
+    ? activeSubscription.cancelAtPeriodEnd
+      ? "Отменяется в конце периода"
+      : getSubscriptionStatusLabel(activeSubscription.status)
+    : "Базовый доступ";
 
   const topicCounts: Record<string, number> = {};
   for (const d of recentDialogues) {
@@ -106,7 +122,7 @@ export default async function ClientCabinetPage() {
           </Link>
         </div>
 
-        <div className="soft-card p-5">
+        <div className="soft-card p-5" data-testid="client-subscription-status">
           <p className="soft-eyebrow">подписка</p>
           <p
             style={{
@@ -117,7 +133,13 @@ export default async function ClientCabinetPage() {
               marginTop: 8,
             }}
           >
-            Базовая
+            {subscriptionLabel}
+          </p>
+          <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+            {subscriptionStatus}
+            {activeSubscription?.currentPeriodEnd
+              ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
+              : ""}
           </p>
           {balanceRub > 0 && (
             <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>

@@ -28,6 +28,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const intent = searchParams.get("intent");
+  const nextPath = getSafeRedirectPath(searchParams.get("next"));
   const accountState = searchParams.get("account");
   const isSavingResult = intent === "save-result";
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
   useEffect(() => {
     let cancelled = false;
     if (status === "authenticated") {
-      window.location.replace(homeUrlForRole(session?.user?.role));
+      window.location.replace(nextPath ?? homeUrlForRole(session?.user?.role));
       return;
     }
     // Fallback: always check session via fetch — works even when useSession is stale
@@ -51,7 +52,7 @@ export default function LoginPage() {
       .then(data => {
         if (!cancelled && data.user?.id) {
           const role = data.user.role;
-          const dest = homeUrlForRole(role);
+          const dest = nextPath ?? homeUrlForRole(role);
           // Only redirect if we're still on login/register page
           if (window.location.pathname === "/login" || window.location.pathname === "/register") {
             window.location.replace(dest);
@@ -60,7 +61,7 @@ export default function LoginPage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [session?.user?.role, status]); // run once plus status change
+  }, [nextPath, session?.user?.role, status]); // run once plus status change
 
   async function doLogin(loginEmail: string, loginPassword: string, redirectTo: string) {
     setLoading(true);
@@ -86,7 +87,7 @@ export default function LoginPage() {
     const err = getEmailError(email);
     setEmailError(err);
     if (err) { toast.error(err); return; }
-    await doLogin(email, password, homePathForRole("CLIENT"));
+    await doLogin(email, password, nextPath ?? homePathForRole("CLIENT"));
   }
 
   return (
@@ -235,4 +236,9 @@ export default function LoginPage() {
       </section>
     </main>
   );
+}
+
+function getSafeRedirectPath(value: string | null): string | null {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null;
+  return value;
 }

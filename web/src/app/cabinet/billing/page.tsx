@@ -3,8 +3,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Loader2, Plus, ArrowUpRight, Shield, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
+import {
+  getLedgerTypeLabel,
+  getProductLabel,
+  getSubscriptionPlanLabel,
+  getSubscriptionStatusLabel,
+} from "@/lib/billing-labels";
+import { mainUrl } from "@/lib/subdomain";
 
 const FEATURES = [
   "История вопросов и сохранение выводов",
@@ -37,6 +45,17 @@ interface BillingLedgerEntry {
   amountRub: string | number;
   type: string;
   description: string | null;
+  createdAt: string;
+}
+
+interface ClarityCreditEntry {
+  id: string;
+  amount: number;
+  balanceAfter: number | null;
+  type: string;
+  source: string;
+  status: string;
+  expiresAt: string | null;
   createdAt: string;
 }
 
@@ -79,16 +98,13 @@ export default function BillingPage() {
   const [payingWithSaved, setPayingWithSaved] = useState(false);
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
   const [ledger, setLedger] = useState<BillingLedgerEntry[]>([]);
+  const [clarityCredits, setClarityCredits] = useState<ClarityCreditEntry[]>([]);
   const [entitlements, setEntitlements] = useState<BillingEntitlement[]>([]);
   const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(timer);
-  }, []);
+  const selectedPlan = searchParams?.get("plan");
+  const selectedPlanKey = selectedPlan === "plus" || selectedPlan === "premium" ? selectedPlan : "premium";
 
   const loadData = useCallback(() => {
     if (!session) return;
@@ -109,12 +125,13 @@ export default function BillingPage() {
       .then(d => {
         setTransactions(d.transactions ?? []);
         setLedger(d.ledger ?? []);
+        setClarityCredits(d.clarityCredits ?? []);
         const hasPending = (d.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
         if (hasPending) {
           fetch("/api/billing/reconcile", { method: "POST" })
             .then(() => {
               fetch("/api/billing/balance").then(r2 => r2.json()).then(d2 => { setBalanceRub(d2.balanceRub); }).catch(() => {});
-              fetch("/api/billing/transactions").then(r2 => r2.json()).then(d2 => { setTransactions(d2.transactions ?? []); setLedger(d2.ledger ?? []); }).catch(() => {});
+              fetch("/api/billing/transactions").then(r2 => r2.json()).then(d2 => { setTransactions(d2.transactions ?? []); setLedger(d2.ledger ?? []); setClarityCredits(d2.clarityCredits ?? []); }).catch(() => {});
               fetch("/api/billing/cards").then(r2 => r2.json()).then(d2 => { setLinkedCards(d2.cards ?? []); }).catch(() => {});
             })
             .catch(() => {});
@@ -164,6 +181,7 @@ export default function BillingPage() {
       if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
       if (txRes?.transactions) setTransactions(txRes.transactions);
       if (txRes?.ledger) setLedger(txRes.ledger);
+      if (txRes?.clarityCredits) setClarityCredits(txRes.clarityCredits);
 
       const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
       const balanceChanged = balRes?.balanceRub && Number(balRes.balanceRub) !== Number(initialBalance);
@@ -296,10 +314,60 @@ export default function BillingPage() {
     }
   }
 
+  async function handleStartSubscription(planKey: string) {
+    setCreatingPayment(true);
+    try {
+      const res = await fetch("/api/billing/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planKey, checkoutSource: "client_billing" }),
+      });
+      const data = await res.json();
+      if (data.confirmationUrl) {
+        window.location.assign(data.confirmationUrl);
+      } else {
+        toast.error(data.error || "Не удалось открыть оплату подписки");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setCreatingPayment(false);
+    }
+  }
+
+  async function handleCancelSubscription(subscriptionId: string) {
+    try {
+      const res = await fetch("/api/billing/subscriptions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionId, action: "cancel_at_period_end" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Подписка будет отменена в конце периода");
+        loadData();
+      } else {
+        toast.error(data.error || "Не удалось отменить подписку");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    }
+  }
+
   if (status === "loading") return null;
   if (!session) { router.push("/login"); return null; }
 
   const activeSub = subscriptions.find(s => s.active);
+  const currentPlanLabel = getSubscriptionPlanLabel(activeSub?.planKey);
+  const currentSubscriptionStatus = activeSub
+    ? activeSub.cancelAtPeriodEnd
+      ? "Отменяется в конце периода"
+      : getSubscriptionStatusLabel(activeSub.status)
+    : "Базовый доступ";
+  const selectedPlanLabel = getSubscriptionPlanLabel(selectedPlanKey);
+  const spendableCredits = clarityCredits
+    .filter((entry) => entry.status === "confirmed")
+    .reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -309,16 +377,19 @@ export default function BillingPage() {
       </div>
 
       {/* Subscription card */}
-      <div className="soft-card p-6" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
+      <div className="soft-card p-6" data-testid="client-billing-subscription" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="soft-eyebrow">текущая подписка</div>
             <div className="mt-2" style={{ fontFamily: "var(--font-heading)", fontSize: 36, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-              {activeSub?.planKey ?? "Бесплатный"}
+              {currentPlanLabel}
+            </div>
+            <div className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+              {currentSubscriptionStatus}
             </div>
             {activeSub?.currentPeriodEnd && (
               <div className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-                следующее списание {new Date(activeSub.currentPeriodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                {activeSub.cancelAtPeriodEnd ? "доступ до" : "следующее списание"} {new Date(activeSub.currentPeriodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
               </div>
             )}
             <ul className="mt-3 space-y-1">
@@ -331,15 +402,26 @@ export default function BillingPage() {
             </ul>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <button className="soft-button soft-button-primary" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+            <Link href={mainUrl("/pricing")} className="soft-button soft-button-primary" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
               Сравнить тарифы
+            </Link>
+            <button
+              onClick={() => handleStartSubscription(selectedPlanKey)}
+              disabled={creatingPayment || activeSub?.planKey === selectedPlanKey}
+              className="soft-button soft-button-ghost"
+              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+            >
+              {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Подключить ${selectedPlanLabel}`}
             </button>
-            <button className="soft-button soft-button-ghost" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
-              Перейти на Premium
-            </button>
-            <button className="soft-chip" style={{ color: "var(--soft-ink-faint)" }}>
-              Отменить подписку
-            </button>
+            {activeSub && !activeSub.cancelAtPeriodEnd && (
+              <button
+                onClick={() => handleCancelSubscription(activeSub.id)}
+                className="soft-chip"
+                style={{ color: "var(--soft-ink-faint)" }}
+              >
+                Отменить подписку
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -363,8 +445,45 @@ export default function BillingPage() {
         </div>
       </div>
 
+      <div className="soft-card p-6" data-testid="client-clarity-credits">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="soft-eyebrow mb-3">кредиты ясности</div>
+            <div style={{ fontFamily: "var(--font-heading)", fontSize: 36, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
+              {spendableCredits}
+            </div>
+            <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+              Кредиты можно тратить на углубления без отдельной оплаты. Начисления и списания остаются в отдельном журнале.
+            </p>
+          </div>
+          <Link href={mainUrl("/products")} className="soft-chip shrink-0">К продуктам →</Link>
+        </div>
+        {clarityCredits.length > 0 && (
+          <div className="mt-5 space-y-0" data-testid="client-clarity-credit-ledger">
+            {clarityCredits.slice(0, 6).map((entry, i) => (
+              <div key={entry.id} className="flex items-center justify-between"
+                style={{ padding: "12px 0", borderTop: i ? "1px solid var(--soft-paper-edge)" : "none" }}>
+                <div>
+                  <div className="font-medium" style={{ fontSize: 15 }}>{getLedgerTypeLabel(entry.type)}</div>
+                  <div className="text-xs mt-0.5" style={{ color: "var(--soft-ink-faint)" }}>
+                    {entry.source} · {new Date(entry.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
+                    {entry.expiresAt ? ` · до ${new Date(entry.expiresAt).toLocaleDateString("ru-RU")}` : ""}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span style={{ fontFamily: "var(--font-heading)", color: "var(--soft-bordeaux)", fontWeight: 600 }}>
+                    {entry.amount >= 0 ? "+" : ""}{entry.amount}
+                  </span>
+                  <div className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>{entry.status}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Payment method */}
-      <div className="soft-card p-6">
+      <div className="soft-card p-6" data-testid="client-saved-cards">
         <div className="soft-eyebrow mb-4">способ оплаты</div>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
@@ -495,13 +614,13 @@ export default function BillingPage() {
 
       {/* Open entitlements */}
       {entitlements.length > 0 && (
-        <div className="soft-card p-6">
+        <div className="soft-card p-6" data-testid="client-open-entitlements">
           <div className="soft-eyebrow mb-4">открытые продукты</div>
           <div className="grid gap-2 sm:grid-cols-2">
             {entitlements.slice(0, 8).map((e) => (
               <div key={e.id} className="soft-card-flat p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{e.productKey}</span>
+                  <span className="text-sm font-medium">{getProductLabel(e.productKey)}</span>
                   <span className="soft-badge" style={e.active ? {} : { background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}>
                     {e.active ? "Активен" : e.status}
                   </span>
@@ -516,7 +635,7 @@ export default function BillingPage() {
       )}
 
       {/* Payment history */}
-      <div className="soft-card p-6">
+      <div className="soft-card p-6" data-testid="client-billing-history">
         <div className="flex items-center justify-between gap-3 mb-4">
           <span className="soft-eyebrow">история платежей</span>
           {transactions.some(t => t.status === "PENDING") && (
@@ -574,7 +693,7 @@ export default function BillingPage() {
                 <div key={entry.id} className="flex items-center justify-between"
                   style={{ padding: "14px 0", borderTop: i ? "1px solid var(--soft-paper-edge)" : "none" }}>
                   <div>
-                    <div className="font-medium" style={{ fontSize: 15 }}>{entry.description || entry.type}</div>
+                    <div className="font-medium" style={{ fontSize: 15 }}>{entry.description || getLedgerTypeLabel(entry.type)}</div>
                     <div className="text-xs mt-0.5" style={{ color: "var(--soft-ink-faint)" }}>
                       {new Date(entry.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
                     </div>

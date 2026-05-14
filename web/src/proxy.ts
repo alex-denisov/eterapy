@@ -44,6 +44,10 @@ function withOriginalSearch(target: string, search: string): string {
   return `${target}${target.includes("?") ? "&" : "?"}${search.slice(1)}`;
 }
 
+function encodedNext(pathname: string, search: string): string {
+  return encodeURIComponent(withOriginalSearch(pathname, search));
+}
+
 function redirectAbs(domain: string, pathname: string, context: { requestId: string; correlationId: string }) {
   return withRequestContext(NextResponse.redirect(`${PROTO}${domain}${pathname}`), context);
 }
@@ -98,7 +102,7 @@ export default async function proxy(request: NextRequest) {
       return applyRobotsPolicy(redirect(withOriginalSearch(legacyTarget, request.nextUrl.search), request, context), host, pathname);
     }
     if ((pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) && !role) {
-      return applyRobotsPolicy(redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context), host, pathname);
+      return applyRobotsPolicy(redirect(`/login?next=${encodedNext(pathname, request.nextUrl.search)}`, request, context), host, pathname);
     }
     if (pathname.startsWith("/admin") && !isAdminRole(role)) {
       return applyRobotsPolicy(redirect("/cabinet", request, context), host, pathname);
@@ -122,7 +126,12 @@ export default async function proxy(request: NextRequest) {
   // ─── app.eterapy.com ───
   if (onApp) {
     if (!role) {
-      return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/")}`, context), host, pathname);
+      const nextPath = pathname.startsWith("/cabinet")
+        ? pathname
+        : pathname === "/"
+          ? "/cabinet"
+          : `/cabinet${pathname}`;
+      return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodedNext(nextPath, request.nextUrl.search)}`, context), host, pathname);
     }
     if (isAdminRole(role)) {
       return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, "/admin", context), host, pathname);
@@ -151,7 +160,8 @@ export default async function proxy(request: NextRequest) {
   // ─── admin.eterapy.com ───
   if (onAdmin) {
     if (!role) {
-      return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodeURIComponent("/admin")}`, context), host, pathname);
+      const nextPath = pathname.startsWith("/admin") ? pathname : "/admin";
+      return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodedNext(nextPath, request.nextUrl.search)}`, context), host, pathname);
     }
     if (!isAdminRole(role)) {
       return applyRobotsPolicy(redirectAbs(APP_DOMAIN, "/cabinet", context), host, pathname);
@@ -195,7 +205,7 @@ export default async function proxy(request: NextRequest) {
 
   // Guest on main domain — block protected paths, show everything else
   if (pathname.startsWith("/cabinet") || pathname.startsWith("/admin")) {
-    return applyRobotsPolicy(redirect(`/login?next=${encodeURIComponent(pathname)}`, request, context), host, pathname);
+    return applyRobotsPolicy(redirect(`/login?next=${encodedNext(pathname, request.nextUrl.search)}`, request, context), host, pathname);
   }
   return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
 }

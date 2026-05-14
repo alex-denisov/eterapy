@@ -16,6 +16,9 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain('data-testid="client-recent-questions"');
     expect(page).toContain("db.dialogue.count");
     expect(page).toContain("db.productResult.count");
+    expect(page).toContain("db.userSubscription.findFirst");
+    expect(page).toContain('data-testid="client-subscription-status"');
+    expect(page).toContain("getSubscriptionPlanLabel");
     expect(page).toContain("db.clarityRoute.findMany");
     expect(page).toContain('appUrl("/cabinet/questions")');
     expect(page).toContain("История разборов");
