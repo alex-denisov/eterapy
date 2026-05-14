@@ -5,6 +5,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { computePractitionerBalance } from "@/lib/practitioner-balance";
+import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 async function getPractitionerData(userId: string) {
@@ -34,7 +35,8 @@ export default async function PractitionerCabinetPage() {
   if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
-  const practitioner = await getPractitionerData(session.user!.id!);
+  const userId = session.user!.id!;
+  const practitioner = await getPractitionerData(userId);
   if (!practitioner) {
     return (
       <div className="px-6 py-8 text-center">
@@ -50,22 +52,69 @@ export default async function PractitionerCabinetPage() {
   const balance = await computePractitionerBalance(practitioner.id);
   const currentBalance = Math.max(0, balance?.currentBalance ?? 0);
   const pendingPayout = Math.max(0, balance?.pendingPayout ?? 0);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
 
-  // Pending bookings
-  const pendingBookings = await db.booking.findMany({
-    where: { practitionerId: practitioner.id, status: "PENDING" },
-    include: { client: { select: { name: true, email: true } }, slot: true },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
+  const [
+    pendingBookings,
+    upcomingBookings,
+    proSubscription,
+    transcriptCount,
+    summaryCount,
+    complianceReviewCount,
+    complianceFlagCount,
+    heldPayoutCount,
+    riskyBookingCount,
+  ] = await Promise.all([
+    db.booking.findMany({
+      where: { practitionerId: practitioner.id, status: "PENDING" },
+      include: { client: { select: { name: true, email: true } }, slot: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    db.booking.findMany({
+      where: { practitionerId: practitioner.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] } },
+      include: { client: { select: { name: true, email: true } }, slot: true },
+      orderBy: { createdAt: "asc" },
+      take: 5,
+    }),
+    db.userSubscription.findFirst({
+      where: {
+        userId,
+        planKey: { in: ["practitioner_pro", "practitioner_pro_plus"] },
+        status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
+        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { planKey: true, status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
+    }),
+    db.videoSession.count({
+      where: { createdAt: { gte: monthStart }, transcriptText: { not: null }, booking: { practitionerId: practitioner.id } },
+    }),
+    db.videoSession.count({
+      where: { createdAt: { gte: monthStart }, summaryText: { not: null }, booking: { practitionerId: practitioner.id } },
+    }),
+    db.videoSession.count({
+      where: { createdAt: { gte: monthStart }, complianceReviewedAt: { not: null }, booking: { practitionerId: practitioner.id } },
+    }),
+    db.videoSession.count({
+      where: { complianceRiskScore: { gte: 50 }, booking: { practitionerId: practitioner.id } },
+    }),
+    db.payout.count({
+      where: { practitionerId: practitioner.id, status: "HELD" },
+    }),
+    db.booking.count({
+      where: { practitionerId: practitioner.id, OR: [{ riskScore: { gte: 50 } }, { riskFlags: { isEmpty: false } }] },
+    }),
+  ]);
 
-  // Confirmed / upcoming sessions
-  const upcomingBookings = await db.booking.findMany({
-    where: { practitionerId: practitioner.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] } },
-    include: { client: { select: { name: true, email: true } }, slot: true },
-    orderBy: { createdAt: "asc" },
-    take: 5,
-  });
+  const proPlanLabel = getSubscriptionPlanLabel(proSubscription?.planKey);
+  const proStatusLabel = proSubscription
+    ? proSubscription.cancelAtPeriodEnd
+      ? "Отменяется в конце периода"
+      : getSubscriptionStatusLabel(proSubscription.status)
+    : "Базовые инструменты";
 
   return (
     <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
@@ -191,6 +240,72 @@ export default async function PractitionerCabinetPage() {
             </p>
           )}
         </div>
+      </div>
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <section className="soft-card p-5" data-testid="practitioner-pro-usage">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="soft-eyebrow">Practitioner Pro</p>
+              <h2 className="soft-h3 mt-2">{proSubscription ? proPlanLabel : "Pro не подключён"}</h2>
+              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+                {proStatusLabel}
+                {proSubscription?.currentPeriodEnd
+                  ? ` · до ${proSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
+                  : ""}
+              </p>
+            </div>
+            <Link href={appUrl("/cabinet/practitioner/services")} className="soft-chip">
+              Ссылки и widget →
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              ["STT", transcriptCount, "транскриптов"],
+              ["Summary", summaryCount, "конспектов"],
+              ["Compliance", complianceReviewCount, "проверок"],
+            ].map(([label, value, hint]) => (
+              <div key={label} className="soft-card-flat p-3">
+                <p className="text-xs text-[var(--soft-ink-faint)]">{label}</p>
+                <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">{value}</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">{hint} за месяц</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="soft-card p-5" data-testid="practitioner-compliance-notices">
+          <p className="soft-eyebrow">комплаенс и выплаты</p>
+          <h2 className="soft-h3 mt-2">Рабочий статус</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="soft-card-flat p-3">
+              <p className="text-xs text-[var(--soft-ink-faint)]">Верификация</p>
+              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
+                {practitioner.verified ? "Подтверждена" : "Нужна проверка"}
+              </p>
+            </div>
+            <div className="soft-card-flat p-3">
+              <p className="text-xs text-[var(--soft-ink-faint)]">Риск-профиль</p>
+              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
+                {practitioner.riskScore > 0 ? `${practitioner.riskScore}/100` : "без сигналов"}
+              </p>
+            </div>
+            <div className="soft-card-flat p-3">
+              <p className="text-xs text-[var(--soft-ink-faint)]">Сессии на проверке</p>
+              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">{complianceFlagCount}</p>
+            </div>
+            <div className="soft-card-flat p-3">
+              <p className="text-xs text-[var(--soft-ink-faint)]">Удержания выплат</p>
+              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">{heldPayoutCount}</p>
+            </div>
+          </div>
+          {(practitioner.riskFlags.length > 0 || riskyBookingCount > 0) && (
+            <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Есть сигналы для ручной проверки: {practitioner.riskFlags.slice(0, 3).join(", ") || `${riskyBookingCount} риск-записей`}.
+              До решения модератора часть выплат может оставаться в hold.
+            </p>
+          )}
+        </section>
       </div>
 
       {/* v4: schedule + requests side-by-side (1.4fr / 1fr) */}

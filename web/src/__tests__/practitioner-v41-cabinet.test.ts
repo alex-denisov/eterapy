@@ -9,6 +9,12 @@ describe("B207 practitioner v4.1 cabinet", () => {
     const page = source("src/app/cabinet/practitioner/page.tsx");
 
     expect(page).toContain("computePractitionerBalance");
+    expect(page).toContain('data-testid="practitioner-pro-usage"');
+    expect(page).toContain('data-testid="practitioner-compliance-notices"');
+    expect(page).toContain("db.userSubscription.findFirst");
+    expect(page).toContain("db.videoSession.count");
+    expect(page).toContain("complianceRiskScore");
+    expect(page).toContain("db.payout.count");
     expect(page).toContain("currentBalance.toLocaleString");
     expect(page).toContain("pendingPayout.toLocaleString");
     expect(page).toContain("открыть выплаты");
@@ -37,5 +43,20 @@ describe("B207 practitioner v4.1 cabinet", () => {
     expect(shell).toContain('"Услуги и цены"');
     expect(shell).toContain('"Этический кодекс"');
     expect(shell).toContain("soft-app-sidebar-card");
+  });
+
+  it("surfaces requests and reviews with risk/compliance state", () => {
+    const requests = source("src/app/cabinet/practitioner/requests/page.tsx");
+    const reviews = source("src/app/cabinet/practitioner/reviews/page.tsx");
+
+    expect(requests).toContain('data-testid="practitioner-requests-page"');
+    expect(requests).toContain('data-testid="practitioner-request-card"');
+    expect(requests).toContain("BookingActions");
+    expect(requests).toContain("riskScore");
+    expect(requests).toContain("riskFlags");
+    expect(reviews).toContain('data-testid="practitioner-review-compliance"');
+    expect(reviews).toContain('r.status !== "PUBLISHED"');
+    expect(reviews).toContain("riskScore");
+    expect(reviews).toContain("riskFlags");
   });
 });
