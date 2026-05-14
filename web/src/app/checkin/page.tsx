@@ -391,6 +391,18 @@ export default function CheckinPage() {
           <Disclaimer className="soft-dialogue-disclaimer" tone="warning" title="Экстренная поддержка">
             Если есть риск причинить вред себе или другому человеку, обратитесь в экстренные службы или к близкому человеку рядом. ETerapy не будет предлагать платные продукты в таком сценарии.
           </Disclaimer>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3" data-testid="dialogue-safety-support-actions">
+            {[
+              ["112", "экстренные службы"],
+              ["Близкий человек", "попросите побыть рядом"],
+              ["support@eterapy.com", "поддержка ETerapy"],
+            ].map(([title, subtitle]) => (
+              <div key={title} className="soft-card-flat p-3">
+                <p className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{title}</p>
+                <p className="text-xs text-[var(--soft-ink-faint)]">{subtitle}</p>
+              </div>
+            ))}
+          </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Button className="soft-button soft-button-ghost" variant="outline" onClick={reset}>
               <RotateCcw className="size-4" aria-hidden="true" />

@@ -59,10 +59,12 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="max-w-lg" showCloseButton={false}>
+      <DialogContent className="max-w-lg" showCloseButton={false} data-testid="support-complaint-flow">
         <DialogHeader>
           <DialogTitle>Подать жалобу</DialogTitle>
-          <DialogDescription>Сессия с {practitionerName}</DialogDescription>
+          <DialogDescription>
+            Сессия с {practitionerName}. Мы сохраним обращение как support-case и покажем статус в админской очереди.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -102,8 +104,13 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
           </div>
 
           {/* Предупреждение */}
-          <div className="rounded-[var(--radius-control)] border border-brand-soft-gold/20 bg-brand-soft-gold/10 px-4 py-3 text-xs text-brand-soft-gold/90">
-            Мы рассмотрим жалобу в течение 24 часов. Чат сессии и логи сохранены и будут использованы при разборе.
+          <div className="soft-card-flat px-4 py-3 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+            <p className="font-medium text-[var(--soft-bordeaux)]">Что произойдёт дальше</p>
+            <p className="mt-1">
+              Жалоба попадает в очередь модерации, выплата по спорной встрече может быть временно удержана, а возврат решается после проверки.
+              Если есть риск для безопасности, напишите напрямую на support@eterapy.com или звоните в экстренные службы.
+            </p>
+            <p className="mt-2 text-[var(--soft-ink-faint)]">Стандартная эскалация: первичный ответ до 24 часов.</p>
           </div>
         </div>
 

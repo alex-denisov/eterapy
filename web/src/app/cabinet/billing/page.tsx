@@ -484,6 +484,12 @@ export default function BillingPage() {
 
       {/* Payment method */}
       <div className="soft-card p-6" data-testid="client-saved-cards">
+        <div data-testid="client-checkout-panel">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {["1. Проверка", "2. Оплата", "3. Готово"].map((step, index) => (
+            <span key={step} className={index === 1 ? "soft-chip soft-chip-warm" : "soft-chip"}>{step}</span>
+          ))}
+        </div>
         <div className="soft-eyebrow mb-4">способ оплаты</div>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
@@ -555,6 +561,7 @@ export default function BillingPage() {
             ))}
           </div>
         )}
+        </div>
       </div>
 
       {/* Top-up amounts */}
@@ -608,7 +615,7 @@ export default function BillingPage() {
 
         <div className="flex items-center gap-2 mt-3 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
           <Shield className="h-3 w-3" />
-          Безопасная оплата через ЮKassa
+          Платёж защищён через ЮKassa · мы не храним данные карты
         </div>
       </div>
 

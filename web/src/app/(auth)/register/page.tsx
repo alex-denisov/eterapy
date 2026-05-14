@@ -86,7 +86,7 @@ export default function RegisterPage() {
 
   if (registered) {
     return (
-      <main className="soft-clarity-page soft-public-page min-h-screen">
+      <main className="soft-clarity-page soft-public-page min-h-screen" data-testid="auth-v41-register-success">
         <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
         <div className="soft-card w-full max-w-md space-y-4 p-8 text-center">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[var(--soft-apricot)] font-heading text-2xl text-[var(--soft-bordeaux)]">✉</div>
@@ -109,11 +109,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="soft-clarity-page soft-public-page min-h-screen">
-      <section className="soft-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
-      <Card className="soft-card w-full max-w-md">
+    <main className="soft-clarity-page soft-public-page min-h-screen" data-testid="auth-v41-register">
+      <section className="grid min-h-screen lg:grid-cols-[1.08fr_0.92fr]">
+      <div className="flex items-center px-4 py-10 sm:px-8 lg:justify-end lg:px-16">
+      <Card className="soft-card w-full max-w-[520px]">
         <CardHeader className="text-center">
-          <CardTitle className="font-heading text-2xl font-medium text-[var(--soft-bordeaux)]">Создать аккаунт</CardTitle>
+          <p className="soft-eyebrow">регистрация</p>
+          <CardTitle className="font-heading text-3xl font-medium leading-tight text-[var(--soft-bordeaux)]">
+            Создайте личное пространство ясности.
+          </CardTitle>
           <p className="text-sm text-[var(--soft-ink-soft)]">
             {isSavingResult ? "Сохраните уже полученный ответ и вернитесь к нему позже" : "Регистрация после первого полезного шага"}
           </p>
@@ -175,6 +179,12 @@ export default function RegisterPage() {
               className="soft-input"
             />
             </div>
+            <label className="flex items-start gap-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+              <input type="checkbox" defaultChecked className="mt-1 accent-[var(--soft-terracotta)]" />
+              <span>
+                Я согласен(на) с условиями, этическим кодексом и понимаю, что ETerapy не заменяет психолога или врача.
+              </span>
+            </label>
             <Button type="submit" className="soft-button soft-button-primary w-full justify-center" disabled={loading}>
               {loading ? (
                 <span className="flex items-center gap-2">
@@ -220,6 +230,21 @@ export default function RegisterPage() {
           </p>
         </CardContent>
       </Card>
+      </div>
+      <aside className="hidden items-center px-8 lg:flex" style={{ background: "linear-gradient(160deg, #F4D9C1, #E8C4B8)" }}>
+        <div className="grid max-w-[420px] gap-4">
+          {[
+            ["Шифрование на устройстве", "Никто, кроме вас, не видит содержание разборов."],
+            ["Без рекламы и продажи данных", "Вы клиент, а не товар."],
+            ["Удаление за 5 секунд", "Без писем в поддержку и форм отказа."],
+          ].map(([title, body]) => (
+            <div key={title} className="soft-card-flat p-5">
+              <p className="font-heading text-lg font-medium text-[var(--soft-bordeaux)]">{title}</p>
+              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{body}</p>
+            </div>
+          ))}
+        </div>
+      </aside>
       </section>
     </main>
   );

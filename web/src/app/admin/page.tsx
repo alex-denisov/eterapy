@@ -9,12 +9,24 @@ import { PractitionerStatus, BookingStatus } from "@prisma/client";
 import { AdminActions } from "./admin-actions";
 
 async function getStats() {
-  const [totalUsers, totalPractitioners, pendingPractitioners, totalBookings, pendingBookings] = await Promise.all([
+  const [
+    totalUsers,
+    totalPractitioners,
+    pendingPractitioners,
+    totalBookings,
+    pendingBookings,
+    openComplaints,
+    heldPayouts,
+    complianceSignals,
+  ] = await Promise.all([
     db.user.count(),
     db.practitioner.count(),
     db.practitioner.count({ where: { status: PractitionerStatus.PENDING } }),
     db.booking.count(),
     db.booking.count({ where: { status: BookingStatus.PENDING } }),
+    db.complaint.count({ where: { status: { in: ["OPEN", "REVIEWING"] } } }),
+    db.payout.count({ where: { status: "HELD" } }),
+    db.videoSession.count({ where: { complianceRiskScore: { gte: 50 } } }),
   ]);
 
   const recentBookings = await db.booking.findMany({
@@ -33,7 +45,18 @@ async function getStats() {
     take: 10,
   });
 
-  return { totalUsers, totalPractitioners, pendingPractitioners, totalBookings, pendingBookings, recentBookings, pendingPractitionersList };
+  return {
+    totalUsers,
+    totalPractitioners,
+    pendingPractitioners,
+    totalBookings,
+    pendingBookings,
+    openComplaints,
+    heldPayouts,
+    complianceSignals,
+    recentBookings,
+    pendingPractitionersList,
+  };
 }
 
 export default async function AdminPage() {
@@ -44,11 +67,11 @@ export default async function AdminPage() {
   const stats = await getStats();
 
   return (
-    <div className="premium-page mx-auto max-w-6xl px-4 py-12">
+    <div className="premium-page mx-auto max-w-6xl px-4 py-12" data-testid="admin-v41-overview">
       <div className="mb-8">
-        <p className="premium-eyebrow">Админка</p>
+        <p className="premium-eyebrow">админ</p>
         <h1 className="premium-title mt-2 text-3xl md:text-5xl">Обзор платформы</h1>
-        <p className="mt-1 text-sm text-muted-foreground">ETerapy · Панель администратора</p>
+        <p className="mt-1 text-sm text-muted-foreground">ETerapy · Панель администратора · кризисные и комплаенс-сигналы</p>
       </div>
 
       {/* Статистика */}
@@ -69,6 +92,24 @@ export default async function AdminPage() {
               <p className={`mt-1 font-heading text-2xl font-bold ${s.color}`}>{s.value}</p>
             </CardContent>
           </Card>
+        ))}
+      </div>
+
+      <div className="mb-8 grid gap-4 lg:grid-cols-3" data-testid="admin-urgent-tasks">
+        {[
+          { label: "Жалобы ждут решения", value: stats.openComplaints, href: "/admin/complaints", tone: "soft-badge-warm" },
+          { label: "Выплаты в hold", value: stats.heldPayouts, href: "/admin/antifraud", tone: "soft-badge-lilac" },
+          { label: "Комплаенс-сессии", value: stats.complianceSignals, href: "/admin/complaints", tone: "soft-badge" },
+        ].map((task) => (
+          <a key={task.label} href={task.href} className="soft-card-flat block p-5 transition-colors hover:border-[var(--soft-terracotta)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="soft-eyebrow">{task.label}</p>
+                <p className="mt-2 font-heading text-3xl font-semibold text-[var(--soft-bordeaux)]">{task.value}</p>
+              </div>
+              <span className={`soft-badge ${task.tone}`}>открыть</span>
+            </div>
+          </a>
         ))}
       </div>
 
