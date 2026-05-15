@@ -232,9 +232,54 @@ export default async function AdminMetricsPage() {
   const bookingsDelta = delta(bookingsThisMonth, bookingsPrevMonth);
   const toolDelta = delta(toolSessionsThisMonth, toolSessionsPrevMonth);
 
-  // ─── v5 Activation funnel from AnalyticsEvent ───
+  // ─── v5 Product revenue by productKey (30 days) ───
   const thirtyDaysAgoDate = new Date(now);
   thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+
+  // Query completed product entitlements from the last 30 days to derive revenue
+  const productEntitlements30d = await db.productEntitlement.groupBy({
+    by: ["productKey"],
+    where: {
+      source: "purchase",
+      status: "ACTIVE",
+      createdAt: { gte: thirtyDaysAgoDate },
+    },
+    _count: { id: true },
+  });
+
+  const PRODUCT_PRICES_RUB: Record<string, number> = {
+    "perspectives": 299,
+    "deep-report": 590,
+    "chat-analysis": 299,
+    "compatibility": 790,
+    "circle": 790,
+    "pair": 790,
+    "seven-days": 990,
+    "my-map": 990,
+  };
+  const PRODUCT_NAMES: Record<string, string> = {
+    "perspectives": "Перспективы",
+    "deep-report": "Глубокий отчёт",
+    "chat-analysis": "Анализ переписки",
+    "compatibility": "Совместимость",
+    "circle": "Круг близких",
+    "pair": "Пара",
+    "seven-days": "7 дней",
+    "my-map": "Моя карта",
+  };
+
+  const productRevenue = productEntitlements30d
+    .map((row) => ({
+      productKey: row.productKey,
+      name: PRODUCT_NAMES[row.productKey] ?? row.productKey,
+      count: row._count.id,
+      revenueRub: (PRODUCT_PRICES_RUB[row.productKey] ?? 0) * row._count.id,
+    }))
+    .sort((a, b) => b.revenueRub - a.revenueRub);
+
+  const totalProductRevenueRub = productRevenue.reduce((s, r) => s + r.revenueRub, 0);
+
+  // ─── v5 Activation funnel from AnalyticsEvent ───
 
   const [
     dialoguesCreated30d,
@@ -341,6 +386,43 @@ export default async function AdminMetricsPage() {
               </div>
               <span className="text-3xl">📈</span>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* v5 Product revenue (30 дней) */}
+      <div className="mb-8">
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-heading text-lg font-semibold">💳 Выручка цифровых продуктов (30 дней)</h3>
+              <span className="text-sm font-semibold tabular-nums">
+                {totalProductRevenueRub.toLocaleString("ru-RU")} ₽
+              </span>
+            </div>
+            {productRevenue.length === 0 ? (
+              <p className="text-xs text-muted-foreground/60">Покупок за последние 30 дней нет.</p>
+            ) : (
+              <div className="space-y-3">
+                {productRevenue.map((r) => {
+                  const pct = totalProductRevenueRub > 0 ? (r.revenueRub / totalProductRevenueRub) * 100 : 0;
+                  return (
+                    <div key={r.productKey}>
+                      <div className="flex items-center justify-between text-sm mb-1">
+                        <span className="text-muted-foreground">{r.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground/60">{r.count} шт</span>
+                          <span className="font-semibold tabular-nums">{r.revenueRub.toLocaleString("ru-RU")} ₽</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-card overflow-hidden">
+                        <div className="h-full rounded-full bg-green-500/60 transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

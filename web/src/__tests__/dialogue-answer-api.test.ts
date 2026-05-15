@@ -18,6 +18,9 @@ jest.mock("@/lib/db", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    analyticsEvent: {
+      create: jest.fn().mockResolvedValue({}),
+    },
   },
 }));
 

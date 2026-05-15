@@ -248,7 +248,7 @@ export default async function PractitionerPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ precheck?: string; source?: string }>;
+  searchParams?: Promise<{ precheck?: string; source?: string; dialogueId?: string }>;
 }) {
   const { slug } = await params;
   const query = await searchParams;
@@ -265,6 +265,7 @@ export default async function PractitionerPage({
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
+  const cameFromRecommendation = Boolean(query?.dialogueId);
 
   return (
     <main className="soft-clarity-page soft-public-page">
@@ -464,7 +465,12 @@ export default async function PractitionerPage({
             <div className="soft-card p-7">
               <p className="soft-eyebrow">записаться</p>
               <h3 className="soft-h3 mt-2">Индивидуальная сессия</h3>
-              {cameFromPrecheck && (
+              {cameFromRecommendation && (
+                <div className="mt-3 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]" data-testid="recommendation-booking-context">
+                  Специалист рекомендован по вашему запросу. Контекст будет учтён при записи.
+                </div>
+              )}
+              {!cameFromRecommendation && cameFromPrecheck && (
                 <div className="mt-3 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]" data-testid="precheck-booking-context">
                   Предразбор сохранён. Выберите время, а контекст вопроса останется связанным с этим переходом.
                 </div>
