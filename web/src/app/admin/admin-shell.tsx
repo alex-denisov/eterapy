@@ -23,6 +23,7 @@ import {
   Wrench,
   LogOut,
   FileText,
+  ListTodo,
 } from "lucide-react";
 import type { Permission } from "@/lib/moderator-permissions";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
@@ -70,6 +71,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Логи",             superadminOnly: true },
   { href: adminUrl("/admin/users"),        icon: UserRound,            label: "Все пользователи", superadminOnly: true },
 
+  { href: adminUrl("/admin/jobs"),         icon: ListTodo,             label: "Задачи (очередь)", permission: "system.read" },
   { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Система",          permission: "system.read" },
 ];
 

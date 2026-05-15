@@ -38,6 +38,18 @@ const PLAN_KEYS = [
   { key: "session.min_price",      label: "Минимальная цена сессии ₽",   type: "number" },
 ];
 
+const PRODUCT_PRICE_KEYS = [
+  { key: "product.perspectives.price",  label: "4 Ракурса ответа ₽",     type: "number" },
+  { key: "product.deep-report.price",   label: "Глубокий отчёт ₽",       type: "number" },
+  { key: "product.chat-analysis.price", label: "Анализ переписки ₽",     type: "number" },
+  { key: "product.seven-days.price",    label: "7 дней к ясности ₽",     type: "number" },
+  { key: "product.circle.price",        label: "Круг ясности ₽",         type: "number" },
+  { key: "product.pair.price",          label: "Разобраться вдвоём ₽",   type: "number" },
+  { key: "subscription.plus.price",     label: "Подписка Plus ₽/мес",    type: "number" },
+  { key: "subscription.premium.price",  label: "Подписка Premium ₽/мес", type: "number" },
+  { key: "subscription.pro.price",      label: "Practitioner Pro ₽/мес", type: "number" },
+];
+
 export function PricingEditor({ initialSettings, practitioners }: Props) {
   const [settings, setSettings] = useState<Record<string, string>>(initialSettings);
   const [savingSettings, setSavingSettings] = useState(false);
@@ -147,6 +159,29 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
           <button onClick={handleSaveSettings} disabled={savingSettings}
             className="mt-5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-navy disabled:opacity-50">
             {savingSettings ? "Сохранение..." : "Сохранить"}
+          </button>
+        </CardContent>
+      </Card>
+
+      {/* Цифровые продукты и подписки */}
+      <Card className="border-border/40 bg-card/50">
+        <CardContent className="p-6">
+          <h2 className="font-semibold mb-1">Цены цифровых продуктов и подписок</h2>
+          <p className="text-xs text-muted-foreground mb-5">Цены в рублях. Изменения сохраняются через кнопку &laquo;Сохранить&raquo; выше.</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PRODUCT_PRICE_KEYS.map(({ key, label }) => (
+              <div key={key}>
+                <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
+                <input type="number" min={0}
+                  value={settings[key] ?? ""}
+                  onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))}
+                  className="w-full rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
+              </div>
+            ))}
+          </div>
+          <button onClick={handleSaveSettings} disabled={savingSettings}
+            className="mt-5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-navy disabled:opacity-50">
+            {savingSettings ? "Сохранение..." : "Сохранить продуктовые цены"}
           </button>
         </CardContent>
       </Card>

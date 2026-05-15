@@ -19,6 +19,19 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
 
   // Лимит бесплатных инструментов по умолчанию
   "tools.default_limit":     "3",
+
+  // Цены цифровых продуктов (копейки/рубли)
+  "product.perspectives.price":   "299",
+  "product.deep-report.price":    "590",
+  "product.chat-analysis.price":  "299",
+  "product.seven-days.price":     "990",
+  "product.circle.price":         "790",
+  "product.pair.price":           "790",
+
+  // Подписки (v5)
+  "subscription.plus.price":      "499",
+  "subscription.premium.price":   "1290",
+  "subscription.pro.price":       "1490",
 };
 
 export async function getSetting(key: string): Promise<string> {

@@ -232,6 +232,29 @@ export default async function AdminMetricsPage() {
   const bookingsDelta = delta(bookingsThisMonth, bookingsPrevMonth);
   const toolDelta = delta(toolSessionsThisMonth, toolSessionsPrevMonth);
 
+  // ─── v5 Activation funnel from AnalyticsEvent ───
+  const thirtyDaysAgoDate = new Date(now);
+  thirtyDaysAgoDate.setDate(thirtyDaysAgoDate.getDate() - 30);
+
+  const [
+    dialoguesCreated30d,
+    answersGenerated30d,
+    answersViewed30d,
+    specialistRecommended30d,
+  ] = await Promise.all([
+    db.analyticsEvent.count({ where: { event: "dialogue_created", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "primary_answer_generated", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "primary_answer_viewed", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "specialist_recommended", createdAt: { gte: thirtyDaysAgoDate } } }),
+  ]);
+
+  const activationFunnel = [
+    { step: "Диалогов создано", value: dialoguesCreated30d, icon: "💬" },
+    { step: "Ответов сгенерировано", value: answersGenerated30d, icon: "✦" },
+    { step: "Ответов просмотрено", value: answersViewed30d, icon: "👁" },
+    { step: "Спец. рекомендовано", value: specialistRecommended30d, icon: "🎯" },
+  ];
+
   const SPECIALTY_LABELS: Record<string, string> = {
     TAROT: "Таро", ASTROLOGY: "Астрология", NUMEROLOGY: "Нумерология",
     PSYCHIC: "Ясновидение", RUNES: "Руны", DREAMS: "Сонник",
@@ -318,6 +341,48 @@ export default async function AdminMetricsPage() {
               </div>
               <span className="text-3xl">📈</span>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* v5 Activation funnel (AnalyticsEvent — 30 дней) */}
+      <div className="mb-8">
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-heading text-lg font-semibold">⚡ Воронка активации v5 (30 дней)</h3>
+              <Badge className="text-xs bg-primary/10 text-primary border-primary/20">AnalyticsEvent</Badge>
+            </div>
+            <div className="space-y-3">
+              {activationFunnel.map((f, i) => {
+                const maxVal = activationFunnel[0].value || 1;
+                const pct = Math.min((f.value / maxVal) * 100, 100);
+                const convRate = i > 0 && activationFunnel[i - 1].value > 0
+                  ? ((f.value / activationFunnel[i - 1].value) * 100).toFixed(1)
+                  : null;
+                return (
+                  <div key={f.step}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="text-muted-foreground">{f.icon} {f.step}</span>
+                      <div className="flex items-center gap-3">
+                        {convRate && (
+                          <span className="text-xs text-muted-foreground/60">→ {convRate}%</span>
+                        )}
+                        <span className="font-semibold tabular-nums">{f.value.toLocaleString("ru-RU")}</span>
+                      </div>
+                    </div>
+                    <div className="h-2 rounded-full bg-card overflow-hidden">
+                      <div className="h-full rounded-full bg-primary/60 transition-all" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {activationFunnel[0].value === 0 && (
+              <p className="mt-3 text-xs text-muted-foreground/60">
+                Данные появятся по мере того, как пользователи начнут взаимодействовать с платформой.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
