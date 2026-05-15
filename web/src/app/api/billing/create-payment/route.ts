@@ -14,6 +14,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
+import { trackServerEvent } from "@/lib/analytics";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -94,6 +95,17 @@ export async function POST(req: NextRequest) {
       providerPaymentId: payment.id,
       amountKopecks: purchase.amountKopecks,
       purchaseKind: purchase.kind,
+    });
+
+    trackServerEvent(db, {
+      event: "checkout_started",
+      userId: session.user.id,
+      surface: "billing",
+      properties: {
+        amount_rub: (purchase.amountKopecks / 100).toFixed(2),
+        currency: "RUB",
+        product_type: purchase.metadata.productKey ?? purchase.metadata.planKey ?? "balance",
+      },
     });
 
     return jsonWithRequestContext({

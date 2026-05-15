@@ -21,6 +21,7 @@ import {
   revokeEntitlementsForTransaction,
 } from "./entitlements";
 import { clawbackReferralRewardsForUser } from "./share-referral";
+import { trackServerEvent } from "./analytics";
 
 interface YookassaCardSnapshot {
   id: string;
@@ -123,8 +124,26 @@ export async function creditSucceededPayment(
 
   if (!result) return false;
 
-  // Fire notifications outside the DB transaction — best-effort, no blocking.
   const amountRub = (result.amount / 100).toFixed(2);
+
+  // Track payment_success for funnel analytics (best-effort)
+  const productType = result.entitlementGrant.kind === "product"
+    ? (result.entitlementGrant as { productKey: string }).productKey
+    : result.entitlementGrant.kind === "subscription"
+      ? "subscription"
+      : "balance";
+  trackServerEvent(db, {
+    event: "payment_success",
+    userId: result.userId,
+    surface: "billing",
+    properties: {
+      amount_rub: amountRub,
+      currency: "RUB",
+      product_type: productType,
+    },
+  });
+
+  // Fire notifications outside the DB transaction — best-effort, no blocking.
   notify({
     userId: result.userId,
     event: "BALANCE_TOPUP",

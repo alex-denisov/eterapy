@@ -18,6 +18,7 @@ import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { assessBookingRisk } from "@/lib/practitioner-antifraud";
+import { trackServerEvent } from "@/lib/analytics";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -243,6 +244,16 @@ export async function POST(req: NextRequest) {
         metadata: { practitionerId },
       }));
     }
+
+    trackServerEvent(db, {
+      event: "booking_created",
+      userId: session.user.id,
+      surface: "practitioners",
+      properties: {
+        practitioner_id: practitionerId,
+        price_rub: String(priceRub),
+      },
+    });
 
     // Собираем данные для писем
     const emailData = {
