@@ -208,23 +208,32 @@ export function Header() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const hostname = useSyncExternalStore(subscribeToHostnameStore, getHostnameSnapshot, () => "");
-  const isAuthenticated = status === "authenticated" && !!session;
+  const isAuthenticated = mounted && status === "authenticated" && !!session;
   const balanceKopecks = useBalance(session?.user?.id ?? null);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setMounted(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Скрываем header на странице видеосессии
   if (pathname.startsWith("/session")) return null;
 
   const isAdminArea = pathname.startsWith("/admin");
   const isSessionArea = pathname.startsWith("/session");
-  const isAdminHost = hostname.startsWith("admin.");
+  const isAdminHost = mounted && hostname.startsWith("admin.");
   
   // Header hidden only on admin subdomain and session pages
   const shouldHideHeader = isAdminArea || isAdminHost || isSessionArea;
 
   if (shouldHideHeader) return null;
 
-  const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help");
+  const isAppHost = mounted && hostname.startsWith("app.");
+  const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost;
   const showPublicNav = !isAppArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 

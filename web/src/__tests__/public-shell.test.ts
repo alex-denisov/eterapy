@@ -32,4 +32,14 @@ describe("v5 public shell", () => {
     expect(header).toContain('data-testid="public-shell-header"');
     expect(source("src/components/footer.tsx")).toContain('data-testid="public-shell-footer"');
   });
+
+  it("defers session and host-specific header branches until after mount", () => {
+    const header = source("src/components/header.tsx");
+
+    expect(header).toContain("const [mounted, setMounted] = useState(false)");
+    expect(header).toContain('setMounted(true)');
+    expect(header).toContain('const isAuthenticated = mounted && status === "authenticated" && !!session');
+    expect(header).toContain('const isAdminHost = mounted && hostname.startsWith("admin.")');
+    expect(header).toContain('const isAppHost = mounted && hostname.startsWith("app.")');
+  });
 });
