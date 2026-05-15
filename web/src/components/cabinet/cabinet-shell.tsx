@@ -19,7 +19,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { BrandSignature } from "@/components/brand/brand-mark";
-import { appUrl, logoutUrl, toPathname } from "@/lib/subdomain";
+import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -68,11 +68,12 @@ export function CabinetShell({
     ? []
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
+  const activePathname = toCabinetPathname(pathname);
 
   function isActive(href: string) {
     const itemPath = toPathname(href);
-    if (itemPath === "/cabinet" || itemPath === "/cabinet/practitioner") return pathname === itemPath;
-    return pathname.startsWith(itemPath);
+    if (itemPath === "/cabinet" || itemPath === "/cabinet/practitioner") return activePathname === itemPath;
+    return activePathname.startsWith(itemPath);
   }
 
   // Для мобильной навигации — первые 4 пункта.

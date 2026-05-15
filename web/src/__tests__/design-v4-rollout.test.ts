@@ -35,9 +35,9 @@ describe("design v4 rollout", () => {
     const pricing = source("app/pricing/pricing-plans.tsx");
 
     expect(layout).toContain('url: "/icon.svg"');
-    expect(header).toContain('pathname.startsWith("/cabinet")');
+    expect(header).toContain("toCabinetPathname(pathname)");
     expect(header).toContain('isAdminHost = mounted && hostname.startsWith("admin.")');
-    expect(header).toContain('isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost');
+    expect(header).toContain('isAppArea = cabinetPathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost');
     expect(header).toContain('data-testid="header-cabinet-cta"');
     expect(header).toContain('data-testid="header-dialogue-cta"');
     expect(register).toContain("<VKIDButton />");

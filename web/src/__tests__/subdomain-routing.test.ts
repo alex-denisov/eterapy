@@ -49,6 +49,15 @@ describe("subdomain routing helpers", () => {
     expect(authConfig.cookies?.sessionToken?.options.domain).toBeUndefined();
   });
 
+  it("maps stripped app-subdomain URLs back to cabinet paths for hydration-safe rendering", async () => {
+    const { toCabinetPathname } = await import("@/lib/subdomain");
+
+    expect(toCabinetPathname("/billing")).toBe("/cabinet/billing");
+    expect(toCabinetPathname("/practitioner/schedule")).toBe("/cabinet/practitioner/schedule");
+    expect(toCabinetPathname("/cabinet/billing")).toBe("/cabinet/billing");
+    expect(toCabinetPathname("/pricing")).toBe("/pricing");
+  });
+
   it("can opt into shared subdomain routing explicitly", async () => {
     process.env.NODE_ENV = "production";
     process.env.NEXT_PUBLIC_USE_SUBDOMAINS = "true";

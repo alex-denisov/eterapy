@@ -22,6 +22,12 @@ describe("v5 app shell", () => {
     expect(shell).toContain("duration-[var(--motion-base)]");
   });
 
+  it("normalizes stripped app-subdomain paths before marking active navigation", () => {
+    expect(shell).toContain("toCabinetPathname(pathname)");
+    expect(shell).toContain("const activePathname = toCabinetPathname(pathname)");
+    expect(shell).toContain("activePathname.startsWith(itemPath)");
+  });
+
   it("sends public product links from the app cabinet back to the public domain", () => {
     expect(clientCabinet).toContain('mainUrl("/checkin")');
     expect(clientCabinet).toContain('mainUrl("/products/deep-report")');

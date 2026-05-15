@@ -41,5 +41,7 @@ describe("v5 public shell", () => {
     expect(header).toContain('const isAuthenticated = mounted && status === "authenticated" && !!session');
     expect(header).toContain('const isAdminHost = mounted && hostname.startsWith("admin.")');
     expect(header).toContain('const isAppHost = mounted && hostname.startsWith("app.")');
+    expect(header).toContain("toCabinetPathname(pathname)");
+    expect(header).toContain('cabinetPathname.startsWith("/cabinet")');
   });
 });

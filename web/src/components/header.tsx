@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useSyncExternalStore } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
-import { appUrl, adminUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
+import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 import { Wallet, HelpCircle } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
@@ -210,6 +210,7 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const hostname = useSyncExternalStore(subscribeToHostnameStore, getHostnameSnapshot, () => "");
+  const cabinetPathname = toCabinetPathname(pathname);
   const isAuthenticated = mounted && status === "authenticated" && !!session;
   const balanceKopecks = useBalance(session?.user?.id ?? null);
 
@@ -233,7 +234,7 @@ export function Header() {
   if (shouldHideHeader) return null;
 
   const isAppHost = mounted && hostname.startsWith("app.");
-  const isAppArea = pathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost;
+  const isAppArea = cabinetPathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost;
   const showPublicNav = !isAppArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 

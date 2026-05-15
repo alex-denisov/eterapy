@@ -7,6 +7,14 @@ export const USE_SUBDOMAINS =
 export const PROTOCOL = "https://";
 const APP_PATHS = ["/cabinet"];
 const ADMIN_PATHS = ["/admin"];
+const APP_VISIBLE_PATHS = [
+  "/action-history",
+  "/questions",
+  "/bookings",
+  "/billing",
+  "/settings",
+  "/practitioner",
+];
 
 function normalizePath(pathname: string): string {
   if (!pathname) return "/";
@@ -100,6 +108,15 @@ export function toPathname(href: string): string {
   } catch {
     return href;
   }
+}
+
+export function toCabinetPathname(pathname: string): string {
+  const normalized = normalizePath(pathname);
+  if (normalized === "/cabinet" || normalized.startsWith("/cabinet/")) return normalized;
+  if (APP_VISIBLE_PATHS.some((path) => normalized === path || normalized.startsWith(`${path}/`))) {
+    return `/cabinet${normalized}`;
+  }
+  return normalized;
 }
 
 export function absoluteMainUrl(pathname: string): string {
