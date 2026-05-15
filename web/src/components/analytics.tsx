@@ -1,18 +1,32 @@
 /**
  * Внешняя аналитика: Яндекс.Метрика + Google Analytics.
- * Подключается через Script (Next.js) для SSR-safe загрузки.
- * ID счётчиков берутся из env: YANDEX_METRIKA_ID, GA_MEASUREMENT_ID
+ * Скрипты загружаются только после согласия пользователя (GDPR/ФЗ-152).
  */
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Script from "next/script";
+import { getCookieConsent } from "./cookie-banner";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export function Analytics() {
+  const [consented, setConsented] = useState(false);
+
   useEffect(() => {
+    if (getCookieConsent() === "all") setConsented(true);
+
+    function onConsentChange() {
+      if (getCookieConsent() === "all") setConsented(true);
+    }
+    window.addEventListener("eterapy:cookie-consent-changed", onConsentChange);
+    return () => window.removeEventListener("eterapy:cookie-consent-changed", onConsentChange);
+  }, []);
+
+  useEffect(() => {
+    if (!consented) return;
+
     function send(eventName: string, params: Record<string, string>) {
       const win = window as typeof window & {
         gtag?: (...args: unknown[]) => void;
@@ -46,7 +60,9 @@ export function Analytics() {
       window.removeEventListener("eterapy:analytics", onCustom);
       document.removeEventListener("click", onClick);
     };
-  }, []);
+  }, [consented]);
+
+  if (!consented) return null;
 
   return (
     <>

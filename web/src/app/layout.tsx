@@ -7,6 +7,7 @@ import { FooterConditional } from "@/components/footer-conditional";
 import { Providers } from "@/components/providers";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
+import { CookieBanner } from "@/components/cookie-banner";
 import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
@@ -69,6 +70,7 @@ export default function RootLayout({
           <Header />
           <main className="flex-1">{children}</main>
           <FooterConditional />
+          <CookieBanner />
         </Providers>
         <Analytics />
       </body>
