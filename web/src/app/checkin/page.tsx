@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
+import { track } from "@/lib/analytics";
 
 type DialogueMessage = {
   id: string;
@@ -95,12 +96,16 @@ export default function CheckinPage() {
 
   useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
+    track({ event: "primary_answer_viewed", surface: "checkin", dialogueId: dialogue.id });
     let cancelled = false;
     fetch(`/api/dialogues/${dialogue.id}/recommendations`)
       .then((res) => res.ok ? res.json() : Promise.reject())
       .then((data: { recommendations: PractitionerRecommendation[] }) => {
         if (!cancelled && Array.isArray(data.recommendations)) {
           setRecommendations(data.recommendations);
+          if (data.recommendations.length > 0) {
+            track({ event: "specialist_recommended", surface: "checkin", dialogueId: dialogue.id, properties: { count: data.recommendations.length } });
+          }
         }
       })
       .catch(() => { /* silent — recommendations are best-effort */ });

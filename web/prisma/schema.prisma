@@ -1359,3 +1359,23 @@ model ClarityCircleParticipant {
   @@index([status])
   @@map("clarity_routes")
 }
+
+// ─── Analytics Events ─────────────────────────────────────────────────────────
+
+model AnalyticsEvent {
+  id          String    @id @default(cuid())
+  event       String                          // e.g. "home_viewed", "specialist_recommended"
+  userId      String?   @map("user_id")
+  sessionId   String?   @map("session_id")   // guest session or anon fingerprint
+  dialogueId  String?   @map("dialogue_id")
+  surface     String?                         // "public_home", "checkin", "cabinet", etc.
+  properties  Json?                           // arbitrary event properties
+  ipHash      String?   @map("ip_hash")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([event, createdAt])
+  @@index([userId, createdAt])
+  @@index([dialogueId])
+  @@map("analytics_events")
+}

@@ -7,6 +7,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { generateDialoguePrimaryAnswer } from "@/lib/dialogue-primary-answer";
 import { readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { trackServerEvent } from "@/lib/analytics";
 
 function ownerWhere(userId: string | null, guestSessionId: string | null) {
   if (userId) return { userId };
@@ -181,6 +182,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       },
     },
+  });
+
+  trackServerEvent(db, {
+    event: "primary_answer_generated",
+    userId,
+    sessionId: guestSessionId,
+    dialogueId: dialogue.id,
+    surface: "api",
   });
 
   return jsonWithRequestContext({

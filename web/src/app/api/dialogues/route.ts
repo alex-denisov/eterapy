@@ -13,6 +13,7 @@ import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { markReferralMeaningfulAction } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
+import { trackServerEvent } from "@/lib/analytics";
 
 const MAX_DIALOGUES_LIMIT = 50;
 
@@ -259,6 +260,14 @@ export async function POST(request: NextRequest) {
   const cookie = cookieCarrier.headers.get("set-cookie");
   if (cookie) response.headers.set("set-cookie", cookie);
   if (guest) response.headers.set("X-Guest-Session", guest.created ? "created" : "existing");
+
+  trackServerEvent(db, {
+    event: "dialogue_created",
+    userId,
+    sessionId: guest?.id ?? null,
+    dialogueId: dialogue.id,
+    surface: "api",
+  });
 
   if (userId) {
     void markReferralMeaningfulAction({
