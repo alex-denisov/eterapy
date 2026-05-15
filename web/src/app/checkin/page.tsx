@@ -18,6 +18,19 @@ type DialogueMessage = {
   createdAt: string;
 };
 
+type PractitionerRecommendation = {
+  id: string;
+  slug: string;
+  name: string | null;
+  title: string;
+  bio: string | null;
+  avatar: string | null;
+  pricePerSession: number;
+  rating: number;
+  reviewCount: number;
+  rationale: string;
+};
+
 type DialoguePayload = {
   id: string;
   title: string;
@@ -63,6 +76,7 @@ export default function CheckinPage() {
   const [error, setError] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [retrying, setRetrying] = useState(false);
+  const [recommendations, setRecommendations] = useState<PractitionerRecommendation[]>([]);
   const [restoring, setRestoring] = useState(() => {
     if (typeof window === "undefined") return false;
     return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
@@ -78,6 +92,20 @@ export default function CheckinPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "result" || !dialogue?.id) return;
+    let cancelled = false;
+    fetch(`/api/dialogues/${dialogue.id}/recommendations`)
+      .then((res) => res.ok ? res.json() : Promise.reject())
+      .then((data: { recommendations: PractitionerRecommendation[] }) => {
+        if (!cancelled && Array.isArray(data.recommendations)) {
+          setRecommendations(data.recommendations);
+        }
+      })
+      .catch(() => { /* silent — recommendations are best-effort */ });
+    return () => { cancelled = true; };
+  }, [phase, dialogue?.id]);
 
   useEffect(() => {
     const dialogueId = new URLSearchParams(window.location.search).get("dialogueId");
@@ -214,6 +242,7 @@ export default function CheckinPage() {
     setError("");
     setSaveState("idle");
     setRetrying(false);
+    setRecommendations([]);
   }
 
   async function handleSaveToAccount() {
@@ -502,12 +531,29 @@ export default function CheckinPage() {
               <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Если хочется не быстрого ответа, а бережного разговора с собой.</p>
               <span className="soft-badge soft-badge-warm mt-4">990 ₽</span>
             </Link>
-            <Link href={`/practitioners/catalog?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
-              <p className="soft-eyebrow">специалист</p>
-              <h3 className="soft-h3 mt-3">Психолог по теме</h3>
-              <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Проверенные специалисты, которые работают с вашей темой.</p>
-              <span className="soft-badge soft-badge-lilac mt-4">от 1 900 ₽</span>
-            </Link>
+            {recommendations.length > 0 ? (
+              recommendations.map((rec) => (
+                <Link
+                  key={rec.id}
+                  href={`/practitioners/${rec.slug}?dialogueId=${dialogue.id}`}
+                  className="soft-card soft-deepening-card"
+                  data-testid="specialist-recommendation"
+                >
+                  <p className="soft-eyebrow">специалист</p>
+                  <h3 className="soft-h3 mt-3 line-clamp-1">{rec.name ?? "Специалист"}</h3>
+                  <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)] line-clamp-1">{rec.title}</p>
+                  <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)] line-clamp-2">{rec.rationale}</p>
+                  <span className="soft-badge soft-badge-lilac mt-4">от {rec.pricePerSession.toLocaleString("ru-RU")} ₽</span>
+                </Link>
+              ))
+            ) : (
+              <Link href={`/practitioners/catalog?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
+                <p className="soft-eyebrow">специалист</p>
+                <h3 className="soft-h3 mt-3">Специалист по теме</h3>
+                <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Проверенные специалисты, которые работают с вашей темой.</p>
+                <span className="soft-badge soft-badge-lilac mt-4">от 1 900 ₽</span>
+              </Link>
+            )}
             <Link href={`/products/deep-report?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
               <p className="soft-eyebrow">отчёт</p>
               <h3 className="soft-h3 mt-3">Глубокий отчёт</h3>
