@@ -47,9 +47,18 @@ tmp/
 # OS files (already there, but ensure)
 .DS_Store
 
+# MCP config (contains tokens)
+.mcp.json
+
 # Playwright
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+.playwright-mcp/
+
+# Tool/IDE configs with tokens
+.gemini/
+.agents/
+.claude/skills/

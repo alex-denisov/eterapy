@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const tokenParams = new URLSearchParams();
     tokenParams.set("grant_type", "authorization_code");
     tokenParams.set("code", code);
-    tokenParams.set("redirect_uri", "https://eterapy.com/callback/vk");
+    tokenParams.set("redirect_uri", `${process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com"}/callback/vk`);
     tokenParams.set("client_id", process.env.VK_CLIENT_ID!);
     tokenParams.set("client_secret", process.env.VK_CLIENT_SECRET!);
     if (codeVerifier) tokenParams.set("code_verifier", codeVerifier);

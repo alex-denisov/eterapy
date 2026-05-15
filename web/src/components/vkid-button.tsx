@@ -12,8 +12,10 @@ export function VKIDButton() {
     // Сохраняем code_verifier в cookie для сервера
     document.cookie = `vk_code_verifier=${codeVerifier}; path=/; max-age=900; SameSite=Lax; Secure`;
 
-    const redirectUri = encodeURIComponent("https://eterapy.com/callback/vk");
-    window.location.href = `https://id.vk.com/authorize?client_id=54529300&redirect_uri=${redirectUri}&response_type=code&scope=email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+    const redirectUri = encodeURIComponent(`${siteUrl}/callback/vk`);
+    const clientId = process.env.NEXT_PUBLIC_VK_CLIENT_ID ?? "54529300";
+    window.location.href = `https://id.vk.com/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=email&code_challenge=${codeChallenge}&code_challenge_method=S256`;
   }
 
   return (

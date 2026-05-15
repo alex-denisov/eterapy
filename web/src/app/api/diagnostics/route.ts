@@ -9,9 +9,7 @@ import { auth } from "@/lib/auth";
 export async function GET() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") {
-    // Return limited info for non-admins or 401
-    // For now, let's keep it restricted
-    // return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const results: Record<string, unknown> = {
