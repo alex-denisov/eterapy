@@ -37,7 +37,7 @@ describe("admin notification diagnostics", () => {
     mockAuth.mockResolvedValue({
       user: { id: "admin-1", email: "admin@example.com", role: "ADMIN" },
       expires: new Date(Date.now() + 60_000).toISOString(),
-    });
+    } as never);
     mockGetUserPermissions.mockResolvedValue(["notifications.diagnose"] as never);
     (db.job.groupBy as jest.Mock).mockResolvedValue([
       { status: "PENDING", _count: { _all: 2 } },

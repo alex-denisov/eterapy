@@ -61,7 +61,7 @@ describe("dialogue primary answer API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetAuthRateLimitForTests();
-    mockAuth.mockResolvedValue(null);
+    mockAuth.mockResolvedValue(null as never);
     mockGenerateDialoguePrimaryAnswer.mockResolvedValue({
       text: "Короткий ответ\nВыберите более устойчивый вариант.",
       source: "ai",
@@ -75,7 +75,7 @@ describe("dialogue primary answer API", () => {
 
   it("generates an owner-scoped primary answer for a processing guest dialogue", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue({
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
       status: "PROCESSING",
@@ -89,7 +89,7 @@ describe("dialogue primary answer API", () => {
         { id: "msg-2", role: "USER", content: "Хочу устойчивости", metadata: { kind: "clarification_answer" }, createdAt: now },
       ],
     });
-    mockDb.dialogue.update.mockResolvedValue({
+    (mockDb.dialogue.update as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
       status: "ANSWERED",
@@ -151,7 +151,7 @@ describe("dialogue primary answer API", () => {
 
   it("returns an existing answer idempotently", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue({
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
       status: "ANSWERED",
@@ -183,7 +183,7 @@ describe("dialogue primary answer API", () => {
 
   it("blocks safety-interrupted dialogues", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue({
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
       status: "SAFETY_INTERRUPTED",

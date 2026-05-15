@@ -17,7 +17,7 @@ function makeRequest(cookies: Record<string, string>) {
       get: (name: string) =>
         cookies[name] !== undefined ? { name, value: cookies[name] } : undefined,
     },
-  };
+  } as unknown as import("next/server").NextRequest;
 }
 
 describe("getSessionFromCookie", () => {

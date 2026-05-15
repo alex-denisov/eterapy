@@ -33,11 +33,11 @@ describe("Telegram link flow", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", email: "user@example.com" },
       expires: new Date(Date.now() + 60_000).toISOString(),
-    });
+    } as never);
   });
 
   it("rejects unauthenticated link status requests", async () => {
-    mockAuth.mockResolvedValueOnce(null);
+    mockAuth.mockResolvedValueOnce(null as never);
 
     const response = await GET();
     const body = await response.json();

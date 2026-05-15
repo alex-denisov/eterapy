@@ -62,7 +62,7 @@ describe("webhook route hardening", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env = { ...ORIGINAL_ENV };
-    process.env.NODE_ENV = "test";
+    (process.env as Record<string, string>).NODE_ENV = "test";
     mockClaimWebhookEvent.mockResolvedValue({
       claimed: true,
       event: {
@@ -146,7 +146,7 @@ describe("webhook route hardening", () => {
   });
 
   it("fails closed when Telegram webhook secret is missing in production", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
     delete process.env.TELEGRAM_WEBHOOK_SECRET;
 
     const response = await telegramWebhook(request("https://app.eterapy.com/api/telegram/webhook", {

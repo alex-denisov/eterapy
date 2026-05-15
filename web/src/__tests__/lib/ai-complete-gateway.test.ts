@@ -41,7 +41,7 @@ const mockRunFallback = runAIGatewayFallbackWithCredentials as jest.MockedFuncti
 describe("aiComplete gateway migration", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockDb.aIProviderConfig.findMany.mockResolvedValue([
+    (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValue([
       {
         id: "provider-1",
         provider: AIProvider.OPENROUTER,
@@ -60,9 +60,9 @@ describe("aiComplete gateway migration", () => {
         updatedAt: new Date(),
       },
     ]);
-    mockDb.aIRoutingPolicy.findUnique.mockResolvedValue(null);
-    mockDb.aIBudgetLedger.findUnique.mockResolvedValue(null);
-    mockDb.aIRequest.create.mockResolvedValue({
+    (mockDb.aIRoutingPolicy.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.aIBudgetLedger.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.aIRequest.create as jest.Mock).mockResolvedValue({
       id: "ai-request-1",
       feature: "modalities.tarot",
       userId: "user-1",
@@ -78,9 +78,9 @@ describe("aiComplete gateway migration", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    mockDb.aIRequest.update.mockResolvedValue({} as never);
-    mockDb.aIAttempt.create.mockResolvedValue({} as never);
-    mockDb.$executeRaw.mockResolvedValue(1);
+    (mockDb.aIRequest.update as jest.Mock).mockResolvedValue({});
+    (mockDb.aIAttempt.create as jest.Mock).mockResolvedValue({});
+    (mockDb.$executeRaw as jest.Mock).mockResolvedValue(1);
     mockRunFallback.mockResolvedValue({
       response: {
         text: "Готово",

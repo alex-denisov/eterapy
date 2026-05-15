@@ -49,7 +49,7 @@ describe("notification preference center", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", email: "user@example.com", role: "CLIENT" },
       expires: new Date(Date.now() + 60_000).toISOString(),
-    });
+    } as never);
     (db.notificationPreference.findMany as jest.Mock).mockResolvedValue([]);
     (db.user.findUnique as jest.Mock).mockResolvedValue({ timezone: "Europe/Moscow" });
     (db.notificationPreference.upsert as jest.Mock).mockResolvedValue({});
@@ -112,7 +112,7 @@ describe("notification preference center", () => {
       event: "UNKNOWN_EVENT",
       channel: "EMAIL",
       enabled: true,
-    }));
+    }) as unknown as import("next/server").NextRequest);
 
     expect(bad.status).toBe(400);
     expect(db.notificationPreference.upsert).not.toHaveBeenCalled();
@@ -140,7 +140,7 @@ describe("notification preference center", () => {
         to: "09:00",
         timezone: "Europe/Moscow",
       },
-    }));
+    }) as unknown as import("next/server").NextRequest);
     const body = await response.json();
 
     expect(response.status).toBe(200);

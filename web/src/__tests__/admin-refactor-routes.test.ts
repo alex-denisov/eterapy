@@ -6,7 +6,8 @@ if (!global.TextEncoder) {
 }
 
 if (!global.TextDecoder) {
-  (global as typeof globalThis & { TextDecoder: typeof TextDecoder }).TextDecoder = TextDecoder;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (global as any).TextDecoder = TextDecoder;
 }
 
 jest.mock("@/lib/auth", () => ({
@@ -53,7 +54,7 @@ async function loadModules() {
 
   return {
     mockAuth: authModule.auth as jest.Mock,
-    mockDb: dbModule.default as {
+    mockDb: dbModule.default as unknown as {
       practitioner: {
         findMany: jest.Mock;
         findUnique: jest.Mock;
@@ -68,9 +69,9 @@ async function loadModules() {
       };
       $transaction: jest.Mock;
     },
-    patchPractitionerStatus: practitionerRoute.PATCH as (req: { nextUrl: URL; json: () => Promise<unknown> }) => Promise<Response>,
-    getBookings: bookingsRoute.GET as (req: { nextUrl: URL; json: () => Promise<unknown> }) => Promise<Response>,
-    patchRates: ratesRoute.PATCH as (req: { nextUrl: URL; json: () => Promise<unknown> }) => Promise<Response>,
+    patchPractitionerStatus: practitionerRoute.PATCH as unknown as (req: { nextUrl: URL; json: () => Promise<unknown> }) => Promise<Response>,
+    getBookings: bookingsRoute.GET as unknown as (req: { nextUrl: URL; json: () => Promise<unknown> }) => Promise<Response>,
+    patchRates: ratesRoute.PATCH as unknown as (req: { nextUrl: URL; json: () => Promise<unknown> }) => Promise<Response>,
   };
 }
 

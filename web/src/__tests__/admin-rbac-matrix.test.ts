@@ -72,8 +72,8 @@ describe("v5 admin RBAC matrix", () => {
     mockAuth.mockResolvedValue({
       user: { id: "admin-1", role: "ADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
-    });
-    mockDb.moderatorPermission.findMany.mockResolvedValue([]);
+    } as never);
+    (mockDb.moderatorPermission.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   it("keeps every v5 permission key in the SUPERADMIN matrix", async () => {
@@ -130,8 +130,8 @@ describe("v5 admin RBAC matrix", () => {
     mockAuth.mockResolvedValueOnce({
       user: { id: "superadmin-1", role: "SUPERADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
-    });
-    mockDb.user.update.mockResolvedValue({
+    } as never);
+    (mockDb.user.update as jest.Mock).mockResolvedValue({
       id: "client-1",
       name: "Client",
       role: "CLIENT",

@@ -38,7 +38,7 @@ describe("admin AI usage API", () => {
     mockAuth.mockResolvedValue({
       user: { id: "admin-1", role: "ADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
-    });
+    } as never);
     mockGetUserPermissions.mockResolvedValue(["analytics.view"]);
     mockDb.$queryRaw.mockResolvedValue([
       {

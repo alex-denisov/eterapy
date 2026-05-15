@@ -25,7 +25,7 @@ describe("web notification bell", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", email: "user@example.com", role: "CLIENT" },
       expires: new Date(Date.now() + 60_000).toISOString(),
-    });
+    } as never);
     (db.notificationPreference.findMany as jest.Mock).mockResolvedValue([]);
   });
 

@@ -23,16 +23,16 @@ describe("B053 account access states", () => {
   });
 
   it("classifies active, blocked, deleted, and missing users", async () => {
-    mockDb.user.findUnique.mockResolvedValueOnce({ blockedAt: null, deletedAt: null } as never);
+    (mockDb.user.findUnique as jest.Mock).mockResolvedValueOnce({ blockedAt: null, deletedAt: null });
     await expect(getAccountAccessState("active-1")).resolves.toBe("active");
 
-    mockDb.user.findUnique.mockResolvedValueOnce({ blockedAt: new Date(), deletedAt: null } as never);
+    (mockDb.user.findUnique as jest.Mock).mockResolvedValueOnce({ blockedAt: new Date(), deletedAt: null });
     await expect(getAccountAccessState("blocked-1")).resolves.toBe("blocked");
 
-    mockDb.user.findUnique.mockResolvedValueOnce({ blockedAt: null, deletedAt: new Date() } as never);
+    (mockDb.user.findUnique as jest.Mock).mockResolvedValueOnce({ blockedAt: null, deletedAt: new Date() });
     await expect(getAccountAccessState("deleted-1")).resolves.toBe("deleted");
 
-    mockDb.user.findUnique.mockResolvedValueOnce(null);
+    (mockDb.user.findUnique as jest.Mock).mockResolvedValueOnce(null);
     await expect(getAccountAccessState("missing-1")).resolves.toBe("missing");
   });
 

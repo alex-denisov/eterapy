@@ -81,7 +81,7 @@ describe("v5 dialogue API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetAuthRateLimitForTests();
-    mockAuth.mockResolvedValue(null);
+    mockAuth.mockResolvedValue(null as never);
     mockClassifyDialogueQuestion.mockResolvedValue({
       topic: "career",
       difficulty: "medium",
@@ -111,7 +111,7 @@ describe("v5 dialogue API", () => {
   });
 
   it("creates a guest-owned dialogue and first clarification message", async () => {
-    mockDb.dialogue.create.mockResolvedValue({
+    (mockDb.dialogue.create as jest.Mock).mockResolvedValue({
       id: "dlg_1",
       title: "Как выбрать направление?",
       status: "AWAITING_USER",
@@ -220,7 +220,7 @@ describe("v5 dialogue API", () => {
       confidence: 0.9,
       source: "heuristic",
     });
-    mockDb.dialogue.create.mockResolvedValue({
+    (mockDb.dialogue.create as jest.Mock).mockResolvedValue({
       id: "dlg_crisis",
       title: "Мне страшно",
       status: "SAFETY_INTERRUPTED",
@@ -261,8 +261,8 @@ describe("v5 dialogue API", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", role: "CLIENT" },
       expires: "2026-04-29T12:00:00.000Z",
-    });
-    mockDb.dialogue.findMany.mockResolvedValue([{
+    } as never);
+    (mockDb.dialogue.findMany as jest.Mock).mockResolvedValue([{
       id: "dlg_1",
       title: "Question",
       status: "OPEN",
@@ -287,7 +287,7 @@ describe("v5 dialogue API", () => {
 
   it("scopes guest dialogue reads by signed guest cookie", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue(null);
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue(null);
 
     const response = await getDialogue(
       request("https://app.eterapy.com/api/dialogues/dlg-victim", {
@@ -322,9 +322,9 @@ describe("v5 dialogue API", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", role: "CLIENT" },
       expires: "2026-04-29T12:00:00.000Z",
-    });
-    mockDb.dialogue.findFirst.mockResolvedValue({ id: "dlg-owned" });
-    mockDb.dialogue.update.mockResolvedValue({ id: "dlg-owned" });
+    } as never);
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({ id: "dlg-owned" });
+    (mockDb.dialogue.update as jest.Mock).mockResolvedValue({ id: "dlg-owned" });
 
     const response = await deleteDialogue(
       request("https://app.eterapy.com/api/dialogues/dlg-owned", { method: "DELETE" }),
@@ -355,8 +355,8 @@ describe("v5 dialogue API", () => {
     mockAuth.mockResolvedValue({
       user: { id: "user-1", role: "CLIENT" },
       expires: "2026-04-29T12:00:00.000Z",
-    });
-    mockDb.dialogue.findFirst.mockResolvedValue(null);
+    } as never);
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue(null);
 
     const response = await deleteDialogue(
       request("https://app.eterapy.com/api/dialogues/dlg-victim", { method: "DELETE" }),
@@ -379,8 +379,8 @@ describe("v5 dialogue API", () => {
 
   it("lets the owner answer clarifying questions and moves dialogue to processing", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue({ id: "dlg-1", status: "AWAITING_USER" });
-    mockDb.dialogue.update.mockResolvedValue({
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({ id: "dlg-1", status: "AWAITING_USER" });
+    (mockDb.dialogue.update as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
       status: "PROCESSING",
@@ -439,8 +439,8 @@ describe("v5 dialogue API", () => {
 
   it("lets the owner skip clarifying questions", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue({ id: "dlg-1", status: "AWAITING_USER" });
-    mockDb.dialogue.update.mockResolvedValue({
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({ id: "dlg-1", status: "AWAITING_USER" });
+    (mockDb.dialogue.update as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
       status: "PROCESSING",
@@ -488,7 +488,7 @@ describe("v5 dialogue API", () => {
 
   it("rejects clarification responses when dialogue is not awaiting the user", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    mockDb.dialogue.findFirst.mockResolvedValue({ id: "dlg-1", status: "PROCESSING" });
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({ id: "dlg-1", status: "PROCESSING" });
 
     const response = await respondDialogue(
       request("https://app.eterapy.com/api/dialogues/dlg-1", {

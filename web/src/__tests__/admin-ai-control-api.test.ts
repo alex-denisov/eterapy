@@ -49,14 +49,14 @@ describe("admin AI control API", () => {
     mockAuth.mockResolvedValue({
       user: { id: "admin-1", role: "SUPERADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
-    });
+    } as never);
     mockGetUserPermissions.mockResolvedValue(["ai.configure"]);
-    mockDb.aIProviderConfig.findMany.mockResolvedValue([]);
-    mockDb.aIRoutingPolicy.findMany.mockResolvedValue([]);
-    mockDb.aIProviderCredential.findMany.mockResolvedValue([]);
-    mockDb.aIProviderModel.findMany.mockResolvedValue([]);
-    mockDb.$queryRaw.mockResolvedValue([]);
-    mockDb.aIProviderConfig.upsert.mockResolvedValue({
+    (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIRoutingPolicy.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIProviderCredential.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIProviderModel.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.$queryRaw as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIProviderConfig.upsert as jest.Mock).mockResolvedValue({
       id: "provider-config-1",
       provider: AIProvider.OPENROUTER,
       displayName: "OpenRouter",
@@ -73,7 +73,7 @@ describe("admin AI control API", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    mockDb.aIRoutingPolicy.upsert.mockResolvedValue({
+    (mockDb.aIRoutingPolicy.upsert as jest.Mock).mockResolvedValue({
       id: "policy-1",
       feature: "dialogue-primary-answer",
       enabled: true,
@@ -91,7 +91,7 @@ describe("admin AI control API", () => {
   });
 
   it("returns provider defaults and usage for ai.configure admins", async () => {
-    const response = await GET(request());
+    const response = (await GET(request()))!;
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -114,14 +114,14 @@ describe("admin AI control API", () => {
   });
 
   it("updates provider config and writes audit", async () => {
-    const response = await PATCH(request({
+    const response = (await PATCH(request({
       type: "provider",
       provider: AIProvider.OPENROUTER,
       enabled: true,
       priority: 10,
       defaultModel: "openai/gpt-4o-mini",
       timeoutMs: 30000,
-    }));
+    })))!;
 
     expect(response.status).toBe(200);
     expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalled();
@@ -134,7 +134,7 @@ describe("admin AI control API", () => {
   });
 
   it("updates routing policy and normalizes feature key", async () => {
-    const response = await PATCH(request({
+    const response = (await PATCH(request({
       type: "policy",
       feature: " Dialogue / Primary Answer ",
       enabled: true,
@@ -144,7 +144,7 @@ describe("admin AI control API", () => {
       timeoutMs: 30000,
       dailyTokenBudget: 100000,
       perUserDailyTokenBudget: 5000,
-    }));
+    })))!;
 
     expect(response.status).toBe(200);
     expect(mockDb.aIRoutingPolicy.upsert).toHaveBeenCalledWith(expect.objectContaining({
@@ -155,7 +155,7 @@ describe("admin AI control API", () => {
   it("rejects admins without ai.configure", async () => {
     mockGetUserPermissions.mockResolvedValueOnce(["analytics.view"]);
 
-    const response = await GET(request());
+    const response = (await GET(request()))!;
     const body = await response.json();
 
     expect(response.status).toBe(403);

@@ -92,7 +92,7 @@ function session(userId = "user-attacker", role = "CLIENT") {
   mockAuth.mockResolvedValue({
     user: { id: userId, role },
     expires: "2026-04-28T00:00:00.000Z",
-  });
+  } as never);
 }
 
 function request(url: string, method = "GET", body?: unknown) {
@@ -130,7 +130,7 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("does not let a client list another client's bookings through userId query params", async () => {
-    mockDb.booking.findMany.mockResolvedValue([]);
+    (mockDb.booking.findMany as jest.Mock).mockResolvedValue([]);
 
     const response = await getBookings(request("https://app.eterapy.com/api/bookings?userId=user-victim"));
 
@@ -141,7 +141,7 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("blocks non-owners from updating bookings through the collection endpoint", async () => {
-    mockDb.booking.findUnique.mockResolvedValue(bookingFixture());
+    (mockDb.booking.findUnique as jest.Mock).mockResolvedValue(bookingFixture());
 
     const response = await patchBookings(request("https://app.eterapy.com/api/bookings", "PATCH", {
       bookingId: "booking-victim",
@@ -155,7 +155,7 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("blocks non-owners from updating bookings through the item endpoint", async () => {
-    mockDb.booking.findUnique.mockResolvedValue(bookingFixture());
+    (mockDb.booking.findUnique as jest.Mock).mockResolvedValue(bookingFixture());
 
     const response = await patchBookingById(
       request("https://app.eterapy.com/api/bookings/booking-victim", "PATCH", { status: "CANCELLED" }),
@@ -169,7 +169,7 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("scopes billing card deletion by current user before touching provider or DB delete", async () => {
-    mockDb.savedCard.findFirst.mockResolvedValue(null);
+    (mockDb.savedCard.findFirst as jest.Mock).mockResolvedValue(null);
 
     const response = await deleteBillingCard(request("https://app.eterapy.com/api/billing/cards?cardId=card-victim", "DELETE"));
     const body = await response.json();
@@ -183,7 +183,7 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("lists stored files only for the current user", async () => {
-    mockDb.storedFile.findMany.mockResolvedValue([]);
+    (mockDb.storedFile.findMany as jest.Mock).mockResolvedValue([]);
 
     const response = await getFiles(request("https://app.eterapy.com/api/files?kind=REPORT"));
 
@@ -196,8 +196,8 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("scopes AI history reads and deletes by current user", async () => {
-    mockDb.aISessionLog.findFirst.mockResolvedValue(null);
-    mockDb.aISessionLog.deleteMany.mockResolvedValue({ count: 0 });
+    (mockDb.aISessionLog.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockDb.aISessionLog.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
 
     const getResponse = await getHistoryById(
       request("https://app.eterapy.com/api/modalities/history/log-victim"),
@@ -219,7 +219,7 @@ describe("IDOR guards for private entities", () => {
   });
 
   it("deletes only current-user notifications", async () => {
-    mockDb.notification.deleteMany.mockResolvedValue({ count: 0 });
+    (mockDb.notification.deleteMany as jest.Mock).mockResolvedValue({ count: 0 });
 
     const response = await deleteNotification(request("https://app.eterapy.com/api/notifications", "DELETE", {
       id: "notification-victim",
@@ -233,8 +233,8 @@ describe("IDOR guards for private entities", () => {
 
   it("blocks a practitioner from deleting another practitioner's slot", async () => {
     session("practitioner-attacker", "PRACTITIONER");
-    mockDb.practitioner.findUnique.mockResolvedValue({ id: "prac-attacker" });
-    mockDb.timeSlot.findUnique.mockResolvedValue({
+    (mockDb.practitioner.findUnique as jest.Mock).mockResolvedValue({ id: "prac-attacker" });
+    (mockDb.timeSlot.findUnique as jest.Mock).mockResolvedValue({
       id: "slot-victim",
       practitionerId: "prac-victim",
       available: true,

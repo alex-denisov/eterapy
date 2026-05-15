@@ -43,14 +43,14 @@ describe("admin system status API", () => {
     mockAuth.mockResolvedValue({
       user: { id: "admin-1", role: "ADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
-    });
+    } as never);
     mockGetUserPermissions.mockResolvedValue(["system.read"]);
-    mockDb.$queryRaw.mockResolvedValue([{ "?column?": 1 }]);
-    mockDb.user.count.mockResolvedValueOnce(10).mockResolvedValueOnce(3);
-    mockDb.practitioner.count.mockResolvedValue(4);
-    mockDb.booking.count.mockResolvedValueOnce(20).mockResolvedValueOnce(2);
-    mockDb.auditLog.count.mockResolvedValue(30);
-    mockDb.notificationPreference.count.mockResolvedValue(5);
+    (mockDb.$queryRaw as jest.Mock).mockResolvedValue([{ "?column?": 1 }]);
+    (mockDb.user.count as jest.Mock).mockResolvedValueOnce(10).mockResolvedValueOnce(3);
+    (mockDb.practitioner.count as jest.Mock).mockResolvedValue(4);
+    (mockDb.booking.count as jest.Mock).mockResolvedValueOnce(20).mockResolvedValueOnce(2);
+    (mockDb.auditLog.count as jest.Mock).mockResolvedValue(30);
+    (mockDb.notificationPreference.count as jest.Mock).mockResolvedValue(5);
   });
 
   it("returns dependency status for admins with system.read", async () => {

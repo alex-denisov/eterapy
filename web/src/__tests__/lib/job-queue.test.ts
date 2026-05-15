@@ -30,7 +30,7 @@ describe("job queue", () => {
   });
 
   it("enqueues pending jobs with defaults", async () => {
-    mockDb.job.create.mockResolvedValue({
+    (mockDb.job.create as jest.Mock).mockResolvedValue({
       id: "job-1",
       queue: "default",
       type: "email.send",
@@ -72,7 +72,7 @@ describe("job queue", () => {
   });
 
   it("returns retryable jobs to pending until max attempts", async () => {
-    mockDb.job.update.mockResolvedValue({ id: "job-1", status: JobStatus.PENDING });
+    (mockDb.job.update as jest.Mock).mockResolvedValue({ id: "job-1", status: JobStatus.PENDING });
 
     await failJob({
       id: "job-1",
@@ -95,7 +95,7 @@ describe("job queue", () => {
   });
 
   it("dead-letters jobs when attempts are exhausted", async () => {
-    mockDb.job.update.mockResolvedValue({ id: "job-1", status: JobStatus.DEAD });
+    (mockDb.job.update as jest.Mock).mockResolvedValue({ id: "job-1", status: JobStatus.DEAD });
 
     await failJob({
       id: "job-1",
@@ -116,7 +116,7 @@ describe("job queue", () => {
   });
 
   it("marks jobs complete with result and clears lock", async () => {
-    mockDb.job.update.mockResolvedValue({ id: "job-1", status: JobStatus.SUCCEEDED });
+    (mockDb.job.update as jest.Mock).mockResolvedValue({ id: "job-1", status: JobStatus.SUCCEEDED });
 
     await completeJob("job-1", { sent: true });
 
@@ -134,7 +134,7 @@ describe("job queue", () => {
   });
 
   it("releases stale running jobs", async () => {
-    mockDb.job.updateMany.mockResolvedValue({ count: 2 });
+    (mockDb.job.updateMany as jest.Mock).mockResolvedValue({ count: 2 });
 
     await expect(releaseStaleJobs(60_000)).resolves.toBe(2);
     expect(mockDb.job.updateMany).toHaveBeenCalledWith({
@@ -152,7 +152,7 @@ describe("job queue", () => {
   });
 
   it("summarizes queue stats", async () => {
-    mockDb.job.groupBy.mockResolvedValue([
+    (mockDb.job.groupBy as jest.Mock).mockResolvedValue([
       { status: JobStatus.PENDING, _count: { _all: 3 } },
       { status: JobStatus.RUNNING, _count: { _all: 1 } },
       { status: JobStatus.DEAD, _count: { _all: 2 } },

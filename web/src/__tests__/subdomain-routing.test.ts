@@ -11,7 +11,7 @@ describe("subdomain routing helpers", () => {
   });
 
   it("maps each role to same-origin paths by default, even when subdomain env is enabled", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
     process.env.NEXT_PUBLIC_USE_SUBDOMAINS = "true";
 
     const { homeUrlForRole, homePathForRole } = await import("@/lib/subdomain");
@@ -28,7 +28,7 @@ describe("subdomain routing helpers", () => {
   });
 
   it("keeps auth pages on same-origin paths even when subdomains are enabled", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
     process.env.NEXT_PUBLIC_USE_SUBDOMAINS = "true";
 
     const { loginUrl, registerUrl, subdomainUrl } = await import("@/lib/subdomain");
@@ -39,7 +39,7 @@ describe("subdomain routing helpers", () => {
   });
 
   it("keeps auth cookies host-scoped by default in primary-domain mode", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
     process.env.NEXT_PUBLIC_USE_SUBDOMAINS = "true";
 
     const { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN, authConfig } = await import("@/lib/auth.config");
@@ -59,7 +59,7 @@ describe("subdomain routing helpers", () => {
   });
 
   it("can opt into shared subdomain routing explicitly", async () => {
-    process.env.NODE_ENV = "production";
+    (process.env as Record<string, string>).NODE_ENV = "production";
     process.env.NEXT_PUBLIC_USE_SUBDOMAINS = "true";
     process.env.NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY = "false";
 

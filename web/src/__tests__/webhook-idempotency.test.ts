@@ -28,7 +28,7 @@ describe("webhook idempotency ledger", () => {
   });
 
   it("claims a new provider event before business logic runs", async () => {
-    mockDb.webhookEvent.create.mockResolvedValue({
+    (mockDb.webhookEvent.create as jest.Mock).mockResolvedValue({
       id: "webhook-1",
       provider: "yookassa",
       eventId: "payment.succeeded:pay-1:succeeded",
@@ -63,8 +63,8 @@ describe("webhook idempotency ledger", () => {
   });
 
   it("deduplicates replayed provider events on unique constraint", async () => {
-    mockDb.webhookEvent.create.mockRejectedValue(uniqueError());
-    mockDb.webhookEvent.findUnique.mockResolvedValue({
+    (mockDb.webhookEvent.create as jest.Mock).mockRejectedValue(uniqueError());
+    (mockDb.webhookEvent.findUnique as jest.Mock).mockResolvedValue({
       id: "webhook-1",
       provider: "telegram",
       eventId: "123",
@@ -90,8 +90,8 @@ describe("webhook idempotency ledger", () => {
   });
 
   it("reclaims failed provider events so provider retries can process again", async () => {
-    mockDb.webhookEvent.create.mockRejectedValue(uniqueError());
-    mockDb.webhookEvent.findUnique.mockResolvedValue({
+    (mockDb.webhookEvent.create as jest.Mock).mockRejectedValue(uniqueError());
+    (mockDb.webhookEvent.findUnique as jest.Mock).mockResolvedValue({
       id: "webhook-failed",
       provider: "yookassa",
       eventId: "payment.succeeded:pay-1:succeeded",
@@ -105,7 +105,7 @@ describe("webhook idempotency ledger", () => {
       receivedAt: new Date("2026-04-28T09:00:00.000Z"),
       processedAt: new Date("2026-04-28T09:00:01.000Z"),
     });
-    mockDb.webhookEvent.update.mockResolvedValue({
+    (mockDb.webhookEvent.update as jest.Mock).mockResolvedValue({
       id: "webhook-failed",
       provider: "yookassa",
       eventId: "payment.succeeded:pay-1:succeeded",
@@ -143,7 +143,7 @@ describe("webhook idempotency ledger", () => {
   });
 
   it("marks webhook events processed or failed", async () => {
-    mockDb.webhookEvent.update.mockResolvedValue({} as never);
+    (mockDb.webhookEvent.update as jest.Mock).mockResolvedValue({} as never);
 
     await completeWebhookEvent("webhook-1", { result: "credited" });
     await failWebhookEvent("webhook-2", new Error("provider down"));

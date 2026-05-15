@@ -55,7 +55,7 @@ describe("admin dialogue support access", () => {
     mockAuth.mockResolvedValue({
       user: { id: "moderator-1", role: "ADMIN" },
       expires: "2026-04-29T12:00:00.000Z",
-    });
+    } as never);
     mockGetUserPermissions.mockResolvedValue(["dialogues.view"]);
   });
 
@@ -71,7 +71,7 @@ describe("admin dialogue support access", () => {
   });
 
   it("lists dialogue metadata without message content for support triage", async () => {
-    mockDb.dialogue.findMany.mockResolvedValue([{
+    (mockDb.dialogue.findMany as jest.Mock).mockResolvedValue([{
       id: "dlg-1",
       userId: "user-1",
       guestSessionId: null,
@@ -116,7 +116,7 @@ describe("admin dialogue support access", () => {
   });
 
   it("audits support reads that include private message content", async () => {
-    mockDb.dialogue.findFirst.mockResolvedValue({
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       userId: "user-1",
       guestSessionId: null,
