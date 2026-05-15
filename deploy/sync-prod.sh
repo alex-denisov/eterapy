@@ -120,6 +120,19 @@ export DATABASE_URL
 echo "▶ npm ci"
 npm ci
 
+# ── B150: Backup before migration ────────────────────────────────────────────
+BACKUP_DIR="/home/admin/eterapy/backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/pre-migrate-$(date +%Y%m%d_%H%M%S).sql.gz"
+echo "▶ DB backup → $BACKUP_FILE"
+DB_URL="${DATABASE_URL}"
+DB_NAME="${DB_URL##*/}"; DB_NAME="${DB_NAME%%\?*}"
+PGPASSWORD="$(echo "$DB_URL" | sed 's|.*://[^:]*:\([^@]*\)@.*|\1|')" \
+  pg_dump -h 127.0.0.1 -U eterapy "$DB_NAME" | gzip > "$BACKUP_FILE"
+echo "▶ Backup done ($(du -sh "$BACKUP_FILE" | cut -f1))"
+# Keep last 7 backups
+ls -t "$BACKUP_DIR"/pre-migrate-*.sql.gz 2>/dev/null | tail -n +8 | xargs rm -f || true
+
 echo "▶ prisma generate + migrate deploy"
 npx prisma generate
 npx prisma migrate deploy
