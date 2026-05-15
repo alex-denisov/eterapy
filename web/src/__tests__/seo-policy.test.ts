@@ -29,7 +29,7 @@ describe("v5 SEO routing policy", () => {
   });
 
   it("emits only canonical public URLs in the main sitemap", async () => {
-    const response = sitemapXml(requestFor("eterapy.com", "/sitemap.xml"));
+    const response = await sitemapXml(requestFor("eterapy.com", "/sitemap.xml"));
     const body = await response.text();
 
     expect(response.headers.get("content-type")).toContain("application/xml");
@@ -50,7 +50,7 @@ describe("v5 SEO routing policy", () => {
   });
 
   it.each(["app.eterapy.com", "admin.eterapy.com"])("returns an empty sitemap on %s", async (host) => {
-    const response = sitemapXml(requestFor(host, "/sitemap.xml"));
+    const response = await sitemapXml(requestFor(host, "/sitemap.xml"));
     const body = await response.text();
 
     expect(response.headers.get("cache-control")).toBe("no-store");

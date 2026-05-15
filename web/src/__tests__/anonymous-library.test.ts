@@ -38,7 +38,7 @@ describe("anonymous question library", () => {
   });
 
   it("adds only approved and indexable question pages to sitemap", async () => {
-    const response = sitemapXml(requestFor("eterapy.com"));
+    const response = await sitemapXml(requestFor("eterapy.com"));
     const body = await response.text();
 
     for (const entry of anonymousLibraryEntries) {
