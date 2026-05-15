@@ -21,7 +21,7 @@ export async function GET(request: Request) {
   }
 
   const activePractitioners = await db.practitioner.findMany({
-    where: { status: "ACTIVE", slug: { not: null } },
+    where: { status: "ACTIVE" },
     select: { slug: true },
   }).catch(() => [] as Array<{ slug: string | null }>);
 
