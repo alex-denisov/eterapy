@@ -119,7 +119,7 @@ export default async function MyMapPage() {
           </a>
           <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary"
             style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
-            Новый вопрос
+            Новый разбор
           </Link>
         </div>
       </div>
@@ -132,7 +132,7 @@ export default async function MyMapPage() {
             что помогает вернуться к важным выводам.
           </p>
           <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-6">
-            Задать вопрос
+            Начать диалог
           </Link>
         </div>
       ) : (

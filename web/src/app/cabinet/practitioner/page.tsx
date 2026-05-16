@@ -410,9 +410,9 @@ export default async function PractitionerCabinetPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div style={{ maxWidth: 520 }}>
             <p className="soft-eyebrow">новый формат</p>
-            <h3 className="soft-h3 mt-2">Совместные сессии: эзотерик + психотерапевт</h3>
+            <h3 className="soft-h3 mt-2">Совместные сессии: парные встречи специалистов</h3>
             <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              Запускаем парные встречи. Если интересно работать в паре с астрологом или таро-практиком — заполните короткую форму.
+              Запускаем парные встречи. Если интересно работать в паре с другим практиком — заполните короткую форму.
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">

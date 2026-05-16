@@ -74,7 +74,7 @@ export default async function CabinetQuestionsPage() {
           </p>
         </div>
         <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary w-full sm:w-auto">
-          Новый вопрос
+          Начать диалог
         </Link>
       </div>
 
@@ -86,7 +86,7 @@ export default async function CabinetQuestionsPage() {
             Начните с короткого вопроса. После ответа он появится здесь и в вашей карте.
           </p>
           <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-5">
-            Задать вопрос
+            Начать диалог
           </Link>
         </section>
       ) : (
