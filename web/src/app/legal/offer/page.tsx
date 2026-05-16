@@ -8,7 +8,7 @@ export default function OfferPage() {
     <article className="prose prose-invert prose-sm max-w-none">
       <PublicJsonLd route="/legal/offer" />
       <h1 className="font-heading text-2xl font-bold">Публичная оферта</h1>
-      <p className="text-muted-foreground">Редакция от 1 апреля 2026 г.</p>
+      <p className="text-muted-foreground">Редакция от 16 мая 2026 г.</p>
 
       <h2>1. Общие положения</h2>
       <p>
@@ -58,7 +58,7 @@ export default function OfferPage() {
         <li>подтверждённое нарушение практиком Этического кодекса</li>
       </ul>
       <p>
-        «Не понравилось предсказание» не является основанием для возврата.
+        «Не понравился разбор или сессия» не является основанием для возврата.
         Возврат оформляется в течение 5 рабочих дней.
       </p>
 

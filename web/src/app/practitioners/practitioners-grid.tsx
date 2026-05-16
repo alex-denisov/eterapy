@@ -14,7 +14,7 @@ const AVATAR_GRADIENTS = [
 ];
 
 const CATEGORY_FILTERS: Array<{ id: string; label: string; live: boolean; note?: string }> = [
-  { id: "all", label: "Все направления", live: true },
+  { id: "all", label: "Все специалисты", live: true },
   { id: "psy", label: "Психология", live: true },
   { id: "coach", label: "Коучинг", live: true },
   { id: "legal", label: "Юристы", live: true },
