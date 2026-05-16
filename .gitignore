@@ -62,3 +62,8 @@ tmp/
 .gemini/
 .agents/
 .claude/skills/
+.claude/*.json_*
+
+# Binary design assets (tracked separately)
+docs/**/*.zip
+docs/**/*.xlsx
