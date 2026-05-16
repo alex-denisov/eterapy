@@ -96,7 +96,7 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
     });
     const d = await res.json();
     if (d.ok) {
-      console.log("[Telegram] Webhook registered:", webhookUrl);
+      log.info("telegram.set_webhook_ok", { webhookUrl });
     } else {
       log.error("telegram.set_webhook_failed", { response: d });
     }

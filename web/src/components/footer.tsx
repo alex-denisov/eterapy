@@ -39,9 +39,9 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
               <p className={titleCls}>Направления</p>
               <ul className={mutedCls}>
                 <li><Link href={mainUrl("/practitioners")} className={linkCls}>Психология и коучинг</Link></li>
-                <li><Link href={mainUrl("/how-to-choose")} className={linkCls}>Таро · скоро</Link></li>
-                <li><Link href={mainUrl("/how-to-choose")} className={linkCls}>Астрология · скоро</Link></li>
-                <li><Link href={mainUrl("/how-to-choose")} className={linkCls}>Нумерология · скоро</Link></li>
+                <li><Link href={mainUrl("/tarot")} className={linkCls}>Таро · скоро</Link></li>
+                <li><Link href={mainUrl("/astro")} className={linkCls}>Астрология · скоро</Link></li>
+                <li><Link href={mainUrl("/numerology")} className={linkCls}>Нумерология · скоро</Link></li>
                 <li><Link href={mainUrl("/practitioners")} className={linkCls}>Совместная сессия · пилот</Link></li>
                 <li><Link href={mainUrl("/products/my-map")} className={linkCls}>Моя карта</Link></li>
                 <li><Link href={mainUrl("/library")} className={linkCls}>Библиотека вопросов</Link></li>

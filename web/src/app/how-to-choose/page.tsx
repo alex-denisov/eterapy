@@ -12,7 +12,6 @@ export default function HowToChoosePage() {
       <PublicJsonLd route="/how-to-choose" />
       {/* Hero */}
       <div className="mb-14 text-center">
-        <span className="inline-block text-5xl mb-6">🔮</span>
         <h1 className="font-heading text-4xl font-bold">Как выбрать практика</h1>
         <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
           Коротко о том, как найти хорошего специалиста и не ошибиться с выбором.
