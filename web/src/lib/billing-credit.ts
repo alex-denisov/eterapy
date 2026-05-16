@@ -277,6 +277,101 @@ export async function refundSucceededTransaction(input: {
   return { refunded: true, providerRefundId: providerRefund?.id ?? null };
 }
 
+/**
+ * Marks a SUCCEEDED transaction as REFUNDED in response to a YooKassa-initiated chargeback
+ * or refund notification. Does NOT call createRefund — the reversal already happened at
+ * the provider level. Reverts balance/entitlements and clawbacks referral rewards.
+ */
+export async function chargebackSucceededTransaction(input: {
+  providerPaymentId: string;
+  providerRefundId: string;
+  reason: string;
+}): Promise<{ applied: boolean }> {
+  const transaction = await db.transaction.findUnique({
+    where: { providerPaymentId: input.providerPaymentId },
+    include: { user: { select: { balance: true } } },
+  });
+
+  if (!transaction) return { applied: false };
+  if (transaction.status === "REFUNDED") return { applied: false };
+  if (transaction.status !== "SUCCEEDED") return { applied: false };
+
+  const metadata = getBillingTransactionMetadata(transaction);
+
+  await db.$transaction(async (tx) => {
+    const fresh = await tx.transaction.findUnique({
+      where: { id: transaction.id },
+      include: { user: { select: { balance: true } } },
+    });
+    if (!fresh || fresh.status !== "SUCCEEDED") return;
+
+    const freshMetadata = getBillingTransactionMetadata(fresh);
+    if (freshMetadata.purchaseKind === "balance") {
+      const deduct = Math.min(fresh.amount, fresh.user.balance);
+      const updatedUser = await tx.user.update({
+        where: { id: fresh.userId },
+        data: { balance: { decrement: deduct } },
+        select: { balance: true },
+      });
+      await recordCreditLedgerEntry(tx, {
+        userId: fresh.userId,
+        amountKopecks: -deduct,
+        balanceAfterKopecks: updatedUser.balance,
+        type: "BALANCE_REFUND",
+        source: "yookassa_chargeback",
+        transactionId: fresh.id,
+        description: input.reason || "Chargeback",
+        metadata: {
+          ...freshMetadata,
+          refundReason: input.reason,
+          providerRefundId: input.providerRefundId,
+        },
+      });
+    } else {
+      await revokeEntitlementsForTransaction(tx, fresh, input.reason);
+    }
+
+    await tx.transaction.update({
+      where: { id: fresh.id },
+      data: {
+        status: "REFUNDED",
+        metadata: {
+          ...freshMetadata,
+          refundReason: input.reason,
+          providerRefundId: input.providerRefundId,
+          chargebacked: true,
+        },
+      },
+    });
+  });
+
+  await clawbackReferralRewardsForUser({
+    referredUserId: transaction.userId,
+    reason: `chargeback:${input.reason}`,
+    sourceEventId: transaction.id,
+  });
+
+  trackServerEvent(db, {
+    event: "payment_chargeback",
+    userId: transaction.userId,
+    surface: "billing",
+    properties: {
+      amount_rub: (transaction.amount / 100).toFixed(2),
+      provider_refund_id: input.providerRefundId,
+      reason: input.reason,
+    },
+  });
+
+  log.warn("billing.chargeback_applied", {
+    userId: transaction.userId,
+    transactionId: transaction.id,
+    providerPaymentId: input.providerPaymentId,
+    providerRefundId: input.providerRefundId,
+  });
+
+  return { applied: true };
+}
+
 /** Thin alias used by callers who have the full YooKassa payment object. */
 export async function applyPaymentResult(payment: YookassaPaymentLike): Promise<"credited" | "cancelled" | "noop"> {
   const s = payment.status?.toLowerCase();

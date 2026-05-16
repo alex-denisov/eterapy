@@ -142,11 +142,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",
     schemaKind: "Product",
   },
-  "/all-modalities/checkin": {
-    title: "Диалог ясности — ETerapy",
-    description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",
-    schemaKind: "Product",
-  },
   "/practitioners": {
     title: "Специалист как следующий шаг — ETerapy",
     description: "Проверенные практики ETerapy доступны как следующий шаг после вопроса, контекста и понятной рекомендации.",

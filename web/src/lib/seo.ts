@@ -41,7 +41,6 @@ export const publicSeoRoutes = [
   "/products/my-map",
   "/all-modalities",
   "/checkin",
-  "/all-modalities/checkin",
   "/practitioners",
   "/practitioners/apply",
   "/legal/ethics",

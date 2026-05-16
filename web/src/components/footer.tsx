@@ -53,6 +53,8 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
               <ul className={mutedCls}>
                 <li><Link href={mainUrl("/help")} className={linkCls}>Поддержка и FAQ</Link></li>
                 <li><Link href={mainUrl("/legal/privacy")} className={linkCls}>Приватность</Link></li>
+                <li><Link href={mainUrl("/legal/cookies")} className={linkCls}>Cookies</Link></li>
+                <li><Link href={mainUrl("/legal/disclaimer")} className={linkCls}>Дисклеймер</Link></li>
                 <li><Link href={mainUrl("/legal/ethics")} className={linkCls}>Этический кодекс</Link></li>
                 <li><Link href={mainUrl("/legal/offer")} className={linkCls}>Договор-оферта</Link></li>
                 <li><Link href={mainUrl("/practitioners/apply")} className={linkCls}>Стать специалистом</Link></li>

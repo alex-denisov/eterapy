@@ -13,7 +13,7 @@
 import { NextRequest } from "next/server";
 import { timingSafeEqual } from "crypto";
 import type { Prisma } from "@prisma/client";
-import { applyPaymentResult } from "@/lib/billing-credit";
+import { applyPaymentResult, chargebackSucceededTransaction } from "@/lib/billing-credit";
 import { jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
@@ -113,12 +113,29 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await applyPaymentResult({
-      id: payment.id,
-      status: typeof payment.status === "string" ? payment.status : undefined,
-      paid: typeof payment.paid === "boolean" ? payment.paid : undefined,
-      payment_method: asRecord(payment.payment_method) as never,
-    });
+    let result: string;
+
+    if (event === "refund.succeeded") {
+      const originalPaymentId = typeof payment.payment_id === "string" ? payment.payment_id : null;
+      if (!originalPaymentId) {
+        log.warn("yookassa-webhook-refund-missing-payment-id", { requestId: context.requestId, refundId: payment.id });
+        return jsonWithRequestContext({ ok: true, skipped: true }, undefined, context);
+      }
+      const { applied } = await chargebackSucceededTransaction({
+        providerPaymentId: originalPaymentId,
+        providerRefundId: payment.id,
+        reason: "yookassa_refund",
+      });
+      result = applied ? "chargebacked" : "noop";
+    } else {
+      result = await applyPaymentResult({
+        id: payment.id,
+        status: typeof payment.status === "string" ? payment.status : undefined,
+        paid: typeof payment.paid === "boolean" ? payment.paid : undefined,
+        payment_method: asRecord(payment.payment_method) as never,
+      });
+    }
+
     await completeWebhookEvent(claim.event.id, { result });
     log.info("yookassa-webhook-applied", {
       requestId: context.requestId,
