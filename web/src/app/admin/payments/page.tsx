@@ -18,6 +18,12 @@ export default async function AdminPaymentsPage() {
         where: { status: "COMPLETED" },
         select: { id: true, priceRub: true, createdAt: true },
       },
+      payouts: {
+        where: { status: "DONE" },
+        select: { processedAt: true, amountKopecks: true },
+        orderBy: { processedAt: "desc" },
+        take: 1,
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -35,7 +41,7 @@ export default async function AdminPaymentsPage() {
     const totalRevenue = p.bookings.reduce((s, b) => s + b.priceRub, 0);
     const platformFee = Math.round(totalRevenue * commission);
     const practitionerEarnings = totalRevenue - platformFee;
-    const lastPayout = null; // TODO: PayoutRecord model
+    const lastPayout = p.payouts[0]?.processedAt?.toISOString() ?? null;
     return {
       id: p.id,
       userId: p.userId,
