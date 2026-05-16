@@ -12,7 +12,7 @@ export default function HowToChoosePage() {
       <PublicJsonLd route="/how-to-choose" />
       {/* Hero */}
       <div className="mb-14 text-center">
-        <h1 className="font-heading text-4xl font-bold">Как выбрать практика</h1>
+        <h1 className="font-heading text-4xl font-bold">Как выбрать специалиста</h1>
         <p className="mt-4 text-lg text-muted-foreground max-w-xl mx-auto">
           Коротко о том, как найти хорошего специалиста и не ошибиться с выбором.
         </p>
@@ -29,14 +29,13 @@ export default function HowToChoosePage() {
             <p>Разные специализации подходят для разных запросов:</p>
             <div className="grid gap-3 sm:grid-cols-2">
               {[
-                { spec: "Таро", emoji: "🃏", uses: "Ситуативные вопросы, отношения, выбор между вариантами" },
-                { spec: "Астрология", emoji: "⭐", uses: "Натальная карта, период в жизни, совместимость" },
-                { spec: "Нумерология", emoji: "🔢", uses: "Анализ имени, даты рождения, жизненного пути" },
-                { spec: "Руны", emoji: "ᚱ", uses: "Оракульные вопросы, ответ «да/нет», направление" },
+                { spec: "Таро", uses: "Ситуативные вопросы, отношения, выбор между вариантами" },
+                { spec: "Астрология", uses: "Натальная карта, период в жизни, совместимость" },
+                { spec: "Нумерология", uses: "Анализ имени и даты рождения как точки входа в рефлексию" },
+                { spec: "Руны", uses: "Рефлексивный фокус на ситуации, поиск направления" },
               ].map(item => (
                 <div key={item.spec} className="rounded-xl border border-border/30 bg-card/20 p-4">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-lg">{item.emoji}</span>
                     <span className="font-semibold text-sm">{item.spec}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{item.uses}</p>
@@ -115,20 +114,20 @@ export default function HowToChoosePage() {
 
         {/* Направления */}
         <section className="rounded-xl border border-primary/20 bg-primary/5 p-6">
-          <h2 className="font-heading text-lg font-semibold mb-3">💡 Сначала попробуйте направления самопознания</h2>
+          <h2 className="font-heading text-lg font-semibold mb-3">Сначала разберитесь в вопросе</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Не уверены нужен ли вам практик? Начните с бесплатного вопроса:
+            Не уверены, нужен ли вам специалист? Начните с бесплатного диалога:
             ETerapy уточнит контекст и предложит следующий шаг без давления.
           </p>
           <Link href="/checkin" className={cn(buttonVariants(), "text-sm")}>
-            Задать вопрос →
+            Начать диалог
           </Link>
         </section>
 
         {/* CTA */}
         <div className="text-center pt-4">
           <Link href="/checkin" className={cn(buttonVariants(), "px-8 py-3 text-base")}>
-            Получить первичный ответ
+            Начать диалог ясности
           </Link>
         </div>
       </div>

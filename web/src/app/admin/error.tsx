@@ -11,7 +11,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Admin error:", error);
+    void error.digest;
   }, [error]);
 
   return (

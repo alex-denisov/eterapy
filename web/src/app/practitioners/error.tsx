@@ -11,7 +11,8 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Practitioners error:", error);
+    // error digest surfaced to server logs via Next.js error boundary
+    void error.digest;
   }, [error]);
 
   return (
