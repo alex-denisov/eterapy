@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { Resend } from "resend";
+import { log } from "@/lib/logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 </div>`,
       });
     } catch (emailErr) {
-      console.error("[booking] notification email failed:", emailErr);
+      log.error("booking.request.notification_email_failed", { err: emailErr });
       // Не блокируем — бронирование состоялось
     }
 
@@ -78,12 +79,12 @@ export async function POST(req: NextRequest) {
 </div>`,
       });
     } catch (emailErr) {
-      console.error("[booking] confirmation email failed:", emailErr);
+      log.error("booking.request.confirmation_email_failed", { err: emailErr });
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[booking/request]", err);
+    log.error("booking.request.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

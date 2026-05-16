@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
+import { log } from "@/lib/logger";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     await sendVerificationEmail(email, user.name, token);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[resend-verification]", err);
+    log.error("resend_verification.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

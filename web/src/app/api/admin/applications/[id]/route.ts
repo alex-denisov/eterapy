@@ -30,6 +30,7 @@ import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { generateUniqueSlug } from "@/lib/slug";
 import type { Specialty } from "@prisma/client";
+import { log } from "@/lib/logger";
 
 const VALID_STATUSES = ["PENDING", "REVIEWING", "APPROVED", "REJECTED"] as const;
 type ApplicationStatus = (typeof VALID_STATUSES)[number];
@@ -147,7 +148,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     createdUserId = result.user.id;
 
     sendPasswordResetEmail(result.user.email, result.user.name, resetToken).catch((e) =>
-      console.error("[applications/approve] reset-email failed:", e),
+      log.error("admin.applications.reset_email_failed", { err: e }),
     );
 
     await logAudit(
@@ -170,7 +171,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
     });
   } catch (e) {
-    console.error("[applications/approve] failed:", e);
+    log.error("admin.applications.approve_failed", { err: e });
     if (createdUserId) {
       // Best-effort rollback if the transaction committed but the helper failed downstream.
       await db.user.delete({ where: { id: createdUserId } }).catch(() => {});

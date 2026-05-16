@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { log } from "@/lib/logger";
 
 // GET /api/slots?practitionerId=xxx&from=2026-04-05&to=2026-04-12
 export async function GET(req: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
       endAt: s.endAt.toISOString(),
     }))});
   } catch (err) {
-    console.error("[api/slots GET]", err);
+    log.error("api.slots.get", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ slot: { id: slot.id, startAt: slot.startAt, endAt: slot.endAt } });
   } catch (err) {
-    console.error("[api/slots POST]", err);
+    log.error("api.slots.post", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

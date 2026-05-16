@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { Specialty, PractitionerStatus } from "@prisma/client";
+import { log } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ practitioners: result });
   } catch (err) {
-    console.error("[api/practitioners]", err);
+    log.error("api.practitioners.get", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

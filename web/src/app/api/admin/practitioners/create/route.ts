@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 import { generateUniqueSlug } from "@/lib/slug";
+import { log } from "@/lib/logger";
 
 const DURATIONS = [15, 30, 45, 60, 90, 120];
 
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (e: unknown) {
-    console.error("Create practitioner error:", e);
+    log.error("admin.practitioners.create_failed", { err: e });
     const msg = e instanceof Error ? e.message : "Ошибка сервера";
     return NextResponse.json({ error: msg }, { status: 500 });
   }

@@ -13,6 +13,7 @@ import {
   holdPractitionerPayoutsForBooking,
   PRACTITIONER_HIGH_RISK_SCORE,
 } from "@/lib/practitioner-antifraud";
+import { log } from "@/lib/logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? "admin@eterapy.com";
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
           Рассмотреть жалобу →
         </a>
       </body></html>`,
-    }).catch(console.error);
+    }).catch((e) => log.error("complaints.admin_email_failed", { err: e }));
   }
 
   return NextResponse.json({ ok: true, id: complaint.id });

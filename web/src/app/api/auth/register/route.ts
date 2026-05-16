@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { sendVerificationEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
+import { log } from "@/lib/logger";
 import { validateName, validateEmail } from "@/lib/validation";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import { attachReferralToRegisteredUser } from "@/lib/share-referral";
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const user = await usersDb.create({ email, name, password });
     await attachReferralToRegisteredUser({ request: req, userId: user.id }).catch((referralErr) => {
-      console.error("[register] referral attach failed:", referralErr);
+      log.error("register.referral_attach_failed", { err: referralErr });
     });
     await markChannelConversion({
       request: req,
@@ -42,21 +43,19 @@ export async function POST(req: NextRequest) {
       conversionType: "registration",
       conversionId: user.id,
     }).catch((attributionErr) => {
-      console.error("[register] channel attribution conversion failed:", attributionErr);
+      log.error("register.channel_attribution_failed", { err: attributionErr });
     });
 
-    // Отправляем письмо подтверждения
     try {
       await sendVerificationEmail(email, name, user.verificationToken!);
     } catch (emailErr) {
-      console.error("[register] email send failed:", emailErr);
-      // Не блокируем регистрацию если email не отправился
+      log.error("register.email_send_failed", { err: emailErr });
     }
 
     await logAudit(user.id, "REGISTER", undefined, `Регистрация: ${email}`);
     return NextResponse.json({ ok: true, emailSent: true });
   } catch (err) {
-    console.error("[register]", err);
+    log.error("register.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

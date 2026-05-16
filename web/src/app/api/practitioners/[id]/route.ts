@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { log } from "@/lib/logger";
 
 export async function GET(
   _req: NextRequest,
@@ -48,7 +49,7 @@ export async function GET(
       })),
     });
   } catch (err) {
-    console.error("[api/practitioners/id]", err);
+    log.error("api.practitioners.get_by_id", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

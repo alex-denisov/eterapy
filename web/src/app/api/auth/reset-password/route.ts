@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import bcrypt from "bcryptjs";
+import { log } from "@/lib/logger";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[reset-password]", err);
+    log.error("reset_password.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

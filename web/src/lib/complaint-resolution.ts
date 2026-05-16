@@ -28,6 +28,7 @@ import db from "./db";
 import { logAudit } from "./audit";
 import { notify } from "./notifications";
 import { PAYOUT_STATUS_HELD, PAYOUT_STATUS_PENDING, PAYOUT_STATUS_FAILED } from "./session-complete";
+import { log } from "./logger";
 
 export type PayoutDecision = "release" | "withhold";
 
@@ -175,7 +176,7 @@ export async function resolveComplaint(
         amount: (refundKopecks / 100).toLocaleString("ru-RU"),
         reason: "Возврат по жалобе",
       },
-    }).catch((e) => console.error("[complaint-resolution] refund notify failed", e));
+    }).catch((e) => log.error("complaint_resolution.refund_notify_failed", { err: e }));
   }
 
   return {

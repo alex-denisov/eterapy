@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
+import { log } from "@/lib/logger";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 
 export async function POST(req: NextRequest) {
@@ -23,14 +24,14 @@ export async function POST(req: NextRequest) {
           await sendPasswordResetEmail(email, user.name, token);
           await logAudit(user.id, "PASSWORD_RESET", undefined, "Запрошен сброс пароля");
         } catch (emailErr) {
-          console.error("[forgot-password] email send failed:", emailErr);
+          log.error("forgot_password.email_send_failed", { err: emailErr });
         }
       }
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[forgot-password]", err);
+    log.error("forgot_password.unhandled", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

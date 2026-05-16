@@ -10,6 +10,7 @@ import {
 } from "@/lib/email";
 import { notify } from "@/lib/notifications";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
+import { log } from "@/lib/logger";
 
 function fmtSlot(slot: { startAt: Date; endAt: Date } | null) {
   if (!slot) return "время уточняется";
@@ -99,23 +100,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const slotTime = booking.slot ? new Date(booking.slot.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }) : "—";
 
   if (status === "CONFIRMED") {
-    sendBookingConfirmedClient(emailData).catch(console.error);
+    sendBookingConfirmedClient(emailData).catch((e) => log.error("booking.confirmed_email_failed", { err: e }));
     notify({ userId: booking.clientId, event: "BOOKING_CONFIRMED", data: {
       practitionerName: emailData.practitionerName, date: slotDate, time: slotTime,
-    }}).catch(console.error);
+    }}).catch((e) => log.error("booking.confirmed_notify_failed", { err: e }));
   } else if (status === "CANCELLED") {
     const cancelledBy = isClient ? "client" : "practitioner";
-    sendBookingCancelledClient(emailData, cancelledBy).catch(console.error);
-    if (!isClient) sendBookingCancelledPractitioner(emailData).catch(console.error);
-    // Уведомляем обе стороны об отмене
+    sendBookingCancelledClient(emailData, cancelledBy).catch((e) => log.error("booking.cancelled_client_email_failed", { err: e }));
+    if (!isClient) sendBookingCancelledPractitioner(emailData).catch((e) => log.error("booking.cancelled_practitioner_email_failed", { err: e }));
     const otherId = isClient ? booking.practitioner?.userId : booking.clientId;
-    if (otherId) notify({ userId: otherId, event: "BOOKING_CANCELLED", data: { date: slotDate, time: slotTime } }).catch(console.error);
+    if (otherId) notify({ userId: otherId, event: "BOOKING_CANCELLED", data: { date: slotDate, time: slotTime } }).catch((e) => log.error("booking.cancelled_notify_failed", { err: e }));
   } else if (status === "COMPLETED") {
-    sendReviewRequestClient(emailData).catch(console.error);
+    sendReviewRequestClient(emailData).catch((e) => log.error("booking.review_request_email_failed", { err: e }));
     const reviewUrl = `${process.env.NEXT_PUBLIC_APP_URL}/cabinet/bookings?review=${booking.id}`;
     notify({ userId: booking.clientId, event: "REVIEW_REQUESTED", data: {
       practitionerName: emailData.practitionerName, reviewUrl,
-    }}).catch(console.error);
+    }}).catch((e) => log.error("booking.review_notify_failed", { err: e }));
   }
 
   const refreshed = await db.booking.findUnique({ where: { id }, select: { id: true, status: true } });

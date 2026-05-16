@@ -14,6 +14,8 @@
  * `https://api.telegram.org/bot<TOKEN>`.
  */
 
+import { log } from "./logger";
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const API_BASE = process.env.TELEGRAM_API_BASE?.trim()
   || `https://api.telegram.org/bot${BOT_TOKEN}`;
@@ -36,7 +38,7 @@ export function getTelegramRuntimeConfig() {
 /** Отправляет сообщение в Telegram-чат. chatId — строка (telegramId пользователя) */
 export async function sendTelegram(chatId: string, text: string): Promise<void> {
   if (!BOT_TOKEN) {
-    console.warn("[Telegram] TELEGRAM_BOT_TOKEN not set, skipping");
+    log.warn("telegram.bot_token_missing");
     return;
   }
   const controller = new AbortController();
@@ -83,7 +85,7 @@ export async function getBotUpdates(offset?: number) {
 /** Регистрирует webhook URL в Telegram */
 export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
   if (!BOT_TOKEN) {
-    console.warn("[Telegram] TELEGRAM_BOT_TOKEN not set, skipping webhook setup");
+    log.warn("telegram.bot_token_missing_webhook");
     return false;
   }
   try {
@@ -96,11 +98,11 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
     if (d.ok) {
       console.log("[Telegram] Webhook registered:", webhookUrl);
     } else {
-      console.error("[Telegram] setWebhook failed:", d);
+      log.error("telegram.set_webhook_failed", { response: d });
     }
     return d.ok;
   } catch (err) {
-    console.error("[Telegram] setWebhook error:", err);
+    log.error("telegram.set_webhook_error", { err });
     return false;
   }
 }

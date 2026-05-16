@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { logAudit } from "@/lib/audit";
 import { ALL_PERMISSIONS, type Permission } from "@/lib/moderator-permissions";
+import { log } from "@/lib/logger";
 
 function requireSuperAdmin(role?: string) {
   return role === "SUPERADMIN";
@@ -114,7 +115,7 @@ export async function PATCH(req: NextRequest) {
       data: { resetToken: token, resetExpires: new Date(Date.now() + 3_600_000) },
     });
     sendPasswordResetEmail(moderator.email, moderator.name, token).catch((e) =>
-      console.error("[moderators] reset-email failed:", e),
+      log.error("admin.moderators.reset_email_failed", { err: e }),
     );
     await logAudit(adminId, "PASSWORD_RESET", moderatorId, "moderator (reset-link sent)");
   }

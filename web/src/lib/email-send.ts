@@ -3,6 +3,7 @@
  * Использует тот же emailWrapper что и lib/email.ts — единый стиль.
  */
 import type { NotifEvent } from "@/lib/notification-events";
+import { log } from "@/lib/logger";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 const FROM = "ETerapy <noreply@eterapy.com>";
@@ -287,7 +288,7 @@ interface EmailPayload {
 export async function sendEmail({ to, event, name, data }: EmailPayload): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn("[Email] RESEND_API_KEY не задан, пропускаем уведомление");
+    log.warn("email.resend_api_key_missing");
     return;
   }
 
@@ -302,6 +303,6 @@ export async function sendEmail({ to, event, name, data }: EmailPayload): Promis
 
   if (!res.ok) {
     const err = await res.text();
-    console.error("[Email] Resend error:", err);
+    log.error("email.resend_failed", { err });
   }
 }

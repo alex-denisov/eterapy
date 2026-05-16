@@ -22,6 +22,7 @@ import {
 } from "./entitlements";
 import { clawbackReferralRewardsForUser } from "./share-referral";
 import { trackServerEvent } from "./analytics";
+import { log } from "./logger";
 
 interface YookassaCardSnapshot {
   id: string;
@@ -148,14 +149,14 @@ export async function creditSucceededPayment(
     userId: result.userId,
     event: "BALANCE_TOPUP",
     data: { amountRub },
-  }).catch((e) => console.error("[billing-credit] BALANCE_TOPUP notify error:", e));
+  }).catch((e) => log.error("billing.balance_topup_notify_failed", { err: e }));
 
   if (result.newCard) {
     notify({
       userId: result.userId,
       event: "CARD_LINKED",
       data: { last4: result.newCard.last4, brand: result.newCard.brand },
-    }).catch((e) => console.error("[billing-credit] CARD_LINKED notify error:", e));
+    }).catch((e) => log.error("billing.card_linked_notify_failed", { err: e }));
   }
 
   if (result.entitlementGrant.kind === "product") {
@@ -163,7 +164,7 @@ export async function creditSucceededPayment(
       userId: result.userId,
       event: "PRODUCT_UNLOCKED",
       data: { productKey: result.entitlementGrant.productKey },
-    }).catch((e) => console.error("[billing-credit] PRODUCT_UNLOCKED notify error:", e));
+    }).catch((e) => log.error("billing.product_unlocked_notify_failed", { err: e }));
   }
 
   if (result.entitlementGrant.kind === "subscription") {
@@ -171,7 +172,7 @@ export async function creditSucceededPayment(
       userId: result.userId,
       event: "SUBSCRIPTION_STARTED",
       data: { planKey: result.entitlementGrant.planKey },
-    }).catch((e) => console.error("[billing-credit] SUBSCRIPTION_STARTED notify error:", e));
+    }).catch((e) => log.error("billing.subscription_started_notify_failed", { err: e }));
   }
 
   return true;

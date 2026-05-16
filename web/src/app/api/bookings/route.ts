@@ -19,6 +19,7 @@ import { markChannelConversion } from "@/lib/channel-attribution";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { assessBookingRisk } from "@/lib/practitioner-antifraud";
 import { trackServerEvent } from "@/lib/analytics";
+import { log } from "@/lib/logger";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ bookings: bookings.map(formatBooking) });
   } catch (err) {
-    console.error("[api/bookings GET]", err);
+    log.error("api.bookings.get", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
@@ -286,13 +287,13 @@ export async function POST(req: NextRequest) {
       }),
     ]).then((results) => {
       results.forEach((r, i) => {
-        if (r.status === "rejected") console.error(`[booking notify ${i}]`, r.reason);
+        if (r.status === "rejected") log.error("bookings.post.notify_failed", { idx: i, err: r.reason });
       });
     });
 
     return NextResponse.json({ booking: formatBooking(booking), ok: true });
   } catch (err) {
-    console.error("[api/bookings POST]", err);
+    log.error("api.bookings.post", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }
@@ -397,7 +398,7 @@ export async function PATCH(req: NextRequest) {
         slotStr: fmtSlot(booking.slot),
         priceRub: booking.priceRub,
         durationMin: 60,
-      }).catch((e) => console.error("[email review]", e));
+      }).catch((e) => log.error("bookings.patch.review_email_failed", { err: e }));
 
       const updatedBooking = await db.booking.findUnique({
         where: { id: bookingId },
@@ -452,7 +453,7 @@ export async function PATCH(req: NextRequest) {
         }}),
       ]).then((results) => {
         results.forEach((r, i) => {
-          if (r.status === "rejected") console.error(`[booking notify ${i}]`, r.reason);
+          if (r.status === "rejected") log.error("bookings.patch.notify_failed", { idx: i, err: r.reason });
         });
       });
     } else if (status === "CANCELLED") {
@@ -465,7 +466,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ booking: formatBooking({ ...updated, client: booking.client, practitioner: booking.practitioner }) });
   } catch (err) {
-    console.error("[api/bookings PATCH]", err);
+    log.error("api.bookings.patch", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
   }
 }

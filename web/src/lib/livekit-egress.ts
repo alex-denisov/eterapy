@@ -9,6 +9,7 @@
  */
 import { EgressClient } from "livekit-server-sdk";
 import path from "path";
+import { log } from "./logger";
 
 const LIVEKIT_URL   = process.env.LIVEKIT_URL ?? "ws://localhost:7880";
 const API_KEY       = process.env.LIVEKIT_API_KEY ?? "devkey";
@@ -57,7 +58,7 @@ export async function startRoomRecording(roomName: string, bookingId: string): P
       expiresAt,
     };
   } catch (e) {
-    console.error("[Egress] startRoomRecording error:", e);
+    log.error("egress.start_recording_failed", { err: e });
     return null;
   }
 }
@@ -70,7 +71,7 @@ export async function stopRecording(egressId: string): Promise<void> {
     const egress = getEgress();
     await egress.stopEgress(egressId);
   } catch (e) {
-    console.error("[Egress] stopRecording error:", e);
+    log.error("egress.stop_recording_failed", { err: e });
   }
 }
 
@@ -83,7 +84,7 @@ export async function getRecordingStatus(egressId: string) {
     const list = await egress.listEgress({ egressId });
     return list[0] ?? null;
   } catch (e) {
-    console.error("[Egress] getStatus error:", e);
+    log.error("egress.get_status_failed", { err: e });
     return null;
   }
 }
@@ -116,7 +117,7 @@ export async function purgeExpiredRecordings(db: import("@prisma/client").Prisma
       });
       purged++;
     } catch (e) {
-      console.error("[Egress] purge error for session", session.id, e);
+      log.error("egress.purge_failed", { sessionId: session.id, err: e });
     }
   }
   return purged;
