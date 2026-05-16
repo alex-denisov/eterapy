@@ -36,6 +36,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Payment velocity check: max 5 payment attempts per hour per user (card testing protection)
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const recentCount = await db.transaction.count({
+    where: { userId: session.user.id, createdAt: { gte: oneHourAgo } },
+  });
+  if (recentCount >= 5) {
+    log.warn("billing-payment-velocity-exceeded", {
+      requestId: context.requestId,
+      userId: session.user.id,
+      recentCount,
+    });
+    return errorWithRequestContext(
+      "RATE_LIMITED",
+      "Слишком много попыток оплаты. Попробуйте позже.",
+      429,
+      context
+    );
+  }
+
   // Valid return URL — always a full absolute URL
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
   const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
