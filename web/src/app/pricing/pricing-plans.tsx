@@ -62,9 +62,28 @@ const plans = [
     dark: true,
     style: { background: "var(--soft-bordeaux, #5c2a2c)" } as React.CSSProperties,
   },
+  {
+    id: "practitioner",
+    name: "Practitioner Pro",
+    tagline: "Для специалистов",
+    monthPrice: 1490,
+    yearPrice: 14900,
+    perks: [
+      "Кабинет специалиста и расписание",
+      "Заявки, клиенты и история выплат",
+      "AI-саммари после сессии",
+      "Контекст предразбора только по согласию клиента",
+      "Комиссия платформы прозрачна: 15–25%",
+    ],
+    cta: "Стать специалистом",
+    href: "/practitioners/apply",
+    featured: false,
+    dark: false,
+    style: { background: "linear-gradient(160deg, #d6decc, #e5ebdc)" } as React.CSSProperties,
+  },
 ];
 
-const practitionerPrices = { month: 2990, year: 29900 };
+const practitionerPrices = { month: 1490, year: 14900 };
 
 const oneOff = [
   { t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно" },
@@ -81,9 +100,10 @@ const oneOff = [
   { t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽" },
   { t: "7 дней к ясности", d: "Один разбор в день, 5–10 мин", price: "990 ₽" },
   { t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0–199 ₽" },
-  { t: "Встреча с психологом", d: "50 минут онлайн", price: "от 1 900 ₽" },
-  { t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 2 500 ₽" },
-  { t: "Парная встреча", d: "Семейный психолог", price: "от 5 000 ₽" },
+  { t: "Встреча с психологом", d: "50 минут онлайн", price: "от 4 500 ₽" },
+  { t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 3 200 ₽" },
+  { t: "Парная встреча", d: "Семейный психолог", price: "от 7 200 ₽" },
+  { t: "Юрист", d: "Семейное право, развод, опека", price: "от 6 000 ₽" },
   { t: "Совместная сессия", d: "Эзотерик + психотерапевт", price: "от 4 500 ₽", soon: true },
 ];
 
@@ -127,7 +147,7 @@ export function PricingPlans() {
 
       {/* Plans */}
       <section className="soft-shell soft-public-section">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-4">
           {plans.map((plan) => {
             const price = period === "year" ? plan.yearPrice : plan.monthPrice;
             const periodLabel = period === "year" ? "в год" : "в месяц";

@@ -33,9 +33,12 @@ describe("v5 pricing page", () => {
     // Premium: 1290 per month / 12900 per year
     expect(combined).toContain("1290");
     expect(combined).toContain("12900");
-    // Practitioner Pro: 2990 per month / 29900 per year
-    expect(combined).toContain("2990");
-    expect(combined).toContain("29900");
+    // Practitioner Pro: 1490 per month / 14900 per year
+    expect(combined).toContain('id: "practitioner"');
+    expect(combined).toContain("1490");
+    expect(combined).toContain("14900");
+    expect(combined).toContain("от 4 500 ₽");
+    expect(combined).toContain("от 6 000 ₽");
     expect(combined).toContain("Углублённые отчёты открываются");
   });
 
