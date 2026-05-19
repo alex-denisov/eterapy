@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Download, FileText, LockKeyhole, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreditSpendButton } from "@/components/products/credit-spend-button";
 
 type DeepReportResult = {
   id: string;
@@ -196,6 +197,17 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
           <LockKeyhole className="size-4" aria-hidden="true" />
           {result?.resultText ? "Обновить отчет" : status === "paying" ? "Открываем оплату..." : "Получить полный отчет"}
         </Button>
+        {!hasEntitlement && (
+          <CreditSpendButton
+            productKey="deep-report"
+            creditCost={4}
+            disabled={status === "loading" || status === "paying"}
+            onUnlocked={() => {
+              setHasEntitlement(true);
+              setMessage("Доступ открыт за кредиты. Теперь можно получить полный отчет.");
+            }}
+          />
+        )}
         {result?.resultText && (
           <>
             <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost">

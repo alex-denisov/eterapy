@@ -4,9 +4,9 @@ import { type V5ProductSlug } from "@/lib/v5-products";
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "perspectives": 29900,
-  "deep-report": 69000,
-  "chat-analysis": 89000,
-  "compatibility": 79000,
+  "deep-report": 59000,
+  "chat-analysis": 39000,
+  "compatibility": 59000,
   "circle": 79000,
   "pair": 79000,
   "seven-days": 99000,
@@ -14,14 +14,14 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
-  "perspectives": 1,
-  "deep-report": 2,
-  "chat-analysis": 3,
-  "compatibility": 3,
+  "perspectives": 2,
+  "deep-report": 4,
+  "chat-analysis": 2,
+  "compatibility": 4,
   "circle": 3,
   "pair": 3,
-  "seven-days": 4,
-  "my-map": 2,
+  "seven-days": 8,
+  "my-map": 6,
 };
 
 export const V5_SUBSCRIPTION_PLANS: Record<string, {
@@ -33,17 +33,17 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
 }> = {
   plus: {
     name: "Plus",
-    amountKopecks: 49900,
+    amountKopecks: 49000,
     trialDays: 7,
     includedProducts: ["primary-answer", "perspectives", "my-map"],
-    creditsPerPeriod: 5,
+    creditsPerPeriod: 10,
   },
   premium: {
     name: "Premium",
     amountKopecks: 129000,
     trialDays: 7,
     includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
-    creditsPerPeriod: 15,
+    creditsPerPeriod: 30,
   },
   // Deprecated legacy aliases are kept readable so older subscriptions do not
   // lose access abruptly, but new checkout should use plus/premium only.

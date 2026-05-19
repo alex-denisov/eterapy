@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Copy, CheckCircle2, Flag, RefreshCcw, LockKeyhole, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreditSpendButton } from "@/components/products/credit-spend-button";
 
 type CompatibilityResult = {
   id: string;
@@ -286,6 +287,17 @@ export function CompatibilityActions({
             <LockKeyhole className="size-4" aria-hidden="true" />
             {status === "paying" ? "Открываем оплату..." : "Получить разбор (требуется согласие)"}
           </Button>
+          {!hasEntitlement && (
+            <CreditSpendButton
+              productKey="compatibility"
+              creditCost={4}
+              disabled={status === "loading" || status === "paying"}
+              onUnlocked={() => {
+                setHasEntitlement(true);
+                setMessage("Доступ открыт за кредиты. Теперь можно получить разбор.");
+              }}
+            />
+          )}
         </div>
       )}
 

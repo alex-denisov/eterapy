@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Download, LockKeyhole, Save, Trash2, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreditSpendButton } from "@/components/products/credit-spend-button";
 
 type PerspectivesResult = {
   id: string;
@@ -196,6 +197,17 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
           <LockKeyhole className="size-4" aria-hidden="true" />
           {result?.resultText ? "Обновить ракурсы" : status === "paying" ? "Открываем оплату..." : "Получить 4 ракурса"}
         </Button>
+        {!hasEntitlement && (
+          <CreditSpendButton
+            productKey="perspectives"
+            creditCost={2}
+            disabled={status === "loading" || status === "paying"}
+            onUnlocked={() => {
+              setHasEntitlement(true);
+              setMessage("Доступ открыт за кредиты. Теперь можно получить 4 ракурса.");
+            }}
+          />
+        )}
         {result?.resultText && (
           <>
             <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost">

@@ -22,11 +22,11 @@ describe("M21 clarity credits", () => {
   });
 
   it("keeps product credit costs server-side", () => {
-    expect(getProductCreditCost("perspectives")).toBe(1);
-    expect(getProductCreditCost("deep-report")).toBe(2);
-    expect(getProductCreditCost("chat-analysis")).toBe(3);
-    expect(getProductCreditCost("compatibility")).toBe(3);
-    expect(getProductCreditCost("seven-days")).toBe(4);
+    expect(getProductCreditCost("perspectives")).toBe(2);
+    expect(getProductCreditCost("deep-report")).toBe(4);
+    expect(getProductCreditCost("chat-analysis")).toBe(2);
+    expect(getProductCreditCost("compatibility")).toBe(4);
+    expect(getProductCreditCost("seven-days")).toBe(8);
   });
 
   it("gates credit spending through an authenticated entitlement API", () => {

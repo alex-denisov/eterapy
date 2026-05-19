@@ -26,9 +26,9 @@ describe("v5 pricing page", () => {
     expect(combined).toContain("Первичный");
     expect(combined).toContain("4 ракурса ответа");
     expect(combined).toContain("299 ₽");
-    // Plus: 499 per month / 4990 per year
-    expect(combined).toContain("499");
-    expect(combined).toContain("4990");
+    // Plus: 490 per month / 4900 per year in v4.2
+    expect(combined).toContain("490");
+    expect(combined).toContain("4900");
     expect(combined).toContain("Без скидок на встречи со специалистами");
     // Premium: 1290 per month / 12900 per year
     expect(combined).toContain("1290");

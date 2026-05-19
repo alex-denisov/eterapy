@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Pause, Play, Download, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreditSpendButton } from "@/components/products/credit-spend-button";
 
 type ClarityRoute = {
   id: string;
@@ -169,6 +170,19 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
             <LockKeyhole className="size-4" aria-hidden="true" />
             {status === "paying" ? "Открываем оплату..." : "Начать маршрут"}
           </Button>
+          {!hasEntitlement && (
+            <div className="mt-3">
+              <CreditSpendButton
+                productKey="seven-days"
+                creditCost={8}
+                disabled={status === "loading" || status === "paying"}
+                onUnlocked={() => {
+                  setHasEntitlement(true);
+                  setMessage("Доступ открыт за кредиты. Теперь можно начать маршрут.");
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 

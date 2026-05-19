@@ -29,6 +29,7 @@ describe("v5 product pages", () => {
     expect(indexPage).toContain('data-testid="products-page"');
     expect(indexPage).toContain('href="/checkin"');
     expect(detailPage).toContain('data-testid="product-dialogue-cta"');
+    expect(detailPage).toContain('data-testid="product-my-map-preview"');
     expect(detailPage).toContain('href="/checkin"');
     expect(indexPage).not.toContain('href="/practitioners"');
     expect(detailPage).not.toContain('href="/practitioners"');
@@ -43,6 +44,8 @@ describe("v5 product pages", () => {
     expect(products).toContain("пауза и продолжение");
     expect(products).toContain("сохранить, скрыть или удалить");
     expect(products).toContain("открытие через entitlement");
+    expect(products).toContain("или -4 кредита ясности");
+    expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");
   });
 
   it("links public shell product navigation to durable product pages", () => {

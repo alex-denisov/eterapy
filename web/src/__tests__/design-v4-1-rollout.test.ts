@@ -45,12 +45,12 @@ describe("design v4.2 rollout", () => {
     expect(catalog).toContain("Практика ясности");
     expect(catalog).toContain("soft-service-card");
     expect(catalog).not.toContain("var(--paper-card)");
-    expect(pricing).toContain("499");
+    expect(pricing).toContain("490");
     expect(pricing).toContain("Без скидок на встречи со специалистами");
     expect(catalog).toContain("590 ₽");
     expect(catalog).toContain("390–1 490 ₽");
     expect(catalog).toContain("от 4 500 ₽");
-    expect(products).toContain("790 ₽");
+    expect(products).toContain("590–990 ₽");
   });
 
   it("adds the v4.2 growth loop section to the landing", () => {

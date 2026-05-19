@@ -105,6 +105,27 @@ function ProductPreview({ product }: { product: V5Product }) {
     );
   }
 
+  if (product.slug === "my-map") {
+    return (
+      <div className="soft-card soft-product-preview" data-testid="product-my-map-preview">
+        <div className="soft-map-preview-grid">
+          {["Отношения", "Работа", "Границы", "Семья", "Пауза", "Выбор", "Тело", "Голос"].map((topic, index) => (
+            <div key={topic} className={`soft-map-preview-tile soft-map-preview-tile-${(index % 4) + 1}`}>
+              {topic}
+            </div>
+          ))}
+        </div>
+        <div className="soft-card-flat mt-5 p-5">
+          <p className="soft-eyebrow">пример вывода</p>
+          <h3 className="soft-h3 mt-2">Карта замечает повторяющиеся темы и собирает их без публичности.</h3>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Можно сохранить результат, скрыть его, удалить, экспортировать или поделиться обезличенным фрагментом.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="soft-card soft-product-preview" data-testid="product-report-preview">
       <div className="soft-report-index">
@@ -176,10 +197,13 @@ export default async function ProductPage({
           </div>
           <p className="soft-eyebrow mt-5">цена</p>
           <p className="mt-2 font-heading text-5xl font-semibold text-[var(--soft-bordeaux)]">{product.price}</p>
+          {product.creditPrice && (
+            <p className="mt-2 text-sm font-semibold text-[var(--soft-terracotta-dark)]">{product.creditPrice}</p>
+          )}
           <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.privacy}</p>
           <div className="mt-5 flex items-start gap-2 rounded-2xl bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]">
             <LockKeyhole className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-            <span>Доступ открывается только через entitlement после успешной оплаты, подписки или разрешенного trial.</span>
+            <span>Доступ открывается только через entitlement после успешной оплаты, кредитов ясности, подписки или разрешенного trial.</span>
           </div>
         </aside>
       </section>

@@ -843,6 +843,13 @@
     transform: translateX(2px);
   }
 
+  .soft-credit-spend {
+    display: inline-flex;
+    min-width: min(100%, 13rem);
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .soft-safe-step-card {
     border-color: var(--soft-terracotta);
     background: linear-gradient(140deg, #fffcf5, #f4d9c1);
@@ -1029,6 +1036,41 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
+  }
+
+  .soft-map-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .soft-map-preview-tile {
+    display: grid;
+    min-height: 4.4rem;
+    place-items: center;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-sm);
+    padding: 0.55rem;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-map-preview-tile-1 {
+    background: var(--soft-apricot);
+  }
+
+  .soft-map-preview-tile-2 {
+    background: var(--soft-rose);
+  }
+
+  .soft-map-preview-tile-3 {
+    background: var(--soft-lilac-soft);
+  }
+
+  .soft-map-preview-tile-4 {
+    background: var(--soft-sage-soft);
   }
 
   .soft-angle-tile {
@@ -1463,6 +1505,10 @@
     .soft-products-grid,
     .soft-public-grid,
     .soft-public-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .soft-map-preview-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 

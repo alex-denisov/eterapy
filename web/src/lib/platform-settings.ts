@@ -23,13 +23,13 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // Цены цифровых продуктов (копейки/рубли)
   "product.perspectives.price":   "299",
   "product.deep-report.price":    "590",
-  "product.chat-analysis.price":  "299",
+  "product.chat-analysis.price":  "390",
   "product.seven-days.price":     "990",
   "product.circle.price":         "790",
   "product.pair.price":           "790",
 
   // Подписки (v5)
-  "subscription.plus.price":      "499",
+  "subscription.plus.price":      "490",
   "subscription.premium.price":   "1290",
   "subscription.pro.price":       "1490",
 };

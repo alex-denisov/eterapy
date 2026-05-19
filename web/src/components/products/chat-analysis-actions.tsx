@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Download, EyeOff, FileImage, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CreditSpendButton } from "@/components/products/credit-spend-button";
 
 type ChatAnalysisResult = {
   id: string;
@@ -285,6 +286,19 @@ export function ChatAnalysisActions() {
             <LockKeyhole className="size-4" aria-hidden="true" />
             {status === "paying" ? "Открываем оплату..." : "Получить полный разбор"}
           </Button>
+          {!hasEntitlement && (
+            <div className="mt-3">
+              <CreditSpendButton
+                productKey="chat-analysis"
+                creditCost={2}
+                disabled={status === "loading" || status === "paying"}
+                onUnlocked={() => {
+                  setHasEntitlement(true);
+                  setMessage("Доступ открыт за кредиты. Теперь можно получить полный разбор.");
+                }}
+              />
+            </div>
+          )}
         </>
       )}
 
