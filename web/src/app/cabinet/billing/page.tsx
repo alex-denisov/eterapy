@@ -445,7 +445,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      <div className="soft-card p-6" data-testid="client-clarity-credits">
+      <div className="soft-card p-6" id="credits" data-testid="client-clarity-credits">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="soft-eyebrow mb-3">кредиты ясности</div>
@@ -455,8 +455,24 @@ export default function BillingPage() {
             <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
               Кредиты можно тратить на углубления без отдельной оплаты. Начисления и списания остаются в отдельном журнале.
             </p>
+            <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-faint)" }}>
+              Кредиты не выводятся деньгами и не применяются к встречам со специалистами: работа живых людей оплачивается по полной ставке.
+            </p>
           </div>
           <Link href={mainUrl("/products")} className="soft-chip shrink-0">К продуктам →</Link>
+        </div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-4" data-testid="client-credit-spend-options">
+          {[
+            ["2", "4 ракурса", "/products/perspectives"],
+            ["4", "Глубокий отчёт", "/products/deep-report"],
+            ["2", "Разбор переписки Start", "/products/chat-analysis"],
+            ["8", "7 дней к ясности", "/products/seven-days"],
+          ].map(([cost, label, href]) => (
+            <Link key={label} href={mainUrl(href)} className="soft-card-flat p-3 text-sm">
+              <span className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">-{cost}</span>
+              <span className="ml-2 text-[var(--soft-ink-soft)]">{label}</span>
+            </Link>
+          ))}
         </div>
         {clarityCredits.length > 0 && (
           <div className="mt-5 space-y-0" data-testid="client-clarity-credit-ledger">

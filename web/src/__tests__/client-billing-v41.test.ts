@@ -16,6 +16,8 @@ describe("B206 client billing v4.1 cabinet", () => {
     expect(page).toContain('data-testid="client-billing-subscription"');
     expect(page).toContain('data-testid="client-clarity-credits"');
     expect(page).toContain('data-testid="client-clarity-credit-ledger"');
+    expect(page).toContain('data-testid="client-credit-spend-options"');
+    expect(page).toContain("Кредиты не выводятся деньгами");
     expect(page).toContain('data-testid="client-saved-cards"');
     expect(page).toContain('data-testid="client-open-entitlements"');
     expect(page).toContain('data-testid="client-billing-history"');

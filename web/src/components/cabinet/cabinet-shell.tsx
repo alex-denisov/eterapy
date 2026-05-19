@@ -7,6 +7,7 @@ import {
   Users,
   CalendarDays,
   Compass,
+  Sparkles,
   MessageCircle,
   History,
   Wallet,
@@ -32,6 +33,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet/action-history"), icon: Compass, label: "Моя карта" },
   { href: appUrl("/cabinet/questions"), icon: History, label: "История разборов" },
   { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Записи" },
+  { href: appUrl("/cabinet/billing#credits"), icon: Sparkles, label: "Кредиты ясности" },
   { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Подписка и оплата" },
   { href: appUrl("/cabinet/settings"), icon: Settings, label: "Настройки" },
 ];
