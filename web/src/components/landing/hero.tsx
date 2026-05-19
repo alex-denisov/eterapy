@@ -54,9 +54,13 @@ export function HeroSection() {
             Короткий, тёплый диалог помогает добраться до сути: что на самом
             деле тревожит, какие варианты есть и какой ближайший шаг возможен.
           </p>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-[var(--soft-ink-faint)]">
+            Сначала вы получаете бесплатное отражение. Если захочется глубже,
+            мы покажем один рекомендуемый формат и спокойные альтернативы.
+          </p>
         </div>
 
-        <div className="soft-halo-stage mt-10">
+        <div className="soft-halo-stage soft-halo-stage-compact mt-8">
           <div className="soft-ask-card" data-testid="v5-question-entry">
             <div className="mb-3 flex items-center gap-2">
               <SoftHaloMark size={14} />

@@ -31,11 +31,26 @@ describe("v5 public home page", () => {
     expect(hero).toContain("<SoftHaloMark");
     expect(hero).toContain("soft-ask-card");
     expect(hero).toContain("soft-question-input");
-    expect(page).toContain('data-ui-version="design-v4-soft-clarity"');
+    expect(page).toContain('data-ui-version="design-v4-2-soft-clarity"');
     expect(hero).not.toContain("HaloVisual");
     expect(hero).not.toContain("premium-shell");
     expect(hero).not.toContain("next/image");
     expect(hero).not.toContain("brandAssets.icons");
+  });
+
+  it("makes v4.2 free-to-paid sequencing explicit without a direct paywall", () => {
+    const hero = source("components/landing/hero.tsx");
+    const catalog = source("components/landing/ai-tools.tsx");
+    const services = source("components/products/service-catalog.tsx");
+
+    expect(hero).toContain("Сначала вы получаете бесплатное отражение");
+    expect(hero).toContain("soft-halo-stage-compact");
+    expect(catalog).toContain("После бесплатного разбора");
+    expect(catalog).toContain("один рекомендуемый продукт");
+    expect(services).toContain('href: "/checkin"');
+    expect(services).toContain("Начать бесплатно");
+    expect(services).toContain("от 4 500 ₽");
+    expect(services).not.toContain('href: "/products/primary-answer"');
   });
 
   it("keeps home analytics hooks explicit and stable", () => {

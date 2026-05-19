@@ -18,7 +18,7 @@ export default async function Home() {
   await auth();
 
   return (
-    <div className="soft-clarity-page" data-ui-version="design-v4-soft-clarity">
+    <div className="soft-clarity-page" data-ui-version="design-v4-2-soft-clarity">
       <PublicJsonLd route="/" />
       <HomeAnalytics />
       <HeroSection />

@@ -9,8 +9,8 @@ function source(relativePath: string) {
   return fs.readFileSync(path.join(srcRoot, relativePath), "utf8");
 }
 
-describe("design v4.1 rollout", () => {
-  it("exposes the v4.1 growth routes in SEO and public navigation", () => {
+describe("design v4.2 rollout", () => {
+  it("exposes the v4.2 growth routes in SEO and public navigation", () => {
     for (const route of ["/missions", "/circle", "/pair", "/telegram"] as const) {
       expect(publicSeoRoutes).toContain(route);
       expect(publicPageSeo[route].title).toContain("ETerapy");
@@ -19,13 +19,13 @@ describe("design v4.1 rollout", () => {
     const header = source("components/header.tsx");
     const footer = source("components/footer.tsx");
 
-    expect(header).toContain('label: "Миссии"');
+    expect(header).toContain('label: "Практика"');
     expect(footer).toContain('mainUrl("/circle")');
     expect(footer).toContain('mainUrl("/pair")');
     expect(footer).toContain('mainUrl("/telegram")');
   });
 
-  it("keeps the v4.1 logo as the only active app icon shape", () => {
+  it("keeps the v4.2 logo as the only active app icon shape", () => {
     const appIcon = source("app/icon.svg");
     const publicIcon = fs.readFileSync(path.join(process.cwd(), "public/icon.svg"), "utf8");
 
@@ -35,7 +35,7 @@ describe("design v4.1 rollout", () => {
     expect(publicIcon).not.toContain("<path");
   });
 
-  it("aligns service cards and prices with the v4.1 product economics", () => {
+  it("aligns service cards and prices with the v4.2 product economics", () => {
     const catalog = source("components/products/service-catalog.tsx");
     const pricing = source("app/pricing/pricing-plans.tsx");
     const products = source("lib/v5-products.ts");
@@ -47,12 +47,13 @@ describe("design v4.1 rollout", () => {
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("499");
     expect(pricing).toContain("Без скидок на встречи со специалистами");
-    expect(products).toContain("490–990 ₽");
-    expect(products).toContain("299–1 290 ₽");
+    expect(catalog).toContain("590 ₽");
+    expect(catalog).toContain("390–1 490 ₽");
+    expect(catalog).toContain("от 4 500 ₽");
     expect(products).toContain("790 ₽");
   });
 
-  it("adds the v4.1 growth loop section to the landing", () => {
+  it("adds the v4.2 growth loop section to the landing", () => {
     const home = source("app/page.tsx");
     const growth = source("components/landing/growth-formats.tsx");
 
@@ -63,7 +64,7 @@ describe("design v4.1 rollout", () => {
     expect(growth).toContain("Практика ясности");
   });
 
-  it("keeps specialist and cabinet surfaces inside the v4.1 shell", () => {
+  it("keeps specialist and cabinet surfaces inside the v4.2 shell", () => {
     const specialists = source("app/practitioners/page.tsx");
     const grid = source("app/practitioners/practitioners-grid.tsx");
     const shell = source("components/cabinet/cabinet-shell.tsx");

@@ -453,6 +453,10 @@
     place-items: center;
   }
 
+  .soft-halo-stage-compact {
+    min-height: 16.5rem;
+  }
+
   .soft-halo-stage::before {
     content: "";
     position: absolute;
