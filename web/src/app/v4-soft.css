@@ -301,10 +301,74 @@
     color: var(--soft-bordeaux) !important;
   }
 
+  .soft-user-pill,
+  .soft-user-icon {
+    min-height: 2.5rem;
+    align-items: center;
+    border: 1px solid var(--soft-paper-edge);
+    background: var(--soft-paper-card);
+    color: var(--soft-ink-soft);
+    box-shadow: var(--soft-shadow-sm);
+    transition:
+      border-color var(--motion-base) var(--ease-soft),
+      color var(--motion-base) var(--ease-soft),
+      background var(--motion-base) var(--ease-soft);
+  }
+
+  .soft-user-pill {
+    display: inline-flex;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .soft-user-icon {
+    display: inline-flex;
+    min-width: 2.5rem;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 0.55rem;
+  }
+
+  .soft-user-pill:hover,
+  .soft-user-icon:hover {
+    border-color: var(--soft-terracotta);
+    color: var(--soft-bordeaux);
+    background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
+  }
+
+  .soft-dot-badge {
+    position: absolute;
+    right: -0.25rem;
+    top: -0.25rem;
+    display: grid;
+    min-width: 1rem;
+    height: 1rem;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--soft-terracotta-dark);
+    color: #fff8f1;
+    font-size: 0.625rem;
+    font-weight: 700;
+  }
+
+  .soft-user-menu {
+    border-radius: var(--soft-radius-lg);
+    border: 1px solid var(--soft-paper-edge);
+    background: color-mix(in srgb, var(--soft-paper-card) 96%, white);
+    box-shadow: var(--soft-shadow-lg);
+    backdrop-filter: blur(18px);
+  }
+
   .soft-footer {
     border-top: 1px solid var(--soft-paper-edge) !important;
     background: var(--soft-paper) !important;
     color: var(--soft-ink-soft) !important;
+  }
+
+  .soft-footer-columns {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   }
 
   .soft-footer h4,
@@ -1298,6 +1362,7 @@
     border-color: var(--soft-paper-edge) !important;
     background: var(--soft-paper-card) !important;
     color: var(--soft-ink-soft) !important;
+    border-radius: 999px !important;
   }
 
   .soft-app-shell .soft-notification-trigger:hover,

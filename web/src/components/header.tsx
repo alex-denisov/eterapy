@@ -8,14 +8,26 @@ import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
-import { Wallet, HelpCircle } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  CircleHelp,
+  Compass,
+  CreditCard,
+  Heart,
+  LayoutDashboard,
+  LogOut,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
 const GUEST_NAV = [
   { href: "/how-it-works", label: "Как работает" },
   { href: "/library", label: "Библиотека" },
   { href: "/practitioners", label: "Специалисты" },
-  { href: "/missions", label: "Миссии" },
+  { href: "/practice", label: "Практика" },
   { href: "/pricing", label: "Тарифы" },
 ];
 
@@ -45,6 +57,32 @@ function useBalance(userId: string | null | undefined) {
   return userId ? balanceKopecks : 0;
 }
 
+function useClarityCreditBalance(userId: string | null | undefined) {
+  const [credits, setCredits] = useState(0);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/billing/transactions")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled) return;
+        const balance = Array.isArray(d?.clarityCredits)
+          ? d.clarityCredits
+              .filter((entry: { status?: string }) => entry.status === "confirmed")
+              .reduce((sum: number, entry: { amount?: number }) => sum + (entry.amount ?? 0), 0)
+          : 0;
+        setCredits(Math.max(0, balance));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  return userId ? credits : 0;
+}
+
 function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; balanceKopecks: number }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -57,21 +95,29 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
   const rub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
   const menuItems = role === "PRACTITIONER" ? [
-    { href: appUrl("/cabinet/practitioner"), label: "Мой кабинет" },
-    { href: appUrl("/cabinet/practitioner/schedule"), label: "Расписание" },
-    { href: appUrl("/cabinet/settings"), label: "Настройки" },
+    { href: appUrl("/cabinet/practitioner"), label: "Главная специалиста", icon: LayoutDashboard },
+    { href: appUrl("/cabinet/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
+    { href: appUrl("/cabinet/practitioner/requests"), label: "Заявки", icon: BookOpen },
+    { href: appUrl("/cabinet/practitioner/earnings"), label: "Выплаты", icon: CreditCard },
+    { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },
   ] : role === "SUPERADMIN" ? [
-    { href: adminUrl("/admin"), label: "Панель управления" },
-    { href: adminUrl("/admin/metrics"), label: "Метрики" },
-    { href: adminUrl("/admin/pricing"), label: "Цены и тарифы" },
-    { href: adminUrl("/admin/settings"), label: "Настройки" },
+    { href: adminUrl("/admin"), label: "Панель управления", icon: LayoutDashboard },
+    { href: adminUrl("/admin/metrics"), label: "Метрики", icon: Compass },
+    { href: adminUrl("/admin/pricing"), label: "Цены и тарифы", icon: CreditCard },
+    { href: adminUrl("/admin/ai"), label: "AI и маршрутизация", icon: Sparkles },
+    { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : role === "ADMIN" ? [
-    { href: adminUrl("/admin"), label: "Панель администратора" },
-    { href: adminUrl("/admin/settings"), label: "Настройки" },
+    { href: adminUrl("/admin"), label: "Панель администратора", icon: LayoutDashboard },
+    { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
-    { href: appUrl("/cabinet"), label: "Кабинет" },
-    { href: appUrl("/cabinet/billing"), label: "Оплата и тарифы" },
-    { href: appUrl("/cabinet/settings"), label: "Настройки и безопасность" },
+    { href: appUrl("/cabinet"), label: "Главная кабинета", icon: LayoutDashboard },
+    { href: appUrl("/cabinet/map"), label: "Моя карта", icon: Compass },
+    { href: appUrl("/cabinet/action-history"), label: "История разборов", icon: BookOpen },
+    { href: appUrl("/cabinet/billing"), label: "Кредиты ясности", icon: Sparkles },
+    { href: mainUrl("/practice"), label: "Задания практики", icon: Heart },
+    { href: appUrl("/cabinet/bookings"), label: "Мои записи", icon: CalendarDays },
+    { href: appUrl("/cabinet/billing"), label: "Подписка и оплата", icon: CreditCard },
+    { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },
   ];
 
   const allItems = [...menuItems, { href: "#signout", label: "Выйти из аккаунта" } as const];
@@ -147,13 +193,13 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Меню пользователя"
-        className="flex items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)]"
+        className="soft-user-pill"
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-xs font-bold text-[var(--soft-bordeaux)]">
           {name.charAt(0).toUpperCase()}
         </span>
         <span className="hidden md:block">{name}</span>
-        <span className="text-xs text-muted-foreground/60" aria-hidden="true">{open ? "▲" : "▼"}</span>
+        <ChevronDown className={cn("size-3.5 text-[var(--soft-ink-faint)] transition-transform", open && "rotate-180")} aria-hidden="true" />
       </button>
 
       {open && (
@@ -162,30 +208,41 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
           role="menu"
           aria-orientation="vertical"
           aria-labelledby="user-menu"
-          className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink)] shadow-[var(--soft-shadow-lg)] outline-none backdrop-blur-xl"
+          className="soft-user-menu absolute right-0 top-full z-50 mt-2 min-w-[260px] text-[var(--soft-ink)] outline-none"
         >
           <div className="border-b border-[var(--soft-paper-edge)] px-4 py-3">
-            <p className="text-sm font-medium">{session.user?.name}</p>
-            <p className="text-xs text-[var(--soft-ink-faint)]">{session.user?.email}</p>
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(140deg,#E8C4B8,#F4D5C8)] text-sm font-bold text-[var(--soft-bordeaux)]">
+                {name.charAt(0).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{session.user?.name ?? name}</p>
+                <p className="truncate text-xs text-[var(--soft-ink-faint)]">{session.user?.email}</p>
+              </div>
+            </div>
             <p className="mt-1 flex items-center gap-1 text-xs text-[var(--soft-terracotta-dark)]">
-              <Wallet className="size-3" aria-hidden="true" />
+              <CreditCard className="size-3" aria-hidden="true" />
               {rub} ₽
             </p>
           </div>
           <div className="py-1">
-            {menuItems.map((item, i) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                role="menuitem"
-                tabIndex={focusedIndex === i ? 0 : -1}
-                onClick={() => closeAndFocus()}
-                onFocus={() => setFocusedIndex(i)}
-                className="block min-h-[44px] px-4 py-2.5 text-sm text-[var(--soft-ink-soft)] outline-none transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] focus:bg-[var(--soft-paper-deep)] focus:text-[var(--soft-bordeaux)]"
-              >
-                {item.label}
-              </Link>
-            ))}
+            {menuItems.map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  role="menuitem"
+                  tabIndex={focusedIndex === i ? 0 : -1}
+                  onClick={() => closeAndFocus()}
+                  onFocus={() => setFocusedIndex(i)}
+                  className="flex min-h-11 items-center gap-2.5 px-4 py-2.5 text-sm text-[var(--soft-ink-soft)] outline-none transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] focus:bg-[var(--soft-paper-deep)] focus:text-[var(--soft-bordeaux)]"
+                >
+                  <Icon className="size-4 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+                  {item.label}
+                </Link>
+              );
+            })}
           </div>
           <div className="border-t border-[var(--soft-paper-edge)] py-1">
             <button
@@ -193,8 +250,9 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
               tabIndex={focusedIndex === allItems.length - 1 ? 0 : -1}
               onClick={() => { closeAndFocus(); window.location.href = logoutUrl(); }}
               onFocus={() => setFocusedIndex(allItems.length - 1)}
-              className="w-full min-h-[44px] px-4 py-2.5 text-left text-sm text-[var(--soft-ink-soft)] outline-none transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] focus:bg-[var(--soft-paper-deep)] focus:text-[var(--soft-bordeaux)]"
+              className="flex w-full min-h-11 items-center gap-2.5 px-4 py-2.5 text-left text-sm text-[var(--soft-ink-soft)] outline-none transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] focus:bg-[var(--soft-paper-deep)] focus:text-[var(--soft-bordeaux)]"
             >
+              <LogOut className="size-4 text-[var(--soft-ink-faint)]" aria-hidden="true" />
               Выйти из аккаунта
             </button>
           </div>
@@ -213,6 +271,7 @@ export function Header() {
   const cabinetPathname = toCabinetPathname(pathname);
   const isAuthenticated = mounted && status === "authenticated" && !!session;
   const balanceKopecks = useBalance(session?.user?.id ?? null);
+  const clarityCredits = useClarityCreditBalance(session?.user?.id ?? null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -238,7 +297,6 @@ export function Header() {
   const showPublicNav = !isAppArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 
-  const balanceRub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
   const softPublicHeader = !isAdminArea;
   const cabinetHref = session?.user?.role === "PRACTITIONER"
     ? appUrl("/cabinet/practitioner")
@@ -286,18 +344,18 @@ export function Header() {
                 <>
                   <Link
                     href={appUrl("/cabinet/billing")}
-                    aria-label={`Баланс: ${balanceRub} ₽. Открыть раздел пополнения`}
-                    className="hidden min-h-10 items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm font-medium text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)] sm:flex"
+                    aria-label={`Кредиты ясности: ${clarityCredits}. Открыть раздел оплаты и кредитов`}
+                    className="soft-user-pill hidden sm:flex"
                   >
-                    <Wallet className="h-4 w-4" />
-                    <span className="tabular-nums">{balanceRub} ₽</span>
+                    <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" />
+                    <span className="tabular-nums font-semibold">{clarityCredits}</span>
                   </Link>
                   <Link
                     href={appUrl("/help")}
                     aria-label="Помощь"
-                    className="flex min-h-10 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm font-medium text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)]"
+                    className="soft-user-icon"
                   >
-                    <HelpCircle className="h-4 w-4" />
+                    <CircleHelp className="size-4" />
                   </Link>
                   <NotificationBell variant="header" />
                   <UserMenu session={session} balanceKopecks={balanceKopecks} />
@@ -376,8 +434,8 @@ export function Header() {
                   Помощь
                 </Link>
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-primary">
-                  <Wallet className="size-4" aria-hidden="true" />
-                  {balanceRub} ₽
+                  <Sparkles className="size-4" aria-hidden="true" />
+                  {clarityCredits} кредитов
                 </div>
                 <Link href={cabinetHref} onClick={() => setMobileOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">

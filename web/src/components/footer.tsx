@@ -8,6 +8,66 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
   const mutedCls = cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]");
   const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
+  const columns = [
+    {
+      title: "Бесплатно",
+      links: [
+        [mainUrl("/checkin"), "Первичный разбор"],
+        [mainUrl("/library"), "Библиотека вопросов"],
+        [mainUrl("/practice"), "Практика ясности"],
+        [mainUrl("/circle"), "Круг ясности"],
+        [mainUrl("/pair"), "Разобраться вдвоём"],
+      ],
+    },
+    {
+      title: "Психология",
+      links: [
+        [mainUrl("/products/perspectives"), "4 ракурса"],
+        [mainUrl("/products/deep-report"), "Глубокий отчёт"],
+        [mainUrl("/products/chat-analysis"), "Разбор переписки"],
+        [mainUrl("/products/compatibility"), "Совместимость"],
+        [mainUrl("/products/seven-days"), "7 дней к ясности"],
+      ],
+    },
+    {
+      title: "Эзотерика",
+      links: [
+        [mainUrl("/tarot"), "Таро · скоро"],
+        [mainUrl("/astro"), "Астрология · скоро"],
+        [mainUrl("/numerology"), "Нумерология · скоро"],
+        [mainUrl("/products/my-map"), "Расширенная карта"],
+      ],
+    },
+    {
+      title: "Социальное и обучение",
+      links: [
+        [mainUrl("/practitioners"), "Специалисты"],
+        [mainUrl("/practitioners/apply"), "Стать специалистом"],
+        [mainUrl("/telegram"), "Telegram"],
+        [mainUrl("/missions"), "Миссии"],
+      ],
+    },
+    {
+      title: "Платформа",
+      links: [
+        [mainUrl("/products"), "Все форматы"],
+        [mainUrl("/pricing"), "Тарифы"],
+        [mainUrl("/how-it-works"), "Как работает"],
+        [mainUrl("/about"), "О проекте"],
+      ],
+    },
+    {
+      title: "Помощь",
+      links: [
+        [mainUrl("/help"), "Поддержка и FAQ"],
+        [mainUrl("/legal/privacy"), "Приватность"],
+        [mainUrl("/legal/cookies"), "Cookies"],
+        [mainUrl("/legal/disclaimer"), "Дисклеймер"],
+        [mainUrl("/legal/ethics"), "Этический кодекс"],
+        [mainUrl("/legal/offer"), "Договор-оферта"],
+      ],
+    },
+  ];
 
   return (
     <footer
@@ -15,52 +75,20 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       className={cn("border-t border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]", soft && "soft-footer")}
     >
       <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
           <BrandLogo height={34} theme={soft ? "light" : "dark"} />
 
-          <div className="grid gap-x-10 gap-y-5 text-sm sm:grid-cols-3">
-            <div>
-              <p className={titleCls}>Продукты</p>
-              <ul className={mutedCls}>
-                <li><Link href={mainUrl("/products")} className={linkCls}>Все форматы</Link></li>
-                <li><Link href={mainUrl("/checkin")} className={linkCls}>Диалог ясности</Link></li>
-                <li><Link href={mainUrl("/products/perspectives")} className={linkCls}>4 ракурса</Link></li>
-                <li><Link href={mainUrl("/products/chat-analysis")} className={linkCls}>Разбор переписки</Link></li>
-                <li><Link href={mainUrl("/products/seven-days")} className={linkCls}>7 дней к ясности</Link></li>
-                <li><Link href={mainUrl("/circle")} className={linkCls}>Круг ясности</Link></li>
-                <li><Link href={mainUrl("/pair")} className={linkCls}>Разобраться вдвоём</Link></li>
-                <li><Link href={mainUrl("/missions")} className={linkCls}>Практика ясности</Link></li>
-                <li><Link href={mainUrl("/telegram")} className={linkCls}>В Telegram</Link></li>
-                <li><Link href={mainUrl("/pricing")} className={linkCls}>Тарифы</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <p className={titleCls}>Направления</p>
-              <ul className={mutedCls}>
-                <li><Link href={mainUrl("/practitioners")} className={linkCls}>Психология и коучинг</Link></li>
-                <li><Link href={mainUrl("/tarot")} className={linkCls}>Таро · скоро</Link></li>
-                <li><Link href={mainUrl("/astro")} className={linkCls}>Астрология · скоро</Link></li>
-                <li><Link href={mainUrl("/numerology")} className={linkCls}>Нумерология · скоро</Link></li>
-                <li><Link href={mainUrl("/practitioners")} className={linkCls}>Совместная сессия · пилот</Link></li>
-                <li><Link href={mainUrl("/products/my-map")} className={linkCls}>Моя карта</Link></li>
-                <li><Link href={mainUrl("/library")} className={linkCls}>Библиотека вопросов</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <p className={titleCls}>Помощь</p>
-              <ul className={mutedCls}>
-                <li><Link href={mainUrl("/help")} className={linkCls}>Поддержка и FAQ</Link></li>
-                <li><Link href={mainUrl("/legal/privacy")} className={linkCls}>Приватность</Link></li>
-                <li><Link href={mainUrl("/legal/cookies")} className={linkCls}>Cookies</Link></li>
-                <li><Link href={mainUrl("/legal/disclaimer")} className={linkCls}>Дисклеймер</Link></li>
-                <li><Link href={mainUrl("/legal/ethics")} className={linkCls}>Этический кодекс</Link></li>
-                <li><Link href={mainUrl("/legal/offer")} className={linkCls}>Договор-оферта</Link></li>
-                <li><Link href={mainUrl("/practitioners/apply")} className={linkCls}>Стать специалистом</Link></li>
-                <li><Link href={mainUrl("/about")} className={linkCls}>О проекте</Link></li>
-              </ul>
-            </div>
+          <div className="soft-footer-columns grid flex-1 gap-x-8 gap-y-6 text-sm">
+            {columns.map((column) => (
+              <div key={column.title}>
+                <p className={titleCls}>{column.title}</p>
+                <ul className={mutedCls}>
+                  {column.links.map(([href, label]) => (
+                    <li key={href + label}><Link href={href} className={linkCls}>{label}</Link></li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </div>
 
