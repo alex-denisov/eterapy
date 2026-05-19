@@ -4,7 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-describe("B207 practitioner v4.1 cabinet", () => {
+describe("B207/B229 practitioner v4.2 cabinet", () => {
   it("uses real practitioner payout balance on the dashboard", () => {
     const page = source("src/app/cabinet/practitioner/page.tsx");
 
@@ -36,7 +36,7 @@ describe("B207 practitioner v4.1 cabinet", () => {
     expect(page).not.toContain("будет доступно в следующем обновлении");
   });
 
-  it("keeps cabinet navigation aligned with v4.1 labels", () => {
+  it("keeps cabinet navigation aligned with v4.2 labels", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
     expect(shell).toContain('"История разборов"');

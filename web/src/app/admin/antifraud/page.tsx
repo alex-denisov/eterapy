@@ -22,13 +22,14 @@ export default async function AdminAntifraudPage() {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <div className="premium-eyebrow">Risk operations</div>
-          <h1 className="premium-title mt-3 text-3xl md:text-4xl">Антифрод</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Риск-сигналы, ручная проверка, апелляции и аудит решений.
+          <p className="soft-eyebrow">antifraud · monetization safety</p>
+          <h1 className="soft-h1 mt-2">Риск-сигналы и апелляции</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Защищаем credits, referrals, paid unlocks, practitioner payout holds и доверие в воронке.
+            Награды подтверждаются только после значимого действия, спорные решения остаются на ручной проверке.
           </p>
         </div>
-        <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-muted-foreground">
+        <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-[var(--soft-ink-soft)]">
           Очередь проверки: <span className="font-medium text-foreground">{data.metrics.reviewQueue}</span>
         </div>
       </div>

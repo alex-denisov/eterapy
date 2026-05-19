@@ -40,4 +40,17 @@ describe("B220 admin anti-fraud dashboard", () => {
     expect(panel).toContain("Evidence map");
     expect(panel).toContain("Решено");
   });
+
+  it("keeps the v4.2 antifraud console tied to monetization guardrails", () => {
+    const page = source("src/app/admin/antifraud/page.tsx");
+    const panel = source("src/app/admin/antifraud/admin-antifraud-panel.tsx");
+
+    expect(page).toContain("antifraud · monetization safety");
+    expect(page).toContain("Риск-сигналы и апелляции");
+    expect(page).not.toContain("premium-title");
+    expect(panel).toContain('data-testid="admin-antifraud-v42-guardrails"');
+    expect(panel).toContain("meaningful action");
+    expect(panel).toContain("credit boundary");
+    expect(panel).toContain("practitioner trust");
+  });
 });

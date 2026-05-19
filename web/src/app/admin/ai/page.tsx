@@ -126,9 +126,21 @@ export default async function AdminAIPage() {
 
   return (
     <PageContainer maxWidth="6xl">
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">AI-центр управления</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Провайдеры, ключи, модели, резервная маршрутизация, бюджеты токенов и контроль использования v5</p>
+      <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="soft-eyebrow">llm routing · cost control</p>
+          <h1 className="soft-h1 mt-2">AI-центр управления</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Маршрутизация free, paid, sensitive, speech и compliance-задач по тарифным слоям.
+            Бесплатный вход удерживаем дешёвым, платные отчёты и риск-сценарии ведём через доверенные модели.
+          </p>
+        </div>
+        <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-[var(--soft-ink-soft)]">
+          Активных политик:{" "}
+          <span className="font-medium text-[var(--soft-bordeaux)]">
+            {policies.filter((policy) => policy.enabled).length}
+          </span>
+        </div>
       </div>
       <AIControlCenter
         providers={providers}

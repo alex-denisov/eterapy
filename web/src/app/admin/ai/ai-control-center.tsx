@@ -411,6 +411,33 @@ export function AIControlCenter({
 
   return (
     <div className="space-y-6" data-testid="admin-ai-control-center">
+      <section
+        className="grid gap-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4 md:grid-cols-3"
+        data-testid="admin-ai-v42-guardrails"
+      >
+        <div>
+          <p className="soft-eyebrow">free layer</p>
+          <p className="mt-2 text-sm font-medium">Высокий объём без лишней себестоимости</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Первичный ответ, ежедневная практика и нейтральные уточнения идут через cheap/free routing.
+          </p>
+        </div>
+        <div>
+          <p className="soft-eyebrow">paid layer</p>
+          <p className="mt-2 text-sm font-medium">Платная глубина получает сильную модель</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            4 ракурса, отчёты, переписка, совместные механики и итоговые синтезы не смешиваются с free-пулом.
+          </p>
+        </div>
+        <div>
+          <p className="soft-eyebrow">human boundary</p>
+          <p className="mt-2 text-sm font-medium">Риск и комплаенс не банят автоматически</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Sensitive/compliance слой создаёт evidence и рекомендацию, финальное решение остаётся за модератором.
+          </p>
+        </div>
+      </section>
+
       {message && (
         <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200" data-testid="ai-control-toast">
           {message}

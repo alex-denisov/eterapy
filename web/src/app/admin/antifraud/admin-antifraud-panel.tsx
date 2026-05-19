@@ -94,6 +94,33 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
 
   return (
     <div className="space-y-6">
+      <section
+        className="grid gap-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4 md:grid-cols-3"
+        data-testid="admin-antifraud-v42-guardrails"
+      >
+        <div>
+          <p className="soft-eyebrow">meaningful action</p>
+          <p className="mt-2 text-sm font-medium">Бонусы не за клик, а за завершённый шаг</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Referral и channel-награды проходят pending/hold до первичного разбора, покупки или состоявшейся встречи.
+          </p>
+        </div>
+        <div>
+          <p className="soft-eyebrow">credit boundary</p>
+          <p className="mt-2 text-sm font-medium">Кредиты можно отозвать при fraud</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Ledger хранит source/status, clawback и expiry; живые консультации не превращаются в бесплатный вывод бонусов.
+          </p>
+        </div>
+        <div>
+          <p className="soft-eyebrow">practitioner trust</p>
+          <p className="mt-2 text-sm font-medium">Hold выплат до решения модератора</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Fake booking, external payment, complaints и compliance-флаги видны рядом с evidence и апелляциями.
+          </p>
+        </div>
+      </section>
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
           ["todayEvents", "За 24 часа", AlertTriangle],
