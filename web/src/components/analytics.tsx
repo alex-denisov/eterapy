@@ -7,16 +7,46 @@
 import { useEffect, useState } from "react";
 import Script from "next/script";
 import { getCookieConsent } from "./cookie-banner";
+import { track } from "@/lib/analytics";
 
 const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export function Analytics() {
-  const [consented, setConsented] = useState(false);
+  const [consented, setConsented] = useState(() => (
+    typeof window !== "undefined" && getCookieConsent() === "all"
+  ));
 
   useEffect(() => {
-    if (getCookieConsent() === "all") setConsented(true);
+    function onClick(event: MouseEvent) {
+      const target = event.target instanceof Element
+        ? event.target.closest<HTMLElement>("[data-analytics-event]")
+        : null;
+      if (!target?.dataset.analyticsEvent) return;
 
+      const href = target.getAttribute("href") ?? "";
+      const analyticsTarget = target.dataset.analyticsTarget ?? href;
+      track({
+        event: target.dataset.analyticsEvent,
+        surface: target.dataset.analyticsSurface ?? "global",
+        dialogueId: target.dataset.analyticsDialogueId,
+        properties: {
+          target: analyticsTarget,
+          product: target.dataset.analyticsProduct,
+          ctaRole: target.dataset.analyticsCtaRole,
+          offerId: target.dataset.analyticsOfferId,
+          offerReason: target.dataset.analyticsOfferReason,
+          priceRub: target.dataset.analyticsPriceRub,
+          creditCost: target.dataset.analyticsCreditCost,
+        },
+      });
+    }
+
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
+
+  useEffect(() => {
     function onConsentChange() {
       if (getCookieConsent() === "all") setConsented(true);
     }
@@ -51,6 +81,9 @@ export function Analytics() {
       send(target.dataset.analyticsEvent, {
         surface: target.dataset.analyticsSurface ?? "global",
         target: target.dataset.analyticsTarget ?? target.getAttribute("href") ?? "",
+        product: target.dataset.analyticsProduct ?? "",
+        cta_role: target.dataset.analyticsCtaRole ?? "",
+        offer_id: target.dataset.analyticsOfferId ?? "",
       });
     }
 

@@ -250,8 +250,8 @@ export default async function AdminMetricsPage() {
   const PRODUCT_PRICES_RUB: Record<string, number> = {
     "perspectives": 299,
     "deep-report": 590,
-    "chat-analysis": 299,
-    "compatibility": 790,
+    "chat-analysis": 390,
+    "compatibility": 590,
     "circle": 790,
     "pair": 790,
     "seven-days": 990,
@@ -286,18 +286,34 @@ export default async function AdminMetricsPage() {
     answersGenerated30d,
     answersViewed30d,
     specialistRecommended30d,
+    triagePrimaryClicked30d,
+    triageSecondaryClicked30d,
+    triageSubscriptionClicked30d,
+    creditsSpendClicked30d,
   ] = await Promise.all([
     db.analyticsEvent.count({ where: { event: "dialogue_created", createdAt: { gte: thirtyDaysAgoDate } } }),
     db.analyticsEvent.count({ where: { event: "primary_answer_generated", createdAt: { gte: thirtyDaysAgoDate } } }),
     db.analyticsEvent.count({ where: { event: "primary_answer_viewed", createdAt: { gte: thirtyDaysAgoDate } } }),
     db.analyticsEvent.count({ where: { event: "specialist_recommended", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "triage_primary_clicked", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "triage_secondary_clicked", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "triage_subscription_clicked", createdAt: { gte: thirtyDaysAgoDate } } }),
+    db.analyticsEvent.count({ where: { event: "credits_spend_clicked", createdAt: { gte: thirtyDaysAgoDate } } }),
   ]);
 
   const activationFunnel = [
     { step: "Диалогов создано", value: dialoguesCreated30d, icon: "💬" },
     { step: "Ответов сгенерировано", value: answersGenerated30d, icon: "✦" },
     { step: "Ответов просмотрено", value: answersViewed30d, icon: "👁" },
+    { step: "Основной paid CTA", value: triagePrimaryClicked30d, icon: "→" },
     { step: "Спец. рекомендовано", value: specialistRecommended30d, icon: "🎯" },
+  ];
+
+  const ctaFunnel = [
+    { step: "Основной оффер: 4 ракурса", value: triagePrimaryClicked30d, hint: "triage_primary_clicked" },
+    { step: "Другие paid-форматы", value: triageSecondaryClicked30d, hint: "triage_secondary_clicked" },
+    { step: "Подписка как bundle", value: triageSubscriptionClicked30d, hint: "triage_subscription_clicked" },
+    { step: "Списание кредитов", value: creditsSpendClicked30d, hint: "credits_spend_clicked" },
   ];
 
   const SPECIALTY_LABELS: Record<string, string> = {
@@ -465,6 +481,31 @@ export default async function AdminMetricsPage() {
                 Данные появятся по мере того, как пользователи начнут взаимодействовать с платформой.
               </p>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* v4.2 CTA monetization funnel */}
+      <div className="mb-8" data-testid="admin-cta-monetization-funnel">
+        <Card className="border-border/40 bg-card/50">
+          <CardContent className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-heading text-lg font-semibold">CTA / Triage monetization v4.2</h3>
+              <Badge className="text-xs bg-primary/10 text-primary border-primary/20">one primary CTA</Badge>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {ctaFunnel.map((row) => (
+                <div key={row.hint} className="rounded-lg border border-border/40 bg-card/40 p-4">
+                  <p className="text-xs text-muted-foreground">{row.step}</p>
+                  <p className="mt-1 font-heading text-2xl font-bold text-primary tabular-nums">{row.value.toLocaleString("ru-RU")}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/70">{row.hint}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              Triage-клики пишутся в first-party AnalyticsEvent с product, ctaRole, offerId, offerReason, priceRub и creditCost.
+              Это отделяет главный one-off оффер от вторичных paid-форматов и подписки.
+            </p>
           </CardContent>
         </Card>
       </div>

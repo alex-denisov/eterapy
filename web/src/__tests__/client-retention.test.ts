@@ -150,6 +150,10 @@ describe("M11 client retention surfaces", () => {
 
     expect(analytics).toContain("[data-analytics-event]");
     expect(analytics).toContain("eterapy:analytics");
+    expect(analytics).toContain("track({");
+    expect(analytics).toContain("analyticsDialogueId");
+    expect(analytics).toContain("analyticsOfferReason");
+    expect(analytics).toContain("analyticsCreditCost");
     expect(dashboard).toContain("daily_card_question_clicked");
     expect(dashboard).toContain("daily_card_share_clicked");
     expect(map).toContain("my_map_export_clicked");

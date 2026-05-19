@@ -546,9 +546,16 @@ export default function CheckinPage() {
                 href={`/products/perspectives?dialogueId=${dialogue.id}`}
                 className="soft-card soft-triage-primary mt-3 block p-5"
                 data-testid="triage-primary-cta"
+                data-analytics-surface="checkin_triage"
                 data-analytics-event="triage_primary_clicked"
+                data-analytics-target={`/products/perspectives?dialogueId=${dialogue.id}`}
                 data-analytics-product="perspectives"
                 data-analytics-dialogue-id={dialogue.id}
+                data-analytics-cta-role="primary"
+                data-analytics-offer-id="perspectives_first_paid_step"
+                data-analytics-offer-reason="decision_request_after_free_answer"
+                data-analytics-price-rub="299"
+                data-analytics-credit-cost="2"
               >
                 <span className="soft-triage-ribbon">рекомендуем именно вам</span>
                 <div className="mt-2 flex items-start gap-3">
@@ -583,11 +590,11 @@ export default function CheckinPage() {
               <p className="soft-eyebrow mt-6">другие форматы</p>
               <div className="mt-2 grid gap-2" data-testid="triage-secondary-options">
                 {[
-                  { href: `/products/deep-report?dialogueId=${dialogue.id}`, title: "Глубокий отчёт", price: "590 ₽", credits: "−4 кредита", icon: FileText, product: "deep_report" },
-                  { href: `/products/chat-analysis?dialogueId=${dialogue.id}`, title: "Разбор переписки", price: "от 390 ₽", credits: "−2 кредита", icon: MessageSquareText, product: "chat_analysis" },
-                  { href: `/products/compatibility?dialogueId=${dialogue.id}`, title: "Совместимость", price: "590 ₽", credits: "−4 кредита", icon: Users, product: "compatibility" },
-                  { href: "/products/seven-days", title: "7 дней к ясности", price: "990 ₽", credits: "−8 кредитов", icon: CalendarDays, product: "seven_days" },
-                  { href: "/tarot", title: "Расклад Таро", price: "390 ₽", credits: "−2 кредита", icon: Moon, product: "tarot" },
+                  { href: `/products/deep-report?dialogueId=${dialogue.id}`, title: "Глубокий отчёт", price: "590 ₽", credits: "−4 кредита", priceRub: "590", creditCost: "4", icon: FileText, product: "deep_report", reason: "needs_full_synthesis" },
+                  { href: `/products/chat-analysis?dialogueId=${dialogue.id}`, title: "Разбор переписки", price: "от 390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: MessageSquareText, product: "chat_analysis", reason: "message_context_available" },
+                  { href: `/products/compatibility?dialogueId=${dialogue.id}`, title: "Совместимость", price: "590 ₽", credits: "−4 кредита", priceRub: "590", creditCost: "4", icon: Users, product: "compatibility", reason: "relationship_context" },
+                  { href: "/products/seven-days", title: "7 дней к ясности", price: "990 ₽", credits: "−8 кредитов", priceRub: "990", creditCost: "8", icon: CalendarDays, product: "seven_days", reason: "ongoing_practice" },
+                  { href: "/tarot", title: "Расклад Таро", price: "390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: Moon, product: "tarot", reason: "symbolic_view" },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
@@ -595,8 +602,16 @@ export default function CheckinPage() {
                       key={item.title}
                       href={item.href}
                       className="soft-triage-option"
+                      data-analytics-surface="checkin_triage"
                       data-analytics-event="triage_secondary_clicked"
+                      data-analytics-target={item.href}
                       data-analytics-product={item.product}
+                      data-analytics-dialogue-id={dialogue.id}
+                      data-analytics-cta-role="secondary"
+                      data-analytics-offer-id={`${item.product}_secondary`}
+                      data-analytics-offer-reason={item.reason}
+                      data-analytics-price-rub={item.priceRub}
+                      data-analytics-credit-cost={item.creditCost}
                     >
                       <Icon className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                       <span className="min-w-0 flex-1">
@@ -614,8 +629,15 @@ export default function CheckinPage() {
                       href={`/practitioners/${rec.slug}?dialogueId=${dialogue.id}`}
                       className="soft-triage-option"
                       data-testid="specialist-recommendation"
+                      data-analytics-surface="checkin_triage"
                       data-analytics-event="triage_secondary_clicked"
+                      data-analytics-target={`/practitioners/${rec.slug}?dialogueId=${dialogue.id}`}
                       data-analytics-product="specialist"
+                      data-analytics-dialogue-id={dialogue.id}
+                      data-analytics-cta-role="secondary"
+                      data-analytics-offer-id="specialist_recommendation"
+                      data-analytics-offer-reason="human_continuation_after_context"
+                      data-analytics-price-rub={rec.pricePerSession}
                     >
                       <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                       <span className="min-w-0 flex-1">
@@ -626,7 +648,19 @@ export default function CheckinPage() {
                     </Link>
                   ))
                 ) : (
-                  <Link href={`/practitioners/catalog?dialogueId=${dialogue.id}`} className="soft-triage-option" data-analytics-event="triage_secondary_clicked" data-analytics-product="specialist">
+                  <Link
+                    href={`/practitioners/catalog?dialogueId=${dialogue.id}`}
+                    className="soft-triage-option"
+                    data-analytics-surface="checkin_triage"
+                    data-analytics-event="triage_secondary_clicked"
+                    data-analytics-target={`/practitioners/catalog?dialogueId=${dialogue.id}`}
+                    data-analytics-product="specialist"
+                    data-analytics-dialogue-id={dialogue.id}
+                    data-analytics-cta-role="secondary"
+                    data-analytics-offer-id="specialist_catalog_fallback"
+                    data-analytics-offer-reason="human_continuation_after_context"
+                    data-analytics-price-rub="4500"
+                  >
                     <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-[var(--soft-ink)]">Встреча со специалистом</span>
@@ -648,7 +682,21 @@ export default function CheckinPage() {
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <span className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">490 ₽ / мес</span>
-                  <Link href="/pricing" className="soft-chip" data-analytics-event="triage_subscription_clicked">Сравнить тарифы →</Link>
+                  <Link
+                    href="/pricing"
+                    className="soft-chip"
+                    data-analytics-surface="checkin_triage"
+                    data-analytics-event="triage_subscription_clicked"
+                    data-analytics-target="/pricing"
+                    data-analytics-product="plus"
+                    data-analytics-dialogue-id={dialogue.id}
+                    data-analytics-cta-role="bundle"
+                    data-analytics-offer-id="plus_bundle_after_triage"
+                    data-analytics-offer-reason="returning_usage_bundle"
+                    data-analytics-price-rub="490"
+                  >
+                    Сравнить тарифы →
+                  </Link>
                 </div>
               </div>
             </aside>

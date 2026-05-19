@@ -43,6 +43,27 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('data-analytics-event="triage_primary_clicked"');
     expect(page).toContain('data-analytics-event="triage_secondary_clicked"');
     expect(page).toContain('data-analytics-event="triage_subscription_clicked"');
+    expect(page.match(/data-testid="triage-primary-cta"/g)?.length).toBe(1);
+    expect(page).toContain('data-analytics-surface="checkin_triage"');
+    expect(page).toContain('data-analytics-cta-role="primary"');
+    expect(page).toContain('data-analytics-offer-id="perspectives_first_paid_step"');
+    expect(page).toContain('data-analytics-offer-reason="decision_request_after_free_answer"');
+    expect(page).toContain('data-analytics-price-rub="299"');
+    expect(page).toContain('data-analytics-credit-cost="2"');
     expect(page).toContain("ETerapy не будет предлагать платные продукты");
+  });
+
+  it("keeps paid CTAs out of the safety interrupt state", () => {
+    const page = source("src/app/checkin/page.tsx");
+    const safetySection = page.slice(
+      page.indexOf('phase === "safety" &&'),
+      page.indexOf('phase === "result" &&'),
+    );
+
+    expect(safetySection).toContain('data-testid="dialogue-safety-interrupt"');
+    expect(safetySection).not.toContain("triage_primary_clicked");
+    expect(safetySection).not.toContain("triage_secondary_clicked");
+    expect(safetySection).not.toContain("triage_subscription_clicked");
+    expect(safetySection).not.toContain("/products/");
   });
 });
