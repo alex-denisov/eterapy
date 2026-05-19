@@ -792,6 +792,57 @@
     opacity: 0.9;
   }
 
+  .soft-triage-rail {
+    align-self: start;
+  }
+
+  .soft-triage-primary {
+    position: relative;
+    border: 2px solid var(--soft-terracotta-dark);
+    background: linear-gradient(140deg, #fffcf5, #f4d9c1);
+    transition:
+      transform var(--motion-base) var(--ease-soft),
+      box-shadow var(--motion-base) var(--ease-soft);
+  }
+
+  .soft-triage-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--soft-shadow-lg);
+  }
+
+  .soft-triage-ribbon {
+    position: absolute;
+    left: 1rem;
+    top: -0.7rem;
+    border-radius: 999px;
+    background: var(--soft-terracotta-dark);
+    color: #fff8f1;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    padding: 0.2rem 0.6rem;
+    text-transform: uppercase;
+  }
+
+  .soft-triage-option {
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    border-radius: var(--soft-radius-md);
+    background: color-mix(in srgb, var(--soft-paper-deep) 76%, white);
+    padding: 0.72rem 0.85rem;
+    color: var(--soft-ink);
+    transition:
+      background var(--motion-base) var(--ease-soft),
+      transform var(--motion-base) var(--ease-soft);
+  }
+
+  .soft-triage-option:hover {
+    background: var(--soft-apricot);
+    transform: translateX(2px);
+  }
+
   .soft-safe-step-card {
     border-color: var(--soft-terracotta);
     background: linear-gradient(140deg, #fffcf5, #f4d9c1);

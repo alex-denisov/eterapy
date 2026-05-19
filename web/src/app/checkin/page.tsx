@@ -3,7 +3,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Bookmark, CheckCircle2, Compass, Loader2, RotateCcw, Send, ShieldCheck } from "lucide-react";
+import {
+  ArrowRight,
+  Bookmark,
+  CalendarDays,
+  CheckCircle2,
+  Compass,
+  FileText,
+  Heart,
+  Loader2,
+  MessageSquareText,
+  Moon,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import { AIShareButton } from "@/components/ai-share-button";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { Button } from "@/components/ui/button";
@@ -463,108 +479,179 @@ export default function CheckinPage() {
           </div>
           <p className="soft-eyebrow">первичный разбор</p>
 
-          <article className="soft-card p-5 md:p-7">
-            <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
-            <div className="mt-3 whitespace-pre-wrap font-heading text-[19px] leading-relaxed text-[var(--soft-ink)]" data-testid="dialogue-primary-answer">
-              {safeAnswer}
-            </div>
-          </article>
+          <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.85fr)] lg:items-start" data-testid="dialogue-answer-triage-layout">
+            <div>
+              <article className="soft-card p-5 md:p-7">
+                <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
+                <div className="mt-3 whitespace-pre-wrap font-heading text-[19px] leading-relaxed text-[var(--soft-ink)]" data-testid="dialogue-primary-answer">
+                  {safeAnswer}
+                </div>
+              </article>
 
-          <section className="soft-card-flat mt-4 p-5 md:p-7" style={{ background: "var(--soft-paper-deep)", border: 0 }}>
-            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
-            <h2 className="soft-h3 mt-2">Это про решение прямо сейчас — или про ясность, которой пока не хватает?</h2>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Первичный ответ помогает увидеть контур. Если хочется не спешить, можно сохранить его, вернуться позже или углубить в один из следующих форматов.
-            </p>
-          </section>
+              <section className="soft-card-flat mt-4 p-5 md:p-7" style={{ background: "var(--soft-paper-deep)", border: 0 }}>
+                <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
+                <h2 className="soft-h3 mt-2">Это про решение прямо сейчас — или про ясность, которой пока не хватает?</h2>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                  Первичный ответ помогает увидеть контур. Если хочется не спешить, можно сохранить его, вернуться позже или открыть один более глубокий формат.
+                </p>
+              </section>
 
-          <section className="soft-card soft-safe-step-card mt-4 p-5 md:p-7">
-            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">один безопасный шаг сегодня</p>
-            <h2 className="soft-h3 mt-2 font-heading italic">Запишите одну фразу, которую вы давно хотели сказать себе честно.</h2>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Не отправлять, не доказывать, не решать все сразу. Просто дать мысли форму и посмотреть, что в ней правда.
-            </p>
-          </section>
+              <section className="soft-card soft-safe-step-card mt-4 p-5 md:p-7">
+                <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">один безопасный шаг сегодня</p>
+                <h2 className="soft-h3 mt-2 font-heading italic">Запишите одну фразу, которую вы давно хотели сказать себе честно.</h2>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                  Не отправлять, не доказывать, не решать все сразу. Просто дать мысли форму и посмотреть, что в ней правда.
+                </p>
+              </section>
 
-          <div className="mt-5">
-            <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} />
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3" data-testid="dialogue-result-actions">
-            {status === "authenticated" ? (
-              <Button
-                onClick={handleSaveToAccount}
-                disabled={saveState === "saving" || saveState === "saved"}
-                className="soft-button soft-button-primary"
-                data-testid="save-result-authenticated"
-              >
-                <Bookmark className="size-4" aria-hidden="true" />
-                {saveState === "saved" ? "Сохранено в кабинете" : saveState === "saving" ? "Сохраняем..." : "Сохранить в кабинет"}
-              </Button>
-            ) : (
-              <Link href="/register?intent=save-result" className="soft-button soft-button-primary" data-testid="save-result-register">
-                <Bookmark className="size-4" aria-hidden="true" />
-                Сохранить ответ
-              </Link>
-            )}
-            <Link href={`/products/deep-report?dialogueId=${dialogue.id}`} className="soft-button soft-button-ghost" data-testid="dialogue-deepen-report">
-              <Compass className="size-4" aria-hidden="true" />
-              Углубить ответ
-            </Link>
-            <Link href={`/products/perspectives?dialogueId=${dialogue.id}`} className="soft-button soft-button-ghost" data-testid="dialogue-deepen-perspectives">
-              Посмотреть перспективы
-            </Link>
-            <Button onClick={reset} variant="ghost" className="soft-button soft-button-ghost" data-testid="dialogue-reset">
-              <RotateCcw className="size-4" aria-hidden="true" />
-              Задать новый вопрос
-            </Button>
-          </div>
-
-          <div className="mt-10 grid gap-4 md:grid-cols-2">
-            <Link href={`/products/perspectives?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card soft-deepening-card-featured">
-              <div className="flex items-start justify-between gap-2">
-                <p className="soft-eyebrow">рекомендуем</p>
-                <Compass className="size-[22px] shrink-0 text-[#f4d9c1]" aria-hidden="true" />
+              <div className="mt-5">
+                <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} />
               </div>
-              <h3 className="soft-h3 mt-3">4 ракурса ответа</h3>
-              <p className="mt-1.5 text-sm">Разум · Чувства · Символ · Действие — на одну страницу</p>
-              <span className="soft-badge soft-badge-warm mt-4">299 ₽</span>
-            </Link>
-            <Link href="/products/seven-days" className="soft-card soft-deepening-card">
-              <p className="soft-eyebrow">маршрут</p>
-              <h3 className="soft-h3 mt-3">7 дней к ясности</h3>
-              <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Если хочется не быстрого ответа, а бережного разговора с собой.</p>
-              <span className="soft-badge soft-badge-warm mt-4">990 ₽</span>
-            </Link>
-            {recommendations.length > 0 ? (
-              recommendations.map((rec) => (
-                <Link
-                  key={rec.id}
-                  href={`/practitioners/${rec.slug}?dialogueId=${dialogue.id}`}
-                  className="soft-card soft-deepening-card"
-                  data-testid="specialist-recommendation"
-                >
-                  <p className="soft-eyebrow">специалист</p>
-                  <h3 className="soft-h3 mt-3 line-clamp-1">{rec.name ?? "Специалист"}</h3>
-                  <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)] line-clamp-1">{rec.title}</p>
-                  <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)] line-clamp-2">{rec.rationale}</p>
-                  <span className="soft-badge soft-badge-lilac mt-4">от {rec.pricePerSession.toLocaleString("ru-RU")} ₽</span>
+
+              <div className="mt-5 flex flex-wrap gap-3" data-testid="dialogue-free-continuation-actions">
+                {status === "authenticated" ? (
+                  <Button
+                    onClick={handleSaveToAccount}
+                    disabled={saveState === "saving" || saveState === "saved"}
+                    className="soft-button soft-button-ghost"
+                    data-testid="save-result-authenticated"
+                  >
+                    <Bookmark className="size-4" aria-hidden="true" />
+                    {saveState === "saved" ? "Сохранено в кабинете" : saveState === "saving" ? "Сохраняем..." : "Сохранить в карту"}
+                  </Button>
+                ) : (
+                  <Link href="/register?intent=save-result" className="soft-button soft-button-ghost" data-testid="save-result-register">
+                    <Bookmark className="size-4" aria-hidden="true" />
+                    Сохранить в карту
+                  </Link>
+                )}
+                <Link href="/circle" className="soft-button soft-button-ghost" data-testid="dialogue-free-circle">
+                  <Users className="size-4" aria-hidden="true" />
+                  Второй взгляд
                 </Link>
-              ))
-            ) : (
-              <Link href={`/practitioners/catalog?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
-                <p className="soft-eyebrow">специалист</p>
-                <h3 className="soft-h3 mt-3">Специалист по теме</h3>
-                <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">Проверенные специалисты, которые работают с вашей темой.</p>
-                <span className="soft-badge soft-badge-lilac mt-4">от 1 900 ₽</span>
+                <Link href="/pair" className="soft-button soft-button-ghost" data-testid="dialogue-free-pair">
+                  <Heart className="size-4" aria-hidden="true" />
+                  Вдвоём
+                </Link>
+                <Button onClick={reset} variant="ghost" className="soft-button soft-button-ghost" data-testid="dialogue-reset">
+                  <RotateCcw className="size-4" aria-hidden="true" />
+                  Новый вопрос
+                </Button>
+              </div>
+            </div>
+
+            <aside className="soft-triage-rail lg:sticky lg:top-24" data-testid="dialogue-triage-rail" aria-label="Выбор углубления">
+              <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">можно посмотреть глубже</p>
+              <Link
+                href={`/products/perspectives?dialogueId=${dialogue.id}`}
+                className="soft-card soft-triage-primary mt-3 block p-5"
+                data-testid="triage-primary-cta"
+                data-analytics-event="triage_primary_clicked"
+                data-analytics-product="perspectives"
+                data-analytics-dialogue-id={dialogue.id}
+              >
+                <span className="soft-triage-ribbon">рекомендуем именно вам</span>
+                <div className="mt-2 flex items-start gap-3">
+                  <Compass className="mt-1 size-6 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                  <div>
+                    <h3 className="soft-h3">4 ракурса ответа</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                      Похоже на запрос про решение. Разложим ситуацию на разум, чувства, символ и действие.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-1.5 text-xs text-[var(--soft-ink-soft)]">
+                  {["Разум · факты и варианты", "Чувства · что внутри", "Символ · образ ситуации", "Действие · шаги на неделю"].map((item) => (
+                    <span key={item} className="flex items-center gap-2">
+                      <CheckCircle2 className="size-3.5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-5 flex items-end justify-between gap-4">
+                  <div>
+                    <div className="font-heading text-3xl font-semibold leading-none text-[var(--soft-bordeaux)]">299 ₽</div>
+                    <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">или −2 кредита</div>
+                  </div>
+                  <span className="soft-button soft-button-primary text-sm">
+                    Открыть
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </span>
+                </div>
               </Link>
-            )}
-            <Link href={`/products/deep-report?dialogueId=${dialogue.id}`} className="soft-card soft-deepening-card">
-              <p className="soft-eyebrow">отчёт</p>
-              <h3 className="soft-h3 mt-3">Глубокий отчёт</h3>
-              <p className="mt-1.5 text-sm text-[var(--soft-ink-soft)]">10–15 страниц с разбором сценариев и сохранением в карте.</p>
-              <span className="soft-badge soft-badge-warm mt-4">590 ₽</span>
-            </Link>
+
+              <p className="soft-eyebrow mt-6">другие форматы</p>
+              <div className="mt-2 grid gap-2" data-testid="triage-secondary-options">
+                {[
+                  { href: `/products/deep-report?dialogueId=${dialogue.id}`, title: "Глубокий отчёт", price: "590 ₽", credits: "−4 кредита", icon: FileText, product: "deep_report" },
+                  { href: `/products/chat-analysis?dialogueId=${dialogue.id}`, title: "Разбор переписки", price: "от 390 ₽", credits: "−2 кредита", icon: MessageSquareText, product: "chat_analysis" },
+                  { href: `/products/compatibility?dialogueId=${dialogue.id}`, title: "Совместимость", price: "590 ₽", credits: "−4 кредита", icon: Users, product: "compatibility" },
+                  { href: "/products/seven-days", title: "7 дней к ясности", price: "990 ₽", credits: "−8 кредитов", icon: CalendarDays, product: "seven_days" },
+                  { href: "/tarot", title: "Расклад Таро", price: "390 ₽", credits: "−2 кредита", icon: Moon, product: "tarot" },
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.title}
+                      href={item.href}
+                      className="soft-triage-option"
+                      data-analytics-event="triage_secondary_clicked"
+                      data-analytics-product={item.product}
+                    >
+                      <Icon className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-[var(--soft-ink)]">{item.title}</span>
+                        <span className="block text-[11px] text-[var(--soft-ink-faint)]">или {item.credits}</span>
+                      </span>
+                      <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">{item.price}</span>
+                    </Link>
+                  );
+                })}
+                {recommendations.length > 0 ? (
+                  recommendations.slice(0, 1).map((rec) => (
+                    <Link
+                      key={rec.id}
+                      href={`/practitioners/${rec.slug}?dialogueId=${dialogue.id}`}
+                      className="soft-triage-option"
+                      data-testid="specialist-recommendation"
+                      data-analytics-event="triage_secondary_clicked"
+                      data-analytics-product="specialist"
+                    >
+                      <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-[var(--soft-ink)]">{rec.name ?? "Специалист"}</span>
+                        <span className="block truncate text-[11px] text-[var(--soft-ink-faint)]">{rec.rationale}</span>
+                      </span>
+                      <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">от {rec.pricePerSession.toLocaleString("ru-RU")} ₽</span>
+                    </Link>
+                  ))
+                ) : (
+                  <Link href={`/practitioners/catalog?dialogueId=${dialogue.id}`} className="soft-triage-option" data-analytics-event="triage_secondary_clicked" data-analytics-product="specialist">
+                    <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium text-[var(--soft-ink)]">Встреча со специалистом</span>
+                      <span className="block text-[11px] text-[var(--soft-ink-faint)]">после контекста</span>
+                    </span>
+                    <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">от 4 500 ₽</span>
+                  </Link>
+                )}
+              </div>
+
+              <div className="soft-card mt-4 p-4" style={{ background: "var(--soft-paper-deep)" }} data-testid="triage-subscription-option">
+                <div className="flex gap-3">
+                  <Sparkles className="mt-1 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                  <div>
+                    <p className="soft-eyebrow text-[10px]">если планируете возвращаться</p>
+                    <h3 className="mt-1 font-heading text-base font-semibold text-[var(--soft-bordeaux)]">В Plus цифровые форматы включены</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">Моя карта · история · 10 кредитов / мес</p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">490 ₽ / мес</span>
+                  <Link href="/pricing" className="soft-chip" data-analytics-event="triage_subscription_clicked">Сравнить тарифы →</Link>
+                </div>
+              </div>
+            </aside>
           </div>
 
           {status !== "authenticated" && (

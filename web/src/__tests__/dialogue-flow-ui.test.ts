@@ -26,15 +26,23 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('data-testid="dialogue-retry-answer"');
   });
 
-  it("offers save, share, and deepen actions after the primary answer", () => {
+  it("offers save, share, and v4.2 triage actions after the primary answer", () => {
     const page = source("src/app/checkin/page.tsx");
 
     expect(page).toContain("<AIShareButton");
     expect(page).toContain('data-testid="save-result-authenticated"');
     expect(page).toContain('data-testid="save-result-register"');
-    expect(page).toContain('data-testid="dialogue-deepen-report"');
+    expect(page).toContain('data-testid="dialogue-answer-triage-layout"');
+    expect(page).toContain('data-testid="dialogue-triage-rail"');
+    expect(page).toContain('data-testid="triage-primary-cta"');
+    expect(page).toContain('data-testid="triage-secondary-options"');
+    expect(page).toContain('data-testid="triage-subscription-option"');
+    expect(page).toContain('data-testid="dialogue-free-continuation-actions"');
     expect(page).toContain("/products/deep-report?dialogueId=${dialogue.id}");
-    expect(page).toContain('data-testid="dialogue-deepen-perspectives"');
     expect(page).toContain('href={`/products/perspectives?dialogueId=${dialogue.id}`}');
+    expect(page).toContain('data-analytics-event="triage_primary_clicked"');
+    expect(page).toContain('data-analytics-event="triage_secondary_clicked"');
+    expect(page).toContain('data-analytics-event="triage_subscription_clicked"');
+    expect(page).toContain("ETerapy не будет предлагать платные продукты");
   });
 });
