@@ -19,15 +19,16 @@ import {
   LayoutDashboard,
   LogOut,
   Settings,
+  ShoppingBag,
   Sparkles,
 } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
 const GUEST_NAV = [
   { href: "/how-it-works", label: "Как работает" },
+  { href: "/products", label: "Продукты" },
   { href: "/library", label: "Библиотека" },
   { href: "/practitioners", label: "Специалисты" },
-  { href: "/practice", label: "Практика" },
   { href: "/pricing", label: "Тарифы" },
 ];
 
@@ -111,10 +112,11 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
     { href: appUrl("/cabinet"), label: "Главная кабинета", icon: LayoutDashboard },
+    { href: mainUrl("/products"), label: "Каталог продуктов", icon: ShoppingBag },
     { href: appUrl("/cabinet/map"), label: "Моя карта", icon: Compass },
     { href: appUrl("/cabinet/action-history"), label: "История разборов", icon: BookOpen },
     { href: appUrl("/cabinet/billing"), label: "Кредиты ясности", icon: Sparkles },
-    { href: mainUrl("/practice"), label: "Задания практики", icon: Heart },
+    { href: mainUrl("/products/clarity-practice"), label: "Практика ясности", icon: Heart },
     { href: appUrl("/cabinet/bookings"), label: "Мои записи", icon: CalendarDays },
     { href: appUrl("/cabinet/billing"), label: "Подписка и оплата", icon: CreditCard },
     { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },
@@ -363,12 +365,24 @@ export function Header() {
               ) : (
                 <>
                   <Link
-                    href={cabinetHref}
-                    className="soft-button soft-button-ghost min-h-10 px-4 py-2 text-sm hidden sm:inline-flex"
-                    data-testid="header-cabinet-cta"
+                    href={appUrl("/cabinet/billing")}
+                    aria-label={`Кредиты ясности: ${clarityCredits}. Открыть раздел оплаты и кредитов`}
+                    className="soft-user-pill hidden lg:flex"
                   >
-                    Мой кабинет
+                    <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" />
+                    <span className="tabular-nums font-semibold">{clarityCredits}</span>
                   </Link>
+                  <Link
+                    href={appUrl("/help")}
+                    aria-label="Помощь"
+                    className="soft-user-icon hidden sm:inline-flex"
+                  >
+                    <CircleHelp className="size-4" />
+                  </Link>
+                  <div className="hidden sm:block">
+                    <NotificationBell variant="header" />
+                  </div>
+                  <UserMenu session={session} balanceKopecks={balanceKopecks} />
                   <Link
                     href={mainUrl("/checkin")}
                     className={cn(

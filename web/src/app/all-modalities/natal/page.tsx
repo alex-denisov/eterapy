@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function NatalLegacyRedirectPage() {
-  redirect("/astro");
+  redirect("/products/natal-chart");
 }

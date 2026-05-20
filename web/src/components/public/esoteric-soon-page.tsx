@@ -122,7 +122,7 @@ export function EsotericServicePage({
                 Разбор продолжает живой специалист, чтобы метафора не осталась без контекста и практического шага.
               </p>
             </div>
-            <Link href="/joint" className="soft-button soft-button-ghost shrink-0">
+            <Link href="/products/joint-session" className="soft-button soft-button-ghost shrink-0">
               Узнать про совместные
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>

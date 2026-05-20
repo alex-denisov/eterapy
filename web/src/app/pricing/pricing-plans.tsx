@@ -45,14 +45,14 @@ const plans = [
   {
     id: "premium",
     name: "Premium",
-    tagline: "С поддержкой проверенного специалиста",
+    tagline: "Для глубокой регулярной работы",
     monthPrice: 1290,
     yearPrice: 12900,
     perks: [
       "Всё из Plus",
       "+30 кредитов ясности каждый месяц",
       "Приоритетная поддержка по цифровым продуктам",
-      "Приоритетная запись к специалистам",
+      "Приоритетная запись к специалистам по полной ставке",
       "Личный куратор в чате",
       "Расширенная аналитика личной карты",
     ],
@@ -62,50 +62,30 @@ const plans = [
     dark: true,
     style: { background: "var(--soft-bordeaux, #5c2a2c)" } as React.CSSProperties,
   },
-  {
-    id: "practitioner",
-    name: "Practitioner Pro",
-    tagline: "Для специалистов",
-    monthPrice: 1490,
-    yearPrice: 14900,
-    perks: [
-      "Кабинет специалиста и расписание",
-      "Заявки, клиенты и история выплат",
-      "AI-саммари после сессии",
-      "Контекст предразбора только по согласию клиента",
-      "Комиссия платформы прозрачна: 15–25%",
-    ],
-    cta: "Стать специалистом",
-    href: "/practitioners/apply",
-    featured: false,
-    dark: false,
-    style: { background: "linear-gradient(160deg, #d6decc, #e5ebdc)" } as React.CSSProperties,
-  },
 ];
-
-const practitionerPrices = { month: 1490, year: 14900 };
 
 const oneOff = [
-  { t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно" },
-  { t: "Быстрый дополнительный разбор", d: "Короткое уточнение без полного отчёта", price: "99–199 ₽" },
-  { t: "4 ракурса ответа", d: "Разум · Чувства · Символ · Действие", price: "299 ₽" },
-  { t: "Глубокий отчёт", d: "Документ-разбор · 10–15 страниц", price: "590 ₽" },
-  { t: "Глубокий отчёт Pro", d: "Максимальная глубина и план действий", price: "990 ₽" },
-  { t: "Разбор переписки Start", d: "Быстрое наблюдение по переписке", price: "390 ₽" },
-  { t: "Разбор переписки Deep", d: "Тон, динамика и варианты ответа", price: "890 ₽" },
-  { t: "Разбор переписки Pro", d: "Глубокий анализ + расширенные формулировки", price: "1 490 ₽" },
-  { t: "Совместимость Start", d: "Парный отчёт по приглашению", price: "590 ₽" },
-  { t: "Совместимость Pro", d: "Сценарии общения и план", price: "990 ₽" },
-  { t: "Круг ясности", d: "2–5 участников и общий итог", price: "790 ₽" },
-  { t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽" },
-  { t: "7 дней к ясности", d: "Один разбор в день, 5–10 мин", price: "990 ₽" },
-  { t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0–199 ₽" },
-  { t: "Встреча с психологом", d: "50 минут онлайн", price: "от 4 500 ₽" },
-  { t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 3 200 ₽" },
-  { t: "Парная встреча", d: "Семейный психолог", price: "от 7 200 ₽" },
-  { t: "Юрист", d: "Семейное право, развод, опека", price: "от 6 000 ₽" },
-  { t: "Совместная сессия", d: "Эзотерик + психотерапевт", price: "от 4 500 ₽" },
+  { cat: "Бесплатный вход", t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно", href: "/checkin", cta: "Начать" },
+  { cat: "Цифровые углубления", t: "4 ракурса ответа", d: "Разум · Чувства · Символ · Действие", price: "299 ₽", href: "/products/perspectives", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Глубокий отчёт", d: "Документ-разбор · 10–15 страниц", price: "590 ₽", href: "/products/deep-report", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Разбор переписки Start", d: "Быстрое наблюдение по переписке", price: "390 ₽", href: "/products/chat-analysis", cta: "Разобрать" },
+  { cat: "Цифровые углубления", t: "Разбор переписки Deep / Pro", d: "Тон, динамика, варианты ответа", price: "890–1 490 ₽", href: "/products/chat-analysis", cta: "Сравнить" },
+  { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению", price: "590–990 ₽", href: "/products/compatibility", cta: "Создать" },
+  { cat: "Для двоих и круга", t: "Круг ясности", d: "2–5 участников и общий итог", price: "790 ₽", href: "/circle", cta: "Создать" },
+  { cat: "Для двоих и круга", t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽", href: "/pair", cta: "Пригласить" },
+  { cat: "Маршруты и карта", t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0–199 ₽", href: "/products/clarity-practice", cta: "Открыть" },
+  { cat: "Маршруты и карта", t: "7 дней к ясности", d: "Один шаг в день, 5–10 мин", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
+  { cat: "Маршруты и карта", t: "Моя карта ETerapy", d: "История, темы и расширенная карта", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
+  { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: "390 ₽", href: "/products/tarot", cta: "Купить" },
+  { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор по вопросу", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
+  { cat: "Эзотерика", t: "Числовой портрет", d: "Имя, дата и цикл года", price: "390 ₽", href: "/products/numerology", cta: "Купить" },
+  { cat: "Встречи", t: "Встреча с психологом", d: "50 минут онлайн", price: "от 4 500 ₽", href: "/practitioners", cta: "Записаться" },
+  { cat: "Встречи", t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 3 200 ₽", href: "/practitioners", cta: "Записаться" },
+  { cat: "Встречи", t: "Юрист", d: "Семейное право, развод, опека", price: "от 6 000 ₽", href: "/practitioners", cta: "Записаться" },
+  { cat: "Встречи", t: "Эзотерик + психотерапевт", d: "Совместная сессия двух специалистов", price: "от 4 500 ₽", href: "/products/joint-session", cta: "Посмотреть" },
 ];
+
+const oneOffCats = ["Бесплатный вход", "Цифровые углубления", "Для двоих и круга", "Маршруты и карта", "Эзотерика", "Встречи"];
 
 function formatPrice(n: number): string {
   if (n === 0) return "Бесплатно";
@@ -141,13 +121,16 @@ export function PricingPlans() {
             >
               На год <span style={{ opacity: 0.72, marginLeft: "0.25rem" }}>· 2 месяца в подарок</span>
             </button>
+            <Link href="/pricing/compare" className="soft-chip">
+              Подробное сравнение
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Plans */}
       <section className="soft-shell soft-public-section">
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           {plans.map((plan) => {
             const price = period === "year" ? plan.yearPrice : plan.monthPrice;
             const periodLabel = period === "year" ? "в год" : "в месяц";
@@ -285,33 +268,28 @@ export function PricingPlans() {
             </p>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2">
-            {oneOff.map((item, i) => (
-              <div
-                key={item.t}
-                className="flex items-center justify-between gap-4 py-4"
-                style={{
-                  borderTop: i > 1 ? "1px solid var(--soft-paper-edge)" : i === 1 ? "none" : "none",
-                  borderRight: i % 2 === 0 ? "1px solid var(--soft-paper-edge)" : "none",
-                  opacity: 1,
-                  paddingLeft: i % 2 === 1 ? "1.25rem" : "0",
-                  paddingRight: i % 2 === 0 ? "1.25rem" : "0",
-                }}
-              >
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--soft-ink)" }}>
-                    {item.t}
-                  </p>
-                  <p className="mt-0.5 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                    {item.d}
-                  </p>
+          <div className="mt-7 grid gap-4">
+            {oneOffCats.map((cat) => (
+              <div key={cat} className="overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
+                <div className="flex items-center justify-between gap-3 bg-[var(--soft-paper-deep)] px-5 py-3">
+                  <p className="soft-eyebrow text-[var(--soft-bordeaux)]">{cat}</p>
+                  <span className="text-xs text-[var(--soft-ink-faint)]">{oneOff.filter((item) => item.cat === cat).length} формата</span>
                 </div>
-                <span
-                  className="font-heading font-semibold shrink-0"
-                  style={{ color: "var(--soft-bordeaux)", fontSize: "1rem", whiteSpace: "nowrap" }}
-                >
-                  {item.price}
-                </span>
+                <div className="divide-y divide-[var(--soft-paper-edge)]">
+                  {oneOff.filter((item) => item.cat === cat).map((item) => (
+                    <div key={`${cat}-${item.t}`} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
+                      <div>
+                        <p className="text-sm font-semibold text-[var(--soft-ink)]">{item.t}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{item.d}</p>
+                      </div>
+                      <span className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)] md:text-right">{item.price}</span>
+                      <Link href={item.href} className="soft-chip justify-center md:min-w-28">
+                        {item.cta}
+                        <ArrowRight className="size-3.5" aria-hidden="true" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -332,11 +310,8 @@ export function PricingPlans() {
               <p className="soft-eyebrow">для специалистов</p>
               <h2 className="soft-h2 mt-3">Психолог, коуч, юрист, эзотерик?</h2>
               <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                Подключайтесь к платформе. Мы берём 15–25% комиссии за привязанные через ETerapy сессии.
-                Никаких ежемесячных платежей за листинг. Деньги поступают на счёт еженедельно.
-              </p>
-              <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-faint)" }}>
-                Practitioner Pro: {formatPrice(period === "year" ? practitionerPrices.year : practitionerPrices.month)} {period === "year" ? "в год" : "в месяц"} — AI-саммари, контекст по согласию, аналитика.
+                Это отдельная B2B-страница, не клиентский тариф. На старте нет ежемесячной платы за листинг:
+                комиссия зависит от источника клиента и формата встречи.
               </p>
               <p className="mt-2 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                 Специалист появляется в рекомендации только после того, как вы изложили суть вопроса,
@@ -359,7 +334,7 @@ export function PricingPlans() {
                 className="soft-button soft-button-primary mt-2"
                 data-analytics-event="pricing_practitioners_cta"
               >
-                Открыть кабинет специалиста
+                Стать специалистом
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </div>

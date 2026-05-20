@@ -28,8 +28,8 @@ describe("v5 public shell", () => {
     expect(header).not.toContain('label: "Задать вопрос"');
     expect(header).toContain('href={mainUrl("/checkin")}');
     expect(header).toContain("Начать диалог");
-    expect(header.indexOf('label: "Библиотека"')).toBeLessThan(header.indexOf('label: "Специалисты"'));
-    expect(header).toContain('label: "Практика"');
+    expect(header.indexOf('label: "Продукты"')).toBeLessThan(header.indexOf('label: "Библиотека"'));
+    expect(header).toContain('label: "Продукты"');
     expect(header).toContain('data-testid="public-shell-header"');
     expect(source("src/components/footer.tsx")).toContain('data-testid="public-shell-footer"');
   });
@@ -43,6 +43,7 @@ describe("v5 public shell", () => {
     expect(header).toContain("soft-user-pill");
     expect(header).toContain("soft-user-icon");
     expect(header).toContain("Главная кабинета");
+    expect(header).toContain("Каталог продуктов");
     expect(header).toContain("Кредиты ясности");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");

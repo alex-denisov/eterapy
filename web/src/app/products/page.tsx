@@ -18,8 +18,8 @@ export default function ProductsPage() {
             Углубление под <span className="soft-italic">ваш</span> вопрос
           </h1>
           <p className="soft-lede mt-5" style={{ maxWidth: "42rem" }}>
-            Цифровые разборы, форматы со специалистом и совместные сессии. Сначала диалог ясности,
-            затем подходящая глубина по теме и состоянию.
+            Цифровые разборы, форматы со специалистом и совместные сессии. Можно начать с бесплатного
+            диалога, а можно открыть нужную услугу напрямую.
           </p>
           <div className="soft-products-hero-actions mt-7 flex flex-col gap-3 sm:flex-row">
             <Link
@@ -29,7 +29,7 @@ export default function ProductsPage() {
               data-analytics-target="/checkin"
               data-testid="products-dialogue-cta"
             >
-              Начать диалог
+              Начать бесплатно
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
             <Link href="/pricing" className="soft-button soft-button-ghost">
@@ -43,9 +43,9 @@ export default function ProductsPage() {
             <h2 className="soft-h3 mt-3">Формат подбирается по контексту</h2>
             <div className="mt-5 grid gap-3">
               {[
-                { icon: MessageSquareText, title: "Если нужна ясность", text: "остается первичный ответ и карта" },
-                { icon: FileText, title: "Если нужна глубина", text: "отчет, ракурсы, переписка или 7 дней" },
-                { icon: HeartHandshake, title: "Если нужен человек", text: "2-3 специалиста с понятным основанием" },
+                { icon: MessageSquareText, title: "Бесплатный вход", text: "первичный ответ и triage без оплаты" },
+                { icon: FileText, title: "Прямой заказ", text: "отчёт, ракурсы, переписка, Таро или 7 дней" },
+                { icon: HeartHandshake, title: "Живая помощь", text: "специалист или совместная сессия по полной ставке" },
               ].map((item) => (
                 <div key={item.title} className="soft-card-flat flex items-start gap-3 p-4">
                   <span className="soft-step-number shrink-0" style={{ width: "2.1rem" }}>

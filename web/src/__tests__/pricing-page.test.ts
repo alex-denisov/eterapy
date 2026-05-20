@@ -30,13 +30,15 @@ describe("v5 pricing page", () => {
     expect(combined).toContain("490");
     expect(combined).toContain("4900");
     expect(combined).toContain("Без скидок на встречи со специалистами");
+    expect(combined).toContain("Подробное сравнение");
+    expect(publicSeoRoutes).toContain("/pricing/compare");
     // Premium: 1290 per month / 12900 per year
     expect(combined).toContain("1290");
     expect(combined).toContain("12900");
-    // Practitioner Pro: 1490 per month / 14900 per year
-    expect(combined).toContain('id: "practitioner"');
-    expect(combined).toContain("1490");
-    expect(combined).toContain("14900");
+    // Practitioner tiers live on /practitioners/apply, not in client pricing cards.
+    expect(combined).not.toContain('id: "practitioner"');
+    expect(source("app/practitioners/apply/page.tsx")).toContain("Pro+");
+    expect(source("app/practitioners/apply/page.tsx")).toContain("комиссия");
     expect(combined).toContain("от 4 500 ₽");
     expect(combined).toContain("от 6 000 ₽");
     expect(combined).toContain("Углублённые отчёты открываются");
@@ -49,7 +51,7 @@ describe("v5 pricing page", () => {
 
     expect(combined).toContain('href="/checkin"');
     expect(combined).toContain('data-testid="pricing-dialogue-cta"');
-    expect(combined).toContain("Специалист появляется в рекомендации только после того, как вы изложили суть вопроса");
-    expect(combined).not.toContain('href="/practitioners"');
+    expect(combined).toContain("Это отдельная B2B-страница, не клиентский тариф");
+    expect(combined).toContain('href="/practitioners/apply"');
   });
 });

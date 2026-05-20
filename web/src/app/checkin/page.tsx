@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
@@ -77,6 +77,15 @@ const processingLines = [
   "Формулирую бережный следующий шаг",
 ];
 
+const suggestedClarificationAnswers = [
+  "Острая ситуация прямо сейчас",
+  "Это давняя тема",
+  "Хочу понять, что происходит",
+  "Хочу решить, что делать",
+  "И то, и другое",
+  "Пока сложно сформулировать",
+];
+
 function cleanAnswer(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
 }
@@ -98,6 +107,7 @@ export default function CheckinPage() {
     if (typeof window === "undefined") return false;
     return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
   });
+  const autoStartedRef = useRef(false);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
@@ -214,6 +224,18 @@ export default function CheckinPage() {
       setError(err instanceof Error ? err.message : "Не удалось начать диалог");
     }
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("question")) return;
+    if (autoStartedRef.current || phase !== "question" || question.trim().length < 3) return;
+    autoStartedRef.current = true;
+    void startDialogue();
+    // The first landing question should become the first chat message immediately.
+    // startDialogue intentionally stays as the single implementation of the API call.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, question]);
 
   async function generateAnswer(dialogueId: string) {
     setError("");
@@ -363,8 +385,12 @@ export default function CheckinPage() {
                   ))}
                 </div>
               </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {["Понять, что происходит", "Решить, что делать", "И то, и другое"].map((item) => (
+              <div className="mt-3">
+                <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">
+                  подсказки возможных ответов
+                </p>
+                <div className="flex flex-wrap gap-2">
+                {suggestedClarificationAnswers.map((item) => (
                   <button
                     key={item}
                     type="button"
@@ -374,6 +400,7 @@ export default function CheckinPage() {
                     {item}
                   </button>
                 ))}
+                </div>
               </div>
             </div>
           </div>
@@ -594,7 +621,7 @@ export default function CheckinPage() {
                   { href: `/products/chat-analysis?dialogueId=${dialogue.id}`, title: "Разбор переписки", price: "от 390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: MessageSquareText, product: "chat_analysis", reason: "message_context_available" },
                   { href: `/products/compatibility?dialogueId=${dialogue.id}`, title: "Совместимость", price: "590 ₽", credits: "−4 кредита", priceRub: "590", creditCost: "4", icon: Users, product: "compatibility", reason: "relationship_context" },
                   { href: "/products/seven-days", title: "7 дней к ясности", price: "990 ₽", credits: "−8 кредитов", priceRub: "990", creditCost: "8", icon: CalendarDays, product: "seven_days", reason: "ongoing_practice" },
-                  { href: "/tarot", title: "Расклад Таро", price: "390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: Moon, product: "tarot", reason: "symbolic_view" },
+                  { href: "/products/tarot", title: "Расклад Таро", price: "390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: Moon, product: "tarot", reason: "symbolic_view" },
                 ].map((item) => {
                   const Icon = item.icon;
                   return (
@@ -649,11 +676,11 @@ export default function CheckinPage() {
                   ))
                 ) : (
                   <Link
-                    href={`/practitioners/catalog?dialogueId=${dialogue.id}`}
+                    href={`/practitioners?dialogueId=${dialogue.id}`}
                     className="soft-triage-option"
                     data-analytics-surface="checkin_triage"
                     data-analytics-event="triage_secondary_clicked"
-                    data-analytics-target={`/practitioners/catalog?dialogueId=${dialogue.id}`}
+                    data-analytics-target={`/practitioners?dialogueId=${dialogue.id}`}
                     data-analytics-product="specialist"
                     data-analytics-dialogue-id={dialogue.id}
                     data-analytics-cta-role="secondary"

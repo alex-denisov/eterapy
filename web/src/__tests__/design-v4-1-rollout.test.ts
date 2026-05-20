@@ -19,10 +19,11 @@ describe("design v4.2 rollout", () => {
     const header = source("components/header.tsx");
     const footer = source("components/footer.tsx");
 
-    expect(header).toContain('label: "Практика"');
+    expect(header).toContain('label: "Продукты"');
     expect(footer).toContain('mainUrl("/circle")');
     expect(footer).toContain('mainUrl("/pair")');
     expect(footer).toContain('mainUrl("/telegram")');
+    expect(footer).toContain('mainUrl("/products/clarity-practice")');
   });
 
   it("keeps the v4.2 logo as the only active app icon shape", () => {

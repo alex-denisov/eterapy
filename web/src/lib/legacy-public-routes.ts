@@ -2,9 +2,9 @@ const toolSlugMap: Record<string, string> = {
   checkin: "/checkin",
   reflection: "/checkin",
   reflexion: "/checkin",
-  tarot: "/checkin?source=legacy-tarot",
-  natal: "/checkin?source=legacy-natal",
-  numerology: "/checkin?source=legacy-numerology",
+  tarot: "/products/tarot",
+  natal: "/products/natal-chart",
+  numerology: "/products/numerology",
   horoscope: "/checkin?source=legacy-horoscope",
   guide: "/checkin?source=legacy-guide",
 };
@@ -35,7 +35,7 @@ export function legacyPublicRedirect(pathname: string): string | null {
 
   const directToolMatch = normalized.match(/^\/all-modalities\/([^/]+)$/);
   if (directToolMatch && directToolRedirects.has(directToolMatch[1])) {
-    return `/checkin?source=legacy-${directToolMatch[1]}`;
+    return toolSlugMap[directToolMatch[1]] ?? `/checkin?source=legacy-${directToolMatch[1]}`;
   }
 
   const match = normalized.match(/^\/(?:modalities|tools)\/([^/]+)$/);

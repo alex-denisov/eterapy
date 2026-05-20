@@ -43,14 +43,14 @@ describe("v5 public home page", () => {
     const catalog = source("components/landing/ai-tools.tsx");
     const services = source("components/products/service-catalog.tsx");
 
-    expect(hero).toContain("Сначала вы получаете бесплатное отражение");
+    expect(hero).toContain("soft-hero-v42");
     expect(hero).toContain("soft-halo-stage-compact");
-    expect(catalog).toContain("После бесплатного разбора");
-    expect(catalog).toContain("один рекомендуемый продукт");
-    expect(services).toContain('href: "/checkin"');
-    expect(services).toContain("Начать бесплатно");
+    expect(catalog).toContain("Можно начать с бесплатного диалога");
+    expect(catalog).toContain("Все продукты");
+    expect(services).toContain('href: "/products/primary-answer"');
+    expect(services).toContain("Открыть бесплатный вход");
     expect(services).toContain("от 4 500 ₽");
-    expect(services).not.toContain('href: "/products/primary-answer"');
+    expect(services).toContain('href: "/products/tarot"');
   });
 
   it("keeps home analytics hooks explicit and stable", () => {

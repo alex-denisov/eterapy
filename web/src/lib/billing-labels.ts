@@ -26,6 +26,9 @@ export const PRODUCT_LABELS: Record<string, string> = {
   pair: "Парный разбор",
   "seven-days": "7 дней к ясности",
   "my-map": "Моя карта",
+  tarot: "Расклад Таро",
+  "natal-chart": "Натальная карта",
+  numerology: "Числовой портрет",
 };
 
 export const LEDGER_TYPE_LABELS: Record<string, string> = {

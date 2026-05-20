@@ -73,7 +73,7 @@ export function GrowthFormatsSection() {
             начисляются только за осмысленные действия и не заменяют оплату живых встреч.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/practice" className="soft-button soft-button-primary">
+            <Link href="/products/clarity-practice" className="soft-button soft-button-primary">
               Начать практику
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>

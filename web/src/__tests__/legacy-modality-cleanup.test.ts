@@ -5,11 +5,11 @@ const root = process.cwd();
 
 const legacyTools = ["tarot", "guide", "horoscope", "natal", "numerology"] as const;
 const legacyPageRedirects = {
-  tarot: "/tarot",
+  tarot: "/products/tarot",
   guide: "/checkin?source=legacy-guide",
   horoscope: "/checkin?source=legacy-horoscope",
-  natal: "/astro",
-  numerology: "/numerology",
+  natal: "/products/natal-chart",
+  numerology: "/products/numerology",
 } satisfies Record<(typeof legacyTools)[number], string>;
 
 function source(relativePath: string) {

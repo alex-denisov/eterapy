@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Send } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,21 +10,19 @@ import {
   sanitizeEmail,
   sanitizeUsername,
   sanitizeText,
-  validateEmail,
-  validateName,
-  validateTelegramUsername,
   getNameError,
   getEmailError,
   getTelegramError,
 } from "@/lib/validation";
 
 const SPECIALTIES = [
+  { value: "PSYCHOLOGIST", label: "Психология" },
+  { value: "COACH",        label: "Коучинг" },
+  { value: "LEGAL",        label: "Юридические консультации" },
+  { value: "FINANCE",      label: "Финансовый коучинг" },
   { value: "TAROT",      label: "Таро" },
   { value: "ASTROLOGY",  label: "Астрология" },
   { value: "NUMEROLOGY", label: "Нумерология" },
-  { value: "PSYCHIC",    label: "Экстрасенсорика" },
-  { value: "RUNES",      label: "Руны" },
-  { value: "DREAMS",     label: "Сонники" },
 ];
 
 const EXPERIENCE_OPTIONS = [
@@ -36,9 +35,11 @@ const EXPERIENCE_OPTIONS = [
 
 const SESSION_FORMATS = [
   "Индивидуальные консультации",
+  "Парные сессии",
+  "Пакеты встреч",
+  "Групповые программы",
   "Расклады таро",
   "Натальные карты",
-  "Чтение рун",
   "Нумерологический анализ",
   "Символические расклады",
 ];
@@ -139,11 +140,11 @@ export function ApplyForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-10 text-center">
-        <div className="text-5xl mb-4">✅</div>
-        <h3 className="font-heading text-2xl font-bold mb-3">Заявка отправлена!</h3>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          Мы получили вашу заявку и свяжемся с <strong className="text-foreground">{email}</strong> в течение 1–2 рабочих дней.
+      <div className="soft-card-flat p-10 text-center">
+        <CheckCircle2 className="mx-auto mb-4 size-10 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+        <h3 className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] mb-3">Заявка отправлена</h3>
+        <p className="text-[var(--soft-ink-soft)] max-w-md mx-auto">
+          Мы получили вашу заявку и свяжемся с <strong className="text-[var(--soft-bordeaux)]">{email}</strong> в течение 1–2 рабочих дней.
           {telegram && " Также можем написать вам в Telegram."}
         </p>
       </div>
@@ -155,23 +156,23 @@ export function ApplyForm() {
   return (
     <div className="max-w-2xl mx-auto">
       {/* Прогресс */}
-      <div className="flex gap-2 mb-8">
+      <div className="mb-8 flex gap-2 rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-3">
         {STEP_LABELS.map((label, i) => {
           const n = (i + 1) as 1 | 2 | 3;
           const active = step === n;
           const done = step > n;
           return (
             <div key={label} className={`flex items-center gap-2 flex-1 ${i > 0 ? "pl-2" : ""}`}>
-              {i > 0 && <div className={`h-px flex-1 ${done ? "bg-primary" : "bg-border/30"}`} />}
+              {i > 0 && <div className={`h-px flex-1 ${done ? "bg-[var(--soft-terracotta-dark)]" : "bg-[var(--soft-paper-edge)]"}`} />}
               <div className="flex items-center gap-2 shrink-0">
                 <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-                  done ? "bg-primary text-navy" :
-                  active ? "bg-primary/20 text-primary border border-primary/50" :
-                  "bg-border/20 text-muted-foreground"
+                  done ? "bg-[var(--soft-terracotta-dark)] text-[#fbf0e1]" :
+                  active ? "border border-[var(--soft-terracotta-dark)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]" :
+                  "bg-[var(--soft-paper-card)] text-[var(--soft-ink-faint)]"
                 }`}>
-                  {done ? "✓" : n}
+                  {done ? <Check className="size-3.5" aria-hidden="true" /> : n}
                 </div>
-                <span className={`text-sm hidden sm:block ${active ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                <span className={`text-sm hidden sm:block ${active ? "text-[var(--soft-bordeaux)] font-medium" : "text-[var(--soft-ink-faint)]"}`}>
                   {label}
                 </span>
               </div>
@@ -182,46 +183,47 @@ export function ApplyForm() {
 
       {/* Шаг 1 */}
       {step === 1 && (
-        <div className="rounded-xl border border-border/40 bg-card/30 p-6 space-y-4">
-          <h3 className="font-semibold text-lg">Контактные данные</h3>
+        <div className="soft-card-flat p-6 space-y-4">
+          <h3 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Контактные данные</h3>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Имя *</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Имя *</label>
             <Input value={name} onChange={e => { setName(sanitizeName(e.target.value)); setNameError(null); }}
-              placeholder="Мария Иванова" className={`bg-card/50 ${nameError ? "border-destructive" : ""}`} />
+              placeholder="Мария Иванова" className={`soft-input ${nameError ? "border-destructive" : ""}`} />
             {nameError && <p className="text-xs text-destructive mt-1">{nameError}</p>}
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Email *</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Email *</label>
             <Input type="email" value={email} onChange={e => { setEmail(sanitizeEmail(e.target.value)); setEmailError(null); }}
-              placeholder="your@email.com" className={`bg-card/50 ${emailError ? "border-destructive" : ""}`} />
+              placeholder="your@email.com" className={`soft-input ${emailError ? "border-destructive" : ""}`} />
             {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
-            <p className="text-xs text-muted-foreground/60 mt-1">На этот email придёт ответ по заявке</p>
+            <p className="text-xs text-[var(--soft-ink-faint)] mt-1">На этот email придёт ответ по заявке</p>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Telegram (необязательно)</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Telegram (необязательно)</label>
             <Input value={telegram} onChange={e => { setTelegram(sanitizeUsername(e.target.value)); setTelegramError(null); }}
-              placeholder="username" className={`bg-card/50 ${telegramError ? "border-destructive" : ""}`} />
+              placeholder="username" className={`soft-input ${telegramError ? "border-destructive" : ""}`} />
             {telegramError && <p className="text-xs text-destructive mt-1">{telegramError}</p>}
           </div>
-          <Button className="w-full" onClick={() => validateStep1() && setStep(2)}>
-            Далее →
+          <Button className="soft-button soft-button-primary w-full" onClick={() => validateStep1() && setStep(2)}>
+            Далее
+            <ArrowRight className="size-4" aria-hidden="true" />
           </Button>
         </div>
       )}
 
       {/* Шаг 2 */}
       {step === 2 && (
-        <div className="rounded-xl border border-border/40 bg-card/30 p-6 space-y-5">
-          <h3 className="font-semibold text-lg">Ваша специализация</h3>
+        <div className="soft-card-flat p-6 space-y-5">
+          <h3 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Ваша специализация</h3>
           <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Специализации *</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-2 block">Специализации *</label>
             <div className="flex flex-wrap gap-2">
               {SPECIALTIES.map(s => (
                 <button key={s.value} type="button" onClick={() => toggleSpecialty(s.value)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  className={`soft-chip ${
                     specialties.includes(s.value)
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border/30 text-muted-foreground hover:border-border/60"
+                      ? "soft-chip-warm"
+                      : ""
                   }`}>
                   {s.label}
                 </button>
@@ -229,14 +231,14 @@ export function ApplyForm() {
             </div>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Опыт работы *</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-2 block">Опыт работы *</label>
             <div className="flex flex-wrap gap-2">
               {EXPERIENCE_OPTIONS.map(opt => (
                 <button key={opt} type="button" onClick={() => setExperience(opt)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  className={`soft-chip ${
                     experience === opt
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border/30 text-muted-foreground hover:border-border/60"
+                      ? "soft-chip-warm"
+                      : ""
                   }`}>
                   {opt}
                 </button>
@@ -244,14 +246,14 @@ export function ApplyForm() {
             </div>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-2 block">Форматы работы (необязательно)</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-2 block">Форматы работы (необязательно)</label>
             <div className="flex flex-wrap gap-2">
               {SESSION_FORMATS.map(f => (
                 <button key={f} type="button" onClick={() => toggleFormat(f)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  className={`soft-chip ${
                     formats.includes(f)
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border/30 text-muted-foreground hover:border-border/60"
+                      ? "soft-chip-warm"
+                      : ""
                   }`}>
                   {f}
                 </button>
@@ -259,43 +261,53 @@ export function ApplyForm() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>← Назад</Button>
-            <Button className="flex-1" onClick={() => validateStep2() && setStep(3)}>Далее →</Button>
+            <Button variant="outline" className="soft-button soft-button-ghost flex-1" onClick={() => setStep(1)}>
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Назад
+            </Button>
+            <Button className="soft-button soft-button-primary flex-1" onClick={() => validateStep2() && setStep(3)}>
+              Далее
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
           </div>
         </div>
       )}
 
       {/* Шаг 3 */}
       {step === 3 && (
-        <div className="rounded-xl border border-border/40 bg-card/30 p-6 space-y-5">
-          <h3 className="font-semibold text-lg">Расскажите о себе</h3>
+        <div className="soft-card-flat p-6 space-y-5">
+          <h3 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Расскажите о себе</h3>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">О себе и своём подходе *</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">О себе и своём подходе *</label>
             <textarea value={about} onChange={e => { setAbout(sanitizeText(e.target.value, 500)); setAboutError(null); }}
               placeholder="Расскажите о вашей практике, методах работы, образовании или пути в эзотерике. Что отличает вас от других? Как проходят ваши сессии?"
-              className={`w-full rounded-lg border bg-card/50 px-3 py-2.5 text-sm resize-none h-36 focus:outline-none focus:border-primary/50 ${aboutError ? "border-destructive" : "border-border/40"}`} />
-            <p className={`text-xs mt-1 ${aboutError ? "text-destructive" : "text-muted-foreground/60"}`}>
+              className={`soft-input h-36 w-full resize-none px-3 py-2.5 text-sm ${aboutError ? "border-destructive" : ""}`} />
+            <p className={`text-xs mt-1 ${aboutError ? "text-destructive" : "text-[var(--soft-ink-faint)]"}`}>
               {about.length} / 500 символов (мин. 50)
               {aboutError && ` — ${aboutError}`}
             </p>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Почему ETerapy? (необязательно)</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Почему ETerapy? (необязательно)</label>
             <textarea value={why} onChange={e => setWhy(sanitizeText(e.target.value, 100))}
               placeholder="Что привлекает вас именно в нашей платформе?"
-              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm resize-none h-20 focus:outline-none focus:border-primary/50" />
-            <p className="text-xs text-muted-foreground/60 mt-1">{why.length} / 100 символов</p>
+              className="soft-input h-20 w-full resize-none px-3 py-2.5 text-sm" />
+            <p className="text-xs text-[var(--soft-ink-faint)] mt-1">{why.length} / 100 символов</p>
           </div>
           <div>
-            <label className="text-sm text-muted-foreground mb-1.5 block">Ссылки / портфолио (необязательно)</label>
+            <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Ссылки / портфолио (необязательно)</label>
             <Input value={portfolio} onChange={e => setPortfolio(sanitizeText(e.target.value, 500))}
-              placeholder="Сайт, Instagram, VK, отзывы клиентов..." className="bg-card/50" />
-            <p className="text-xs text-muted-foreground/60 mt-1">{portfolio.length} / 500 символов</p>
+              placeholder="Сайт, Instagram, VK, отзывы клиентов..." className="soft-input" />
+            <p className="text-xs text-[var(--soft-ink-faint)] mt-1">{portfolio.length} / 500 символов</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>← Назад</Button>
-            <Button className="flex-1" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Отправляем..." : "Отправить заявку ✉️"}
+            <Button variant="outline" className="soft-button soft-button-ghost flex-1" onClick={() => setStep(2)}>
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Назад
+            </Button>
+            <Button className="soft-button soft-button-primary flex-1" onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Отправляем..." : "Отправить заявку"}
+              <Send className="size-4" aria-hidden="true" />
             </Button>
           </div>
         </div>

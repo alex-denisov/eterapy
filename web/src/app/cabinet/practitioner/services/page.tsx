@@ -174,7 +174,7 @@ export default async function PractitionerServicesPage() {
               Совместный формат доступен в каталоге. Участие подтверждается вручную, без автоматического снижения
               вашей ставки.
             </p>
-            <Link href={mainUrl("/joint")} className="soft-chip mt-4">
+            <Link href={mainUrl("/products/joint-session")} className="soft-chip mt-4">
               Посмотреть формат →
             </Link>
           </section>

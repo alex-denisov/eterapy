@@ -11,6 +11,9 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "pair": 79000,
   "seven-days": 99000,
   "my-map": 99000,
+  "tarot": 39000,
+  "natal-chart": 59000,
+  "numerology": 39000,
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
@@ -22,6 +25,9 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "pair": 3,
   "seven-days": 8,
   "my-map": 6,
+  "tarot": 2,
+  "natal-chart": 4,
+  "numerology": 2,
 };
 
 export const V5_SUBSCRIPTION_PLANS: Record<string, {
@@ -42,7 +48,7 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
     name: "Premium",
     amountKopecks: 129000,
     trialDays: 7,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
+    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
     creditsPerPeriod: 30,
   },
   // Deprecated legacy aliases are kept readable so older subscriptions do not
@@ -58,14 +64,14 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
+    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map"],
+    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
     creditsPerPeriod: 0,
   },
   practitioner_pro: {

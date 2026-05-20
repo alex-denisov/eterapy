@@ -1,14 +1,5 @@
-import { JointSessionPage } from "@/components/public/esoteric-soon-page";
-import { PublicJsonLd } from "@/components/seo/public-json-ld";
-import { createPublicPageMetadata } from "@/lib/public-page-seo";
-
-export const metadata = createPublicPageMetadata("/joint");
+import { redirect } from "next/navigation";
 
 export default function JointPage() {
-  return (
-    <>
-      <PublicJsonLd route="/joint" />
-      <JointSessionPage />
-    </>
-  );
+  redirect("/products/joint-session");
 }

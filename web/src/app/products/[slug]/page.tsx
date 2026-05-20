@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, CalendarDays, CheckCircle2, FileText, LockKeyhole, MessageSquareText, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, FileText, HeartHandshake, LockKeyhole, MessageSquareText, Moon, ShieldCheck, Users } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
+import { DirectProductCheckout } from "@/components/products/direct-product-checkout";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -26,6 +27,76 @@ export async function generateMetadata({
 }
 
 function ProductPreview({ product }: { product: V5Product }) {
+  if (product.slug === "tarot") {
+    return (
+      <div className="soft-card soft-product-preview soft-symbolic-preview" data-testid="product-tarot-preview">
+        <div className="flex justify-center gap-3">
+          {["Прошлое", "Сейчас", "Возможное"].map((label, index) => (
+            <div key={label} className="soft-tarot-card" style={{ transform: `rotate(${(index - 1) * 5}deg) translateY(${index === 1 ? "-6px" : "4px"})` }}>
+              <span>★</span>
+              <small>{label}</small>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-center text-sm leading-relaxed text-[#4a3e5e]">
+          Карты используются как метафора. В результате нет фатальных прогнозов, давления или обещаний будущего.
+        </p>
+      </div>
+    );
+  }
+
+  if (product.slug === "natal-chart") {
+    return (
+      <div className="soft-card soft-product-preview" data-testid="product-natal-preview" style={{ background: "linear-gradient(160deg, #d6decc, #eff2e8)" }}>
+        <div className="soft-natal-orbit" aria-hidden="true">
+          {[0, 1, 2, 3, 4, 5].map((item) => <span key={item} />)}
+        </div>
+        <div className="soft-card-flat mt-5 p-5">
+          <p className="soft-eyebrow text-[#3a4a36]">пример фокуса</p>
+          <h3 className="soft-h3 mt-2 text-[#3a4a36]">Не «кто вы навсегда», а какие темы сейчас стоит рассмотреть.</h3>
+        </div>
+      </div>
+    );
+  }
+
+  if (product.slug === "numerology") {
+    return (
+      <div className="soft-card soft-product-preview" data-testid="product-numerology-preview" style={{ background: "linear-gradient(160deg, #f4d9c1, #fff3e7)" }}>
+        <div className="grid grid-cols-3 gap-2">
+          {["3", "7", "9", "11", "22", "2026"].map((item) => (
+            <div key={item} className="soft-card-flat grid aspect-square place-items-center p-4 font-heading text-3xl font-semibold text-[var(--soft-bordeaux)]">
+              {item}
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Числа превращаются в вопросы к себе: где повтор, где ресурс, где выбор на ближайший цикл.
+        </p>
+      </div>
+    );
+  }
+
+  if (product.slug === "joint-session") {
+    return (
+      <div className="soft-card soft-product-preview" data-testid="product-joint-session-preview">
+        <div className="grid gap-3 md:grid-cols-2">
+          {[
+            ["Эзотерик", "символический разбор", "#4a3e5e", "linear-gradient(160deg, #dbd3ea, #eee6f5)"],
+            ["Психотерапевт", "контекст и безопасный шаг", "#3a4a36", "linear-gradient(160deg, #d6decc, #eff2e8)"],
+          ].map(([title, text, color, bg]) => (
+            <div key={title} className="soft-card-flat p-5" style={{ background: bg, color }}>
+              <p className="soft-eyebrow" style={{ color }}>{title}</p>
+              <h3 className="mt-3 font-heading text-xl font-semibold">{text}</h3>
+            </div>
+          ))}
+        </div>
+        <p className="mt-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Клиент видит цену и состав встречи до бронирования. Контекст передается только по согласию.
+        </p>
+      </div>
+    );
+  }
+
   if (product.slug === "chat-analysis") {
     return (
       <div className="soft-card soft-product-preview" data-testid="product-chat-analysis-preview">
@@ -149,7 +220,48 @@ function ProductIcon({ slug }: { slug: V5Product["slug"] }) {
   if (slug === "compatibility") return <Users className="size-5" aria-hidden="true" />;
   if (slug === "seven-days") return <CalendarDays className="size-5" aria-hidden="true" />;
   if (slug === "deep-report") return <FileText className="size-5" aria-hidden="true" />;
+  if (slug === "tarot") return <Moon className="size-5" aria-hidden="true" />;
+  if (slug === "joint-session") return <HeartHandshake className="size-5" aria-hidden="true" />;
   return <ShieldCheck className="size-5" aria-hidden="true" />;
+}
+
+function ProductPrimaryAction({ product }: { product: V5Product }) {
+  if (product.productKey) {
+    return (
+      <DirectProductCheckout
+        productKey={product.productKey}
+        label={product.directCta ?? product.cta}
+        checkoutSource={`product-page-${product.slug}`}
+      />
+    );
+  }
+
+  if (product.directHref) {
+    return (
+      <Link
+        href={product.directHref}
+        className="soft-button soft-button-primary"
+        data-analytics-event="direct_product_link_clicked"
+        data-analytics-product={product.slug}
+      >
+        {product.directCta ?? product.cta}
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/checkin"
+      className="soft-button soft-button-primary"
+      data-analytics-event="dialogue_cta_clicked"
+      data-analytics-target="/checkin"
+      data-testid="product-dialogue-cta"
+    >
+      {product.cta}
+      <ArrowRight className="size-4" aria-hidden="true" />
+    </Link>
+  );
 }
 
 export default async function ProductPage({
@@ -175,14 +287,15 @@ export default async function ProductPage({
           <h1 className="soft-display mt-3">{product.name}</h1>
           <p className="soft-lede mt-5 max-w-3xl">{product.summary}</p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <ProductPrimaryAction product={product} />
             <Link
               href="/checkin"
-              className="soft-button soft-button-primary"
+              className="soft-button soft-button-ghost"
               data-analytics-event="dialogue_cta_clicked"
               data-analytics-target="/checkin"
               data-testid="product-dialogue-cta"
             >
-              {product.cta}
+              Сначала бесплатный диалог
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
             <Link href="/products" className="soft-button soft-button-ghost">

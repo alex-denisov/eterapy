@@ -23,10 +23,10 @@ export default async function Home() {
       <HomeAnalytics />
       <HeroSection />
       <HowItWorksSection />
-      <TrustPromisesSection />
-      <GrowthFormatsSection />
       <AIToolsSection />
+      <GrowthFormatsSection />
       <LibraryPreviewSection />
+      <TrustPromisesSection />
       <TrustPrivacySection />
       <ForPractitionersSection />
       <FAQSection />

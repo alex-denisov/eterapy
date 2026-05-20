@@ -39,7 +39,12 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/pricing": {
     title: "Цены и тарифы ETerapy",
-    description: "Прозрачные цены v5: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности, подписки и Practitioner Pro.",
+    description: "Прозрачные цены v5: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности и клиентские подписки.",
+    schemaKind: "Product",
+  },
+  "/pricing/compare": {
+    title: "Сравнение тарифов ETerapy",
+    description: "Подробное сравнение Free, Plus и Premium: кредиты, карта, цифровые продукты, маршруты, ограничения и что не входит в подписки.",
     schemaKind: "Product",
   },
   "/missions": {
@@ -77,29 +82,14 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Все v5 продукты углубления: первичный ответ, 4 ракурса, глубокий отчет, разбор переписки, совместимость, 7 дней к ясности и Моя карта.",
     schemaKind: "Product",
   },
-  "/tarot": {
-    title: "Таро в ETerapy — бережный расклад без обещаний будущего",
-    description: "Таро в ETerapy: язык метафор, этичный разбор, фиксированные форматы и запрет на фатальные прогнозы.",
-    schemaKind: "Product",
-  },
-  "/astro": {
-    title: "Астрология в ETerapy — натальная карта как символический портрет",
-    description: "Астрологические форматы ETerapy: натальная карта, транзиты и синастрия как темы для осмысления, не предсказания.",
-    schemaKind: "Product",
-  },
-  "/numerology": {
-    title: "Нумерология в ETerapy — числовой портрет без фатальности",
-    description: "Нумерологические форматы ETerapy: числа как карта вопросов, циклов и повторяющихся тем, а не приговор.",
-    schemaKind: "Product",
-  },
-  "/joint": {
-    title: "Совместная сессия ETerapy — эзотерик и психотерапевт",
-    description: "Совместный формат ETerapy: один час, два специалиста, символический язык и безопасный практический следующий шаг.",
-    schemaKind: "Product",
-  },
   "/products/primary-answer": {
     title: "Первичный ответ — ETerapy",
     description: "Бесплатный question-first продукт: короткий уточняющий диалог, структурированный первичный ответ и безопасный следующий шаг.",
+    schemaKind: "Product",
+  },
+  "/products/clarity-practice": {
+    title: "Практика ясности — продукт ETerapy",
+    description: "Ежедневная мягкая практика: один вопрос, один ракурс, один маленький шаг и кредиты ясности за осмысленные действия.",
     schemaKind: "Product",
   },
   "/products/perspectives": {
@@ -130,6 +120,26 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   "/products/my-map": {
     title: "Моя карта ETerapy",
     description: "Приватное пространство для сохранения вопросов, ответов, отчетов, маршрутов и личных выводов.",
+    schemaKind: "Product",
+  },
+  "/products/tarot": {
+    title: "Расклад Таро — продукт ETerapy",
+    description: "Цифровой расклад Таро как язык метафор: без обещаний будущего, с приватным вопросом и практичным следующим шагом.",
+    schemaKind: "Product",
+  },
+  "/products/natal-chart": {
+    title: "Натальная карта — продукт ETerapy",
+    description: "Астрологический разбор как символический портрет тем и фокусов, не предсказание и не приговор.",
+    schemaKind: "Product",
+  },
+  "/products/numerology": {
+    title: "Числовой портрет — продукт ETerapy",
+    description: "Нумерологический разбор имени и даты как карта вопросов, циклов и повторяющихся тем.",
+    schemaKind: "Product",
+  },
+  "/products/joint-session": {
+    title: "Эзотерик + психотерапевт — продукт ETerapy",
+    description: "Совместная живая сессия двух специалистов: символический язык и психотерапевтическая проверка реальности.",
     schemaKind: "Product",
   },
   "/all-modalities": {

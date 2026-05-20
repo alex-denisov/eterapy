@@ -23,14 +23,25 @@ const steps = [
   },
   {
     step: "04",
-    title: "Углубляетесь, если хочется",
-    text: "4 ракурса, разбор переписки, совместимость, маршрут «7 дней», встреча со специалистом, или совместная сессия — выбираете сами.",
+    title: "На странице ответа видны углубления",
+    text: "Один рекомендуемый формат, несколько альтернатив, подписка как опция для регулярного использования и встречи со специалистами как отдельный следующий шаг.",
   },
   {
     step: "05",
+    title: "Покупаете услугу напрямую или после triage",
+    text: "4 ракурса, глубокий отчёт, переписка, совместимость, Таро, натальная карта, маршрут «7 дней» или встреча со специалистом доступны из каталога /products.",
+  },
+  {
+    step: "06",
     title: "Сохраняете в карту",
     text: "Все разборы складываются в личную карту: видны темы, паттерны, повторы. Можно поделиться карточкой, можно удалить всё в один клик.",
   },
+];
+
+const productGroups = [
+  ["Цифровые углубления", "4 ракурса, глубокий отчёт, переписка, совместимость, 7 дней к ясности и Моя карта."],
+  ["Эзотерические форматы", "Таро, натальная карта и числовой портрет подаются как метафора, не как прогноз."],
+  ["Живые встречи", "Психолог, коуч, юрист, эзотерик или совместная сессия. Цена видна до бронирования."],
 ];
 
 export default function HowItWorksPage() {
@@ -41,11 +52,15 @@ export default function HowItWorksPage() {
       <section className="soft-shell" style={{ paddingTop: 64, paddingBottom: 24, maxWidth: 880, margin: "0 auto" }}>
         <p className="soft-eyebrow">как это работает</p>
         <h1 className="soft-h1 mt-3">
-          Тёплый, короткий путь от <span className="soft-italic">«не понимаю, что со мной»</span> к ясному следующему шагу
+          От вопроса <span className="soft-italic">к ясности</span> — и дальше только по вашему выбору
         </h1>
+        <p className="soft-lede mt-5">
+          ETerapy не является маркетплейсом с витриной специалистов на первом экране.
+          Основная воронка: вопрос → бесплатный первичный разбор → углубление → специалист, если нужен живой разговор.
+        </p>
 
         {/* Quote card */}
-        <div className="soft-card mt-8" style={{ padding: 28 }}>
+        <div className="soft-card mt-8" style={{ padding: 28, background: "linear-gradient(160deg, #fffcf5, #f4d9c1)" }}>
           <p
             style={{
               fontFamily: "var(--font-heading, serif)",
@@ -55,8 +70,9 @@ export default function HowItWorksPage() {
               lineHeight: 1.4,
             }}
           >
-            «ETerapy — это не предсказание и не терапия. Это пространство, где можно сформулировать важный вопрос — и услышать его в полной тишине».
+            «Диалог ясности → бесплатный первичный разбор → выбор углубления → результат → Моя карта → специалист при необходимости».
           </p>
+          <p className="mt-3 text-xs uppercase tracking-[0.14em] text-[var(--soft-ink-faint)]">главная формула продукта</p>
         </div>
 
         {/* 5 steps */}
@@ -96,7 +112,28 @@ export default function HowItWorksPage() {
                 </p>
               </div>
             </div>
-          ))}
+        ))}
+        </div>
+
+        <div className="soft-card mt-8 p-6 md:p-8" style={{ background: "var(--soft-paper-deep)" }}>
+          <p className="soft-eyebrow text-[var(--soft-bordeaux)]">что можно купить или заказать</p>
+          <h2 className="soft-h2 mt-3">Каталог продуктов живёт в `/products`</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Бесплатный диалог остаётся лучшим входом, но не должен быть ловушкой. Если пользователь уже понимает,
+            что ему нужен расклад Таро, разбор переписки или запись к специалисту, он может открыть эту услугу напрямую.
+          </p>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {productGroups.map(([title, text]) => (
+              <div key={title} className="soft-card p-4">
+                <p className="font-semibold text-[var(--soft-bordeaux)]">{title}</p>
+                <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{text}</p>
+              </div>
+            ))}
+          </div>
+          <Link href="/products" className="soft-button soft-button-primary mt-6">
+            Перейти в продукты
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
         </div>
 
         {/* Safety card */}
@@ -119,6 +156,19 @@ export default function HowItWorksPage() {
             <li>Если вопрос про насилие, угрозу безопасности, юридические или медицинские риски — направим к специалисту.</li>
             <li>Если за 2–3 разбора тема не сдвигается — предложим встречу с проверенным психологом, коучем или юристом.</li>
           </ul>
+        </div>
+
+        <div className="soft-card mt-8 p-6 md:p-8">
+          <p className="soft-eyebrow">подписки</p>
+          <h2 className="soft-h2 mt-3">Подписка — не первый CTA</h2>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Plus и Premium появляются там, где пользователь возвращается: история, кредиты, карта, маршруты и ограниченные
+            включения цифровых продуктов. Встречи со специалистами оплачиваются отдельно по полной ставке.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href="/pricing" className="soft-button soft-button-ghost">Тарифы</Link>
+            <Link href="/pricing/compare" className="soft-button soft-button-ghost">Сравнение тарифов</Link>
+          </div>
         </div>
 
         {/* CTA */}

@@ -18,9 +18,10 @@ import {
   Bookmark,
   Lock,
   LogOut,
+  ShoppingBag,
 } from "lucide-react";
 import { BrandSignature } from "@/components/brand/brand-mark";
-import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
+import { appUrl, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -30,6 +31,7 @@ interface NavItem {
 
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Главная" },
+  { href: mainUrl("/products"), icon: ShoppingBag, label: "Продукты" },
   { href: appUrl("/cabinet/action-history"), icon: Compass, label: "Моя карта" },
   { href: appUrl("/cabinet/questions"), icon: History, label: "История разборов" },
   { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Записи" },

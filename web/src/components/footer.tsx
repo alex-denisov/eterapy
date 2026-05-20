@@ -14,7 +14,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       links: [
         [mainUrl("/checkin"), "Первичный разбор"],
         [mainUrl("/library"), "Библиотека вопросов"],
-        [mainUrl("/practice"), "Практика ясности"],
+        [mainUrl("/products/clarity-practice"), "Практика ясности"],
         [mainUrl("/circle"), "Круг ясности"],
         [mainUrl("/pair"), "Разобраться вдвоём"],
       ],
@@ -32,9 +32,9 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
     {
       title: "Эзотерика",
       links: [
-        [mainUrl("/tarot"), "Таро"],
-        [mainUrl("/astro"), "Астрология"],
-        [mainUrl("/numerology"), "Нумерология"],
+        [mainUrl("/products/tarot"), "Таро"],
+        [mainUrl("/products/natal-chart"), "Астрология"],
+        [mainUrl("/products/numerology"), "Нумерология"],
         [mainUrl("/products/my-map"), "Расширенная карта"],
       ],
     },

@@ -22,17 +22,20 @@ describe("v5 product pages", () => {
     }
   });
 
-  it("keeps products question-first and out of the marketplace-first path", () => {
+  it("keeps products canonical, direct-orderable, and still connected to the free dialogue", () => {
     const indexPage = source("app/products/page.tsx");
     const detailPage = source("app/products/[slug]/page.tsx");
 
     expect(indexPage).toContain('data-testid="products-page"');
     expect(indexPage).toContain('href="/checkin"');
+    expect(indexPage).toContain("открыть нужную услугу напрямую");
     expect(detailPage).toContain('data-testid="product-dialogue-cta"');
     expect(detailPage).toContain('data-testid="product-my-map-preview"');
     expect(detailPage).toContain('href="/checkin"');
-    expect(indexPage).not.toContain('href="/practitioners"');
-    expect(detailPage).not.toContain('href="/practitioners"');
+    expect(detailPage).toContain("<DirectProductCheckout");
+    expect(detailPage).toContain('href={product.directHref}');
+    expect(source("lib/v5-products.ts")).toContain('route: "/products/tarot"');
+    expect(source("lib/v5-products.ts")).toContain('directHref: "/practitioners?format=joint-session"');
   });
 
   it("documents required privacy and paid-product mechanics", () => {
