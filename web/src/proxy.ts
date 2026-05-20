@@ -83,6 +83,39 @@ function applyRobotsPolicy<T extends NextResponse>(response: T, host: string, pa
 
 // Paths that are OK on any subdomain (auth flow, nextauth callbacks at app-route level)
 const ALWAYS_ALLOW = ["/auth/", "/callback/"];
+const APP_PUBLIC_MAIN_PATHS = [
+  "/about",
+  "/all-modalities",
+  "/catalog",
+  "/checkin",
+  "/circle",
+  "/experts",
+  "/how-it-works",
+  "/how-to-choose",
+  "/joint",
+  "/legal",
+  "/library",
+  "/login",
+  "/missions",
+  "/modalities",
+  "/numerology",
+  "/pair",
+  "/practice",
+  "/practitioner",
+  "/practitioners",
+  "/pricing",
+  "/products",
+  "/register",
+  "/share",
+  "/specialists",
+  "/tarot",
+  "/telegram",
+  "/tools",
+];
+
+export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
+  return APP_PUBLIC_MAIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
 
 export default async function proxy(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
@@ -125,6 +158,14 @@ export default async function proxy(request: NextRequest) {
 
   // ─── app.eterapy.com ───
   if (onApp) {
+    if (shouldRedirectAppPublicPathToMain(pathname)) {
+      return applyRobotsPolicy(
+        redirectAbs(MAIN_DOMAIN, withOriginalSearch(pathname, request.nextUrl.search), context),
+        host,
+        pathname
+      );
+    }
+
     if (!role) {
       const nextPath = pathname.startsWith("/cabinet")
         ? pathname

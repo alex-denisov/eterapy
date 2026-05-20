@@ -4,7 +4,7 @@ jest.mock("@/lib/session-from-cookie", () => ({
   getSessionFromCookie: jest.fn(),
 }));
 
-import { internalRewriteUrl } from "@/proxy";
+import { internalRewriteUrl, shouldRedirectAppPublicPathToMain } from "@/proxy";
 
 function request(url: string): NextRequest {
   return { url } as NextRequest;
@@ -21,5 +21,15 @@ describe("subdomain proxy rewrites", () => {
     const url = internalRewriteUrl(request("https://app.eterapy.com/"), "/cabinet");
 
     expect(url.toString()).toBe("https://app.eterapy.com/cabinet");
+  });
+
+  it("keeps public product and funnel routes canonical on the main domain", () => {
+    for (const path of ["/products", "/products/deep-report", "/pricing", "/tarot", "/joint", "/checkin"]) {
+      expect(shouldRedirectAppPublicPathToMain(path)).toBe(true);
+    }
+
+    for (const path of ["/", "/billing", "/questions", "/cabinet", "/cabinet/billing"]) {
+      expect(shouldRedirectAppPublicPathToMain(path)).toBe(false);
+    }
   });
 });
