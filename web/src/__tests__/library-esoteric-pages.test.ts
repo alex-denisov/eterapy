@@ -4,8 +4,8 @@ import path from "path";
 const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-describe("B205 Library, esoteric waitlist, and joint-session pages", () => {
-  it("adds first-class v4.1 waitlist pages for Tarot, Astro, Numerology, and joint sessions", () => {
+describe("B205 Library, esoteric service, and joint-session pages", () => {
+  it("adds first-class v4.2 service pages for Tarot, Astro, Numerology, and joint sessions", () => {
     for (const route of ["tarot", "astro", "numerology", "joint"]) {
       const page = source(`src/app/${route}/page.tsx`);
       expect(page).toContain(`createPublicPageMetadata("/${route}")`);
@@ -31,14 +31,14 @@ describe("B205 Library, esoteric waitlist, and joint-session pages", () => {
     expect(page).toContain("без скидок на встречи");
   });
 
-  it("links v4.1 service catalog cards to real waitlist pages instead of placeholders", () => {
+  it("links v4.2 service catalog cards to real service pages instead of placeholders", () => {
     const catalog = source("src/components/products/service-catalog.tsx");
 
     expect(catalog).toContain('href: "/tarot"');
     expect(catalog).toContain('href: "/astro"');
     expect(catalog).toContain('href: "/numerology"');
     expect(catalog).toContain('href: "/joint"');
-    expect(catalog).toContain("Открыть waitlist");
+    expect(catalog).toContain("Подробнее");
     expect(catalog).not.toContain('id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "#"' );
   });
 

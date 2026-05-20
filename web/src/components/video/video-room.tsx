@@ -486,7 +486,7 @@ function VideoRoomInner({
             </div>
             <h2 className="mb-2 text-xl font-bold font-heading">Сессия завершена</h2>
             <p className="mb-6 text-sm text-muted-foreground">
-              Время вашей сессии истекло. Спасибо за использование eTerapy!
+              Время вашей сессии истекло. Спасибо за использование ETerapy!
             </p>
             <button
               onClick={() => router.push(role === "client" ? "/cabinet/bookings" : "/cabinet/practitioner/clients")}

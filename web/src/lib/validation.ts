@@ -1,6 +1,6 @@
 /**
  * Validation utilities for form input sanitization and validation.
- * Applied globally across all forms in the eTerapy platform.
+ * Applied globally across all forms in the ETerapy platform.
  */
 
 /**

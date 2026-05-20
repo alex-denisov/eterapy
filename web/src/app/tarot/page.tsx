@@ -1,5 +1,5 @@
 import { CalendarDays, Moon, Sparkles } from "lucide-react";
-import { EsotericSoonPage } from "@/components/public/esoteric-soon-page";
+import { EsotericServicePage } from "@/components/public/esoteric-soon-page";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
@@ -9,7 +9,7 @@ export default function TarotPage() {
   return (
     <>
       <PublicJsonLd route="/tarot" />
-      <EsotericSoonPage
+      <EsotericServicePage
         eyebrow="новое направление · Таро"
         title={
           <>

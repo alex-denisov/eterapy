@@ -629,7 +629,7 @@ export default function HelpPage() {
       ? "Ответы для практиков"
       : role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR"
       ? "Ответы для администраторов"
-      : "Ответы на частые вопросы о платформе eTerapy";
+      : "Ответы на частые вопросы о платформе ETerapy";
 
   const content = (
     <>

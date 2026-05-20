@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 
 const CONSENT_KEY = "eterapy_cookie_consent";
@@ -18,26 +18,34 @@ export function setCookieConsent(value: "all" | "necessary") {
   localStorage.setItem(CONSENT_KEY, value);
 }
 
-export function CookieBanner() {
-  const [visible, setVisible] = useState(false);
+function subscribeToCookieConsent(callback: () => void) {
+  window.addEventListener("eterapy:cookie-consent-changed", callback);
+  window.addEventListener("storage", callback);
 
-  useEffect(() => {
-    if (!getCookieConsent()) setVisible(true);
-  }, []);
+  return () => {
+    window.removeEventListener("eterapy:cookie-consent-changed", callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function getCookieConsentSnapshot() {
+  return getCookieConsent() ?? "missing";
+}
+
+export function CookieBanner() {
+  const consent = useSyncExternalStore(subscribeToCookieConsent, getCookieConsentSnapshot, () => "pending");
 
   function accept() {
     setCookieConsent("all");
-    setVisible(false);
     window.dispatchEvent(new Event("eterapy:cookie-consent-changed"));
   }
 
   function necessary() {
     setCookieConsent("necessary");
-    setVisible(false);
     window.dispatchEvent(new Event("eterapy:cookie-consent-changed"));
   }
 
-  if (!visible) return null;
+  if (consent !== "missing") return null;
 
   return (
     <div

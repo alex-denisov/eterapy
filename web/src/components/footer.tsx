@@ -32,9 +32,9 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
     {
       title: "Эзотерика",
       links: [
-        [mainUrl("/tarot"), "Таро · скоро"],
-        [mainUrl("/astro"), "Астрология · скоро"],
-        [mainUrl("/numerology"), "Нумерология · скоро"],
+        [mainUrl("/tarot"), "Таро"],
+        [mainUrl("/astro"), "Астрология"],
+        [mainUrl("/numerology"), "Нумерология"],
         [mainUrl("/products/my-map"), "Расширенная карта"],
       ],
     },
@@ -44,7 +44,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/practitioners"), "Специалисты"],
         [mainUrl("/practitioners/apply"), "Стать специалистом"],
         [mainUrl("/telegram"), "Telegram"],
-        [mainUrl("/missions"), "Миссии"],
+        [mainUrl("/missions"), "Задания практики"],
       ],
     },
     {

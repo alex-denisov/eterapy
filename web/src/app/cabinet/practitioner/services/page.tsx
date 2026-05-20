@@ -79,16 +79,16 @@ export default async function PractitionerServicesPage() {
               ETerapy фиксирует attribution, а затем ведёт к записи без скидок на вашу ставку.
             </p>
             <div className="mt-4 grid gap-3">
-              <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3">
+              <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
                 <p className="text-xs text-[var(--soft-ink-faint)]">Precheck URL</p>
                 <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{precheckUrl}</code>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3">
+                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
                   <p className="text-xs text-[var(--soft-ink-faint)]">Telegram deeplink</p>
                   <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{telegramUrl}</code>
                 </div>
-                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3">
+                <div className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
                   <p className="text-xs text-[var(--soft-ink-faint)]">Script widget</p>
                   <code className="mt-1 block break-all text-sm text-[var(--soft-bordeaux)]">{widgetSnippet}</code>
                 </div>
@@ -171,7 +171,7 @@ export default async function PractitionerServicesPage() {
             <p className="soft-eyebrow">совместный формат</p>
             <h2 className="soft-h3 mt-3">Эзотерик + психотерапевт</h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Пилотный формат виден в каталоге ожидания. Участие подтверждается вручную, без автоматического снижения
+              Совместный формат доступен в каталоге. Участие подтверждается вручную, без автоматического снижения
               вашей ставки.
             </p>
             <Link href={mainUrl("/joint")} className="soft-chip mt-4">
@@ -197,7 +197,7 @@ export default async function PractitionerServicesPage() {
         </div>
       </section>
 
-      <div className="mt-5 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]">
+      <div className="mt-5 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-sm text-[var(--soft-ink-soft)]">
         Изменение тарифов сейчас проходит через расписание и поддержку, чтобы не ломать уже созданные записи.
         Следующим блоком будет безопасное редактирование услуг с аудитом изменений.
       </div>

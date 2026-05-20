@@ -22,8 +22,7 @@ const CATEGORY_FILTERS: Array<{ id: string; label: string; live: boolean; note?:
   { id: "tarot", label: "Таро", live: true },
   { id: "astro", label: "Астрология", live: true },
   { id: "numero", label: "Нумерология", live: true },
-  { id: "joint", label: "Совместные сессии", live: false, note: "пилот" },
-  { id: "edu", label: "Обучение", live: false, note: "скоро" },
+  { id: "joint", label: "Совместные сессии", live: true },
 ];
 
 const SPECIALTY_LABELS: Record<string, string> = {
@@ -121,7 +120,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
 
       {sorted.length === 0 ? (
         <div className="soft-card p-8 text-center" data-testid="specialists-empty-state">
-          <p className="soft-eyebrow">скоро в каталоге</p>
+          <p className="soft-eyebrow">нет открытых слотов</p>
           <h2 className="soft-h3 mt-2">В этом направлении пока нет открытых слотов</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Каталог расширяется постепенно: каждый специалист проходит проверку,

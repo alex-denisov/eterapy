@@ -104,7 +104,7 @@ const oneOff = [
   { t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 3 200 ₽" },
   { t: "Парная встреча", d: "Семейный психолог", price: "от 7 200 ₽" },
   { t: "Юрист", d: "Семейное право, развод, опека", price: "от 6 000 ₽" },
-  { t: "Совместная сессия", d: "Эзотерик + психотерапевт", price: "от 4 500 ₽", soon: true },
+  { t: "Совместная сессия", d: "Эзотерик + психотерапевт", price: "от 4 500 ₽" },
 ];
 
 function formatPrice(n: number): string {
@@ -293,7 +293,7 @@ export function PricingPlans() {
                 style={{
                   borderTop: i > 1 ? "1px solid var(--soft-paper-edge)" : i === 1 ? "none" : "none",
                   borderRight: i % 2 === 0 ? "1px solid var(--soft-paper-edge)" : "none",
-                  opacity: item.soon ? 0.6 : 1,
+                  opacity: 1,
                   paddingLeft: i % 2 === 1 ? "1.25rem" : "0",
                   paddingRight: i % 2 === 0 ? "1.25rem" : "0",
                 }}
@@ -301,14 +301,6 @@ export function PricingPlans() {
                 <div>
                   <p className="text-sm font-semibold" style={{ color: "var(--soft-ink)" }}>
                     {item.t}
-                    {item.soon && (
-                      <span
-                        className="soft-badge ml-2"
-                        style={{ fontSize: "0.65rem", verticalAlign: "middle" }}
-                      >
-                        скоро
-                      </span>
-                    )}
                   </p>
                   <p className="mt-0.5 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                     {item.d}

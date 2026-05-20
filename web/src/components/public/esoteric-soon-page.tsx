@@ -10,7 +10,7 @@ type EsotericProduct = {
   icon: LucideIcon;
 };
 
-type EsotericSoonPageProps = {
+type EsotericServicePageProps = {
   eyebrow: string;
   title: ReactNode;
   subtitle: string;
@@ -21,7 +21,7 @@ type EsotericSoonPageProps = {
   products: EsotericProduct[];
 };
 
-export function EsotericSoonPage({
+export function EsotericServicePage({
   eyebrow,
   title,
   subtitle,
@@ -30,9 +30,9 @@ export function EsotericSoonPage({
   paper,
   glyph: Glyph,
   products,
-}: EsotericSoonPageProps) {
+}: EsotericServicePageProps) {
   return (
-    <main className="soft-clarity-page soft-public-page" data-testid="esoteric-soon-page">
+    <main className="soft-clarity-page soft-public-page" data-testid="esoteric-service-page">
       <section className="soft-shell py-12 md:py-16">
         <Link href="/" className="soft-chip soft-chip-warm">
           На главную
@@ -41,8 +41,8 @@ export function EsotericSoonPage({
         <div className="mt-8 grid gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-center">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <span className="soft-badge soft-badge-lilac">скоро</span>
-              <span className="text-xs text-[var(--soft-ink-faint)]">можно встать в лист ожидания</span>
+              <span className="soft-badge soft-badge-lilac">доступно сейчас</span>
+              <span className="text-xs text-[var(--soft-ink-faint)]">цифровой формат и специалисты ETerapy</span>
             </div>
             <p className="soft-eyebrow mt-6" style={{ color: accent }}>
               {eyebrow}
@@ -55,11 +55,11 @@ export function EsotericSoonPage({
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/checkin" className="soft-button soft-button-primary">
-                В лист ожидания
+                Начать с вопроса
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
-              <Link href="/checkin" className="soft-button soft-button-ghost">
-                Пока попробовать разбор
+              <Link href="/products" className="soft-button soft-button-ghost">
+                Посмотреть все форматы
               </Link>
             </div>
           </div>
@@ -99,11 +99,14 @@ export function EsotericSoonPage({
                 <article key={product.title} className="soft-card col-span-12 p-6 md:col-span-6 lg:col-span-4">
                   <div className="flex items-start justify-between gap-4">
                     <Icon className="size-6" style={{ color: accent }} aria-hidden="true" />
-                    <span className="soft-badge soft-badge-lilac">скоро</span>
+                    <span className="soft-badge soft-badge-warm">{product.price}</span>
                   </div>
                   <h3 className="soft-h3 mt-5">{product.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.description}</p>
-                  <p className="mt-5 text-xl font-semibold text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>{product.price}</p>
+                  <Link href="/checkin" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--soft-terracotta-dark)]">
+                    Начать с вопроса
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
                 </article>
               );
             })}
@@ -114,7 +117,7 @@ export function EsotericSoonPage({
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="soft-eyebrow text-[#4a3e5e]">совместный формат</p>
-              <h2 className="soft-h3 mt-3 text-[#4a3e5e]">Соединить с психотерапевтом — пилот</h2>
+              <h2 className="soft-h3 mt-3 text-[#4a3e5e]">Соединить с психотерапевтом</h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#4a3e5e]">
                 Разбор продолжает живой специалист, чтобы метафора не осталась без контекста и практического шага.
               </p>
@@ -129,6 +132,8 @@ export function EsotericSoonPage({
     </main>
   );
 }
+
+export const EsotericSoonPage = EsotericServicePage;
 
 export function JointSessionPage() {
   const sections = [
@@ -163,7 +168,7 @@ export function JointSessionPage() {
           К продуктам
         </Link>
         <div className="mt-8 flex flex-wrap items-center gap-3">
-          <span className="soft-badge soft-badge-lilac">пилот · скоро</span>
+          <span className="soft-badge soft-badge-lilac">доступно сейчас</span>
           <span className="text-xs text-[var(--soft-ink-faint)]">уникальный для ETerapy формат</span>
         </div>
 
@@ -224,7 +229,7 @@ export function JointSessionPage() {
             <div className="flex flex-col items-start gap-3 md:items-end">
               <p className="text-4xl font-semibold text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>от 4 500 ₽</p>
               <Link href="/checkin" className="soft-button soft-button-primary">
-                В лист ожидания
+                Начать с вопроса
               </Link>
             </div>
           </div>

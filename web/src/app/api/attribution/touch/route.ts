@@ -35,13 +35,23 @@ export async function POST(request: NextRequest) {
 
   const session = await auth();
   const visitorHash = channelVisitorHash(request);
-  await recordChannelTouch({
-    request,
-    userId: session?.user?.id ?? null,
-    touch: parsed.data,
-  });
+  let recorded = true;
 
-  const response = jsonWithRequestContext({ ok: true }, { status: 200 }, context);
+  try {
+    await recordChannelTouch({
+      request,
+      userId: session?.user?.id ?? null,
+      touch: parsed.data,
+    });
+  } catch (error) {
+    recorded = false;
+    console.warn("[attribution] channel touch skipped", {
+      requestId: context.requestId,
+      error: error instanceof Error ? error.message : "Unknown attribution error",
+    });
+  }
+
+  const response = jsonWithRequestContext({ ok: true, recorded }, { status: recorded ? 200 : 202 }, context);
   response.cookies.set(CHANNEL_ATTRIBUTION_COOKIE, visitorHash, {
     httpOnly: true,
     sameSite: "lax",

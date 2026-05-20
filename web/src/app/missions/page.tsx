@@ -7,7 +7,7 @@ export const metadata = createPublicPageMetadata("/missions");
 
 const rhythm = [
   { title: "Карта дня", text: "Один вопрос на 30 секунд, чтобы заметить состояние без оценки." },
-  { title: "Миссия недели", text: "Маленькое действие: написать, отложить, спросить, выбрать паузу." },
+  { title: "Задание недели", text: "Маленькое действие: написать, отложить, спросить, выбрать паузу." },
   { title: "Кредиты", text: "Бонусы начисляются только за осмысленные действия и проходят антифрод-проверку." },
 ];
 
@@ -19,7 +19,7 @@ export default function MissionsPage() {
       <section className="soft-shell py-12 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
-            <p className="soft-eyebrow">миссии</p>
+            <p className="soft-eyebrow">задания практики</p>
             <h1 className="soft-display mt-4">
               Практика ясности <span className="soft-italic">на каждый день</span>
             </h1>

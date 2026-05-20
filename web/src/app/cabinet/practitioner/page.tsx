@@ -335,7 +335,7 @@ export default async function PractitionerCabinetPage() {
                   <div
                     key={b.id}
                     className="flex items-center justify-between"
-                    style={{ padding: "12px 14px", background: "var(--soft-paper-deep)", borderRadius: 12 }}
+                    style={{ padding: "12px 14px", background: "var(--soft-paper-card)", borderRadius: 12 }}
                   >
                     <div className="flex items-start gap-4">
                       <span

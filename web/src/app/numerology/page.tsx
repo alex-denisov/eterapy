@@ -1,5 +1,5 @@
 import { CalendarDays, Hash, Sparkles } from "lucide-react";
-import { EsotericSoonPage } from "@/components/public/esoteric-soon-page";
+import { EsotericServicePage } from "@/components/public/esoteric-soon-page";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
@@ -9,7 +9,7 @@ export default function NumerologyPage() {
   return (
     <>
       <PublicJsonLd route="/numerology" />
-      <EsotericSoonPage
+      <EsotericServicePage
         eyebrow="новое направление · Нумерология"
         title={
           <>
