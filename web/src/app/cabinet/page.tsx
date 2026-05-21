@@ -95,7 +95,7 @@ export default async function ClientCabinetPage() {
         </Link>
       </div>
 
-      {/* v4: 3-col stat grid */}
+      {/* v4.2: 3-col stat grid — тема / кредиты / подписка */}
       <div className="mb-4 grid gap-4 md:grid-cols-3">
         <div
           className="soft-card p-5"
@@ -122,6 +122,24 @@ export default async function ClientCabinetPage() {
           </Link>
         </div>
 
+        <Link
+          href={appUrl("/cabinet/credits")}
+          className="soft-card p-5 block"
+          data-testid="client-clarity-credits"
+          style={{ background: "linear-gradient(140deg, #F4D9C1, #F8E6D1)", textDecoration: "none" }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="soft-eyebrow">Кредиты ясности</p>
+          </div>
+          <p style={{ fontFamily: "var(--font-heading, serif)", fontSize: 44, color: "var(--soft-bordeaux)", fontWeight: 600, lineHeight: 1, marginTop: 8 }}>
+            {clarityCredits}
+          </p>
+          <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+            потратить на ракурсы и отчёты
+          </p>
+          <span className="soft-chip mt-4 inline-block">Пополнить →</span>
+        </Link>
+
         <div className="soft-card p-5" data-testid="client-subscription-status">
           <p className="soft-eyebrow">подписка</p>
           <p
@@ -146,52 +164,31 @@ export default async function ClientCabinetPage() {
               Баланс: {balanceRub.toLocaleString("ru")} ₽
             </p>
           )}
-          <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-            Кредиты ясности: {clarityCredits}
-          </p>
           <Link href={appUrl("/cabinet/billing")} className="soft-chip mt-4 inline-block">
             Управлять →
           </Link>
         </div>
+      </div>
 
-        <div className="soft-card p-5">
-          <p className="soft-eyebrow">ближайшая встреча</p>
-          {upcomingBooking ? (
-            <>
-              <p
-                style={{
-                  fontFamily: "var(--font-heading, serif)",
-                  fontSize: 22,
-                  color: "var(--soft-bordeaux)",
-                  fontWeight: 500,
-                  marginTop: 8,
-                }}
-              >
+      {/* v4.2: upcoming booking — full-width dark bordeaux card, only when booking exists */}
+      {upcomingBooking && (
+        <div className="mb-4 rounded-[var(--soft-radius-xl)] p-5" style={{ background: "var(--soft-bordeaux)", color: "#FBF0E1" }}>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#F4D9C1", opacity: 0.7 }}>ближайшая встреча</p>
+              <p style={{ fontFamily: "var(--font-heading, serif)", fontSize: 22, color: "#FBF0E1", fontWeight: 500, marginTop: 6 }}>
                 {upcomingBooking.practitioner.user.name}
               </p>
-              <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-                {upcomingBooking.priceRub.toLocaleString("ru")} ₽ · {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает"}
+              <p className="mt-1 text-[13px]" style={{ color: "#E8C4B8" }}>
+                {upcomingBooking.priceRub.toLocaleString("ru")} ₽ · {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
               </p>
-            </>
-          ) : (
-            <p
-              style={{
-                fontFamily: "var(--font-heading, serif)",
-                fontSize: 17,
-                color: "var(--soft-ink-soft)",
-                fontStyle: "italic",
-                lineHeight: 1.4,
-                marginTop: 8,
-              }}
-            >
-              Нет предстоящих записей
-            </p>
-          )}
-          <Link href={appUrl("/cabinet/bookings")} className="soft-chip mt-4 inline-block">
-            Все записи →
-          </Link>
+            </div>
+            <Link href={appUrl("/cabinet/bookings")} className="soft-chip shrink-0" style={{ background: "#F4D9C1", color: "var(--soft-bordeaux)" }}>
+              Все записи →
+            </Link>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* v4: recent dialogues card — directly below stat grid */}
       <div className="soft-card mb-4 p-5">
@@ -321,13 +318,13 @@ export default async function ClientCabinetPage() {
             : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
+          <Link href={mainUrl("/products/seven-days")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
             Начать маршрут
           </Link>
           <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
             Подобрать специалиста
           </Link>
-          <Link href={appUrl("/cabinet/products")} className="soft-chip" style={{ fontSize: 12 }}>
+          <Link href={mainUrl("/products/deep-report")} className="soft-chip" style={{ fontSize: 12 }}>
             Глубокий отчёт →
           </Link>
         </div>
