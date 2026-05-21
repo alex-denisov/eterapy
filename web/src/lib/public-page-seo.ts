@@ -29,7 +29,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/how-it-works": {
     title: "Как работает ETerapy",
-    description: "Путь v5: вопрос, бесплатный первичный ответ, углубление по подписке или продукту и специалист только как осознанный следующий шаг.",
+    description: "Как работает ETerapy: вопрос, бесплатный первичный ответ, углубление по подписке или продукту и специалист только как осознанный следующий шаг.",
     schemaKind: "Article",
   },
   "/how-to-choose": {
@@ -39,7 +39,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/pricing": {
     title: "Цены и тарифы ETerapy",
-    description: "Прозрачные цены v5: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности и клиентские подписки.",
+    description: "Прозрачные цены: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности и клиентские подписки.",
     schemaKind: "Product",
   },
   "/pricing/compare": {
@@ -78,8 +78,8 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Article",
   },
   "/products": {
-    title: "Продукты ETerapy v5",
-    description: "Все v5 продукты углубления: первичный ответ, 4 ракурса, глубокий отчет, разбор переписки, совместимость, 7 дней к ясности и Моя карта.",
+    title: "Все продукты — ETerapy",
+    description: "Цифровые углубления, совместные форматы, эзотерические разборы и встречи со специалистами. Начните с бесплатного первичного ответа или откройте нужный продукт сразу.",
     schemaKind: "Product",
   },
   "/products/primary-answer": {
