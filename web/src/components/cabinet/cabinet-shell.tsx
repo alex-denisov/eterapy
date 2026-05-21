@@ -20,8 +20,7 @@ import {
   LogOut,
   ShoppingBag,
 } from "lucide-react";
-import { BrandSignature } from "@/components/brand/brand-mark";
-import { appUrl, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
+import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 
 interface NavItem {
   href: string;
@@ -31,11 +30,11 @@ interface NavItem {
 
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Главная" },
-  { href: mainUrl("/products"), icon: ShoppingBag, label: "Продукты" },
+  { href: appUrl("/cabinet/products"), icon: ShoppingBag, label: "Продукты" },
   { href: appUrl("/cabinet/action-history"), icon: Compass, label: "Моя карта" },
   { href: appUrl("/cabinet/questions"), icon: History, label: "История разборов" },
   { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Записи" },
-  { href: appUrl("/cabinet/billing#credits"), icon: Sparkles, label: "Кредиты ясности" },
+  { href: appUrl("/cabinet/credits"), icon: Sparkles, label: "Кредиты ясности" },
   { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Подписка и оплата" },
   { href: appUrl("/cabinet/settings"), icon: Settings, label: "Настройки" },
 ];
@@ -86,17 +85,13 @@ export function CabinetShell({
   return (
     <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell min-h-screen">
       <div className="soft-shell soft-app-layout">
-      {/* Sidebar — v4 card-style navigation */}
+      {/* Sidebar — v4.2 card-style navigation */}
       <aside
         data-testid="app-shell-sidebar"
         data-shell-role={role}
         className="sticky top-16 hidden shrink-0 self-start md:flex"
       >
         <div className="soft-app-sidebar-card flex flex-col overflow-y-auto p-3.5">
-          <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4">
-            <BrandSignature compact theme="light" />
-          </div>
-
           {/* User badge */}
           <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
             <div className="flex items-center gap-3">

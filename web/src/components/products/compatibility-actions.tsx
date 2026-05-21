@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Copy, CheckCircle2, Flag, RefreshCcw, LockKeyhole, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreditSpendButton } from "@/components/products/credit-spend-button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type CompatibilityResult = {
   id: string;
@@ -152,18 +152,9 @@ export function CompatibilityActions({
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setStatus("paying");
-        const payment = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
-          method: "POST",
-          body: JSON.stringify({
-            productKey: "compatibility",
-            checkoutSource: "compatibility-generate",
-          }),
-        });
-        if (payment.confirmationUrl) {
-          window.location.href = payment.confirmationUrl;
-          return;
-        }
+        setMessage("Откройте доступ к совместимости с баланса, кредитами ясности или картой — ответы партнеров останутся на месте.");
+        setStatus("error");
+        return;
       }
       setMessage(typed.message || "Не удалось получить разбор");
       setStatus("error");
@@ -283,18 +274,19 @@ export function CompatibilityActions({
       {result && result.status === "PARTNER_COMPLETED" && (
         <div className="mt-5">
           <p className="text-sm text-[var(--soft-ink-soft)] mb-4">Партнер заполнил свою часть и дал согласие. Теперь вы можете получить разбор.</p>
-          <Button onClick={generateReport} disabled={status === "loading" || status === "paying"} className="soft-button soft-button-primary">
+          <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
             <LockKeyhole className="size-4" aria-hidden="true" />
-            {status === "paying" ? "Открываем оплату..." : "Получить разбор (требуется согласие)"}
+            Получить разбор (требуется согласие)
           </Button>
           {!hasEntitlement && (
-            <CreditSpendButton
+            <ProductPurchaseControls
               productKey="compatibility"
+              label="Открыть с баланса"
+              checkoutSource="compatibility-generate"
               creditCost={4}
-              disabled={status === "loading" || status === "paying"}
               onUnlocked={() => {
                 setHasEntitlement(true);
-                setMessage("Доступ открыт за кредиты. Теперь можно получить разбор.");
+                setMessage("Доступ открыт. Теперь можно получить разбор.");
               }}
             />
           )}

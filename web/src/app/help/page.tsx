@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
-import { PageContainer } from "@/components/ui/page-container";
 import { Accordion } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 import { appUrl, adminUrl } from "@/lib/subdomain";
@@ -112,9 +111,10 @@ const CLIENT_FAQ: FAQCategory[] = [
         title: "Какие направления доступны?",
         content: (
           <p>
-            Основной вход — вопрос. Тематические страницы вроде Таро, астрологии и гороскопа
-            остаются вторичными SEO-входами, а полный список v5 продуктов доступен на странице
-            <Link href="/products" className="text-primary hover:underline"> «Продукты»</Link>.
+            Основной вход — вопрос, но покупать услуги можно напрямую. В кабинете есть раздел
+            <Link href={appUrl("/cabinet/products")} className="text-primary hover:underline"> «Продукты»</Link>:
+            4 ракурса, глубокий отчет, разбор переписки, совместимость, 7 дней к ясности,
+            Таро, натальная карта и числовой портрет.
           </p>
         ),
       },
@@ -174,7 +174,18 @@ const CLIENT_FAQ: FAQCategory[] = [
           <p>
             Пополнить баланс можно в разделе <Link href={appUrl("/cabinet/billing")} className="text-primary hover:underline">«Баланс и оплата»</Link>.
             Доступные способы оплаты: банковская карта, СБП. После оплаты средства зачисляются
-            на внутренний баланс и могут быть использованы для оплаты сессий.
+            на внутренний баланс и могут быть использованы для оплаты цифровых продуктов и сессий.
+          </p>
+        ),
+      },
+      {
+        title: "Чем баланс отличается от кредитов ясности?",
+        content: (
+          <p>
+            Рублевый баланс — это деньги на аккаунте: им можно оплатить продукты и живые сессии.
+            Кредиты ясности — бонусные баллы для цифровых углублений. Они живут в отдельном разделе
+            <Link href={appUrl("/cabinet/credits")} className="text-primary hover:underline"> «Кредиты ясности»</Link>,
+            чтобы не смешивать подписку, пополнение и бонусные списания.
           </p>
         ),
       },
@@ -574,24 +585,24 @@ function SearchFAQs({ categories }: { categories: FAQCategory[] }) {
   return (
     <div className="space-y-5">
       <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--soft-ink-faint)]" />
         <Input
           type="search"
           placeholder="Поиск по вопросам..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-10 rounded-lg border-border/40 bg-card/30 pl-10 pr-4 text-sm transition-colors focus-visible:border-primary/40 focus-visible:bg-card/50 focus-visible:ring-2 focus-visible:ring-primary/20"
+          className="soft-question-input h-11 py-2 pl-11 pr-4 text-sm"
         />
       </div>
 
       {filteredCategories.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/40 bg-card/20 py-6 text-center">
-          <p className="text-sm text-muted-foreground">
+        <div className="soft-card-flat py-8 text-center">
+          <p className="text-sm text-[var(--soft-ink-soft)]">
             Ничего не найдено по запросу «{query}»
           </p>
-          <p className="mt-1 text-xs text-muted-foreground/70">
+          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
             Напишите нам на{" "}
-            <a href="mailto:support@eterapy.com" className="text-primary hover:underline">
+            <a href="mailto:support@eterapy.com" className="font-semibold text-[var(--soft-bordeaux)] hover:underline">
               support&#64;eterapy.com
             </a>
           </p>
@@ -602,12 +613,12 @@ function SearchFAQs({ categories }: { categories: FAQCategory[] }) {
           return (
             <section key={cat.id} className="space-y-2">
               <div className="flex items-center gap-2 px-1">
-                <Icon className="h-4 w-4 text-primary" />
-                <h2 className="font-heading text-sm font-semibold text-foreground">
+                <Icon className="h-4 w-4 text-[var(--soft-terracotta-dark)]" />
+                <h2 className="font-heading text-sm font-semibold text-[var(--soft-bordeaux)]">
                   {cat.label}
                 </h2>
               </div>
-              <div className="overflow-hidden rounded-xl border border-border/40 bg-card/30">
+              <div className="soft-card overflow-hidden p-0">
                 <Accordion items={cat.items} />
               </div>
             </section>
@@ -634,30 +645,54 @@ export default function HelpPage() {
   const content = (
     <>
       <PublicJsonLd route="/help" />
-      <PageContainer maxWidth="3xl">
-        <h1 className="font-heading text-2xl font-bold mb-1">Чем мы можем помочь?</h1>
-        <p className="text-sm text-muted-foreground mb-6">{roleLabel}</p>
+      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6" data-testid="help-page-v42">
+        <section className="soft-card p-5 md:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <p className="soft-eyebrow">помощь</p>
+              <h1 className="soft-h1 mt-2">Чем мы можем помочь?</h1>
+              <p className="soft-lede mt-3 max-w-3xl">{roleLabel}</p>
+            </div>
+            <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary">
+              Продукты и услуги
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            {[
+              ["Диалог ясности", "первичный ответ, уточнения, сохранение"],
+              ["Оплата", "баланс, кредиты, подписка и возвраты"],
+              ["Живые сессии", "запись, видео, жалобы и поддержка"],
+            ].map(([title, text]) => (
+              <div key={title} className="soft-card-flat p-4">
+                <p className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{title}</p>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        <SearchFAQs categories={categories} />
+        <section className="mt-6">
+          <SearchFAQs categories={categories} />
+        </section>
 
-        <div className="mt-8 rounded-xl border border-border/40 bg-card/30 p-5 flex items-center gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <Mail className="h-5 w-5 text-primary" />
+        <div className="soft-card mt-8 flex flex-wrap items-center gap-4 p-5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--soft-apricot)]">
+            <Mail className="h-5 w-5 text-[var(--soft-bordeaux)]" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium">Не нашли ответ?</p>
-            <p className="text-xs text-muted-foreground">
-              Напишите нам — ответим в течение 24 часов
+            <p className="text-sm font-semibold text-[var(--soft-ink)]">Не нашли ответ?</p>
+            <p className="text-xs text-[var(--soft-ink-faint)]">
+              Напишите нам: поможем с оплатой, записью, продуктами, жалобами и настройками уведомлений.
             </p>
           </div>
           <a
             href="mailto:support@eterapy.com"
-            className="ml-auto shrink-0 text-sm font-medium text-primary hover:underline"
+            className="ml-auto shrink-0 text-sm font-semibold text-[var(--soft-bordeaux)] hover:underline"
           >
             support&#64;eterapy.com
           </a>
         </div>
-      </PageContainer>
+      </main>
     </>
   );
 
@@ -670,7 +705,7 @@ export default function HelpPage() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="soft-clarity-page min-h-screen">
       {content}
     </div>
   );

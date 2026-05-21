@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Download, LockKeyhole, Save, Trash2, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreditSpendButton } from "@/components/products/credit-spend-button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type PerspectivesResult = {
   id: string;
@@ -95,18 +95,9 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setStatus("paying");
-        const payment = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
-          method: "POST",
-          body: JSON.stringify({
-            productKey: "perspectives",
-            checkoutSource: "perspectives-generate",
-          }),
-        });
-        if (payment.confirmationUrl) {
-          window.location.href = payment.confirmationUrl;
-          return;
-        }
+        setMessage("Откройте доступ к 4 ракурсам с баланса, кредитами ясности или картой — после этого результат появится здесь же.");
+        setStatus("error");
+        return;
       }
       setMessage(typed.message || "Не удалось получить ракурсы");
       setStatus("error");
@@ -193,18 +184,19 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={generateReport} disabled={status === "loading" || status === "paying"} className="soft-button soft-button-primary">
+        <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
           <LockKeyhole className="size-4" aria-hidden="true" />
-          {result?.resultText ? "Обновить ракурсы" : status === "paying" ? "Открываем оплату..." : "Получить 4 ракурса"}
+          {result?.resultText ? "Обновить ракурсы" : "Получить 4 ракурса"}
         </Button>
         {!hasEntitlement && (
-          <CreditSpendButton
+          <ProductPurchaseControls
             productKey="perspectives"
+            label="Открыть с баланса"
+            checkoutSource="perspectives-generate"
             creditCost={2}
-            disabled={status === "loading" || status === "paying"}
             onUnlocked={() => {
               setHasEntitlement(true);
-              setMessage("Доступ открыт за кредиты. Теперь можно получить 4 ракурса.");
+              setMessage("Доступ открыт. Теперь можно получить 4 ракурса.");
             }}
           />
         )}

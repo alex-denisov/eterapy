@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Copy, Flag, RefreshCcw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type CircleParticipant = {
   id: string;
@@ -134,15 +135,8 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
       if (typed.status === 402) {
         setCircle(typed.payload?.result ?? circle);
         setMessage(typed.payload?.teaserText ?? typed.message);
-        setStatus("paying");
-        const payment = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
-          method: "POST",
-          body: JSON.stringify({ productKey: "circle", checkoutSource: "circle-generate" }),
-        }).catch(() => null);
-        if (payment?.confirmationUrl) {
-          window.location.href = payment.confirmationUrl;
-          return;
-        }
+        setStatus("error");
+        return;
       }
       setMessage(typed.message || "Не удалось собрать итог");
       setStatus("error");
@@ -277,7 +271,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={generateCircle} disabled={status === "loading" || circle.participants.length < 2} className="soft-button soft-button-primary">
+            <Button onClick={generateCircle} disabled={!hasEntitlement || status === "loading" || circle.participants.length < 2} className="soft-button soft-button-primary">
               Собрать итог
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
@@ -290,6 +284,20 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
               </Link>
             )}
           </div>
+          {!hasEntitlement && (
+            <div className="mt-3">
+              <ProductPurchaseControls
+                productKey="circle"
+                label="Открыть итог с баланса"
+                checkoutSource="circle-generate"
+                creditCost={3}
+                onUnlocked={() => {
+                  setHasEntitlement(true);
+                  setMessage("Доступ открыт. Теперь можно собрать итог круга.");
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
 

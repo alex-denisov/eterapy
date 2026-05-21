@@ -84,6 +84,39 @@ function useClarityCreditBalance(userId: string | null | undefined) {
   return userId ? credits : 0;
 }
 
+function formatBalanceRub(balanceKopecks: number) {
+  return (balanceKopecks / 100).toLocaleString("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+function BalanceSummaryLink({
+  balanceKopecks,
+  clarityCredits,
+  className,
+}: {
+  balanceKopecks: number;
+  clarityCredits: number;
+  className?: string;
+}) {
+  const rub = formatBalanceRub(balanceKopecks);
+  return (
+    <Link
+      href={appUrl("/cabinet/billing")}
+      aria-label={`Баланс: ${rub} ₽. Кредиты ясности: ${clarityCredits}. Открыть оплату и баланс`}
+      className={cn("soft-user-pill hidden", className)}
+      data-testid="header-balance-summary"
+    >
+      <CreditCard className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+      <span className="tabular-nums font-semibold">{rub} ₽</span>
+      <span className="h-4 w-px bg-[var(--soft-paper-edge)]" aria-hidden="true" />
+      <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+      <span className="tabular-nums font-semibold">{clarityCredits}</span>
+    </Link>
+  );
+}
+
 function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; balanceKopecks: number }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -93,7 +126,7 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
   const name = session.user?.name?.split(" ")[0] ?? session.user?.email ?? "Пользователь";
   const [focusedIndex, setFocusedIndex] = useState(-1);
 
-  const rub = (balanceKopecks / 100).toLocaleString("ru-RU", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const rub = formatBalanceRub(balanceKopecks);
 
   const menuItems = role === "PRACTITIONER" ? [
     { href: appUrl("/cabinet/practitioner"), label: "Главная специалиста", icon: LayoutDashboard },
@@ -112,11 +145,11 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
     { href: appUrl("/cabinet"), label: "Главная кабинета", icon: LayoutDashboard },
-    { href: mainUrl("/products"), label: "Каталог продуктов", icon: ShoppingBag },
+    { href: appUrl("/cabinet/products"), label: "Каталог продуктов", icon: ShoppingBag },
     { href: appUrl("/cabinet/map"), label: "Моя карта", icon: Compass },
     { href: appUrl("/cabinet/action-history"), label: "История разборов", icon: BookOpen },
-    { href: appUrl("/cabinet/billing"), label: "Кредиты ясности", icon: Sparkles },
-    { href: mainUrl("/products/clarity-practice"), label: "Практика ясности", icon: Heart },
+    { href: appUrl("/cabinet/credits"), label: "Кредиты ясности", icon: Sparkles },
+    { href: appUrl("/cabinet/products#clarity-practice"), label: "Практика ясности", icon: Heart },
     { href: appUrl("/cabinet/bookings"), label: "Мои записи", icon: CalendarDays },
     { href: appUrl("/cabinet/billing"), label: "Подписка и оплата", icon: CreditCard },
     { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },
@@ -344,14 +377,7 @@ export function Header() {
             <>
               {isAppArea ? (
                 <>
-                  <Link
-                    href={appUrl("/cabinet/billing")}
-                    aria-label={`Кредиты ясности: ${clarityCredits}. Открыть раздел оплаты и кредитов`}
-                    className="soft-user-pill hidden sm:flex"
-                  >
-                    <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" />
-                    <span className="tabular-nums font-semibold">{clarityCredits}</span>
-                  </Link>
+                  <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
                   <Link
                     href={appUrl("/help")}
                     aria-label="Помощь"
@@ -364,14 +390,7 @@ export function Header() {
                 </>
               ) : (
                 <>
-                  <Link
-                    href={appUrl("/cabinet/billing")}
-                    aria-label={`Кредиты ясности: ${clarityCredits}. Открыть раздел оплаты и кредитов`}
-                    className="soft-user-pill hidden lg:flex"
-                  >
-                    <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" />
-                    <span className="tabular-nums font-semibold">{clarityCredits}</span>
-                  </Link>
+                  <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="lg:flex" />
                   <Link
                     href={appUrl("/help")}
                     aria-label="Помощь"
@@ -443,11 +462,13 @@ export function Header() {
             ))}
             {isAuthenticated && session ? (
               <>
-                <Link href={mainUrl("/help")} onClick={() => setMobileOpen(false)}
+                <Link href={appUrl("/help")} onClick={() => setMobileOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   Помощь
                 </Link>
-                <div className="flex items-center gap-2 px-3 py-2 text-sm text-primary">
+                <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-primary">
+                  <CreditCard className="size-4" aria-hidden="true" />
+                  {formatBalanceRub(balanceKopecks)} ₽
                   <Sparkles className="size-4" aria-hidden="true" />
                   {clarityCredits} кредитов
                 </div>

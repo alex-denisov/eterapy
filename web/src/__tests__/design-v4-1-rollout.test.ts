@@ -74,7 +74,8 @@ describe("design v4.2 rollout", () => {
     expect(specialists).toContain("Елена Орлова");
     expect(specialists).toContain("Ника Сокол");
     expect(grid).toContain('data-testid="specialists-empty-state"');
-    expect(shell).toContain("<BrandSignature compact");
+    expect(shell).not.toContain("<BrandSignature compact");
+    expect(shell).toContain('data-testid="app-shell-user"');
     expect(shell).toContain("soft-app-sidebar-card");
   });
 });

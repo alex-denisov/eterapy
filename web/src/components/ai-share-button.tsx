@@ -228,12 +228,14 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
       </div>
 
       {open && (
-        <div
-          ref={popoverRef}
-          role="dialog"
-          aria-label="Безопасная карточка для отправки"
-          className="absolute right-0 z-50 mt-3 w-[min(92vw,720px)] rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-4 shadow-[var(--soft-shadow-md)]"
-        >
+        <div className="fixed inset-0 z-50 bg-[rgba(42,36,34,0.26)] px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8">
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Безопасная карточка для отправки"
+            className="mx-auto max-h-[calc(100vh-2rem)] w-full max-w-[720px] overflow-y-auto rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-4 shadow-[var(--soft-shadow-md)] sm:max-h-[calc(100vh-4rem)]"
+          >
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="grid place-items-center rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-5">
               <div
@@ -336,6 +338,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
                 По умолчанию мы не добавляем имя, email, аватар, приватный профиль или полный текст вопроса.
               </p>
             </div>
+          </div>
           </div>
         </div>
       )}

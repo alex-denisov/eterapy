@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Download, EyeOff, FileImage, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreditSpendButton } from "@/components/products/credit-spend-button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type ChatAnalysisResult = {
   id: string;
@@ -140,18 +140,9 @@ export function ChatAnalysisActions() {
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setStatus("paying");
-        const payment = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
-          method: "POST",
-          body: JSON.stringify({
-            productKey: "chat-analysis",
-            checkoutSource: "chat-analysis-generate",
-          }),
-        });
-        if (payment.confirmationUrl) {
-          window.location.href = payment.confirmationUrl;
-          return;
-        }
+        setMessage("Откройте доступ к разбору переписки с баланса, кредитами ясности или картой — распознанный текст останется здесь.");
+        setStatus("error");
+        return;
       }
       setMessage(typed.message || "Не удалось получить разбор");
       setStatus("error");
@@ -282,19 +273,20 @@ export function ChatAnalysisActions() {
               Контакты и прямые идентификаторы замаскированы до анализа. Нажатие на полный разбор подтверждает, что распознанный текст можно использовать.
             </p>
           )}
-          <Button onClick={generateReport} disabled={status === "loading" || status === "paying"} className="soft-button soft-button-primary mt-5">
+          <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary mt-5">
             <LockKeyhole className="size-4" aria-hidden="true" />
-            {status === "paying" ? "Открываем оплату..." : "Получить полный разбор"}
+            Получить полный разбор
           </Button>
           {!hasEntitlement && (
             <div className="mt-3">
-              <CreditSpendButton
+              <ProductPurchaseControls
                 productKey="chat-analysis"
+                label="Открыть с баланса"
+                checkoutSource="chat-analysis-generate"
                 creditCost={2}
-                disabled={status === "loading" || status === "paying"}
                 onUnlocked={() => {
                   setHasEntitlement(true);
-                  setMessage("Доступ открыт за кредиты. Теперь можно получить полный разбор.");
+                  setMessage("Доступ открыт. Теперь можно получить полный разбор.");
                 }}
               />
             </div>

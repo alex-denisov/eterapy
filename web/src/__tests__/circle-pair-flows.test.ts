@@ -36,8 +36,8 @@ describe("B201/B202 Circle and Pair flows", () => {
     expect(actions).toContain('data-testid="circle-actions"');
     expect(actions).toContain('data-testid="circle-participant-actions"');
     expect(actions).toContain('data-testid="circle-participant-review-list"');
-    expect(actions).toContain("/api/billing/create-payment");
-    expect(actions).toContain('productKey: "circle"');
+    expect(actions).toContain("<ProductPurchaseControls");
+    expect(actions).toContain('productKey="circle"');
     expect(createRoute).toContain("create_circle");
     expect(participantRoute).toContain("Circle is full");
     expect(participantRoute).toContain("assessCircleParticipantRisk");

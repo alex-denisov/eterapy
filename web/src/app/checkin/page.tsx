@@ -97,6 +97,7 @@ export default function CheckinPage() {
     return new URLSearchParams(window.location.search).get("question")?.slice(0, 4000) ?? "";
   });
   const [clarification, setClarification] = useState("");
+  const [clarifyingAnswers, setClarifyingAnswers] = useState<string[]>([]);
   const [dialogue, setDialogue] = useState<DialoguePayload | null>(null);
   const [phase, setPhase] = useState<"question" | "clarifying" | "processing" | "result" | "safety">("question");
   const [error, setError] = useState("");
@@ -113,6 +114,11 @@ export default function CheckinPage() {
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
     ?? "";
   const safeAnswer = useMemo(() => cleanAnswer(primaryAnswer), [primaryAnswer]);
+  const clarifyingQuestions = useMemo(() => {
+    const questions = dialogue?.clarifyingQuestions?.filter((item) => item.trim()) ?? [];
+    return questions.length > 0 ? questions : ["Что важно добавить, чтобы первичный ответ был точнее?"];
+  }, [dialogue?.clarifyingQuestions]);
+  const currentClarifyingQuestion = clarifyingQuestions[Math.min(clarifyingAnswers.length, clarifyingQuestions.length - 1)];
 
   useEffect(() => {
     if (phase === "result" || phase === "safety") {
@@ -154,6 +160,8 @@ export default function CheckinPage() {
         const restored = data.dialogue as DialoguePayload;
         setDialogue(restored);
         setQuestion(restored.messages.find((message) => message.role === "USER")?.content ?? restored.title);
+        setClarifyingAnswers([]);
+        setClarification("");
         setPhase(
           restored.status === "ANSWERED"
             ? "result"
@@ -205,6 +213,8 @@ export default function CheckinPage() {
     setError("");
     setPhase("processing");
     setDialogue(null);
+    setClarification("");
+    setClarifyingAnswers([]);
     setSaveState("idle");
 
     try {
@@ -256,9 +266,8 @@ export default function CheckinPage() {
     }
   }
 
-  async function sendClarification(skip = false) {
+  async function submitClarification(message: string, skipAll = false) {
     if (!dialogue) return;
-    if (!skip && !clarification.trim()) return;
     setError("");
     setPhase("processing");
 
@@ -266,10 +275,11 @@ export default function CheckinPage() {
       const data = await requestJson<{ dialogue: DialoguePayload }>(`/api/dialogues/${dialogue.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(skip ? { action: "skip_clarifications" } : { message: clarification.trim() }),
+        body: JSON.stringify(skipAll ? { action: "skip_clarifications" } : { message }),
       });
       setDialogue(data.dialogue);
       setClarification("");
+      setClarifyingAnswers([]);
       await generateAnswer(data.dialogue.id);
     } catch (err) {
       setPhase("clarifying");
@@ -277,9 +287,34 @@ export default function CheckinPage() {
     }
   }
 
+  async function sendClarification(skip = false) {
+    if (!dialogue) return;
+    const answer = skip ? "Пропущено" : clarification.trim();
+    if (!answer) return;
+
+    const nextAnswers = [...clarifyingAnswers, answer];
+    const isLastQuestion = nextAnswers.length >= clarifyingQuestions.length;
+    if (!isLastQuestion) {
+      setClarifyingAnswers(nextAnswers);
+      setClarification("");
+      setError("");
+      return;
+    }
+
+    const skippedEverything = nextAnswers.every((item) => item === "Пропущено");
+    const message = nextAnswers
+      .map((item, index) => {
+        const prompt = clarifyingQuestions[index] ?? `Уточнение ${index + 1}`;
+        return `Уточнение ${index + 1}: ${prompt}\nОтвет: ${item}`;
+      })
+      .join("\n\n");
+    await submitClarification(message, skippedEverything);
+  }
+
   function reset() {
     setQuestion("");
     setClarification("");
+    setClarifyingAnswers([]);
     setDialogue(null);
     setPhase("question");
     setError("");
@@ -374,32 +409,51 @@ export default function CheckinPage() {
 
           <div className="soft-msg-row soft-msg-row-assistant">
             <div className="soft-msg-avatar" aria-hidden="true" />
-            <div>
-              <div className="soft-msg-bubble soft-msg-bubble-assistant">
-                <p>Спасибо, что доверились. Чтобы яснее увидеть ситуацию, разрешите задать пару коротких вопросов — это правда помогает.</p>
-                <div className="mt-4 space-y-2">
-                  {(dialogue.clarifyingQuestions ?? []).map((item, index) => (
-                    <p key={item} data-testid="dialogue-clarifying-question">
-                      {index + 1}. {item}
-                    </p>
-                  ))}
+            <div className="soft-msg-bubble soft-msg-bubble-assistant">
+              Спасибо, что доверились. Я задам несколько коротких вопросов по одному — так ответ получится точнее и без лишнего давления.
+            </div>
+          </div>
+
+          {clarifyingAnswers.map((answer, index) => (
+            <div key={`${clarifyingQuestions[index]}-${index}`} className="contents">
+              <div className="soft-msg-row soft-msg-row-assistant">
+                <div className="soft-msg-avatar" aria-hidden="true" />
+                <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
+                  <span className="soft-eyebrow text-[10px]">вопрос {index + 1} из {clarifyingQuestions.length}</span>
+                  <p className="mt-1">{clarifyingQuestions[index]}</p>
                 </div>
+              </div>
+              <div className="soft-msg-row soft-msg-row-user">
+                <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+                <div className="soft-msg-bubble soft-msg-bubble-user" data-testid="dialogue-clarifying-answer">
+                  {answer}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <div className="soft-msg-row soft-msg-row-assistant">
+            <div className="soft-msg-avatar" aria-hidden="true" />
+            <div>
+              <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
+                <span className="soft-eyebrow text-[10px]">вопрос {clarifyingAnswers.length + 1} из {clarifyingQuestions.length}</span>
+                <p className="mt-1">{currentClarifyingQuestion}</p>
               </div>
               <div className="mt-3">
                 <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">
                   подсказки возможных ответов
                 </p>
                 <div className="flex flex-wrap gap-2">
-                {suggestedClarificationAnswers.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className="soft-chip"
-                    onClick={() => setClarification((current) => current ? `${current}; ${item}` : item)}
-                  >
-                    {item}
-                  </button>
-                ))}
+                  {suggestedClarificationAnswers.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className="soft-chip"
+                      onClick={() => setClarification((current) => current ? `${current}; ${item}` : item)}
+                    >
+                      {item}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -411,7 +465,7 @@ export default function CheckinPage() {
               id="dialogue-clarification"
               value={clarification}
               onChange={(event) => setClarification(event.target.value)}
-              placeholder="Ответьте одним сообщением или пропустите уточнения."
+              placeholder="Ответьте на этот вопрос. Можно коротко."
               className="soft-question-input soft-dialogue-composer-input"
               rows={4}
               data-testid="dialogue-clarification-input"
@@ -423,7 +477,7 @@ export default function CheckinPage() {
                 className="soft-button soft-button-ghost"
                 data-testid="dialogue-skip-clarification"
               >
-                Пропустить
+                Пропустить вопрос
               </Button>
               <Button
                 onClick={() => sendClarification(false)}
@@ -431,7 +485,7 @@ export default function CheckinPage() {
                 className="soft-button soft-button-primary"
                 data-testid="dialogue-send-clarification"
               >
-                Продолжить
+                {clarifyingAnswers.length + 1 >= clarifyingQuestions.length ? "Получить ответ" : "Следующий вопрос"}
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Button>
             </div>

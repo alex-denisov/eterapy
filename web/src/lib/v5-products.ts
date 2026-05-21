@@ -5,6 +5,8 @@ export type V5ProductSlug =
   | "deep-report"
   | "chat-analysis"
   | "compatibility"
+  | "circle"
+  | "pair"
   | "seven-days"
   | "my-map"
   | "tarot"

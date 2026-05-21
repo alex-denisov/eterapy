@@ -1481,9 +1481,7 @@
     max-height: calc(100vh - 7rem);
     border: 1px solid var(--soft-paper-edge);
     border-radius: var(--soft-radius-lg);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18)),
-      color-mix(in srgb, var(--soft-paper-deep) 92%, white);
+    background: color-mix(in srgb, var(--soft-paper-card) 96%, white);
     box-shadow: var(--soft-shadow-sm);
   }
 
@@ -1520,6 +1518,14 @@
     background: rgba(251, 246, 238, 0.92);
     box-shadow: 0 -18px 48px -30px rgba(60, 30, 20, 0.36);
     backdrop-filter: blur(16px);
+  }
+
+  .soft-product-purchase-controls {
+    width: 100%;
+  }
+
+  .soft-product-purchase-controls .soft-button {
+    min-height: 2.65rem;
   }
 
   @media (max-width: 767px) {

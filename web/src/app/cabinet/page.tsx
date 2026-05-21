@@ -73,7 +73,7 @@ export default async function ClientCabinetPage() {
   const currentTheme = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   const nextAction = activeRoutes[0]
-    ? { href: mainUrl("/products/seven-days"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
+    ? { href: appUrl("/cabinet/products"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
     : recentDialogues[0]
       ? { href: mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`), label: "Вернуться к последнему вопросу", hint: recentDialogues[0].status === "ANSWERED" ? "ответ уже готов" : "можно продолжить" }
       : { href: mainUrl("/checkin"), label: "Задать первый вопрос", hint: "начните с бесплатного первичного ответа" };
@@ -321,13 +321,13 @@ export default async function ClientCabinetPage() {
             : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={mainUrl("/products/seven-days")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
+          <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
             Начать маршрут
           </Link>
           <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
             Подобрать специалиста
           </Link>
-          <Link href={mainUrl("/products/deep-report")} className="soft-chip" style={{ fontSize: 12 }}>
+          <Link href={appUrl("/cabinet/products")} className="soft-chip" style={{ fontSize: 12 }}>
             Глубокий отчёт →
           </Link>
         </div>

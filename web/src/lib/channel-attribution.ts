@@ -60,6 +60,7 @@ export async function recordChannelTouch(input: {
   const source = touchSource(input.touch);
   const channel = touchChannel(input.touch);
   const entryPath = clean(input.touch.entryPath, "/") ?? "/";
+  const metadata = input.touch.metadata;
 
   return db.channelAttribution.upsert({
     where: { visitorHash },
@@ -83,10 +84,10 @@ export async function recordChannelTouch(input: {
       lastEntryPath: entryPath,
       firstTouchAt: now,
       lastTouchAt: now,
-      metadata: input.touch.metadata,
+      ...(metadata === undefined ? {} : { metadata }),
     },
     update: {
-      userId: input.userId ?? undefined,
+      ...(input.userId ? { userId: input.userId } : {}),
       source,
       channel,
       utmSource: clean(input.touch.utmSource),
@@ -102,7 +103,7 @@ export async function recordChannelTouch(input: {
       entryProduct: clean(input.touch.entryProduct),
       lastEntryPath: entryPath,
       lastTouchAt: now,
-      metadata: input.touch.metadata,
+      ...(metadata === undefined ? {} : { metadata }),
     },
   });
 }
@@ -117,7 +118,7 @@ export async function markChannelConversion(input: {
   return db.channelAttribution.updateMany({
     where: { visitorHash },
     data: {
-      userId: input.userId ?? undefined,
+      ...(input.userId ? { userId: input.userId } : {}),
       conversionAt: new Date(),
       conversionType: clean(input.conversionType, "conversion"),
       conversionId: clean(input.conversionId),

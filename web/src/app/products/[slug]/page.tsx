@@ -7,7 +7,8 @@ import { PerspectivesActions } from "@/components/products/perspectives-actions"
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
-import { DirectProductCheckout } from "@/components/products/direct-product-checkout";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { getProductCreditCost } from "@/lib/entitlements";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -228,10 +229,11 @@ function ProductIcon({ slug }: { slug: V5Product["slug"] }) {
 function ProductPrimaryAction({ product }: { product: V5Product }) {
   if (product.productKey) {
     return (
-      <DirectProductCheckout
+      <ProductPurchaseControls
         productKey={product.productKey}
         label={product.directCta ?? product.cta}
         checkoutSource={`product-page-${product.slug}`}
+        creditCost={getProductCreditCost(product.productKey)}
       />
     );
   }

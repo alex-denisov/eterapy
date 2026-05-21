@@ -32,8 +32,9 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain('data-testid="product-dialogue-cta"');
     expect(detailPage).toContain('data-testid="product-my-map-preview"');
     expect(detailPage).toContain('href="/checkin"');
-    expect(detailPage).toContain("<DirectProductCheckout");
+    expect(detailPage).toContain("<ProductPurchaseControls");
     expect(detailPage).toContain('href={product.directHref}');
+    expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/pay-from-balance");
     expect(source("lib/v5-products.ts")).toContain('route: "/products/tarot"');
     expect(source("lib/v5-products.ts")).toContain('directHref: "/practitioners?format=joint-session"');
   });
@@ -49,6 +50,22 @@ describe("v5 product pages", () => {
     expect(products).toContain("открытие через entitlement");
     expect(products).toContain("или -4 кредита ясности");
     expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");
+    expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/spend-credits");
+    expect(source("app/api/billing/pay-from-balance/route.ts")).toContain("purchaseProductWithBalance");
+  });
+
+  it("adds cabinet-native product and credit catalogues", () => {
+    const cabinetProducts = source("app/cabinet/products/page.tsx");
+    const credits = source("app/cabinet/credits/page.tsx");
+    const shell = source("components/cabinet/cabinet-shell.tsx");
+
+    expect(cabinetProducts).toContain('data-testid="cabinet-products-page"');
+    expect(cabinetProducts).toContain("<ProductPurchaseControls");
+    expect(cabinetProducts).toContain('appUrl("/cabinet/billing")');
+    expect(credits).toContain('data-testid="cabinet-credits-page"');
+    expect(credits).toContain("getClarityCreditBalance");
+    expect(shell).toContain('appUrl("/cabinet/products")');
+    expect(shell).toContain('appUrl("/cabinet/credits")');
   });
 
   it("links public shell product navigation to durable product pages", () => {

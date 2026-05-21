@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Pause, Play, Download, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreditSpendButton } from "@/components/products/credit-spend-button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type ClarityRoute = {
   id: string;
@@ -74,18 +74,9 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setStatus("paying");
-        const payment = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
-          method: "POST",
-          body: JSON.stringify({
-            productKey: "seven-days",
-            checkoutSource: "seven-days-start",
-          }),
-        });
-        if (payment.confirmationUrl) {
-          window.location.href = payment.confirmationUrl;
-          return;
-        }
+        setMessage("Откройте маршрут с баланса, кредитами ясности или картой — после этого день 1 начнется здесь же.");
+        setStatus("error");
+        return;
       }
       setMessage(typed.message || "Не удалось начать маршрут");
       setStatus("error");
@@ -166,19 +157,20 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
             Каждый день мы будем присылать один шаг: мысль, практику или вопрос. 
             Первый шаг бесплатный, остальные открываются после оплаты.
           </p>
-          <Button onClick={startRoute} disabled={status === "loading" || status === "paying"} className="soft-button soft-button-primary">
+          <Button onClick={startRoute} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
             <LockKeyhole className="size-4" aria-hidden="true" />
-            {status === "paying" ? "Открываем оплату..." : "Начать маршрут"}
+            Начать маршрут
           </Button>
           {!hasEntitlement && (
             <div className="mt-3">
-              <CreditSpendButton
+              <ProductPurchaseControls
                 productKey="seven-days"
+                label="Открыть с баланса"
+                checkoutSource="seven-days-start"
                 creditCost={8}
-                disabled={status === "loading" || status === "paying"}
                 onUnlocked={() => {
                   setHasEntitlement(true);
-                  setMessage("Доступ открыт за кредиты. Теперь можно начать маршрут.");
+                  setMessage("Доступ открыт. Теперь можно начать маршрут.");
                 }}
               />
             </div>

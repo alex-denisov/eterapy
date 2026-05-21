@@ -67,7 +67,8 @@ describe("B086 perspectives product", () => {
     expect(detailPage).toContain("<PerspectivesActions");
     expect(actions).toContain('data-testid="perspectives-actions"');
     expect(actions).toContain("/api/products/perspectives");
-    expect(actions).toContain("/api/billing/create-payment");
+    expect(actions).toContain("<ProductPurchaseControls");
+    expect(actions).toContain('checkoutSource="perspectives-generate"');
     expect(actions).toContain("Сохранить в Мою карту");
     expect(dialoguePage).toContain("/products/perspectives?dialogueId=${dialogue.id}");
   });

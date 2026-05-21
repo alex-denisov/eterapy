@@ -67,7 +67,8 @@ describe("B085 deep report product", () => {
     expect(detailPage).toContain("<DeepReportActions");
     expect(actions).toContain('data-testid="deep-report-actions"');
     expect(actions).toContain("/api/products/deep-report");
-    expect(actions).toContain("/api/billing/create-payment");
+    expect(actions).toContain("<ProductPurchaseControls");
+    expect(actions).toContain('checkoutSource="deep-report-generate"');
     expect(actions).toContain("Сохранить в Мою карту");
     expect(dialoguePage).toContain("/products/deep-report?dialogueId=${dialogue.id}");
   });

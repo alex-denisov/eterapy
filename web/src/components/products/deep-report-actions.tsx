@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Download, FileText, LockKeyhole, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CreditSpendButton } from "@/components/products/credit-spend-button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type DeepReportResult = {
   id: string;
@@ -95,18 +95,9 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setStatus("paying");
-        const payment = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
-          method: "POST",
-          body: JSON.stringify({
-            productKey: "deep-report",
-            checkoutSource: "deep-report-generate",
-          }),
-        });
-        if (payment.confirmationUrl) {
-          window.location.href = payment.confirmationUrl;
-          return;
-        }
+        setMessage("Откройте доступ к глубокому отчету с баланса, кредитами ясности или картой — после этого полный текст появится на этой странице.");
+        setStatus("error");
+        return;
       }
       setMessage(typed.message || "Не удалось создать отчет");
       setStatus("error");
@@ -193,18 +184,19 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
       )}
 
       <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={generateReport} disabled={status === "loading" || status === "paying"} className="soft-button soft-button-primary">
+        <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
           <LockKeyhole className="size-4" aria-hidden="true" />
-          {result?.resultText ? "Обновить отчет" : status === "paying" ? "Открываем оплату..." : "Получить полный отчет"}
+          {result?.resultText ? "Обновить отчет" : "Получить полный отчет"}
         </Button>
         {!hasEntitlement && (
-          <CreditSpendButton
+          <ProductPurchaseControls
             productKey="deep-report"
+            label="Открыть с баланса"
+            checkoutSource="deep-report-generate"
             creditCost={4}
-            disabled={status === "loading" || status === "paying"}
             onUnlocked={() => {
               setHasEntitlement(true);
-              setMessage("Доступ открыт за кредиты. Теперь можно получить полный отчет.");
+              setMessage("Доступ открыт. Теперь можно получить полный отчет.");
             }}
           />
         )}
