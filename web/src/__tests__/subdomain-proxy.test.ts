@@ -32,4 +32,13 @@ describe("subdomain proxy rewrites", () => {
       expect(shouldRedirectAppPublicPathToMain(path)).toBe(false);
     }
   });
+
+  it("allows /modalities on app subdomain so /cabinet/modalities nav link resolves correctly", () => {
+    // /modalities must NOT be in the redirect list — after the proxy strips /cabinet,
+    // app.eterapy.com/modalities must be rewritten to /cabinet/modalities, not sent to main domain.
+    expect(shouldRedirectAppPublicPathToMain("/modalities")).toBe(false);
+    expect(shouldRedirectAppPublicPathToMain("/modalities/checkin")).toBe(false);
+    // /missions (public footer link) stays canonical on main
+    expect(shouldRedirectAppPublicPathToMain("/missions")).toBe(true);
+  });
 });

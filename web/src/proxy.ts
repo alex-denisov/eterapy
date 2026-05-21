@@ -97,7 +97,6 @@ const APP_PUBLIC_MAIN_PATHS = [
   "/library",
   "/login",
   "/missions",
-  "/modalities",
   "/numerology",
   "/pair",
   "/practice",
