@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowRight, Download, LockKeyhole, Save, Trash2, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -42,13 +43,15 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null }) {
+  const { status: authStatus } = useSession();
   const [result, setResult] = useState<PerspectivesResult | null>(null);
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const isAuthenticated = authStatus === "authenticated";
 
   useEffect(() => {
-    if (!dialogueId) return;
+    if (!dialogueId || authStatus !== "authenticated") return;
     let cancelled = false;
     jsonRequest<ApiPayload>(`/api/products/perspectives?dialogueId=${encodeURIComponent(dialogueId)}`)
       .then((payload) => {
@@ -60,10 +63,15 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     return () => {
       cancelled = true;
     };
-  }, [dialogueId]);
+  }, [authStatus, dialogueId]);
 
   async function createPreview() {
     if (!dialogueId) return;
+    if (!isAuthenticated) {
+      setMessage("Войдите, чтобы создать предпросмотр и сохранить результат в личном кабинете.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
     try {
@@ -82,6 +90,11 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
   async function generateReport() {
     if (!dialogueId) return;
+    if (!isAuthenticated) {
+      setMessage("Войдите, чтобы открыть 4 ракурса с баланса, кредитами ясности или картой.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
     try {

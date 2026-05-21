@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowRight, CheckCircle2, Pause, Play, Download, LockKeyhole } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -40,12 +41,15 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null }) {
+  const { status: authStatus } = useSession();
   const [result, setResult] = useState<ClarityRoute | null>(null);
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const isAuthenticated = authStatus === "authenticated";
 
   useEffect(() => {
+    if (authStatus !== "authenticated") return;
     let cancelled = false;
     jsonRequest<ApiPayload>("/api/products/seven-days")
       .then((payload) => {
@@ -57,10 +61,15 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authStatus]);
 
   async function startRoute() {
     if (!dialogueId) return;
+    if (!isAuthenticated) {
+      setMessage("Войдите, чтобы открыть маршрут с баланса, кредитами ясности или картой.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
     try {

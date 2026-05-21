@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowRight, Copy, CheckCircle2, Flag, RefreshCcw, LockKeyhole, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -51,16 +52,19 @@ export function CompatibilityActions({
   dialogueId?: string | null;
   inviteToken?: string | null;
 }) {
+  const { status: authStatus } = useSession();
   const [result, setResult] = useState<CompatibilityResult | null>(null);
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const isAuthenticated = authStatus === "authenticated";
   
   // Partner's part
   const partnerDialogueId = dialogueId ?? null;
 
   useEffect(() => {
+    if (!inviteToken && authStatus !== "authenticated") return;
     let cancelled = false;
     const url = inviteToken 
       ? `/api/products/compatibility/invite/${encodeURIComponent(inviteToken)}`
@@ -78,10 +82,15 @@ export function CompatibilityActions({
     return () => {
       cancelled = true;
     };
-  }, [dialogueId, inviteToken]);
+  }, [authStatus, dialogueId, inviteToken]);
 
   async function createInvite() {
     if (!dialogueId) return;
+    if (!isAuthenticated) {
+      setMessage("Войдите, чтобы создать приглашение и открыть совместимость через баланс, кредиты или карту.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
     try {

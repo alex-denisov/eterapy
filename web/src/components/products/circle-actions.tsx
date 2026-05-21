@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowRight, CheckCircle2, Copy, Flag, RefreshCcw, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -53,6 +54,7 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function CircleActions({ inviteToken }: { inviteToken?: string | null }) {
+  const { status: authStatus } = useSession();
   const [circle, setCircle] = useState<CircleResult | null>(null);
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [question, setQuestion] = useState("");
@@ -61,8 +63,10 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
+  const isAuthenticated = authStatus === "authenticated";
 
   useEffect(() => {
+    if (!inviteToken && authStatus !== "authenticated") return;
     let cancelled = false;
     const url = inviteToken
       ? `/api/products/circle/invite/${encodeURIComponent(inviteToken)}`
@@ -79,9 +83,14 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
     return () => {
       cancelled = true;
     };
-  }, [inviteToken]);
+  }, [authStatus, inviteToken]);
 
   async function createCircle() {
+    if (!isAuthenticated) {
+      setMessage("Войдите, чтобы создать круг и управлять доступом через баланс, кредиты или карту.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
     try {
