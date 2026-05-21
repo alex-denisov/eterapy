@@ -103,14 +103,11 @@ function BalanceSummaryLink({
   const rub = formatBalanceRub(balanceKopecks);
   return (
     <Link
-      href={appUrl("/cabinet/billing")}
-      aria-label={`Баланс: ${rub} ₽. Кредиты ясности: ${clarityCredits}. Открыть оплату и баланс`}
+      href={appUrl("/cabinet/credits")}
+      aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
       className={cn("soft-user-pill hidden", className)}
       data-testid="header-balance-summary"
     >
-      <CreditCard className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-      <span className="tabular-nums font-semibold">{rub} ₽</span>
-      <span className="h-4 w-px bg-[var(--soft-paper-edge)]" aria-hidden="true" />
       <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
       <span className="tabular-nums font-semibold">{clarityCredits}</span>
     </Link>

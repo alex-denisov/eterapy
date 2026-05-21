@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -60,10 +61,12 @@ const ROLE_LABELS: Record<string, string> = {
 export function CabinetShell({
   role,
   user,
+  subscriptionLabel,
   children,
 }: {
   role: string;
   user: { name?: string | null; email?: string | null; image?: string | null } | undefined;
+  subscriptionLabel?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -72,6 +75,33 @@ export function CabinetShell({
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
   const activePathname = toCabinetPathname(pathname);
+
+  const [fetchedSubLabel, setFetchedSubLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (subscriptionLabel !== undefined) return;
+    const RU_M = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+    fetch("/api/billing/subscriptions")
+      .then((r) => r.json())
+      .then((data) => {
+        const now = new Date();
+        const active = (data.subscriptions ?? []).find((s: { status: string; currentPeriodEnd?: string | null }) =>
+          ["TRIALING", "ACTIVE"].includes(s.status) &&
+          (!s.currentPeriodEnd || new Date(s.currentPeriodEnd) > now),
+        );
+        if (!active) { setFetchedSubLabel("Бесплатный"); return; }
+        const plan = (data.plans ?? []).find((p: { key: string; name: string }) => p.key === active.planKey);
+        const name: string = plan?.name ?? active.planKey;
+        if (active.currentPeriodEnd) {
+          const d = new Date(active.currentPeriodEnd);
+          setFetchedSubLabel(`${name} · до ${d.getDate()} ${RU_M[d.getMonth()]}`);
+        } else {
+          setFetchedSubLabel(name);
+        }
+      })
+      .catch(() => setFetchedSubLabel(null));
+  }, [subscriptionLabel]);
+
+  const displaySubLabel = subscriptionLabel ?? fetchedSubLabel ?? ROLE_LABELS[role] ?? role;
 
   function isActive(href: string) {
     const itemPath = toPathname(href);
@@ -95,12 +125,12 @@ export function CabinetShell({
           {/* User badge */}
           <div className="mb-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] px-2 pb-4" data-testid="app-shell-user">
             <div className="flex items-center gap-3">
-              <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
+              <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-base font-semibold" style={{ fontFamily: "var(--font-heading-v4)" }}>
                 {initial}
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">Мой кабинет</p>
-                <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
+                <p className="text-xs text-muted-foreground">{displaySubLabel}</p>
               </div>
             </div>
           </div>

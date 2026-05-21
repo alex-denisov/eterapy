@@ -318,13 +318,13 @@ export default async function ClientCabinetPage() {
             : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={mainUrl("/products/seven-days")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
+          <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
             Начать маршрут
           </Link>
           <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
             Подобрать специалиста
           </Link>
-          <Link href={mainUrl("/products/deep-report")} className="soft-chip" style={{ fontSize: 12 }}>
+          <Link href={appUrl("/cabinet/products")} className="soft-chip" style={{ fontSize: 12 }}>
             Глубокий отчёт →
           </Link>
         </div>

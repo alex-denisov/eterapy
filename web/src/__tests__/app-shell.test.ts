@@ -35,5 +35,20 @@ describe("v5 app shell", () => {
     expect(shell).toContain('appUrl("/cabinet/credits")');
     expect(clientCabinet).toContain('appUrl("/cabinet/action-history")');
     expect(clientCabinet).toContain('data-testid="client-map-preview"');
+    // Product CTAs on cabinet homepage must stay in-cabinet (not link to eterapy.com/products/...)
+    expect(clientCabinet).not.toContain('mainUrl("/products/seven-days")');
+    expect(clientCabinet).not.toContain('mainUrl("/products/deep-report")');
+  });
+
+  it("shows subscription label (not role) in sidebar header per v4.2 design", () => {
+    const layout = fs.readFileSync(path.join(process.cwd(), "src/app/cabinet/layout.tsx"), "utf8");
+    // Layout must fetch active subscription and derive a label
+    expect(layout).toContain("db.userSubscription.findFirst");
+    expect(layout).toContain('subscriptionLabel={subLabel}');
+    // Shell must accept and display subscriptionLabel prop
+    expect(shell).toContain("subscriptionLabel");
+    expect(shell).toContain("displaySubLabel");
+    // Shell avatar should use serif heading font
+    expect(shell).toContain('font-heading-v4');
   });
 });
