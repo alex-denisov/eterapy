@@ -157,10 +157,11 @@ export default function BillingPage() {
 
       if (cancelled) return;
 
-      const [balRes, cardsRes, txRes] = await Promise.all([
+      const [balRes, cardsRes, txRes, entRes] = await Promise.all([
         fetch("/api/billing/balance").then(r => r.json()).catch(() => null),
         fetch("/api/billing/cards").then(r => r.json()).catch(() => null),
         fetch("/api/billing/transactions").then(r => r.json()).catch(() => null),
+        fetch("/api/billing/entitlements").then(r => r.json()).catch(() => null),
       ]);
       if (cancelled) return;
 
@@ -168,6 +169,8 @@ export default function BillingPage() {
       if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
       if (txRes?.transactions) setTransactions(txRes.transactions);
       if (txRes?.ledger) setLedger(txRes.ledger);
+      if (entRes?.entitlements) setEntitlements(entRes.entitlements);
+      if (entRes?.subscriptions) setSubscriptions(entRes.subscriptions);
 
       const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
       const balanceChanged = balRes?.balanceRub && Number(balRes.balanceRub) !== Number(initialBalance);
