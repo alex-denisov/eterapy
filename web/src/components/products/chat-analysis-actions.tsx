@@ -286,7 +286,7 @@ export function ChatAnalysisActions() {
                 creditCost={2}
                 onUnlocked={() => {
                   setHasEntitlement(true);
-                  setMessage("Доступ открыт. Теперь можно получить полный разбор.");
+                  generateReport();
                 }}
               />
             </div>

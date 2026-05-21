@@ -209,7 +209,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
             creditCost={4}
             onUnlocked={() => {
               setHasEntitlement(true);
-              setMessage("Доступ открыт. Теперь можно получить полный отчет.");
+              generateReport();
             }}
           />
         )}

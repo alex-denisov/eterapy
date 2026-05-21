@@ -295,7 +295,7 @@ export function CompatibilityActions({
               creditCost={4}
               onUnlocked={() => {
                 setHasEntitlement(true);
-                setMessage("Доступ открыт. Теперь можно получить разбор.");
+                generateReport();
               }}
             />
           )}

@@ -209,7 +209,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
             creditCost={2}
             onUnlocked={() => {
               setHasEntitlement(true);
-              setMessage("Доступ открыт. Теперь можно получить 4 ракурса.");
+              generateReport();
             }}
           />
         )}

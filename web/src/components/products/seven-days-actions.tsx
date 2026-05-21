@@ -179,7 +179,7 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                 creditCost={8}
                 onUnlocked={() => {
                   setHasEntitlement(true);
-                  setMessage("Доступ открыт. Теперь можно начать маршрут.");
+                  startRoute();
                 }}
               />
             </div>
