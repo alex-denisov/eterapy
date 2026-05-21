@@ -3,629 +3,292 @@
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
-import { Accordion } from "@/components/ui/accordion";
-import { Input } from "@/components/ui/input";
-import { appUrl, adminUrl } from "@/lib/subdomain";
-import { PublicJsonLd } from "@/components/seo/public-json-ld";
-import {
-  Rocket,
-  Sparkles,
-  Calendar,
-  CreditCard,
-  Video,
-  Send,
-  Search,
-  Mail,
-  Users,
-  Banknote,
-  ShieldCheck,
-  Settings,
-  AlertTriangle,
-} from "lucide-react";
+import { Search } from "lucide-react";
+import { appUrl } from "@/lib/subdomain";
 import Link from "next/link";
 
-interface FAQCategory {
+interface FaqItem {
   id: string;
-  label: string;
-  icon: React.ElementType;
-  items: { title: string; content: React.ReactNode }[];
+  cat: string;
+  q: string;
+  a: string;
 }
 
-const CLIENT_FAQ: FAQCategory[] = [
-  {
-    id: "getting-started",
-    label: "Начало работы",
-    icon: Rocket,
-    items: [
-      {
-        title: "Как зарегистрироваться?",
-        content: (
-          <p>
-            Начните с вопроса и первичного ответа. Когда захотите сохранить результат,
-            оплатить углубление или записаться к специалисту, ETerapy предложит создать аккаунт.
-            Также можно войти через Google, VK или Telegram на странице входа.
-          </p>
-        ),
-      },
-      {
-        title: "Что делать после регистрации?",
-        content: (
-          <>
-            <p className="mb-2">После регистрации рекомендуем:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Заполнить профиль в разделе «Настройки»</li>
-              <li>Задать вопрос и получить первичный ответ</li>
-              <li>Сохранить полезные выводы в личном пространстве</li>
-              <li>Выбрать углубление, маршрут или специалиста как следующий шаг</li>
-            </ul>
-          </>
-        ),
-      },
-      {
-        title: "Как войти в аккаунт?",
-        content: (
-          <p>
-            Перейдите на страницу <Link href="/login" className="text-primary hover:underline">входа</Link>,
-            укажите email и пароль или войдите через Google, VK, Telegram.
-            Если забыли пароль — нажмите «Забыли пароль?» и следуйте инструкциям.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "modalities",
-    label: "Направления",
-    icon: Sparkles,
-    items: [
-      {
-        title: "Что такое быстрые расклады?",
-        content: (
-          <p>
-            Быстрые сервисы — это входы для самостоятельной работы: первичный ответ,
-            4 ракурса, глубокий отчет, разбор переписки, совместимость и маршруты.
-            Они начинаются с вопроса и работают без записи к практику.
-          </p>
-        ),
-      },
-      {
-        title: "Что такое полные расклады?",
-        content: (
-          <p>
-            Полное углубление — это платный продукт или сессия со специалистом после того,
-            как ETerapy понял контекст вопроса. Сессия назначается только если живой разговор
-            действительно подходит ситуации.
-          </p>
-        ),
-      },
-      {
-        title: "Что доступно бесплатно?",
-        content: (
-          <p>
-            Первичный ответ доступен бесплатно. Платные продукты, маршруты, подписки и живые
-            сессии открываются отдельно и должны показывать понятную стоимость до оплаты.
-          </p>
-        ),
-      },
-      {
-        title: "Какие направления доступны?",
-        content: (
-          <p>
-            Основной вход — вопрос, но покупать услуги можно напрямую. В кабинете есть раздел
-            <Link href={appUrl("/cabinet/products")} className="text-primary hover:underline"> «Продукты»</Link>:
-            4 ракурса, глубокий отчет, разбор переписки, совместимость, 7 дней к ясности,
-            Таро, натальная карта и числовой портрет.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "booking",
-    label: "Бронирование",
-    icon: Calendar,
-    items: [
-      {
-        title: "Как записаться к практику?",
-        content: (
-          <>
-            <p className="mb-2">Для записи к практику в v5:</p>
-            <ol className="list-decimal pl-5 space-y-1">
-              <li>Задайте вопрос и получите первичный ответ</li>
-              <li>Откройте рекомендованный блок специалистов, если он показан</li>
-              <li>Выберите специалиста, формат и доступный слот</li>
-              <li>Подтвердите бронирование</li>
-              <li>Дождитесь подтверждения от практика</li>
-            </ol>
-          </>
-        ),
-      },
-      {
-        title: "Как отменить бронирование?",
-        content: (
-          <p>
-            Отменить бронирование можно в разделе <Link href={appUrl("/cabinet/bookings")} className="text-primary hover:underline">«Мои записи»</Link>.
-            Нажмите на бронирование и выберите «Отменить». Обратите внимание: отмена возможна
-            не позднее чем за 24 часа до начала сессии. При отмене менее чем за 24 часа
-            стоимость сессии может быть удержана.
-          </p>
-        ),
-      },
-      {
-        title: "Что делать, если практик отменил запись?",
-        content: (
-          <p>
-            Если практик отменил вашу запись, вы получите уведомление на email.
-            Стоимость сессии будет возвращена на баланс автоматически.
-            Вы можете записаться к другому практику или выбрать другой слот.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "payment",
-    label: "Оплата",
-    icon: CreditCard,
-    items: [
-      {
-        title: "Как пополнить баланс?",
-        content: (
-          <p>
-            Пополнить баланс можно в разделе <Link href={appUrl("/cabinet/billing")} className="text-primary hover:underline">«Баланс и оплата»</Link>.
-            Доступные способы оплаты: банковская карта, СБП. После оплаты средства зачисляются
-            на внутренний баланс и могут быть использованы для оплаты цифровых продуктов и сессий.
-          </p>
-        ),
-      },
-      {
-        title: "Чем баланс отличается от кредитов ясности?",
-        content: (
-          <p>
-            Рублевый баланс — это деньги на аккаунте: им можно оплатить продукты и живые сессии.
-            Кредиты ясности — бонусные баллы для цифровых углублений. Они живут в отдельном разделе
-            <Link href={appUrl("/cabinet/credits")} className="text-primary hover:underline"> «Кредиты ясности»</Link>,
-            чтобы не смешивать подписку, пополнение и бонусные списания.
-          </p>
-        ),
-      },
-      {
-        title: "Как оплатить сессию?",
-        content: (
-          <p>
-            При бронировании сессии стоимость списывается с вашего баланса.
-            Если баланс недостаточен, вам будет предложено пополнить его.
-            Также можно оплатить сессию напрямую через ЮKassa при бронировании.
-          </p>
-        ),
-      },
-      {
-        title: "Как оформить возврат?",
-        content: (
-          <p>
-            Для оформления возврата обратитесь в поддержку на <Link href="mailto:support@eterapy.com" className="text-primary hover:underline">support&#64;eterapy.com</Link>.
-            Возврат возможен в течение 14 дней с момента оплаты при условии,
-            что сессия не была проведена.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "video",
-    label: "Видеосессии",
-    icon: Video,
-    items: [
-      {
-        title: "Как подключиться к видеосессии?",
-        content: (
-          <p>
-            В назначенное время перейдите в раздел «Мои записи» и нажмите «Подключиться»
-            на активной сессии. Откроется страница видеосессии с видео, аудио и чатом.
-            Убедитесь, что браузер имеет доступ к камере и микрофону.
-          </p>
-        ),
-      },
-      {
-        title: "Что делать, если не работает камера или микрофон?",
-        content: (
-          <>
-            <p className="mb-2">Проверьте следующее:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Браузер запросил доступ к камере/микрофону — разрешите его</li>
-              <li>В настройках браузера (замочек в адресной строке) проверьте разрешения</li>
-              <li>Другие приложения не используют камеру/микрофон</li>
-              <li>Попробуйте обновить страницу или перезапустить браузер</li>
-            </ul>
-          </>
-        ),
-      },
-      {
-        title: "Как записать сессию?",
-        content: (
-          <p>
-            Запись сессии доступна практику. Если вы клиент, запись может быть предоставлена
-            практиком после сессии. Спросите вашего практика о возможности получения записи.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "telegram",
-    label: "Telegram бот",
-    icon: Send,
-    items: [
-      {
-        title: "Как привязать Telegram бот?",
-        content: (
-          <>
-            <p className="mb-2">Для привязки Telegram бота:</p>
-            <ol className="list-decimal pl-5 space-y-1">
-              <li>Откройте нашего бота в Telegram</li>
-              <li>Отправьте команду /start</li>
-              <li>Следуйте инструкциям для авторизации</li>
-              <li>После привязки вы будете получать уведомления о сессиях</li>
-            </ol>
-          </>
-        ),
-      },
-      {
-        title: "Какие уведомления приходят в Telegram?",
-        content: (
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Подтверждение бронирования</li>
-            <li>Напоминание о сессии за 15 минут</li>
-            <li>Уведомление о начале сессии</li>
-            <li>Результаты AI-раскладов (если включено)</li>
-          </ul>
-        ),
-      },
-      {
-        title: "Как отключить уведомления в Telegram?",
-        content: (
-          <p>
-            Отключить уведомления можно в разделе «Настройки» вашего кабинета
-            или отправив боту команду /settings.
-          </p>
-        ),
-      },
-    ],
-  },
+const CATS: [string, string][] = [
+  ["all", "Все"],
+  ["product", "Продукт"],
+  ["privacy", "Приватность"],
+  ["payments", "Оплата и возврат"],
+  ["specialists", "Специалисты"],
+  ["esoteric", "Эзотерические форматы"],
+  ["safety", "Safety"],
+  ["practitioner", "Для специалистов"],
 ];
 
-const PRACTITIONER_FAQ: FAQCategory[] = [
-  {
-    id: "practitioner-start",
-    label: "Начало работы",
-    icon: Rocket,
-    items: [
-      {
-        title: "Как начать принимать клиентов?",
-        content: (
-          <>
-            <p className="mb-2">После одобрения заявки:</p>
-            <ol className="list-decimal pl-5 space-y-1">
-              <li>Заполните профиль в разделе <Link href={appUrl("/cabinet/practitioner/profile")} className="text-primary hover:underline">«Мой профиль»</Link></li>
-              <li>Настройте расписание и доступные слоты</li>
-              <li>Укажите цены по тарифам и длительность сессий</li>
-              <li>Клиенты смогут найти вас в каталоге и записаться</li>
-            </ol>
-          </>
-        ),
-      },
-      {
-        title: "Как редактировать профиль?",
-        content: (
-          <p>
-            Перейдите в раздел <Link href={appUrl("/cabinet/practitioner/profile")} className="text-primary hover:underline">«Мой профиль»</Link>.
-            Здесь можно менять имя, биографию, фото, направления и тарифы. Изменения видны
-            клиентам сразу после сохранения.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "schedule",
-    label: "Расписание",
-    icon: Calendar,
-    items: [
-      {
-        title: "Как настроить доступные слоты?",
-        content: (
-          <p>
-            В разделе <Link href={appUrl("/cabinet/practitioner/schedule")} className="text-primary hover:underline">«Расписание»</Link>
-            {" "}добавьте интервалы, в которые готовы принимать клиентов. Повторяющиеся правила
-            и исключения для конкретных дат настраиваются отдельно.
-          </p>
-        ),
-      },
-      {
-        title: "Как отменить запись клиента?",
-        content: (
-          <p>
-            Откройте бронирование в разделе «Расписание» и выберите «Отменить». Клиенту
-            автоматически вернутся средства и придёт уведомление. Частые отмены влияют
-            на рейтинг — старайтесь отменять только по уважительной причине.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "clients",
-    label: "Клиенты",
-    icon: Users,
-    items: [
-      {
-        title: "Где посмотреть список клиентов?",
-        content: (
-          <p>
-            В разделе <Link href={appUrl("/cabinet/practitioner/clients")} className="text-primary hover:underline">«Клиенты»</Link>.
-            Для каждого клиента доступна история сессий, заметки и статус оплаты.
-          </p>
-        ),
-      },
-      {
-        title: "Как отвечать на отзывы?",
-        content: (
-          <p>
-            Перейдите в <Link href={appUrl("/cabinet/practitioner/reviews")} className="text-primary hover:underline">«Отзывы»</Link>
-            {" "}и оставьте публичный ответ. Клиент получит уведомление.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "earnings",
-    label: "Выплаты",
-    icon: Banknote,
-    items: [
-      {
-        title: "Когда приходят выплаты?",
-        content: (
-          <p>
-            Выплаты производятся два раза в месяц: <strong>1-го</strong> и <strong>15-го</strong> числа.
-            Комиссия платформы удерживается автоматически и отображается в разделе
-            <Link href={appUrl("/cabinet/practitioner/earnings")} className="text-primary hover:underline"> «Выплаты»</Link>.
-          </p>
-        ),
-      },
-      {
-        title: "Что влияет на сумму выплаты?",
-        content: (
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Проведённые сессии за период</li>
-            <li>Комиссия платформы (индивидуальный процент)</li>
-            <li>Удержания по жалобам, если они были удовлетворены</li>
-            <li>Возвраты клиентам по отменам</li>
-          </ul>
-        ),
-      },
-    ],
-  },
-  {
-    id: "video-practitioner",
-    label: "Видеосессии",
-    icon: Video,
-    items: [
-      {
-        title: "Как начать сессию?",
-        content: (
-          <p>
-            За 5 минут до начала в расписании появится кнопка «Начать». Откроется страница
-            видеосессии с клиентом: видео, аудио, чат, заметки. По завершению нажмите
-            «Завершить сессию», чтобы запустить расчёт выплаты.
-          </p>
-        ),
-      },
-      {
-        title: "Что делать, если клиент не подключился?",
-        content: (
-          <p>
-            Подождите 10 минут. Если клиент не вышел на связь, можно завершить сессию
-            с пометкой «неявка клиента» — сессия будет оплачена согласно правилам платформы.
-          </p>
-        ),
-      },
-    ],
-  },
+const FAQS: FaqItem[] = [
+  { id: "p1", cat: "product", q: "Это терапия?", a: "Нет. ETerapy — диалоговая платформа ясности. Помогаем сформулировать вопрос, увидеть его с разных сторон и выбрать следующий безопасный шаг. Терапия — это длинная работа со специалистом; на платформе вы можете записаться к нему, если захотите. Мы не ставим диагнозов и не заменяем психолога, врача или юриста." },
+  { id: "p2", cat: "product", q: "Как устроен Диалог ясности?", a: "Вы пишете вопрос своими словами → мы задаём 2–4 уточняющих, любой можно пропустить → получаете первичный разбор: что мы услышали, главная развилка, что обратило внимание, безопасный шаг. Дальше — выбор углубления: ракурсы, разбор переписки, совместимость, маршрут или встреча со специалистом." },
+  { id: "p3", cat: "product", q: "Сколько времени это занимает?", a: "Первичный разбор — 5–7 минут. 4 ракурса — 10–15 минут чтения. Разбор переписки или совместимость — около 20. Маршрут «7 дней» — по 5–10 минут в день. Встреча со специалистом — 60 минут." },
+  { id: "p4", cat: "product", q: "Можно ли пользоваться анонимно?", a: "Да. Первый разбор не требует регистрации. Если хотите сохранить историю и карту — нужен аккаунт; имя можно не указывать, подойдёт псевдоним." },
+  { id: "p5", cat: "product", q: "Что такое «Моя карта»?", a: "Личное пространство, где накапливаются темы, выводы и инсайты из ваших разборов. Карта выявляет повторяющиеся темы, связи и зоны внимания — без давления и диагнозов. Доступна с планом Plus или выше." },
+
+  { id: "pr1", cat: "privacy", q: "Кто видит мои разборы?", a: "Только вы. Содержимое разборов шифруется и недоступно сотрудникам платформы. Специалист видит ваш запрос только если вы записались к нему и согласились передать summary предразбора." },
+  { id: "pr2", cat: "privacy", q: "Что попадает в библиотеку вопросов?", a: "Ничего без вашего согласия. Если вы разрешаете публикацию, мы автоматически удаляем имена, телефоны, города, имена близких и любые личные данные. Модератор проверяет вручную перед публикацией. Удалить можно в один клик." },
+  { id: "pr3", cat: "privacy", q: "Как удалить аккаунт и все данные?", a: "В кабинете → Настройки → «Удалить аккаунт». Все разборы, инсайты, история и заметки удаляются необратимо в течение 30 дней (требование закона хранить минимальный журнал безопасности). После 30 дней — ничего не остаётся." },
+  { id: "pr4", cat: "privacy", q: "Используете ли вы мои разборы для обучения AI?", a: "Нет. Содержимое ваших разборов используется только для вашей же карты — чтобы видеть темы и связи. Языковая модель получает запрос анонимизированно: имена, адреса, телефоны вырезаются. Общие модели на ваших данных не обучаются." },
+
+  { id: "pay1", cat: "payments", q: "Как работает эскроу при встречах?", a: "Деньги списываются в эскроу при бронировании. Специалист получает оплату через 48 часов после встречи. До этого момента отмена и возврат — бесплатны. Если вы подали жалобу — деньги замораживаются до решения модератора." },
+  { id: "pay2", cat: "payments", q: "Можно платить международной картой?", a: "Да. ЮKassa — для RU/BY/KZ-карт, СБП по QR — без комиссии, Stripe — для международных карт в EUR/USD." },
+  { id: "pay3", cat: "payments", q: "Чем отличается Plus от бесплатного?", a: "Бесплатный: первичный разбор, библиотека, базовое использование. Plus 490 ₽/мес: безлимитные разборы и уточнения, все цифровые углубления (4 ракурса, разбор переписки, совместимость), Моя карта с историей и темами, маршрут «7 дней», приоритетный показ слотов специалистов. Встречи со специалистами оплачиваются отдельно по полной ставке." },
+  { id: "pay4", cat: "payments", q: "Что такое кредиты ясности и как их использовать?", a: "Это внутренняя валюта за значимые действия (практика, миссии, рефералы). Можно тратить только на цифровые форматы: ракурсы, разборы, углубления, маршруты. На встречи со специалистами кредиты не применяются — работа живых людей идёт по полной ставке. Кредиты не выводятся деньгами, действуют 6 месяцев." },
+  { id: "pay5", cat: "payments", q: "Как получить возврат?", a: "Если встреча не состоялась по вине специалиста или нарушен этический кодекс — возврат происходит автоматически после решения модератора. Если хотите отменить заранее — за 24 часа до встречи деньги возвращаются без вопросов." },
+  { id: "pay6", cat: "payments", q: "Как пополнить баланс?", a: "В кабинете → Подписка и оплата → «Пополнить». Поддерживаются банковские карты (ЮKassa), СБП и международные карты (Stripe). Баланс можно тратить на любые цифровые продукты." },
+
+  { id: "s1", cat: "specialists", q: "Как вы отбираете специалистов?", a: "Проверка диплома, дополнительных сертификатов и часов практики. Документальное подтверждение регулярной супервизии. Видео-знакомство с куратором. Подписание этического кодекса. Испытательный период первых 5 встреч под наблюдением. Без супервизии — не работают." },
+  { id: "s2", cat: "specialists", q: "Что делать, если специалист повёл себя неправильно?", a: "Кнопка «Сообщить о нарушении» в карточке встречи. Жалоба идёт модератору, не специалисту. До решения деньги остаются в эскроу. Если нарушение подтвердится — возврат + санкции к специалисту (от предупреждения до удаления профиля)." },
+  { id: "s3", cat: "specialists", q: "Можно записаться к этому же специалисту повторно?", a: "Да. После первой встречи в кабинете → «Записи» появится кнопка с теми же датами и форматом. Можно купить пакет из 5 встреч по той же ставке." },
+  { id: "s4", cat: "specialists", q: "Как подключить предразбор перед сессией?", a: "При бронировании вы можете передать специалисту summary вашего предразбора — он получит контекст заранее и сможет подготовиться. Это экономит время на старте. Вы контролируете, что именно передаётся." },
+
+  { id: "e1", cat: "esoteric", q: "Это серьёзная астрология или поверхностные обобщения?", a: "Базовая натальная карта (Солнце, Луна, Меркурий, Венера, Марс, доминирующие дома) рассчитывается классическим методом по западной школе. Разбор пишет астролог-практик ETerapy — не AI. Мы не предсказываем будущее как факт и не пишем «вам нельзя жениться в этом году». Это символический язык." },
+  { id: "e2", cat: "esoteric", q: "Что такое «Эзотерик + психотерапевт» — и зачем оно?", a: "Уникальный формат: 60 минут, 30 первых — эзотерический разбор (Таро / натальная карта / числа по выбору), 30 следующих — психотерапевтический. Эзотерик предлагает символический язык, психотерапевт удерживает реальность и безопасный шаг. Чтобы метафора не уносила, а помогала." },
+  { id: "e3", cat: "esoteric", q: "Если я не верю в Таро, имеет ли смысл расклад?", a: "Часто да. Карты — это не оракул, а вопросный язык. Иногда увидеть свой запрос через образ проще, чем через анализ. Если в процессе вы поняли, что вам не подходит — можно вернуться к диалогу ясности или психологу." },
+
+  { id: "sf1", cat: "safety", q: "Что если у меня сейчас очень тяжело?", a: "ETerapy — не для острых кризисов. Если есть мысли о самоповреждении, насилии или есть угроза жизни:\n\n• 8-800-2000-122 — бесплатная психологическая помощь, круглосуточно\n• 112 — экстренные службы\n\nМы сразу переключаем сценарий на экстренную поддержку при признаках кризиса в разборе." },
+  { id: "sf2", cat: "safety", q: "Вы блокируете «тёмные» темы в диалоге?", a: "Мы не блокируем тему — мы перенаправляем. Если в разборе появляются признаки кризиса, самоповреждения, насилия, медицинских рисков, юридических угроз — обычный сценарий приостанавливается, и появляются контакты профильной помощи. Это не цензура, это бережность." },
+
+  { id: "pt1", cat: "practitioner", q: "Сколько вы удерживаете с консультаций?", a: "15–25% в зависимости от категории: 20% — для классических встреч, 25% — для совместных сессий с привлечённым партнёром, 15% — для пакетов от 5 встреч. Сюда уже входит эквайринг, эскроу-удержание, защита через жалобы, AI-резюме после встречи, маркетинг." },
+  { id: "pt2", cat: "practitioner", q: "Когда я получаю выплату?", a: "Каждый вторник за встречи прошлой недели. На счёт ИП или самозанятого. Минимальный порог — 3 000 ₽; если ниже — переносится на следующий вторник." },
+  { id: "pt3", cat: "practitioner", q: "Можно работать только с своими клиентами без рекламы платформы?", a: "Да. У каждого специалиста есть личная ссылка предразбора eterapy.com/p/{slug}/precheck — её можно размещать в соцсетях. Клиент, пришедший по ссылке, считается «вашим»: с него удерживается сниженная комиссия 10–12% (вместо 20%)." },
+  { id: "pt4", cat: "practitioner", q: "Как работает видеосессия?", a: "Зашифрованный видеозвонок открывается за 15 минут до встречи в кабинете специалиста и клиента. Не нужно скачивать ничего дополнительно. Запись сессии ведётся только по согласию обеих сторон и доступна только им." },
 ];
 
-const ADMIN_FAQ: FAQCategory[] = [
-  {
-    id: "admin-start",
-    label: "Быстрый старт",
-    icon: Rocket,
-    items: [
-      {
-        title: "Разделы админ-панели",
-        content: (
-          <ul className="list-disc pl-5 space-y-1">
-            <li><Link href={adminUrl("/admin/clients")} className="text-primary hover:underline">Клиенты</Link> — управление пользователями</li>
-            <li><Link href={adminUrl("/admin/practitioners")} className="text-primary hover:underline">Практики</Link> — модерация, тарифы, комиссия</li>
-            <li><Link href={adminUrl("/admin/applications")} className="text-primary hover:underline">Заявки</Link> — обработка анкет</li>
-            <li><Link href={adminUrl("/admin/complaints")} className="text-primary hover:underline">Жалобы</Link> — разрешение споров</li>
-            <li><Link href={adminUrl("/admin/payments")} className="text-primary hover:underline">Платежи</Link> — транзакции и выплаты</li>
-          </ul>
-        ),
-      },
-    ],
-  },
-  {
-    id: "users-admin",
-    label: "Управление пользователями",
-    icon: Users,
-    items: [
-      {
-        title: "Как заблокировать клиента?",
-        content: (
-          <p>
-            В разделе «Клиенты» откройте карточку, нажмите «Заблокировать» и укажите причину.
-            Клиент потеряет доступ к кабинету, но данные и история сохранятся.
-          </p>
-        ),
-      },
-      {
-        title: "Как удалить аккаунт?",
-        content: (
-          <p>
-            Удаление клиента выполняется с <strong>10-дневным льготным периодом</strong>.
-            Ежедневный крон в 00:00 (MSK) удаляет аккаунты, по которым истёк срок. До этого момента
-            удаление можно отменить.
-          </p>
-        ),
-      },
-      {
-        title: "Как войти под пользователем (импersonate)?",
-        content: (
-          <p>
-            На карточке клиента/практика нажмите «Войти как». Сессия суперадмина сохранится,
-            а вы войдёте в кабинет пользователя на поддомене. Чтобы вернуться — нажмите «Выйти из режима».
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "complaints-admin",
-    label: "Жалобы и модерация",
-    icon: AlertTriangle,
-    items: [
-      {
-        title: "Как рассматривать жалобу?",
-        content: (
-          <p>
-            В <Link href={adminUrl("/admin/complaints")} className="text-primary hover:underline">«Жалобах»</Link>
-            {" "}откройте обращение. Внутри доступны: видеозапись сессии, транскрипция, файлы, чат.
-            Решение об удовлетворении/отклонении влияет на выплату практику.
-          </p>
-        ),
-      },
-      {
-        title: "Когда удерживается выплата практику?",
-        content: (
-          <p>
-            Если жалоба подана <strong>во время</strong> сессии — выплата приостанавливается
-            до решения модератора. Жалобы после сессии не удерживают уже выплаченные суммы.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "system-admin",
-    label: "Системные задачи",
-    icon: Settings,
-    items: [
-      {
-        title: "Где смотреть логи и статус сервисов?",
-        content: (
-          <p>
-            Раздел <Link href={adminUrl("/admin/system")} className="text-primary hover:underline">«Система»</Link>
-            {" "}показывает здоровье контейнеров и даёт доступ к логам приложения.
-          </p>
-        ),
-      },
-      {
-        title: "Где настроить AI-модели?",
-        content: (
-          <p>
-            В разделе «Система» → «AI-модели» настраиваются провайдеры и параметры моделей
-            для направлений, транскрипции и других ML-функций.
-          </p>
-        ),
-      },
-    ],
-  },
-  {
-    id: "security-admin",
-    label: "Безопасность",
-    icon: ShieldCheck,
-    items: [
-      {
-        title: "Как сбросить пароль пользователю?",
-        content: (
-          <p>
-            На карточке пользователя нажмите «Сбросить пароль» — на email отправится ссылка
-            для установки нового пароля.
-          </p>
-        ),
-      },
-    ],
-  },
-];
-
-function getFaqForRole(role: string): FAQCategory[] {
-  if (role === "PRACTITIONER") return PRACTITIONER_FAQ;
-  if (role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR") return ADMIN_FAQ;
-  return CLIENT_FAQ;
-}
-
-function SearchFAQs({ categories }: { categories: FAQCategory[] }) {
-  const [query, setQuery] = useState("");
-
-  const filteredCategories = useMemo(() => {
-    if (!query.trim()) return categories;
-    const q = query.toLowerCase();
-    return categories
-      .map((cat) => ({
-        ...cat,
-        items: cat.items.filter(
-          (item) =>
-            item.title.toLowerCase().includes(q) ||
-            (typeof item.content === "string" && item.content.toLowerCase().includes(q))
-        ),
-      }))
-      .filter((cat) => cat.items.length > 0);
-  }, [query, categories]);
-
+function FaqCard({ item, catLabel }: { item: FaqItem; catLabel: string }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className="space-y-5">
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--soft-ink-faint)]" />
-        <Input
-          type="search"
-          placeholder="Поиск по вопросам..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="soft-question-input h-11 py-2 pl-11 pr-4 text-sm"
-        />
+    <div
+      className="soft-card overflow-hidden"
+      style={{ padding: 0, cursor: "pointer" }}
+      onClick={() => setOpen(!open)}
+    >
+      <div className="flex items-center justify-between gap-4 px-5 py-5">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+          <span
+            className="soft-chip shrink-0 self-start text-[10px]"
+            style={{ padding: "2px 8px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {catLabel}
+          </span>
+          <span
+            className="font-heading text-base font-medium leading-snug sm:text-[1.05rem]"
+            style={{ color: "var(--soft-bordeaux)" }}
+          >
+            {item.q}
+          </span>
+        </div>
+        <span
+          className="shrink-0 text-2xl font-light transition-transform duration-200"
+          style={{
+            color: "var(--soft-terracotta-dark)",
+            transform: open ? "rotate(45deg)" : "none",
+            fontWeight: 300,
+            lineHeight: 1,
+          }}
+          aria-hidden="true"
+        >
+          +
+        </span>
       </div>
-
-      {filteredCategories.length === 0 ? (
-        <div className="soft-card-flat py-8 text-center">
-          <p className="text-sm text-[var(--soft-ink-soft)]">
-            Ничего не найдено по запросу «{query}»
-          </p>
-          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
-            Напишите нам на{" "}
-            <a href="mailto:support@eterapy.com" className="font-semibold text-[var(--soft-bordeaux)] hover:underline">
-              support&#64;eterapy.com
-            </a>
+      {open && (
+        <div className="px-5 pb-5 pt-0">
+          <p
+            className="text-sm leading-relaxed"
+            style={{
+              color: "var(--soft-ink-soft)",
+              whiteSpace: "pre-wrap",
+              borderTop: "1px solid var(--soft-paper-edge)",
+              paddingTop: "1rem",
+            }}
+          >
+            {item.a}
           </p>
         </div>
-      ) : (
-        filteredCategories.map((cat) => {
-          const Icon = cat.icon;
-          return (
-            <section key={cat.id} className="space-y-2">
-              <div className="flex items-center gap-2 px-1">
-                <Icon className="h-4 w-4 text-[var(--soft-terracotta-dark)]" />
-                <h2 className="font-heading text-sm font-semibold text-[var(--soft-bordeaux)]">
-                  {cat.label}
-                </h2>
-              </div>
-              <div className="soft-card overflow-hidden p-0">
-                <Accordion items={cat.items} />
-              </div>
-            </section>
-          );
-        })
       )}
     </div>
+  );
+}
+
+function HelpContent() {
+  const [cat, setCat] = useState("all");
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return FAQS.filter(
+      (f) =>
+        (cat === "all" || f.cat === cat) &&
+        (!q || f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q)),
+    );
+  }, [cat, query]);
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6" data-testid="help-page-v42">
+
+      {/* Hero */}
+      <div className="mb-8 text-center">
+        <p className="soft-eyebrow mb-3">помощь и FAQ</p>
+        <h1 className="font-heading text-4xl font-semibold leading-tight sm:text-5xl" style={{ color: "var(--soft-bordeaux)" }}>
+          Что бы вы <span className="italic">хотели узнать?</span>
+        </h1>
+      </div>
+
+      {/* Search */}
+      <div className="soft-card mb-6 flex items-center gap-3 px-4 py-3.5">
+        <span style={{ color: "var(--soft-ink-faint)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3c0 0-2 3-2 6 0 2.2 1 4 2 5M12 3c0 0 2 3 2 6 0 2.2-1 4-2 5M12 3v8M8 21l4-4 4 4"/>
+          </svg>
+        </span>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Спросите своими словами — например, «как удалить аккаунт»"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--soft-ink-faint)]"
+          style={{ fontSize: "0.9375rem", color: "var(--soft-ink)" }}
+        />
+        {query && (
+          <button
+            onClick={() => setQuery("")}
+            className="soft-chip text-[11px]"
+            style={{ padding: "2px 8px" }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* Category chips */}
+      <div className="mb-6 flex flex-wrap justify-center gap-2">
+        {CATS.map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setCat(id)}
+            className={`soft-chip text-xs transition-colors ${cat === id ? "soft-chip-warm" : ""}`}
+            style={{ padding: "5px 12px" }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Crisis banner */}
+      <div
+        className="soft-card mb-6 flex flex-wrap items-center gap-4 px-5 py-5"
+        style={{ background: "linear-gradient(140deg, #5C2A2C, #2A1411)", border: "none" }}
+      >
+        <div className="flex-1" style={{ minWidth: 220 }}>
+          <p className="font-heading text-lg font-medium" style={{ color: "#FBF0E1" }}>
+            Если сейчас очень тяжело
+          </p>
+          <p className="mt-1 text-sm" style={{ color: "#E8C4B8" }}>
+            ETerapy не для острых кризисов. Позвоните:
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="tel:88002000122"
+            className="soft-chip font-bold"
+            style={{ background: "#F4D9C1", color: "var(--soft-bordeaux)", fontSize: 13 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            📞 8-800-2000-122
+          </a>
+          <a
+            href="tel:112"
+            className="soft-chip font-bold"
+            style={{ background: "#F4D9C1", color: "var(--soft-bordeaux)", fontSize: 13 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            112
+          </a>
+        </div>
+      </div>
+
+      {/* FAQ items */}
+      <div className="space-y-2">
+        {filtered.length === 0 ? (
+          <div className="soft-card py-12 text-center">
+            <p className="font-heading text-xl italic" style={{ color: "var(--soft-ink-soft)" }}>
+              Не нашли ответ?
+            </p>
+            <p className="mt-3 text-sm" style={{ color: "var(--soft-ink-faint)" }}>
+              Напишите нам — отвечаем за 4 часа в будни.
+            </p>
+            <a
+              href="mailto:support@eterapy.com"
+              className="soft-button soft-button-primary mt-5 inline-flex"
+            >
+              Написать в поддержку
+            </a>
+          </div>
+        ) : (
+          filtered.map((item) => (
+            <FaqCard
+              key={item.id}
+              item={item}
+              catLabel={CATS.find(([id]) => id === item.cat)?.[1] ?? item.cat}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Contact channels */}
+      <div className="mt-12 text-center">
+        <h2 className="font-heading text-2xl font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+          Если ответа нет — <span className="italic">напишите нам</span>
+        </h2>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          {[
+            {
+              label: "Telegram",
+              value: "@eterapy_support",
+              desc: "Самый быстрый канал",
+              bg: "linear-gradient(140deg, #DBD3EA, #E8E1F2)",
+              color: "#4A3E5E",
+              href: "https://t.me/eterapy_support",
+            },
+            {
+              label: "Email",
+              value: "support@eterapy.com",
+              desc: "Для деталей и документов",
+              bg: "linear-gradient(140deg, #F4D9C1, #F8E6D1)",
+              color: "var(--soft-bordeaux)",
+              href: "mailto:support@eterapy.com",
+            },
+            {
+              label: "Анонимно",
+              value: "форма без email",
+              desc: "Для чувствительных тем",
+              bg: "linear-gradient(140deg, #D6DECC, #E5EBDC)",
+              color: "#3A4A36",
+              href: appUrl("/cabinet/settings"),
+            },
+          ].map((ch) => (
+            <a
+              key={ch.label}
+              href={ch.href}
+              className="soft-card-flat block p-5 text-left transition-opacity hover:opacity-90"
+              style={{ background: ch.bg, color: ch.color, border: "none" }}
+            >
+              <p className="font-heading text-sm font-semibold">{ch.label}</p>
+              <p className="mt-1 text-base font-medium">{ch.value}</p>
+              <p className="mt-1 text-xs opacity-70">{ch.desc}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    </main>
   );
 }
 
@@ -633,80 +296,18 @@ export default function HelpPage() {
   const { data: session } = useSession();
   const isLoggedIn = !!session;
   const role = session?.user?.role ?? "CLIENT";
-  const categories = getFaqForRole(role);
-
-  const roleLabel =
-    role === "PRACTITIONER"
-      ? "Ответы для практиков"
-      : role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR"
-      ? "Ответы для администраторов"
-      : "Ответы на частые вопросы о платформе ETerapy";
-
-  const content = (
-    <>
-      <PublicJsonLd route="/help" />
-      <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6" data-testid="help-page-v42">
-        <section className="soft-card p-5 md:p-7">
-          <div className="flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <p className="soft-eyebrow">помощь</p>
-              <h1 className="soft-h1 mt-2">Чем мы можем помочь?</h1>
-              <p className="soft-lede mt-3 max-w-3xl">{roleLabel}</p>
-            </div>
-            <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary">
-              Продукты и услуги
-            </Link>
-          </div>
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            {[
-              ["Диалог ясности", "первичный ответ, уточнения, сохранение"],
-              ["Оплата", "баланс, кредиты, подписка и возвраты"],
-              ["Живые сессии", "запись, видео, жалобы и поддержка"],
-            ].map(([title, text]) => (
-              <div key={title} className="soft-card-flat p-4">
-                <p className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{title}</p>
-                <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-6">
-          <SearchFAQs categories={categories} />
-        </section>
-
-        <div className="soft-card mt-8 flex flex-wrap items-center gap-4 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--soft-apricot)]">
-            <Mail className="h-5 w-5 text-[var(--soft-bordeaux)]" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--soft-ink)]">Не нашли ответ?</p>
-            <p className="text-xs text-[var(--soft-ink-faint)]">
-              Напишите нам: поможем с оплатой, записью, продуктами, жалобами и настройками уведомлений.
-            </p>
-          </div>
-          <a
-            href="mailto:support@eterapy.com"
-            className="ml-auto shrink-0 text-sm font-semibold text-[var(--soft-bordeaux)] hover:underline"
-          >
-            support&#64;eterapy.com
-          </a>
-        </div>
-      </main>
-    </>
-  );
 
   if (isLoggedIn) {
     return (
       <CabinetShell role={role} user={session.user}>
-        {content}
+        <HelpContent />
       </CabinetShell>
     );
   }
 
   return (
     <div className="soft-clarity-page min-h-screen">
-      {content}
+      <HelpContent />
     </div>
   );
 }
