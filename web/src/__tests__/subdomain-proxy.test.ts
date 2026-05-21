@@ -24,11 +24,11 @@ describe("subdomain proxy rewrites", () => {
   });
 
   it("keeps public product and funnel routes canonical on the main domain", () => {
-    for (const path of ["/products", "/products/deep-report", "/pricing", "/tarot", "/joint", "/checkin"]) {
+    for (const path of ["/products/deep-report", "/pricing", "/tarot", "/joint", "/checkin"]) {
       expect(shouldRedirectAppPublicPathToMain(path)).toBe(true);
     }
 
-    for (const path of ["/", "/billing", "/questions", "/cabinet", "/cabinet/billing"]) {
+    for (const path of ["/products", "/", "/billing", "/questions", "/cabinet", "/cabinet/billing"]) {
       expect(shouldRedirectAppPublicPathToMain(path)).toBe(false);
     }
   });

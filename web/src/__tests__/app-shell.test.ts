@@ -31,7 +31,7 @@ describe("v5 app shell", () => {
   it("keeps product actions inside the app cabinet instead of sending clients to the landing", () => {
     expect(clientCabinet).toContain('mainUrl("/checkin")');
     expect(clientCabinet).toContain('appUrl("/cabinet/products")');
-    expect(shell).toContain('appUrl("/cabinet/products")');
+    expect(shell).toContain('appUrl("/cabinet/modalities")');
     expect(shell).toContain('appUrl("/cabinet/credits")');
     expect(clientCabinet).toContain('appUrl("/cabinet/action-history")');
     expect(clientCabinet).toContain('data-testid="client-map-preview"');

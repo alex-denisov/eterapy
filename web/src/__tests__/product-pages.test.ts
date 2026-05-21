@@ -64,7 +64,7 @@ describe("v5 product pages", () => {
     expect(cabinetProducts).toContain('appUrl("/cabinet/billing")');
     expect(credits).toContain('data-testid="cabinet-credits-page"');
     expect(credits).toContain("getClarityCreditBalance");
-    expect(shell).toContain('appUrl("/cabinet/products")');
+    expect(shell).toContain('appUrl("/cabinet/modalities")');
     expect(shell).toContain('appUrl("/cabinet/credits")');
   });
 

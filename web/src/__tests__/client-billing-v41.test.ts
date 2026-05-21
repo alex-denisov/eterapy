@@ -8,24 +8,23 @@ function source(relativePath: string) {
 }
 
 describe("B206 client billing v4.1 cabinet", () => {
-  it("surfaces subscription status, credits, cards, products, and billing history from live APIs", () => {
+  it("surfaces subscription status, balance, cards, entitlements, and billing history from live APIs", () => {
     const page = source("src/app/cabinet/billing/page.tsx");
+    const creditsPage = source("src/app/cabinet/credits/page.tsx");
     const transactionsRoute = source("src/app/api/billing/transactions/route.ts");
     const entitlementsRoute = source("src/app/api/billing/entitlements/route.ts");
 
     expect(page).toContain('data-testid="client-billing-subscription"');
-    expect(page).toContain('data-testid="client-clarity-credits"');
-    expect(page).toContain('data-testid="client-clarity-credit-ledger"');
-    expect(page).toContain('data-testid="client-credit-spend-options"');
-    expect(page).toContain("Кредиты не выводятся деньгами");
     expect(page).toContain('data-testid="client-saved-cards"');
     expect(page).toContain('data-testid="client-open-entitlements"');
     expect(page).toContain('data-testid="client-billing-history"');
-    expect(page).toContain("setClarityCredits(d.clarityCredits ?? [])");
     expect(page).toContain("fetch(\"/api/billing/entitlements\")");
     expect(page).toContain("fetch(\"/api/billing/transactions\")");
     expect(page).toContain("fetch(\"/api/billing/cards\")");
     expect(page).toContain("fetch(\"/api/billing/balance\")");
+    // Credits live on their own page (B235: credits moved out of billing)
+    expect(creditsPage).toContain('data-testid="cabinet-credits-page"');
+    expect(creditsPage).toContain("getClarityCreditBalance");
     expect(transactionsRoute).toContain("clarityCredits");
     expect(entitlementsRoute).toContain("listUserEntitlements");
   });
