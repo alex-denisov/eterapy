@@ -407,6 +407,7 @@ export function Header() {
           ) : (
             <>
               <Link href={mainUrl("/login")}
+                prefetch={false}
                 className={cn(
                   buttonVariants({ variant: "ghost", size: "sm" }),
                   "hidden md:inline-flex",
@@ -476,7 +477,7 @@ export function Header() {
               </>
             ) : (
               <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
-                <Link href={mainUrl("/login")} onClick={() => setMobileOpen(false)}
+                <Link href={mainUrl("/login")} prefetch={false} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
                 <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
                   className={cn(buttonVariants({ size: "sm" }), "flex-1 !bg-[var(--soft-terracotta)] !text-white")}>Начать диалог</Link>

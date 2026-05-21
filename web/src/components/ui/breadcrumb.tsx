@@ -20,7 +20,7 @@ interface BreadcrumbProps {
 export function Breadcrumb({ items, className, homeHref = appUrl("/cabinet") }: BreadcrumbProps) {
   return (
     <nav aria-label="Навигация" className={cn("flex items-center gap-1 text-sm text-muted-foreground mb-6", className)}>
-      <Link href={homeHref} className="hover:text-foreground transition-colors">
+      <Link href={homeHref} prefetch={false} className="hover:text-foreground transition-colors">
         <Home className="h-4 w-4" />
         <span className="sr-only">Главная</span>
       </Link>
@@ -28,7 +28,7 @@ export function Breadcrumb({ items, className, homeHref = appUrl("/cabinet") }: 
         <span key={i} className="flex items-center gap-1">
           <ChevronRight className="h-3 w-3 shrink-0" />
           {item.href ? (
-            <Link href={item.href} className="hover:text-foreground transition-colors">
+            <Link href={item.href} prefetch={false} className="hover:text-foreground transition-colors">
               {item.label}
             </Link>
           ) : (
