@@ -43,7 +43,7 @@ describe("v5 public shell", () => {
     expect(header).toContain("soft-user-pill");
     expect(header).toContain("soft-user-icon");
     expect(header).toContain("Главная кабинета");
-    expect(header).toContain("Каталог продуктов");
+    expect(header).toContain("Моя карта");
     expect(header).toContain("Кредиты ясности");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");

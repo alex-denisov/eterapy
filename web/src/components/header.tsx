@@ -145,11 +145,9 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
     { href: appUrl("/cabinet"), label: "Главная кабинета", icon: LayoutDashboard },
-    { href: appUrl("/cabinet/products"), label: "Каталог продуктов", icon: ShoppingBag },
-    { href: appUrl("/cabinet/map"), label: "Моя карта", icon: Compass },
-    { href: appUrl("/cabinet/action-history"), label: "История разборов", icon: BookOpen },
+    { href: appUrl("/cabinet/action-history"), label: "Моя карта", icon: Compass },
+    { href: appUrl("/cabinet/questions"), label: "История разборов", icon: BookOpen },
     { href: appUrl("/cabinet/credits"), label: "Кредиты ясности", icon: Sparkles },
-    { href: appUrl("/cabinet/products#clarity-practice"), label: "Практика ясности", icon: Heart },
     { href: appUrl("/cabinet/bookings"), label: "Мои записи", icon: CalendarDays },
     { href: appUrl("/cabinet/billing"), label: "Подписка и оплата", icon: CreditCard },
     { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },

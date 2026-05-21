@@ -313,7 +313,7 @@ export function CompatibilityActions({
       {result && result.status === "READY" && (
         <div className="mt-5">
           <p className="text-sm text-green-700">Разбор готов и доступен обоим партнерам в личном кабинете.</p>
-          <Link href="/cabinet/map" className="soft-button soft-button-primary mt-4">
+          <Link href="/cabinet/action-history" className="soft-button soft-button-primary mt-4">
             Посмотреть разбор
           </Link>
         </div>
