@@ -18,7 +18,7 @@ import {
   Bookmark,
   Lock,
   LogOut,
-  ShoppingBag,
+  Leaf,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 
@@ -30,11 +30,11 @@ interface NavItem {
 
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Главная" },
-  { href: appUrl("/cabinet/products"), icon: ShoppingBag, label: "Продукты" },
   { href: appUrl("/cabinet/action-history"), icon: Compass, label: "Моя карта" },
   { href: appUrl("/cabinet/questions"), icon: History, label: "История разборов" },
   { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Записи" },
   { href: appUrl("/cabinet/credits"), icon: Sparkles, label: "Кредиты ясности" },
+  { href: appUrl("/cabinet/modalities"), icon: Leaf, label: "Задания практики" },
   { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Подписка и оплата" },
   { href: appUrl("/cabinet/settings"), icon: Settings, label: "Настройки" },
 ];
@@ -99,7 +99,7 @@ export function CabinetShell({
                 {initial}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{user?.name ?? "Мой кабинет"}</p>
+                <p className="truncate text-sm font-medium">Мой кабинет</p>
                 <p className="text-xs text-muted-foreground">{ROLE_LABELS[role] ?? role}</p>
               </div>
             </div>

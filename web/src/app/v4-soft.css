@@ -1481,13 +1481,13 @@
     max-height: calc(100vh - 7rem);
     border: 1px solid var(--soft-paper-edge);
     border-radius: var(--soft-radius-lg);
-    background: color-mix(in srgb, var(--soft-paper-card) 96%, white);
+    background: var(--soft-paper-deep);
     box-shadow: var(--soft-shadow-sm);
   }
 
   .soft-app-avatar {
     border: 1px solid rgba(214, 117, 88, 0.2);
-    border-radius: var(--soft-radius-md);
+    border-radius: 50%;
     background: linear-gradient(140deg, var(--soft-rose), var(--soft-apricot));
     color: var(--soft-bordeaux);
   }

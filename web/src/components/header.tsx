@@ -390,17 +390,6 @@ export function Header() {
                 </>
               ) : (
                 <>
-                  <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="lg:flex" />
-                  <Link
-                    href={appUrl("/help")}
-                    aria-label="Помощь"
-                    className="soft-user-icon hidden sm:inline-flex"
-                  >
-                    <CircleHelp className="size-4" />
-                  </Link>
-                  <div className="hidden sm:block">
-                    <NotificationBell variant="header" />
-                  </div>
                   <UserMenu session={session} balanceKopecks={balanceKopecks} />
                   <Link
                     href={mainUrl("/checkin")}

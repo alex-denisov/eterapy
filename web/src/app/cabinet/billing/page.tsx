@@ -48,17 +48,6 @@ interface BillingLedgerEntry {
   createdAt: string;
 }
 
-interface ClarityCreditEntry {
-  id: string;
-  amount: number;
-  balanceAfter: number | null;
-  type: string;
-  source: string;
-  status: string;
-  expiresAt: string | null;
-  createdAt: string;
-}
-
 interface BillingEntitlement {
   id: string;
   productKey: string;
@@ -98,7 +87,6 @@ export default function BillingPage() {
   const [payingWithSaved, setPayingWithSaved] = useState(false);
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
   const [ledger, setLedger] = useState<BillingLedgerEntry[]>([]);
-  const [clarityCredits, setClarityCredits] = useState<ClarityCreditEntry[]>([]);
   const [entitlements, setEntitlements] = useState<BillingEntitlement[]>([]);
   const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
@@ -125,13 +113,12 @@ export default function BillingPage() {
       .then(d => {
         setTransactions(d.transactions ?? []);
         setLedger(d.ledger ?? []);
-        setClarityCredits(d.clarityCredits ?? []);
         const hasPending = (d.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
         if (hasPending) {
           fetch("/api/billing/reconcile", { method: "POST" })
             .then(() => {
               fetch("/api/billing/balance").then(r2 => r2.json()).then(d2 => { setBalanceRub(d2.balanceRub); }).catch(() => {});
-              fetch("/api/billing/transactions").then(r2 => r2.json()).then(d2 => { setTransactions(d2.transactions ?? []); setLedger(d2.ledger ?? []); setClarityCredits(d2.clarityCredits ?? []); }).catch(() => {});
+              fetch("/api/billing/transactions").then(r2 => r2.json()).then(d2 => { setTransactions(d2.transactions ?? []); setLedger(d2.ledger ?? []); }).catch(() => {});
               fetch("/api/billing/cards").then(r2 => r2.json()).then(d2 => { setLinkedCards(d2.cards ?? []); }).catch(() => {});
             })
             .catch(() => {});
@@ -181,7 +168,6 @@ export default function BillingPage() {
       if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
       if (txRes?.transactions) setTransactions(txRes.transactions);
       if (txRes?.ledger) setLedger(txRes.ledger);
-      if (txRes?.clarityCredits) setClarityCredits(txRes.clarityCredits);
 
       const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
       const balanceChanged = balRes?.balanceRub && Number(balRes.balanceRub) !== Number(initialBalance);
@@ -365,9 +351,6 @@ export default function BillingPage() {
       : getSubscriptionStatusLabel(activeSub.status)
     : "Базовый доступ";
   const selectedPlanLabel = getSubscriptionPlanLabel(selectedPlanKey);
-  const spendableCredits = clarityCredits
-    .filter((entry) => entry.status === "confirmed")
-    .reduce((sum, entry) => sum + entry.amount, 0);
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -443,59 +426,6 @@ export default function BillingPage() {
             {creatingPayment ? "Создание платежа..." : "Пополнить"}
           </button>
         </div>
-      </div>
-
-      <div className="soft-card p-6" id="credits" data-testid="client-clarity-credits">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="soft-eyebrow mb-3">кредиты ясности</div>
-            <div style={{ fontFamily: "var(--font-heading)", fontSize: 36, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-              {spendableCredits}
-            </div>
-            <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-              Кредиты можно тратить на углубления без отдельной оплаты. Начисления и списания остаются в отдельном журнале.
-            </p>
-            <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-faint)" }}>
-              Кредиты не выводятся деньгами и не применяются к встречам со специалистами: работа живых людей оплачивается по полной ставке.
-            </p>
-          </div>
-          <Link href={mainUrl("/products")} className="soft-chip shrink-0">К продуктам →</Link>
-        </div>
-        <div className="mt-5 grid gap-2 sm:grid-cols-4" data-testid="client-credit-spend-options">
-          {[
-            ["2", "4 ракурса", "/products/perspectives"],
-            ["4", "Глубокий отчёт", "/products/deep-report"],
-            ["2", "Разбор переписки Start", "/products/chat-analysis"],
-            ["8", "7 дней к ясности", "/products/seven-days"],
-          ].map(([cost, label, href]) => (
-            <Link key={label} href={mainUrl(href)} className="soft-card-flat p-3 text-sm">
-              <span className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">-{cost}</span>
-              <span className="ml-2 text-[var(--soft-ink-soft)]">{label}</span>
-            </Link>
-          ))}
-        </div>
-        {clarityCredits.length > 0 && (
-          <div className="mt-5 space-y-0" data-testid="client-clarity-credit-ledger">
-            {clarityCredits.slice(0, 6).map((entry, i) => (
-              <div key={entry.id} className="flex items-center justify-between"
-                style={{ padding: "12px 0", borderTop: i ? "1px solid var(--soft-paper-edge)" : "none" }}>
-                <div>
-                  <div className="font-medium" style={{ fontSize: 15 }}>{getLedgerTypeLabel(entry.type)}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--soft-ink-faint)" }}>
-                    {entry.source} · {new Date(entry.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
-                    {entry.expiresAt ? ` · до ${new Date(entry.expiresAt).toLocaleDateString("ru-RU")}` : ""}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span style={{ fontFamily: "var(--font-heading)", color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-                    {entry.amount >= 0 ? "+" : ""}{entry.amount}
-                  </span>
-                  <div className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>{entry.status}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Payment method */}
@@ -710,7 +640,7 @@ export default function BillingPage() {
         )}
         {ledger.length > 0 && (
           <div className="mt-6">
-            <div className="soft-eyebrow mb-3">кредитный ledger</div>
+            <div className="soft-eyebrow mb-3">история баланса</div>
             <div className="space-y-0">
               {ledger.slice(0, 8).map((entry, i) => (
                 <div key={entry.id} className="flex items-center justify-between"
