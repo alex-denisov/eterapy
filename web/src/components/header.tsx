@@ -104,6 +104,7 @@ function BalanceSummaryLink({
   return (
     <Link
       href={appUrl("/cabinet/credits")}
+      prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
       className={cn("soft-user-pill hidden", className)}
       data-testid="header-balance-summary"
@@ -262,6 +263,7 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={false}
                   role="menuitem"
                   tabIndex={focusedIndex === i ? 0 : -1}
                   onClick={() => closeAndFocus()}
@@ -375,6 +377,7 @@ export function Header() {
                   <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
                   <Link
                     href={appUrl("/help")}
+                    prefetch={false}
                     aria-label="Помощь"
                     className="soft-user-icon"
                   >
@@ -446,7 +449,7 @@ export function Header() {
             ))}
             {isAuthenticated && session ? (
               <>
-                <Link href={appUrl("/help")} onClick={() => setMobileOpen(false)}
+                <Link href={appUrl("/help")} prefetch={false} onClick={() => setMobileOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   Помощь
                 </Link>
@@ -456,7 +459,7 @@ export function Header() {
                   <Sparkles className="size-4" aria-hidden="true" />
                   {clarityCredits} кредитов
                 </div>
-                <Link href={cabinetHref} onClick={() => setMobileOpen(false)}
+                <Link href={cabinetHref} prefetch={false} onClick={() => setMobileOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">
                   Личный кабинет
                 </Link>
