@@ -164,13 +164,19 @@ function ProductPreview({ product }: { product: V5Product }) {
   }
 
   if (product.slug === "perspectives") {
+    const angles = [
+      { name: "Разум", desc: "Факты, варианты, последствия — без давления." },
+      { name: "Чувства", desc: "Что внутри — эмоции и телесные сигналы." },
+      { name: "Символ", desc: "Образ ситуации — метафора без фатальности." },
+      { name: "Действие", desc: "Один безопасный шаг на ближайшую неделю." },
+    ];
     return (
       <div className="soft-product-angles" data-testid="product-perspectives-preview">
-        {["Разум", "Чувства", "Символ", "Действие"].map((item, index) => (
-          <div key={item} className={`soft-card soft-angle-tile soft-angle-${index + 1}`}>
+        {angles.map((angle, index) => (
+          <div key={angle.name} className={`soft-card soft-angle-tile soft-angle-${index + 1}`}>
             <p className="soft-eyebrow">ракурс 0{index + 1}</p>
-            <h3 className="soft-h3 mt-2">{item}</h3>
-            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Один угол зрения без давления и фатальности.</p>
+            <h3 className="soft-h3 mt-2">{angle.name}</h3>
+            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">{angle.desc}</p>
           </div>
         ))}
       </div>
