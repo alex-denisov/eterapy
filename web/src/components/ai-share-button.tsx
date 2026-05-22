@@ -236,6 +236,15 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
             aria-label="Безопасная карточка для отправки"
             className="my-auto w-full max-w-[720px] rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-4 shadow-[var(--soft-shadow-md)]"
           >
+          <div className="mb-5">
+            <p className="soft-eyebrow">поделиться инсайтом</p>
+            <h2 className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
+              Карточка <em className="not-italic italic">для подруги</em>
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              По умолчанию карточка обезличена — без имени, без вопроса.
+            </p>
+          </div>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="grid place-items-center rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-5">
               <div
@@ -273,7 +282,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
 
             <div className="space-y-4">
               <div>
-                <p className="premium-eyebrow">Шаблон</p>
+                <p className="soft-eyebrow">Шаблон</p>
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {TEMPLATES.map((item, index) => (
                     <button
@@ -289,7 +298,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
               </div>
 
               <div className="soft-card p-4">
-                <p className="premium-eyebrow">Приватность</p>
+                <p className="soft-eyebrow">Приватность</p>
                 <label className="mt-3 flex cursor-pointer gap-3 text-sm">
                   <input
                     type="checkbox"
@@ -317,7 +326,13 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
               </div>
 
               <div className="grid gap-2">
-                <button onClick={shareToTelegram} disabled={sharing} className="soft-button soft-button-primary justify-center">
+                <button onClick={copyInviteLink} className="soft-button soft-button-primary justify-center">
+                  <LinkIcon className="h-4 w-4" /> Скопировать ссылку
+                </button>
+                <button onClick={downloadSafeText} className="soft-button soft-button-ghost justify-center">
+                  <Download className="h-4 w-4" /> Сохранить картинку
+                </button>
+                <button onClick={shareToTelegram} disabled={sharing} className="soft-button soft-button-ghost justify-center">
                   <Send className="h-4 w-4" /> Telegram
                 </button>
                 <button onClick={shareToVK} disabled={sharing} className="soft-button soft-button-ghost justify-center">
@@ -325,12 +340,6 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
                 </button>
                 <button onClick={copySafeText} className="soft-button soft-button-ghost justify-center">
                   <Copy className="h-4 w-4" /> Скопировать текст
-                </button>
-                <button onClick={copyInviteLink} className="soft-button soft-button-ghost justify-center">
-                  <LinkIcon className="h-4 w-4" /> Скопировать ссылку
-                </button>
-                <button onClick={downloadSafeText} className="soft-button soft-button-ghost justify-center">
-                  <Download className="h-4 w-4" /> Сохранить файл
                 </button>
               </div>
 

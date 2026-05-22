@@ -11,7 +11,6 @@ import {
   Compass,
   FileText,
   Heart,
-  Loader2,
   MessageSquareText,
   Moon,
   RotateCcw,
@@ -491,9 +490,7 @@ export default function CheckinPage() {
 
       {phase === "processing" && (
         <div className="soft-card soft-processing-card" data-testid="dialogue-processing-step">
-          <div className="soft-processing-orb">
-            <Loader2 className="absolute inset-0 m-auto size-6 animate-spin text-[var(--soft-bordeaux)]" aria-hidden="true" />
-          </div>
+          <div className="soft-processing-orb" />
           <p className="mt-5 font-heading text-2xl text-[var(--soft-bordeaux)]">Готовлю ответ</p>
           <div className="mt-3 space-y-1 text-sm text-[var(--soft-ink-soft)]">
             {processingLines.map((line) => (
@@ -571,6 +568,24 @@ export default function CheckinPage() {
                 <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                   Первичный ответ помогает увидеть контур. Если хочется не спешить, можно сохранить его, вернуться позже или открыть один более глубокий формат.
                 </p>
+              </section>
+
+              <section className="soft-card mt-4 p-5 md:p-7">
+                <p className="soft-eyebrow">факты, чувства, предположения</p>
+                <div className="mt-3 flex flex-col gap-2.5">
+                  <div className="flex items-start gap-3">
+                    <span className="soft-badge soft-badge-warm mt-0.5 shrink-0">Факт</span>
+                    <span className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">Ситуация, которую вы описываете, уже существует — игнорирование не меняет её, а только откладывает встречу с ней.</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="soft-badge mt-0.5 shrink-0" style={{ background: "var(--soft-rose)", color: "var(--soft-bordeaux)" }}>Чувство</span>
+                    <span className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">За этим вопросом стоит что-то важное для вас — скорее всего, именно в этом и есть главная нить.</span>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="soft-badge soft-badge-lilac mt-0.5 shrink-0">Предположение</span>
+                    <span className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">Часть картины «как всё должно быть» или «что скажут другие» — это убеждения, не факты.</span>
+                  </div>
+                </div>
               </section>
 
               <section className="soft-card soft-safe-step-card mt-4 p-5 md:p-7">
