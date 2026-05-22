@@ -70,13 +70,6 @@ type DialoguePayload = {
   updatedAt: string;
 };
 
-const processingLines = [
-  "Собираю контекст в один ответ",
-  "Отделяю главное от шума",
-  "Формулирую бережный следующий шаг",
-];
-
-
 function cleanAnswer(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
 }
@@ -107,7 +100,7 @@ export default function CheckinPage() {
   const safeAnswer = useMemo(() => cleanAnswer(primaryAnswer), [primaryAnswer]);
   const clarifyingQuestions = useMemo(() => {
     const questions = (dialogue?.clarifyingQuestions ?? []).filter((item) => item.question.trim());
-    return questions.length > 0 ? questions : [{ question: "Что важно добавить, чтобы первичный ответ был точнее?", chips: [] }];
+    return questions;
   }, [dialogue?.clarifyingQuestions]);
   const currentClarifyingQuestion = clarifyingQuestions[Math.min(clarifyingAnswers.length, clarifyingQuestions.length - 1)];
 
@@ -116,6 +109,12 @@ export default function CheckinPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "clarifying" || !dialogue || clarifyingQuestions.length > 0) return;
+    void generateAnswer(dialogue.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, dialogue?.id, clarifyingQuestions.length]);
 
   useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
@@ -398,19 +397,16 @@ export default function CheckinPage() {
             </div>
           </div>
 
-          <div className="soft-msg-row soft-msg-row-assistant">
-            <div className="soft-msg-avatar" aria-hidden="true" />
-            <div className="soft-msg-bubble soft-msg-bubble-assistant">
-              Спасибо, что доверились. Я задам несколько коротких вопросов по одному — так ответ получится точнее и без лишнего давления.
-            </div>
-          </div>
-
           {clarifyingAnswers.map((answer, index) => (
             <div key={`${clarifyingQuestions[index]?.question}-${index}`} className="contents">
               <div className="soft-msg-row soft-msg-row-assistant">
                 <div className="soft-msg-avatar" aria-hidden="true" />
                 <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
-                  <p>{clarifyingQuestions[index]?.question}</p>
+                  <p style={{ whiteSpace: "pre-wrap" }}>
+                    {index === 0
+                      ? `Спасибо, что доверились. Чтобы яснее увидеть ситуацию, разрешите задать пару коротких вопросов — это правда помогает.\n\n${clarifyingQuestions[index]?.question}`
+                      : clarifyingQuestions[index]?.question}
+                  </p>
                 </div>
               </div>
               <div className="soft-msg-row soft-msg-row-user">
@@ -422,28 +418,34 @@ export default function CheckinPage() {
             </div>
           ))}
 
-          <div className="soft-msg-row soft-msg-row-assistant">
-            <div className="soft-msg-avatar" aria-hidden="true" />
-            <div>
-              <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
-                <p>{currentClarifyingQuestion?.question}</p>
-              </div>
-              {(currentClarifyingQuestion?.chips?.length ?? 0) > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {currentClarifyingQuestion?.chips?.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      className="soft-chip"
-                      onClick={() => void sendClarification(false, chip)}
-                    >
-                      {chip}
-                    </button>
-                  ))}
+          {currentClarifyingQuestion && (
+            <div className="soft-msg-row soft-msg-row-assistant">
+              <div className="soft-msg-avatar" aria-hidden="true" />
+              <div>
+                <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
+                  <p style={{ whiteSpace: "pre-wrap" }}>
+                    {clarifyingAnswers.length === 0
+                      ? `Спасибо, что доверились. Чтобы яснее увидеть ситуацию, разрешите задать пару коротких вопросов — это правда помогает.\n\n${currentClarifyingQuestion.question}`
+                      : currentClarifyingQuestion.question}
+                  </p>
                 </div>
-              )}
+                {(currentClarifyingQuestion.chips?.length ?? 0) > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {currentClarifyingQuestion.chips?.map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        className="soft-chip"
+                        onClick={() => void sendClarification(false, chip)}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="soft-ask-card soft-dialogue-composer">
             <label htmlFor="dialogue-clarification" className="sr-only">Ответ на уточнение</label>
@@ -459,17 +461,8 @@ export default function CheckinPage() {
             <div className="soft-ask-foot">
               <Button
                 variant="outline"
-                onClick={reset}
-                className="soft-button soft-button-ghost"
-                data-testid="dialogue-restart"
-              >
-                <RotateCcw className="size-4" aria-hidden="true" />
-                Начать заново
-              </Button>
-              <Button
-                variant="outline"
                 onClick={() => void sendClarification(true)}
-                className="soft-button soft-button-ghost"
+                className="soft-button soft-button-soft"
                 data-testid="dialogue-skip-clarification"
               >
                 Пропустить вопрос
@@ -489,13 +482,20 @@ export default function CheckinPage() {
       )}
 
       {phase === "processing" && (
-        <div className="soft-card soft-processing-card" data-testid="dialogue-processing-step">
-          <div className="soft-processing-orb" />
-          <p className="mt-5 font-heading text-2xl text-[var(--soft-bordeaux)]">Готовлю ответ</p>
-          <div className="mt-3 space-y-1 text-sm text-[var(--soft-ink-soft)]">
-            {processingLines.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
+        <div className="soft-dialogue-chat" data-testid="dialogue-processing-step">
+          <div className="soft-msg-row soft-msg-row-user">
+            <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+            <div className="soft-msg-bubble soft-msg-bubble-user">
+              {question || dialogue?.title || "…"}
+            </div>
+          </div>
+          <div className="soft-msg-row soft-msg-row-assistant">
+            <div className="soft-msg-avatar" aria-hidden="true" />
+            <div className="soft-msg-bubble soft-msg-bubble-assistant">
+              <div className="soft-typing">
+                <span /><span /><span />
+              </div>
+            </div>
           </div>
           {error && (
             <div className="mt-5">

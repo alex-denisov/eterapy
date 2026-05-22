@@ -710,9 +710,9 @@
     border: 1px solid rgba(214, 117, 88, 0.18);
     border-radius: 999px;
     background:
-      radial-gradient(circle at 50% 52%, rgba(246, 190, 123, 0.95), transparent 20%),
-      conic-gradient(from 210deg, var(--soft-terracotta), var(--soft-halo-1), transparent 38%, var(--soft-lilac), var(--soft-halo-3), transparent 72%, var(--soft-terracotta));
-    box-shadow: 0 8px 24px -16px rgba(92, 42, 44, 0.45);
+      radial-gradient(circle at 30% 30%, #FFF, transparent 40%),
+      conic-gradient(from 30deg, var(--soft-halo-1), var(--soft-halo-2), var(--soft-halo-3), var(--soft-halo-1));
+    box-shadow: 0 0 0 1px rgba(60, 30, 20, 0.06), 0 2px 6px rgba(60, 30, 20, 0.1);
   }
 
   .soft-msg-avatar-user {
@@ -773,10 +773,43 @@
     aspect-ratio: 1;
     border-radius: 999px;
     background:
-      radial-gradient(circle at 50% 52%, rgba(255, 215, 154, 0.95), transparent 22%),
-      conic-gradient(from 210deg, var(--soft-terracotta), var(--soft-halo-1), transparent 38%, var(--soft-lilac), var(--soft-halo-3), transparent 72%, var(--soft-terracotta));
+      radial-gradient(circle at 30% 30%, #FFF, transparent 40%),
+      conic-gradient(from 30deg, var(--soft-halo-1), var(--soft-halo-2), var(--soft-halo-3), var(--soft-halo-1));
     box-shadow: 0 0 44px rgba(214, 117, 88, 0.22);
     animation: softHaloBreathe 5s ease-in-out infinite;
+  }
+
+  .soft-typing {
+    display: inline-flex;
+    gap: 6px;
+    padding: 4px 0;
+  }
+
+  .soft-typing span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--soft-ink-faint);
+    animation: soft-typing 1.2s infinite;
+  }
+
+  .soft-typing span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .soft-typing span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  @keyframes soft-typing {
+    0%, 60%, 100% {
+      transform: translateY(0);
+      opacity: 0.4;
+    }
+    30% {
+      transform: translateY(-5px);
+      opacity: 1;
+    }
   }
 
   .soft-answer-flow {

@@ -91,7 +91,7 @@ describe("dialogue-clarifier", () => {
     }));
   });
 
-  it("falls back to heuristic questions when AI is unavailable", async () => {
+  it("falls back to empty questions when AI is unavailable", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueClarifyingQuestions({
@@ -102,29 +102,27 @@ describe("dialogue-clarifier", () => {
     });
 
     expect(result.source).toBe("heuristic");
-    expect(result.questions.length).toBeGreaterThanOrEqual(2);
-    expect(result.questions).toContain("В какой момент тревога становится заметнее всего?");
-    expect(result.chips).toBeDefined();
-    expect(result.chips.length).toBe(result.questions.length);
+    expect(result.questions).toEqual([]);
+    expect(result.chips).toEqual([]);
   });
 
-  it("uses topic-aware heuristic questions", () => {
+  it("heuristic always returns empty questions regardless of topic", () => {
     const result = heuristicClarifyingQuestions({
       question: "Что делать с отношениями?",
       topic: "relationships",
       difficulty: "medium",
     });
-    expect(result.questions).toContain("Какая динамика между вами повторяется чаще всего?");
-    expect(result.chips.length).toBe(result.questions.length);
+    expect(result.questions).toEqual([]);
+    expect(result.chips).toEqual([]);
   });
 
-  it("returns contextual chips for each heuristic question", () => {
+  it("heuristic returns empty chips", () => {
     const result = heuristicClarifyingQuestions({
       question: "Тревога не отпускает",
       topic: "anxiety",
       difficulty: "low",
     });
-    const anxietyIdx = result.questions.indexOf("В какой момент тревога становится заметнее всего?");
-    expect(result.chips[anxietyIdx]).toEqual(["Ночью", "Перед важным", "Постоянно"]);
+    expect(result.questions).toEqual([]);
+    expect(result.chips).toEqual([]);
   });
 });
