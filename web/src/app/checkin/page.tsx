@@ -112,7 +112,7 @@ export default function CheckinPage() {
 
   useEffect(() => {
     if (phase !== "clarifying" || !dialogue || clarifyingQuestions.length > 0) return;
-    void generateAnswer(dialogue.id);
+    void submitClarification("", true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, dialogue?.id, clarifyingQuestions.length]);
 
@@ -501,7 +501,7 @@ export default function CheckinPage() {
             <div className="mt-5">
               <p className="text-sm text-destructive">{error}</p>
               {retrying && dialogue && (
-                <Button className="soft-button soft-button-ghost mt-3" variant="outline" onClick={() => generateAnswer(dialogue.id)} data-testid="dialogue-retry-answer">
+                <Button className="soft-button soft-button-soft mt-3" variant="outline" onClick={() => generateAnswer(dialogue.id)} data-testid="dialogue-retry-answer">
                   Попробовать еще раз
                 </Button>
               )}
