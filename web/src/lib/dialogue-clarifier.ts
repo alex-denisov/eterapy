@@ -3,6 +3,7 @@ import { log, serializeError } from "@/lib/logger";
 
 export interface DialogueClarifyingQuestionsResult {
   questions: string[];
+  chips: string[][];
   source: "ai" | "heuristic";
   provider?: string;
   model?: string;
@@ -16,6 +17,24 @@ function normalizeQuestion(value: unknown) {
   const question = value.replace(/\s+/g, " ").trim();
   if (question.length < 8) return null;
   return question.slice(0, 220);
+}
+
+function normalizeChip(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const chip = value.replace(/\s+/g, " ").trim();
+  if (chip.length < 2 || chip.length > 60) return null;
+  return chip;
+}
+
+function normalizeChips(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const chips: string[] = [];
+  for (const item of value) {
+    const chip = normalizeChip(item);
+    if (chip) chips.push(chip);
+    if (chips.length >= 4) break;
+  }
+  return chips;
 }
 
 function uniqueQuestions(values: unknown[]) {
@@ -44,7 +63,7 @@ function extractJson(text: string) {
   return arrayMatch?.[0] ?? null;
 }
 
-export function parseClarifyingQuestionsResponse(text: string) {
+export function parseClarifyingQuestionsResponse(text: string): { questions: string[]; chips: string[][] } | null {
   const json = extractJson(text);
   if (!json) return null;
   try {
@@ -55,11 +74,33 @@ export function parseClarifyingQuestionsResponse(text: string) {
         ? (parsed as { questions: unknown[] }).questions
         : [];
     const questions = uniqueQuestions(rawQuestions);
-    return questions.length >= MIN_QUESTIONS ? questions : null;
+    if (questions.length < MIN_QUESTIONS) return null;
+
+    const rawChips = Array.isArray((parsed as { chips?: unknown }).chips)
+      ? (parsed as { chips: unknown[] }).chips
+      : [];
+    const chips = questions.map((_, i) => normalizeChips(rawChips[i]));
+    return { questions, chips };
   } catch {
     return null;
   }
 }
+
+const HEURISTIC_CHIPS: Record<string, string[]> = {
+  "Что в этой ситуации для вас сейчас самое важное прояснить?": ["Острая, прямо сейчас", "Накопилось", "Сложно сказать"],
+  "Какой исход вы считаете для себя самым спокойным и честным?": ["Когда прояснится", "Когда смогу решить", "Пока не знаю"],
+  "Какая динамика между вами повторяется чаще всего?": ["Избегание", "Напряжение", "Непонимание"],
+  "Какой выбор или рабочий сценарий сейчас вызывает больше всего напряжения?": ["Сменить работу", "Конфликт", "Нет роста"],
+  "Какое финансовое решение вы боитесь принять или отложить?": ["Большие расходы", "Смена дохода", "Долги"],
+  "Чьи ожидания сильнее всего влияют на ваше решение?": ["Родители", "Партнёр", "Дети"],
+  "В какой момент тревога становится заметнее всего?": ["Ночью", "Перед важным", "Постоянно"],
+  "Что вы уже пробовали, чтобы лучше понять себя в этом вопросе?": ["Разговор с близким", "Читал / смотрел", "Ничего пока"],
+  "Какой контекст может сильнее всего изменить ответ на ваш вопрос?": ["Отношения", "Работа или деньги", "Здоровье"],
+  "Есть ли срочность, риск или ограничение, которое важно учитывать сразу?": ["Да, срочно", "Есть риски", "Нет пока"],
+  "Что будет хорошим первым маленьким шагом после ответа?": ["Поговорить с кем-то", "Сделать один шаг", "Подумать ещё"],
+};
+
+const DEFAULT_CHIPS = ["Острая, прямо сейчас", "Накопилось", "Сложно сказать"];
 
 export function heuristicClarifyingQuestions(input: {
   question: string;
@@ -83,8 +124,10 @@ export function heuristicClarifyingQuestions(input: {
     ? "Есть ли срочность, риск или ограничение, которое важно учитывать сразу?"
     : "Что будет хорошим первым маленьким шагом после ответа?";
 
+  const questions = uniqueQuestions([...base, topicQuestion, difficultyQuestion]);
   return {
-    questions: uniqueQuestions([...base, topicQuestion, difficultyQuestion]),
+    questions,
+    chips: questions.map((q) => HEURISTIC_CHIPS[q] ?? DEFAULT_CHIPS),
     source: "heuristic",
   };
 }
@@ -104,14 +147,15 @@ export async function generateDialogueClarifyingQuestions(input: {
       feature: "dialogue_clarifier",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 320,
+      maxTokens: 600,
       temperature: 0.2,
       messages: [
         {
           role: "system",
           content: [
             "You create clarifying questions for ETerapy before the primary answer.",
-            "Return only JSON: {\"questions\":[...]} with 2 to 5 short questions.",
+            "Return only JSON: {\"questions\":[...],\"chips\":[[...],[...],[...]]} — 2 to 5 questions with exactly 3 short chips (1–6 words) per question.",
+            "Chips are concrete, distinct answer options in Russian the user can tap to quickly respond to that specific question.",
             "Questions must be gentle, concrete, non-diagnostic, and useful for an esoteric self-reflection product.",
             "Do not answer the user's question. Do not include crisis, medical, legal, or financial advice.",
           ].join(" "),
@@ -128,11 +172,12 @@ export async function generateDialogueClarifyingQuestions(input: {
       ],
     });
 
-    const questions = parseClarifyingQuestionsResponse(response.text);
-    if (!questions) return fallback;
+    const parsed = parseClarifyingQuestionsResponse(response.text);
+    if (!parsed) return fallback;
 
     return {
-      questions,
+      questions: parsed.questions,
+      chips: parsed.chips,
       source: "ai",
       provider: response.provider,
       model: response.model,

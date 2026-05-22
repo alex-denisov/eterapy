@@ -23,7 +23,7 @@ describe("dialogue-clarifier", () => {
   });
 
   it("parses JSON object and keeps 2-5 unique questions", () => {
-    expect(parseClarifyingQuestionsResponse(JSON.stringify({
+    const result = parseClarifyingQuestionsResponse(JSON.stringify({
       questions: [
         "Что для вас самое важное?",
         "Что для вас самое важное?",
@@ -32,13 +32,25 @@ describe("dialogue-clarifier", () => {
         "Кто влияет на решение?",
         "Что может измениться завтра?",
       ],
-    }))).toEqual([
+    }));
+    expect(result?.questions).toEqual([
       "Что для вас самое важное?",
       "Какой исход будет спокойным?",
       "Что уже пробовали?",
       "Кто влияет на решение?",
       "Что может измениться завтра?",
     ]);
+    expect(result?.chips).toHaveLength(5);
+    result?.chips.forEach((c) => expect(c).toEqual([]));
+  });
+
+  it("parses chips alongside questions when provided", () => {
+    const result = parseClarifyingQuestionsResponse(JSON.stringify({
+      questions: ["Что важнее всего?", "Какой исход спокойный?"],
+      chips: [["Острая", "Давняя", "Сложно"], ["Ясность", "Решение", "Не знаю"]],
+    }));
+    expect(result?.questions).toEqual(["Что важнее всего?", "Какой исход спокойный?"]);
+    expect(result?.chips).toEqual([["Острая", "Давняя", "Сложно"], ["Ясность", "Решение", "Не знаю"]]);
   });
 
   it("rejects responses with fewer than two usable questions", () => {
@@ -47,7 +59,7 @@ describe("dialogue-clarifier", () => {
 
   it("generates through AI Gateway with dialogue_clarifier feature", async () => {
     mockAiComplete.mockResolvedValue({
-      text: '{"questions":["Что важнее всего прояснить?","Какой исход будет спокойным?"]}',
+      text: '{"questions":["Что важнее всего прояснить?","Какой исход будет спокойным?"],"chips":[["Острая","Давняя","Сложно"],["Ясность","Решение","Не знаю"]]}',
       provider: "openrouter",
       model: "openrouter/free",
       tokensIn: 12,
@@ -66,6 +78,7 @@ describe("dialogue-clarifier", () => {
 
     expect(result).toEqual({
       questions: ["Что важнее всего прояснить?", "Какой исход будет спокойным?"],
+      chips: [["Острая", "Давняя", "Сложно"], ["Ясность", "Решение", "Не знаю"]],
       source: "ai",
       provider: "openrouter",
       model: "openrouter/free",
@@ -74,7 +87,7 @@ describe("dialogue-clarifier", () => {
       feature: "dialogue_clarifier",
       userId: "user-1",
       requestId: "req-1",
-      maxTokens: 320,
+      maxTokens: 600,
     }));
   });
 
@@ -91,13 +104,27 @@ describe("dialogue-clarifier", () => {
     expect(result.source).toBe("heuristic");
     expect(result.questions.length).toBeGreaterThanOrEqual(2);
     expect(result.questions).toContain("В какой момент тревога становится заметнее всего?");
+    expect(result.chips).toBeDefined();
+    expect(result.chips.length).toBe(result.questions.length);
   });
 
   it("uses topic-aware heuristic questions", () => {
-    expect(heuristicClarifyingQuestions({
+    const result = heuristicClarifyingQuestions({
       question: "Что делать с отношениями?",
       topic: "relationships",
       difficulty: "medium",
-    }).questions).toContain("Какая динамика между вами повторяется чаще всего?");
+    });
+    expect(result.questions).toContain("Какая динамика между вами повторяется чаще всего?");
+    expect(result.chips.length).toBe(result.questions.length);
+  });
+
+  it("returns contextual chips for each heuristic question", () => {
+    const result = heuristicClarifyingQuestions({
+      question: "Тревога не отпускает",
+      topic: "anxiety",
+      difficulty: "low",
+    });
+    const anxietyIdx = result.questions.indexOf("В какой момент тревога становится заметнее всего?");
+    expect(result.chips[anxietyIdx]).toEqual(["Ночью", "Перед важным", "Постоянно"]);
   });
 });

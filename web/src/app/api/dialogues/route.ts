@@ -179,6 +179,7 @@ export async function POST(request: NextRequest) {
     ...(clarifier ? {
       clarifyingQuestions: {
         questions: clarifier.questions,
+        chips: clarifier.chips,
         source: clarifier.source,
         provider: clarifier.provider,
         model: clarifier.model,
@@ -245,7 +246,10 @@ export async function POST(request: NextRequest) {
         reason: safety.reason,
         interrupt: interrupted,
       },
-      clarifyingQuestions: clarifier?.questions ?? [],
+      clarifyingQuestions: clarifier?.questions.map((q, i) => ({
+        question: q,
+        chips: clarifier.chips[i] ?? [],
+      })) ?? [],
       createdAt: dialogue.createdAt.toISOString(),
       updatedAt: dialogue.updatedAt.toISOString(),
       messages: dialogue.messages.map((message) => ({

@@ -60,7 +60,7 @@ type DialoguePayload = {
     reason: string;
     interrupt: boolean;
   };
-  clarifyingQuestions?: string[];
+  clarifyingQuestions?: { question: string; chips?: string[] }[];
   primaryAnswer?: {
     id: string;
     content: string;
@@ -77,14 +77,6 @@ const processingLines = [
   "Формулирую бережный следующий шаг",
 ];
 
-const suggestedClarificationAnswers = [
-  "Острая ситуация прямо сейчас",
-  "Это давняя тема",
-  "Хочу понять, что происходит",
-  "Хочу решить, что делать",
-  "И то, и другое",
-  "Пока сложно сформулировать",
-];
 
 function cleanAnswer(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
@@ -115,8 +107,8 @@ export default function CheckinPage() {
     ?? "";
   const safeAnswer = useMemo(() => cleanAnswer(primaryAnswer), [primaryAnswer]);
   const clarifyingQuestions = useMemo(() => {
-    const questions = dialogue?.clarifyingQuestions?.filter((item) => item.trim()) ?? [];
-    return questions.length > 0 ? questions : ["Что важно добавить, чтобы первичный ответ был точнее?"];
+    const questions = (dialogue?.clarifyingQuestions ?? []).filter((item) => item.question.trim());
+    return questions.length > 0 ? questions : [{ question: "Что важно добавить, чтобы первичный ответ был точнее?", chips: [] }];
   }, [dialogue?.clarifyingQuestions]);
   const currentClarifyingQuestion = clarifyingQuestions[Math.min(clarifyingAnswers.length, clarifyingQuestions.length - 1)];
 
@@ -287,9 +279,9 @@ export default function CheckinPage() {
     }
   }
 
-  async function sendClarification(skip = false) {
+  async function sendClarification(skip = false, overrideText?: string) {
     if (!dialogue) return;
-    const answer = skip ? "Пропущено" : clarification.trim();
+    const answer = skip ? "Пропущено" : (overrideText ?? clarification.trim());
     if (!answer) return;
 
     const nextAnswers = [...clarifyingAnswers, answer];
@@ -304,7 +296,7 @@ export default function CheckinPage() {
     const skippedEverything = nextAnswers.every((item) => item === "Пропущено");
     const message = nextAnswers
       .map((item, index) => {
-        const prompt = clarifyingQuestions[index] ?? `Уточнение ${index + 1}`;
+        const prompt = clarifyingQuestions[index]?.question ?? `Уточнение ${index + 1}`;
         return `Уточнение ${index + 1}: ${prompt}\nОтвет: ${item}`;
       })
       .join("\n\n");
@@ -415,12 +407,11 @@ export default function CheckinPage() {
           </div>
 
           {clarifyingAnswers.map((answer, index) => (
-            <div key={`${clarifyingQuestions[index]}-${index}`} className="contents">
+            <div key={`${clarifyingQuestions[index]?.question}-${index}`} className="contents">
               <div className="soft-msg-row soft-msg-row-assistant">
                 <div className="soft-msg-avatar" aria-hidden="true" />
                 <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
-                  <span className="soft-eyebrow text-[10px]">вопрос {index + 1} из {clarifyingQuestions.length}</span>
-                  <p className="mt-1">{clarifyingQuestions[index]}</p>
+                  <p>{clarifyingQuestions[index]?.question}</p>
                 </div>
               </div>
               <div className="soft-msg-row soft-msg-row-user">
@@ -436,26 +427,22 @@ export default function CheckinPage() {
             <div className="soft-msg-avatar" aria-hidden="true" />
             <div>
               <div className="soft-msg-bubble soft-msg-bubble-assistant" data-testid="dialogue-clarifying-question">
-                <span className="soft-eyebrow text-[10px]">вопрос {clarifyingAnswers.length + 1} из {clarifyingQuestions.length}</span>
-                <p className="mt-1">{currentClarifyingQuestion}</p>
+                <p>{currentClarifyingQuestion?.question}</p>
               </div>
-              <div className="mt-3">
-                <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">
-                  подсказки возможных ответов
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {suggestedClarificationAnswers.map((item) => (
+              {(currentClarifyingQuestion?.chips?.length ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {currentClarifyingQuestion?.chips?.map((chip) => (
                     <button
-                      key={item}
+                      key={chip}
                       type="button"
                       className="soft-chip"
-                      onClick={() => setClarification((current) => current ? `${current}; ${item}` : item)}
+                      onClick={() => void sendClarification(false, chip)}
                     >
-                      {item}
+                      {chip}
                     </button>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -465,7 +452,7 @@ export default function CheckinPage() {
               id="dialogue-clarification"
               value={clarification}
               onChange={(event) => setClarification(event.target.value)}
-              placeholder="Ответьте на этот вопрос. Можно коротко."
+              placeholder="Ответьте своими словами или выберите вариант выше…"
               className="soft-question-input soft-dialogue-composer-input"
               rows={4}
               data-testid="dialogue-clarification-input"
@@ -473,20 +460,29 @@ export default function CheckinPage() {
             <div className="soft-ask-foot">
               <Button
                 variant="outline"
-                onClick={() => sendClarification(true)}
+                onClick={reset}
+                className="soft-button soft-button-ghost"
+                data-testid="dialogue-restart"
+              >
+                <RotateCcw className="size-4" aria-hidden="true" />
+                Начать заново
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => void sendClarification(true)}
                 className="soft-button soft-button-ghost"
                 data-testid="dialogue-skip-clarification"
               >
                 Пропустить вопрос
               </Button>
               <Button
-                onClick={() => sendClarification(false)}
+                onClick={() => void sendClarification(false)}
                 disabled={!clarification.trim()}
                 className="soft-button soft-button-primary"
                 data-testid="dialogue-send-clarification"
               >
-                {clarifyingAnswers.length + 1 >= clarifyingQuestions.length ? "Получить ответ" : "Следующий вопрос"}
-                <ArrowRight className="size-4" aria-hidden="true" />
+                Отправить
+                <Send className="size-4" aria-hidden="true" />
               </Button>
             </div>
           </div>

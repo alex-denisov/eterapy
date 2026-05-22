@@ -223,7 +223,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
           className="soft-button soft-button-primary"
         >
           <Share2 className="h-4 w-4" />
-          Поделиться
+          Поделиться инсайтом
         </button>
       </div>
 
