@@ -19,6 +19,17 @@ function normalizeQuestion(value: unknown) {
   return question.slice(0, 220);
 }
 
+function normalizeAssistantTurn(value: unknown) {
+  if (typeof value !== "string") return null;
+  const turn = value
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (turn.length < 24) return null;
+  return turn.slice(0, 700);
+}
+
 function normalizeChip(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const chip = value.replace(/\s+/g, " ").trim();
@@ -127,11 +138,26 @@ const MIN_CLARIFYING_TURNS = 3;
 const MAX_CLARIFYING_TURNS = 5;
 
 const HEURISTIC_QUESTION_POOL: Array<{ question: string; chips: string[] }> = [
-  { question: "Что сейчас самое важное для вас в этом вопросе?", chips: ["Ясность", "Поддержка", "Действие"] },
-  { question: "Что вы уже пробовали или рассматривали?", chips: ["Ничего ещё", "Думал, но не пробовал", "Пробовал разное"] },
-  { question: "Что именно вас беспокоит больше всего в этой ситуации?", chips: ["Неопределённость", "Отношения", "Мои чувства"] },
-  { question: "Какой исход для вас был бы самым спокойным?", chips: ["Сохранить как есть", "Что-то изменить", "Начать заново"] },
-  { question: "Какой результат или ощущение вы хотели бы получить?", chips: ["Понять себя", "Принять решение", "Двигаться дальше"] },
+  {
+    question: "Слышу, что вам нужен не быстрый вердикт, а опора для следующего шага. Что в этом вопросе хочется понять прежде всего?",
+    chips: ["Ясность", "Поддержка", "Действие"],
+  },
+  {
+    question: "Похоже, часть ответа уже есть в том, что вы пробовали или избегали пробовать. Что из этого важно учесть сейчас?",
+    chips: ["Ничего ещё", "Думал, но не пробовал", "Пробовал разное"],
+  },
+  {
+    question: "Здесь важно отделить саму ситуацию от того, как она на вас действует. Что беспокоит сильнее всего?",
+    chips: ["Неопределённость", "Отношения", "Мои чувства"],
+  },
+  {
+    question: "В таком вопросе часто помогает смотреть не только на решение, но и на ощущение после него. Какой исход был бы спокойнее?",
+    chips: ["Сохранить как есть", "Что-то изменить", "Начать заново"],
+  },
+  {
+    question: "Сейчас полезно сузить фокус до одного результата, который даст вам больше устойчивости. Что хотелось бы получить?",
+    chips: ["Понять себя", "Принять решение", "Двигаться дальше"],
+  },
 ];
 
 const CONTEXT_MARKERS: Array<{
@@ -141,22 +167,22 @@ const CONTEXT_MARKERS: Array<{
 }> = [
   {
     test: /работ|руководител|коллег|команд|карьер|проект|иде/i,
-    question: () => "Что в ситуации с работой и руководителем сильнее всего заставляет вас уменьшать свои идеи или голос?",
+    question: () => "Слышу, что вопрос не только про смену работы, а про то, как вернуть себе голос там, где ваши идеи обесценивают. Что в ситуации с работой и руководителем сильнее всего заставляет вас уменьшать свои идеи или голос?",
     chips: ["Страх оценки", "Усталость", "Хочу опору"],
   },
   {
     test: /отнош|партн|бывш|люб|семь|муж|жен/i,
-    question: () => "В отношениях сейчас больнее неопределённость, дистанция или ощущение, что вам приходится быть тише себя?",
+    question: () => "Слышу, что в этой теме важен не абстрактный совет, а понимание, где вам больнее всего. В отношениях сейчас сильнее неопределённость, дистанция или ощущение, что вам приходится быть тише себя?",
     chips: ["Неопределённость", "Дистанция", "Я становлюсь тише"],
   },
   {
     test: /тревог|страх|паник|боюсь|напряж/i,
-    question: () => "Если отделить тревогу от фактов, какой факт в этой ситуации точно есть прямо сейчас?",
+    question: () => "Похоже, тревога сейчас смешивает факты и ожидания. Если отделить тревогу от фактов, какой факт в этой ситуации точно есть прямо сейчас?",
     chips: ["Есть факт", "Больше ощущение", "Пока не знаю"],
   },
   {
     test: /деньг|кредит|ипотек|финанс|зарплат/i,
-    question: () => "В денежной части вопроса вам важнее увидеть реальные ограничения, страх потери или следующий маленький шаг?",
+    question: () => "В денежной теме важно не усиливать страх, а вернуть управляемость. Вам сейчас важнее увидеть реальные ограничения, страх потери или следующий маленький шаг?",
     chips: ["Ограничения", "Страх потери", "Шаг"],
   },
 ];
@@ -168,6 +194,41 @@ function normalizePair(pair: { question?: string; answer?: string; assistant?: s
   };
 }
 
+function comparableTurn(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isDuplicateAssistantTurn(
+  candidate: string,
+  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>,
+) {
+  const candidateKey = comparableTurn(candidate);
+  if (candidateKey.length < 24) return false;
+
+  return previousPairs.some((pair) => {
+    const previousKey = comparableTurn(normalizePair(pair).question);
+    if (previousKey.length < 24) return false;
+    return previousKey === candidateKey
+      || (candidateKey.length > 48 && previousKey.includes(candidateKey))
+      || (previousKey.length > 48 && candidateKey.includes(previousKey));
+  });
+}
+
+function firstUnusedFallback(
+  candidates: Array<{ question: string; chips: string[] }>,
+  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>,
+): ConversationalTurnResult {
+  const next = candidates.find((candidate) => !isDuplicateAssistantTurn(candidate.question, previousPairs));
+  return next
+    ? { type: "question", question: next.question, chips: next.chips, source: "heuristic" }
+    : { type: "ready", source: "heuristic" };
+}
+
 function buildContextualFallback(input: {
   originalQuestion?: string;
   question?: string;
@@ -175,22 +236,20 @@ function buildContextualFallback(input: {
 }): ConversationalTurnResult {
   const originalQuestion = input.originalQuestion ?? input.question ?? "";
   const normalizedPairs = input.previousPairs.map(normalizePair);
-  const lastAnswer = normalizedPairs.at(-1)?.answer ?? "";
-  const context = [originalQuestion, lastAnswer].filter(Boolean).join("\n");
-  const marker = CONTEXT_MARKERS.find((entry) => entry.test.test(context));
-  if (marker) {
-    return {
-      type: "question",
-      question: marker.question(context),
-      chips: marker.chips,
-      source: "heuristic",
-    };
+  if (normalizedPairs.length >= MIN_CLARIFYING_TURNS) {
+    return { type: "ready", source: "heuristic" };
   }
 
-  const generic = HEURISTIC_QUESTION_POOL[input.previousPairs.length];
-  return generic
-    ? { type: "question", question: generic.question, chips: generic.chips, source: "heuristic" }
-    : { type: "ready", source: "heuristic" };
+  const lastAnswer = normalizedPairs.at(-1)?.answer ?? "";
+  const context = [originalQuestion, lastAnswer].filter(Boolean).join("\n");
+  const candidates: Array<{ question: string; chips: string[] }> = [];
+  const marker = CONTEXT_MARKERS.find((entry) => entry.test.test(context));
+  if (marker) {
+    candidates.push({ question: marker.question(context), chips: marker.chips });
+  }
+
+  candidates.push(...HEURISTIC_QUESTION_POOL);
+  return firstUnusedFallback(candidates, input.previousPairs);
 }
 
 function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
@@ -199,16 +258,17 @@ function parseConversationalTurnResponse(text: string): ConversationalTurnResult
   try {
     const parsed = JSON.parse(json) as Record<string, unknown>;
     // Accept both short format {q, c} and legacy {type, question, chips}
-    const q = typeof parsed.q === "string" ? parsed.q.trim()
-      : typeof parsed.question === "string" ? parsed.question.trim()
+    const q = typeof parsed.q === "string" ? parsed.q
+      : typeof parsed.message === "string" ? parsed.message
+      : typeof parsed.answer === "string" ? parsed.answer
+      : typeof parsed.question === "string" ? parsed.question
       : null;
     // Empty q or explicit ready signal = model is done
-    if (q === "" || parsed.type === "ready") return { type: "ready", source: "ai" };
-    if (!q || q.length < 8) return null;
+    if ((typeof q === "string" && q.trim() === "") || parsed.type === "ready") return { type: "ready", source: "ai" };
     const rawChips = Array.isArray(parsed.c) ? parsed.c
       : Array.isArray(parsed.chips) ? parsed.chips
       : [];
-    const question = normalizeQuestion(q);
+    const question = normalizeAssistantTurn(q);
     if (!question) return null;
     return { type: "question", question, chips: normalizeChips(rawChips), source: "ai" };
   } catch {
@@ -238,26 +298,26 @@ export async function generateDialogueConversationalTurn(input: {
 
   try {
     const readyInstruction = canBeReady
-      ? `Уже задано ${input.previousPairs.length} вопросов. Если контекста достаточно — ответь: {"q":"","c":[]}`
-      : `Уже задано ${input.previousPairs.length} вопросов. Нужно задать ещё, ответ {"q":"","c":[]} запрещён.`;
+      ? `Уже был ${input.previousPairs.length} живой обмен. Если контекста достаточно для первичного ответа — верни {"q":"","c":[]}.`
+      : "Это первый ход после вопроса пользователя: нужно коротко отозваться и задать один уточняющий вопрос, ready запрещён.";
 
     const systemContent = [
       "Ты ведёшь диалог ясности на платформе ETerapy.",
       `Тема: ${input.topic ?? "неизвестна"}, сложность: ${input.difficulty ?? "неизвестна"}.`,
-      "Задай ОДИН уточняющий вопрос, чтобы лучше понять ситуацию пользователя.",
-      "Вопрос должен явно опираться на слова пользователя и предыдущий ответ, а не повторять универсальный сценарий.",
+      "Ответь короткой живой репликой: покажи, что услышал конкретные слова пользователя, и задай ОДИН следующий вопрос только если он нужен.",
+      "Это диалог с человеком, не анкета: нельзя выдавать пачку вопросов, нумерацию, одинаковые формулировки или универсальный сценарий.",
       "",
       "Ответь строго в формате JSON (без markdown, без пояснений):",
-      '{"q":"вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
+      '{"q":"короткая живая реплика + один вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
       "",
-      "Пример: {\"q\":\"Как давно вы замечаете это состояние?\",\"c\":[\"Несколько дней\",\"Несколько недель\",\"Уже давно\"]}",
+      "Пример: {\"q\":\"Слышу, что вам важно не ошибиться и сохранить устойчивость. Что в этой ситуации сильнее всего просит ясности прямо сейчас?\",\"c\":[\"Решение\",\"Спокойствие\",\"Следующий шаг\"]}",
       "",
       "Правила:",
-      "- Вопрос мягкий, конкретный, личный, не диагностический, на русском, до 160 символов",
+      "- q: 2-4 коротких предложения, до 500 символов, мягко, конкретно, лично, не диагностически",
       "- Три коротких варианта ответа (1-6 слов) на русском языке",
       "- Не повторяй уже заданные вопросы и не используй безличные шаблоны вроде «что сейчас самое важное»",
       readyInstruction,
-      "- Не давай советов, не задавай вопросов о кризисах, медицине или праве",
+      "- Не ставь диагнозов, не предсказывай гарантированный исход, не давай медицинских, юридических или финансовых советов",
     ].join("\n");
 
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -280,10 +340,29 @@ export async function generateDialogueConversationalTurn(input: {
     });
 
     const parsed = parseConversationalTurnResponse(response.text);
-    if (!parsed) return fallback;
+    if (!parsed) {
+      log.warn("dialogue-clarifier-invalid-turn", {
+        requestId: input.requestId,
+        topic: input.topic,
+        previousPairCount: previousPairs.length,
+        provider: response.provider,
+        model: response.model,
+      });
+      return fallback;
+    }
 
     // Guard: LLM must not signal ready before minimum turns
     if (parsed.type === "ready" && !canBeReady) {
+      return fallback;
+    }
+    if (parsed.type === "question" && parsed.question && isDuplicateAssistantTurn(parsed.question, previousPairs)) {
+      log.warn("dialogue-clarifier-duplicate-turn", {
+        requestId: input.requestId,
+        topic: input.topic,
+        previousPairCount: previousPairs.length,
+        provider: response.provider,
+        model: response.model,
+      });
       return fallback;
     }
 

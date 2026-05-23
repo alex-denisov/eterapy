@@ -115,12 +115,7 @@ describe("dialogue-clarifier", () => {
       topic: "career",
       difficulty: "medium",
       safetyLevel: "normal",
-      previousPairs: [
-        {
-          assistant: "Что в этой ситуации стало для вас самым болезненным?",
-          user: "Я перестала предлагать идеи, потому что руководитель сразу говорит, что это ерунда.",
-        },
-      ],
+      previousPairs: [],
       requestId: "req-live-fallback",
     });
 
@@ -129,15 +124,94 @@ describe("dialogue-clarifier", () => {
       expect(result.source).toBe("heuristic");
       expect(result.question).toMatch(/работ|руководител|иде/i);
       expect([
-        "Что сейчас самое важное в этой ситуации — понять, решить, отпустить или подготовиться?",
-        "Что вы уже пробовали, и что из этого хоть немного помогло?",
+        "Что сейчас самое важное для вас в этом вопросе?",
+        "Что вы уже пробовали или рассматривали?",
       ]).not.toContain(result.question);
     }
   });
 
+  it("does not repeat a contextual fallback turn after the user has already answered it", async () => {
+    mockAiComplete.mockRejectedValue(new Error("provider down"));
+
+    const result = await generateDialogueConversationalTurn({
+      question: "Стоит ли уходить с работы, если руководитель обесценивает мои идеи?",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      previousPairs: [
+        {
+          assistant: "Слышу, что вопрос не только про смену работы, а про то, как вернуть себе голос там, где ваши идеи обесценивают. Что в ситуации с работой и руководителем сильнее всего заставляет вас уменьшать свои идеи или голос?",
+          user: "Страх оценки и ощущение, что меня всё равно не услышат.",
+        },
+      ],
+      requestId: "req-no-repeat-fallback",
+    });
+
+    expect(result.type).toBe("question");
+    if (result.type === "question") {
+      expect(result.source).toBe("heuristic");
+      expect(result.question).not.toMatch(/уменьшать свои идеи или голос/);
+      expect(result.chips?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("signals ready after MAX_CLARIFYING_TURNS pairs without calling the LLM", async () => {
+    mockAiComplete.mockResolvedValue({
+      text: '{"q":"never used","c":[]}',
+      provider: "openai",
+      model: "gpt-test",
+      tokensIn: 1,
+      tokensOut: 1,
+      latencyMs: 10,
+    });
+
+    const result = await generateDialogueConversationalTurn({
+      question: "Большой вопрос",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      previousPairs: [
+        { assistant: "Q1", user: "A1" },
+        { assistant: "Q2", user: "A2" },
+        { assistant: "Q3", user: "A3" },
+        { assistant: "Q4", user: "A4" },
+        { assistant: "Q5", user: "A5" },
+      ],
+      requestId: "req-max-pairs",
+    });
+
+    expect(result).toEqual({ type: "ready", source: "heuristic" });
+    expect(mockAiComplete).not.toHaveBeenCalled();
+  });
+
+  it("guards against premature LLM ready before MIN_CLARIFYING_TURNS", async () => {
+    mockAiComplete.mockResolvedValue({
+      text: '{"q":"","c":[]}',
+      provider: "openai",
+      model: "gpt-test",
+      tokensIn: 1,
+      tokensOut: 1,
+      latencyMs: 10,
+    });
+
+    const result = await generateDialogueConversationalTurn({
+      question: "Стоит ли менять работу?",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      previousPairs: [
+        { assistant: "Q1", user: "A1" },
+      ],
+      requestId: "req-premature-ready",
+    });
+
+    expect(result.type).toBe("question");
+    expect(result.source).toBe("heuristic");
+  });
+
   it("returns an AI conversational turn with provider metadata when the gateway answers", async () => {
     mockAiComplete.mockResolvedValue({
-      text: '{"q":"Что изменится для вас, если вы сегодня не будете доказывать ценность руководителю?","c":["Станет легче","Появится страх","Не знаю"]}',
+      text: '{"q":"Слышу, что вам важно вернуть опору, а не просто доказать ценность руководителю.\\n\\nЧто изменится для вас, если сегодня не доказывать свою ценность?","c":["Станет легче","Появится страх","Не знаю"]}',
       provider: "openai",
       model: "gpt-test",
       tokensIn: 120,
@@ -160,12 +234,15 @@ describe("dialogue-clarifier", () => {
       source: "ai",
       provider: "openai",
       model: "gpt-test",
+      question: expect.stringContaining("Слышу"),
     }));
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
       feature: "dialogue-clarifier",
       userId: "user-1",
       requestId: "req-live-ai",
     }));
+    const request = mockAiComplete.mock.calls[0]?.[0];
+    expect(request?.messages[0]?.content).toContain("короткой живой репликой");
   });
 
   it("heuristic returns fallback questions for any topic", () => {

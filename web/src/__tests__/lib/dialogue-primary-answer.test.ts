@@ -62,6 +62,8 @@ describe("dialogue-primary-answer", () => {
       requestId: "req-1",
       maxTokens: 900,
     }));
+    const request = mockAiComplete.mock.calls[0]?.[0];
+    expect(request?.messages[0]?.content).toContain("Если хочется глубже");
   });
 
   it("falls back to a safe heuristic answer if all providers fail", async () => {
@@ -77,6 +79,7 @@ describe("dialogue-primary-answer", () => {
 
     expect(result.source).toBe("heuristic");
     expect(result.text).toContain("Короткий ответ");
+    expect(result.text).toContain("Если хочется глубже");
     expect(result.text).toContain("Важно: это не медицинская");
   });
 

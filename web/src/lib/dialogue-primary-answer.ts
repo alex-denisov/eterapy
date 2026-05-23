@@ -28,6 +28,22 @@ function normalizeAnswer(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000);
 }
 
+function depthRecommendation(topic?: string | null) {
+  if (topic === "relationships") {
+    return "Если захочется глубже, лучше всего подойдет «4 ракурса ответа»: он разделит факты, чувства, символический смысл и мягкое действие без давления на решение.";
+  }
+  if (topic === "career") {
+    return "Если захочется глубже, начните с «4 ракурсов ответа»: там можно отдельно увидеть разумные варианты, внутреннюю реакцию и маленький рабочий шаг.";
+  }
+  if (topic === "anxiety") {
+    return "Если захочется глубже, подойдет «Глубокий отчёт»: он поможет спокойно отделить факты от тревожных предположений и собрать опоры.";
+  }
+  if (topic === "money") {
+    return "Если захочется глубже, лучше выбрать «Глубокий отчёт»: он даст структуру для вариантов и рисков, но не заменяет финансового специалиста.";
+  }
+  return "Если захочется глубже, начните с «4 ракурсов ответа»: это самый мягкий следующий слой после бесплатного разбора.";
+}
+
 export function heuristicPrimaryAnswer(input: {
   topic?: string | null;
   difficulty?: string | null;
@@ -58,6 +74,9 @@ export function heuristicPrimaryAnswer(input: {
       "Мягкий следующий шаг",
       "Запишите два варианта развития событий и рядом с каждым: что вы получаете, что теряете, и какой маленький шаг можно сделать без резкого решения.",
       "",
+      "Если хочется глубже",
+      depthRecommendation(input.topic),
+      "",
       "Важно: это не медицинская, юридическая или финансовая рекомендация. Если в ситуации есть риск для безопасности, здоровья или денег, подключите профильного специалиста.",
     ].join("\n")),
   };
@@ -86,8 +105,9 @@ export async function generateDialoguePrimaryAnswer(input: {
           content: [
             "You write ETerapy's free primary answer after clarifying questions.",
             "Write in Russian. Be warm, specific, and concise.",
-            "Use short sections: Короткий ответ, Что кажется важным, Мягкий следующий шаг.",
-            "Do not diagnose, predict guaranteed outcomes, manipulate, shame, or sell paid products.",
+            "Use short sections: Короткий ответ, Что кажется важным, Мягкий следующий шаг, Если хочется глубже.",
+            "In «Если хочется глубже», recommend one relevant ETerapy deepening as an optional next layer: 4 ракурса ответа, Глубокий отчёт, Разбор переписки, Совместимость, or 7 дней к ясности.",
+            "Do not hard-sell, pressure, diagnose, predict guaranteed outcomes, manipulate, or shame.",
             "For medical, legal, financial, emergency, or safety topics, include safe redirect copy.",
           ].join(" "),
         },
