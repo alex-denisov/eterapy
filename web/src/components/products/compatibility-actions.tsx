@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Copy, CheckCircle2, Flag, RefreshCcw, LockKeyhole, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy, Flag, RefreshCcw, LockKeyhole, Share2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
@@ -27,17 +27,23 @@ type ApiPayload = {
   error?: string;
 };
 
+const FEATURES = [
+  ["Сценарии общения", "Какие повторяющиеся диалоги уносят больше всего энергии — и где есть выход."],
+  ["Языки заботы", "Как каждый показывает любовь — и где вы говорите на разных языках."],
+  ["Зоны согласия", "О чём вы думаете похоже, даже если кажется иначе."],
+  ["Точки напряжения", "Темы, в которых стоит говорить осторожно — и как их обойти."],
+  ["Совместный шаг", "Один аккуратный эксперимент на ближайшие 7 дней."],
+  ["Когда нужен специалист", "Если в отчёте появятся темы, требующие живого разговора."],
+] as const;
+
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.error ?? "Не удалось выполнить действие");
+    const error = new Error((payload as ApiPayload).error ?? "Не удалось выполнить действие");
     (error as Error & { status?: number; payload?: unknown }).status = response.status;
     (error as Error & { status?: number; payload?: unknown }).payload = payload;
     throw error;
@@ -59,19 +65,16 @@ export function CompatibilityActions({
   const [message, setMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const isAuthenticated = authStatus === "authenticated";
-  
-  // Partner's part
   const partnerDialogueId = dialogueId ?? null;
 
   useEffect(() => {
     if (!inviteToken && authStatus !== "authenticated") return;
     let cancelled = false;
-    const url = inviteToken 
+    const url = inviteToken
       ? `/api/products/compatibility/invite/${encodeURIComponent(inviteToken)}`
-      : dialogueId 
+      : dialogueId
         ? `/api/products/compatibility?dialogueId=${encodeURIComponent(dialogueId)}`
         : `/api/products/compatibility`;
-        
     jsonRequest<ApiPayload>(url)
       .then((payload) => {
         if (cancelled) return;
@@ -79,9 +82,7 @@ export function CompatibilityActions({
         setResult(payload.results?.[0] ?? payload.result ?? null);
       })
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [authStatus, dialogueId, inviteToken]);
 
   async function createInvite() {
@@ -179,14 +180,16 @@ export function CompatibilityActions({
     });
   }
 
+  // Partner view — invited to fill their part
   if (inviteToken && result && result.status === "INVITED") {
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-actions-partner">
-        <h2 className="soft-h3">Вас пригласили на разбор совместимости</h2>
+        <p className="soft-eyebrow">приглашение</p>
+        <h2 className="soft-h3 mt-2">Вас пригласили на разбор совместимости</h2>
         <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Ваш партнер ответил на свои вопросы. Теперь ваша очередь. Ваши ответы будут скрыты от партнера, а партнерские — от вас. Вы оба увидите только итоговый отчет.
         </p>
-        
+
         {message && (
           <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
             {message}
@@ -194,7 +197,7 @@ export function CompatibilityActions({
         )}
 
         {!partnerDialogueId ? (
-          <Link href={`/checkin?nextProduct=compatibility&invite=${inviteToken}`} className="soft-button soft-button-primary mt-5">
+          <Link href={`/checkin?nextProduct=compatibility&invite=${inviteToken}`} className="soft-button soft-button-primary mt-5 inline-flex">
             Ответить на свою часть
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
@@ -218,14 +221,16 @@ export function CompatibilityActions({
     );
   }
 
+  // No dialogue yet — CTA to start
   if (!dialogueId && !result) {
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-no-dialogue">
+        <p className="soft-eyebrow">совместимость</p>
         <h2 className="soft-h3 mt-3">Разбор строится на ответах обоих партнеров</h2>
         <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Сначала ответьте на вопросы со своей стороны, а затем отправьте ссылку партнеру.
         </p>
-        <Link href="/checkin?nextProduct=compatibility" className="soft-button soft-button-primary mt-5">
+        <Link href="/checkin?nextProduct=compatibility" className="soft-button soft-button-primary mt-5 inline-flex">
           Начать со своей стороны
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
@@ -235,89 +240,149 @@ export function CompatibilityActions({
 
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-actions">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="soft-eyebrow">совместимость</p>
-          <h2 className="soft-h3 mt-2">Синхронизация ответов</h2>
+      {/* Invite card — purple gradient, two circles */}
+      <div
+        className="rounded-[20px] p-5"
+        style={{ background: "linear-gradient(140deg, #DBD3EA, #E8E1F2)" }}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 48px 1fr", gap: 16, alignItems: "center" }}>
+          {/* You */}
+          <div
+            className="rounded-[16px] p-5 text-center"
+            style={{ background: "var(--soft-paper-card)" }}
+          >
+            <div
+              className="mx-auto flex items-center justify-center rounded-full font-heading text-2xl font-semibold"
+              style={{ width: 56, height: 56, background: "var(--soft-rose, #F4D9C1)", color: "var(--soft-bordeaux)" }}
+            >
+              М
+            </div>
+            <p className="mt-3 font-heading text-[1.05rem] font-medium text-[var(--soft-bordeaux)]">Вы</p>
+            <p className="mt-0.5 text-xs text-[var(--soft-ink-soft)]">прошли разбор</p>
+          </div>
+
+          {/* Plus separator */}
+          <div className="text-center font-heading text-2xl italic text-[var(--soft-bordeaux)]">+</div>
+
+          {/* Partner */}
+          <div
+            className="rounded-[16px] p-5 text-center"
+            style={{ background: "var(--soft-paper-card)" }}
+          >
+            <div
+              className="mx-auto flex items-center justify-center rounded-full font-heading text-2xl font-semibold"
+              style={{ width: 56, height: 56, background: "var(--soft-paper-edge)", color: "var(--soft-ink-faint)" }}
+            >
+              ?
+            </div>
+            <p className="mt-3 font-heading text-[1.05rem] font-medium text-[var(--soft-ink-faint)]">Партнёр</p>
+            <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
+              {result?.status === "PARTNER_COMPLETED" ? "заполнил свою часть" : "отправьте приглашение"}
+            </p>
+          </div>
         </div>
-        <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "доступ открыт" : "нужна оплата"}
-        </span>
+
+        {message && (
+          <p className="mt-4 rounded-2xl bg-white/60 p-3 text-sm text-[var(--soft-bordeaux)]">
+            {message}
+          </p>
+        )}
+
+        {/* Not started — create invite */}
+        {!result && (
+          <>
+            <Button
+              onClick={createInvite}
+              disabled={status === "loading"}
+              className="soft-button soft-button-primary mt-5 w-full justify-center"
+            >
+              Создать ссылку-приглашение
+              <Share2 className="size-4" aria-hidden="true" />
+            </Button>
+            <p className="mt-3 text-center text-xs text-[var(--soft-ink-faint)]">
+              Партнёр пройдёт свой разбор отдельно. Когда оба готовы — отчёт открывается обоим одновременно.
+            </p>
+          </>
+        )}
+
+        {/* Invite created — show link */}
+        {result?.status === "INVITED" && (
+          <>
+            <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Ссылка для партнёра готова. Как только он ответит — статус обновится.</p>
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                readOnly
+                value={`${typeof window !== "undefined" ? window.location.origin : ""}/pair?invite=${result.inviteToken}`}
+                className="soft-question-input flex-1 py-2 text-sm"
+              />
+              <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">
+                {copied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+            </div>
+            <Button onClick={() => window.location.reload()} className="soft-button soft-button-ghost mt-3 w-full justify-center">
+              <RefreshCcw className="size-4" />
+              Обновить статус
+            </Button>
+          </>
+        )}
+
+        {/* Partner completed — generate */}
+        {result?.status === "PARTNER_COMPLETED" && (
+          <>
+            <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Партнер заполнил свою часть и дал согласие. Теперь вы можете получить разбор.</p>
+            <Button
+              onClick={generateReport}
+              disabled={!hasEntitlement || status === "loading" || status === "paying"}
+              className="soft-button soft-button-primary mt-4 w-full justify-center"
+            >
+              <LockKeyhole className="size-4" aria-hidden="true" />
+              Получить разбор (требуется согласие)
+            </Button>
+            {!hasEntitlement && (
+              <div className="mt-3">
+                <ProductPurchaseControls
+                  productKey="compatibility"
+                  label="Открыть с баланса"
+                  checkoutSource="compatibility-generate"
+                  creditCost={4}
+                  onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Declined / Review */}
+        {result && (result.status === "DECLINED" || result.status === "REVIEW") && (
+          <p className="mt-4 rounded-2xl bg-white/60 p-3 text-sm text-[var(--soft-bordeaux)]">
+            {result.status === "REVIEW"
+              ? "Приглашение остановлено и отправлено на проверку."
+              : "Партнер отклонил приглашение. Можно вернуться к своему разбору без совместного отчета."}
+          </p>
+        )}
+
+        {/* Ready */}
+        {result?.status === "READY" && (
+          <>
+            <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Разбор готов и доступен обоим партнерам в личном кабинете.</p>
+            <Link href="/cabinet/action-history" className="soft-button soft-button-primary mt-4 flex w-full justify-center">
+              Посмотреть разбор
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </>
+        )}
       </div>
 
-      {message && (
-        <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
-          {message}
-        </p>
-      )}
-
-      {!result && (
-        <div className="mt-5">
-          <p className="text-sm text-[var(--soft-ink-soft)]">Ваша часть готова. Создайте ссылку-приглашение для партнера.</p>
-          <Button onClick={createInvite} disabled={status === "loading"} className="soft-button soft-button-primary mt-4">
-            Создать ссылку
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
-        </div>
-      )}
-
-      {result && result.status === "INVITED" && (
-        <div className="mt-5">
-          <p className="text-sm text-[var(--soft-ink-soft)] mb-2">Отправьте эту ссылку партнеру. Как только он ответит, статус обновится.</p>
-          <div className="flex items-center gap-2">
-            <input 
-              readOnly 
-              value={`${typeof window !== 'undefined' ? window.location.origin : ''}/pair?invite=${result.inviteToken}`}
-              className="soft-question-input flex-1 py-2 text-sm" 
-            />
-            <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">
-              {copied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
-            </Button>
+      {/* Features grid */}
+      <h3 className="soft-h3 mt-8 mb-4">Что покажет совместный отчёт</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {FEATURES.map(([title, desc]) => (
+          <div key={title} className="soft-card-flat rounded-[16px] p-4">
+            <p className="font-heading text-[0.95rem] font-medium text-[var(--soft-bordeaux)]">{title}</p>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{desc}</p>
           </div>
-          <Button onClick={() => window.location.reload()} className="soft-button soft-button-ghost mt-4">
-            <RefreshCcw className="size-4" /> Обновить статус
-          </Button>
-        </div>
-      )}
-
-      {result && result.status === "PARTNER_COMPLETED" && (
-        <div className="mt-5">
-          <p className="text-sm text-[var(--soft-ink-soft)] mb-4">Партнер заполнил свою часть и дал согласие. Теперь вы можете получить разбор.</p>
-          <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
-            <LockKeyhole className="size-4" aria-hidden="true" />
-            Получить разбор (требуется согласие)
-          </Button>
-          {!hasEntitlement && (
-            <ProductPurchaseControls
-              productKey="compatibility"
-              label="Открыть с баланса"
-              checkoutSource="compatibility-generate"
-              creditCost={4}
-              onUnlocked={() => {
-                setHasEntitlement(true);
-                generateReport();
-              }}
-            />
-          )}
-        </div>
-      )}
-
-      {result && (result.status === "DECLINED" || result.status === "REVIEW") && (
-        <div className="mt-5 rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-bordeaux)]">
-          {result.status === "REVIEW"
-            ? "Приглашение остановлено и отправлено на проверку."
-            : "Партнер отклонил приглашение. Можно вернуться к своему разбору без совместного отчета."}
-        </div>
-      )}
-
-      {result && result.status === "READY" && (
-        <div className="mt-5">
-          <p className="text-sm text-green-700">Разбор готов и доступен обоим партнерам в личном кабинете.</p>
-          <Link href="/cabinet/action-history" className="soft-button soft-button-primary mt-4">
-            Посмотреть разбор
-          </Link>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

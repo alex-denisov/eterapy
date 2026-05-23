@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Download, FileText, LockKeyhole, Save, Trash2 } from "lucide-react";
+import { ArrowRight, Download, LockKeyhole, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
@@ -24,17 +24,24 @@ type ApiPayload = {
   error?: string;
 };
 
+const TOC_LABELS = [
+  "Что я слышу в вашем вопросе",
+  "Главная развилка",
+  "Карта факт-чувство-предположение",
+  "Четыре ракурса · разум · чувства · символ · действие",
+  "Возможные сценарии и их цена",
+  "Безопасный маршрут на 2 недели",
+  "С кем продолжить — если захочется",
+];
+
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.error ?? "Не удалось выполнить действие");
+    const error = new Error((payload as ApiPayload).error ?? "Не удалось выполнить действие");
     (error as Error & { status?: number; payload?: unknown }).status = response.status;
     (error as Error & { status?: number; payload?: unknown }).payload = payload;
     throw error;
@@ -60,9 +67,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
         setResult(payload.results?.[0] ?? null);
       })
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [authStatus, dialogueId]);
 
   async function createPreview() {
@@ -149,12 +154,12 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
   if (!dialogueId) {
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="deep-report-no-dialogue">
-        <FileText className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+        <p className="soft-eyebrow">углубление · документ-разбор</p>
         <h2 className="soft-h3 mt-3">Отчет строится от вашего первичного ответа</h2>
         <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Сначала пройдите диалог ясности, чтобы отчет не был абстрактным и не терял контекст.
         </p>
-        <Link href="/checkin?nextProduct=deep-report" className="soft-button soft-button-primary mt-5">
+        <Link href="/checkin?nextProduct=deep-report" className="soft-button soft-button-primary mt-5 inline-flex">
           Начать с вопроса
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
@@ -164,72 +169,144 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
 
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid="deep-report-actions">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="soft-eyebrow">ваш отчет</p>
-          <h2 className="soft-h3 mt-2">Предпросмотр, оплата и полный результат</h2>
-        </div>
-        <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "доступ открыт" : "нужна оплата"}
-        </span>
-      </div>
-
       {message && (
-        <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
+        <p className="mb-5 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
           {message}
         </p>
       )}
 
-      {result?.previewText ? (
-        <div className="soft-card-flat mt-5 whitespace-pre-wrap p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          {result.previewText}
+      {/* Two-column layout: sticky TOC + content */}
+      {result?.resultText ? (
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          {/* TOC sidebar */}
+          <div className="soft-card-flat rounded-[16px] p-5 lg:sticky lg:top-[84px] lg:self-start">
+            <p className="soft-eyebrow mb-3">оглавление</p>
+            <div className="flex flex-col">
+              {TOC_LABELS.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex gap-3 py-2.5"
+                  style={{ borderTop: i ? "1px solid var(--soft-paper-edge)" : "none" }}
+                >
+                  <span
+                    className="w-6 shrink-0 font-heading text-sm italic"
+                    style={{ color: "var(--soft-terracotta-dark)" }}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-sm text-[var(--soft-ink)]">{t}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex gap-2">
+              <a href={`/api/products/deep-report/${result.id}/export`} className="soft-button soft-button-ghost flex-1 justify-center text-xs">
+                PDF
+              </a>
+              <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost flex-1 justify-center text-xs">
+                {result.saved ? "Сохранено" : "Карта"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Report content */}
+          <div>
+            <article
+              className="soft-card rounded-[16px] p-6 font-heading text-[1.05rem] leading-relaxed text-[var(--soft-ink)] whitespace-pre-wrap"
+              style={{ background: "linear-gradient(160deg, #FFFCF5, #F4D9C1 200%)" }}
+            >
+              <p className="soft-eyebrow mb-2">{result.title}</p>
+              {result.resultText}
+            </article>
+
+            {/* Actions row */}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button onClick={() => void generateReport()} disabled={status === "loading"} className="soft-button soft-button-ghost">
+                Обновить отчет
+              </Button>
+              <a href={`/api/products/deep-report/${result.id}/export`} className="soft-button soft-button-ghost">
+                <Download className="size-4" aria-hidden="true" />
+                Экспорт
+              </a>
+              <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost">
+                <Save className="size-4" aria-hidden="true" />
+                {result.saved ? "Сохранено" : "Сохранить в Мою карту"}
+              </Button>
+              <Button onClick={deleteReport} disabled={status === "loading"} className="soft-button soft-button-ghost">
+                <Trash2 className="size-4" aria-hidden="true" />
+                Удалить
+              </Button>
+            </div>
+          </div>
         </div>
       ) : (
-        <Button onClick={createPreview} disabled={status === "loading"} className="soft-button soft-button-ghost mt-5">
-          Создать предпросмотр
-        </Button>
-      )}
+        /* Not yet generated — preview + CTA */
+        <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="soft-eyebrow">углубление · документ-разбор</p>
+              <h2 className="soft-h3 mt-2">Глубокий отчёт</h2>
+            </div>
+            <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
+              {hasEntitlement ? "доступ открыт" : "нужна оплата"}
+            </span>
+          </div>
 
-      {result?.resultText && (
-        <article className="soft-card mt-5 whitespace-pre-wrap p-5 font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
-          {result.resultText}
-        </article>
-      )}
+          {/* TOC preview */}
+          <div
+            className="mt-5 rounded-[16px] p-5"
+            style={{ background: "linear-gradient(160deg, #FFFCF5, #F4D9C1)" }}
+          >
+            <p className="soft-eyebrow mb-3">оглавление</p>
+            <div className="flex flex-col">
+              {TOC_LABELS.map((t, i) => (
+                <div
+                  key={i}
+                  className="flex gap-3 py-2"
+                  style={{ borderTop: i ? "1px solid var(--soft-paper-edge)" : "none", opacity: i > 1 ? 0.5 : 1 }}
+                >
+                  <span className="w-6 shrink-0 font-heading text-sm italic" style={{ color: "var(--soft-terracotta-dark)" }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-sm text-[var(--soft-ink)]">{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
-          <LockKeyhole className="size-4" aria-hidden="true" />
-          {result?.resultText ? "Обновить отчет" : "Получить полный отчет"}
-        </Button>
-        {!hasEntitlement && (
-          <ProductPurchaseControls
-            productKey="deep-report"
-            label="Открыть с баланса"
-            checkoutSource="deep-report-generate"
-            creditCost={4}
-            onUnlocked={() => {
-              setHasEntitlement(true);
-              generateReport();
-            }}
-          />
-        )}
-        {result?.resultText && (
-          <>
-            <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost">
-              <Save className="size-4" aria-hidden="true" />
-              {result.saved ? "Сохранено" : "Сохранить в Мою карту"}
+          {/* Preview text if available */}
+          {result?.previewText && (
+            <div className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)] whitespace-pre-wrap">
+              {result.previewText}
+            </div>
+          )}
+
+          {/* CTAs */}
+          <div className="mt-5 flex flex-wrap gap-3">
+            {!result?.previewText && (
+              <Button onClick={createPreview} disabled={status === "loading"} className="soft-button soft-button-ghost">
+                Создать предпросмотр
+              </Button>
+            )}
+            <Button
+              onClick={() => void generateReport()}
+              disabled={!hasEntitlement || status === "loading" || status === "paying"}
+              className="soft-button soft-button-primary"
+            >
+              <LockKeyhole className="size-4" aria-hidden="true" />
+              {result?.previewText ? "Получить полный отчет" : "Сформировать отчёт"}
             </Button>
-            <a href={`/api/products/deep-report/${result.id}/export`} className="soft-button soft-button-ghost">
-              <Download className="size-4" aria-hidden="true" />
-              Экспорт
-            </a>
-            <Button onClick={deleteReport} disabled={status === "loading"} className="soft-button soft-button-ghost">
-              <Trash2 className="size-4" aria-hidden="true" />
-              Удалить
-            </Button>
-          </>
-        )}
-      </div>
+            {!hasEntitlement && (
+              <ProductPurchaseControls
+                productKey="deep-report"
+                label="Открыть с баланса"
+                checkoutSource="deep-report-generate"
+                creditCost={4}
+                onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
