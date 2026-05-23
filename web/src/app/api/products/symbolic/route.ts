@@ -57,10 +57,10 @@ export async function GET(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
 
   const productKey = parseProductKey(request.nextUrl.searchParams.get("productKey"));
-  if (!productKey) return errorWithRequestContext("INVALID_PRODUCT", "Unknown product", 400, context);
+  if (!productKey) return errorWithRequestContext("INVALID_PRODUCT", "Неизвестный продукт", 400, context);
 
   const [hasEntitlement, results] = await Promise.all([
     userHasActiveEntitlement(userId, productKey),
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
 
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid payload", 400, context);

@@ -92,6 +92,7 @@ describe("v5 product pages", () => {
     expect(route).toContain('productKey: "tarot"');
     expect(route).toContain('productKey: "my-map"');
     expect(route).toContain("userHasActiveEntitlement");
+    expect(route).toContain("Не авторизован");
   });
 
   it("documents required privacy and paid-product mechanics", () => {
