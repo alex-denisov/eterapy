@@ -295,7 +295,14 @@ export default async function ProductPage({
           <h1 className="soft-display mt-3">{product.name}</h1>
           <p className="soft-lede mt-5 max-w-3xl">{product.summary}</p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <ProductPrimaryAction product={product} />
+            {search?.dialogueId && product.slug === "perspectives" ? (
+              <a href="#perspectives-actions" className="soft-button soft-button-primary">
+                Получить 4 ракурса
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </a>
+            ) : (
+              <ProductPrimaryAction product={product} />
+            )}
             <Link
               href="/checkin"
               className="soft-button soft-button-ghost"
@@ -354,7 +361,7 @@ export default async function ProductPage({
       )}
 
       {product.slug === "perspectives" && (
-        <section className="soft-shell">
+        <section id="perspectives-actions" className="soft-shell">
           <PerspectivesActions dialogueId={search?.dialogueId ?? null} />
         </section>
       )}

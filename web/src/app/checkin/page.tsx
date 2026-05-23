@@ -562,70 +562,33 @@ export default function CheckinPage() {
                 </div>
               </article>
 
-              <section className="soft-card-flat mt-4 p-5 md:p-7" style={{ background: "var(--soft-paper-deep)", border: 0 }}>
-                <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
-                <h2 className="soft-h3 mt-2">Это про решение прямо сейчас — или про ясность, которой пока не хватает?</h2>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                  Первичный ответ помогает увидеть контур. Если хочется не спешить, можно сохранить его, вернуться позже или открыть один более глубокий формат.
-                </p>
-              </section>
-
-              <section className="soft-card mt-4 p-5 md:p-7">
-                <p className="soft-eyebrow">факты, чувства, предположения</p>
-                <div className="mt-3 flex flex-col gap-2.5">
-                  <div className="flex items-start gap-3">
-                    <span className="soft-badge soft-badge-warm mt-0.5 shrink-0">Факт</span>
-                    <span className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">Ситуация, которую вы описываете, уже существует — игнорирование не меняет её, а только откладывает встречу с ней.</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="soft-badge mt-0.5 shrink-0" style={{ background: "var(--soft-rose)", color: "var(--soft-bordeaux)" }}>Чувство</span>
-                    <span className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">За этим вопросом стоит что-то важное для вас — скорее всего, именно в этом и есть главная нить.</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="soft-badge soft-badge-lilac mt-0.5 shrink-0">Предположение</span>
-                    <span className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">Часть картины «как всё должно быть» или «что скажут другие» — это убеждения, не факты.</span>
-                  </div>
-                </div>
-              </section>
-
-              <section className="soft-card soft-safe-step-card mt-4 p-5 md:p-7">
-                <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">один безопасный шаг сегодня</p>
-                <h2 className="soft-h3 mt-2 font-heading italic">Запишите одну фразу, которую вы давно хотели сказать себе честно.</h2>
-                <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                  Не отправлять, не доказывать, не решать все сразу. Просто дать мысли форму и посмотреть, что в ней правда.
-                </p>
-              </section>
-
-              <div className="mt-5">
-                <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} />
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-3" data-testid="dialogue-free-continuation-actions">
+              <div className="mt-5 flex flex-wrap items-center gap-2" data-testid="dialogue-free-continuation-actions">
+                <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} inline />
                 {status === "authenticated" ? (
                   <Button
                     onClick={handleSaveToAccount}
                     disabled={saveState === "saving" || saveState === "saved"}
-                    className="soft-button soft-button-ghost"
+                    className="soft-button soft-button-soft"
                     data-testid="save-result-authenticated"
                   >
                     <Bookmark className="size-4" aria-hidden="true" />
                     {saveState === "saved" ? "Сохранено в кабинете" : saveState === "saving" ? "Сохраняем..." : "Сохранить в карту"}
                   </Button>
                 ) : (
-                  <Link href="/register?intent=save-result" className="soft-button soft-button-ghost" data-testid="save-result-register">
+                  <Link href="/register?intent=save-result" className="soft-button soft-button-soft" data-testid="save-result-register">
                     <Bookmark className="size-4" aria-hidden="true" />
                     Сохранить в карту
                   </Link>
                 )}
-                <Link href="/circle" className="soft-button soft-button-ghost" data-testid="dialogue-free-circle">
+                <Link href="/circle" className="soft-button soft-button-soft" data-testid="dialogue-free-circle">
                   <Users className="size-4" aria-hidden="true" />
                   Второй взгляд
                 </Link>
-                <Link href="/pair" className="soft-button soft-button-ghost" data-testid="dialogue-free-pair">
+                <Link href="/pair" className="soft-button soft-button-soft" data-testid="dialogue-free-pair">
                   <Heart className="size-4" aria-hidden="true" />
                   Вдвоём
                 </Link>
-                <Button onClick={reset} variant="ghost" className="soft-button soft-button-ghost" data-testid="dialogue-reset">
+                <Button onClick={reset} className="soft-button soft-button-soft" data-testid="dialogue-reset">
                   <RotateCcw className="size-4" aria-hidden="true" />
                   Новый вопрос
                 </Button>

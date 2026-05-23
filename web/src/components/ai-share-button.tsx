@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Copy, Download, Link as LinkIcon, Send, Share2 } from "lucide-react";
+import { Copy, Link as LinkIcon, Send, Share2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface AIShareButtonProps {
@@ -9,6 +9,7 @@ interface AIShareButtonProps {
   title: string;
   resultText: string;
   onSaved?: (id: string) => void;
+  inline?: boolean;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -62,7 +63,7 @@ function shareLandingUrl(tool: string) {
   return `${appOrigin()}/share?from=${encodeURIComponent(tool.toLowerCase())}&topic=${label}`;
 }
 
-export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButtonProps) {
+export function AIShareButton({ tool, title, resultText, onSaved, inline }: AIShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -205,6 +206,163 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
 
   const template = TEMPLATES[templateIndex] ?? TEMPLATES[0];
 
+  const trigger = (
+    <>
+      {saved && !inline && (
+        <span className="text-xs text-[var(--soft-ink-faint)]">
+          Сохранено в историю
+        </span>
+      )}
+      <button
+        ref={triggerRef}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label="Поделиться обезличенным инсайтом"
+        className="soft-button soft-button-primary"
+      >
+        <Share2 className="h-4 w-4" />
+        Поделиться инсайтом
+      </button>
+    </>
+  );
+
+  function renderModal() {
+    return (
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(42,36,34,0.26)] px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8">
+        <div
+          ref={popoverRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Безопасная карточка для отправки"
+          className="my-auto w-full max-w-[720px] rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-4 shadow-[var(--soft-shadow-md)]"
+        >
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <p className="soft-eyebrow">поделиться инсайтом</p>
+              <h2 className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
+                Карточка <em className="not-italic italic">для подруги</em>
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                По умолчанию карточка обезличена — без имени, без вопроса.
+              </p>
+            </div>
+            <button
+              onClick={handleClose}
+              aria-label="Закрыть"
+              className="shrink-0 rounded-full p-1 text-[var(--soft-ink-faint)] hover:text-[var(--soft-ink)]"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="hidden sm:grid place-items-center rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-5">
+              <div
+                className="relative flex aspect-[4/5] w-full max-w-[280px] flex-col justify-between overflow-hidden rounded-[28px] p-7 shadow-[0_22px_70px_rgba(92,42,44,0.2)]"
+                style={{ background: template.style, color: template.ink }}
+              >
+                <span className="pointer-events-none absolute -right-10 -top-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2">
+                    <span className="h-4 w-4 rounded-full border-2 border-current" />
+                    <span className="font-heading text-lg font-semibold">ETerapy</span>
+                  </div>
+                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: template.muted }}>
+                    инсайт дня
+                  </p>
+                </div>
+
+                <div className="relative z-10">
+                  {!hideQuestion && (
+                    <p className="mb-4 text-sm italic" style={{ color: template.muted }}>
+                      «{title}»
+                    </p>
+                  )}
+                  <p className="font-heading text-xl italic leading-snug">
+                    {insightPreview(resultText)}
+                  </p>
+                </div>
+
+                <div className="relative z-10 flex items-end justify-between gap-4 text-xs" style={{ color: template.muted }}>
+                  <span>{showWatermark ? "eterapy.com/share" : "личная заметка"}</span>
+                  <span className="font-heading text-base italic">с теплом</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="soft-eyebrow">Шаблон</p>
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {TEMPLATES.map((item, index) => (
+                    <button
+                      key={item.name}
+                      type="button"
+                      onClick={() => setTemplateIndex(index)}
+                      className={`h-16 rounded-2xl border transition ${index === templateIndex ? "border-[var(--soft-bordeaux)] ring-2 ring-[rgba(92,42,44,0.14)]" : "border-[var(--soft-paper-edge)]"}`}
+                      style={{ background: item.style }}
+                      aria-label={`Выбрать шаблон ${item.name}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="soft-card p-3">
+                <p className="soft-eyebrow">Приватность</p>
+                <label className="mt-2 flex cursor-pointer gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={hideQuestion}
+                    onChange={(e) => setHideQuestion(e.target.checked)}
+                    className="mt-0.5 accent-[var(--soft-terracotta)]"
+                  />
+                  <span className="font-medium text-[var(--soft-ink)]">Скрыть мой вопрос</span>
+                </label>
+                <label className="mt-2 flex cursor-pointer gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={showWatermark}
+                    onChange={(e) => setShowWatermark(e.target.checked)}
+                    className="mt-0.5 accent-[var(--soft-terracotta)]"
+                  />
+                  <span className="font-medium text-[var(--soft-ink)]">Показать водяной знак ETerapy</span>
+                </label>
+              </div>
+
+              <div className="grid gap-2">
+                <button onClick={copyInviteLink} className="soft-button soft-button-primary justify-center">
+                  <LinkIcon className="h-4 w-4" /> Скопировать ссылку
+                </button>
+                <button onClick={shareToTelegram} disabled={sharing} className="soft-button soft-button-ghost justify-center">
+                  <Send className="h-4 w-4" /> Telegram
+                </button>
+                <button onClick={shareToVK} disabled={sharing} className="soft-button soft-button-ghost justify-center">
+                  <Share2 className="h-4 w-4" /> ВКонтакте
+                </button>
+                <button onClick={copySafeText} className="soft-button soft-button-ghost justify-center">
+                  <Copy className="h-4 w-4" /> Скопировать текст
+                </button>
+              </div>
+
+              <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+                По умолчанию карточка обезличена — без имени, аватарки и исходного вопроса.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (inline) {
+    return (
+      <>
+        {trigger}
+        {open && renderModal()}
+      </>
+    );
+  }
+
   return (
     <div className="relative mt-6 border-t border-[var(--soft-paper-edge)] pt-5" data-testid="safe-share-card">
       <div className="flex items-center justify-end gap-3">
@@ -227,130 +385,7 @@ export function AIShareButton({ tool, title, resultText, onSaved }: AIShareButto
         </button>
       </div>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(42,36,34,0.26)] px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8">
-          <div
-            ref={popoverRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Безопасная карточка для отправки"
-            className="my-auto w-full max-w-[720px] rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-4 shadow-[var(--soft-shadow-md)]"
-          >
-          <div className="mb-5">
-            <p className="soft-eyebrow">поделиться инсайтом</p>
-            <h2 className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
-              Карточка <em className="not-italic italic">для подруги</em>
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              По умолчанию карточка обезличена — без имени, без вопроса.
-            </p>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="grid place-items-center rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-5">
-              <div
-                className="relative flex aspect-[4/5] w-full max-w-[320px] flex-col justify-between overflow-hidden rounded-[28px] p-7 shadow-[0_22px_70px_rgba(92,42,44,0.2)]"
-                style={{ background: template.style, color: template.ink }}
-              >
-                <span className="pointer-events-none absolute -right-10 -top-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
-                <div className="relative z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="h-4 w-4 rounded-full border-2 border-current" />
-                    <span className="font-heading text-lg font-semibold">ETerapy</span>
-                  </div>
-                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: template.muted }}>
-                    инсайт дня
-                  </p>
-                </div>
-
-                <div className="relative z-10">
-                  {!hideQuestion && (
-                    <p className="mb-4 text-sm italic" style={{ color: template.muted }}>
-                      «{title}»
-                    </p>
-                  )}
-                  <p className="font-heading text-2xl italic leading-snug">
-                    {insightPreview(resultText)}
-                  </p>
-                </div>
-
-                <div className="relative z-10 flex items-end justify-between gap-4 text-xs" style={{ color: template.muted }}>
-                  <span>{showWatermark ? "eterapy.com/share" : "личная заметка"}</span>
-                  <span className="font-heading text-lg italic">с теплом</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="soft-eyebrow">Шаблон</p>
-                <div className="mt-3 grid grid-cols-4 gap-2">
-                  {TEMPLATES.map((item, index) => (
-                    <button
-                      key={item.name}
-                      type="button"
-                      onClick={() => setTemplateIndex(index)}
-                      className={`h-20 rounded-2xl border transition ${index === templateIndex ? "border-[var(--soft-bordeaux)] ring-2 ring-[rgba(92,42,44,0.14)]" : "border-[var(--soft-paper-edge)]"}`}
-                      style={{ background: item.style }}
-                      aria-label={`Выбрать шаблон ${item.name}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="soft-card p-4">
-                <p className="soft-eyebrow">Приватность</p>
-                <label className="mt-3 flex cursor-pointer gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={hideQuestion}
-                    onChange={(e) => setHideQuestion(e.target.checked)}
-                    className="mt-1 accent-[var(--soft-terracotta)]"
-                  />
-                  <span>
-                    <span className="block font-medium text-[var(--soft-ink)]">Скрыть мой вопрос</span>
-                    <span className="text-[var(--soft-ink-faint)]">Включено по умолчанию: карточка без имени, аватарки и исходного вопроса.</span>
-                  </span>
-                </label>
-                <label className="mt-3 flex cursor-pointer gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={showWatermark}
-                    onChange={(e) => setShowWatermark(e.target.checked)}
-                    className="mt-1 accent-[var(--soft-terracotta)]"
-                  />
-                  <span>
-                    <span className="block font-medium text-[var(--soft-ink)]">Показать водяной знак ETerapy</span>
-                    <span className="text-[var(--soft-ink-faint)]">Ссылка ведет на короткую страницу-приглашение.</span>
-                  </span>
-                </label>
-              </div>
-
-              <div className="grid gap-2">
-                <button onClick={copyInviteLink} className="soft-button soft-button-primary justify-center">
-                  <LinkIcon className="h-4 w-4" /> Скопировать ссылку
-                </button>
-                <button onClick={downloadSafeText} className="soft-button soft-button-ghost justify-center">
-                  <Download className="h-4 w-4" /> Сохранить картинку
-                </button>
-                <button onClick={shareToTelegram} disabled={sharing} className="soft-button soft-button-ghost justify-center">
-                  <Send className="h-4 w-4" /> Telegram
-                </button>
-                <button onClick={shareToVK} disabled={sharing} className="soft-button soft-button-ghost justify-center">
-                  <Share2 className="h-4 w-4" /> ВКонтакте
-                </button>
-                <button onClick={copySafeText} className="soft-button soft-button-ghost justify-center">
-                  <Copy className="h-4 w-4" /> Скопировать текст
-                </button>
-              </div>
-
-              <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                По умолчанию мы не добавляем имя, email, аватар, приватный профиль или полный текст вопроса.
-              </p>
-            </div>
-          </div>
-          </div>
-        </div>
-      )}
+      {open && renderModal()}
     </div>
   );
 }

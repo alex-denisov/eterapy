@@ -528,6 +528,12 @@
     font-style: italic;
   }
 
+  .soft-question-input:focus,
+  .soft-question-input:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
   .soft-input {
     background: var(--soft-paper-card) !important;
     border: 1px solid var(--soft-paper-edge) !important;
