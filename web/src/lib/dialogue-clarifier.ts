@@ -115,40 +115,39 @@ export interface ConversationalTurnResult {
   model?: string;
 }
 
+const MIN_CLARIFYING_TURNS = 3;
+const MAX_CLARIFYING_TURNS = 5;
+
+const HEURISTIC_QUESTION_POOL: Array<{ question: string; chips: string[] }> = [
+  { question: "Что сейчас самое важное для вас в этом вопросе?", chips: ["Ясность", "Поддержка", "Действие"] },
+  { question: "Что вы уже пробовали или рассматривали?", chips: ["Ничего ещё", "Думал, но не пробовал", "Пробовал разное"] },
+  { question: "Что именно вас беспокоит больше всего в этой ситуации?", chips: ["Неопределённость", "Отношения", "Мои чувства"] },
+  { question: "Какой исход для вас был бы самым спокойным?", chips: ["Сохранить как есть", "Что-то изменить", "Начать заново"] },
+  { question: "Какой результат или ощущение вы хотели бы получить?", chips: ["Понять себя", "Принять решение", "Двигаться дальше"] },
+];
+
 function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
   const json = extractJson(text);
   if (!json) return null;
   try {
-    const parsed = JSON.parse(json) as { type?: string; question?: string; chips?: unknown };
-    if (parsed.type === "ready") return { type: "ready", source: "ai" };
-    if (parsed.type === "question" && typeof parsed.question === "string") {
-      const question = normalizeQuestion(parsed.question);
-      if (!question) return null;
-      return { type: "question", question, chips: normalizeChips(parsed.chips ?? []), source: "ai" };
-    }
-    return null;
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    // Accept both short format {q, c} and legacy {type, question, chips}
+    const q = typeof parsed.q === "string" ? parsed.q.trim()
+      : typeof parsed.question === "string" ? parsed.question.trim()
+      : null;
+    // Empty q or explicit ready signal = model is done
+    if (q === "" || parsed.type === "ready") return { type: "ready", source: "ai" };
+    if (!q || q.length < 8) return null;
+    const rawChips = Array.isArray(parsed.c) ? parsed.c
+      : Array.isArray(parsed.chips) ? parsed.chips
+      : [];
+    const question = normalizeQuestion(q);
+    if (!question) return null;
+    return { type: "question", question, chips: normalizeChips(rawChips), source: "ai" };
   } catch {
     return null;
   }
 }
-
-const MIN_CLARIFYING_TURNS = 2;
-const MAX_CLARIFYING_TURNS = 3;
-
-const HEURISTIC_QUESTION_POOL: Array<{ question: string; chips: string[] }> = [
-  {
-    question: "Что сейчас самое важное для вас в этом вопросе?",
-    chips: ["Ясность", "Поддержка", "Действие"],
-  },
-  {
-    question: "Что вы уже пробовали или рассматривали?",
-    chips: ["Ничего ещё", "Думал, но не пробовал", "Пробовал разное"],
-  },
-  {
-    question: "Какой результат или ощущение вы хотели бы получить?",
-    chips: ["Понять себя", "Принять решение", "Двигаться дальше"],
-  },
-];
 
 export async function generateDialogueConversationalTurn(input: {
   originalQuestion: string;
@@ -163,28 +162,37 @@ export async function generateDialogueConversationalTurn(input: {
     return { type: "ready", source: "heuristic" };
   }
 
-  // Fallback uses the matching heuristic question so we always have 2-3 questions regardless of LLM status
   const heuristicTurn = HEURISTIC_QUESTION_POOL[input.previousPairs.length];
   const fallback: ConversationalTurnResult = heuristicTurn
     ? { type: "question", question: heuristicTurn.question, chips: heuristicTurn.chips, source: "heuristic" }
     : { type: "ready", source: "heuristic" };
 
+  const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
+
   try {
+    const readyInstruction = canBeReady
+      ? `Уже задано ${input.previousPairs.length} вопросов. Если контекста достаточно — ответь: {"q":"","c":[]}`
+      : `Уже задано ${input.previousPairs.length} вопросов. Нужно задать ещё, ответ {"q":"","c":[]} запрещён.`;
+
+    const systemContent = [
+      "Ты ведёшь диалог ясности на платформе ETerapy.",
+      `Тема: ${input.topic ?? "неизвестна"}, сложность: ${input.difficulty ?? "неизвестна"}.`,
+      "Задай ОДИН уточняющий вопрос, чтобы лучше понять ситуацию пользователя.",
+      "",
+      "Ответь строго в формате JSON (без markdown, без пояснений):",
+      '{"q":"вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
+      "",
+      "Пример: {\"q\":\"Как давно вы замечаете это состояние?\",\"c\":[\"Несколько дней\",\"Несколько недель\",\"Уже давно\"]}",
+      "",
+      "Правила:",
+      "- Вопрос мягкий, конкретный, личный, не диагностический, на русском, до 160 символов",
+      "- Три коротких варианта ответа (1-6 слов) на русском языке",
+      readyInstruction,
+      "- Не давай советов, не задавай вопросов о кризисах, медицине или праве",
+    ].join("\n");
+
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-      {
-        role: "system",
-        content: [
-          "You facilitate a clarifying dialogue for ETerapy self-reflection.",
-          `Context: topic=${input.topic ?? "unknown"}, difficulty=${input.difficulty ?? "unknown"}, safety=${input.safetyLevel ?? "unknown"}.`,
-          `Prior clarifying exchanges: ${input.previousPairs.length}. Minimum required before ready: ${MIN_CLARIFYING_TURNS}. Maximum: ${MAX_CLARIFYING_TURNS}.`,
-          `RULE: if prior exchanges < ${MIN_CLARIFYING_TURNS}, you MUST ask a question — returning ready is forbidden.`,
-          `After ${MIN_CLARIFYING_TURNS}+ exchanges, ask one more targeted question OR return ready if context is genuinely sufficient.`,
-          'Return JSON only: {"type":"question","question":"...","chips":["...","...","..."]} OR {"type":"ready"}.',
-          "Question: gentle, personal, non-diagnostic, in Russian, max 160 chars.",
-          "Chips: exactly 3 short (1-6 words) concrete answer options in Russian.",
-          "Never diagnose, advise, or answer the user's question. Never ask about crisis, medical, or legal topics.",
-        ].join(" "),
-      },
+      { role: "system", content: systemContent },
       { role: "user", content: input.originalQuestion },
     ];
 
@@ -197,16 +205,16 @@ export async function generateDialogueConversationalTurn(input: {
       feature: "dialogue_clarifier",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 400,
-      temperature: 0.3,
+      maxTokens: 300,
+      temperature: 0.6,
       messages,
     });
 
     const parsed = parseConversationalTurnResponse(response.text);
     if (!parsed) return fallback;
 
-    // Enforce minimum turns even if LLM says ready
-    if (parsed.type === "ready" && input.previousPairs.length < MIN_CLARIFYING_TURNS) {
+    // Guard: LLM must not signal ready before minimum turns
+    if (parsed.type === "ready" && !canBeReady) {
       return fallback;
     }
 
