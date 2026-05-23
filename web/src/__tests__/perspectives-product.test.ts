@@ -72,4 +72,18 @@ describe("B086 perspectives product", () => {
     expect(actions).toContain("Сохранить в Мою карту");
     expect(dialoguePage).toContain("/products/perspectives?dialogueId=${dialogue.id}");
   });
+
+  it("shows dialogue-first CTA (not a purchase button) on standalone product page access without dialogueId", () => {
+    const detailPage = source("src/app/products/[slug]/page.tsx");
+
+    // perspectives hero branch: no-dialogue case shows checkin link, not a purchase button
+    expect(detailPage).toContain('product.slug === "perspectives"');
+    expect(detailPage).toContain("search?.dialogueId");
+    expect(detailPage).toContain("Начать бесплатный диалог");
+    // The hero buttons container (identified by its unique wrapper class) should not
+    // contain ProductPurchaseControls for perspectives — purchase is only inside PerspectivesActions
+    const heroButtons = detailPage.split('soft-product-detail-hero"')[1]?.split('<PerspectivesActions')[0] ?? "";
+    expect(heroButtons).toContain("Начать бесплатный диалог");
+    expect(heroButtons).not.toContain("<ProductPurchaseControls");
+  });
 });

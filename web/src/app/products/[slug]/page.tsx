@@ -295,24 +295,40 @@ export default async function ProductPage({
           <h1 className="soft-display mt-3">{product.name}</h1>
           <p className="soft-lede mt-5 max-w-3xl">{product.summary}</p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            {search?.dialogueId && product.slug === "perspectives" ? (
-              <a href="#perspectives-actions" className="soft-button soft-button-primary">
-                Получить 4 ракурса
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </a>
+            {product.slug === "perspectives" ? (
+              search?.dialogueId ? (
+                <a href="#perspectives-actions" className="soft-button soft-button-primary">
+                  Получить 4 ракурса
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </a>
+              ) : (
+                <Link
+                  href="/checkin"
+                  className="soft-button soft-button-primary"
+                  data-analytics-event="dialogue_cta_clicked"
+                  data-analytics-target="/checkin"
+                  data-analytics-product="perspectives"
+                  data-testid="product-dialogue-cta"
+                >
+                  Начать бесплатный диалог
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Link>
+              )
             ) : (
-              <ProductPrimaryAction product={product} />
+              <>
+                <ProductPrimaryAction product={product} />
+                <Link
+                  href="/checkin"
+                  className="soft-button soft-button-ghost"
+                  data-analytics-event="dialogue_cta_clicked"
+                  data-analytics-target="/checkin"
+                  data-testid="product-dialogue-cta"
+                >
+                  Сначала бесплатный диалог
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Link>
+              </>
             )}
-            <Link
-              href="/checkin"
-              className="soft-button soft-button-ghost"
-              data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/checkin"
-              data-testid="product-dialogue-cta"
-            >
-              Сначала бесплатный диалог
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
             <Link href="/products" className="soft-button soft-button-ghost">
               Все продукты
             </Link>
