@@ -4,7 +4,29 @@ import { aiComplete } from "@/lib/ai";
 import { log, serializeError } from "@/lib/logger";
 
 const MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024;
-const CHAT_SCREENSHOT_DATA_URL = /^data:(image\/(?:png|jpeg|webp));base64,([a-zA-Z0-9+/=]+)$/;
+const CHAT_SCREENSHOT_DATA_URL = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/;
+
+export type ToneEntry = { label: string; pct: number };
+export type ReplyVariant = { style: string; text: string };
+
+export type ChatAnalysisStructured = {
+  insight: string;
+  tonesThem: ToneEntry[];
+  tonesMe: ToneEntry[];
+  replies: ReplyVariant[];
+  safetyNote: string;
+};
+
+export function tryParseChatAnalysis(text: string): ChatAnalysisStructured | null {
+  if (!text) return null;
+  try {
+    const raw = JSON.parse(text) as Partial<ChatAnalysisStructured>;
+    if (!raw.insight || !Array.isArray(raw.replies)) return null;
+    return raw as ChatAnalysisStructured;
+  } catch {
+    return null;
+  }
+}
 
 export class ChatAnalysisInputError extends Error {
   code: string;
@@ -164,27 +186,29 @@ export async function extractChatTextFromScreenshot(input: {
   }
 }
 
-export function heuristicChatAnalysis(sourceText: string) {
-  const excerpt = sourceText.slice(0, 220).replace(/\s+/g, " ").trim();
-  return normalize([
-    "Разбор переписки",
-    "",
-    "1. Обзор ситуации",
-    "В представленном фрагменте видна нехватка прозрачности и попытка добиться ясности. Кто-то из собеседников ожидает конкретики, в то время как другой избегает прямого ответа.",
-    excerpt ? `Опорный фрагмент: ${excerpt}` : "",
-    "",
-    "2. Сценарии",
-    "Если коммуникация продолжится в том же ключе, напряжение будет расти. Если один из вас возьмет паузу и переведет разговор в формат 'я-сообщений', шансы на конструктив увеличатся.",
-    "",
-    "3. Риски",
-    "Основной риск — скатиться во взаимные обвинения вместо решения реальной проблемы.",
-    "",
-    "4. Рекомендации",
-    "Постарайтесь не додумывать за собеседника. Задайте прямой вопрос о его намерениях без упрека.",
-    "",
-    "5. План действий",
-    "Сделайте паузу. Подумайте, что именно вам сейчас важно получить от этого диалога, и сформулируйте это в одном спокойном сообщении.",
-  ].join("\n"));
+export function heuristicChatAnalysis(_sourceText: string): { text: string; metadata: Prisma.InputJsonObject } {
+  const structured: ChatAnalysisStructured = {
+    insight: "В этой переписке просматривается знакомый сценарий: попытка близости упирается в защитную реакцию — и оба собеседника остаются с ощущением, что их не слышат.",
+    tonesThem: [
+      { label: "защитный", pct: 72 },
+      { label: "отстранённый", pct: 48 },
+      { label: "обесценивающий", pct: 35 },
+      { label: "тёплый", pct: 15 },
+    ],
+    tonesMe: [
+      { label: "ищущий", pct: 65 },
+      { label: "тревожный", pct: 52 },
+      { label: "обиженный", pct: 40 },
+      { label: "усталый", pct: 28 },
+    ],
+    replies: [
+      { style: "мягкий", text: "«Слушай, я не хочу спорить. Просто скажи: с тобой сейчас можно поговорить, или это плохой момент?»" },
+      { style: "прямой", text: "«Я замечаю, что разговор уходит в обвинения с обеих сторон. Можем сделать паузу и вернуться вечером?»" },
+      { style: "границы", text: "«Когда я говорю, что мне важно, и слышу «не накручивай» — мне очень одиноко. Я не хочу так больше»." },
+    ],
+    safetyNote: "Если в переписке есть угрозы, давление, унижение или физическая опасность — это уже не тема для разбора, а тема для специалиста.",
+  };
+  return { text: JSON.stringify(structured), metadata: { source: "heuristic" } };
 }
 
 export async function generateChatAnalysis(input: {
@@ -194,6 +218,15 @@ export async function generateChatAnalysis(input: {
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const fallback = heuristicChatAnalysis(input.sourceText);
 
+  const systemPrompt = [
+    "You are ETerapy. Analyze the chat conversation in Russian.",
+    "Return ONLY valid JSON — no markdown, no code fences — with this exact structure:",
+    '{"insight":"one meaningful insight sentence","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"..."},{"style":"прямой","text":"..."},{"style":"границы","text":"..."}],"safetyNote":"..."}',
+    "Rules: tonesThem and tonesMe each have exactly 4 items with realistic percentages summing to roughly 200%.",
+    "replies has exactly 3 items. insight is one sentence. Be warm, non-diagnostic, non-fatalistic. No markdown inside string values.",
+    "Do not state the other person's intent as fact. Never state psychological diagnoses as facts. Never label anyone as narcissist or manipulator as fact.",
+  ].join(" ");
+
   try {
     const response = await aiComplete({
       feature: "product-chat-analysis",
@@ -202,32 +235,20 @@ export async function generateChatAnalysis(input: {
       maxTokens: 1500,
       temperature: 0.5,
       messages: [
-        {
-          role: "system",
-          content: [
-            "Write ETerapy's paid Chat Analysis result in Russian.",
-            "Use exactly these sections: 1. Обзор, 2. Сценарии, 3. Риски, 4. Рекомендации, 5. План действий.",
-            "Do not make definitive medical or psychological diagnoses. Do not be fatalistic. Be objective and supportive.",
-            "Do not state the other person's intent as fact. Do not label anyone as narcissist or manipulator as fact.",
-            "Do not advise abrupt breakup as the only answer. Recommend privacy-safe, consent-aware next steps.",
-          ].join(" "),
-        },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: [
-            "Chat log to analyze:",
-            input.sourceText.slice(0, 8000),
-          ].join("\n"),
+          content: "Chat log to analyze:\n" + normalize(input.sourceText.slice(0, 8000)),
         },
       ],
     });
 
-    const text = normalize(response.text);
-    if (text.length < 300) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response" } };
+    const parsed = tryParseChatAnalysis(response.text.trim());
+    if (!parsed) {
+      return { text: fallback.text, metadata: { source: "heuristic", fallbackReason: "json_parse_failed" } };
     }
     return {
-      text,
+      text: JSON.stringify(parsed),
       metadata: {
         source: "ai",
         provider: response.provider,
@@ -242,6 +263,6 @@ export async function generateChatAnalysis(input: {
       requestId: input.requestId,
       error: serializeError(error),
     });
-    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error" } };
+    return { text: fallback.text, metadata: { source: "heuristic", fallbackReason: "ai_error" } };
   }
 }

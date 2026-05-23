@@ -11,6 +11,21 @@ type DialogueForPerspectives = {
   messages: Array<{ role: string; content: string }>;
 };
 
+export type PerspectiveAngle = {
+  id: "mind" | "feeling" | "symbol" | "action";
+  title: string;
+  subtitle: string;
+  facts: string[];
+  unknowns: string[];
+  options: string[];
+  ask: string;
+  step: string;
+};
+
+export type PerspectivesStructured = {
+  angles: PerspectiveAngle[];
+};
+
 export function buildPerspectivesTitle(dialogue: Pick<DialogueForPerspectives, "title">) {
   return `4 ракурса: ${(dialogue.title || "ваш вопрос").slice(0, 80)}`;
 }
@@ -37,32 +52,101 @@ function compactDialogue(dialogue: DialogueForPerspectives) {
     .slice(0, 9000);
 }
 
-function normalize(text: string) {
-  return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 9000);
+export function tryParsePerspectives(text: string): PerspectivesStructured | null {
+  if (!text) return null;
+  try {
+    const raw = JSON.parse(text) as { angles?: unknown };
+    if (!Array.isArray(raw.angles) || raw.angles.length < 4) return null;
+    return raw as PerspectivesStructured;
+  } catch {
+    return null;
+  }
 }
 
-export function heuristicPerspectives(dialogue: DialogueForPerspectives) {
-  const first = dialogue.messages.find((message) => message.role === "USER")?.content ?? dialogue.title;
-  return normalize([
-    "4 ракурса ответа",
-    "",
-    `Запрос: ${first}`,
-    "",
-    "1. Рациональный ракурс",
-    "Посмотрите на факты: что уже произошло, чего вы точно не знаете, и какое действие можно проверить без больших потерь.",
-    "",
-    "2. Эмоциональный ракурс",
-    "Внутри может быть не только желание ответа, но и усталость от неопределенности. Это важно признать, не превращая чувство в приказ действовать немедленно.",
-    "",
-    "3. Символический ракурс",
-    "Ситуация похожа на порог: прежний способ понимать происходящее уже тесен, а новый еще не оформлен. Это не знак судьбы, а приглашение уточнить свои границы.",
-    "",
-    "4. Практический ракурс",
-    "Выберите один маленький шаг: задать один вопрос, взять паузу, записать критерии решения или попросить больше ясности.",
-    "",
-    "Итог",
-    "Лучший следующий шаг тот, который добавляет ясности и не усиливает давление.",
-  ].join("\n"));
+export function heuristicPerspectives(dialogue: DialogueForPerspectives): { text: string; metadata: Prisma.InputJsonObject } {
+  const structured: PerspectivesStructured = {
+    angles: [
+      {
+        id: "mind",
+        title: "Разум",
+        subtitle: "что известно, а что — нет",
+        facts: [
+          "Вы обратились с конкретным вопросом, который вас беспокоит",
+          "Ситуация вызывает достаточно напряжения, чтобы искать ясности",
+        ],
+        unknowns: [
+          "Что именно вы хотите получить в итоге — ответ, действие или принятие",
+          "Какие факты ещё не учтены в вашей картине мира",
+        ],
+        options: [
+          "Выписать всё, что точно известно, на бумагу",
+          "Сформулировать один главный вопрос без лишних деталей",
+          "Дать себе 24 часа, не принимая решений",
+        ],
+        ask: "Если убрать тревогу и оставить только факты — что вы видите?",
+        step: "Запишите одно предложение: «Я точно знаю, что...». Без догадок.",
+      },
+      {
+        id: "feeling",
+        title: "Чувства",
+        subtitle: "что может стоять за вопросом",
+        facts: [
+          "За этим вопросом, скорее всего, стоит усталость или тревога — это нормально",
+          "Желание разобраться — уже шаг навстречу себе",
+        ],
+        unknowns: [
+          "Какое чувство сейчас самое сильное — и оно точно про эту ситуацию?",
+          "Когда вы в последний раз чувствовали себя спокойно в этой теме",
+        ],
+        options: [
+          "Назвать чувство вслух или письменно, не объясняя его",
+          "Позволить себе не знать ответа прямо сейчас",
+          "Обратиться к кому-то, кому доверяете, просто чтобы поделиться",
+        ],
+        ask: "Что вы пытаетесь не чувствовать, продолжая искать ответ?",
+        step: "Назовите одну потребность, которой сейчас мало. Без объяснений кому она должна быть удовлетворена.",
+      },
+      {
+        id: "symbol",
+        title: "Символ",
+        subtitle: "метафорический взгляд",
+        facts: [
+          "Образ ситуации — порог: старый способ понимать уже тесен, новый ещё не сложился",
+        ],
+        unknowns: [
+          "Кто или что держит дверь закрытой с вашей стороны",
+          "Привыкли ли вы к этой неопределённости",
+        ],
+        options: [
+          "Можно зажечь маленький свет — задать тихий вопрос кому-то близкому",
+          "Можно выйти из комнаты — взять паузу и сменить обстановку",
+          "Можно позвать кого-то, кто поможет сделать следующий шаг вместе",
+        ],
+        ask: "Если бы эта ситуация была временем суток — что бы это было?",
+        step: "Опишите ситуацию одним образом или метафорой. Это часто проясняет больше, чем долгий анализ.",
+      },
+      {
+        id: "action",
+        title: "Действие",
+        subtitle: "что можно сделать на этой неделе",
+        facts: [
+          "Вы не обязаны решить всё за один разговор или один день",
+          "Маленький шаг лучше большого, но откладываемого",
+        ],
+        unknowns: [
+          "Какой минимальный шаг добавит ясности, не увеличивая давление",
+        ],
+        options: [
+          "Назначить конкретное время для разговора или размышления",
+          "Записаться на одну консультацию — для себя, без обязательств",
+          "Сделать паузу от темы на 48 часов и наблюдать за собой",
+        ],
+        ask: "Какой шаг в ближайшие 48 часов не разрушит ничего, но добавит ясности?",
+        step: "Выберите один пункт и поставьте конкретную дату, когда вы его сделаете.",
+      },
+    ],
+  };
+  return { text: JSON.stringify(structured), metadata: { source: "heuristic" } };
 }
 
 export async function generatePerspectives(input: {
@@ -72,22 +156,27 @@ export async function generatePerspectives(input: {
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const fallback = heuristicPerspectives(input.dialogue);
 
+  const systemPrompt = [
+    "You are ETerapy. Write a 4-angles reflection for the user's dialogue in Russian.",
+    "Return ONLY valid JSON — no markdown, no code fences, no explanation — with this exact structure:",
+    '{"angles":[',
+    '{"id":"mind","title":"Разум","subtitle":"что известно, а что — нет","facts":["...","..."],"unknowns":["...","..."],"options":["...","..."],"ask":"...","step":"..."},',
+    '{"id":"feeling","title":"Чувства","subtitle":"что может стоять за вопросом","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."},',
+    '{"id":"symbol","title":"Символ","subtitle":"метафорический взгляд","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."},',
+    '{"id":"action","title":"Действие","subtitle":"что можно сделать на этой неделе","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."}',
+    "]}",
+    "Rules: each facts/unknowns/options: 2-4 items, plain Russian strings. Be concrete, warm, non-diagnostic, non-fatalistic. No markdown inside strings.",
+  ].join(" ");
+
   try {
     const response = await aiComplete({
       feature: "product-perspectives",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 1200,
+      maxTokens: 1800,
       temperature: 0.5,
       messages: [
-        {
-          role: "system",
-          content: [
-            "Write ETerapy's paid 4-perspectives result in Russian.",
-            "Use four sections exactly: Рациональный ракурс, Эмоциональный ракурс, Символический ракурс, Практический ракурс, then Итог.",
-            "Stay safe, non-fatalistic, concrete, and warm.",
-          ].join(" "),
-        },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: [
@@ -101,12 +190,12 @@ export async function generatePerspectives(input: {
       ],
     });
 
-    const text = normalize(response.text);
-    if (text.length < 300) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response" } };
+    const parsed = tryParsePerspectives(response.text.trim());
+    if (!parsed) {
+      return { ...fallback, metadata: { ...fallback.metadata, fallbackReason: "json_parse_failed" } };
     }
     return {
-      text,
+      text: JSON.stringify(parsed),
       metadata: {
         source: "ai",
         provider: response.provider,
@@ -122,6 +211,6 @@ export async function generatePerspectives(input: {
       dialogueId: input.dialogue.id,
       error: serializeError(error),
     });
-    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error" } };
+    return fallback;
   }
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Copy, Link as LinkIcon, Send, Share2 } from "lucide-react";
+import { Copy, Link as LinkIcon, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { SoftHaloMark } from "@/components/brand/brand-mark";
 
 interface AIShareButtonProps {
   tool: string;
@@ -65,7 +66,6 @@ function shareLandingUrl(tool: string) {
 
 export function AIShareButton({ tool, title, resultText, onSaved, inline }: AIShareButtonProps) {
   const [open, setOpen] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [templateIndex, setTemplateIndex] = useState(0);
   const [hideQuestion, setHideQuestion] = useState(true);
@@ -169,27 +169,6 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
     toast.success("Обезличенный текст скопирован");
   }
 
-  async function shareToTelegram() {
-    setSharing(true);
-    await saveToHistory();
-    const shareUrl = await ensureShareUrl();
-    const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(publicText(shareUrl))}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-    setSharing(false);
-    setOpen(false);
-    toast.success("Открыта безопасная отправка в Telegram");
-  }
-
-  async function shareToVK() {
-    setSharing(true);
-    await saveToHistory();
-    const shareUrl = await ensureShareUrl();
-    const url = `https://vk.com/share.php?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent("ETerapy: инсайт дня")}&description=${encodeURIComponent(insightPreview(resultText))}`;
-    window.open(url, "_blank", "noopener,noreferrer");
-    setSharing(false);
-    setOpen(false);
-  }
-
   async function downloadSafeText() {
     await saveToHistory();
     const shareUrl = await ensureShareUrl();
@@ -229,7 +208,7 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
 
   function renderModal() {
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[rgba(42,36,34,0.26)] px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-8">
+      <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-[rgba(42,36,34,0.26)] px-3 pt-20 pb-10 backdrop-blur-sm sm:px-5 sm:pt-24">
         <div
           ref={popoverRef}
           role="dialog"
@@ -241,7 +220,7 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
             <div>
               <p className="soft-eyebrow">поделиться инсайтом</p>
               <h2 className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
-                Карточка <em className="not-italic italic">для подруги</em>
+                Поделиться <em className="not-italic italic">инсайтом</em>
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 По умолчанию карточка обезличена — без имени, без вопроса.
@@ -263,8 +242,8 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
               >
                 <span className="pointer-events-none absolute -right-10 -top-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
                 <div className="relative z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="h-4 w-4 rounded-full border-2 border-current" />
+                  <div className="flex items-center gap-2" style={{ opacity: 0.85 }}>
+                    <SoftHaloMark size={18} glow={false} />
                     <span className="font-heading text-lg font-semibold">ETerapy</span>
                   </div>
                   <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: template.muted }}>
@@ -332,12 +311,6 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
               <div className="grid gap-2">
                 <button onClick={copyInviteLink} className="soft-button soft-button-primary justify-center">
                   <LinkIcon className="h-4 w-4" /> Скопировать ссылку
-                </button>
-                <button onClick={shareToTelegram} disabled={sharing} className="soft-button soft-button-ghost justify-center">
-                  <Send className="h-4 w-4" /> Telegram
-                </button>
-                <button onClick={shareToVK} disabled={sharing} className="soft-button soft-button-ghost justify-center">
-                  <Share2 className="h-4 w-4" /> ВКонтакте
                 </button>
                 <button onClick={copySafeText} className="soft-button soft-button-ghost justify-center">
                   <Copy className="h-4 w-4" /> Скопировать текст

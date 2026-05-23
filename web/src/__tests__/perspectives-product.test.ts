@@ -28,9 +28,11 @@ describe("B086 perspectives product", () => {
 
     expect(preview).toContain("Предпросмотр 4 ракурсов");
     expect(preview).toContain("Запрос: Стоит ли менять работу сейчас?");
-    expect(report).toContain("4 ракурса ответа");
-    expect(report).toContain("1. Рациональный ракурс");
-    expect(report).toContain("4. Практический ракурс");
+    const reportJson = JSON.parse(report.text) as { angles: Array<{ id: string; title: string }> };
+    expect(reportJson.angles).toHaveLength(4);
+    expect(reportJson.angles[0].id).toBe("mind");
+    expect(reportJson.angles[0].title).toBe("Разум");
+    expect(reportJson.angles[3].id).toBe("action");
   });
 
   it("adds a durable ProductResult model for paid outputs", () => {

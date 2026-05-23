@@ -3,9 +3,31 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Download, LockKeyhole, Save, Trash2, Compass } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Compass, Download, LockKeyhole, Save, Share2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+
+type PerspectiveAngle = {
+  id: string;
+  title: string;
+  subtitle: string;
+  facts: string[];
+  unknowns: string[];
+  options: string[];
+  ask: string;
+  step: string;
+};
+
+function tryParsePerspectives(text: string): { angles: PerspectiveAngle[] } | null {
+  if (!text) return null;
+  try {
+    const raw = JSON.parse(text) as { angles?: unknown };
+    if (!Array.isArray(raw.angles) || raw.angles.length < 4) return null;
+    return raw as { angles: PerspectiveAngle[] };
+  } catch {
+    return null;
+  }
+}
 
 type PerspectivesResult = {
   id: string;
@@ -24,40 +46,192 @@ type ApiPayload = {
   error?: string;
 };
 
-function renderPerspectivesText(text: string): React.ReactNode {
-  const lines = text.split("\n");
-  return lines.map((line, i) => {
-    const clean = line.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1");
-    const isHeading = /^#{1,3}\s/.test(clean);
-    const stripped = clean.replace(/^#{1,3}\s+/, "");
-    if (!stripped.trim()) return <br key={i} />;
-    if (isHeading) {
-      return (
-        <p key={i} className="mt-5 font-heading text-base font-semibold text-[var(--soft-bordeaux)]">
-          {stripped}
-        </p>
-      );
-    }
-    return <p key={i} className="mt-2 text-sm leading-relaxed">{stripped}</p>;
-  });
-}
-
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.error ?? "Не удалось выполнить действие");
-    (error as Error & { status?: number; payload?: unknown }).status = response.status;
-    (error as Error & { status?: number; payload?: unknown }).payload = payload;
+    const error = new Error((payload as ApiPayload).error ?? "Не удалось выполнить действие");
+    (error as Error & { status?: number }).status = response.status;
     throw error;
   }
   return payload as T;
+}
+
+const ANGLE_STYLES: Record<string, { bg: string; color: string; glyphColor: string }> = {
+  mind:    { bg: "linear-gradient(140deg, #F4D9C1, #F8E6D1)", color: "#5C2A2C", glyphColor: "#5C2A2C" },
+  feeling: { bg: "linear-gradient(140deg, #E8C4B8, #F4D5C8)", color: "#5C2A2C", glyphColor: "#5C2A2C" },
+  symbol:  { bg: "linear-gradient(140deg, #DBD3EA, #E8E1F2)", color: "#4A3E5E", glyphColor: "#4A3E5E" },
+  action:  { bg: "linear-gradient(140deg, #D6DECC, #E5EBDC)", color: "#3A4A36", glyphColor: "#3A4A36" },
+};
+
+const ANGLE_GLYPHS: Record<string, string> = {
+  mind: "⚙",
+  feeling: "♡",
+  symbol: "◑",
+  action: "↗",
+};
+
+function AngleGlyph({ id, size = 28 }: { id: string; size?: number }) {
+  const style = ANGLE_STYLES[id] ?? ANGLE_STYLES.mind;
+  return (
+    <span
+      aria-hidden="true"
+      style={{ fontSize: size, color: style.color, opacity: 0.55, lineHeight: 1 }}
+    >
+      {ANGLE_GLYPHS[id] ?? "·"}
+    </span>
+  );
+}
+
+function AngleCardPreview({
+  angle,
+  index,
+  active,
+  onClick,
+}: {
+  angle: PerspectiveAngle;
+  index: number;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const style = ANGLE_STYLES[angle.id] ?? ANGLE_STYLES.mind;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="relative flex flex-col rounded-[20px] p-6 text-left transition-all"
+      style={{
+        background: style.bg,
+        color: style.color,
+        outline: active ? `2px solid var(--soft-bordeaux)` : "none",
+        outlineOffset: 2,
+        minHeight: 160,
+      }}
+    >
+      <span className="absolute right-5 top-5" style={{ fontSize: 28, opacity: 0.55 }}>
+        {ANGLE_GLYPHS[angle.id] ?? "·"}
+      </span>
+      <span className="text-xs font-semibold uppercase tracking-widest opacity-60">
+        ракурс {String(index + 1).padStart(2, "0")}
+      </span>
+      <span className="mt-2 font-heading text-xl font-semibold leading-tight">{angle.title}</span>
+      <span className="mt-1 text-sm italic opacity-80">{angle.subtitle}</span>
+      <span className="mt-3 text-sm leading-relaxed opacity-75">{angle.facts[0] ?? ""}</span>
+      <span className="mt-3 text-xs opacity-70">{active ? "открыто" : "читать"} →</span>
+    </button>
+  );
+}
+
+function AngleDetail({ angle, index, total, nextTitle, onPrev, onNext, onSave }: {
+  angle: PerspectiveAngle;
+  index: number;
+  total: number;
+  nextTitle?: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onSave: () => void;
+}) {
+  const style = ANGLE_STYLES[angle.id] ?? ANGLE_STYLES.mind;
+  return (
+    <div className="rounded-[20px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] p-6 sm:p-10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 font-heading text-lg font-semibold"
+            style={{ background: style.bg, color: style.color }}
+          >
+            <span aria-hidden="true">{ANGLE_GLYPHS[angle.id]}</span>
+            {angle.title}
+          </span>
+          <span className="text-sm italic text-[var(--soft-ink-soft)]">{angle.subtitle}</span>
+        </div>
+        <span className="text-sm text-[var(--soft-ink-faint)]">{index + 1} / {total}</span>
+      </div>
+
+      <div className="mt-6 grid gap-8 sm:grid-cols-2">
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="soft-eyebrow mb-3">что я вижу</p>
+            <ul className="flex flex-col gap-2">
+              {angle.facts.map((f, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-0.5 font-heading text-lg leading-none" style={{ color: "var(--soft-terracotta-dark)" }}>·</span>
+                  <span className="text-[15px] leading-relaxed text-[var(--soft-ink)]">{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="soft-eyebrow mb-3">что пока неизвестно</p>
+            <ul className="flex flex-col gap-2">
+              {angle.unknowns.map((u, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-0.5 font-heading text-lg leading-none text-[var(--soft-lilac,#A89BC9)]">?</span>
+                  <span className="text-[15px] leading-relaxed text-[var(--soft-ink-soft)]">{u}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="soft-eyebrow mb-3">что можно сделать</p>
+            <ul className="flex flex-col gap-2">
+              {angle.options.map((o, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="mt-1 text-[13px] text-[var(--soft-sage,#8A9E7E)]">↗</span>
+                  <span className="text-[15px] leading-relaxed text-[var(--soft-ink)]">{o}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-[16px] bg-[var(--soft-paper-deep)] p-4">
+            <p className="soft-eyebrow mb-2">вопрос к себе</p>
+            <p className="font-heading text-[22px] italic leading-snug text-[var(--soft-bordeaux)]">
+              «{angle.ask}»
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-[16px] border border-dashed border-[var(--soft-terracotta,#D6856A)] p-4"
+        style={{ background: "linear-gradient(140deg, #FFFCF5, #F4D9C1)" }}>
+        <div className="flex items-start gap-3">
+          <span className="text-[22px] text-[var(--soft-terracotta-dark)]">✦</span>
+          <div>
+            <p className="soft-eyebrow mb-1" style={{ color: "var(--soft-terracotta-dark)" }}>следующий шаг</p>
+            <p className="font-heading text-lg text-[var(--soft-bordeaux)]">{angle.step}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 flex flex-wrap justify-between gap-3">
+        <Button
+          onClick={onPrev}
+          disabled={index === 0}
+          className="soft-button soft-button-ghost"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Предыдущий ракурс
+        </Button>
+        {index < total - 1 ? (
+          <Button onClick={onNext} className="soft-button soft-button-primary">
+            Следующий: {nextTitle}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button onClick={onSave} className="soft-button soft-button-primary">
+            <Bookmark className="size-4" aria-hidden="true" />
+            Сохранить в Мою карту
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null }) {
@@ -66,6 +240,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "paying" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [activeAngle, setActiveAngle] = useState(0);
   const isAuthenticated = authStatus === "authenticated";
 
   useEffect(() => {
@@ -78,9 +253,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
         setResult(payload.results?.[0] ?? null);
       })
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [authStatus, dialogueId]);
 
   async function createPreview() {
@@ -122,9 +295,10 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
+      setActiveAngle(0);
       setStatus("idle");
     } catch (error) {
-      const typed = error as Error & { status?: number; payload?: ApiPayload };
+      const typed = error as Error & { status?: number };
       if (typed.status === 402) {
         setMessage("Откройте доступ к 4 ракурсам с баланса, кредитами ясности или картой — после этого результат появится здесь же.");
         setStatus("error");
@@ -180,12 +354,21 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     );
   }
 
+  const parsed = result?.resultText ? tryParsePerspectives(result.resultText) : null;
+  const angles = parsed?.angles ?? [];
+
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid="perspectives-actions">
+      {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="soft-eyebrow">4 ракурса</p>
-          <h2 className="soft-h3 mt-2">Четыре ракурса вашего вопроса</h2>
+          <p className="soft-eyebrow">углубление</p>
+          <h2 className="soft-h3 mt-2">
+            4 ракурса <em className="not-italic italic">одного</em> ответа
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Разные углы зрения на одну и ту же ситуацию. Можно читать в любом порядке.
+          </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
           {hasEntitlement ? "доступ открыт" : "нужна оплата"}
@@ -198,26 +381,56 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
         </p>
       )}
 
-      {result?.previewText ? (
+      {/* preview text */}
+      {result?.previewText && !angles.length && (
         <div className="soft-card-flat mt-5 whitespace-pre-wrap p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           {result.previewText}
         </div>
-      ) : (
-        <Button onClick={createPreview} disabled={status === "loading"} className="soft-button soft-button-ghost mt-5">
-          Создать предпросмотр
-        </Button>
       )}
 
-      {result?.resultText && (
-        <article className="soft-card mt-5 p-5 text-[var(--soft-ink)]">
-          {renderPerspectivesText(result.resultText)}
-        </article>
+      {/* angles grid */}
+      {angles.length > 0 && (
+        <>
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            {angles.map((angle, i) => (
+              <AngleCardPreview
+                key={angle.id}
+                angle={angle}
+                index={i}
+                active={i === activeAngle}
+                onClick={() => setActiveAngle(i)}
+              />
+            ))}
+          </div>
+          <div className="mt-4">
+            <AngleDetail
+              key={activeAngle}
+              angle={angles[activeAngle]}
+              index={activeAngle}
+              total={angles.length}
+              nextTitle={angles[activeAngle + 1]?.title}
+              onPrev={() => setActiveAngle((v) => Math.max(0, v - 1))}
+              onNext={() => setActiveAngle((v) => Math.min(angles.length - 1, v + 1))}
+              onSave={saveReport}
+            />
+          </div>
+        </>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={generateReport} disabled={!hasEntitlement || status === "loading" || status === "paying"} className="soft-button soft-button-primary">
+      {/* actions */}
+      <div className="mt-6 flex flex-wrap gap-3">
+        {!result?.previewText && (
+          <Button onClick={createPreview} disabled={status === "loading"} className="soft-button soft-button-ghost">
+            Создать предпросмотр
+          </Button>
+        )}
+        <Button
+          onClick={generateReport}
+          disabled={!hasEntitlement || status === "loading" || status === "paying"}
+          className="soft-button soft-button-primary"
+        >
           <LockKeyhole className="size-4" aria-hidden="true" />
-          {result?.resultText ? "Обновить ракурсы" : "Получить 4 ракурса"}
+          {angles.length ? "Обновить ракурсы" : "Получить 4 ракурса"}
         </Button>
         {!hasEntitlement && (
           <ProductPurchaseControls
@@ -227,20 +440,27 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
             creditCost={2}
             onUnlocked={() => {
               setHasEntitlement(true);
-              generateReport();
+              void generateReport();
             }}
           />
         )}
-        {result?.resultText && (
+        {angles.length > 0 && (
           <>
-            <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost">
+            <Button onClick={saveReport} disabled={status === "loading" || result?.saved} className="soft-button soft-button-ghost">
               <Save className="size-4" aria-hidden="true" />
-              {result.saved ? "Сохранено" : "Сохранить в Мою карту"}
+              {result?.saved ? "Сохранено" : "Сохранить в Мою карту"}
             </Button>
-            <a href={`/api/products/perspectives/${result.id}/export`} className="soft-button soft-button-ghost">
+            <a href={`/api/products/perspectives/${result?.id}/export`} className="soft-button soft-button-ghost">
               <Download className="size-4" aria-hidden="true" />
               Экспорт
             </a>
+            <Button
+              onClick={() => { /* share: future */ }}
+              className="soft-button soft-button-ghost"
+            >
+              <Share2 className="size-4" aria-hidden="true" />
+              Поделиться
+            </Button>
             <Button onClick={deleteReport} disabled={status === "loading"} className="soft-button soft-button-ghost">
               <Trash2 className="size-4" aria-hidden="true" />
               Удалить
