@@ -91,7 +91,7 @@ describe("dialogue-clarifier", () => {
     }));
   });
 
-  it("falls back to empty questions when AI is unavailable", async () => {
+  it("falls back to heuristic questions when AI is unavailable", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueClarifyingQuestions({
@@ -102,27 +102,27 @@ describe("dialogue-clarifier", () => {
     });
 
     expect(result.source).toBe("heuristic");
-    expect(result.questions).toEqual([]);
-    expect(result.chips).toEqual([]);
+    expect(result.questions.length).toBeGreaterThanOrEqual(1);
+    expect(result.chips.length).toBe(result.questions.length);
   });
 
-  it("heuristic always returns empty questions regardless of topic", () => {
+  it("heuristic returns fallback questions for any topic", () => {
     const result = heuristicClarifyingQuestions({
       question: "Что делать с отношениями?",
       topic: "relationships",
       difficulty: "medium",
     });
-    expect(result.questions).toEqual([]);
-    expect(result.chips).toEqual([]);
+    expect(result.questions.length).toBeGreaterThanOrEqual(1);
+    expect(result.chips.length).toBe(result.questions.length);
   });
 
-  it("heuristic returns empty chips", () => {
+  it("heuristic returns chips aligned to questions", () => {
     const result = heuristicClarifyingQuestions({
       question: "Тревога не отпускает",
       topic: "anxiety",
       difficulty: "low",
     });
-    expect(result.questions).toEqual([]);
-    expect(result.chips).toEqual([]);
+    expect(result.chips.length).toBe(result.questions.length);
+    result.chips.forEach((c) => expect(c.length).toBeGreaterThan(0));
   });
 });

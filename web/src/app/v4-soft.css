@@ -368,7 +368,19 @@
   }
 
   .soft-footer-columns {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 640px) {
+    .soft-footer-columns {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .soft-footer-columns {
+      grid-template-columns: repeat(6, 1fr);
+    }
   }
 
   .soft-footer h4,
@@ -942,7 +954,7 @@
 
   .soft-product-detail-hero {
     max-width: none;
-    grid-template-columns: minmax(0, 0.95fr) minmax(18rem, 0.52fr);
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     text-align: left;
   }
 

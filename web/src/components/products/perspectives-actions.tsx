@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Download, LockKeyhole, Save, Trash2, Compass } from "lucide-react";
@@ -23,6 +23,24 @@ type ApiPayload = {
   checkout?: { productKey: string; checkoutSource: string };
   error?: string;
 };
+
+function renderPerspectivesText(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  return lines.map((line, i) => {
+    const clean = line.replace(/\*\*(.+?)\*\*/g, "$1").replace(/\*(.+?)\*/g, "$1");
+    const isHeading = /^#{1,3}\s/.test(clean);
+    const stripped = clean.replace(/^#{1,3}\s+/, "");
+    if (!stripped.trim()) return <br key={i} />;
+    if (isHeading) {
+      return (
+        <p key={i} className="mt-5 font-heading text-base font-semibold text-[var(--soft-bordeaux)]">
+          {stripped}
+        </p>
+      );
+    }
+    return <p key={i} className="mt-2 text-sm leading-relaxed">{stripped}</p>;
+  });
+}
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -167,7 +185,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="soft-eyebrow">4 ракурса</p>
-          <h2 className="soft-h3 mt-2">Предпросмотр, оплата и полный результат</h2>
+          <h2 className="soft-h3 mt-2">Четыре ракурса вашего вопроса</h2>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
           {hasEntitlement ? "доступ открыт" : "нужна оплата"}
@@ -191,8 +209,8 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
       )}
 
       {result?.resultText && (
-        <article className="soft-card mt-5 whitespace-pre-wrap p-5 font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
-          {result.resultText}
+        <article className="soft-card mt-5 p-5 text-[var(--soft-ink)]">
+          {renderPerspectivesText(result.resultText)}
         </article>
       )}
 

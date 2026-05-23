@@ -52,7 +52,7 @@ describe("v5 public shell", () => {
     expect(footer).toContain('title: "Эзотерика"');
     expect(footer).toContain('title: "Социальное и обучение"');
     expect(softCss).toContain(".soft-user-menu");
-    expect(softCss).toContain("repeat(auto-fit, minmax(160px, 1fr))");
+    expect(softCss).toContain("soft-footer-columns");
   });
 
   it("defers session and host-specific header branches until after mount", () => {

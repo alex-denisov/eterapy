@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, CalendarDays, CheckCircle2, FileText, HeartHandshake, LockKeyhole, MessageSquareText, Moon, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, CheckCircle2, LockKeyhole } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
@@ -8,7 +8,6 @@ import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { getProductCreditCost } from "@/lib/entitlements";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -222,16 +221,6 @@ function ProductPreview({ product }: { product: V5Product }) {
   );
 }
 
-function ProductIcon({ slug }: { slug: V5Product["slug"] }) {
-  if (slug === "chat-analysis") return <MessageSquareText className="size-5" aria-hidden="true" />;
-  if (slug === "compatibility") return <Users className="size-5" aria-hidden="true" />;
-  if (slug === "seven-days") return <CalendarDays className="size-5" aria-hidden="true" />;
-  if (slug === "deep-report") return <FileText className="size-5" aria-hidden="true" />;
-  if (slug === "tarot") return <Moon className="size-5" aria-hidden="true" />;
-  if (slug === "joint-session") return <HeartHandshake className="size-5" aria-hidden="true" />;
-  return <ShieldCheck className="size-5" aria-hidden="true" />;
-}
-
 function ProductPrimaryAction({ product }: { product: V5Product }) {
   if (product.productKey) {
     return (
@@ -239,7 +228,6 @@ function ProductPrimaryAction({ product }: { product: V5Product }) {
         productKey={product.productKey}
         label={product.directCta ?? product.cta}
         checkoutSource={`product-page-${product.slug}`}
-        creditCost={getProductCreditCost(product.productKey)}
       />
     );
   }
@@ -293,73 +281,68 @@ export default async function ProductPage({
           <Link href="/products" className="soft-chip">← Все продукты</Link>
           <p className="soft-eyebrow mt-7">{product.eyebrow}</p>
           <h1 className="soft-display mt-3">{product.name}</h1>
-          <p className="soft-lede mt-5 max-w-3xl">{product.summary}</p>
-          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            {product.slug === "perspectives" ? (
-              search?.dialogueId ? (
-                <a href="#perspectives-actions" className="soft-button soft-button-primary">
-                  Получить 4 ракурса
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </a>
+          <p className="soft-lede mt-5 max-w-xl">{product.summary}</p>
+
+          <div className="mt-7 flex flex-wrap items-end gap-6">
+            <div>
+              <p className="font-heading text-5xl font-semibold text-[var(--soft-bordeaux)]">{product.price}</p>
+              {product.creditPrice && (
+                <p className="mt-1 text-sm font-semibold text-[var(--soft-terracotta-dark)]">{product.creditPrice}</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              {product.slug === "perspectives" ? (
+                search?.dialogueId ? (
+                  <a href="#perspectives-actions" className="soft-button soft-button-primary">
+                    Получить 4 ракурса
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </a>
+                ) : (
+                  <Link
+                    href="/checkin"
+                    className="soft-button soft-button-primary"
+                    data-analytics-event="dialogue_cta_clicked"
+                    data-analytics-target="/checkin"
+                    data-analytics-product="perspectives"
+                    data-testid="product-dialogue-cta"
+                  >
+                    Начать бесплатный диалог
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                )
               ) : (
-                <Link
-                  href="/checkin"
-                  className="soft-button soft-button-primary"
-                  data-analytics-event="dialogue_cta_clicked"
-                  data-analytics-target="/checkin"
-                  data-analytics-product="perspectives"
-                  data-testid="product-dialogue-cta"
-                >
-                  Начать бесплатный диалог
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              )
-            ) : (
-              <>
-                <ProductPrimaryAction product={product} />
-                <Link
-                  href="/checkin"
-                  className="soft-button soft-button-ghost"
-                  data-analytics-event="dialogue_cta_clicked"
-                  data-analytics-target="/checkin"
-                  data-testid="product-dialogue-cta"
-                >
-                  Сначала бесплатный диалог
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              </>
-            )}
-            <Link href="/products" className="soft-button soft-button-ghost">
-              Все продукты
-            </Link>
+                <>
+                  <ProductPrimaryAction product={product} />
+                  <Link
+                    href="/checkin"
+                    className="soft-button soft-button-ghost"
+                    data-analytics-event="dialogue_cta_clicked"
+                    data-analytics-target="/checkin"
+                    data-testid="product-dialogue-cta"
+                  >
+                    Сначала бесплатный диалог
+                    <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                </>
+              )}
+              <Link href="/products" className="soft-button soft-button-ghost">
+                Все продукты
+              </Link>
+            </div>
           </div>
+          <p className="mt-4 text-xs leading-relaxed text-[var(--soft-ink-faint)] max-w-md">{product.privacy}</p>
         </div>
 
-        <aside className="soft-card soft-product-price-card">
-          <div className="soft-product-icon">
-            <ProductIcon slug={product.slug} />
-          </div>
-          <p className="soft-eyebrow mt-5">цена</p>
-          <p className="mt-2 font-heading text-5xl font-semibold text-[var(--soft-bordeaux)]">{product.price}</p>
-          {product.creditPrice && (
-            <p className="mt-2 text-sm font-semibold text-[var(--soft-terracotta-dark)]">{product.creditPrice}</p>
-          )}
-          <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.privacy}</p>
-          <div className="mt-5 flex items-start gap-2 rounded-2xl bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]">
-            <LockKeyhole className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-            <span>Доступ открывается только через entitlement после успешной оплаты, кредитов ясности, подписки или разрешенного trial.</span>
-          </div>
-        </aside>
-      </section>
-
-      <section className="soft-shell soft-product-detail-grid">
         <div>
           <ProductPreview product={product} />
         </div>
+      </section>
+
+      <section className="soft-shell py-2">
         <div className="soft-card p-5 md:p-7">
           <p className="soft-eyebrow">что получает пользователь</p>
           <h2 className="soft-h2 mt-2">{product.result}</h2>
-          <div className="mt-6 space-y-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
             {product.mechanics.map((item) => (
               <div key={item} className="flex items-start gap-3 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-ink-soft)]">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
@@ -401,10 +384,13 @@ export default async function ProductPage({
       )}
 
       <section className="soft-shell pb-20">
-        <div className="soft-card soft-product-legal">
-          <p className="soft-eyebrow">безопасность и приватность</p>
+        <div className="soft-card-flat soft-product-legal mx-auto max-w-3xl">
+          <div className="flex items-center gap-3">
+            <LockKeyhole className="size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+            <span className="font-semibold text-[var(--soft-bordeaux)]">Принцип ETerapy для любого формата</span>
+          </div>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Платные продукты не являются медицинской, юридической, финансовой или психологической консультацией. При признаках экстренной ситуации монетизация останавливается, а сценарий переводится в «Экстренную поддержку».
+            Результат носит информационно-рефлексивный характер. Не является медицинской, юридической, финансовой или психологической консультацией. При признаках экстренной ситуации монетизация останавливается, а сценарий переводится в «Экстренную поддержку».
           </p>
         </div>
       </section>

@@ -91,7 +91,19 @@ export function heuristicClarifyingQuestions(_input: {
   topic?: string | null;
   difficulty?: string | null;
 }): DialogueClarifyingQuestionsResult {
-  return { questions: [], chips: [], source: "heuristic" };
+  return {
+    questions: [
+      "Что сейчас самое важное для вас в этом вопросе?",
+      "Что вы уже пробовали или рассматривали?",
+      "Какой результат или ощущение вы хотели бы получить?",
+    ],
+    chips: [
+      ["Ясность", "Поддержка", "Действие"],
+      ["Ничего ещё", "Думал, но не пробовал", "Пробовал разное"],
+      ["Понять себя", "Принять решение", "Двигаться дальше"],
+    ],
+    source: "heuristic",
+  };
 }
 
 export async function generateDialogueClarifyingQuestions(input: {
