@@ -337,16 +337,6 @@ export default function CheckinPage() {
     setSaveState(persisted.saved ? "saved" : "error");
   }
 
-  const progress = phase === "question"
-    ? { current: 1, total: 4 }
-    : phase === "clarifying"
-      ? { current: 2, total: 4 }
-      : phase === "processing"
-        ? { current: 3, total: 4 }
-        : phase === "result"
-          ? { current: 4, total: 4 }
-          : undefined;
-
   return (
     <DialogueShell
       className="soft-clarity-page soft-dialogue-page"
@@ -358,7 +348,6 @@ export default function CheckinPage() {
             ? "В этом сценарии ETerapy не показывает платные действия и помогает перейти к безопасному следующему шагу."
             : "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ."
       }
-      progress={progress}
     >
       <PublicJsonLd route="/checkin" />
 
