@@ -231,6 +231,7 @@ export function PricingPlans() {
 
                 <Link
                   href={plan.href}
+                  prefetch={plan.href.startsWith("/cabinet/") ? false : undefined}
                   className="soft-button mt-6 w-full justify-center"
                   style={
                     plan.dark
