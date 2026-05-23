@@ -8,7 +8,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { classifyDialogueQuestion, DIALOGUE_TOPICS } from "@/lib/dialogue-router";
 import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
-import { generateDialogueClarifyingQuestions } from "@/lib/dialogue-clarifier";
+import { generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
 import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { markReferralMeaningfulAction } from "@/lib/share-referral";
@@ -150,14 +150,16 @@ export async function POST(request: NextRequest) {
     }),
   ]);
   const interrupted = shouldInterruptDialogue(safety.level);
-  const clarifier = interrupted ? null : await generateDialogueClarifyingQuestions({
-    question: parsed.data.question,
+  const firstTurn = interrupted ? null : await generateDialogueConversationalTurn({
+    originalQuestion: parsed.data.question,
+    previousPairs: [],
     topic: parsed.data.topic ?? routing.topic,
     difficulty: routing.difficulty,
     safetyLevel: safety.level,
     userId,
     requestId: context.requestId,
   });
+  const hasFirstQuestion = firstTurn?.type === "question" && firstTurn.question;
   const metadata = {
     ...parsed.data.metadata,
     routing: {
@@ -176,13 +178,11 @@ export async function POST(request: NextRequest) {
       provider: safety.provider,
       model: safety.model,
     },
-    ...(clarifier ? {
+    ...(hasFirstQuestion && firstTurn ? {
       clarifyingQuestions: {
-        questions: clarifier.questions,
-        chips: clarifier.chips,
-        source: clarifier.source,
-        provider: clarifier.provider,
-        model: clarifier.model,
+        source: firstTurn.source,
+        provider: firstTurn.provider,
+        model: firstTurn.model,
       },
     } : {}),
   };
@@ -203,15 +203,15 @@ export async function POST(request: NextRequest) {
             role: "USER",
             content: parsed.data.question,
           },
-          ...(clarifier ? [{
+          ...(hasFirstQuestion && firstTurn ? [{
             role: "ASSISTANT" as const,
-            content: clarifier.questions.map((question, index) => `${index + 1}. ${question}`).join("\n"),
+            content: firstTurn.question!,
             metadata: {
-              kind: "clarifying_questions",
-              questions: clarifier.questions,
-              source: clarifier.source,
-              provider: clarifier.provider,
-              model: clarifier.model,
+              kind: "clarifying_question",
+              chips: firstTurn.chips ?? [],
+              source: firstTurn.source,
+              provider: firstTurn.provider,
+              model: firstTurn.model,
             } as Prisma.InputJsonObject,
           }] : []),
         ],
@@ -246,10 +246,9 @@ export async function POST(request: NextRequest) {
         reason: safety.reason,
         interrupt: interrupted,
       },
-      clarifyingQuestions: clarifier?.questions.map((q, i) => ({
-        question: q,
-        chips: clarifier.chips[i] ?? [],
-      })) ?? [],
+      clarifyingQuestions: hasFirstQuestion && firstTurn?.question
+        ? [{ question: firstTurn.question, chips: firstTurn.chips ?? [] }]
+        : [],
       createdAt: dialogue.createdAt.toISOString(),
       updatedAt: dialogue.updatedAt.toISOString(),
       messages: dialogue.messages.map((message) => ({

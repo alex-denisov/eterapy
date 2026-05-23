@@ -338,20 +338,22 @@ export default async function ProductPage({
         </div>
       </section>
 
-      <section className="soft-shell py-2">
-        <div className="soft-card p-5 md:p-7">
-          <p className="soft-eyebrow">что получает пользователь</p>
-          <h2 className="soft-h2 mt-2">{product.result}</h2>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            {product.mechanics.map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-ink-soft)]">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                <span>{item}</span>
-              </div>
-            ))}
+      {product.slug !== "perspectives" && (
+        <section className="soft-shell py-2">
+          <div className="soft-card p-5 md:p-7">
+            <p className="soft-eyebrow">что получает пользователь</p>
+            <h2 className="soft-h2 mt-2">{product.result}</h2>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {product.mechanics.map((item) => (
+                <div key={item} className="flex items-start gap-3 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-ink-soft)]">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {product.slug === "deep-report" && (
         <section className="soft-shell">

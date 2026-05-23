@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { resetAuthRateLimitForTests } from "@/lib/auth-rate-limit";
 import { classifyDialogueQuestion } from "@/lib/dialogue-router";
 import { classifyDialogueSafety } from "@/lib/dialogue-safety";
-import { generateDialogueClarifyingQuestions } from "@/lib/dialogue-clarifier";
+import { generateDialogueClarifyingQuestions, generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
 import db from "@/lib/db";
 import { createGuestSessionCookieValue, GUEST_SESSION_COOKIE } from "@/lib/guest-session";
 import { GET as listDialogues, POST as createDialogue } from "@/app/api/dialogues/route";
@@ -44,6 +44,7 @@ jest.mock("@/lib/dialogue-safety", () => ({
 jest.mock("@/lib/dialogue-clarifier", () => ({
   __esModule: true,
   generateDialogueClarifyingQuestions: jest.fn(),
+  generateDialogueConversationalTurn: jest.fn(),
 }));
 
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
@@ -51,6 +52,7 @@ const mockDb = db as jest.Mocked<typeof db>;
 const mockClassifyDialogueQuestion = classifyDialogueQuestion as jest.MockedFunction<typeof classifyDialogueQuestion>;
 const mockClassifyDialogueSafety = classifyDialogueSafety as jest.MockedFunction<typeof classifyDialogueSafety>;
 const mockGenerateDialogueClarifyingQuestions = generateDialogueClarifyingQuestions as jest.MockedFunction<typeof generateDialogueClarifyingQuestions>;
+const mockGenerateDialogueConversationalTurn = generateDialogueConversationalTurn as jest.MockedFunction<typeof generateDialogueConversationalTurn>;
 
 function request(url: string, init: RequestInit = {}) {
   const parsedUrl = new URL(url);
@@ -113,9 +115,21 @@ describe("v5 dialogue API", () => {
       provider: "openrouter",
       model: "openrouter/free",
     });
+    mockGenerateDialogueConversationalTurn.mockResolvedValue({
+      type: "ready",
+      source: "heuristic",
+    });
   });
 
   it("creates a guest-owned dialogue and first clarification message", async () => {
+    mockGenerateDialogueConversationalTurn.mockResolvedValueOnce({
+      type: "question",
+      question: "Что для вас сейчас самое важное прояснить?",
+      chips: ["Острая, прямо сейчас", "Давняя тема", "Сложно сказать"],
+      source: "ai",
+      provider: "openai",
+      model: "gpt-4o-mini",
+    });
     (mockDb.dialogue.create as jest.Mock).mockResolvedValue({
       id: "dlg_1",
       title: "Как выбрать направление?",
@@ -135,7 +149,7 @@ describe("v5 dialogue API", () => {
         {
           id: "msg_2",
           role: "ASSISTANT",
-          content: "1. Что для вас сейчас самое важное прояснить?",
+          content: "Что для вас сейчас самое важное прояснить?",
           createdAt: now,
         },
       ],
@@ -154,7 +168,8 @@ describe("v5 dialogue API", () => {
     expect(body.dialogue.id).toBe("dlg_1");
     expect(body.dialogue.status).toBe("AWAITING_USER");
     expect(body.dialogue.difficulty).toBe("medium");
-    expect(body.dialogue.clarifyingQuestions).toHaveLength(3);
+    expect(body.dialogue.clarifyingQuestions).toHaveLength(1);
+    expect(body.dialogue.clarifyingQuestions[0].question).toBe("Что для вас сейчас самое важное прояснить?");
     expect(mockDb.dialogue.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: null,
@@ -169,9 +184,10 @@ describe("v5 dialogue API", () => {
             { role: "USER", content: "Как выбрать направление?" },
             expect.objectContaining({
               role: "ASSISTANT",
+              content: "Что для вас сейчас самое важное прояснить?",
               metadata: expect.objectContaining({
-                kind: "clarifying_questions",
-                questions: expect.arrayContaining(["Что для вас сейчас самое важное прояснить?"]),
+                kind: "clarifying_question",
+                source: "ai",
               }),
             }),
           ],
@@ -184,10 +200,6 @@ describe("v5 dialogue API", () => {
           }),
           safety: expect.objectContaining({
             level: "normal",
-            source: "ai",
-          }),
-          clarifyingQuestions: expect.objectContaining({
-            questions: expect.arrayContaining(["Что для вас сейчас самое важное прояснить?"]),
             source: "ai",
           }),
         }),
@@ -208,8 +220,9 @@ describe("v5 dialogue API", () => {
       userId: null,
       requestId: expect.any(String),
     });
-    expect(mockGenerateDialogueClarifyingQuestions).toHaveBeenCalledWith({
-      question: "Как выбрать направление?",
+    expect(mockGenerateDialogueConversationalTurn).toHaveBeenCalledWith({
+      originalQuestion: "Как выбрать направление?",
+      previousPairs: [],
       topic: "career",
       difficulty: "medium",
       safetyLevel: "normal",
@@ -384,7 +397,9 @@ describe("v5 dialogue API", () => {
 
   it("lets the owner answer clarifying questions and moves dialogue to processing", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({ id: "dlg-1", status: "AWAITING_USER" });
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({
+      id: "dlg-1", status: "AWAITING_USER", topic: "career", difficulty: "medium", safetyLevel: "normal",
+    });
     (mockDb.dialogue.update as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
@@ -396,7 +411,7 @@ describe("v5 dialogue API", () => {
       updatedAt: now,
       messages: [
         { id: "msg-1", role: "USER", content: "Question", createdAt: now },
-        { id: "msg-2", role: "ASSISTANT", content: "1. Что важно?", createdAt: now },
+        { id: "msg-2", role: "ASSISTANT", content: "Что важно?", createdAt: now },
         { id: "msg-3", role: "USER", content: "Мне важно выбрать спокойный вариант", createdAt: now },
       ],
     });
@@ -416,7 +431,7 @@ describe("v5 dialogue API", () => {
 
     expect(response.status).toBe(200);
     expect(body.dialogue.status).toBe("PROCESSING");
-    expect(body.clarifications.skipped).toBe(false);
+    expect(body.nextQuestion).toBeFalsy();
     expect(mockDb.dialogue.findFirst).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         id: "dlg-1",
@@ -424,10 +439,10 @@ describe("v5 dialogue API", () => {
         deletedAt: null,
       },
     }));
-    expect(mockDb.dialogue.update).toHaveBeenCalledWith(expect.objectContaining({
+    // First update: saves user message only
+    expect(mockDb.dialogue.update).toHaveBeenNthCalledWith(1, expect.objectContaining({
       where: { id: "dlg-1" },
       data: expect.objectContaining({
-        status: "PROCESSING",
         messages: {
           create: expect.objectContaining({
             role: "USER",
@@ -440,11 +455,21 @@ describe("v5 dialogue API", () => {
         },
       }),
     }));
+    // Second update: changes status to PROCESSING
+    expect(mockDb.dialogue.update).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: { id: "dlg-1" },
+      data: expect.objectContaining({ status: "PROCESSING" }),
+    }));
+    expect(mockGenerateDialogueConversationalTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ originalQuestion: expect.any(String), previousPairs: expect.any(Array) }),
+    );
   });
 
   it("lets the owner skip clarifying questions", async () => {
     const cookieValue = createGuestSessionCookieValue("gst_11111111-1111-4111-8111-111111111111");
-    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({ id: "dlg-1", status: "AWAITING_USER" });
+    (mockDb.dialogue.findFirst as jest.Mock).mockResolvedValue({
+      id: "dlg-1", status: "AWAITING_USER", topic: "career", difficulty: "medium", safetyLevel: "normal",
+    });
     (mockDb.dialogue.update as jest.Mock).mockResolvedValue({
       id: "dlg-1",
       title: "Question",
@@ -456,7 +481,7 @@ describe("v5 dialogue API", () => {
       updatedAt: now,
       messages: [
         { id: "msg-1", role: "USER", content: "Question", createdAt: now },
-        { id: "msg-2", role: "ASSISTANT", content: "1. Что важно?", createdAt: now },
+        { id: "msg-2", role: "ASSISTANT", content: "Что важно?", createdAt: now },
         { id: "msg-3", role: "USER", content: "Пропустить уточнения", createdAt: now },
       ],
     });
@@ -475,8 +500,9 @@ describe("v5 dialogue API", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.clarifications.skipped).toBe(true);
-    expect(mockDb.dialogue.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(body.dialogue.status).toBe("PROCESSING");
+    // First update: saves skip message
+    expect(mockDb.dialogue.update).toHaveBeenNthCalledWith(1, expect.objectContaining({
       data: expect.objectContaining({
         messages: {
           create: expect.objectContaining({
@@ -489,6 +515,11 @@ describe("v5 dialogue API", () => {
         },
       }),
     }));
+    // Second update: changes status to PROCESSING
+    expect(mockDb.dialogue.update).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      data: expect.objectContaining({ status: "PROCESSING" }),
+    }));
+    expect(mockGenerateDialogueConversationalTurn).not.toHaveBeenCalled();
   });
 
   it("rejects clarification responses when dialogue is not awaiting the user", async () => {

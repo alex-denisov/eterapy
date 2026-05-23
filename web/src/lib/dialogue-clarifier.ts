@@ -106,6 +106,97 @@ export function heuristicClarifyingQuestions(_input: {
   };
 }
 
+export interface ConversationalTurnResult {
+  type: "question" | "ready";
+  question?: string;
+  chips?: string[];
+  source: "ai" | "heuristic";
+  provider?: string;
+  model?: string;
+}
+
+function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
+  const json = extractJson(text);
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as { type?: string; question?: string; chips?: unknown };
+    if (parsed.type === "ready") return { type: "ready", source: "ai" };
+    if (parsed.type === "question" && typeof parsed.question === "string") {
+      const question = normalizeQuestion(parsed.question);
+      if (!question) return null;
+      return { type: "question", question, chips: normalizeChips(parsed.chips ?? []), source: "ai" };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+const MAX_CLARIFYING_TURNS = 3;
+
+export async function generateDialogueConversationalTurn(input: {
+  originalQuestion: string;
+  previousPairs: Array<{ question: string; answer: string }>;
+  topic?: string | null;
+  difficulty?: string | null;
+  safetyLevel?: string | null;
+  userId?: string | null;
+  requestId?: string;
+}): Promise<ConversationalTurnResult> {
+  if (input.previousPairs.length >= MAX_CLARIFYING_TURNS) {
+    return { type: "ready", source: "heuristic" };
+  }
+
+  const fallback: ConversationalTurnResult =
+    input.previousPairs.length === 0
+      ? { type: "question", question: "Что сейчас самое важное для вас в этом вопросе?", chips: ["Ясность", "Поддержка", "Действие"], source: "heuristic" }
+      : { type: "ready", source: "heuristic" };
+
+  try {
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      {
+        role: "system",
+        content: [
+          "You facilitate a brief clarifying dialogue for ETerapy self-reflection.",
+          `Context: topic=${input.topic ?? "unknown"}, difficulty=${input.difficulty ?? "unknown"}, safety=${input.safetyLevel ?? "unknown"}.`,
+          `Clarifying turns so far: ${input.previousPairs.length}. Maximum: ${MAX_CLARIFYING_TURNS}.`,
+          "Decide: if you need one more specific question to personalize the answer, ask it. If you have enough context, return ready.",
+          'Return JSON only: {"type":"question","question":"...","chips":["...","...","..."]} OR {"type":"ready"}.',
+          "Question: gentle, personal, non-diagnostic, in Russian, max 160 chars.",
+          "Chips: exactly 3 short (1-6 words) concrete answer options in Russian.",
+          "Never diagnose, advise, or answer the user. Never ask about crisis, medical, or legal topics.",
+        ].join(" "),
+      },
+      { role: "user", content: input.originalQuestion },
+    ];
+
+    for (const pair of input.previousPairs) {
+      messages.push({ role: "assistant", content: pair.question });
+      messages.push({ role: "user", content: pair.answer });
+    }
+
+    const response = await aiComplete({
+      feature: "dialogue_clarifier",
+      userId: input.userId,
+      requestId: input.requestId,
+      maxTokens: 400,
+      temperature: 0.3,
+      messages,
+    });
+
+    const parsed = parseConversationalTurnResponse(response.text);
+    if (!parsed) return fallback;
+
+    return { ...parsed, provider: response.provider, model: response.model };
+  } catch (error) {
+    log.warn("dialogue-clarifier-conversational-fallback", {
+      requestId: input.requestId,
+      error: serializeError(error),
+    });
+    return fallback;
+  }
+}
+
 export async function generateDialogueClarifyingQuestions(input: {
   question: string;
   topic?: string | null;

@@ -282,23 +282,38 @@ export default function CheckinPage() {
     const answer = skip ? "Пропущено" : (overrideText ?? clarification.trim());
     if (!answer) return;
 
-    const nextAnswers = [...clarifyingAnswers, answer];
-    const isLastQuestion = nextAnswers.length >= clarifyingQuestions.length;
-    if (!isLastQuestion) {
+    setError("");
+    setPhase("processing");
+
+    try {
+      const data = await requestJson<{
+        dialogue: DialoguePayload;
+        nextQuestion?: { question: string; chips?: string[] } | null;
+      }>(`/api/dialogues/${dialogue.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: answer }),
+      });
+
+      const nextAnswers = [...clarifyingAnswers, answer];
       setClarifyingAnswers(nextAnswers);
       setClarification("");
-      setError("");
-      return;
-    }
 
-    const skippedEverything = nextAnswers.every((item) => item === "Пропущено");
-    const message = nextAnswers
-      .map((item, index) => {
-        const prompt = clarifyingQuestions[index]?.question ?? `Уточнение ${index + 1}`;
-        return `Уточнение ${index + 1}: ${prompt}\nОтвет: ${item}`;
-      })
-      .join("\n\n");
-    await submitClarification(message, skippedEverything);
+      if (data.nextQuestion) {
+        setDialogue({
+          ...dialogue,
+          ...data.dialogue,
+          clarifyingQuestions: [...(dialogue.clarifyingQuestions ?? []), data.nextQuestion],
+        });
+        setPhase("clarifying");
+      } else {
+        setDialogue(data.dialogue);
+        await generateAnswer(data.dialogue.id);
+      }
+    } catch (err) {
+      setPhase("clarifying");
+      setError(err instanceof Error ? err.message : "Не удалось отправить уточнение");
+    }
   }
 
   function reset() {
