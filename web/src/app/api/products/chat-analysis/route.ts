@@ -30,6 +30,7 @@ const postSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("generate"),
     id: z.string(),
+    contextNote: z.string().max(1200).optional(),
   }),
 ]);
 
@@ -221,6 +222,7 @@ export async function POST(request: NextRequest) {
 
     const generated = await generateChatAnalysis({
       sourceText,
+      contextNote: input.contextNote,
       userId,
       requestId: context.requestId,
     });
@@ -232,6 +234,7 @@ export async function POST(request: NextRequest) {
         resultText: generated.text,
         metadata: {
           ...(metadata ?? {}),
+          analysisContextNote: input.contextNote ?? null,
           generationMetadata: generated.metadata,
           generationConfirmedAt: new Date().toISOString(),
         },

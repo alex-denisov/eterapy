@@ -11,9 +11,18 @@ jest.mock("@/lib/db", () => ({
       create: jest.fn(),
       updateMany: jest.fn(),
     },
+    creditLedgerEntry: {
+      create: jest.fn(),
+    },
+    clarityCreditLedgerEntry: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }));
 
+import fs from "node:fs";
+import path from "node:path";
 import db from "@/lib/db";
 import {
   getProductPriceKopecks,
@@ -36,6 +45,8 @@ const mockDb = db as unknown as {
     create: jest.Mock;
     updateMany: jest.Mock;
   };
+  creditLedgerEntry: { create: jest.Mock };
+  clarityCreditLedgerEntry: { findMany: jest.Mock; create: jest.Mock };
 };
 
 function tx() {
@@ -86,6 +97,47 @@ describe("v5 billing entitlements", () => {
     expect(() => resolveBillingPurchase({ productKey: "deep-report", planKey: "plus" })).toThrow(
       "Нельзя одновременно оплатить продукт и подписку"
     );
+  });
+
+  it("keeps product card checkout return URL tied to the originating product flow", () => {
+    const route = fs.readFileSync(path.join(process.cwd(), "src/app/api/billing/create-payment/route.ts"), "utf8");
+    const controls = fs.readFileSync(path.join(process.cwd(), "src/components/products/product-purchase-controls.tsx"), "utf8");
+
+    expect(controls).toContain("returnPath: currentUrl");
+    expect(controls).toContain("/api/billing/reconcile");
+    expect(controls).toContain("/api/billing/entitlements?productKey=");
+    expect(controls).toContain('paymentStatus !== "success"');
+    expect(route).toContain("returnPath");
+    expect(route).toContain("buildBillingReturnUrl");
+    expect(route).not.toContain('const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;');
+  });
+
+  it("grants subscription clarity credits when a paid subscription transaction succeeds", async () => {
+    mockDb.userSubscription.create.mockResolvedValueOnce({ id: "sub-1" });
+    mockDb.creditLedgerEntry.create.mockResolvedValueOnce({ id: "ledger-charge" });
+    mockDb.clarityCreditLedgerEntry = {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({ id: "clarity-grant", balanceAfter: 10 }),
+    };
+
+    const result = await grantEntitlementForTransaction(mockDb as never, {
+      id: "tx-sub",
+      userId: "user-1",
+      amount: 49000,
+      description: "ETerapy Plus",
+      metadata: { purchaseKind: "subscription", planKey: "plus" },
+    });
+
+    expect(result).toEqual({ kind: "subscription", planKey: "plus" });
+    expect(mockDb.clarityCreditLedgerEntry.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-1",
+        amount: 10,
+        type: "grant",
+        source: "subscription",
+        sourceEventId: "tx-sub",
+      }),
+    }));
   });
 
   it("grants product entitlement from a paid transaction without touching UI state", async () => {

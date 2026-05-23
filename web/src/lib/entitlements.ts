@@ -97,6 +97,7 @@ export type BillingTransactionMetadata = {
   productKey?: string;
   planKey?: string;
   checkoutSource?: string;
+  returnPath?: string;
 };
 
 export type ResolvedBillingPurchase =
@@ -148,6 +149,7 @@ export function resolveBillingPurchase(input: {
   productKey?: unknown;
   planKey?: unknown;
   checkoutSource?: unknown;
+  returnPath?: unknown;
 }): ResolvedBillingPurchase {
   const productKey = typeof input.productKey === "string" && input.productKey.trim()
     ? input.productKey.trim()
@@ -157,6 +159,9 @@ export function resolveBillingPurchase(input: {
     : null;
   const checkoutSource = typeof input.checkoutSource === "string" && input.checkoutSource.trim()
     ? input.checkoutSource.trim()
+    : undefined;
+  const returnPath = typeof input.returnPath === "string" && input.returnPath.startsWith("/") && !input.returnPath.startsWith("//")
+    ? input.returnPath.slice(0, 500)
     : undefined;
 
   if (productKey && planKey) {
@@ -175,7 +180,7 @@ export function resolveBillingPurchase(input: {
       kind: "product",
       amountKopecks: price,
       description: `ETerapy: ${productKey}`,
-      metadata: { purchaseKind: "product", productKey, checkoutSource },
+      metadata: { purchaseKind: "product", productKey, checkoutSource, returnPath },
     };
   }
 
@@ -188,7 +193,7 @@ export function resolveBillingPurchase(input: {
       kind: "subscription",
       amountKopecks: plan.amountKopecks,
       description: `ETerapy ${plan.name}: первый период`,
-      metadata: { purchaseKind: "subscription", planKey, checkoutSource },
+      metadata: { purchaseKind: "subscription", planKey, checkoutSource, returnPath },
     };
   }
 
@@ -205,7 +210,7 @@ export function resolveBillingPurchase(input: {
     kind: "balance",
     amountKopecks,
     description,
-    metadata: { purchaseKind: "balance", checkoutSource },
+    metadata: { purchaseKind: "balance", checkoutSource, returnPath },
   };
 }
 
@@ -305,6 +310,46 @@ export async function recordCreditLedgerEntry(
   });
 }
 
+async function recordSubscriptionClarityCreditGrant(
+  tx: Prisma.TransactionClient,
+  input: {
+    userId: string;
+    amount: number;
+    transactionId: string;
+    planKey: string;
+    expiresAt?: Date | null;
+  },
+) {
+  if (input.amount <= 0) return null;
+
+  const now = new Date();
+  const entries = await tx.clarityCreditLedgerEntry.findMany({
+    where: { userId: input.userId, status: { in: ["pending", "confirmed"] } },
+    select: { amount: true, expiresAt: true },
+  });
+  const balanceBefore = entries.reduce((sum, entry) => (
+    !entry.expiresAt || entry.expiresAt > now ? sum + entry.amount : sum
+  ), 0);
+
+  return tx.clarityCreditLedgerEntry.create({
+    data: {
+      userId: input.userId,
+      amount: input.amount,
+      balanceAfter: balanceBefore + input.amount,
+      type: "grant",
+      source: "subscription",
+      sourceEventId: input.transactionId,
+      status: "confirmed",
+      expiresAt: input.expiresAt ?? null,
+      metadata: {
+        purchaseKind: "subscription",
+        planKey: input.planKey,
+        transactionId: input.transactionId,
+      } as Prisma.InputJsonObject,
+    },
+  });
+}
+
 export async function grantEntitlementForTransaction(
   tx: Prisma.TransactionClient,
   transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata">,
@@ -374,6 +419,14 @@ export async function grantEntitlementForTransaction(
       transactionId: transaction.id,
       description: transaction.description,
       metadata: metadata as Prisma.InputJsonObject,
+    });
+
+    await recordSubscriptionClarityCreditGrant(tx, {
+      userId: transaction.userId,
+      amount: plan.creditsPerPeriod,
+      transactionId: transaction.id,
+      planKey: metadata.planKey,
+      expiresAt: currentPeriodEnd,
     });
     return { kind: "subscription" as const, planKey: metadata.planKey };
   }

@@ -34,9 +34,64 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain('href="/checkin"');
     expect(detailPage).toContain("<ProductPurchaseControls");
     expect(detailPage).toContain('href={product.directHref}');
+    expect(detailPage).toContain("creditCost={product.creditCost}");
     expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/pay-from-balance");
     expect(source("lib/v5-products.ts")).toContain('route: "/products/tarot"');
     expect(source("lib/v5-products.ts")).toContain('directHref: "/practitioners?format=joint-session"');
+  });
+
+  it("ports v4.2 product hero and page-specific blocks instead of a generic product template", () => {
+    const detailPage = source("app/products/[slug]/page.tsx");
+    const products = source("lib/v5-products.ts");
+
+    expect(detailPage).toContain('data-testid="product-hero"');
+    expect(detailPage).toContain('data-testid="product-hero-preview"');
+    expect(detailPage).toContain("← На главную");
+    expect(detailPage).toContain("product.priceMeta");
+
+    expect(detailPage).toContain("ETerapy · глубокий отчёт");
+    expect(detailPage).toContain('data-testid="deep-report-sample-main-fork"');
+    expect(detailPage).toContain("03 · Карта факт-чувство-предположение");
+    expect(detailPage).toContain("Если хочется");
+
+    expect(detailPage).toContain('data-testid="extended-map-central-story"');
+    expect(detailPage).toContain("3 темы стали тише за год, 1 — окрепла");
+
+    expect(detailPage).toContain('data-testid="tarot-live-example"');
+    expect(detailPage).toContain("Раскрыть карты");
+    expect(detailPage).toContain("интерпретация · фрагмент");
+
+    expect(detailPage).toContain('data-testid="natal-birth-data"');
+    expect(detailPage).toContain("акцент года");
+
+    expect(detailPage).toContain('data-testid="numerology-number-cards"');
+    expect(detailPage).toContain("что с этим делать");
+
+    expect(detailPage).toContain('data-testid="joint-session-timeline"');
+    expect(detailPage).toContain("структура встречи");
+
+    expect(products).toContain("Глубокий отчёт");
+    expect(products).toContain("или −4 кредита ясности · в Plus входит");
+    expect(products).toContain("один отчёт на двоих");
+  });
+
+  it("keeps paid symbolic and map products usable after purchase", () => {
+    const detailPage = source("app/products/[slug]/page.tsx");
+    const actions = source("components/products/symbolic-product-actions.tsx");
+    const route = source("app/api/products/symbolic/route.ts");
+
+    expect(detailPage).toContain("<SymbolicProductActions");
+    expect(detailPage).toContain('product.slug === "tarot"');
+    expect(detailPage).toContain('product.slug === "natal-chart"');
+    expect(detailPage).toContain('product.slug === "numerology"');
+    expect(detailPage).toContain('product.slug === "my-map"');
+
+    expect(actions).toContain("/api/products/symbolic");
+    expect(actions).toContain("<ProductPurchaseControls");
+    expect(actions).toContain("if (userInput.trim())");
+    expect(route).toContain('productKey: "tarot"');
+    expect(route).toContain('productKey: "my-map"');
+    expect(route).toContain("userHasActiveEntitlement");
   });
 
   it("documents required privacy and paid-product mechanics", () => {
@@ -48,7 +103,7 @@ describe("v5 product pages", () => {
     expect(products).toContain("пауза и продолжение");
     expect(products).toContain("сохранить, скрыть или удалить");
     expect(products).toContain("открытие через entitlement");
-    expect(products).toContain("или -4 кредита ясности");
+    expect(products).toContain("или −4 кредита ясности");
     expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");
     expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/spend-credits");
     expect(source("app/api/billing/pay-from-balance/route.ts")).toContain("purchaseProductWithBalance");

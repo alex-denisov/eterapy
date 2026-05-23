@@ -9,6 +9,7 @@ import { generateCompatibility } from "@/lib/compatibility";
 import { buildPairTeaser, dialogueToPrivateText } from "@/lib/social-clarity";
 
 const PRODUCT_KEY = "compatibility";
+const PRODUCT_KEYS = ["compatibility", "pair"] as const;
 
 const postSchema = z.object({
   creatorConsent: z.literal(true),
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     relationType: compatibility.type,
   });
 
-  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  const entitlementChecks = await Promise.all(PRODUCT_KEYS.map((key) => userHasActiveEntitlement(userId, key)));
+  const hasEntitlement = entitlementChecks.some(Boolean);
   if (!hasEntitlement) {
     const updated = await db.compatibility.update({
       where: { id },

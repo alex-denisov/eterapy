@@ -9,6 +9,12 @@ import { inviteExpiryDate } from "@/lib/social-clarity";
 import { requestFingerprint } from "@/lib/antifraud";
 
 const PRODUCT_KEY = "compatibility";
+const PRODUCT_KEYS = ["compatibility", "pair"] as const;
+
+function parseProductKey(request: NextRequest) {
+  const value = request.nextUrl.searchParams.get("productKey");
+  return PRODUCT_KEYS.includes(value as (typeof PRODUCT_KEYS)[number]) ? value! : PRODUCT_KEY;
+}
 
 const postSchema = z.object({
   action: z.literal("create_invite"),
@@ -22,7 +28,8 @@ export async function GET(request: NextRequest) {
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
 
-  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  const productKey = parseProductKey(request);
+  const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
   
   // Find incomplete compatibilities
   const result = await db.compatibility.findFirst({

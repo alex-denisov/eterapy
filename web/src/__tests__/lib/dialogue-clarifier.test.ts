@@ -1,5 +1,6 @@
 import {
   generateDialogueClarifyingQuestions,
+  generateDialogueConversationalTurn,
   heuristicClarifyingQuestions,
   parseClarifyingQuestionsResponse,
 } from "@/lib/dialogue-clarifier";
@@ -104,6 +105,67 @@ describe("dialogue-clarifier", () => {
     expect(result.source).toBe("heuristic");
     expect(result.questions.length).toBeGreaterThanOrEqual(1);
     expect(result.chips.length).toBe(result.questions.length);
+  });
+
+  it("keeps the live conversational fallback contextual instead of repeating a generic script", async () => {
+    mockAiComplete.mockRejectedValue(new Error("provider down"));
+
+    const result = await generateDialogueConversationalTurn({
+      question: "Стоит ли уходить с работы, если руководитель постоянно обесценивает мои идеи?",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      previousPairs: [
+        {
+          assistant: "Что в этой ситуации стало для вас самым болезненным?",
+          user: "Я перестала предлагать идеи, потому что руководитель сразу говорит, что это ерунда.",
+        },
+      ],
+      requestId: "req-live-fallback",
+    });
+
+    expect(result.type).toBe("question");
+    if (result.type === "question") {
+      expect(result.source).toBe("heuristic");
+      expect(result.question).toMatch(/работ|руководител|иде/i);
+      expect([
+        "Что сейчас самое важное в этой ситуации — понять, решить, отпустить или подготовиться?",
+        "Что вы уже пробовали, и что из этого хоть немного помогло?",
+      ]).not.toContain(result.question);
+    }
+  });
+
+  it("returns an AI conversational turn with provider metadata when the gateway answers", async () => {
+    mockAiComplete.mockResolvedValue({
+      text: '{"q":"Что изменится для вас, если вы сегодня не будете доказывать ценность руководителю?","c":["Станет легче","Появится страх","Не знаю"]}',
+      provider: "openai",
+      model: "gpt-test",
+      tokensIn: 120,
+      tokensOut: 40,
+      latencyMs: 300,
+    });
+
+    const result = await generateDialogueConversationalTurn({
+      question: "Руководитель обесценивает мои идеи",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      previousPairs: [],
+      userId: "user-1",
+      requestId: "req-live-ai",
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      type: "question",
+      source: "ai",
+      provider: "openai",
+      model: "gpt-test",
+    }));
+    expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
+      feature: "dialogue-clarifier",
+      userId: "user-1",
+      requestId: "req-live-ai",
+    }));
   });
 
   it("heuristic returns fallback questions for any topic", () => {

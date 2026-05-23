@@ -38,6 +38,17 @@ describe("B087/B088 chat analysis product", () => {
     expect(helper).toContain("Do not state the other person's intent as fact");
   });
 
+  it("passes the user context note into generation and records it in metadata", () => {
+    const route = source("src/app/api/products/chat-analysis/route.ts");
+    const helper = source("src/lib/chat-analysis.ts");
+
+    expect(route).toContain("contextNote: z.string()");
+    expect(route).toContain("contextNote: input.contextNote");
+    expect(route).toContain("analysisContextNote");
+    expect(helper).toContain("contextNote?: string");
+    expect(helper).toContain("Context from user before analysis:");
+  });
+
   it("allows user to delete the raw source while keeping the result (B088)", () => {
     const itemRoute = source("src/app/api/products/chat-analysis/[id]/route.ts");
     

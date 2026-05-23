@@ -54,9 +54,11 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 export function CompatibilityActions({
   dialogueId,
   inviteToken,
+  productKey = "compatibility",
 }: {
   dialogueId?: string | null;
   inviteToken?: string | null;
+  productKey?: "compatibility" | "pair";
 }) {
   const { status: authStatus } = useSession();
   const [result, setResult] = useState<CompatibilityResult | null>(null);
@@ -73,8 +75,8 @@ export function CompatibilityActions({
     const url = inviteToken
       ? `/api/products/compatibility/invite/${encodeURIComponent(inviteToken)}`
       : dialogueId
-        ? `/api/products/compatibility?dialogueId=${encodeURIComponent(dialogueId)}`
-        : `/api/products/compatibility`;
+        ? `/api/products/compatibility?dialogueId=${encodeURIComponent(dialogueId)}&productKey=${productKey}`
+        : `/api/products/compatibility?productKey=${productKey}`;
     jsonRequest<ApiPayload>(url)
       .then((payload) => {
         if (cancelled) return;
@@ -83,7 +85,7 @@ export function CompatibilityActions({
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, [authStatus, dialogueId, inviteToken]);
+  }, [authStatus, dialogueId, inviteToken, productKey]);
 
   async function createInvite() {
     if (!dialogueId) return;
@@ -341,10 +343,10 @@ export function CompatibilityActions({
             {!hasEntitlement && (
               <div className="mt-3">
                 <ProductPurchaseControls
-                  productKey="compatibility"
+                  productKey={productKey}
                   label="Открыть с баланса"
                   checkoutSource="compatibility-generate"
-                  creditCost={4}
+                  creditCost={productKey === "pair" ? 3 : 4}
                   onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
                 />
               </div>

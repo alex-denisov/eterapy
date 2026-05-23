@@ -86,14 +86,22 @@ export function parseClarifyingQuestionsResponse(text: string): { questions: str
   }
 }
 
-export function heuristicClarifyingQuestions(_input: {
+export function heuristicClarifyingQuestions(input: {
   question: string;
   topic?: string | null;
   difficulty?: string | null;
 }): DialogueClarifyingQuestionsResult {
+  const openingQuestion = input.topic === "relationships"
+    ? "Что в этой ситуации с отношениями сейчас болит сильнее всего?"
+    : input.topic === "career"
+      ? "Что в рабочей ситуации сейчас сильнее всего требует ясности?"
+      : input.topic === "anxiety"
+        ? "В какой момент тревога становится заметнее всего?"
+        : "Что сейчас самое важное для вас в этом вопросе?";
+
   return {
     questions: [
-      "Что сейчас самое важное для вас в этом вопросе?",
+      openingQuestion,
       "Что вы уже пробовали или рассматривали?",
       "Какой результат или ощущение вы хотели бы получить?",
     ],
@@ -126,6 +134,65 @@ const HEURISTIC_QUESTION_POOL: Array<{ question: string; chips: string[] }> = [
   { question: "Какой результат или ощущение вы хотели бы получить?", chips: ["Понять себя", "Принять решение", "Двигаться дальше"] },
 ];
 
+const CONTEXT_MARKERS: Array<{
+  test: RegExp;
+  question: (context: string) => string;
+  chips: string[];
+}> = [
+  {
+    test: /работ|руководител|коллег|команд|карьер|проект|иде/i,
+    question: () => "Что в ситуации с работой и руководителем сильнее всего заставляет вас уменьшать свои идеи или голос?",
+    chips: ["Страх оценки", "Усталость", "Хочу опору"],
+  },
+  {
+    test: /отнош|партн|бывш|люб|семь|муж|жен/i,
+    question: () => "В отношениях сейчас больнее неопределённость, дистанция или ощущение, что вам приходится быть тише себя?",
+    chips: ["Неопределённость", "Дистанция", "Я становлюсь тише"],
+  },
+  {
+    test: /тревог|страх|паник|боюсь|напряж/i,
+    question: () => "Если отделить тревогу от фактов, какой факт в этой ситуации точно есть прямо сейчас?",
+    chips: ["Есть факт", "Больше ощущение", "Пока не знаю"],
+  },
+  {
+    test: /деньг|кредит|ипотек|финанс|зарплат/i,
+    question: () => "В денежной части вопроса вам важнее увидеть реальные ограничения, страх потери или следующий маленький шаг?",
+    chips: ["Ограничения", "Страх потери", "Шаг"],
+  },
+];
+
+function normalizePair(pair: { question?: string; answer?: string; assistant?: string; user?: string }) {
+  return {
+    question: pair.question ?? pair.assistant ?? "",
+    answer: pair.answer ?? pair.user ?? "",
+  };
+}
+
+function buildContextualFallback(input: {
+  originalQuestion?: string;
+  question?: string;
+  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>;
+}): ConversationalTurnResult {
+  const originalQuestion = input.originalQuestion ?? input.question ?? "";
+  const normalizedPairs = input.previousPairs.map(normalizePair);
+  const lastAnswer = normalizedPairs.at(-1)?.answer ?? "";
+  const context = [originalQuestion, lastAnswer].filter(Boolean).join("\n");
+  const marker = CONTEXT_MARKERS.find((entry) => entry.test.test(context));
+  if (marker) {
+    return {
+      type: "question",
+      question: marker.question(context),
+      chips: marker.chips,
+      source: "heuristic",
+    };
+  }
+
+  const generic = HEURISTIC_QUESTION_POOL[input.previousPairs.length];
+  return generic
+    ? { type: "question", question: generic.question, chips: generic.chips, source: "heuristic" }
+    : { type: "ready", source: "heuristic" };
+}
+
 function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
   const json = extractJson(text);
   if (!json) return null;
@@ -150,8 +217,9 @@ function parseConversationalTurnResponse(text: string): ConversationalTurnResult
 }
 
 export async function generateDialogueConversationalTurn(input: {
-  originalQuestion: string;
-  previousPairs: Array<{ question: string; answer: string }>;
+  originalQuestion?: string;
+  question?: string;
+  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>;
   topic?: string | null;
   difficulty?: string | null;
   safetyLevel?: string | null;
@@ -162,10 +230,9 @@ export async function generateDialogueConversationalTurn(input: {
     return { type: "ready", source: "heuristic" };
   }
 
-  const heuristicTurn = HEURISTIC_QUESTION_POOL[input.previousPairs.length];
-  const fallback: ConversationalTurnResult = heuristicTurn
-    ? { type: "question", question: heuristicTurn.question, chips: heuristicTurn.chips, source: "heuristic" }
-    : { type: "ready", source: "heuristic" };
+  const originalQuestion = input.originalQuestion ?? input.question ?? "";
+  const previousPairs = input.previousPairs.map(normalizePair);
+  const fallback = buildContextualFallback({ originalQuestion, previousPairs });
 
   const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
 
@@ -178,6 +245,7 @@ export async function generateDialogueConversationalTurn(input: {
       "Ты ведёшь диалог ясности на платформе ETerapy.",
       `Тема: ${input.topic ?? "неизвестна"}, сложность: ${input.difficulty ?? "неизвестна"}.`,
       "Задай ОДИН уточняющий вопрос, чтобы лучше понять ситуацию пользователя.",
+      "Вопрос должен явно опираться на слова пользователя и предыдущий ответ, а не повторять универсальный сценарий.",
       "",
       "Ответь строго в формате JSON (без markdown, без пояснений):",
       '{"q":"вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
@@ -187,16 +255,17 @@ export async function generateDialogueConversationalTurn(input: {
       "Правила:",
       "- Вопрос мягкий, конкретный, личный, не диагностический, на русском, до 160 символов",
       "- Три коротких варианта ответа (1-6 слов) на русском языке",
+      "- Не повторяй уже заданные вопросы и не используй безличные шаблоны вроде «что сейчас самое важное»",
       readyInstruction,
       "- Не давай советов, не задавай вопросов о кризисах, медицине или праве",
     ].join("\n");
 
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
       { role: "system", content: systemContent },
-      { role: "user", content: input.originalQuestion },
+      { role: "user", content: originalQuestion },
     ];
 
-    for (const pair of input.previousPairs) {
+    for (const pair of previousPairs) {
       messages.push({ role: "assistant", content: pair.question });
       messages.push({ role: "user", content: pair.answer });
     }

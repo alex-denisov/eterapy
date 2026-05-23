@@ -111,12 +111,6 @@ export default function CheckinPage() {
   }, [phase]);
 
   useEffect(() => {
-    if (phase !== "clarifying" || !dialogue || clarifyingQuestions.length > 0) return;
-    void submitClarification("", true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, dialogue?.id, clarifyingQuestions.length]);
-
-  useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
     track({ event: "primary_answer_viewed", surface: "checkin", dialogueId: dialogue.id });
     let cancelled = false;
@@ -276,6 +270,15 @@ export default function CheckinPage() {
       setError(err instanceof Error ? err.message : "Не удалось отправить уточнение");
     }
   }
+
+  useEffect(() => {
+    if (phase !== "clarifying" || !dialogue || clarifyingQuestions.length > 0) return;
+    const timer = window.setTimeout(() => {
+      void submitClarification("", true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, dialogue?.id, clarifyingQuestions.length]);
 
   async function sendClarification(skip = false, overrideText?: string) {
     if (!dialogue) return;

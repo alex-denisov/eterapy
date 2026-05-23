@@ -74,18 +74,6 @@ const ANGLE_GLYPHS: Record<string, string> = {
   action: "↗",
 };
 
-function AngleGlyph({ id, size = 28 }: { id: string; size?: number }) {
-  const style = ANGLE_STYLES[id] ?? ANGLE_STYLES.mind;
-  return (
-    <span
-      aria-hidden="true"
-      style={{ fontSize: size, color: style.color, opacity: 0.55, lineHeight: 1 }}
-    >
-      {ANGLE_GLYPHS[id] ?? "·"}
-    </span>
-  );
-}
-
 function AngleCardPreview({
   angle,
   index,

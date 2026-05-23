@@ -149,6 +149,18 @@ export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
     fallbackNotes: "Daily free can be cheap; final report is premium.",
   },
   {
+    feature: "product-symbolic",
+    enabled: true,
+    tier: "premium",
+    title: "Таро, натальная карта, нумерология, расширенная карта",
+    purpose: "Платные символические продукты без фатальности и с практическим следующим шагом.",
+    providerOrder: [...directPremiumOrder],
+    maxTokens: 1800,
+    temperature: 0.45,
+    timeoutMs: 45_000,
+    fallbackNotes: "Paid symbolic value uses direct providers; heuristic fallback is visibly marked in metadata.",
+  },
+  {
     feature: "session-compliance",
     enabled: true,
     tier: "compliance",

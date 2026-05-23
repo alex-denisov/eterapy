@@ -186,7 +186,7 @@ export async function extractChatTextFromScreenshot(input: {
   }
 }
 
-export function heuristicChatAnalysis(_sourceText: string): { text: string; metadata: Prisma.InputJsonObject } {
+export function heuristicChatAnalysis(sourceText: string): { text: string; metadata: Prisma.InputJsonObject } {
   const structured: ChatAnalysisStructured = {
     insight: "В этой переписке просматривается знакомый сценарий: попытка близости упирается в защитную реакцию — и оба собеседника остаются с ощущением, что их не слышат.",
     tonesThem: [
@@ -208,11 +208,12 @@ export function heuristicChatAnalysis(_sourceText: string): { text: string; meta
     ],
     safetyNote: "Если в переписке есть угрозы, давление, унижение или физическая опасность — это уже не тема для разбора, а тема для специалиста.",
   };
-  return { text: JSON.stringify(structured), metadata: { source: "heuristic" } };
+  return { text: JSON.stringify(structured), metadata: { source: "heuristic", sourceLength: sourceText.length } };
 }
 
 export async function generateChatAnalysis(input: {
   sourceText: string;
+  contextNote?: string | null;
   userId: string;
   requestId?: string;
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
@@ -238,7 +239,11 @@ export async function generateChatAnalysis(input: {
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: "Chat log to analyze:\n" + normalize(input.sourceText.slice(0, 8000)),
+          content: [
+            input.contextNote ? `Context from user before analysis:\n${normalize(input.contextNote).slice(0, 1200)}` : "",
+            "Chat log to analyze:",
+            normalize(input.sourceText.slice(0, 8000)),
+          ].filter(Boolean).join("\n\n"),
         },
       ],
     });
@@ -256,6 +261,7 @@ export async function generateChatAnalysis(input: {
         tokensIn: response.tokensIn,
         tokensOut: response.tokensOut,
         latencyMs: response.latencyMs,
+        contextNoteIncluded: Boolean(input.contextNote),
       },
     };
   } catch (error) {

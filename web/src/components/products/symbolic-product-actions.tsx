@@ -1,0 +1,183 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { ArrowRight, LockKeyhole, Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+
+type SymbolicResult = {
+  id: string;
+  status: string;
+  title: string;
+  previewText: string | null;
+  resultText: string | null;
+  saved: boolean;
+};
+
+type ApiPayload = {
+  hasEntitlement?: boolean;
+  result?: SymbolicResult;
+  results?: SymbolicResult[];
+  error?: string;
+};
+
+async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error((payload as ApiPayload).error ?? "Не удалось выполнить действие");
+    (error as Error & { status?: number }).status = response.status;
+    throw error;
+  }
+  return payload as T;
+}
+
+export function SymbolicProductActions({
+  productKey,
+  title,
+  promptLabel,
+  placeholder,
+  creditCost,
+}: {
+  productKey: "tarot" | "natal-chart" | "numerology" | "my-map";
+  title: string;
+  promptLabel: string;
+  placeholder: string;
+  creditCost: number;
+}) {
+  const { status: authStatus } = useSession();
+  const [hasEntitlement, setHasEntitlement] = useState(false);
+  const [result, setResult] = useState<SymbolicResult | null>(null);
+  const [userInput, setUserInput] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (authStatus !== "authenticated") return;
+    let cancelled = false;
+    jsonRequest<ApiPayload>(`/api/products/symbolic?productKey=${productKey}`)
+      .then((payload) => {
+        if (cancelled) return;
+        setHasEntitlement(Boolean(payload.hasEntitlement));
+        setResult(payload.results?.[0] ?? null);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [authStatus, productKey]);
+
+  async function generateResult() {
+    if (authStatus !== "authenticated") {
+      setMessage("Войдите, чтобы открыть продукт и сохранить результат в кабинете.");
+      setStatus("error");
+      return;
+    }
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const payload = await jsonRequest<ApiPayload>("/api/products/symbolic", {
+        method: "POST",
+        body: JSON.stringify({ productKey, userInput }),
+      });
+      setHasEntitlement(Boolean(payload.hasEntitlement));
+      setResult(payload.result ?? null);
+      setStatus("idle");
+    } catch (error) {
+      const typed = error as Error & { status?: number };
+      if (typed.status === 402) {
+        setMessage("Откройте доступ с баланса, кредитами ясности или картой — результат появится здесь же.");
+      } else {
+        setMessage(typed.message || "Не удалось создать результат");
+      }
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="soft-card soft-form-panel mt-8" data-testid={`symbolic-product-actions-${productKey}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="soft-eyebrow">получить продукт</p>
+          <h2 className="soft-h3 mt-2">{title}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Можно купить напрямую: балансом, кредитами ясности или картой. Бесплатный диалог не обязателен для этого формата.
+          </p>
+        </div>
+        <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
+          {hasEntitlement ? "доступ открыт" : "нужна оплата"}
+        </span>
+      </div>
+
+      {message && (
+        <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
+          {message}
+        </p>
+      )}
+
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
+        <div className="soft-card-flat p-5">
+          <label className="soft-eyebrow" htmlFor={`symbolic-input-${productKey}`}>{promptLabel}</label>
+          <textarea
+            id={`symbolic-input-${productKey}`}
+            value={userInput}
+            onChange={(event) => setUserInput(event.target.value)}
+            placeholder={placeholder}
+            rows={6}
+            className="soft-question-input mt-3"
+            disabled={status === "loading"}
+          />
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button
+              type="button"
+              onClick={generateResult}
+              disabled={!hasEntitlement || status === "loading"}
+              className="soft-button soft-button-primary"
+            >
+              <LockKeyhole className="size-4" aria-hidden="true" />
+              {status === "loading" ? "Собираем результат" : "Получить результат"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+            {!hasEntitlement && (
+              <ProductPurchaseControls
+                productKey={productKey}
+                label="Открыть с баланса"
+                checkoutSource={`${productKey}-direct`}
+                creditCost={creditCost}
+                onUnlocked={() => {
+                  setHasEntitlement(true);
+                  if (userInput.trim()) {
+                    void generateResult();
+                  } else {
+                    setMessage("Доступ открыт. Добавьте данные или вопрос — и получите результат здесь же.");
+                  }
+                }}
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="soft-card p-5">
+          <p className="soft-eyebrow">результат</p>
+          {result?.resultText ? (
+            <>
+              <article className="mt-3 whitespace-pre-wrap font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
+                {result.resultText}
+              </article>
+              <Button type="button" disabled className="soft-button soft-button-ghost mt-5">
+                <Save className="size-4" aria-hidden="true" />
+                {result.saved ? "Сохранено" : "Сохранится в историю кабинета"}
+              </Button>
+            </>
+          ) : (
+            <p className="mt-3 font-heading text-xl italic leading-relaxed text-[var(--soft-ink-soft)]">
+              После оплаты здесь появится готовый разбор. Он останется в истории кабинета и будет доступен для сохранения в Мою карту.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

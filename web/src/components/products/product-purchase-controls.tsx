@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Coins, CreditCard, Loader2, Wallet } from "lucide-react";
 import { appUrl } from "@/lib/subdomain";
@@ -44,11 +44,56 @@ export function ProductPurchaseControls({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { status } = useSession();
+  const cardReturnHandledRef = useRef(false);
   const [action, setAction] = useState<"idle" | "balance" | "credits" | "card">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const search = searchParams.toString();
   const currentUrl = `${pathname}${search ? `?${search}` : ""}`;
+  const paymentStatus = searchParams.get("payment");
+  const returnedProductKey = searchParams.get("productKey");
   const busy = status === "loading" || action !== "idle";
+
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (cardReturnHandledRef.current) return;
+    if (paymentStatus !== "success" || returnedProductKey !== productKey) return;
+
+    cardReturnHandledRef.current = true;
+    let cancelled = false;
+
+    async function reconcileCardReturn() {
+      setMessage("Подтверждаем оплату и открываем доступ...");
+
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          await fetch("/api/billing/reconcile", { method: "POST" });
+          const entitlement = await fetch(`/api/billing/entitlements?productKey=${encodeURIComponent(productKey)}`)
+            .then((response) => response.json())
+            .catch(() => null) as { active?: boolean } | null;
+
+          if (cancelled) return;
+          if (entitlement?.active) {
+            setMessage("Доступ открыт. Можно пользоваться услугой на этой странице.");
+            onUnlocked?.();
+            return;
+          }
+        } catch {
+          // YooKassa webhook can lag behind the browser return; retry below.
+        }
+
+        if (attempt < 5) {
+          await new Promise((resolve) => { setTimeout(resolve, 2000); });
+        }
+      }
+
+      if (!cancelled) {
+        setMessage("Платёж ещё обрабатывается. Обновите страницу через минуту или откройте раздел оплаты.");
+      }
+    }
+
+    void reconcileCardReturn();
+    return () => { cancelled = true; };
+  }, [onUnlocked, paymentStatus, productKey, returnedProductKey, status]);
 
   if (status === "unauthenticated") {
     return (
@@ -101,6 +146,7 @@ export function ProductPurchaseControls({
       const payload = await jsonRequest<{ confirmationUrl?: string }>("/api/billing/create-payment", {
         productKey,
         checkoutSource,
+        returnPath: currentUrl,
       });
       if (payload.confirmationUrl) {
         window.location.href = payload.confirmationUrl;

@@ -57,7 +57,7 @@ export default async function PairPage({
         </div>
       </section>
       <section className="soft-shell pb-16">
-        <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} />
+        <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} productKey="pair" />
       </section>
     </main>
   );

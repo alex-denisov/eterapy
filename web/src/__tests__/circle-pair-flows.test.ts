@@ -60,6 +60,8 @@ describe("B201/B202 Circle and Pair flows", () => {
     expect(actions).toContain("/pair?invite=");
     expect(actions).toContain('data-testid="pair-decline-invite"');
     expect(actions).toContain('data-testid="pair-report-invite"');
+    expect(pairPage).toContain('productKey="pair"');
+    expect(actions).toContain("productKey={productKey}");
     expect(createRoute).toContain("creatorDialogueId");
     expect(createRoute).toContain("creatorDeviceHash");
     expect(partnerRoute).toContain("partnerDialogueId");
@@ -67,6 +69,8 @@ describe("B201/B202 Circle and Pair flows", () => {
     expect(partnerRoute).toContain("assessPairPartnerRisk");
     expect(partnerRoute).toContain("pair_partner_review");
     expect(generateRoute).toContain("dialogueToPrivateText");
+    expect(generateRoute).toContain("PRODUCT_KEYS");
+    expect(generateRoute).toContain('userHasActiveEntitlement(userId, key)');
     expect(generateRoute).toContain("REVIEW_REQUIRED");
     expect(declineRoute).toContain("pair_invite_declined");
     expect(declineRoute).toContain("pair_invite_reported");

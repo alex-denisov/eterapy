@@ -51,7 +51,7 @@ describe("design v4.2 rollout", () => {
     expect(catalog).toContain("590 ₽");
     expect(catalog).toContain("390–1 490 ₽");
     expect(catalog).toContain("от 4 500 ₽");
-    expect(products).toContain("590–990 ₽");
+    expect(products).toContain("один отчёт на двоих");
   });
 
   it("adds the v4.2 growth loop section to the landing", () => {

@@ -958,6 +958,17 @@
     text-align: left;
   }
 
+  .soft-product-detail-page .soft-product-detail-hero {
+    width: min(100% - 2rem, 73.75rem);
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: 3rem;
+    padding-block: 2.5rem 2rem;
+  }
+
+  .soft-product-hero-preview {
+    min-height: 20rem;
+  }
+
   .soft-products-hero .soft-lede {
     margin-inline: 0 !important;
   }

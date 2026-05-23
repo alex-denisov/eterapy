@@ -16,6 +16,23 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
 import { trackServerEvent } from "@/lib/analytics";
 
+function buildBillingReturnUrl(baseUrl: string, purchase: ResolvedBillingPurchase) {
+  const fallbackPath = "/cabinet/billing";
+  const rawPath = purchase.metadata.returnPath;
+  const safePath = rawPath && rawPath.startsWith("/") && !rawPath.startsWith("//")
+    ? rawPath
+    : fallbackPath;
+  const url = new URL(safePath, baseUrl);
+  url.searchParams.set("payment", "success");
+  if (purchase.kind === "product") {
+    url.searchParams.set("productKey", purchase.metadata.productKey);
+  }
+  if (purchase.kind === "subscription") {
+    url.searchParams.set("planKey", purchase.metadata.planKey);
+  }
+  return url.toString();
+}
+
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
   const session = await auth();
@@ -57,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   // Valid return URL — always a full absolute URL
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
-  const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
+  const returnUrl = buildBillingReturnUrl(baseUrl, purchase);
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
 
   try {
@@ -86,6 +103,7 @@ export async function POST(req: NextRequest) {
           productKey: purchase.metadata.productKey,
           planKey: purchase.metadata.planKey,
           checkoutSource: purchase.metadata.checkoutSource,
+          returnPath: purchase.metadata.returnPath,
         },
       },
     });
