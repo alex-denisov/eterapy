@@ -32,13 +32,13 @@ export function GrowthFormatsSection() {
   return (
     <section className="soft-shell py-16 md:py-24" data-testid="v41-growth-formats">
       <div className="mx-auto mb-10 max-w-3xl text-center">
-        <p className="soft-eyebrow">не одни в этом</p>
+        <p className="soft-eyebrow">взгляд со стороны</p>
         <h2 className="soft-h1 mt-3">
           Ясность <span className="soft-italic">вдвоём</span> и в кругу
         </h2>
         <p className="soft-lede mt-4">
-          Иногда взгляд со стороны — единственное, чего не хватает. Бережные
-          форматы для тех, кому доверяете, без публичности и давления.
+          Бережные форматы для тех, кому доверяете. Иногда взгляд другого —
+          единственное, чего не хватает.
         </p>
       </div>
 
@@ -66,11 +66,13 @@ export function GrowthFormatsSection() {
 
       <div className="soft-card mt-6 grid gap-6 p-7 md:grid-cols-[1.2fr_1fr] md:items-center">
         <div>
-          <p className="soft-eyebrow">ежедневная привычка</p>
-          <h3 className="soft-h2 mt-3">Практика ясности — 5 минут в день</h3>
+          <p className="soft-eyebrow">ежедневная практика</p>
+          <h3 className="soft-h2 mt-3">
+            5 минут в день — <span className="soft-italic">за месяц 30 страниц</span> вашей внутренней карты
+          </h3>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Один вопрос, один ракурс, один маленький шаг. Кредиты ясности
-            начисляются только за осмысленные действия и не заменяют оплату живых встреч.
+            Один вопрос, один ракурс, один маленький шаг. За каждый день —
+            кредит ясности, который можно потратить на цифровые форматы.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/products/clarity-practice" className="soft-button soft-button-primary">

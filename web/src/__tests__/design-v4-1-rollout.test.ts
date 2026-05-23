@@ -59,10 +59,28 @@ describe("design v4.2 rollout", () => {
     const growth = source("components/landing/growth-formats.tsx");
 
     expect(home).toContain("<GrowthFormatsSection />");
-    expect(growth).toContain("не одни в этом");
+    expect(growth).toContain("взгляд со стороны");
     expect(growth).toContain("Круг ясности");
     expect(growth).toContain("Разобраться вдвоём");
-    expect(growth).toContain("Практика ясности");
+    expect(growth).toContain("ежедневная практика");
+  });
+
+  it("adds the v4.2 esoteric showcase and specialists teaser to the landing", () => {
+    const home = source("app/page.tsx");
+    const esoteric = source("components/landing/esoteric-showcase.tsx");
+    const specialists = source("components/landing/specialists-teaser.tsx");
+
+    expect(home).toContain("<EsotericShowcaseSection />");
+    expect(home).toContain("<SpecialistsTeaserSection />");
+    expect(esoteric).toContain("эзотерические направления");
+    expect(esoteric).toContain("как метафоры");
+    expect(esoteric).toContain("/products/tarot");
+    expect(esoteric).toContain("/products/natal-chart");
+    expect(esoteric).toContain("/products/numerology");
+    expect(esoteric).toContain("/products/joint-session");
+    expect(specialists).toContain("проверенные специалисты");
+    expect(specialists).toContain("живой разговор");
+    expect(specialists).toContain('href="/specialists"');
   });
 
   it("keeps specialist and cabinet surfaces inside the v4.2 shell", () => {

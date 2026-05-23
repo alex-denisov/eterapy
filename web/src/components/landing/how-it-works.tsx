@@ -30,16 +30,11 @@ const steps = [
 export function HowItWorksSection() {
   return (
     <section id="how-it-works" className="soft-shell py-16 md:py-24">
-      <div className="mb-8 flex flex-col justify-between gap-6 md:mb-12 md:flex-row md:items-center">
-        <div>
-          <div className="soft-eyebrow">Как это работает</div>
-          <h2 className="soft-h1 mt-3 max-w-2xl">
-            Четыре шага от вопроса <span className="soft-italic">к ясности</span>
-          </h2>
-        </div>
-        <div className="inline-flex w-fit rotate-[-1.5deg] rounded-md border border-[#eed9a1] bg-[#fff6d6] px-3 py-1 font-heading text-xl italic text-[#6b4a1e] shadow-[0_2px_0_rgba(0,0,0,0.04)]">
-          5-7 минут
-        </div>
+      <div className="mb-8 text-center md:mb-12">
+        <div className="soft-eyebrow">Как это работает</div>
+        <h2 className="soft-h1 mt-3 mx-auto max-w-3xl">
+          От вопроса <span className="soft-italic">к ясности</span> — за 5–7 минут
+        </h2>
       </div>
 
       <ol className="soft-map-grid">

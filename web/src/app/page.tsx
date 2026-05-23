@@ -3,7 +3,9 @@ import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { HeroSection } from "@/components/landing/hero";
 import { HowItWorksSection } from "@/components/landing/how-it-works";
 import { AIToolsSection } from "@/components/landing/ai-tools";
+import { EsotericShowcaseSection } from "@/components/landing/esoteric-showcase";
 import { LibraryPreviewSection } from "@/components/landing/library-preview";
+import { SpecialistsTeaserSection } from "@/components/landing/specialists-teaser";
 import { ForPractitionersSection } from "@/components/landing/for-practitioners";
 import { GrowthFormatsSection } from "@/components/landing/growth-formats";
 import { TrustPromisesSection, TrustPrivacySection } from "@/components/landing/trust";
@@ -24,8 +26,10 @@ export default async function Home() {
       <HeroSection />
       <HowItWorksSection />
       <AIToolsSection />
+      <EsotericShowcaseSection />
       <GrowthFormatsSection />
       <LibraryPreviewSection />
+      <SpecialistsTeaserSection />
       <TrustPromisesSection />
       <TrustPrivacySection />
       <ForPractitionersSection />
