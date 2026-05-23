@@ -202,7 +202,7 @@ export async function generateDialogueConversationalTurn(input: {
     }
 
     const response = await aiComplete({
-      feature: "dialogue_clarifier",
+      feature: "dialogue-clarifier",
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 300,
@@ -240,7 +240,7 @@ export async function generateDialogueClarifyingQuestions(input: {
 
   try {
     const response = await aiComplete({
-      feature: "dialogue_clarifier",
+      feature: "dialogue-clarifier",
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 600,

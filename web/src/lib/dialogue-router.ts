@@ -102,7 +102,7 @@ export async function classifyDialogueQuestion(input: {
 
   try {
     const response = await aiComplete({
-      feature: "dialogue_router",
+      feature: "dialogue-router",
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 140,
