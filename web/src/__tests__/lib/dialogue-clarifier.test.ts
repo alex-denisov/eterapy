@@ -57,7 +57,7 @@ describe("dialogue-clarifier", () => {
     expect(parseClarifyingQuestionsResponse('{"questions":["Коротко?"]}')).toBeNull();
   });
 
-  it("generates through AI Gateway with dialogue_clarifier feature", async () => {
+  it("generates through AI Gateway with dialogue-clarifier feature", async () => {
     mockAiComplete.mockResolvedValue({
       text: '{"questions":["Что важнее всего прояснить?","Какой исход будет спокойным?"],"chips":[["Острая","Давняя","Сложно"],["Ясность","Решение","Не знаю"]]}',
       provider: "openrouter",
@@ -84,7 +84,7 @@ describe("dialogue-clarifier", () => {
       model: "openrouter/free",
     });
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
-      feature: "dialogue_clarifier",
+      feature: "dialogue-clarifier",
       userId: "user-1",
       requestId: "req-1",
       maxTokens: 600,

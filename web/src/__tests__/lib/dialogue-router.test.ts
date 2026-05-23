@@ -47,7 +47,7 @@ describe("dialogue-router", () => {
     }));
   });
 
-  it("classifies through AI Gateway with the dialogue_router feature", async () => {
+  it("classifies through AI Gateway with the dialogue-router feature", async () => {
     mockAiComplete.mockResolvedValue({
       text: '{"topic":"money","difficulty":"low","confidence":0.75}',
       provider: "openrouter",
@@ -70,7 +70,7 @@ describe("dialogue-router", () => {
       model: "openrouter/free",
     });
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
-      feature: "dialogue_router",
+      feature: "dialogue-router",
       userId: "user-1",
       requestId: "req-1",
       maxTokens: 140,
