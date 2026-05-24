@@ -13,9 +13,14 @@ const YANDEX_ID = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID;
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 export function Analytics() {
-  const [consented, setConsented] = useState(() => (
-    typeof window !== "undefined" && getCookieConsent() === "all"
-  ));
+  // Defer reading the persisted consent until after hydration so the
+  // server-rendered tree (consented=false → null) matches the first
+  // client render, eliminating React #418 hydration mismatches on
+  // sessions that have already accepted analytics cookies.
+  const [consented, setConsented] = useState(false);
+  useEffect(() => {
+    if (getCookieConsent() === "all") setConsented(true);
+  }, []);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
