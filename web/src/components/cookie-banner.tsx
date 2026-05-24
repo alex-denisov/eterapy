@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 const CONSENT_KEY = "eterapy_cookie_consent";
@@ -34,6 +34,10 @@ function getCookieConsentSnapshot() {
 
 export function CookieBanner() {
   const consent = useSyncExternalStore(subscribeToCookieConsent, getCookieConsentSnapshot, () => "pending");
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   function accept() {
     setCookieConsent("all");
@@ -45,7 +49,9 @@ export function CookieBanner() {
     window.dispatchEvent(new Event("eterapy:cookie-consent-changed"));
   }
 
-  if (consent !== "missing") return null;
+  // Render nothing until after hydration to keep SSR and the first
+  // client render identical (server returns "pending" → null).
+  if (!hydrated || consent !== "missing") return null;
 
   return (
     <div
