@@ -208,6 +208,14 @@ export default function CheckinPage() {
         body: JSON.stringify({ question: question.trim() }),
       });
       setDialogue(data.dialogue);
+      // Reflect dialogue id in the URL so refresh restores the session
+      // (Product DoD: "Есть восстановление сессии после refresh")
+      if (typeof window !== "undefined" && data.dialogue?.id) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("dialogueId", data.dialogue.id);
+        url.searchParams.delete("question");
+        window.history.replaceState(null, "", url.toString());
+      }
       if (data.dialogue.status === "SAFETY_INTERRUPTED" || data.dialogue.safety?.interrupt) {
         setPhase("safety");
         return;
@@ -329,6 +337,14 @@ export default function CheckinPage() {
     setSaveState("idle");
     setRetrying(false);
     setRecommendations([]);
+    // Drop the dialogueId query so refresh after reset truly returns
+    // to the empty ask card instead of restoring the previous session.
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("dialogueId");
+      url.searchParams.delete("question");
+      window.history.replaceState(null, "", url.toString());
+    }
   }
 
   async function handleSaveToAccount() {
