@@ -1,5 +1,3 @@
-import { createPublicPageMetadata } from "@/lib/public-page-seo";
-
 export const metadata = {
   title: "Политика cookies — ETerapy",
   description: "Как ETerapy использует файлы cookie и как управлять своими настройками.",

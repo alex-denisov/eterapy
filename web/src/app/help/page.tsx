@@ -3,9 +3,7 @@
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
-import { Search } from "lucide-react";
 import { appUrl } from "@/lib/subdomain";
-import Link from "next/link";
 
 interface FaqItem {
   id: string;

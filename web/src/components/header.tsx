@@ -15,11 +15,9 @@ import {
   CircleHelp,
   Compass,
   CreditCard,
-  Heart,
   LayoutDashboard,
   LogOut,
   Settings,
-  ShoppingBag,
   Sparkles,
 } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";

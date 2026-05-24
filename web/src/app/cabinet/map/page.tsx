@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowRight, Compass, Share2 } from "lucide-react";
+import { ArrowRight, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function MyMap() {
