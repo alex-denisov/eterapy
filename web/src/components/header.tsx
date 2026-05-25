@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect, useSyncExternalStore } from "react";
+import { useState, useRef, useEffect } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
@@ -30,12 +30,12 @@ const GUEST_NAV = [
   { href: "/pricing", label: "Тарифы" },
 ];
 
-function subscribeToHostnameStore() {
-  return () => {};
-}
-
-function getHostnameSnapshot() {
-  return typeof window === "undefined" ? "" : window.location.hostname;
+function useHostname() {
+  const [hostname, setHostname] = useState("");
+  useEffect(() => {
+    setHostname(window.location.hostname);
+  }, []);
+  return hostname;
 }
 
 function useBalance(userId: string | null | undefined) {
@@ -297,7 +297,7 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const hostname = useSyncExternalStore(subscribeToHostnameStore, getHostnameSnapshot, () => "");
+  const hostname = useHostname();
   const cabinetPathname = toCabinetPathname(pathname);
   const isAuthenticated = mounted && status === "authenticated" && !!session;
   const balanceKopecks = useBalance(session?.user?.id ?? null);
