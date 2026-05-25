@@ -63,6 +63,14 @@ tmp/
 .agents/
 .claude/skills/
 .claude/*.json_*
+.claude/settings.local.json
+.claude/projects/
+
+# GSD doctor history captures git remote URLs (which can embed PATs)
+# so the runtime log must never be committed; the archive companion
+# is similarly noisy and not part of the source of truth.
+.gsd/doctor-history.jsonl
+.gsd/archive/artifacts/doctor-history.jsonl
 
 # Binary design assets (tracked separately)
 docs/**/*.zip
