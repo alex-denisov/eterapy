@@ -24,7 +24,9 @@ describe("v5 app shell", () => {
 
   it("normalizes stripped app-subdomain paths before marking active navigation", () => {
     expect(shell).toContain("toCabinetPathname(pathname)");
-    expect(shell).toContain("const activePathname = toCabinetPathname(pathname)");
+    // Hydration-safe activePathname: empty before mount (server &
+    // first client render agree), real pathname after mount.
+    expect(shell).toContain('const activePathname = hydrated ? toCabinetPathname(pathname) : "";');
     expect(shell).toContain("activePathname.startsWith(itemPath)");
   });
 

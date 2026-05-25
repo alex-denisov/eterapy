@@ -294,10 +294,16 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
 
 export function Header() {
   const { data: session, status } = useSession();
-  const pathname = usePathname();
+  const livePathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const hostname = useHostname();
+  // The proxy rewrites app.eterapy.com/* to /cabinet/* on the server, so SSR
+  // and the URL-bar-aware client `usePathname()` disagree until hydration.
+  // Lock the public header to the "/" branch on the first paint (matching the
+  // empty hostname/mounted=false branches) and only consult the real pathname
+  // after mount.
+  const pathname = mounted ? livePathname : "/";
   const cabinetPathname = toCabinetPathname(pathname);
   const isAuthenticated = mounted && status === "authenticated" && !!session;
   const balanceKopecks = useBalance(session?.user?.id ?? null);
@@ -311,12 +317,12 @@ export function Header() {
   }, []);
 
   // Скрываем header на странице видеосессии
-  if (pathname.startsWith("/session")) return null;
+  if (mounted && livePathname.startsWith("/session")) return null;
 
   const isAdminArea = pathname.startsWith("/admin");
   const isSessionArea = pathname.startsWith("/session");
   const isAdminHost = mounted && hostname.startsWith("admin.");
-  
+
   // Header hidden only on admin subdomain and session pages
   const shouldHideHeader = isAdminArea || isAdminHost || isSessionArea;
 

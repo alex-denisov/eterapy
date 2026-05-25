@@ -74,7 +74,17 @@ export function CabinetShell({
     ? []
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
-  const activePathname = toCabinetPathname(pathname);
+  // Wait until after hydration before reading usePathname(): on the
+  // app subdomain SSR sees the proxy-rewritten "/cabinet" path while
+  // the client's URL bar is "/", so any sidebar Link styled with
+  // `is-active` on the server flipped class names on hydration and
+  // caused React #418. Once mounted the proxy contract guarantees
+  // both server and client converge on the cabinet pathname.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  const activePathname = hydrated ? toCabinetPathname(pathname) : "";
 
   const [fetchedSubLabel, setFetchedSubLabel] = useState<string | null>(null);
   useEffect(() => {
@@ -104,6 +114,7 @@ export function CabinetShell({
   const displaySubLabel = subscriptionLabel ?? fetchedSubLabel ?? ROLE_LABELS[role] ?? role;
 
   function isActive(href: string) {
+    if (!hydrated || !activePathname) return false;
     const itemPath = toPathname(href);
     if (itemPath === "/cabinet" || itemPath === "/cabinet/practitioner") return activePathname === itemPath;
     return activePathname.startsWith(itemPath);
