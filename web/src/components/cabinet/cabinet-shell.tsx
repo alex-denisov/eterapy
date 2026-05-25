@@ -82,6 +82,11 @@ export function CabinetShell({
   // both server and client converge on the cabinet pathname.
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
+    // Intentional post-mount flip — see header.tsx comment. Required
+    // to keep `usePathname()` consistent between SSR (proxy-rewritten
+    // /cabinet) and the first client render (URL bar "/") and avoid
+    // React #418.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
   const activePathname = hydrated ? toCabinetPathname(pathname) : "";

@@ -296,8 +296,6 @@ export async function chargebackSucceededTransaction(input: {
   if (transaction.status === "REFUNDED") return { applied: false };
   if (transaction.status !== "SUCCEEDED") return { applied: false };
 
-  const metadata = getBillingTransactionMetadata(transaction);
-
   await db.$transaction(async (tx) => {
     const fresh = await tx.transaction.findUnique({
       where: { id: transaction.id },

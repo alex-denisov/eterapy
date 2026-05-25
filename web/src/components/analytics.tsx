@@ -19,6 +19,11 @@ export function Analytics() {
   // sessions that have already accepted analytics cookies.
   const [consented, setConsented] = useState(false);
   useEffect(() => {
+    // Intentional post-mount sync — keeps SSR and the first client
+    // render at consented=false (null tree) and only flips after
+    // hydration. Prevents the React #418 mismatch on sessions that
+    // had already accepted analytics cookies.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (getCookieConsent() === "all") setConsented(true);
   }, []);
 

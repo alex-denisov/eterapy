@@ -21,7 +21,6 @@ export default async function AdminMetricsPage() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const oneDayAgo = new Date(now);
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
-  const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1);
   const prevMonthStr = startOfPrevMonth.toISOString().slice(0, 7);
 
   // ─── Today's metrics ───
@@ -92,7 +91,7 @@ export default async function AdminMetricsPage() {
     totalPractitioners, activePractitioners,
     totalBookings, bookingsThisMonth, bookingsPrevMonth,
     pendingBookings, confirmedBookings, inProgressBookings, completedBookings, cancelledBookings,
-    totalToolSessions, toolSessionsThisMonth, toolSessionsPrevMonth,
+    , toolSessionsThisMonth, toolSessionsPrevMonth,
     quickSessions, fullSessions,
     totalRevenue,
     totalBalance,
@@ -516,7 +515,7 @@ export default async function AdminMetricsPage() {
           <CardContent className="p-6">
             <h3 className="font-heading text-lg font-semibold mb-4">📊 Воронка конверсии</h3>
             <div className="space-y-3">
-              {funnelSteps.map((f, i) => {
+              {funnelSteps.map((f) => {
                 const maxVal = funnelSteps[0].value || 1;
                 const pct = Math.min((f.value / maxVal) * 100, 100);
                 return (

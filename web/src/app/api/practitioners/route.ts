@@ -9,7 +9,6 @@ export async function GET(req: NextRequest) {
   const specialty = searchParams.get("specialty") as Specialty | null;
   const search = searchParams.get("search") || "";
   const sort = searchParams.get("sort") || "rating";
-  const onlineOnly = searchParams.get("online") === "true";
 
   try {
     const practitioners = await db.practitioner.findMany({

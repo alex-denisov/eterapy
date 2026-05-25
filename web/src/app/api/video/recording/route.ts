@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { startRoomRecording, stopRecording, getRecordingStatus } from "@/lib/livekit-egress";
+import { startRoomRecording, stopRecording } from "@/lib/livekit-egress";
 
 export async function POST(req: NextRequest) {
   const session = await auth();

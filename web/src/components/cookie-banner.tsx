@@ -36,6 +36,11 @@ export function CookieBanner() {
   const consent = useSyncExternalStore(subscribeToCookieConsent, getCookieConsentSnapshot, () => "pending");
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
+    // Intentional post-mount toggle — defers the banner to after
+    // hydration so server (`pending`/null) and the first client render
+    // emit the same tree. The single cascading render is required and
+    // far cheaper than a hydration mismatch (React #418).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
 

@@ -33,6 +33,11 @@ const GUEST_NAV = [
 function useHostname() {
   const [hostname, setHostname] = useState("");
   useEffect(() => {
+    // Intentional post-mount sync — keeps SSR snapshot ("") aligned
+    // with the first client render and only reveals the real hostname
+    // after hydration. Required to avoid React #418 between
+    // eterapy.com / app.eterapy.com / admin.eterapy.com branches.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHostname(window.location.hostname);
   }, []);
   return hostname;
