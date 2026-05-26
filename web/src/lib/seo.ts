@@ -27,7 +27,6 @@ export const publicSeoRoutes = [
   "/library",
   "/products",
   "/pricing/compare",
-  "/products/primary-answer",
   "/products/clarity-practice",
   "/products/perspectives",
   "/products/deep-report",

@@ -24,10 +24,13 @@ describe("v5 how-it-works page", () => {
     expect(page).toContain("первичный разбор");
     expect(page).toContain("На странице ответа видны углубления");
     expect(page).toContain("Покупаете услугу напрямую или после triage");
-    expect(page).toContain("Каталог продуктов живёт в `/products`");
+    // B292: replaced two internal-spec headings with user-facing copy.
+    expect(page).toContain("если уже знаете, что нужно");
+    expect(page).toContain("Откройте нужный формат");
     expect(page).toContain("Сохраняете в карту");
     expect(page).toContain("Когда мы перенаправим к человеку");
-    expect(page).toContain("Подписка — не первый CTA");
+    expect(page).toContain("Регулярно");
+    expect(page).toContain("выгоднее в подписке");
   });
 
   it("links public navigation to the durable route, not only the home anchor", () => {

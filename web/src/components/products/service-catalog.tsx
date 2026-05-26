@@ -52,7 +52,7 @@ const CATEGORIES: Category[] = [
 ];
 
 const SERVICES: ServiceCard[] = [
-  { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатный старт", href: "/products/primary-answer", icon: Heart },
+  { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатный старт", href: "/checkin", icon: Heart },
   { id: "angles", title: "4 ракурса ответа", desc: "Разум · чувства · символ · действие. Часто первый платный шаг после ответа.", price: "299 ₽", cat: "digital", kind: "Цифровое", href: "/products/perspectives", icon: Compass },
   { id: "report", title: "Глубокий отчёт", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: "590 ₽", cat: "digital", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
   { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: "390–1 490 ₽", cat: "digital", kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },

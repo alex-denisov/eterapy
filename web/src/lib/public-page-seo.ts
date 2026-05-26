@@ -72,11 +72,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Цифровые углубления, совместные форматы, эзотерические разборы и встречи со специалистами. Начните с бесплатного первичного ответа или откройте нужный продукт сразу.",
     schemaKind: "Product",
   },
-  "/products/primary-answer": {
-    title: "Первичный ответ — ETerapy",
-    description: "Бесплатный question-first продукт: короткий уточняющий диалог, структурированный первичный ответ и безопасный следующий шаг.",
-    schemaKind: "Product",
-  },
   "/products/clarity-practice": {
     title: "Практика ясности — продукт ETerapy",
     description: "Ежедневная мягкая практика: один вопрос, один ракурс, один маленький шаг и кредиты ясности за осмысленные действия.",

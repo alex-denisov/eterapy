@@ -68,7 +68,8 @@ describe("v5 billing entitlements", () => {
     expect(getProductPriceKopecks("chat-analysis")).toBe(39000);
     expect(getProductPriceKopecks("compatibility")).toBe(59000);
     expect(getProductPriceKopecks("seven-days")).toBe(99000);
-    expect(getProductPriceKopecks("primary-answer")).toBeNull();
+    // primary-answer was retired in B293; the free dialogue is now /checkin only.
+    expect(getProductPriceKopecks("unknown-slug")).toBeNull();
     expect(getProductCreditCost("deep-report")).toBe(4);
     expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
       amountKopecks: 49_000,

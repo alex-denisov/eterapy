@@ -17,7 +17,6 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
 };
 
 export const PRODUCT_LABELS: Record<string, string> = {
-  "primary-answer": "Первичный ответ",
   perspectives: "Перспективы",
   "deep-report": "Глубокий отчёт",
   "chat-analysis": "Разбор переписки",

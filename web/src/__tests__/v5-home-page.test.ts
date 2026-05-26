@@ -47,7 +47,8 @@ describe("v5 public home page", () => {
     expect(hero).toContain("soft-halo-stage-compact");
     expect(catalog).toContain("Можно начать с бесплатного диалога");
     expect(catalog).toContain("Все продукты");
-    expect(services).toContain('href: "/products/primary-answer"');
+    // Primary разбор is /checkin (no standalone product page after B293).
+    expect(services).toContain('href: "/checkin"');
     expect(services).toContain("Открыть бесплатный вход");
     expect(services).toContain("от 4 500 ₽");
     expect(services).toContain('href: "/products/tarot"');

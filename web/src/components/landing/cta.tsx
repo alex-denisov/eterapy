@@ -20,7 +20,7 @@ export function CTASection() {
           Начать диалог ясности
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
-        <Link href="/how-it-works" className="soft-button soft-button-ghost min-w-56">
+        <Link href="/library" className="soft-button soft-button-ghost min-w-56">
           Сначала почитать
         </Link>
       </div>

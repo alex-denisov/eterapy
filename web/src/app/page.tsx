@@ -9,7 +9,6 @@ import { SpecialistsTeaserSection } from "@/components/landing/specialists-tease
 import { ForPractitionersSection } from "@/components/landing/for-practitioners";
 import { GrowthFormatsSection } from "@/components/landing/growth-formats";
 import { TrustPromisesSection, TrustPrivacySection } from "@/components/landing/trust";
-import { FAQSection } from "@/components/landing/faq";
 import { CTASection } from "@/components/landing/cta";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { HomeAnalytics } from "@/components/landing/home-analytics";
@@ -33,7 +32,6 @@ export default async function Home() {
       <TrustPromisesSection />
       <TrustPrivacySection />
       <ForPractitionersSection />
-      <FAQSection />
       <CTASection />
     </div>
   );

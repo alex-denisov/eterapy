@@ -116,11 +116,11 @@ export default function HowItWorksPage() {
         </div>
 
         <div className="soft-card mt-8 p-6 md:p-8" style={{ background: "var(--soft-paper-deep)" }}>
-          <p className="soft-eyebrow text-[var(--soft-bordeaux)]">что можно купить или заказать</p>
-          <h2 className="soft-h2 mt-3">Каталог продуктов живёт в `/products`</h2>
+          <p className="soft-eyebrow text-[var(--soft-bordeaux)]">если уже знаете, что нужно</p>
+          <h2 className="soft-h2 mt-3">Откройте нужный формат <span className="soft-italic">напрямую</span></h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Бесплатный диалог остаётся лучшим входом, но не должен быть ловушкой. Если пользователь уже понимает,
-            что ему нужен расклад Таро, разбор переписки или запись к специалисту, он может открыть эту услугу напрямую.
+            Бесплатный диалог — самый мягкий вход, но не обязательный. Если вы уже понимаете, что хотите расклад Таро,
+            разбор переписки или встречу со специалистом, перейдите к нужному формату сразу.
           </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {productGroups.map(([title, text]) => (
@@ -160,10 +160,11 @@ export default function HowItWorksPage() {
 
         <div className="soft-card mt-8 p-6 md:p-8">
           <p className="soft-eyebrow">подписки</p>
-          <h2 className="soft-h2 mt-3">Подписка — не первый CTA</h2>
+          <h2 className="soft-h2 mt-3">Регулярно — <span className="soft-italic">выгоднее в подписке</span></h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Plus и Premium появляются там, где пользователь возвращается: история, кредиты, карта, маршруты и ограниченные
-            включения цифровых продуктов. Встречи со специалистами оплачиваются отдельно по полной ставке.
+            Plus и Premium — для тех, кто возвращается к разборам не раз и хочет видеть свою историю,
+            копить кредиты ясности, продолжать «Мою карту» и проходить маршруты со скидкой. Встречи со специалистами
+            оплачиваются отдельно: работа живых людей всегда идёт по полной ставке.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link href="/pricing" className="soft-button soft-button-ghost">Тарифы</Link>

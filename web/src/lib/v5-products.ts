@@ -1,5 +1,4 @@
 export type V5ProductSlug =
-  | "primary-answer"
   | "clarity-practice"
   | "perspectives"
   | "deep-report"
@@ -37,22 +36,6 @@ export type V5Product = {
 };
 
 export const v5Products: V5Product[] = [
-  {
-    slug: "primary-answer",
-    route: "/products/primary-answer",
-    name: "Первичный ответ",
-    eyebrow: "Бесплатный старт",
-    summary: "Короткий уточняющий диалог и структурированное отражение ситуации без оплаты на старте.",
-    price: "0 ₽",
-    priceMeta: "бесплатно · регистрация после момента ценности",
-    creditPrice: null,
-    creditCost: null,
-    tone: "free",
-    cta: "Получить первый ответ",
-    mechanics: ["2-5 уточнений", "пропуск уточнений", "Экстренная поддержка", "регистрация после момента ценности"],
-    privacy: "Гость работает в анонимной сессии; сохранение результата требует регистрации.",
-    result: "Краткое понимание запроса, 3-7 вариантов углубления и безопасный следующий шаг.",
-  },
   {
     slug: "clarity-practice",
     route: "/products/clarity-practice",

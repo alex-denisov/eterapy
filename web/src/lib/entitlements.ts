@@ -41,14 +41,14 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
     name: "Plus",
     amountKopecks: 49000,
     trialDays: 7,
-    includedProducts: ["primary-answer", "perspectives", "my-map"],
+    includedProducts: ["perspectives", "my-map"],
     creditsPerPeriod: 10,
   },
   premium: {
     name: "Premium",
     amountKopecks: 129000,
     trialDays: 7,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
     creditsPerPeriod: 30,
   },
   // Deprecated legacy aliases are kept readable so older subscriptions do not
@@ -57,21 +57,21 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
     name: "Legacy Start",
     amountKopecks: 149000,
     trialDays: 0,
-    includedProducts: ["primary-answer", "my-map"],
+    includedProducts: ["my-map"],
     creditsPerPeriod: 0,
   },
   deep: {
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["primary-answer", "perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
     creditsPerPeriod: 0,
   },
   practitioner_pro: {
@@ -215,8 +215,6 @@ export function resolveBillingPurchase(input: {
 }
 
 export async function userHasActiveEntitlement(userId: string, productKey: string): Promise<boolean> {
-  if (productKey === "primary-answer") return true;
-
   const now = new Date();
   const direct = await db.productEntitlement.findFirst({
     where: {

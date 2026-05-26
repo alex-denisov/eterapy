@@ -294,19 +294,6 @@ function ClarityPracticeSide() {
   );
 }
 
-function PrimaryAnswerSide() {
-  return (
-    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-10" data-testid="product-primary-answer-preview">
-      <div className="relative size-44">
-        <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_35%,#fff,transparent_38%),conic-gradient(from_30deg,#F4C9A8,#E8B8D1,#D9C9E8,#F4C9A8)] shadow-[0_22px_50px_-18px_rgba(214,117,88,.7)]" />
-        <div className="absolute inset-0 grid place-items-center font-heading text-base italic text-[var(--soft-bordeaux)]">
-          первичный<br />разбор
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function productSide(product: V5Product) {
   if (product.slug === "deep-report") return <DeepReportSide />;
   if (product.slug === "my-map") return <ExtendedMapSide />;
@@ -319,7 +306,6 @@ function productSide(product: V5Product) {
   if (product.slug === "compatibility") return <CompatibilitySide />;
   if (product.slug === "seven-days") return <SevenDaysSide />;
   if (product.slug === "clarity-practice") return <ClarityPracticeSide />;
-  if (product.slug === "primary-answer") return <PrimaryAnswerSide />;
   return <DefaultSide />;
 }
 
