@@ -381,36 +381,30 @@ export function Header() {
         <div className="flex items-center gap-2">
           {isAuthenticated && session ? (
             <>
-              {isAppArea ? (
-                <>
-                  <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
-                  <Link
-                    href={appUrl("/help")}
-                    prefetch={false}
-                    aria-label="Помощь"
-                    className="soft-user-icon"
-                  >
-                    <CircleHelp className="size-4" />
-                  </Link>
-                  <NotificationBell variant="header" />
-                  <UserMenu session={session} balanceKopecks={balanceKopecks} />
-                </>
-              ) : (
-                <>
-                  <UserMenu session={session} balanceKopecks={balanceKopecks} />
-                  <Link
-                    href={mainUrl("/checkin")}
-                    className={cn(
-                      "soft-button soft-button-primary min-h-10 px-4 py-2 text-sm",
-                      softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
-                    )}
-                    data-testid="header-dialogue-cta"
-                    data-analytics-event="dialogue_cta_clicked"
-                    data-analytics-target="/checkin"
-                  >
-                    Начать диалог
-                  </Link>
-                </>
+              <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
+              <Link
+                href={isAppArea ? appUrl("/help") : mainUrl("/help")}
+                prefetch={false}
+                aria-label="Помощь"
+                className="soft-user-icon"
+              >
+                <CircleHelp className="size-4" />
+              </Link>
+              <NotificationBell variant="header" />
+              <UserMenu session={session} balanceKopecks={balanceKopecks} />
+              {!isAppArea && (
+                <Link
+                  href={mainUrl("/checkin")}
+                  className={cn(
+                    "soft-button soft-button-primary min-h-10 px-4 py-2 text-sm",
+                    softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
+                  )}
+                  data-testid="header-dialogue-cta"
+                  data-analytics-event="dialogue_cta_clicked"
+                  data-analytics-target="/checkin"
+                >
+                  Новый разбор
+                </Link>
               )}
             </>
           ) : (
