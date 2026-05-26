@@ -14,6 +14,13 @@ import {
 } from "@/lib/billing-labels";
 import { mainUrl } from "@/lib/subdomain";
 
+// Static metadata mirrors V5_SUBSCRIPTION_PLANS so we don't drag the
+// server-only entitlements module (uses prisma) into the client bundle.
+const CLIENT_PLANS: Record<"plus" | "premium", { name: string; amountKopecks: number; trialDays: number; creditsPerPeriod: number; includedProductsCount: number }> = {
+  plus: { name: "Plus", amountKopecks: 49000, trialDays: 7, creditsPerPeriod: 10, includedProductsCount: 2 },
+  premium: { name: "Premium", amountKopecks: 129000, trialDays: 7, creditsPerPeriod: 30, includedProductsCount: 9 },
+};
+
 const FEATURES = [
   "История вопросов и сохранение выводов",
   "Моя карта и мягкое возвращение к темам",
@@ -303,9 +310,25 @@ export default function BillingPage() {
     }
   }
 
-  async function handleStartSubscription(planKey: string) {
+  async function handleStartSubscription(planKey: string, payVia: "card" | "balance" = "card") {
     setCreatingPayment(true);
     try {
+      if (payVia === "balance") {
+        const res = await fetch("/api/billing/subscriptions/start-from-balance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planKey, checkoutSource: "client_billing_balance" }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          toast.success("Подписка активирована");
+          loadData();
+        } else {
+          toast.error(data.error || "Не удалось активировать подписку с баланса");
+        }
+        return;
+      }
+
       const res = await fetch("/api/billing/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -355,6 +378,12 @@ export default function BillingPage() {
     : "Базовый доступ";
   const selectedPlanLabel = getSubscriptionPlanLabel(selectedPlanKey);
 
+  // Show every consumer-facing plan (Plus + Premium) so the user can pick.
+  // Pricing/credits/included products are sourced from the canonical
+  // V5_SUBSCRIPTION_PLANS registry via getSubscriptionPlan(slug).
+  const CLIENT_PLAN_KEYS: Array<"plus" | "premium"> = ["plus", "premium"];
+  const balanceKopecks = Math.round(Number(balanceRub) * 100);
+
   return (
     <div className="p-6 md:p-8 space-y-6">
       <div>
@@ -362,7 +391,7 @@ export default function BillingPage() {
         <h1 className="soft-h1 mt-2">Подписка и оплата</h1>
       </div>
 
-      {/* Subscription card */}
+      {/* Current subscription overview */}
       <div className="soft-card p-6" data-testid="client-billing-subscription" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -388,17 +417,9 @@ export default function BillingPage() {
             </ul>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Link href={mainUrl("/pricing")} className="soft-button soft-button-primary" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+            <Link href={mainUrl("/pricing")} className="soft-button soft-button-ghost" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
               Сравнить тарифы
             </Link>
-            <button
-              onClick={() => handleStartSubscription(selectedPlanKey)}
-              disabled={creatingPayment || activeSub?.planKey === selectedPlanKey}
-              className="soft-button soft-button-ghost"
-              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
-            >
-              {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : `Подключить ${selectedPlanLabel}`}
-            </button>
             {activeSub && !activeSub.cancelAtPeriodEnd && (
               <button
                 onClick={() => handleCancelSubscription(activeSub.id)}
@@ -410,6 +431,68 @@ export default function BillingPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* All available plans */}
+      <div className="grid gap-4 md:grid-cols-2" data-testid="client-billing-plans">
+        {CLIENT_PLAN_KEYS.map((key) => {
+          const plan = CLIENT_PLANS[key];
+          if (!plan) return null;
+          const priceRub = (plan.amountKopecks / 100).toLocaleString("ru-RU");
+          const isCurrent = activeSub?.planKey === key;
+          const canPayFromBalance = balanceKopecks >= plan.amountKopecks;
+          return (
+            <div key={key} className="soft-card p-6" data-testid={`client-billing-plan-${key}`}>
+              <div className="flex items-baseline justify-between gap-3">
+                <div>
+                  <div className="soft-eyebrow">{key === "plus" ? "стартовая подписка" : "расширенная подписка"}</div>
+                  <div className="mt-2" style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
+                    {plan.name}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
+                    {priceRub} ₽
+                  </div>
+                  <div className="text-xs text-[var(--soft-ink-faint)]">в месяц</div>
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-[var(--soft-ink-soft)]">
+                +{plan.creditsPerPeriod} кредитов ясности каждый месяц
+                · {plan.includedProductsCount} цифровых продуктов включено
+                {plan.trialDays > 0 ? ` · ${plan.trialDays} дней пробного периода` : ""}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {isCurrent ? (
+                  <span className="soft-button soft-button-soft" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+                    Активна
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleStartSubscription(key, "card")}
+                      disabled={creatingPayment}
+                      className="soft-button soft-button-primary"
+                      style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                      data-testid={`client-billing-${key}-pay-card`}
+                    >
+                      {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : "Оплатить картой"}
+                    </button>
+                    <button
+                      onClick={() => handleStartSubscription(key, "balance")}
+                      disabled={creatingPayment || !canPayFromBalance}
+                      className="soft-button soft-button-ghost"
+                      style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                      data-testid={`client-billing-${key}-pay-balance`}
+                    >
+                      {canPayFromBalance ? "Оплатить с баланса" : "Недостаточно средств"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Balance card */}
