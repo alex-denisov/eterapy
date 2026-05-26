@@ -188,6 +188,125 @@ function DefaultSide() {
   );
 }
 
+function PerspectivesSide() {
+  const tiles: Array<{ label: string; sub: string; bg: string; color: string }> = [
+    { label: "Разум", sub: "факты · варианты", bg: "linear-gradient(140deg,#F4D9C1,#F8E6D1)", color: "var(--soft-bordeaux)" },
+    { label: "Чувства", sub: "что внутри", bg: "linear-gradient(140deg,#E8C4B8,#F4D5C8)", color: "var(--soft-bordeaux)" },
+    { label: "Символ", sub: "образ ситуации", bg: "linear-gradient(140deg,#DBD3EA,#E8E1F2)", color: "#4A3E5E" },
+    { label: "Действие", sub: "шаги на неделю", bg: "linear-gradient(140deg,#D6DECC,#E5EBDC)", color: "#3A4A36" },
+  ];
+  return (
+    <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-8" data-testid="product-perspectives-preview">
+      <div className="grid w-72 grid-cols-2 gap-3 max-w-full">
+        {tiles.map((tile) => (
+          <div key={tile.label} className="rounded-2xl p-4 shadow-[0_8px_18px_-10px_rgba(60,30,20,.25)]" style={{ background: tile.bg, color: tile.color }}>
+            <div className="font-heading text-lg italic">{tile.label}</div>
+            <div className="mt-1 text-[0.72rem] opacity-80">{tile.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ChatAnalysisSide() {
+  const bubbles: Array<{ side: "left" | "right"; text: string }> = [
+    { side: "left", text: "Почему ты не отвечаешь?" },
+    { side: "right", text: "Я устал, говорил же." },
+    { side: "left", text: "Каждый раз «занят». А для тебя я на втором месте?" },
+    { side: "right", text: "Ну вот, опять началось." },
+  ];
+  return (
+    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#F4D9C1,#E8C4B8)] p-8" data-testid="product-chat-analysis-preview">
+      <div className="flex w-72 max-w-full flex-col gap-2.5">
+        {bubbles.map((bubble, idx) => (
+          <div
+            key={idx}
+            className="max-w-[78%] rounded-[14px] px-3 py-2 text-[11.5px] leading-snug shadow-[0_4px_10px_-4px_rgba(60,30,20,.18)]"
+            style={{
+              alignSelf: bubble.side === "left" ? "flex-start" : "flex-end",
+              background: bubble.side === "left" ? "var(--soft-paper-card)" : "var(--soft-bordeaux)",
+              color: bubble.side === "left" ? "var(--soft-ink)" : "#FBF0E1",
+            }}
+          >
+            {bubble.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CompatibilitySide() {
+  return (
+    <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#DBD3EA,#F4D9C1)] p-10" data-testid="product-compatibility-preview">
+      <div className="relative flex items-center gap-4">
+        <div className="grid size-24 place-items-center rounded-full bg-[linear-gradient(140deg,#E8C4B8,#F4D5C8)] font-heading text-3xl italic text-[var(--soft-bordeaux)] shadow-[0_12px_24px_-8px_rgba(184,91,64,.4)]">А</div>
+        <div className="z-10 -mx-3 grid place-items-center rounded-full bg-[var(--soft-paper-card)] px-3 py-1.5 font-heading text-sm italic text-[var(--soft-bordeaux)] shadow-[0_6px_14px_-6px_rgba(60,30,20,.25)]">общее</div>
+        <div className="grid size-24 place-items-center rounded-full bg-[linear-gradient(140deg,#DBD3EA,#B5A8D1)] font-heading text-3xl italic text-[#4A3E5E] shadow-[0_12px_24px_-8px_rgba(74,62,94,.4)]">Б</div>
+      </div>
+    </div>
+  );
+}
+
+function SevenDaysSide() {
+  const days = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+  return (
+    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#F4D9C1,#FFFCF5)] p-10" data-testid="product-seven-days-preview">
+      <div className="grid w-72 max-w-full grid-cols-7 gap-1.5">
+        {days.map((day, index) => (
+          <div
+            key={day}
+            className="grid aspect-square place-items-center rounded-[10px] border text-[0.72rem] font-semibold"
+            style={{
+              borderColor: index < 3 ? "var(--soft-terracotta-dark)" : index === 3 ? "var(--soft-apricot)" : "var(--soft-paper-edge)",
+              background: index < 3 ? "var(--soft-terracotta-dark)" : index === 3 ? "var(--soft-apricot)" : "var(--soft-paper-card)",
+              color: index < 3 ? "#FBF0E1" : index === 3 ? "var(--soft-bordeaux)" : "var(--soft-ink-faint)",
+            }}
+          >
+            {index < 3 ? "✓" : day}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ClarityPracticeSide() {
+  return (
+    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#D6DECC,#F4D9C1)] p-10" data-testid="product-clarity-practice-preview">
+      <div className="relative w-72 max-w-full">
+        <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[0_14px_28px_-12px_rgba(60,30,20,.22)]">
+          <div className="soft-eyebrow text-[0.6rem]">сегодняшний вопрос</div>
+          <p className="mt-3 font-heading text-lg italic leading-snug text-[var(--soft-bordeaux)]">
+            Какая забота о себе сегодня была бы по-настоящему добра?
+          </p>
+          <div className="mt-4 flex items-center gap-2">
+            <div className="h-1 flex-1 rounded-full bg-[var(--soft-paper-edge)]">
+              <div className="h-1 rounded-full bg-[var(--soft-terracotta-dark)]" style={{ width: "42%" }} />
+            </div>
+            <span className="text-[0.6rem] text-[var(--soft-ink-faint)]">11/30</span>
+          </div>
+        </div>
+        <div className="absolute -bottom-3 right-2 rotate-[6deg] rounded-full bg-[var(--soft-apricot)] px-3 py-1 text-[0.65rem] font-semibold text-[var(--soft-bordeaux)]">+1 кредит</div>
+      </div>
+    </div>
+  );
+}
+
+function PrimaryAnswerSide() {
+  return (
+    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-10" data-testid="product-primary-answer-preview">
+      <div className="relative size-44">
+        <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_35%_35%,#fff,transparent_38%),conic-gradient(from_30deg,#F4C9A8,#E8B8D1,#D9C9E8,#F4C9A8)] shadow-[0_22px_50px_-18px_rgba(214,117,88,.7)]" />
+        <div className="absolute inset-0 grid place-items-center font-heading text-base italic text-[var(--soft-bordeaux)]">
+          первичный<br />разбор
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function productSide(product: V5Product) {
   if (product.slug === "deep-report") return <DeepReportSide />;
   if (product.slug === "my-map") return <ExtendedMapSide />;
@@ -195,6 +314,12 @@ function productSide(product: V5Product) {
   if (product.slug === "natal-chart") return <NatalSide />;
   if (product.slug === "numerology") return <NumerologySide />;
   if (product.slug === "joint-session") return <JointSide />;
+  if (product.slug === "perspectives") return <PerspectivesSide />;
+  if (product.slug === "chat-analysis") return <ChatAnalysisSide />;
+  if (product.slug === "compatibility") return <CompatibilitySide />;
+  if (product.slug === "seven-days") return <SevenDaysSide />;
+  if (product.slug === "clarity-practice") return <ClarityPracticeSide />;
+  if (product.slug === "primary-answer") return <PrimaryAnswerSide />;
   return <DefaultSide />;
 }
 
