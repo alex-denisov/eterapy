@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { ArrowRight, Lock, X } from "lucide-react";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
+import { mainUrl } from "@/lib/subdomain";
 import { approvedLibraryEntries, getApprovedLibraryEntry } from "@/data/anonymous-library";
+import { LibraryEntryCta } from "@/components/library/library-entry-cta";
 
 export function generateStaticParams() {
   return approvedLibraryEntries().map((entry) => ({ slug: entry.slug }));
@@ -133,34 +135,22 @@ export default async function LibraryEntryPage({
           </Disclaimer>
         </section>
 
-        <section className="soft-card soft-form-panel mt-8 bg-[var(--soft-bordeaux)] p-6 text-[var(--soft-paper)] md:p-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="soft-eyebrow text-[var(--soft-gold)]">а как у вас</p>
-              <h2 className="mt-3 text-2xl font-medium text-[var(--soft-paper)]" style={{ fontFamily: "var(--font-heading)" }}>Похожий вопрос — другой контекст</h2>
-              <p className="mt-2 max-w-lg text-sm leading-relaxed text-[#e8c4b8]">
-                Разбор будет ваш, не этот. Никто не увидит ваших слов без согласия.
-              </p>
-            </div>
-            <Link
-              href="/checkin"
-              className="soft-button shrink-0 bg-[var(--soft-paper-deep)] text-[var(--soft-bordeaux)] hover:bg-[var(--soft-paper)]"
-              data-analytics-event="dialogue_cta_clicked"
-              data-analytics-target="/checkin"
-              data-testid="library-entry-dialogue-cta"
-            >
-              Начать свой разбор
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-          </div>
-        </section>
+        <LibraryEntryCta
+          slug={entry.slug}
+          baseline={entry.reactions}
+          checkinHref={mainUrl(`/checkin?from=library&slug=${encodeURIComponent(entry.slug)}`)}
+        />
 
         {relatedEntries.length > 0 && (
           <section className="mt-12">
             <p className="soft-eyebrow mb-5">рядом в библиотеке</p>
             <div className="grid gap-4 md:grid-cols-3">
               {relatedEntries.map((item) => (
-                <Link key={item.slug} href={`/library/${item.slug}`} className="soft-card soft-library-card block p-5">
+                <Link
+                  key={item.slug}
+                  href={mainUrl(`/library/${item.slug}`)}
+                  className="soft-card soft-library-card block p-5"
+                >
                   <span className="soft-chip soft-chip-warm">{item.topic}</span>
                   <p className="soft-library-question mt-4">«{item.question}»</p>
                   <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[var(--soft-terracotta-dark)]">

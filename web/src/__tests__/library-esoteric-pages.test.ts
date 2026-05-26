@@ -51,12 +51,14 @@ describe("B205 Library, esoteric service, and joint-session pages", () => {
 
   it("updates library detail pages to match the v4.1 public anonymous-card structure", () => {
     const detail = source("src/app/library/[slug]/page.tsx");
+    const cta = source("src/components/library/library-entry-cta.tsx");
 
     expect(detail).toContain("что мы услышали");
     expect(detail).toContain("главная развилка");
     expect(detail).toContain("фрагмент разбора · открыт публично");
     expect(detail).toContain("Скрыто в публичной карточке");
     expect(detail).toContain("рядом в библиотеке");
-    expect(detail).toContain("Начать свой разбор");
+    expect(detail).toContain("LibraryEntryCta");
+    expect(cta).toContain("Начать свой разбор");
   });
 });

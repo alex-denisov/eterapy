@@ -31,7 +31,9 @@ describe("anonymous question library", () => {
     expect(listPage).toContain('data-testid="anonymous-library-page"');
     expect(listPage).toContain("Без комментариев и драмы");
     expect(listPage).toContain('data-testid="library-dialogue-cta"');
-    expect(detailPage).toContain('data-testid="library-entry-dialogue-cta"');
+    const cta = source("components/library/library-entry-cta.tsx");
+    expect(detailPage).toContain("LibraryEntryCta");
+    expect(cta).toContain('data-testid="library-entry-dialogue-cta"');
     expect(detailPage).toContain("фрагмент разбора · открыт публично");
     expect(detailPage).toContain("Мы публикуем только обезличенный вопрос");
     expect(detailPage).not.toContain("Вопрос обезличен и прошел модерацию");
