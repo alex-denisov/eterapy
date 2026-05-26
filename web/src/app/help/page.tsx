@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { CabinetShell } from "@/components/cabinet/cabinet-shell";
 import { appUrl } from "@/lib/subdomain";
 
 interface FaqItem {
@@ -292,17 +291,10 @@ function HelpContent() {
 
 export default function HelpPage() {
   const { data: session } = useSession();
-  const isLoggedIn = !!session;
-  const role = session?.user?.role ?? "CLIENT";
-
-  if (isLoggedIn) {
-    return (
-      <CabinetShell role={role} user={session.user}>
-        <HelpContent />
-      </CabinetShell>
-    );
-  }
-
+  // /help on eterapy.com is the public knowledge base, regardless of
+  // auth state. The cabinet's own support entry point (tickets +
+  // contacts) lives at app.eterapy.com/support and is a separate page.
+  void session;
   return (
     <div className="soft-clarity-page min-h-screen">
       <HelpContent />

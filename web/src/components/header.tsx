@@ -392,9 +392,9 @@ export function Header() {
             <>
               <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
               <Link
-                href={isAppArea ? appUrl("/help") : mainUrl("/help")}
+                href={isAppArea ? appUrl("/support") : mainUrl("/help")}
                 prefetch={false}
-                aria-label="Помощь"
+                aria-label="Поддержка и помощь"
                 className="soft-user-icon"
               >
                 <CircleHelp className="size-4" />
