@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+// Top-4 teaser specialists shown on the landing. Slugs match the
+// FALLBACK_PRACTITIONERS list in src/app/practitioners/page.tsx, so
+// every card resolves to a real profile page.
 const specialists = [
   {
+    slug: "anna-kamenskaya",
     name: "Анна Каменская",
     role: "Клинический психолог",
     rating: "★ 4.9",
@@ -10,6 +14,7 @@ const specialists = [
     background: "linear-gradient(140deg, #E8C4B8, #F4D5C8)",
   },
   {
+    slug: "liza-morozova",
     name: "Лиза Морозова",
     role: "Коуч идентичности",
     rating: "★ 4.8",
@@ -17,14 +22,16 @@ const specialists = [
     background: "linear-gradient(140deg, #F4D9C1, #F8E6D1)",
   },
   {
-    name: "Никита Орлов",
+    slug: "sofia-mirnaya",
+    name: "София Мирная",
     role: "Таролог-практик",
     rating: "★ 4.7",
     price: "от 2 880 ₽",
     background: "linear-gradient(140deg, #DBD3EA, #E8E1F2)",
   },
   {
-    name: "Полина Велес",
+    slug: "elena-orlova",
+    name: "Елена Орлова",
     role: "Астролог",
     rating: "★ 4.6",
     price: "от 3 500 ₽",
@@ -43,7 +50,7 @@ export function SpecialistsTeaserSection() {
           </h2>
         </div>
         <Link
-          href="/specialists"
+          href="/practitioners"
           className="soft-button soft-button-ghost"
           data-testid="v42-specialists-all"
         >
@@ -55,8 +62,8 @@ export function SpecialistsTeaserSection() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {specialists.map((specialist) => (
           <Link
-            key={specialist.name}
-            href="/specialists"
+            key={specialist.slug}
+            href={`/practitioners/${specialist.slug}`}
             className="soft-card overflow-hidden p-0 text-left transition-transform hover:-translate-y-1 hover:shadow-[var(--soft-shadow-md)]"
           >
             <div className="h-20" style={{ background: specialist.background }} aria-hidden="true" />

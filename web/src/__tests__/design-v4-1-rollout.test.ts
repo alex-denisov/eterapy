@@ -80,7 +80,7 @@ describe("design v4.2 rollout", () => {
     expect(esoteric).toContain("/products/joint-session");
     expect(specialists).toContain("проверенные специалисты");
     expect(specialists).toContain("живой разговор");
-    expect(specialists).toContain('href="/specialists"');
+    expect(specialists).toContain('href="/practitioners"');
   });
 
   it("keeps specialist and cabinet surfaces inside the v4.2 shell", () => {

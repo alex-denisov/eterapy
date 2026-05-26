@@ -109,11 +109,20 @@ function BalanceSummaryLink({
       href={appUrl("/credits")}
       prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
-      className={cn("soft-user-pill hidden", className)}
+      className={cn(
+        "soft-user-pill hidden items-center gap-2 px-3 py-1.5 text-xs font-semibold tabular-nums",
+        className,
+      )}
       data-testid="header-balance-summary"
     >
-      <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-      <span className="tabular-nums font-semibold">{clarityCredits}</span>
+      <span className="inline-flex items-center gap-1 text-[var(--soft-terracotta-dark)]">
+        <Sparkles className="size-3.5" aria-hidden="true" />
+        {clarityCredits}
+      </span>
+      <span aria-hidden="true" className="text-[var(--soft-paper-edge)]">·</span>
+      <span className="inline-flex items-center gap-1 text-[var(--soft-bordeaux)]">
+        {rub} ₽
+      </span>
     </Link>
   );
 }
@@ -396,7 +405,7 @@ export function Header() {
                 <Link
                   href={mainUrl("/checkin")}
                   className={cn(
-                    "soft-button soft-button-primary min-h-10 px-4 py-2 text-sm",
+                    "soft-button soft-button-primary h-9 px-4 text-sm",
                     softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                   )}
                   data-testid="header-dialogue-cta"
@@ -412,17 +421,17 @@ export function Header() {
               <Link href={mainUrl("/login")}
                 prefetch={false}
                 className={cn(
-                  buttonVariants({ variant: "ghost", size: "sm" }),
+                  "soft-button soft-button-ghost h-9 px-4 text-sm",
                   "hidden md:inline-flex",
-                  softPublicHeader ? "soft-button-ghost text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
+                  softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
                 Войти
               </Link>
               <Link
                 href={mainUrl("/checkin")}
                 className={cn(
-                  buttonVariants({ size: "sm" }),
-                  softPublicHeader && "soft-button-primary !bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
+                  "soft-button soft-button-primary h-9 px-4 text-sm",
+                  softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
               >
                 Начать диалог
