@@ -6,6 +6,75 @@ import { readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { PractitionerStatus } from "@prisma/client";
 
+type ProductRecommendation = {
+  slug: string;
+  name: string;
+  href: string;
+  reason: string;
+};
+
+/**
+ * Map a classified dialogue topic into the v4.2 deepening product that
+ * best matches the user's question. The "reason" copy is shown to the
+ * user on the primary-answer triage rail to explain why we picked it.
+ * Topics not in the table fall back to "perspectives" (the lowest-tier
+ * deepening) so we always have something to recommend.
+ */
+function recommendProductForTopic(topic: string | null | undefined): ProductRecommendation {
+  switch (topic) {
+    case "relationships":
+      return {
+        slug: "compatibility",
+        name: "Совместимость",
+        href: "/products/compatibility",
+        reason: "Вы можете отдельно сравнить взгляды друг друга — общий итог откроется по согласию.",
+      };
+    case "family":
+      return {
+        slug: "circle",
+        name: "Круг ясности",
+        href: "/products/circle",
+        reason: "Бережный групповой формат, чтобы услышать близких без давления и спора.",
+      };
+    case "career":
+      return {
+        slug: "perspectives",
+        name: "4 ракурса ответа",
+        href: "/products/perspectives",
+        reason: "Разложим ваше решение на разум, чувства, символ и действие — где ответ уже виден.",
+      };
+    case "money":
+      return {
+        slug: "deep-report",
+        name: "Глубокий отчёт",
+        href: "/products/deep-report",
+        reason: "Структурируем варианты, риски и безопасные шаги в подробный документ-разбор.",
+      };
+    case "anxiety":
+      return {
+        slug: "seven-days",
+        name: "7 дней к ясности",
+        href: "/products/seven-days",
+        reason: "Короткие ежедневные шаги, чтобы тревога не управляла днём.",
+      };
+    case "self":
+      return {
+        slug: "clarity-practice",
+        name: "Практика ясности",
+        href: "/products/clarity-practice",
+        reason: "Регулярный ритм возвращения к себе — без давления и без срочности.",
+      };
+    case "other":
+    default:
+      return {
+        slug: "perspectives",
+        name: "4 ракурса ответа",
+        href: "/products/perspectives",
+        reason: "Универсальное углубление: посмотрим на ситуацию с четырёх сторон сразу.",
+      };
+  }
+}
+
 function ownerWhere(userId: string | null, guestSessionId: string | null) {
   if (userId) return { userId };
   if (guestSessionId) return { guestSessionId };
@@ -115,5 +184,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     matchedTags,
   }));
 
-  return jsonWithRequestContext({ recommendations, dialogueId: dialogue.id }, undefined, context);
+  const productRecommendation = recommendProductForTopic(dialogue.topic);
+
+  return jsonWithRequestContext(
+    { recommendations, productRecommendation, dialogueId: dialogue.id },
+    undefined,
+    context,
+  );
 }

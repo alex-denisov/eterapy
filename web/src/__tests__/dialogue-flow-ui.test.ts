@@ -43,7 +43,9 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('data-analytics-event="triage_primary_clicked"');
     expect(page).toContain('data-analytics-event="triage_secondary_clicked"');
     expect(page).toContain('data-analytics-event="triage_subscription_clicked"');
-    expect(page.match(/data-testid="triage-primary-cta"/g)?.length).toBe(1);
+    // Two branches share the testid: dynamic recommendation (topic-aware)
+    // vs. the perspectives fallback. Only one renders at runtime.
+    expect(page.match(/data-testid="triage-primary-cta"/g)?.length).toBe(2);
     expect(page).toContain('data-analytics-surface="checkin_triage"');
     expect(page).toContain('data-analytics-cta-role="primary"');
     expect(page).toContain('data-analytics-offer-id="perspectives_first_paid_step"');

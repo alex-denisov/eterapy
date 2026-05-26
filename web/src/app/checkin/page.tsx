@@ -47,6 +47,13 @@ type PractitionerRecommendation = {
   rationale: string;
 };
 
+type ProductRecommendation = {
+  slug: string;
+  name: string;
+  href: string;
+  reason: string;
+};
+
 type DialoguePayload = {
   id: string;
   title: string;
@@ -88,6 +95,7 @@ export default function CheckinPage() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [retrying, setRetrying] = useState(false);
   const [recommendations, setRecommendations] = useState<PractitionerRecommendation[]>([]);
+  const [productRecommendation, setProductRecommendation] = useState<ProductRecommendation | null>(null);
   const [restoring, setRestoring] = useState(() => {
     if (typeof window === "undefined") return false;
     return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
@@ -131,12 +139,17 @@ export default function CheckinPage() {
     let cancelled = false;
     fetch(`/api/dialogues/${dialogue.id}/recommendations`)
       .then((res) => res.ok ? res.json() : Promise.reject())
-      .then((data: { recommendations: PractitionerRecommendation[] }) => {
-        if (!cancelled && Array.isArray(data.recommendations)) {
+      .then((data: { recommendations: PractitionerRecommendation[]; productRecommendation?: ProductRecommendation }) => {
+        if (cancelled) return;
+        if (Array.isArray(data.recommendations)) {
           setRecommendations(data.recommendations);
           if (data.recommendations.length > 0) {
             track({ event: "specialist_recommended", surface: "checkin", dialogueId: dialogue.id, properties: { count: data.recommendations.length } });
           }
+        }
+        if (data.productRecommendation) {
+          setProductRecommendation(data.productRecommendation);
+          track({ event: "product_recommended", surface: "checkin", dialogueId: dialogue.id, properties: { product: data.productRecommendation.slug } });
         }
       })
       .catch(() => { /* silent — recommendations are best-effort */ });
@@ -636,50 +649,83 @@ export default function CheckinPage() {
 
             <aside className="soft-triage-rail lg:sticky lg:top-24" data-testid="dialogue-triage-rail" aria-label="Выбор углубления">
               <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">можно посмотреть глубже</p>
-              <Link
-                href={`/products/perspectives?dialogueId=${dialogue.id}`}
-                className="soft-card soft-triage-primary mt-3 block p-5"
-                data-testid="triage-primary-cta"
-                data-analytics-surface="checkin_triage"
-                data-analytics-event="triage_primary_clicked"
-                data-analytics-target={`/products/perspectives?dialogueId=${dialogue.id}`}
-                data-analytics-product="perspectives"
-                data-analytics-dialogue-id={dialogue.id}
-                data-analytics-cta-role="primary"
-                data-analytics-offer-id="perspectives_first_paid_step"
-                data-analytics-offer-reason="decision_request_after_free_answer"
-                data-analytics-price-rub="299"
-                data-analytics-credit-cost="2"
-              >
-                <span className="soft-triage-ribbon">рекомендуем именно вам</span>
-                <div className="mt-2 flex items-start gap-3">
-                  <Compass className="mt-1 size-6 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                  <div>
-                    <h3 className="soft-h3">4 ракурса ответа</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                      Похоже на запрос про решение. Разложим ситуацию на разум, чувства, символ и действие.
-                    </p>
+              {productRecommendation && productRecommendation.slug !== "perspectives" ? (
+                <Link
+                  href={`${productRecommendation.href}?dialogueId=${dialogue.id}`}
+                  className="soft-card soft-triage-primary mt-3 block p-5"
+                  data-testid="triage-primary-cta"
+                  data-analytics-surface="checkin_triage"
+                  data-analytics-event="triage_primary_clicked"
+                  data-analytics-target={`${productRecommendation.href}?dialogueId=${dialogue.id}`}
+                  data-analytics-product={productRecommendation.slug}
+                  data-analytics-dialogue-id={dialogue.id}
+                  data-analytics-cta-role="primary"
+                  data-analytics-offer-id={`${productRecommendation.slug}_topic_recommendation`}
+                  data-analytics-offer-reason={`topic_${dialogue.topic ?? "other"}`}
+                >
+                  <span className="soft-triage-ribbon">рекомендуем именно вам</span>
+                  <div className="mt-2 flex items-start gap-3">
+                    <Compass className="mt-1 size-6 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    <div>
+                      <h3 className="soft-h3">{productRecommendation.name}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                        {productRecommendation.reason}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 grid gap-1.5 text-xs text-[var(--soft-ink-soft)]">
-                  {["Разум · факты и варианты", "Чувства · что внутри", "Символ · образ ситуации", "Действие · шаги на неделю"].map((item) => (
-                    <span key={item} className="flex items-center gap-2">
-                      <CheckCircle2 className="size-3.5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                      {item}
+                  <div className="mt-5 flex items-end justify-end">
+                    <span className="soft-button soft-button-primary text-sm">
+                      Открыть
+                      <ArrowRight className="size-4" aria-hidden="true" />
                     </span>
-                  ))}
-                </div>
-                <div className="mt-5 flex items-end justify-between gap-4">
-                  <div>
-                    <div className="font-heading text-3xl font-semibold leading-none text-[var(--soft-bordeaux)]">299 ₽</div>
-                    <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">или −2 кредита</div>
                   </div>
-                  <span className="soft-button soft-button-primary text-sm">
-                    Открыть
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </span>
-                </div>
-              </Link>
+                </Link>
+              ) : (
+                <Link
+                  href={`/products/perspectives?dialogueId=${dialogue.id}`}
+                  className="soft-card soft-triage-primary mt-3 block p-5"
+                  data-testid="triage-primary-cta"
+                  data-analytics-surface="checkin_triage"
+                  data-analytics-event="triage_primary_clicked"
+                  data-analytics-target={`/products/perspectives?dialogueId=${dialogue.id}`}
+                  data-analytics-product="perspectives"
+                  data-analytics-dialogue-id={dialogue.id}
+                  data-analytics-cta-role="primary"
+                  data-analytics-offer-id="perspectives_first_paid_step"
+                  data-analytics-offer-reason="decision_request_after_free_answer"
+                  data-analytics-price-rub="299"
+                  data-analytics-credit-cost="2"
+                >
+                  <span className="soft-triage-ribbon">рекомендуем именно вам</span>
+                  <div className="mt-2 flex items-start gap-3">
+                    <Compass className="mt-1 size-6 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    <div>
+                      <h3 className="soft-h3">4 ракурса ответа</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                        {productRecommendation?.reason ?? "Похоже на запрос про решение. Разложим ситуацию на разум, чувства, символ и действие."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-1.5 text-xs text-[var(--soft-ink-soft)]">
+                    {["Разум · факты и варианты", "Чувства · что внутри", "Символ · образ ситуации", "Действие · шаги на неделю"].map((item) => (
+                      <span key={item} className="flex items-center gap-2">
+                        <CheckCircle2 className="size-3.5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-5 flex items-end justify-between gap-4">
+                    <div>
+                      <div className="font-heading text-3xl font-semibold leading-none text-[var(--soft-bordeaux)]">299 ₽</div>
+                      <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">или −2 кредита</div>
+                    </div>
+                    <span className="soft-button soft-button-primary text-sm">
+                      Открыть
+                      <ArrowRight className="size-4" aria-hidden="true" />
+                    </span>
+                  </div>
+                </Link>
+              )}
 
               <p className="soft-eyebrow mt-6">другие форматы</p>
               <div className="mt-2 grid gap-2" data-testid="triage-secondary-options">
