@@ -4,7 +4,7 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { CircleActions } from "@/components/products/circle-actions";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-export const metadata = createPublicPageMetadata("/circle");
+export const metadata = createPublicPageMetadata("/products/circle");
 
 const steps = [
   "Создатель формулирует общий вопрос.",
@@ -21,7 +21,7 @@ export default async function CirclePage({
 
   return (
     <main className="soft-clarity-page soft-public-page" data-testid="circle-page">
-      <PublicJsonLd route="/circle" />
+      <PublicJsonLd route="/products/circle" />
       <section className="soft-shell py-12 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>

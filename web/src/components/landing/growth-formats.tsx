@@ -3,7 +3,7 @@ import { ArrowRight, Check, Heart, Sparkles, Users } from "lucide-react";
 
 const formats = [
   {
-    href: "/circle",
+    href: "/products/circle",
     icon: Users,
     title: "Круг ясности",
     text: "Пригласите 2–5 близких. Они ответят на один вопрос, а ETerapy соберёт бережный общий итог.",
@@ -11,7 +11,7 @@ const formats = [
     className: "from-[#F4D9C1] to-[#F8E6D1]",
   },
   {
-    href: "/pair",
+    href: "/products/pair",
     icon: Heart,
     title: "Разобраться вдвоём",
     text: "Сравните взгляды с партнёром, родителем или коллегой без давления, спора и раскрытия личных ответов до согласия.",
@@ -79,7 +79,7 @@ export function GrowthFormatsSection() {
               Начать практику
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
-            <Link href="/missions" className="soft-button soft-button-ghost">
+            <Link href="/products/missions" className="soft-button soft-button-ghost">
               Все задания практики
             </Link>
           </div>

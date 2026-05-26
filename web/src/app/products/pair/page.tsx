@@ -4,7 +4,7 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-export const metadata = createPublicPageMetadata("/pair");
+export const metadata = createPublicPageMetadata("/products/pair");
 
 export default async function PairPage({
   searchParams,
@@ -15,7 +15,7 @@ export default async function PairPage({
 
   return (
     <main className="soft-clarity-page soft-public-page" data-testid="pair-page">
-      <PublicJsonLd route="/pair" />
+      <PublicJsonLd route="/products/pair" />
       <section className="soft-shell py-12 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>

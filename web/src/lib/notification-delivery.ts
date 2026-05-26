@@ -173,9 +173,9 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "REPORT_READY":
       return { title: "Отчет готов", body: data.title || "Ваш разбор готов к чтению", href: data.reportUrl || "/cabinet/action-history" };
     case "PARTNER_COMPLETED":
-      return { title: "Партнер завершил часть", body: "Можно открыть совместный teaser", href: data.reportUrl || "/pair" };
+      return { title: "Партнер завершил часть", body: "Можно открыть совместный teaser", href: data.reportUrl || "/products/pair" };
     case "CIRCLE_READY":
-      return { title: "Круг ясности готов", body: "Ответов достаточно для общего вывода", href: data.circleUrl || "/circle" };
+      return { title: "Круг ясности готов", body: "Ответов достаточно для общего вывода", href: data.circleUrl || "/products/circle" };
     case "ROUTE_REMINDER":
       return { title: data.title || "Мягкое напоминание", body: data.body || "Один маленький шаг сегодня", href: data.routeUrl || "/cabinet" };
     case "WEEKLY_DIGEST":
@@ -233,9 +233,9 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "REPORT_READY":
       return `Отчет готов\n${data.title ?? "Ваш разбор готов к чтению"}.\n<a href="${data.reportUrl ?? `${baseUrl}/cabinet/action-history`}">Открыть →</a>`;
     case "PARTNER_COMPLETED":
-      return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/pair`}">Открыть teaser →</a>`;
+      return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/products/pair`}">Открыть teaser →</a>`;
     case "CIRCLE_READY":
-      return `Круг ясности готов\n<a href="${data.circleUrl ?? `${baseUrl}/circle`}">Открыть круг →</a>`;
+      return `Круг ясности готов\n<a href="${data.circleUrl ?? `${baseUrl}/products/circle`}">Открыть круг →</a>`;
     case "ROUTE_REMINDER":
       return `${data.title ?? "Мягкое напоминание"}\n${data.body ?? "Можно вернуться к маршруту."}\n<a href="${data.routeUrl ?? `${baseUrl}/cabinet`}">Продолжить →</a>`;
     case "WEEKLY_DIGEST":

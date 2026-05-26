@@ -482,15 +482,16 @@ export default function CheckinPage() {
               data-testid="dialogue-clarification-input"
             />
             <div className="soft-ask-foot">
-              <Button
-                variant="outline"
+              <button
+                type="button"
                 onClick={() => void sendClarification(true)}
                 className="soft-button soft-button-soft"
                 data-testid="dialogue-skip-clarification"
               >
                 Пропустить вопрос
-              </Button>
-              <Button
+              </button>
+              <button
+                type="button"
                 onClick={() => void sendClarification(false)}
                 disabled={!clarification.trim()}
                 className="soft-button soft-button-primary"
@@ -498,7 +499,7 @@ export default function CheckinPage() {
               >
                 Отправить
                 <Send className="size-4" aria-hidden="true" />
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -603,11 +604,11 @@ export default function CheckinPage() {
                     Сохранить в карту
                   </Link>
                 )}
-                <Link href="/circle" className="soft-button soft-button-soft" data-testid="dialogue-free-circle">
+                <Link href="/products/circle" className="soft-button soft-button-soft" data-testid="dialogue-free-circle">
                   <Users className="size-4" aria-hidden="true" />
                   Второй взгляд
                 </Link>
-                <Link href="/pair" className="soft-button soft-button-soft" data-testid="dialogue-free-pair">
+                <Link href="/products/pair" className="soft-button soft-button-soft" data-testid="dialogue-free-pair">
                   <Heart className="size-4" aria-hidden="true" />
                   Вдвоём
                 </Link>

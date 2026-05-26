@@ -25,7 +25,7 @@ describe("B201/B202 Circle and Pair flows", () => {
   });
 
   it("wires Circle public UI to setup, invite, participant, teaser, payment, and map states", () => {
-    const page = source("src/app/circle/page.tsx");
+    const page = source("src/app/products/circle/page.tsx");
     const actions = source("src/components/products/circle-actions.tsx");
     const createRoute = source("src/app/api/products/circle/route.ts");
     const participantRoute = source("src/app/api/products/circle/[id]/participant/route.ts");
@@ -49,7 +49,7 @@ describe("B201/B202 Circle and Pair flows", () => {
   });
 
   it("keeps Pair invites on the v4.1 route and uses real dialogue text for generation", () => {
-    const pairPage = source("src/app/pair/page.tsx");
+    const pairPage = source("src/app/products/pair/page.tsx");
     const actions = source("src/components/products/compatibility-actions.tsx");
     const createRoute = source("src/app/api/products/compatibility/route.ts");
     const partnerRoute = source("src/app/api/products/compatibility/[id]/partner-part/route.ts");

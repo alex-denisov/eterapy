@@ -1,8 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BadgeCheck, ArrowRight } from "lucide-react";
+
+// Map of deep-link `?format=` query values to the internal category id
+// used by CATEGORY_FILTERS. Keeps the practitioner CTA on product pages
+// (e.g. /products/joint-session → /practitioners?format=joint-session)
+// connected to the filtered grid view.
+const FORMAT_TO_CATEGORY: Record<string, string> = {
+  "joint-session": "joint",
+  joint: "joint",
+  psychology: "psy",
+  psy: "psy",
+  coaching: "coach",
+  coach: "coach",
+  legal: "legal",
+  finance: "finance",
+  tarot: "tarot",
+  astrology: "astro",
+  astro: "astro",
+  numerology: "numero",
+  numero: "numero",
+};
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #E8C4B8, #F4D5C8)",
@@ -73,8 +94,22 @@ function normalizeSpecialty(s: string) {
 }
 
 export function PractitionersGrid({ practitioners }: { practitioners: Practitioner[] }) {
-  const [cat, setCat] = useState("all");
+  const searchParams = useSearchParams();
+  const formatParam = searchParams.get("format");
+  const initialCat = (formatParam && FORMAT_TO_CATEGORY[formatParam]) || "all";
+  const [cat, setCat] = useState(initialCat);
   const [sort, setSort] = useState("rec");
+
+  // Keep the chip in sync if the user navigates between practitioner CTAs
+  // with different `?format=` query values without a full page reload.
+  useEffect(() => {
+    if (formatParam) {
+      const mapped = FORMAT_TO_CATEGORY[formatParam];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (mapped && mapped !== cat) setCat(mapped);
+    }
+    // We intentionally re-evaluate when the URL search param changes.
+  }, [formatParam, cat]);
 
   const withCat = practitioners.map((p, i) => ({ ...p, cat: detectCategory(p), gradIdx: i % AVATAR_GRADIENTS.length }));
 

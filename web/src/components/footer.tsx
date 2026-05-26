@@ -15,8 +15,8 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/checkin"), "Первичный разбор"],
         [mainUrl("/library"), "Библиотека вопросов"],
         [mainUrl("/products/clarity-practice"), "Практика ясности"],
-        [mainUrl("/circle"), "Круг ясности"],
-        [mainUrl("/pair"), "Разобраться вдвоём"],
+        [mainUrl("/products/circle"), "Круг ясности"],
+        [mainUrl("/products/pair"), "Разобраться вдвоём"],
       ],
     },
     {
@@ -44,7 +44,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/practitioners"), "Специалисты"],
         [mainUrl("/practitioners/apply"), "Стать специалистом"],
         [mainUrl("/telegram"), "Telegram"],
-        [mainUrl("/missions"), "Задания практики"],
+        [mainUrl("/products/missions"), "Задания практики"],
       ],
     },
     {

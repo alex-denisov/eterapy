@@ -11,7 +11,7 @@ function source(relativePath: string) {
 
 describe("design v4.2 rollout", () => {
   it("exposes the v4.2 growth routes in SEO and public navigation", () => {
-    for (const route of ["/missions", "/circle", "/pair", "/telegram"] as const) {
+    for (const route of ["/products/missions", "/products/circle", "/products/pair", "/telegram"] as const) {
       expect(publicSeoRoutes).toContain(route);
       expect(publicPageSeo[route].title).toContain("ETerapy");
     }
@@ -20,8 +20,8 @@ describe("design v4.2 rollout", () => {
     const footer = source("components/footer.tsx");
 
     expect(header).toContain('label: "Продукты"');
-    expect(footer).toContain('mainUrl("/circle")');
-    expect(footer).toContain('mainUrl("/pair")');
+    expect(footer).toContain('mainUrl("/products/circle")');
+    expect(footer).toContain('mainUrl("/products/pair")');
     expect(footer).toContain('mainUrl("/telegram")');
     expect(footer).toContain('mainUrl("/products/clarity-practice")');
   });

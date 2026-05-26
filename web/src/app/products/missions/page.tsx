@@ -3,7 +3,7 @@ import { ArrowRight, CalendarDays, CheckCircle2, Sparkles } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 
-export const metadata = createPublicPageMetadata("/missions");
+export const metadata = createPublicPageMetadata("/products/missions");
 
 const rhythm = [
   { title: "Карта дня", text: "Один вопрос на 30 секунд, чтобы заметить состояние без оценки." },
@@ -14,7 +14,7 @@ const rhythm = [
 export default function MissionsPage() {
   return (
     <main className="soft-clarity-page soft-public-page" data-testid="missions-page">
-      <PublicJsonLd route="/missions" />
+      <PublicJsonLd route="/products/missions" />
 
       <section className="soft-shell py-12 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
