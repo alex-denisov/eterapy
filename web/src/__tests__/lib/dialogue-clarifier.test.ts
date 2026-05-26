@@ -242,7 +242,7 @@ describe("dialogue-clarifier", () => {
       requestId: "req-live-ai",
     }));
     const request = mockAiComplete.mock.calls[0]?.[0];
-    expect(request?.messages[0]?.content).toContain("короткой живой репликой");
+    expect(request?.messages[0]?.content).toContain("короткая живая реплика");
   });
 
   it("heuristic returns fallback questions for any topic", () => {

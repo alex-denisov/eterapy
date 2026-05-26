@@ -276,6 +276,121 @@ function parseConversationalTurnResponse(text: string): ConversationalTurnResult
   }
 }
 
+function buildSystemPrompt(input: {
+  topic?: string | null;
+  difficulty?: string | null;
+  previousPairsCount: number;
+  canBeReady: boolean;
+  retry: boolean;
+}): string {
+  const readyInstruction = input.canBeReady
+    ? `Уже был ${input.previousPairsCount} живой обмен. Если контекста достаточно для первичного ответа — верни {"q":"","c":[]}.`
+    : "Это начало диалога: нужно коротко отозваться на сказанное и задать один уточняющий вопрос. Сигнал ready запрещён.";
+
+  const retryHint = input.retry
+    ? "Предыдущий ответ был отвергнут как невалидный или дублирующий. Сформулируй заново, опираясь на конкретные слова из последнего ответа пользователя."
+    : "";
+
+  return [
+    "Ты ведёшь диалог ясности на платформе ETerapy. Пользователь делится живой ситуацией — ты помогаешь ему её прояснить.",
+    `Тема: ${input.topic ?? "неизвестна"}, сложность: ${input.difficulty ?? "неизвестна"}.`,
+    "",
+    "Каждый твой ход — это короткая живая реплика: ты отзеркаливаешь конкретные слова пользователя из его последнего сообщения, а затем задаёшь ОДИН следующий уточняющий вопрос.",
+    "Это диалог с человеком, не анкета. Нельзя выдавать пачку вопросов, нумерацию, одинаковые формулировки, безличные шаблоны или универсальный сценарий.",
+    "Контекст строится из всех предыдущих сообщений: учитывай конкретные детали, имена, обстоятельства и ответы пользователя — каждая следующая реплика должна явно их использовать.",
+    "",
+    "Ответь СТРОГО в формате JSON (без markdown, без префиксов, без пояснений):",
+    '{"q":"короткая живая реплика + один вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
+    "",
+    "Пример (первый ход): {\"q\":\"Слышу, что вам важно не ошибиться и сохранить устойчивость. Что в этой ситуации сильнее всего просит ясности прямо сейчас?\",\"c\":[\"Решение\",\"Спокойствие\",\"Следующий шаг\"]}",
+    "Пример (после ответа «страх оценки»): {\"q\":\"Страх оценки — это про реакцию руководителя или про что-то более давнее? Что в этом страхе сейчас громче — конкретная ситуация или привычка молчать?\",\"c\":[\"Реакция шефа\",\"Давнее\",\"Привычка молчать\"]}",
+    "",
+    "Правила:",
+    "- q: 1-3 коротких предложения, до 500 символов, мягко, конкретно, лично, не диагностически",
+    "- Обязательно отзеркаль конкретное слово/фразу из последней реплики пользователя",
+    "- Три коротких варианта ответа (1-6 слов) на русском языке, каждый — реальная опция, а не общая категория",
+    "- Не повторяй уже заданные вопросы и не используй безличные шаблоны вроде «что сейчас самое важное»",
+    readyInstruction,
+    retryHint,
+    "- Не ставь диагнозов, не предсказывай гарантированный исход, не давай медицинских, юридических или финансовых советов",
+  ].filter(Boolean).join("\n");
+}
+
+async function attemptLlmTurn(input: {
+  originalQuestion: string;
+  previousPairs: Array<{ question: string; answer: string }>;
+  topic?: string | null;
+  difficulty?: string | null;
+  userId?: string | null;
+  requestId?: string;
+  canBeReady: boolean;
+  retry: boolean;
+  temperature: number;
+}): Promise<{ result: ConversationalTurnResult; provider?: string; model?: string } | null> {
+  const systemContent = buildSystemPrompt({
+    topic: input.topic,
+    difficulty: input.difficulty,
+    previousPairsCount: input.previousPairs.length,
+    canBeReady: input.canBeReady,
+    retry: input.retry,
+  });
+
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: systemContent },
+    { role: "user", content: input.originalQuestion },
+  ];
+
+  for (const pair of input.previousPairs) {
+    messages.push({ role: "assistant", content: pair.question });
+    messages.push({ role: "user", content: pair.answer });
+  }
+
+  const response = await aiComplete({
+    feature: "dialogue-clarifier",
+    userId: input.userId,
+    requestId: input.requestId,
+    maxTokens: 400,
+    temperature: input.temperature,
+    messages,
+  });
+
+  const parsed = parseConversationalTurnResponse(response.text);
+  if (!parsed) {
+    log.warn("dialogue-clarifier-invalid-turn", {
+      requestId: input.requestId,
+      topic: input.topic,
+      previousPairCount: input.previousPairs.length,
+      provider: response.provider,
+      model: response.model,
+      retry: input.retry,
+    });
+    return null;
+  }
+
+  if (parsed.type === "ready" && !input.canBeReady) {
+    log.warn("dialogue-clarifier-premature-ready", {
+      requestId: input.requestId,
+      previousPairCount: input.previousPairs.length,
+      retry: input.retry,
+    });
+    return null;
+  }
+
+  if (parsed.type === "question" && parsed.question && isDuplicateAssistantTurn(parsed.question, input.previousPairs)) {
+    log.warn("dialogue-clarifier-duplicate-turn", {
+      requestId: input.requestId,
+      topic: input.topic,
+      previousPairCount: input.previousPairs.length,
+      provider: response.provider,
+      model: response.model,
+      retry: input.retry,
+    });
+    return null;
+  }
+
+  return { result: parsed, provider: response.provider, model: response.model };
+}
+
 export async function generateDialogueConversationalTurn(input: {
   originalQuestion?: string;
   question?: string;
@@ -296,77 +411,45 @@ export async function generateDialogueConversationalTurn(input: {
 
   const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
 
+  // Try LLM up to twice before falling back. The second attempt uses a
+  // higher temperature and an explicit "your previous answer was
+  // rejected" hint so we don't get the same broken output twice.
   try {
-    const readyInstruction = canBeReady
-      ? `Уже был ${input.previousPairs.length} живой обмен. Если контекста достаточно для первичного ответа — верни {"q":"","c":[]}.`
-      : "Это первый ход после вопроса пользователя: нужно коротко отозваться и задать один уточняющий вопрос, ready запрещён.";
-
-    const systemContent = [
-      "Ты ведёшь диалог ясности на платформе ETerapy.",
-      `Тема: ${input.topic ?? "неизвестна"}, сложность: ${input.difficulty ?? "неизвестна"}.`,
-      "Ответь короткой живой репликой: покажи, что услышал конкретные слова пользователя, и задай ОДИН следующий вопрос только если он нужен.",
-      "Это диалог с человеком, не анкета: нельзя выдавать пачку вопросов, нумерацию, одинаковые формулировки или универсальный сценарий.",
-      "",
-      "Ответь строго в формате JSON (без markdown, без пояснений):",
-      '{"q":"короткая живая реплика + один вопрос по-русски","c":["вариант 1","вариант 2","вариант 3"]}',
-      "",
-      "Пример: {\"q\":\"Слышу, что вам важно не ошибиться и сохранить устойчивость. Что в этой ситуации сильнее всего просит ясности прямо сейчас?\",\"c\":[\"Решение\",\"Спокойствие\",\"Следующий шаг\"]}",
-      "",
-      "Правила:",
-      "- q: 2-4 коротких предложения, до 500 символов, мягко, конкретно, лично, не диагностически",
-      "- Три коротких варианта ответа (1-6 слов) на русском языке",
-      "- Не повторяй уже заданные вопросы и не используй безличные шаблоны вроде «что сейчас самое важное»",
-      readyInstruction,
-      "- Не ставь диагнозов, не предсказывай гарантированный исход, не давай медицинских, юридических или финансовых советов",
-    ].join("\n");
-
-    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-      { role: "system", content: systemContent },
-      { role: "user", content: originalQuestion },
-    ];
-
-    for (const pair of previousPairs) {
-      messages.push({ role: "assistant", content: pair.question });
-      messages.push({ role: "user", content: pair.answer });
-    }
-
-    const response = await aiComplete({
-      feature: "dialogue-clarifier",
+    const first = await attemptLlmTurn({
+      originalQuestion,
+      previousPairs,
+      topic: input.topic,
+      difficulty: input.difficulty,
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 300,
-      temperature: 0.6,
-      messages,
+      canBeReady,
+      retry: false,
+      temperature: 0.65,
     });
-
-    const parsed = parseConversationalTurnResponse(response.text);
-    if (!parsed) {
-      log.warn("dialogue-clarifier-invalid-turn", {
-        requestId: input.requestId,
-        topic: input.topic,
-        previousPairCount: previousPairs.length,
-        provider: response.provider,
-        model: response.model,
-      });
-      return fallback;
+    if (first) {
+      return { ...first.result, provider: first.provider, model: first.model };
     }
 
-    // Guard: LLM must not signal ready before minimum turns
-    if (parsed.type === "ready" && !canBeReady) {
-      return fallback;
-    }
-    if (parsed.type === "question" && parsed.question && isDuplicateAssistantTurn(parsed.question, previousPairs)) {
-      log.warn("dialogue-clarifier-duplicate-turn", {
-        requestId: input.requestId,
-        topic: input.topic,
-        previousPairCount: previousPairs.length,
-        provider: response.provider,
-        model: response.model,
-      });
-      return fallback;
+    const second = await attemptLlmTurn({
+      originalQuestion,
+      previousPairs,
+      topic: input.topic,
+      difficulty: input.difficulty,
+      userId: input.userId,
+      requestId: input.requestId,
+      canBeReady,
+      retry: true,
+      temperature: 0.85,
+    });
+    if (second) {
+      return { ...second.result, provider: second.provider, model: second.model };
     }
 
-    return { ...parsed, provider: response.provider, model: response.model };
+    log.warn("dialogue-clarifier-heuristic-fallback-after-retries", {
+      requestId: input.requestId,
+      previousPairCount: previousPairs.length,
+    });
+    return fallback;
   } catch (error) {
     log.warn("dialogue-clarifier-conversational-fallback", {
       requestId: input.requestId,
