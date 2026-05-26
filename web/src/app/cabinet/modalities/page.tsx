@@ -13,7 +13,7 @@ import { appUrl, mainUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 
 const MODALITIES = [
-  { href: appUrl("/cabinet/modalities/checkin"), icon: MessageCircle, label: "Диалог ясности", desc: "Короткий вопрос, бережные уточнения и первичный ответ без оплаты", tone: "warm" },
+  { href: appUrl("/modalities/checkin"), icon: MessageCircle, label: "Диалог ясности", desc: "Короткий вопрос, бережные уточнения и первичный ответ без оплаты", tone: "warm" },
   { href: mainUrl("/products/deep-report"), icon: FileText, label: "Глубокий отчет", desc: "Структурированный разбор с рекомендациями, когда первичного ответа мало", tone: "paper" },
   { href: mainUrl("/products/perspectives"), icon: BookOpen, label: "4 ракурса ответа", desc: "Несколько точек зрения на один вопрос без обещаний и давления", tone: "paper" },
   { href: mainUrl("/products/chat-analysis"), icon: MessagesSquare, label: "Разбор переписки", desc: "Приватный анализ текста с возможностью удалить источник", tone: "paper" },

@@ -30,7 +30,7 @@ export default function Error({
             Попробовать снова
           </button>
           <a
-            href={appUrl("/cabinet")}
+            href={appUrl("")}
             className="soft-button soft-button-ghost"
             style={{ color: "var(--soft-ink-soft)" }}
           >

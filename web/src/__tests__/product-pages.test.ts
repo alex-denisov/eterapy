@@ -117,11 +117,11 @@ describe("v5 product pages", () => {
 
     expect(cabinetProducts).toContain('data-testid="cabinet-products-page"');
     expect(cabinetProducts).toContain("<ProductPurchaseControls");
-    expect(cabinetProducts).toContain('appUrl("/cabinet/billing")');
+    expect(cabinetProducts).toContain('appUrl("/billing")');
     expect(credits).toContain('data-testid="cabinet-credits-page"');
     expect(credits).toContain("getClarityCreditBalance");
-    expect(shell).toContain('appUrl("/cabinet/modalities")');
-    expect(shell).toContain('appUrl("/cabinet/credits")');
+    expect(shell).toContain('appUrl("/modalities")');
+    expect(shell).toContain('appUrl("/credits")');
   });
 
   it("links public shell product navigation to durable product pages", () => {

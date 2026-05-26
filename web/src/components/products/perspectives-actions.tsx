@@ -244,29 +244,6 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     return () => { cancelled = true; };
   }, [authStatus, dialogueId]);
 
-  async function createPreview() {
-    if (!dialogueId) return;
-    if (!isAuthenticated) {
-      setMessage("Войдите, чтобы создать предпросмотр и сохранить результат в личном кабинете.");
-      setStatus("error");
-      return;
-    }
-    setStatus("loading");
-    setMessage(null);
-    try {
-      const payload = await jsonRequest<ApiPayload>("/api/products/perspectives", {
-        method: "POST",
-        body: JSON.stringify({ dialogueId, action: "preview" }),
-      });
-      setHasEntitlement(Boolean(payload.hasEntitlement));
-      setResult(payload.result ?? null);
-      setStatus("idle");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось создать предпросмотр");
-      setStatus("error");
-    }
-  }
-
   async function generateReport() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
@@ -407,11 +384,6 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
       {/* actions */}
       <div className="mt-6 flex flex-wrap gap-3">
-        {!result?.previewText && (
-          <Button onClick={createPreview} disabled={status === "loading"} className="soft-button soft-button-ghost">
-            Создать предпросмотр
-          </Button>
-        )}
         <Button
           onClick={generateReport}
           disabled={!hasEntitlement || status === "loading" || status === "paying"}

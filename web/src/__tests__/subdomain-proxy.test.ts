@@ -38,7 +38,7 @@ describe("subdomain proxy rewrites", () => {
     // app.eterapy.com/modalities must be rewritten to /cabinet/modalities, not sent to main domain.
     expect(shouldRedirectAppPublicPathToMain("/modalities")).toBe(false);
     expect(shouldRedirectAppPublicPathToMain("/modalities/checkin")).toBe(false);
-    // /missions (public footer link) stays canonical on main
-    expect(shouldRedirectAppPublicPathToMain("/missions")).toBe(true);
+    // /products/clarity-practice (public daily-practice product) stays on main
+    expect(shouldRedirectAppPublicPathToMain("/products/clarity-practice")).toBe(true);
   });
 });

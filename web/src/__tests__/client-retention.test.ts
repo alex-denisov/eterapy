@@ -20,7 +20,7 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain('data-testid="client-subscription-status"');
     expect(page).toContain("getSubscriptionPlanLabel");
     expect(page).toContain("db.clarityRoute.findMany");
-    expect(page).toContain('appUrl("/cabinet/questions")');
+    expect(page).toContain('appUrl("/questions")');
     expect(page).toContain("История разборов");
     expect(page).toContain("mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`)");
   });
@@ -28,10 +28,10 @@ describe("M11 client retention surfaces", () => {
   it("adds v4.1 history navigation to the cabinet", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
-    expect(shell).toContain('appUrl("/cabinet/questions")');
+    expect(shell).toContain('appUrl("/questions")');
     expect(shell).toContain('"История разборов"');
-    expect(shell).toContain('appUrl("/cabinet/credits")');
-    expect(shell).toContain('appUrl("/cabinet/modalities")');
+    expect(shell).toContain('appUrl("/credits")');
+    expect(shell).toContain('appUrl("/modalities")');
     expect(shell).toContain('"Кредиты ясности"');
     expect(shell).toContain("History");
   });

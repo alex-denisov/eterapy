@@ -16,7 +16,7 @@ export default async function PractitionerProfilePage() {
     include: { user: { select: { name: true, email: true, avatarUrl: true } } },
   });
 
-  if (!practitioner) redirect(appUrl("/cabinet"));
+  if (!practitioner) redirect(appUrl(""));
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">

@@ -56,17 +56,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  async redirects() {
-    // Move standalone product surfaces under /products/* so the URL
-    // shape matches the catalogue and the v4.2 design. Old paths
-    // keep working through 308 permanent redirects, so external
-    // links and SEO equity stay intact.
-    return [
-      { source: "/pair", destination: "/products/pair", permanent: true },
-      { source: "/circle", destination: "/products/circle", permanent: true },
-      { source: "/missions", destination: "/products/missions", permanent: true },
-    ];
-  },
 };
 
 export default nextConfig;

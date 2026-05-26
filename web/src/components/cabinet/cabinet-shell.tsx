@@ -30,26 +30,26 @@ interface NavItem {
 }
 
 const CLIENT_NAV: NavItem[] = [
-  { href: appUrl("/cabinet"), icon: LayoutDashboard, label: "Главная" },
-  { href: appUrl("/cabinet/action-history"), icon: Compass, label: "Моя карта" },
-  { href: appUrl("/cabinet/questions"), icon: History, label: "История разборов" },
-  { href: appUrl("/cabinet/bookings"), icon: CalendarDays, label: "Записи" },
-  { href: appUrl("/cabinet/credits"), icon: Sparkles, label: "Кредиты ясности" },
-  { href: appUrl("/cabinet/modalities"), icon: Leaf, label: "Задания практики" },
-  { href: appUrl("/cabinet/billing"), icon: Wallet, label: "Подписка и оплата" },
-  { href: appUrl("/cabinet/settings"), icon: Settings, label: "Настройки" },
+  { href: appUrl("/"), icon: LayoutDashboard, label: "Главная" },
+  { href: appUrl("/action-history"), icon: Compass, label: "Моя карта" },
+  { href: appUrl("/questions"), icon: History, label: "История разборов" },
+  { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
+  { href: appUrl("/credits"), icon: Sparkles, label: "Кредиты ясности" },
+  { href: appUrl("/modalities"), icon: Leaf, label: "Практика ясности" },
+  { href: appUrl("/billing"), icon: Wallet, label: "Подписка и оплата" },
+  { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];
 
 const PRACTITIONER_NAV: NavItem[] = [
-  { href: appUrl("/cabinet/practitioner"), icon: LayoutDashboard, label: "Сводка" },
-  { href: appUrl("/cabinet/practitioner/profile"), icon: UserPen, label: "Мой профиль" },
-  { href: appUrl("/cabinet/practitioner/services"), icon: Bookmark, label: "Услуги и цены" },
-  { href: appUrl("/cabinet/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
-  { href: appUrl("/cabinet/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
-  { href: appUrl("/cabinet/practitioner/clients"), icon: Users, label: "Клиенты" },
-  { href: appUrl("/cabinet/practitioner/earnings"), icon: Banknote, label: "Выплаты" },
-  { href: appUrl("/cabinet/practitioner/reviews"), icon: Star, label: "Отзывы" },
-  { href: appUrl("/cabinet/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },
+  { href: appUrl("/practitioner"), icon: LayoutDashboard, label: "Сводка" },
+  { href: appUrl("/practitioner/profile"), icon: UserPen, label: "Мой профиль" },
+  { href: appUrl("/practitioner/services"), icon: Bookmark, label: "Услуги и цены" },
+  { href: appUrl("/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
+  { href: appUrl("/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
+  { href: appUrl("/practitioner/clients"), icon: Users, label: "Клиенты" },
+  { href: appUrl("/practitioner/earnings"), icon: Banknote, label: "Выплаты" },
+  { href: appUrl("/practitioner/reviews"), icon: Star, label: "Отзывы" },
+  { href: appUrl("/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -121,8 +121,15 @@ export function CabinetShell({
   function isActive(href: string) {
     if (!hydrated || !activePathname) return false;
     const itemPath = toPathname(href);
-    if (itemPath === "/cabinet" || itemPath === "/cabinet/practitioner") return activePathname === itemPath;
-    return activePathname.startsWith(itemPath);
+    // Normalize both sides: incoming href may be "/" (root cabinet) or
+    // "/X" (no /cabinet prefix), while activePathname comes from
+    // toCabinetPathname() which still adds the /cabinet/ form for the
+    // server-rendered pathname. Reduce both to the bare /X form first.
+    const stripCabinet = (path: string) => path === "/cabinet" ? "/" : path.startsWith("/cabinet/") ? path.slice("/cabinet".length) : path;
+    const normItem = stripCabinet(itemPath);
+    const normActive = stripCabinet(activePathname);
+    if (normItem === "/" || normItem === "/practitioner") return normActive === normItem;
+    return normActive.startsWith(normItem);
   }
 
   // Для мобильной навигации — первые 4 пункта.

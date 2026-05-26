@@ -74,7 +74,7 @@ export default async function CabinetCreditsPage() {
               </p>
             ))}
           </div>
-          <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary mt-5">
+          <Link href={appUrl("/products")} className="soft-button soft-button-primary mt-5">
             Все продукты
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>

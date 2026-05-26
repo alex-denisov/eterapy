@@ -270,7 +270,7 @@ function HelpContent() {
               desc: "Для чувствительных тем",
               bg: "linear-gradient(140deg, #D6DECC, #E5EBDC)",
               color: "#3A4A36",
-              href: appUrl("/cabinet/settings"),
+              href: appUrl("/settings"),
             },
           ].map((ch) => (
             <a

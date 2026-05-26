@@ -205,7 +205,7 @@ export function ProductPurchaseControls({
         <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
           {message}{" "}
           {message.includes("Пополните") && (
-            <Link href={appUrl("/cabinet/billing")} prefetch={false} className="font-semibold underline">
+            <Link href={appUrl("/billing")} prefetch={false} className="font-semibold underline">
               Пополнить
             </Link>
           )}

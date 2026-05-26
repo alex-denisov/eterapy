@@ -13,7 +13,7 @@ export default async function PractitionerClientsPage() {
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const practitioner = await db.practitioner.findUnique({ where: { userId: session.user!.id } });
-  if (!practitioner) redirect(appUrl("/cabinet/practitioner"));
+  if (!practitioner) redirect(appUrl("/practitioner"));
 
   const bookings = await db.booking.findMany({
     where: { practitionerId: practitioner.id },

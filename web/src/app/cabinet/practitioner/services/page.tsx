@@ -24,7 +24,7 @@ export default async function PractitionerServicesPage() {
     },
   });
 
-  if (!practitioner) redirect(appUrl("/cabinet/practitioner"));
+  if (!practitioner) redirect(appUrl("/practitioner"));
 
   const activeRates = practitioner.priceRates.length > 0
     ? practitioner.priceRates
@@ -64,7 +64,7 @@ export default async function PractitionerServicesPage() {
             от цифровых продуктов ETerapy.
           </p>
         </div>
-        <Link href={appUrl("/cabinet/practitioner/schedule")} className="soft-button soft-button-primary">
+        <Link href={appUrl("/practitioner/schedule")} className="soft-button soft-button-primary">
           Настроить расписание
         </Link>
       </div>
@@ -147,7 +147,7 @@ export default async function PractitionerServicesPage() {
                     <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
                       {rate.priceRub.toLocaleString("ru-RU")} ₽
                     </p>
-                    <Link href={appUrl("/cabinet/practitioner/schedule")} className="soft-chip">
+                    <Link href={appUrl("/practitioner/schedule")} className="soft-chip">
                       Изменить
                     </Link>
                   </div>

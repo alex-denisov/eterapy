@@ -145,10 +145,10 @@ export default async function PractitionerCabinetPage() {
           <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">{practitioner.title}</p>
         </div>
         <div className="flex gap-2">
-          <Link href={appUrl("/cabinet/practitioner/schedule")} className="soft-button soft-button-ghost">
+          <Link href={appUrl("/practitioner/schedule")} className="soft-button soft-button-ghost">
             Открыть расписание
           </Link>
-          <Link href={appUrl("/cabinet/practitioner/services")} className="soft-button soft-button-primary">
+          <Link href={appUrl("/practitioner/services")} className="soft-button soft-button-primary">
             Добавить услугу
           </Link>
         </div>
@@ -205,7 +205,7 @@ export default async function PractitionerCabinetPage() {
             {rating}
           </p>
           <Link
-            href={appUrl("/cabinet/practitioner/reviews")}
+            href={appUrl("/practitioner/reviews")}
             className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
           >
             {practitioner.reviewCount} отзывов →
@@ -229,7 +229,7 @@ export default async function PractitionerCabinetPage() {
             {currentBalance.toLocaleString("ru")} ₽
           </p>
           <Link
-            href={appUrl("/cabinet/practitioner/earnings")}
+            href={appUrl("/practitioner/earnings")}
             className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
           >
             открыть выплаты →
@@ -255,7 +255,7 @@ export default async function PractitionerCabinetPage() {
                   : ""}
               </p>
             </div>
-            <Link href={appUrl("/cabinet/practitioner/services")} className="soft-chip">
+            <Link href={appUrl("/practitioner/services")} className="soft-chip">
               Ссылки и widget →
             </Link>
           </div>
@@ -314,7 +314,7 @@ export default async function PractitionerCabinetPage() {
         <div className="soft-card p-5">
           <div className="mb-4 flex items-center justify-between">
             <p className="soft-eyebrow">расписание · ближайшее</p>
-            <Link href={appUrl("/cabinet/practitioner/schedule")} className="soft-chip text-xs">
+            <Link href={appUrl("/practitioner/schedule")} className="soft-chip text-xs">
               Все слоты →
             </Link>
           </div>
@@ -416,7 +416,7 @@ export default async function PractitionerCabinetPage() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <Link href={appUrl("/cabinet/practitioner/profile")} className="soft-button soft-button-primary">
+            <Link href={appUrl("/practitioner/profile")} className="soft-button soft-button-primary">
               Заполнить интерес
             </Link>
             <Link href={mainUrl("/how-it-works")} className="soft-chip text-sm">

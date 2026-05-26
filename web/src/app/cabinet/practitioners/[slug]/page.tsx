@@ -47,9 +47,9 @@ export default async function CabinetPractitionerPage({ params }: { params: Prom
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Breadcrumbs */}
       <nav className="mb-6 flex items-center gap-2 text-sm text-[var(--soft-ink-soft)]">
-        <Link href={appUrl("/cabinet")} className="hover:text-[var(--soft-ink)]">Кабинет</Link>
+        <Link href={appUrl("")} className="hover:text-[var(--soft-ink)]">Кабинет</Link>
         <span>/</span>
-        <Link href={appUrl("/cabinet/practitioners")} className="hover:text-[var(--soft-ink)]">Практики</Link>
+        <Link href={appUrl("/practitioners")} className="hover:text-[var(--soft-ink)]">Практики</Link>
         <span>/</span>
         <span className="text-[var(--soft-ink)]">{p.user.name}</span>
       </nav>

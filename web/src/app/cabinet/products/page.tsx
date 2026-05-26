@@ -63,7 +63,7 @@ export default async function CabinetProductsPage() {
         <div className="soft-card p-5" style={{ background: "var(--soft-paper-deep)" }}>
           <p className="soft-eyebrow">если не хватает средств</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">Пополните баланс или оплатите продукт картой прямо из карточки услуги.</p>
-          <Link href={appUrl("/cabinet/billing")} className="soft-chip mt-4 inline-flex">
+          <Link href={appUrl("/billing")} className="soft-chip mt-4 inline-flex">
             <Wallet className="size-3.5" aria-hidden="true" />
             Пополнить баланс
           </Link>

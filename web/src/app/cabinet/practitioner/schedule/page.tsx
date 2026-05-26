@@ -15,7 +15,7 @@ export default async function PractitionerSchedulePage() {
     where: { userId: session.user!.id },
     select: { id: true },
   });
-  if (!practitioner) redirect(appUrl("/cabinet/practitioner"));
+  if (!practitioner) redirect(appUrl("/practitioner"));
 
   const [rules, rates] = await Promise.all([
     db.scheduleRule.findMany({ where: { practitionerId: practitioner.id }, orderBy: { dayOfWeek: "asc" } }),

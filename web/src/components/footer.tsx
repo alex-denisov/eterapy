@@ -44,7 +44,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/practitioners"), "Специалисты"],
         [mainUrl("/practitioners/apply"), "Стать специалистом"],
         [mainUrl("/telegram"), "Telegram"],
-        [mainUrl("/products/missions"), "Задания практики"],
+        [mainUrl("/products/clarity-practice"), "Задания практики"],
       ],
     },
     {

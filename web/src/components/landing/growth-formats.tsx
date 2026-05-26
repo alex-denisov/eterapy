@@ -79,7 +79,7 @@ export function GrowthFormatsSection() {
               Начать практику
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
-            <Link href="/products/missions" className="soft-button soft-button-ghost">
+            <Link href="/products/clarity-practice" className="soft-button soft-button-ghost">
               Все задания практики
             </Link>
           </div>

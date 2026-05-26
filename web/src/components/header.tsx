@@ -106,7 +106,7 @@ function BalanceSummaryLink({
   const rub = formatBalanceRub(balanceKopecks);
   return (
     <Link
-      href={appUrl("/cabinet/credits")}
+      href={appUrl("/credits")}
       prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
       className={cn("soft-user-pill hidden", className)}
@@ -130,11 +130,11 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
   const rub = formatBalanceRub(balanceKopecks);
 
   const menuItems = role === "PRACTITIONER" ? [
-    { href: appUrl("/cabinet/practitioner"), label: "Главная специалиста", icon: LayoutDashboard },
-    { href: appUrl("/cabinet/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
-    { href: appUrl("/cabinet/practitioner/requests"), label: "Заявки", icon: BookOpen },
-    { href: appUrl("/cabinet/practitioner/earnings"), label: "Выплаты", icon: CreditCard },
-    { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },
+    { href: appUrl("/practitioner"), label: "Главная специалиста", icon: LayoutDashboard },
+    { href: appUrl("/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
+    { href: appUrl("/practitioner/requests"), label: "Заявки", icon: BookOpen },
+    { href: appUrl("/practitioner/earnings"), label: "Выплаты", icon: CreditCard },
+    { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ] : role === "SUPERADMIN" ? [
     { href: adminUrl("/admin"), label: "Панель управления", icon: LayoutDashboard },
     { href: adminUrl("/admin/metrics"), label: "Метрики", icon: Compass },
@@ -145,13 +145,13 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
     { href: adminUrl("/admin"), label: "Панель администратора", icon: LayoutDashboard },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
-    { href: appUrl("/cabinet"), label: "Главная кабинета", icon: LayoutDashboard },
-    { href: appUrl("/cabinet/action-history"), label: "Моя карта", icon: Compass },
-    { href: appUrl("/cabinet/questions"), label: "История разборов", icon: BookOpen },
-    { href: appUrl("/cabinet/credits"), label: "Кредиты ясности", icon: Sparkles },
-    { href: appUrl("/cabinet/bookings"), label: "Мои записи", icon: CalendarDays },
-    { href: appUrl("/cabinet/billing"), label: "Подписка и оплата", icon: CreditCard },
-    { href: appUrl("/cabinet/settings"), label: "Настройки", icon: Settings },
+    { href: appUrl(""), label: "Главная кабинета", icon: LayoutDashboard },
+    { href: appUrl("/action-history"), label: "Моя карта", icon: Compass },
+    { href: appUrl("/questions"), label: "История разборов", icon: BookOpen },
+    { href: appUrl("/credits"), label: "Кредиты ясности", icon: Sparkles },
+    { href: appUrl("/bookings"), label: "Мои записи", icon: CalendarDays },
+    { href: appUrl("/billing"), label: "Подписка и оплата", icon: CreditCard },
+    { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ];
 
   const allItems = [...menuItems, { href: "#signout", label: "Выйти из аккаунта" } as const];
@@ -340,10 +340,10 @@ export function Header() {
 
   const softPublicHeader = !isAdminArea;
   const cabinetHref = session?.user?.role === "PRACTITIONER"
-    ? appUrl("/cabinet/practitioner")
+    ? appUrl("/practitioner")
     : session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN"
       ? adminUrl("/admin")
-      : appUrl("/cabinet");
+      : appUrl("");
 
   return (
     <header

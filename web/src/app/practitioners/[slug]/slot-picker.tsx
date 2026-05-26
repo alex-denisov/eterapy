@@ -207,7 +207,7 @@ export function SlotPicker({
         <p className="text-3xl mb-2">✅</p>
         <p className="font-heading text-lg font-semibold text-green-400">Запись оформлена!</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          Встреча с {practitionerName} появится в <a href={appUrl("/cabinet/bookings")} className="text-primary hover:underline">кабинете</a>.
+          Встреча с {practitionerName} появится в <a href={appUrl("/bookings")} className="text-primary hover:underline">кабинете</a>.
         </p>
       </div>
     );

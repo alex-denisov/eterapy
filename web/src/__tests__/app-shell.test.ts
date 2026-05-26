@@ -27,15 +27,15 @@ describe("v5 app shell", () => {
     // Hydration-safe activePathname: empty before mount (server &
     // first client render agree), real pathname after mount.
     expect(shell).toContain('const activePathname = hydrated ? toCabinetPathname(pathname) : "";');
-    expect(shell).toContain("activePathname.startsWith(itemPath)");
+    expect(shell).toContain("normActive.startsWith(normItem)");
   });
 
   it("keeps product actions inside the app cabinet instead of sending clients to the landing", () => {
     expect(clientCabinet).toContain('mainUrl("/checkin")');
-    expect(clientCabinet).toContain('appUrl("/cabinet/products")');
-    expect(shell).toContain('appUrl("/cabinet/modalities")');
-    expect(shell).toContain('appUrl("/cabinet/credits")');
-    expect(clientCabinet).toContain('appUrl("/cabinet/action-history")');
+    expect(clientCabinet).toContain('appUrl("/products")');
+    expect(shell).toContain('appUrl("/modalities")');
+    expect(shell).toContain('appUrl("/credits")');
+    expect(clientCabinet).toContain('appUrl("/action-history")');
     expect(clientCabinet).toContain('data-testid="client-map-preview"');
     // Product CTAs on cabinet homepage must stay in-cabinet (not link to eterapy.com/products/...)
     expect(clientCabinet).not.toContain('mainUrl("/products/seven-days")');

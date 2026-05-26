@@ -300,7 +300,7 @@ export default function ClientBookingsPage() {
       {bookings.length === 0 && (
         <div className="soft-card-flat py-12 text-center">
           <p style={{ color: "var(--soft-ink-faint)" }}>Нет записей к практикам</p>
-          <Link href={appUrl("/cabinet/practitioners")}
+          <Link href={appUrl("/practitioners")}
             className="soft-chip mt-4 inline-flex">
             Найти практика
           </Link>

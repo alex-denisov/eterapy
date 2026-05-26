@@ -62,7 +62,7 @@ describe("B084 legacy modality unlock cleanup", () => {
     expect(index).not.toContain("/cabinet/modalities/tarot");
     expect(index).not.toContain("/cabinet/modalities/horoscope");
     expect(index).not.toContain("/cabinet/modalities/natal");
-    expect(index).toContain('appUrl("/cabinet/modalities/checkin")');
+    expect(index).toContain('appUrl("/modalities/checkin")');
     expect(index).toContain('mainUrl("/products/deep-report")');
     expect(index).not.toContain("premium-card");
     expect(index).not.toContain("premium-chip");

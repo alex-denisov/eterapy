@@ -73,7 +73,7 @@ export default async function ClientCabinetPage() {
   const currentTheme = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   const nextAction = activeRoutes[0]
-    ? { href: appUrl("/cabinet/products"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
+    ? { href: appUrl("/products"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
     : recentDialogues[0]
       ? { href: mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`), label: "Вернуться к последнему вопросу", hint: recentDialogues[0].status === "ANSWERED" ? "ответ уже готов" : "можно продолжить" }
       : { href: mainUrl("/checkin"), label: "Задать первый вопрос", hint: "начните с бесплатного первичного ответа" };
@@ -117,13 +117,13 @@ export default async function ClientCabinetPage() {
               Начните первый разбор
             </p>
           )}
-          <Link href={appUrl("/cabinet/action-history")} className="soft-chip mt-4 inline-block">
+          <Link href={appUrl("/action-history")} className="soft-chip mt-4 inline-block">
             Открыть карту →
           </Link>
         </div>
 
         <Link
-          href={appUrl("/cabinet/credits")}
+          href={appUrl("/credits")}
           className="soft-card p-5 block"
           data-testid="client-clarity-credits"
           style={{ background: "linear-gradient(140deg, #F4D9C1, #F8E6D1)", textDecoration: "none" }}
@@ -164,7 +164,7 @@ export default async function ClientCabinetPage() {
               Баланс: {balanceRub.toLocaleString("ru")} ₽
             </p>
           )}
-          <Link href={appUrl("/cabinet/billing")} className="soft-chip mt-4 inline-block">
+          <Link href={appUrl("/billing")} className="soft-chip mt-4 inline-block">
             Управлять →
           </Link>
         </div>
@@ -183,7 +183,7 @@ export default async function ClientCabinetPage() {
                 {upcomingBooking.priceRub.toLocaleString("ru")} ₽ · {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
               </p>
             </div>
-            <Link href={appUrl("/cabinet/bookings")} className="soft-chip shrink-0" style={{ background: "#F4D9C1", color: "var(--soft-bordeaux)" }}>
+            <Link href={appUrl("/bookings")} className="soft-chip shrink-0" style={{ background: "#F4D9C1", color: "var(--soft-bordeaux)" }}>
               Все записи →
             </Link>
           </div>
@@ -228,7 +228,7 @@ export default async function ClientCabinetPage() {
         <section className="soft-card p-5" data-testid="client-recent-questions">
           <div className="mb-4 flex items-center justify-between gap-3">
             <p className="soft-eyebrow">История разборов</p>
-            <Link href={appUrl("/cabinet/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+            <Link href={appUrl("/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
               Все →
             </Link>
           </div>
@@ -318,13 +318,13 @@ export default async function ClientCabinetPage() {
             : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={appUrl("/cabinet/products")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
+          <Link href={appUrl("/products")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
             Начать маршрут
           </Link>
           <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
             Подобрать специалиста
           </Link>
-          <Link href={appUrl("/cabinet/products")} className="soft-chip" style={{ fontSize: 12 }}>
+          <Link href={appUrl("/products")} className="soft-chip" style={{ fontSize: 12 }}>
             Глубокий отчёт →
           </Link>
         </div>

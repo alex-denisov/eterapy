@@ -17,7 +17,7 @@ interface BreadcrumbProps {
 /**
  * Breadcrumbs для cabinet и admin страниц.
  */
-export function Breadcrumb({ items, className, homeHref = appUrl("/cabinet") }: BreadcrumbProps) {
+export function Breadcrumb({ items, className, homeHref = appUrl("") }: BreadcrumbProps) {
   return (
     <nav aria-label="Навигация" className={cn("flex items-center gap-1 text-sm text-muted-foreground mb-6", className)}>
       <Link href={homeHref} prefetch={false} className="hover:text-foreground transition-colors">

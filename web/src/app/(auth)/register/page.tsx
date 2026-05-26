@@ -99,7 +99,7 @@ export default function RegisterPage() {
           <p className="text-sm text-[var(--soft-ink-faint)]">
             Не получили? Проверьте папку «Спам».
           </p>
-          <Link href={appUrl("/cabinet")} className="block text-sm font-semibold text-[var(--soft-terracotta-dark)] hover:underline">
+          <Link href={appUrl("")} className="block text-sm font-semibold text-[var(--soft-terracotta-dark)] hover:underline">
             Перейти в кабинет →
           </Link>
         </div>

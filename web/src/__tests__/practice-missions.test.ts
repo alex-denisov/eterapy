@@ -36,13 +36,18 @@ describe("B203 Practice and missions", () => {
     expect(actions).toContain("+1 кредит ясности");
   });
 
-  it("adds the v4.1 practice route as a first-class public entry", () => {
-    const practicePage = source("src/app/practice/page.tsx");
+  it("keeps clarity-practice as the single public daily-practice entry", () => {
+    // /practice and /products/missions were retired in B287 — there is
+    // one canonical product surface (/products/clarity-practice) and
+    // one cabinet surface (/cabinet/modalities) for the daily ritual.
+    const productPage = source("src/lib/v5-products.ts");
     const seo = source("src/lib/seo.ts");
     const publicSeo = source("src/lib/public-page-seo.ts");
 
-    expect(practicePage).toContain('createPublicPageMetadata("/practice")');
-    expect(seo).toContain('"/practice"');
-    expect(publicSeo).toContain('"/practice"');
+    expect(productPage).toContain('slug: "clarity-practice"');
+    expect(seo).toContain('"/products/clarity-practice"');
+    expect(publicSeo).toContain('"/products/clarity-practice"');
+    expect(seo).not.toContain('"/practice"');
+    expect(seo).not.toContain('"/products/missions"');
   });
 });
