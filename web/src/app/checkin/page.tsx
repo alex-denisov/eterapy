@@ -113,6 +113,21 @@ export default function CheckinPage() {
   useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
     track({ event: "primary_answer_viewed", surface: "checkin", dialogueId: dialogue.id });
+
+    // If the user originally clicked a product CTA that required dialogue
+    // context (e.g. /products/perspectives → "Начать с вопроса"), the URL
+    // carries ?nextProduct=<slug>. After we have a primary answer we
+    // forward them straight into that product's delivery surface with
+    // the freshly minted dialogueId so they don't have to re-enter the
+    // funnel manually.
+    const nextProduct = new URLSearchParams(window.location.search).get("nextProduct");
+    if (nextProduct && /^[a-z0-9-]+$/.test(nextProduct)) {
+      const target = `/products/${nextProduct}?dialogueId=${encodeURIComponent(dialogue.id)}`;
+      track({ event: "dialogue_handoff_to_product", surface: "checkin", dialogueId: dialogue.id, properties: { product: nextProduct } });
+      window.location.assign(target);
+      return;
+    }
+
     let cancelled = false;
     fetch(`/api/dialogues/${dialogue.id}/recommendations`)
       .then((res) => res.ok ? res.json() : Promise.reject())
