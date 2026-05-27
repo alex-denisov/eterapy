@@ -1054,11 +1054,28 @@ model AIProviderModel {
   @@map("ai_provider_models")
 }
 
+model AIPromptConfig {
+  id          String   @id @default(cuid())
+  feature     String   @unique
+  title       String
+  productKey  String?  @map("product_key")
+  promptText  String   @map("prompt_text") @db.Text
+  enabled     Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([enabled, feature])
+  @@index([productKey])
+  @@map("ai_prompt_configs")
+}
+
 enum AIProvider {
   OPENAI
   ANTHROPIC
   FIREWORKS
   OPENROUTER
+  GEMINI
 }
 
 enum AIRequestStatus {
