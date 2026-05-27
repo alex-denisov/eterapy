@@ -253,27 +253,40 @@ function buildContextualFallback(input: {
 }
 
 function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
+  // Try JSON first — that's our preferred contract.
   const json = extractJson(text);
-  if (!json) return null;
-  try {
-    const parsed = JSON.parse(json) as Record<string, unknown>;
-    // Accept both short format {q, c} and legacy {type, question, chips}
-    const q = typeof parsed.q === "string" ? parsed.q
-      : typeof parsed.message === "string" ? parsed.message
-      : typeof parsed.answer === "string" ? parsed.answer
-      : typeof parsed.question === "string" ? parsed.question
-      : null;
-    // Empty q or explicit ready signal = model is done
-    if ((typeof q === "string" && q.trim() === "") || parsed.type === "ready") return { type: "ready", source: "ai" };
-    const rawChips = Array.isArray(parsed.c) ? parsed.c
-      : Array.isArray(parsed.chips) ? parsed.chips
-      : [];
-    const question = normalizeAssistantTurn(q);
-    if (!question) return null;
-    return { type: "question", question, chips: normalizeChips(rawChips), source: "ai" };
-  } catch {
-    return null;
+  if (json) {
+    try {
+      const parsed = JSON.parse(json) as Record<string, unknown>;
+      // Accept both short format {q, c} and legacy {type, question, chips}
+      const q = typeof parsed.q === "string" ? parsed.q
+        : typeof parsed.message === "string" ? parsed.message
+        : typeof parsed.answer === "string" ? parsed.answer
+        : typeof parsed.question === "string" ? parsed.question
+        : null;
+      // Empty q or explicit ready signal = model is done
+      if ((typeof q === "string" && q.trim() === "") || parsed.type === "ready") return { type: "ready", source: "ai" };
+      const rawChips = Array.isArray(parsed.c) ? parsed.c
+        : Array.isArray(parsed.chips) ? parsed.chips
+        : [];
+      const question = normalizeAssistantTurn(q);
+      if (question) {
+        return { type: "question", question, chips: normalizeChips(rawChips), source: "ai" };
+      }
+    } catch {
+      // fall through to plain-text rescue
+    }
   }
+
+  // Liberal fallback: some local models forget the JSON envelope. If the
+  // model returned a non-empty natural-language reply that looks like a
+  // question, treat that as the turn and synthesize empty chips. Keeps
+  // the dialogue LLM-driven instead of dropping to the heuristic pool.
+  const cleaned = normalizeAssistantTurn(text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim());
+  if (cleaned && /[?!.]/.test(cleaned)) {
+    return { type: "question", question: cleaned, chips: [], source: "ai" };
+  }
+  return null;
 }
 
 function buildSystemPrompt(input: {

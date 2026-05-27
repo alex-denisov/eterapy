@@ -308,7 +308,7 @@ export async function recordCreditLedgerEntry(
   });
 }
 
-async function recordSubscriptionClarityCreditGrant(
+export async function recordSubscriptionClarityCreditGrant(
   tx: Prisma.TransactionClient,
   input: {
     userId: string;

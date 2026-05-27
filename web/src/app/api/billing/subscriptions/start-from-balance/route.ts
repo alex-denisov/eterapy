@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { getSubscriptionPlan } from "@/lib/entitlements";
+import { getSubscriptionPlan, recordCreditLedgerEntry, recordSubscriptionClarityCreditGrant } from "@/lib/entitlements";
 import { log, serializeError } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 
@@ -114,11 +114,36 @@ export async function POST(request: NextRequest) {
             select: { id: true, planKey: true, currentPeriodEnd: true, status: true },
           });
 
+      // Log the subscription charge against the user's credit ledger so the
+      // history view explains where the balance went.
+      await recordCreditLedgerEntry(tx, {
+        userId,
+        amountKopecks: -Math.abs(plan.amountKopecks),
+        type: "SUBSCRIPTION_CHARGE",
+        transactionId: transaction.id,
+        description: `Подписка ${plan.name}`,
+        metadata: { purchaseKind: "subscription", planKey, checkoutSource } as Prisma.InputJsonObject,
+      });
+
+      // Grant the period's clarity credits so the user actually receives
+      // value from the subscription. Without this the user just paid and
+      // got nothing changeable in their cabinet.
+      if (plan.creditsPerPeriod > 0) {
+        await recordSubscriptionClarityCreditGrant(tx, {
+          userId,
+          amount: plan.creditsPerPeriod,
+          transactionId: transaction.id,
+          planKey,
+          expiresAt: periodEnd,
+        });
+      }
+
       return {
         ok: true as const,
         balance: updated.balance,
         transactionId: transaction.id,
         subscription,
+        creditsGranted: plan.creditsPerPeriod,
       };
     });
 
