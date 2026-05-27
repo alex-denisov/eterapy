@@ -413,20 +413,22 @@ export function Header() {
               </Link>
               <NotificationBell variant="header" />
               <UserMenu session={session} balanceKopecks={balanceKopecks} />
-              {!isAppArea && (
-                <Link
-                  href={mainUrl("/checkin")}
-                  className={cn(
-                    "soft-button soft-button-primary inline-flex h-8 min-w-[132px] items-center justify-center gap-1 rounded-full px-3 text-[13px]",
-                    softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
-                  )}
-                  data-testid="header-dialogue-cta"
-                  data-analytics-event="dialogue_cta_clicked"
-                  data-analytics-target="/checkin"
-                >
-                  Новый разбор
-                </Link>
-              )}
+              {/* B303: "Новый разбор" always visible — even inside the cabinet —
+                  so header parity holds between eterapy.com and app.eterapy.com.
+                  Previous gating (`!isAppArea`) created a width gap in cabinet
+                  views and made the bar look inconsistent across surfaces. */}
+              <Link
+                href={mainUrl("/checkin")}
+                className={cn(
+                  "soft-button soft-button-primary inline-flex h-8 min-w-[132px] items-center justify-center gap-1 rounded-full px-3 text-[13px]",
+                  softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
+                )}
+                data-testid="header-dialogue-cta"
+                data-analytics-event="dialogue_cta_clicked"
+                data-analytics-target="/checkin"
+              >
+                Новый разбор
+              </Link>
             </>
           ) : (
             <>
