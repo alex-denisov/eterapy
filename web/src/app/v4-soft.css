@@ -1669,6 +1669,7 @@
 
     .soft-products-hero,
     .soft-product-detail-hero,
+    .soft-product-detail-page .soft-product-detail-hero,
     .soft-product-detail-grid,
     .soft-public-hero {
       grid-template-columns: 1fr;
