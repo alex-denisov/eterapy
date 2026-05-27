@@ -137,56 +137,6 @@ export interface ConversationalTurnResult {
 const MIN_CLARIFYING_TURNS = 3;
 const MAX_CLARIFYING_TURNS = 5;
 
-const HEURISTIC_QUESTION_POOL: Array<{ question: string; chips: string[] }> = [
-  {
-    question: "Слышу, что вам нужен не быстрый вердикт, а опора для следующего шага. Что в этом вопросе хочется понять прежде всего?",
-    chips: ["Ясность", "Поддержка", "Действие"],
-  },
-  {
-    question: "Похоже, часть ответа уже есть в том, что вы пробовали или избегали пробовать. Что из этого важно учесть сейчас?",
-    chips: ["Ничего ещё", "Думал, но не пробовал", "Пробовал разное"],
-  },
-  {
-    question: "Здесь важно отделить саму ситуацию от того, как она на вас действует. Что беспокоит сильнее всего?",
-    chips: ["Неопределённость", "Отношения", "Мои чувства"],
-  },
-  {
-    question: "В таком вопросе часто помогает смотреть не только на решение, но и на ощущение после него. Какой исход был бы спокойнее?",
-    chips: ["Сохранить как есть", "Что-то изменить", "Начать заново"],
-  },
-  {
-    question: "Сейчас полезно сузить фокус до одного результата, который даст вам больше устойчивости. Что хотелось бы получить?",
-    chips: ["Понять себя", "Принять решение", "Двигаться дальше"],
-  },
-];
-
-const CONTEXT_MARKERS: Array<{
-  test: RegExp;
-  question: (context: string) => string;
-  chips: string[];
-}> = [
-  {
-    test: /работ|руководител|коллег|команд|карьер|проект|иде/i,
-    question: () => "Слышу, что вопрос не только про смену работы, а про то, как вернуть себе голос там, где ваши идеи обесценивают. Что в ситуации с работой и руководителем сильнее всего заставляет вас уменьшать свои идеи или голос?",
-    chips: ["Страх оценки", "Усталость", "Хочу опору"],
-  },
-  {
-    test: /отнош|партн|бывш|люб|семь|муж|жен/i,
-    question: () => "Слышу, что в этой теме важен не абстрактный совет, а понимание, где вам больнее всего. В отношениях сейчас сильнее неопределённость, дистанция или ощущение, что вам приходится быть тише себя?",
-    chips: ["Неопределённость", "Дистанция", "Я становлюсь тише"],
-  },
-  {
-    test: /тревог|страх|паник|боюсь|напряж/i,
-    question: () => "Похоже, тревога сейчас смешивает факты и ожидания. Если отделить тревогу от фактов, какой факт в этой ситуации точно есть прямо сейчас?",
-    chips: ["Есть факт", "Больше ощущение", "Пока не знаю"],
-  },
-  {
-    test: /деньг|кредит|ипотек|финанс|зарплат/i,
-    question: () => "В денежной теме важно не усиливать страх, а вернуть управляемость. Вам сейчас важнее увидеть реальные ограничения, страх потери или следующий маленький шаг?",
-    chips: ["Ограничения", "Страх потери", "Шаг"],
-  },
-];
-
 function normalizePair(pair: { question?: string; answer?: string; assistant?: string; user?: string }) {
   return {
     question: pair.question ?? pair.assistant ?? "",
@@ -219,37 +169,19 @@ function isDuplicateAssistantTurn(
   });
 }
 
-function firstUnusedFallback(
-  candidates: Array<{ question: string; chips: string[] }>,
-  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>,
-): ConversationalTurnResult {
-  const next = candidates.find((candidate) => !isDuplicateAssistantTurn(candidate.question, previousPairs));
-  return next
-    ? { type: "question", question: next.question, chips: next.chips, source: "heuristic" }
-    : { type: "ready", source: "heuristic" };
-}
-
+// B302: the heuristic fallback path is *off*. When the LLM gateway
+// fails (timeout, missing credentials, parse error), we head straight
+// to "ready" so the API moves to PROCESSING and produces the primary
+// answer from the user's first message. We do NOT emit a scripted
+// CONTEXT_MARKERS question pretending to be "live LLM" — that was
+// the source of the "это явно сценарные ответы" complaint.
 function buildContextualFallback(input: {
   originalQuestion?: string;
   question?: string;
   previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>;
 }): ConversationalTurnResult {
-  const originalQuestion = input.originalQuestion ?? input.question ?? "";
-  const normalizedPairs = input.previousPairs.map(normalizePair);
-  if (normalizedPairs.length >= MIN_CLARIFYING_TURNS) {
-    return { type: "ready", source: "heuristic" };
-  }
-
-  const lastAnswer = normalizedPairs.at(-1)?.answer ?? "";
-  const context = [originalQuestion, lastAnswer].filter(Boolean).join("\n");
-  const candidates: Array<{ question: string; chips: string[] }> = [];
-  const marker = CONTEXT_MARKERS.find((entry) => entry.test.test(context));
-  if (marker) {
-    candidates.push({ question: marker.question(context), chips: marker.chips });
-  }
-
-  candidates.push(...HEURISTIC_QUESTION_POOL);
-  return firstUnusedFallback(candidates, input.previousPairs);
+  void input;
+  return { type: "ready", source: "heuristic" };
 }
 
 function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {

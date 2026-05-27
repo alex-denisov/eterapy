@@ -30,6 +30,7 @@ describe("AI Gateway domain", () => {
   it("keeps OpenRouter first for current compatibility while allowing direct failovers", () => {
     expect(defaultProviderOrder()).toEqual([
       AIProvider.OPENROUTER,
+      AIProvider.GEMINI,
       AIProvider.OPENAI,
       AIProvider.ANTHROPIC,
       AIProvider.FIREWORKS,

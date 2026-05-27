@@ -107,7 +107,7 @@ describe("dialogue-clarifier", () => {
     expect(result.chips.length).toBe(result.questions.length);
   });
 
-  it("keeps the live conversational fallback contextual instead of repeating a generic script", async () => {
+  it("returns ready when the LLM gateway is unavailable (B302: no scripted fallback)", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueConversationalTurn({
@@ -119,18 +119,14 @@ describe("dialogue-clarifier", () => {
       requestId: "req-live-fallback",
     });
 
-    expect(result.type).toBe("question");
-    if (result.type === "question") {
-      expect(result.source).toBe("heuristic");
-      expect(result.question).toMatch(/работ|руководител|иде/i);
-      expect([
-        "Что сейчас самое важное для вас в этом вопросе?",
-        "Что вы уже пробовали или рассматривали?",
-      ]).not.toContain(result.question);
-    }
+    // B302: instead of emitting a CONTEXT_MARKERS-based scripted question,
+    // we short-circuit to "ready" so the API moves to PROCESSING and the
+    // primary answer is generated from whatever context already exists.
+    expect(result.type).toBe("ready");
+    expect(result.source).toBe("heuristic");
   });
 
-  it("does not repeat a contextual fallback turn after the user has already answered it", async () => {
+  it("returns ready (not a recycled template) even with prior turns when the LLM is down", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueConversationalTurn({
@@ -140,19 +136,14 @@ describe("dialogue-clarifier", () => {
       safetyLevel: "normal",
       previousPairs: [
         {
-          assistant: "Слышу, что вопрос не только про смену работы, а про то, как вернуть себе голос там, где ваши идеи обесценивают. Что в ситуации с работой и руководителем сильнее всего заставляет вас уменьшать свои идеи или голос?",
+          assistant: "Слышу, что вопрос не только про смену работы…",
           user: "Страх оценки и ощущение, что меня всё равно не услышат.",
         },
       ],
       requestId: "req-no-repeat-fallback",
     });
 
-    expect(result.type).toBe("question");
-    if (result.type === "question") {
-      expect(result.source).toBe("heuristic");
-      expect(result.question).not.toMatch(/уменьшать свои идеи или голос/);
-      expect(result.chips?.length).toBeGreaterThan(0);
-    }
+    expect(result).toEqual({ type: "ready", source: "heuristic" });
   });
 
   it("signals ready after MAX_CLARIFYING_TURNS pairs without calling the LLM", async () => {
@@ -205,7 +196,10 @@ describe("dialogue-clarifier", () => {
       requestId: "req-premature-ready",
     });
 
-    expect(result.type).toBe("question");
+    // B302: with the heuristic question pool removed, the premature-ready
+    // guard now falls all the way through to ready (the API will then
+    // produce the primary answer from what context exists).
+    expect(result.type).toBe("ready");
     expect(result.source).toBe("heuristic");
   });
 
