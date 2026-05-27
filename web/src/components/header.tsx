@@ -342,17 +342,21 @@ export function Header() {
   const isSessionArea = pathname.startsWith("/session");
   const isAdminHost = mounted && hostname.startsWith("admin.");
 
-  // Header hidden only on admin subdomain and session pages
-  const shouldHideHeader = isAdminArea || isAdminHost || isSessionArea;
+  // B305: header is now visible on admin too — user wanted consistency
+  // across all cabinets (client, practitioner, admin). Only hide it on
+  // the videocall surface where the header would intrude.
+  const shouldHideHeader = isSessionArea;
 
   if (shouldHideHeader) return null;
 
   const isAppHost = mounted && hostname.startsWith("app.");
-  const isAppArea = cabinetPathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost;
+  const isAppArea = cabinetPathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost || isAdminArea || isAdminHost;
   const showPublicNav = !isAppArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 
-  const softPublicHeader = !isAdminArea;
+  // Keep the soft-paper styling on every surface — including admin —
+  // so the visual baseline is identical across all logged-in areas.
+  const softPublicHeader = true;
   const cabinetHref = session?.user?.role === "PRACTITIONER"
     ? appUrl("/practitioner")
     : session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN"
@@ -415,12 +419,12 @@ export function Header() {
               <UserMenu session={session} balanceKopecks={balanceKopecks} />
               {/* B303: "Новый разбор" always visible — even inside the cabinet —
                   so header parity holds between eterapy.com and app.eterapy.com.
-                  Previous gating (`!isAppArea`) created a width gap in cabinet
-                  views and made the bar look inconsistent across surfaces. */}
+                  B304: shrunk to h-8 with no min-width and text-[12px] to match
+                  the visual weight of the icon-only buttons (balance, help, bell). */}
               <Link
                 href={mainUrl("/checkin")}
                 className={cn(
-                  "soft-button soft-button-primary inline-flex h-8 min-w-[132px] items-center justify-center gap-1 rounded-full px-3 text-[13px]",
+                  "soft-button soft-button-primary inline-flex h-8 items-center justify-center gap-1 rounded-full px-2.5 text-[12px] leading-none",
                   softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
                 data-testid="header-dialogue-cta"
@@ -435,7 +439,7 @@ export function Header() {
               <Link href={mainUrl("/login")}
                 prefetch={false}
                 className={cn(
-                  "soft-button soft-button-ghost h-8 min-w-[72px] items-center justify-center rounded-full px-3 text-[13px]",
+                  "soft-button soft-button-ghost h-8 items-center justify-center rounded-full px-2.5 text-[12px] leading-none",
                   "hidden md:inline-flex",
                   softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
@@ -444,7 +448,7 @@ export function Header() {
               <Link
                 href={mainUrl("/checkin")}
                 className={cn(
-                  "soft-button soft-button-primary inline-flex h-8 min-w-[132px] items-center justify-center rounded-full px-3 text-[13px]",
+                  "soft-button soft-button-primary inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[12px] leading-none",
                   softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
               >
