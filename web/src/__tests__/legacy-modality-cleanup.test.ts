@@ -62,8 +62,10 @@ describe("B084 legacy modality unlock cleanup", () => {
     expect(index).not.toContain("/cabinet/modalities/tarot");
     expect(index).not.toContain("/cabinet/modalities/horoscope");
     expect(index).not.toContain("/cabinet/modalities/natal");
-    expect(index).toContain('appUrl("/modalities/checkin")');
-    expect(index).toContain('mainUrl("/products/deep-report")');
+    // B299: index is now the v4.2 Practice screen — it links forward
+    // to the seven-days deepening but no longer to /modalities/checkin
+    // or other inner tool entry points.
+    expect(index).toContain('mainUrl("/products/seven-days")');
     expect(index).not.toContain("premium-card");
     expect(index).not.toContain("premium-chip");
   });

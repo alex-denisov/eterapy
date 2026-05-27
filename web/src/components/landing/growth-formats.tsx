@@ -64,23 +64,23 @@ export function GrowthFormatsSection() {
         })}
       </div>
 
-      <div className="soft-card mt-6 grid gap-6 p-7 md:grid-cols-[1.2fr_1fr] md:items-center">
+      <div className="soft-card mt-6 grid gap-6 p-7 md:grid-cols-[1.2fr_1fr] md:items-center" data-testid="landing-practice-block">
         <div>
           <p className="soft-eyebrow">ежедневная практика</p>
           <h3 className="soft-h2 mt-3">
-            5 минут в день — <span className="soft-italic">за месяц 30 страниц</span> вашей внутренней карты
+            Практика ясности — <span className="soft-italic">5 минут в день</span>
           </h3>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Один вопрос, один ракурс, один маленький шаг. За каждый день —
-            кредит ясности, который можно потратить на цифровые форматы.
+            Один тёплый вопрос в день, маленький разворот и +1 кредит ясности за пройденный день.
+            Без чек-листов и серий, к которым стыдно возвращаться.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/products/clarity-practice" className="soft-button soft-button-primary">
-              Начать практику
+              Сегодняшний вопрос
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
-            <Link href="/products/clarity-practice" className="soft-button soft-button-ghost">
-              Все задания практики
+            <Link href="/products/seven-days" className="soft-button soft-button-ghost">
+              Маршрут «7 дней к ясности»
             </Link>
           </div>
         </div>
