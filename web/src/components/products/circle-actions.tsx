@@ -175,7 +175,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
 
   function copyInviteLink() {
     if (!circle?.inviteToken) return;
-    const url = `${window.location.origin}/circle?invite=${circle.inviteToken}`;
+    const url = `${window.location.origin}/products/circle?invite=${circle.inviteToken}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -267,7 +267,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
           <div className="flex items-center gap-2">
             <input
               readOnly
-              value={`${typeof window !== "undefined" ? window.location.origin : ""}/circle?invite=${circle.inviteToken}`}
+              value={`${typeof window !== "undefined" ? window.location.origin : ""}/products/circle?invite=${circle.inviteToken}`}
               className="soft-question-input flex-1 py-2 text-sm"
             />
             <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">

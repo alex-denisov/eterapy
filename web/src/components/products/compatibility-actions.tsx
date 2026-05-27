@@ -175,7 +175,11 @@ export function CompatibilityActions({
 
   function copyInviteLink() {
     if (!result?.inviteToken) return;
-    const url = `${window.location.origin}/pair?invite=${result.inviteToken}`;
+    // Invite link stays on the same product the inviter used so the
+    // partner sees the same context ("Вас пригласили на разбор
+    // совместимости") instead of being thrown into a blank dialogue.
+    const slug = productKey === "pair" ? "pair" : "compatibility";
+    const url = `${window.location.origin}/products/${slug}?invite=${result.inviteToken}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -314,7 +318,7 @@ export function CompatibilityActions({
             <div className="mt-3 flex items-center gap-2">
               <input
                 readOnly
-                value={`${typeof window !== "undefined" ? window.location.origin : ""}/pair?invite=${result.inviteToken}`}
+                value={`${typeof window !== "undefined" ? window.location.origin : ""}/products/${productKey === "pair" ? "pair" : "compatibility"}?invite=${result.inviteToken}`}
                 className="soft-question-input flex-1 py-2 text-sm"
               />
               <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">

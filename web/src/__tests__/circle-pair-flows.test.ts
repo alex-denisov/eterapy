@@ -57,7 +57,9 @@ describe("B201/B202 Circle and Pair flows", () => {
     const declineRoute = source("src/app/api/products/compatibility/[id]/decline/route.ts");
 
     expect(pairPage).toContain("<CompatibilityActions");
-    expect(actions).toContain("/pair?invite=");
+    // B282: invite URLs now live under /products/{slug} so the partner sees
+    // the product-specific context page instead of /pair landing.
+    expect(actions).toContain("/products/${productKey === \"pair\" ? \"pair\" : \"compatibility\"}?invite=");
     expect(actions).toContain('data-testid="pair-decline-invite"');
     expect(actions).toContain('data-testid="pair-report-invite"');
     expect(pairPage).toContain('productKey="pair"');
