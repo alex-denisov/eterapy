@@ -104,24 +104,29 @@ function BalanceSummaryLink({
   className?: string;
 }) {
   const rub = formatBalanceRub(balanceKopecks);
+  // "Recessed twin" split pill from the visual brainstorm (B298):
+  // single h-9 paper-card pill, two halves separated by a hairline
+  // divider so it reads as ONE component (one tap target to /credits)
+  // but clearly conveys two balances.
   return (
     <Link
       href={appUrl("/credits")}
       prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
       className={cn(
-        "soft-user-pill hidden items-center gap-2 px-3 py-1.5 text-xs font-semibold tabular-nums",
+        "hidden h-9 items-stretch overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-xs font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
         className,
       )}
       data-testid="header-balance-summary"
     >
-      <span className="inline-flex items-center gap-1 text-[var(--soft-terracotta-dark)]">
+      <span className="flex items-center gap-1 pl-3 pr-2.5 text-[var(--soft-terracotta-dark)]" aria-label="Кредиты ясности">
         <Sparkles className="size-3.5" aria-hidden="true" />
-        {clarityCredits}
+        <span className="min-w-[1.25rem] text-center">{clarityCredits}</span>
       </span>
-      <span aria-hidden="true" className="text-[var(--soft-paper-edge)]">·</span>
-      <span className="inline-flex items-center gap-1 text-[var(--soft-bordeaux)]">
-        {rub} ₽
+      <span aria-hidden="true" className="my-2 w-px bg-[var(--soft-paper-edge)]" />
+      <span className="hidden items-center gap-0.5 pl-2.5 pr-3 text-[var(--soft-bordeaux)] sm:flex" aria-label="Денежный баланс">
+        <span className="min-w-[2.5rem] text-right">{rub}</span>
+        <span className="opacity-70">₽</span>
       </span>
     </Link>
   );
@@ -362,7 +367,11 @@ export function Header() {
         softPublicHeader && "soft-header",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+      {/* CSS Grid layout (B298 Strategy 2) keeps the right cluster width
+          stable regardless of auth state: the rightmost grid track is
+          sized minmax(0, 1fr) on mobile and a fixed reservation on md+,
+          so login/logout never shifts the bar. */}
+      <div className="mx-auto grid h-16 max-w-6xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 md:grid-cols-[auto_1fr_minmax(0,440px)]">
         <Link href={mainUrl("/")}
           className="flex shrink-0 items-center">
           <VectorBrandLogo height={28} theme={softPublicHeader ? "light" : "dark"} />
@@ -386,8 +395,11 @@ export function Header() {
           })}
         </nav>
 
-        {/* Right side: authenticated actions or guest auth buttons */}
-        <div className="flex items-center gap-2">
+        {/* Right side: authenticated actions or guest auth buttons.
+            justify-end keeps the cluster pinned to the right edge of
+            the grid track, which itself has a stable width (see the
+            grid-template-columns on the outer container). */}
+        <div className="flex items-center justify-end gap-1.5">
           {isAuthenticated && session ? (
             <>
               <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
@@ -405,7 +417,7 @@ export function Header() {
                 <Link
                   href={mainUrl("/checkin")}
                   className={cn(
-                    "soft-button soft-button-primary h-9 px-4 text-sm",
+                    "soft-button soft-button-primary inline-flex h-9 min-w-[148px] items-center justify-center px-4 text-sm",
                     softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                   )}
                   data-testid="header-dialogue-cta"
@@ -421,7 +433,7 @@ export function Header() {
               <Link href={mainUrl("/login")}
                 prefetch={false}
                 className={cn(
-                  "soft-button soft-button-ghost h-9 px-4 text-sm",
+                  "soft-button soft-button-ghost h-9 min-w-[80px] items-center justify-center px-4 text-sm",
                   "hidden md:inline-flex",
                   softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
