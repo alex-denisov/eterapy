@@ -35,7 +35,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/questions"), icon: History, label: "История разборов" },
   { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
   { href: appUrl("/credits"), icon: Sparkles, label: "Кредиты ясности" },
-  { href: appUrl("/modalities"), icon: Leaf, label: "Практика ясности" },
+  { href: appUrl("/practice"), icon: Leaf, label: "Практика ясности" },
   { href: appUrl("/billing"), icon: Wallet, label: "Подписка и оплата" },
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];

@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, CheckCircle2, LockKeyhole, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { appUrl } from "@/lib/subdomain";
 
 type ClarityRoute = {
   id: string;
@@ -265,8 +266,9 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                         onClick={completeDay}
                         disabled={status === "loading" || !isActive}
                         className="soft-button soft-button-primary shrink-0"
+                        data-testid="seven-days-complete-day"
                       >
-                        Открыть →
+                        {status === "loading" ? "Сохраняем…" : "Прочитал · завершить день"}
                       </Button>
                     )}
                     {done && (
@@ -302,7 +304,11 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                 После 7-го дня мы соберём ваши инсайты в одну страницу — её можно сохранить, поделиться или взять с собой к специалисту.
               </p>
               {result.reportId && (
-                <Link href={`/cabinet/results/${result.reportId}`} className="soft-button soft-button-primary mt-4 inline-flex">
+                <Link
+                  href={appUrl(`/results/${result.reportId}`)}
+                  className="soft-button soft-button-primary mt-4 inline-flex"
+                  data-testid="seven-days-result-link"
+                >
                   Посмотреть итоговый отчет
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>

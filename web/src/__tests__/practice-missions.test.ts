@@ -37,9 +37,10 @@ describe("B203 Practice and missions", () => {
   });
 
   it("keeps clarity-practice as the single public daily-practice entry", () => {
-    // /practice and /products/missions were retired in B287 — there is
-    // one canonical product surface (/products/clarity-practice) and
-    // one cabinet surface (/cabinet/modalities) for the daily ritual.
+    // /products/missions was retired in B287 — there is one canonical
+    // product surface (/products/clarity-practice) and one cabinet
+    // surface (/cabinet/practice — renamed from /cabinet/modalities in
+    // B306) for the daily ritual.
     const productPage = source("src/lib/v5-products.ts");
     const seo = source("src/lib/seo.ts");
     const publicSeo = source("src/lib/public-page-seo.ts");
@@ -47,7 +48,6 @@ describe("B203 Practice and missions", () => {
     expect(productPage).toContain('slug: "clarity-practice"');
     expect(seo).toContain('"/products/clarity-practice"');
     expect(publicSeo).toContain('"/products/clarity-practice"');
-    expect(seo).not.toContain('"/practice"');
     expect(seo).not.toContain('"/products/missions"');
   });
 });

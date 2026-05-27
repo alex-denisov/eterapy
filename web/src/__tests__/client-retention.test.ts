@@ -31,7 +31,7 @@ describe("M11 client retention surfaces", () => {
     expect(shell).toContain('appUrl("/questions")');
     expect(shell).toContain('"История разборов"');
     expect(shell).toContain('appUrl("/credits")');
-    expect(shell).toContain('appUrl("/modalities")');
+    expect(shell).toContain('appUrl("/practice")');
     expect(shell).toContain('"Кредиты ясности"');
     expect(shell).toContain("History");
   });

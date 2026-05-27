@@ -54,20 +54,23 @@ describe("B084 legacy modality unlock cleanup", () => {
     expect(page).not.toContain("balance-paywall");
   });
 
-  it("keeps the cabinet modalities entrypoint on the v5 dialogue path", () => {
-    const index = source("src/app/cabinet/modalities/page.tsx");
+  it("keeps the cabinet practice entrypoint on the v5 dialogue path", () => {
+    // B306: /cabinet/modalities was renamed to /cabinet/practice for
+    // semantic clarity. The old /cabinet/modalities path is now a stub
+    // that redirects forward; the real v4.2 Practice screen lives at
+    // /cabinet/practice/page.tsx.
+    const legacyIndex = source("src/app/cabinet/modalities/page.tsx");
+    const practice = source("src/app/cabinet/practice/page.tsx");
     const slugPage = source("src/app/cabinet/modalities/[slug]/page.tsx");
 
+    expect(legacyIndex).toContain('redirect("/cabinet/practice")');
     expect(slugPage).toContain('redirect(`/cabinet/modalities/checkin?source=legacy-${slug}-cabinet`)');
-    expect(index).not.toContain("/cabinet/modalities/tarot");
-    expect(index).not.toContain("/cabinet/modalities/horoscope");
-    expect(index).not.toContain("/cabinet/modalities/natal");
-    // B299: index is now the v4.2 Practice screen — it links forward
-    // to the seven-days deepening but no longer to /modalities/checkin
-    // or other inner tool entry points.
-    expect(index).toContain('mainUrl("/products/seven-days")');
-    expect(index).not.toContain("premium-card");
-    expect(index).not.toContain("premium-chip");
+    expect(practice).not.toContain("/cabinet/modalities/tarot");
+    expect(practice).not.toContain("/cabinet/modalities/horoscope");
+    expect(practice).not.toContain("/cabinet/modalities/natal");
+    expect(practice).toContain('mainUrl("/products/seven-days")');
+    expect(practice).not.toContain("premium-card");
+    expect(practice).not.toContain("premium-chip");
   });
 
   it("removes obsolete prototype data modules for old standalone tools", () => {

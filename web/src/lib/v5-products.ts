@@ -49,11 +49,12 @@ export const v5Products: V5Product[] = [
     tone: "free",
     cta: "Сегодняшний вопрос",
     directCta: "Открыть практику в кабинете",
-    // B300: /practice was retired in B287 — the canonical practice
-    // surface lives inside the cabinet at app.eterapy.com/modalities.
-    // Use an absolute URL so the link works from the public product
-    // page on eterapy.com.
-    directHref: "https://app.eterapy.com/modalities",
+    // B306: renamed cabinet URL from /modalities → /practice for
+    // semantic clarity (modalities was the legacy name for many tools,
+    // but only the daily clarity-practice lives here now). The proxy
+    // rewrites app.eterapy.com/practice → /cabinet/practice;
+    // /cabinet/modalities still works as a legacy redirect.
+    directHref: "https://app.eterapy.com/practice",
     mechanics: ["один вопрос в день", "короткий ракурс", "мягкие напоминания", "кредиты за осмысленное действие"],
     privacy: "Напоминания и сохранение работают только по выбранным пользователем каналам.",
     result: "Ежедневная привычка, которая пополняет личную карту без давления и публичности.",
