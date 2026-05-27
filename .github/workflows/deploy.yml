@@ -8,6 +8,8 @@ on:
       - '**/*.md'
       - '.gitignore'
       - '.github/ISSUE_TEMPLATE/**'
+      - '.github/workflows/deploy.yml'
+      - '.github/workflows/playwright.yml'
       - '.artifacts/**'
       - '.agents/**'
       - '.qwen/**'
