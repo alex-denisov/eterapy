@@ -14,7 +14,9 @@ describe("AI Gateway domain", () => {
       AIProvider.ANTHROPIC,
       AIProvider.FIREWORKS,
       AIProvider.OPENROUTER,
+      AIProvider.GEMINI,
     ]);
+    expect(AI_PROVIDER_LABELS[AIProvider.GEMINI]).toBe("Google Gemini");
     expect(AI_PROVIDER_LABELS[AIProvider.FIREWORKS]).toBe("Fireworks AI");
   });
 

@@ -33,10 +33,12 @@ export interface AIRoutingProviderConfig {
   provider: AIProvider;
   enabled: boolean;
   priority: number;
+  baseUrl?: string | null;
   defaultModel?: string | null;
   timeoutMs?: number | null;
   inputTokenCostMicros?: number | null;
   outputTokenCostMicros?: number | null;
+  cloudflareGatewayEnabled?: boolean;
 }
 
 export interface AIRoutingPolicyConfig {

@@ -17,8 +17,10 @@
  * `cf-aig-authorization` header automatically when the token is present.
  */
 
+import { AIProvider } from "@prisma/client";
+
 const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
-export type CloudflareGatewayProvider = "openai" | "anthropic" | "openrouter" | "groq" | "azure-openai";
+export type CloudflareGatewayProvider = "openai" | "anthropic" | "openrouter" | "groq" | "azure-openai" | "google-ai-studio";
 
 export interface CloudflareGatewayConfig {
   accountId: string;
@@ -42,7 +44,32 @@ export function buildCloudflareGatewayUrl(input: {
   gatewayId: string;
   provider: CloudflareGatewayProvider;
 }): string {
-  return `https://gateway.ai.cloudflare.com/v1/${input.accountId}/${input.gatewayId}/${input.provider}`;
+  const providerPath = input.provider === "google-ai-studio"
+    ? "google-ai-studio/v1"
+    : input.provider;
+  return `https://gateway.ai.cloudflare.com/v1/${input.accountId}/${input.gatewayId}/${providerPath}`;
+}
+
+export function cloudflareProviderForAIProvider(provider: AIProvider): CloudflareGatewayProvider | null {
+  if (provider === AIProvider.OPENAI) return "openai";
+  if (provider === AIProvider.ANTHROPIC) return "anthropic";
+  if (provider === AIProvider.OPENROUTER) return "openrouter";
+  if (provider === AIProvider.GEMINI) return "google-ai-studio";
+  return null;
+}
+
+export function buildCloudflareGatewayUrlForAIProvider(input: {
+  accountId: string;
+  gatewayId: string;
+  provider: AIProvider;
+}): string | null {
+  const cfProvider = cloudflareProviderForAIProvider(input.provider);
+  if (!cfProvider) return null;
+  return buildCloudflareGatewayUrl({
+    accountId: input.accountId,
+    gatewayId: input.gatewayId,
+    provider: cfProvider,
+  });
 }
 
 export function isCloudflareAIGatewayUrl(url: string | undefined | null): boolean {

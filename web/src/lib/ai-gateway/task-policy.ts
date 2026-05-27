@@ -15,9 +15,9 @@ export type AdminAITaskPolicy = AITaskPolicyDefinition & {
   source: "default" | "database";
 };
 
-const directPremiumOrder = [AIProvider.OPENAI, AIProvider.ANTHROPIC] as const;
-const cheapStructuredOrder = [AIProvider.OPENAI, AIProvider.ANTHROPIC, AIProvider.OPENROUTER] as const;
-const freeOrder = [AIProvider.OPENROUTER, AIProvider.FIREWORKS, AIProvider.OPENAI] as const;
+const directPremiumOrder = [AIProvider.OPENAI, AIProvider.GEMINI, AIProvider.ANTHROPIC] as const;
+const cheapStructuredOrder = [AIProvider.GEMINI, AIProvider.OPENAI, AIProvider.ANTHROPIC, AIProvider.OPENROUTER] as const;
+const freeOrder = [AIProvider.OPENROUTER, AIProvider.GEMINI, AIProvider.FIREWORKS, AIProvider.OPENAI] as const;
 
 export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
   {

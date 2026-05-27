@@ -1,13 +1,8 @@
 import { AIAttemptStatus, AIProvider, AIRequestStatus } from "@prisma/client";
 import db from "@/lib/db";
 import {
-  type AIGatewayAdapter,
   AIProviderError,
 } from "@/lib/ai-gateway/adapters";
-import { createAnthropicAdapter } from "@/lib/ai-gateway/anthropic-adapter";
-import { createFireworksAdapter } from "@/lib/ai-gateway/fireworks-adapter";
-import { createOpenAIAdapter } from "@/lib/ai-gateway/openai-adapter";
-import { createOpenRouterAdapter } from "@/lib/ai-gateway/openrouter-adapter";
 import {
   normalizeAIFeatureKey,
   type AIGatewayMessage,
@@ -32,32 +27,24 @@ import {
   markCredentialSuccess,
   type DecryptedAICredential,
 } from "@/lib/ai-gateway/credentials";
+import {
+  applyAIPromptOverride,
+  serializeAIMessagesForAdmin,
+} from "@/lib/ai-gateway/prompts";
+import {
+  buildAdapterForCredential,
+  providerConfigToRouting,
+  providerLabel,
+} from "@/lib/ai-gateway/provider-runtime";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
   { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: "openrouter/free", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.GEMINI, enabled: true, priority: 15, defaultModel: "gemini-2.5-flash", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: "accounts/fireworks/models/kimi-k2p6", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
-
-function buildAdapterForCredential(credential: DecryptedAICredential): AIGatewayAdapter {
-  const opts = {
-    apiKey: credential.apiKey,
-    ...(credential.baseUrlOverride ? { baseURL: credential.baseUrlOverride } : {}),
-    ...(credential.modelOverride ? { defaultModel: credential.modelOverride } : {}),
-  };
-  switch (credential.provider) {
-    case AIProvider.OPENROUTER:
-      return createOpenRouterAdapter(opts);
-    case AIProvider.OPENAI:
-      return createOpenAIAdapter(opts);
-    case AIProvider.ANTHROPIC:
-      return createAnthropicAdapter(opts);
-    case AIProvider.FIREWORKS:
-      return createFireworksAdapter(opts);
-  }
-}
 
 interface AIRequestOptions {
   messages: AIGatewayMessage[];
@@ -71,17 +58,20 @@ interface AIRequestOptions {
 interface AIResponse {
   text: string;
   model: string;
-  provider: "openrouter" | "openai" | "anthropic" | "fireworks";
+  provider: "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini";
   tokensIn: number;
   tokensOut: number;
   latencyMs: number;
 }
 
-function adaptersForCredentials(credentials: DecryptedAICredential[]): AICredentialAdapter[] {
+function adaptersForCredentials(
+  credentials: DecryptedAICredential[],
+  providerConfig?: AIRoutingProviderConfig | null,
+): AICredentialAdapter[] {
   return credentials.map((credential) => ({
     credentialId: credential.id,
     credentialLabel: credential.label,
-    adapter: buildAdapterForCredential(credential),
+    adapter: buildAdapterForCredential(credential, providerConfig),
   }));
 }
 
@@ -101,25 +91,10 @@ function classifyCredentialFailure(code: string | undefined): FailureClassificat
   return { cooldownMs: 60_000, regionBlocked: false };
 }
 
-function providerLabel(provider: AIProvider): AIResponse["provider"] {
-  if (provider === AIProvider.OPENROUTER) return "openrouter";
-  if (provider === AIProvider.OPENAI) return "openai";
-  if (provider === AIProvider.ANTHROPIC) return "anthropic";
-  return "fireworks";
-}
-
 async function loadProviderConfigs(): Promise<AIRoutingProviderConfig[]> {
   const rows = await db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] });
   if (rows.length === 0) return DEFAULT_PROVIDER_CONFIGS;
-  return rows.map((row) => ({
-    provider: row.provider,
-    enabled: row.enabled,
-    priority: row.priority,
-    defaultModel: row.defaultModel,
-    timeoutMs: row.timeoutMs,
-    inputTokenCostMicros: row.inputTokenCostMicros,
-    outputTokenCostMicros: row.outputTokenCostMicros,
-  }));
+  return rows.map(providerConfigToRouting);
 }
 
 async function loadPolicy(feature: string): Promise<AIRoutingPolicyConfig | null> {
@@ -169,6 +144,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     loadProviderConfigs(),
     loadPolicy(feature),
   ]);
+  const providerConfigByName = new Map(providerConfigs.map((config) => [config.provider, config]));
   const plan = resolveAIRoutingPlan({ feature, providerConfigs, policy });
   const requestPlan = {
     ...plan,
@@ -183,13 +159,18 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     policy,
     snapshot: await budgetSnapshot(feature, userId),
   });
+  const runtimeMessages = await applyAIPromptOverride(feature, messages);
+  const adminMessages = serializeAIMessagesForAdmin(runtimeMessages);
 
   const aiRequest = await db.aIRequest.create({
     data: {
       feature,
       userId: userId ?? null,
       status: AIRequestStatus.RUNNING,
-      metadata: requestId ? { requestId } : undefined,
+      metadata: {
+        ...(requestId ? { requestId } : {}),
+        messages: adminMessages,
+      },
       startedAt,
     },
   });
@@ -199,11 +180,15 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       plan: requestPlan,
       request: {
         requestId,
-        messages,
+        messages: runtimeMessages,
       },
-      resolveAdapters: async (provider) => adaptersForCredentials(
-        await listActiveCredentialsForProvider({ provider })
-      ),
+      resolveAdapters: async (provider) => {
+        const providerConfig = providerConfigByName.get(provider) ?? null;
+        return adaptersForCredentials(
+          await listActiveCredentialsForProvider({ provider }),
+          providerConfig,
+        );
+      },
     });
     const providerConfig = providerConfigs.find((config) => config.provider === response.provider);
     const estimatedCostMicros = estimateAICostMicros({
@@ -221,6 +206,11 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
           provider: attempt.provider,
           model: attempt.model ?? "unknown",
           status: attemptStatus(attempt),
+          latencyMs: attempt.status === "succeeded" ? response.latencyMs : null,
+          promptTokens: attempt.status === "succeeded" ? response.promptTokens : 0,
+          completionTokens: attempt.status === "succeeded" ? response.completionTokens : 0,
+          totalTokens: attempt.status === "succeeded" ? response.totalTokens : 0,
+          estimatedCostMicros: attempt.status === "succeeded" ? estimatedCostMicros : 0,
           errorCode: attempt.code ?? null,
           finishedAt: new Date(),
         },
@@ -233,6 +223,21 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
           completionTokens: response.completionTokens,
           totalTokens: response.totalTokens,
           estimatedCostMicros,
+          metadata: {
+            ...(requestId ? { requestId } : {}),
+            messages: adminMessages,
+            responseText: response.text.slice(0, 30_000),
+            responseProvider: response.provider,
+            responseModel: response.model,
+            attempts: attempts.map((attempt) => ({
+              provider: attempt.provider,
+              model: attempt.model ?? null,
+              status: attempt.status,
+              code: attempt.code ?? null,
+              credentialId: attempt.credentialId ?? null,
+              credentialLabel: attempt.credentialLabel ?? null,
+            })),
+          },
           finishedAt: new Date(),
         },
       }),
@@ -284,6 +289,19 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       where: { id: aiRequest.id },
       data: {
         status: AIRequestStatus.FAILED,
+        metadata: {
+          ...(requestId ? { requestId } : {}),
+          messages: adminMessages,
+          error: err instanceof Error ? err.message : String(err),
+          attempts: failedAttempts.map((attempt) => ({
+            provider: attempt.provider,
+            model: attempt.model ?? null,
+            status: attempt.status,
+            code: attempt.code ?? null,
+            credentialId: attempt.credentialId ?? null,
+            credentialLabel: attempt.credentialLabel ?? null,
+          })),
+        },
         finishedAt: new Date(),
       },
     }).catch(() => undefined);

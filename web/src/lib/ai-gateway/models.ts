@@ -7,6 +7,10 @@ import {
 } from "@/lib/ai-gateway/credentials";
 import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
 import { isFreeOpenRouterModel } from "@/lib/ai-gateway/openrouter-adapter";
+import {
+  providerConfigToRouting,
+  resolvedProviderBaseUrl,
+} from "@/lib/ai-gateway/provider-runtime";
 
 export interface AIModelInfo {
   modelId: string;
@@ -116,6 +120,39 @@ async function fetchFireworksModels(credential: DecryptedAICredential): Promise<
     }));
 }
 
+interface GeminiModelRow {
+  name?: string;
+  displayName?: string;
+  description?: string;
+  inputTokenLimit?: number;
+  outputTokenLimit?: number;
+  supportedGenerationMethods?: string[];
+}
+
+async function fetchGeminiModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
+  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? "https://generativelanguage.googleapis.com/v1beta";
+  const data = await fetchJSON(`${baseUrl}/models`, {
+    headers: {
+      "x-goog-api-key": credential.apiKey,
+      ...cloudflareGatewayAuthHeaders(baseUrl),
+    },
+  });
+  const list = (data as { models?: GeminiModelRow[] }).models ?? [];
+  return list
+    .filter((row): row is GeminiModelRow & { name: string } => {
+      return typeof row.name === "string" &&
+        row.name.length > 0 &&
+        (row.supportedGenerationMethods ?? []).includes("generateContent");
+    })
+    .map((row) => ({
+      modelId: row.name.replace(/^models\//, ""),
+      displayName: row.displayName ?? null,
+      isFree: false,
+      contextWindow: row.inputTokenLimit ?? null,
+      metadata: row,
+    }));
+}
+
 interface OpenRouterModelRow {
   id?: string;
   name?: string;
@@ -172,6 +209,9 @@ export async function fetchModelsFromProvider(input: {
     case AIProvider.OPENROUTER:
       // OpenRouter /api/v1/models is public; credential optional.
       return fetchOpenRouterModels(credential);
+    case AIProvider.GEMINI:
+      if (!credential) throw new AIModelFetchError("Gemini model list requires a credential");
+      return fetchGeminiModels(credential);
     default: {
       const _exhaustive: never = input.provider;
       throw new AIModelFetchError(`Unknown provider: ${_exhaustive as string}`);
@@ -204,14 +244,20 @@ export interface RefreshResult {
 }
 
 export async function refreshModelsForProvider(provider: AIProvider): Promise<RefreshResult> {
-  const credential = provider === AIProvider.OPENROUTER
+  const providerConfigRow = await db.aIProviderConfig.findUnique({ where: { provider } });
+  const providerConfig = providerConfigRow ? providerConfigToRouting(providerConfigRow) : null;
+  const rawCredential = provider === AIProvider.OPENROUTER
     ? await pickCredentialForProvider({ provider }).catch(() => null)
     : await pickCredentialForProvider({ provider });
 
-  if (provider !== AIProvider.OPENROUTER && !credential) {
+  if (provider !== AIProvider.OPENROUTER && !rawCredential) {
     throw new AIModelFetchError(`No active credential available for ${provider}`);
   }
 
+  const baseUrl = resolvedProviderBaseUrl({ credential: rawCredential, providerConfig });
+  const credential = rawCredential && baseUrl && !rawCredential.baseUrlOverride
+    ? { ...rawCredential, baseUrlOverride: baseUrl }
+    : rawCredential;
   const models = await fetchModelsFromProvider({ provider, credential });
   const fetchedAt = new Date();
 

@@ -5,6 +5,7 @@ export const AI_GATEWAY_PROVIDERS = [
   AIProvider.ANTHROPIC,
   AIProvider.FIREWORKS,
   AIProvider.OPENROUTER,
+  AIProvider.GEMINI,
 ] as const;
 
 export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
@@ -12,6 +13,7 @@ export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
   [AIProvider.ANTHROPIC]: "Anthropic",
   [AIProvider.FIREWORKS]: "Fireworks AI",
   [AIProvider.OPENROUTER]: "OpenRouter",
+  [AIProvider.GEMINI]: "Google Gemini",
 };
 
 export type AIGatewayContentBlock =
@@ -50,6 +52,7 @@ export function aiBudgetPeriod(date = new Date()) {
 export function defaultProviderOrder(): AIProvider[] {
   return [
     AIProvider.OPENROUTER,
+    AIProvider.GEMINI,
     AIProvider.OPENAI,
     AIProvider.ANTHROPIC,
     AIProvider.FIREWORKS,

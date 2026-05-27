@@ -182,19 +182,28 @@ function parseStructuredLine(rawLine: string): {
         ? redacted.ts
         : typeof redacted.timestamp === "string"
           ? redacted.timestamp
-          : null;
-      const { level: _level, event: _event, ts: _ts, timestamp: _timestamp, ...fields } = redacted;
+          : typeof redacted.time === "string"
+            ? redacted.time
+            : null;
+      const { level: _level, event: _event, ts: _ts, timestamp: _timestamp, time: _time, ...fields } = redacted;
       void _level;
       void _event;
       void _ts;
       void _timestamp;
+      void _time;
       return { level, event, timestamp, fields };
     } catch {
       // Fall through to raw parsing.
     }
   }
 
-  const levelMatch = line.match(/\b(error|warn|warning|info|debug)\b/i);
+  const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?):?\s*(.*)$/);
+  const timestamp = timestampMatch?.[1] ?? null;
+  const afterTimestamp = timestampMatch?.[2]?.trim() ?? line;
+  const bracketTags = [...afterTimestamp.matchAll(/\[([^\]]+)\]/g)].map((match) => match[1]).slice(0, 8);
+  const withoutTags = afterTimestamp.replace(/^(?:\[[^\]]+\]\s*)+/, "").trim();
+  const levelTag = bracketTags.find((tag) => /^(error|warn|warning|info|debug)$/i.test(tag));
+  const levelMatch = levelTag ? [levelTag, levelTag] : afterTimestamp.match(/\b(error|warn|warning|info|debug)\b/i);
   const normalizedLevel = levelMatch?.[1]?.toLowerCase();
   const level = normalizedLevel === "warning" ? "warn"
     : ["error", "warn", "info", "debug"].includes(normalizedLevel ?? "")
@@ -202,9 +211,9 @@ function parseStructuredLine(rawLine: string): {
       : "unknown";
   return {
     level,
-    event: line.slice(0, 120) || "raw-log",
-    timestamp: null,
-    fields: {},
+    event: (withoutTags || afterTimestamp).slice(0, 160) || "raw-log",
+    timestamp,
+    fields: bracketTags.length > 0 ? { tags: bracketTags } : {},
   };
 }
 

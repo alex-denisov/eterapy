@@ -54,4 +54,19 @@ describe("admin-runtime-logs", () => {
     expect(sources).toEqual([expect.objectContaining({ key: "missing", exists: false })]);
     expect(snapshot.entries).toEqual([]);
   });
+
+  it("parses timestamps and bracket levels from raw runtime lines", async () => {
+    const file = path.join(tmpDir, "auth.log");
+    await writeFile(file, "2026-05-23T13:15:49: [auth][error] UnknownAction\n");
+    process.env.ETERAPY_RUNTIME_LOG_FILES = `auth=${file}`;
+
+    const snapshot = await readRuntimeLogSnapshot({ limit: 10 });
+
+    expect(snapshot.entries[0]).toEqual(expect.objectContaining({
+      timestamp: "2026-05-23T13:15:49",
+      level: "error",
+      event: "UnknownAction",
+      fields: { tags: ["auth", "error"] },
+    }));
+  });
 });

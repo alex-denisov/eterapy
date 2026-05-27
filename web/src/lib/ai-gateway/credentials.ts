@@ -2,11 +2,13 @@ import type { AIProviderCredential } from "@prisma/client";
 import { AIProvider } from "@prisma/client";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { AIProviderError } from "@/lib/ai-gateway/adapters";
 import {
   decryptSecret,
   encryptSecret,
   isAICredentialEncryptionConfigured,
 } from "@/lib/ai-gateway/credentials-crypto";
+import { buildAdapterForCredential, providerConfigToRouting } from "@/lib/ai-gateway/provider-runtime";
 import { log } from "@/lib/logger";
 
 export interface DecryptedAICredential {
@@ -28,6 +30,7 @@ export interface CredentialPublicView {
   provider: AIProvider;
   label: string;
   apiKeyPreview: string;
+  apiKey?: string;
   baseUrlOverride: string | null;
   modelOverride: string | null;
   enabled: boolean;
@@ -42,6 +45,10 @@ export interface CredentialPublicView {
   lastErrorMessage: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface CredentialListOptions {
+  includeSecrets?: boolean;
 }
 
 export interface CreateCredentialInput {
@@ -75,12 +82,24 @@ function trimOrNull(value: string | null | undefined): string | null {
   return trimmed ? trimmed : null;
 }
 
-function rowToPublicView(row: AIProviderCredential): CredentialPublicView {
+function tryDecryptSecret(stored: string): string | null {
+  try {
+    return decryptSecret(stored);
+  } catch {
+    return null;
+  }
+}
+
+function rowToPublicView(row: AIProviderCredential, options: CredentialListOptions = {}): CredentialPublicView {
+  const secret = options.includeSecrets ? tryDecryptSecret(row.encryptedKey) : null;
   return {
     id: row.id,
     provider: row.provider,
     label: row.label,
-    apiKeyPreview: "stored secret",
+    apiKeyPreview: secret
+      ? `${secret.slice(0, 6)}…${secret.slice(-4)}`
+      : "stored secret",
+    ...(secret ? { apiKey: secret } : {}),
     baseUrlOverride: row.baseUrlOverride,
     modelOverride: row.modelOverride,
     enabled: row.enabled,
@@ -114,17 +133,17 @@ function rowToDecrypted(row: AIProviderCredential): DecryptedAICredential {
   };
 }
 
-export async function listCredentials(provider?: AIProvider): Promise<CredentialPublicView[]> {
+export async function listCredentials(provider?: AIProvider, options: CredentialListOptions = {}): Promise<CredentialPublicView[]> {
   const rows = await db.aIProviderCredential.findMany({
     where: provider ? { provider } : undefined,
     orderBy: [{ provider: "asc" }, { priority: "asc" }, { label: "asc" }],
   });
-  return rows.map(rowToPublicView);
+  return rows.map((row) => rowToPublicView(row, options));
 }
 
-export async function getCredential(id: string): Promise<CredentialPublicView | null> {
+export async function getCredential(id: string, options: CredentialListOptions = {}): Promise<CredentialPublicView | null> {
   const row = await db.aIProviderCredential.findUnique({ where: { id } });
-  return row ? rowToPublicView(row) : null;
+  return row ? rowToPublicView(row, options) : null;
 }
 
 export async function createCredential(actorId: string, input: CreateCredentialInput): Promise<CredentialPublicView> {
@@ -201,6 +220,81 @@ export async function deleteCredential(actorId: string, id: string): Promise<voi
     provider: row.provider,
     label: row.label,
   }));
+}
+
+export async function checkCredentialHealth(actorId: string, id: string): Promise<{
+  credential: CredentialPublicView;
+  health: {
+    status: "ok" | "missing_config" | "down";
+    latencyMs?: number;
+    message?: string;
+    model?: string;
+  };
+}> {
+  const row = await db.aIProviderCredential.findUnique({ where: { id } });
+  if (!row) throw new Error("Credential not found");
+
+  const providerConfigRow = await db.aIProviderConfig.findUnique({ where: { provider: row.provider } });
+  const providerConfig = providerConfigRow ? providerConfigToRouting(providerConfigRow) : null;
+  const credential = rowToDecrypted(row);
+  const adapter = buildAdapterForCredential(credential, providerConfig);
+  const startedAt = Date.now();
+
+  try {
+    const health = await adapter.healthcheck(credential.modelOverride ?? providerConfig?.defaultModel ?? undefined);
+    if (health.status === "ok") {
+      await markCredentialSuccess({ credentialId: row.id });
+    } else {
+      await markCredentialFailure({
+        credentialId: row.id,
+        code: health.status === "missing_config" ? "MISSING_CONFIG" : "HEALTHCHECK_FAILED",
+        cooldownMs: 0,
+        regionBlocked: false,
+        message: health.message,
+      });
+    }
+
+    await logAudit(actorId, "AI_CREDENTIAL_HEALTHCHECK", row.id, JSON.stringify({
+      provider: row.provider,
+      label: row.label,
+      status: health.status,
+      latencyMs: health.latencyMs,
+    }));
+
+    return {
+      credential: await getCredential(row.id, { includeSecrets: true }) ?? rowToPublicView(row, { includeSecrets: true }),
+      health: {
+        status: health.status,
+        latencyMs: health.latencyMs,
+        message: health.message,
+        model: health.model,
+      },
+    };
+  } catch (error) {
+    const providerError = error instanceof AIProviderError ? error : null;
+    await markCredentialFailure({
+      credentialId: row.id,
+      code: providerError?.code ?? "HEALTHCHECK_FAILED",
+      cooldownMs: 0,
+      regionBlocked: providerError?.code === "HTTP_403",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    await logAudit(actorId, "AI_CREDENTIAL_HEALTHCHECK", row.id, JSON.stringify({
+      provider: row.provider,
+      label: row.label,
+      status: "down",
+      latencyMs: Date.now() - startedAt,
+      code: providerError?.code ?? "HEALTHCHECK_FAILED",
+    }));
+    return {
+      credential: await getCredential(row.id, { includeSecrets: true }) ?? rowToPublicView(row, { includeSecrets: true }),
+      health: {
+        status: "down",
+        latencyMs: Date.now() - startedAt,
+        message: error instanceof Error ? error.message : "Credential healthcheck failed",
+      },
+    };
+  }
 }
 
 interface PickCredentialInput {

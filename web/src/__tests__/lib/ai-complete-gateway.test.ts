@@ -8,6 +8,7 @@ jest.mock("@/lib/db", () => ({
   default: {
     aIProviderConfig: { findMany: jest.fn() },
     aIRoutingPolicy: { findUnique: jest.fn() },
+    aIPromptConfig: { findUnique: jest.fn() },
     aIBudgetLedger: { findUnique: jest.fn() },
     aIRequest: { create: jest.fn(), update: jest.fn() },
     aIAttempt: { create: jest.fn() },
@@ -61,6 +62,7 @@ describe("aiComplete gateway migration", () => {
       },
     ]);
     (mockDb.aIRoutingPolicy.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.aIPromptConfig.findUnique as jest.Mock).mockResolvedValue(null);
     (mockDb.aIBudgetLedger.findUnique as jest.Mock).mockResolvedValue(null);
     (mockDb.aIRequest.create as jest.Mock).mockResolvedValue({
       id: "ai-request-1",
@@ -133,12 +135,20 @@ describe("aiComplete gateway migration", () => {
         status: AIRequestStatus.SUCCEEDED,
         totalTokens: 1500,
         estimatedCostMicros: 250,
+        metadata: expect.objectContaining({
+          requestId: "req-1",
+          responseText: "Готово",
+          responseProvider: AIProvider.OPENROUTER,
+          messages: expect.any(Array),
+        }),
       }),
     }));
     expect(mockDb.aIAttempt.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         aiRequestId: "ai-request-1",
         provider: AIProvider.OPENROUTER,
+        totalTokens: 1500,
+        estimatedCostMicros: 250,
       }),
     }));
     expect(mockDb.$executeRaw).toHaveBeenCalledTimes(3);

@@ -21,6 +21,7 @@ const providerSchema = z.object({
   timeoutMs: z.coerce.number().int().min(1000).max(120_000),
   inputTokenCostMicros: z.coerce.number().int().min(0).optional().nullable(),
   outputTokenCostMicros: z.coerce.number().int().min(0).optional().nullable(),
+  cloudflareGatewayEnabled: z.boolean().optional(),
 });
 
 const policySchema = z.object({
@@ -52,14 +53,14 @@ async function requireAIConfigure(req: NextRequest) {
     return { context, error: errorWithRequestContext("FORBIDDEN", "Forbidden", 403, context) };
   }
 
-  return { context, session };
+  return { context, session, role };
 }
 
 export async function GET(req: NextRequest) {
   const access = await requireAIConfigure(req);
   if ("error" in access) return access.error;
 
-  const data = await getAIControlCenterData();
+  const data = await getAIControlCenterData(undefined, { includeSecrets: access.role === "SUPERADMIN" });
   return jsonWithRequestContext(data, { status: 200 }, access.context);
 }
 

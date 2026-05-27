@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   if (!provider) {
     return errorWithRequestContext(
       "BAD_REQUEST",
-      "provider query param is required (OPENAI|ANTHROPIC|FIREWORKS|OPENROUTER)",
+      "provider query param is required (OPENAI|ANTHROPIC|FIREWORKS|OPENROUTER|GEMINI)",
       400,
       access.context,
     );

@@ -17,12 +17,18 @@ type RawProvider = {
   timeoutMs: number;
   inputTokenCostMicros?: number | null;
   outputTokenCostMicros?: number | null;
+  cloudflareGatewayEnabled?: boolean;
 };
 
 type RawPolicy = {
   feature: string;
   enabled: boolean;
   providerOrder: AIProvider[];
+  tier?: string;
+  title?: string;
+  purpose?: string;
+  fallbackNotes?: string;
+  source?: "default" | "database";
   maxTokens?: number | null;
   temperature?: number | null;
   timeoutMs?: number | null;
@@ -35,6 +41,7 @@ type RawCredential = {
   provider: AIProvider;
   label: string;
   apiKeyPreview: string;
+  apiKey?: string;
   enabled: boolean;
   priority: number;
   baseUrlOverride: string | null;
@@ -55,6 +62,61 @@ type RawModel = {
   isFree: boolean;
   contextWindow?: number | null;
   fetchedAt: Date;
+  metadata?: unknown;
+};
+
+type RawUsageDetail = {
+  feature: string;
+  provider: string;
+  model: string;
+  status: string;
+  requestCount: number;
+  attemptCount: number;
+  successCount: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  costMicros: number;
+  avgLatencyMs: number | null;
+};
+
+type RawPrompt = {
+  id: string;
+  feature: string;
+  title: string;
+  productKey: string | null;
+  promptText: string;
+  enabled: boolean;
+  source: "default" | "database";
+  updatedAt: Date | null;
+};
+
+type RawInteraction = {
+  id: string;
+  feature: string;
+  userId: string | null;
+  userLabel: string | null;
+  status: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  estimatedCostMicros: number;
+  createdAt: Date;
+  finishedAt: Date | null;
+  requestId: string | null;
+  messages: Array<{ role: string; content: unknown }>;
+  responseText: string | null;
+  responseProvider: string | null;
+  responseModel: string | null;
+  attempts: Array<{
+    provider: AIProvider;
+    model: string;
+    status: string;
+    errorCode: string | null;
+    latencyMs: number | null;
+    totalTokens: number;
+    estimatedCostMicros: number;
+  }>;
 };
 
 export default async function AdminAIPage() {
@@ -65,11 +127,14 @@ export default async function AdminAIPage() {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("ai.configure")) redirect("/admin");
 
-  const data = await getAIControlCenterData();
+  const data = await getAIControlCenterData(undefined, { includeSecrets: role === "SUPERADMIN" });
   const rawProviders = data.providers as RawProvider[];
   const rawPolicies = data.policies as RawPolicy[];
   const rawCredentials = data.credentials as RawCredential[];
   const rawModels = data.models as Record<string, RawModel[]>;
+  const rawUsageDetails = data.usageDetails as RawUsageDetail[];
+  const rawPrompts = data.prompts as RawPrompt[];
+  const rawInteractions = data.interactions as RawInteraction[];
 
   const providers = rawProviders.map((provider) => ({
     provider: provider.provider,
@@ -81,11 +146,17 @@ export default async function AdminAIPage() {
     timeoutMs: provider.timeoutMs,
     inputTokenCostMicros: provider.inputTokenCostMicros,
     outputTokenCostMicros: provider.outputTokenCostMicros,
+    cloudflareGatewayEnabled: provider.cloudflareGatewayEnabled ?? false,
   }));
   const policies = rawPolicies.map((policy) => ({
     feature: policy.feature,
     enabled: policy.enabled,
     providerOrder: policy.providerOrder,
+    tier: policy.tier,
+    title: policy.title,
+    purpose: policy.purpose,
+    fallbackNotes: policy.fallbackNotes,
+    source: policy.source,
     maxTokens: policy.maxTokens,
     temperature: policy.temperature,
     timeoutMs: policy.timeoutMs,
@@ -97,6 +168,7 @@ export default async function AdminAIPage() {
     provider: credential.provider,
     label: credential.label,
     apiKeyPreview: credential.apiKeyPreview,
+    apiKey: credential.apiKey,
     enabled: credential.enabled,
     priority: credential.priority,
     baseUrlOverride: credential.baseUrlOverride,
@@ -120,9 +192,19 @@ export default async function AdminAIPage() {
         isFree: model.isFree,
         contextWindow: model.contextWindow ?? null,
         fetchedAt: model.fetchedAt.toISOString(),
+        metadata: model.metadata,
       })),
     ]),
   );
+  const prompts = rawPrompts.map((prompt) => ({
+    ...prompt,
+    updatedAt: prompt.updatedAt ? prompt.updatedAt.toISOString() : null,
+  }));
+  const interactions = rawInteractions.map((interaction) => ({
+    ...interaction,
+    createdAt: interaction.createdAt.toISOString(),
+    finishedAt: interaction.finishedAt ? interaction.finishedAt.toISOString() : null,
+  }));
 
   return (
     <PageContainer maxWidth="6xl">
@@ -146,10 +228,14 @@ export default async function AdminAIPage() {
         providers={providers}
         policies={policies}
         usage={data.usage}
+        usageDetails={rawUsageDetails}
         credentials={credentials}
         models={models}
+        prompts={prompts}
+        interactions={interactions}
         encryptionConfigured={data.encryptionConfigured}
         cloudflareGateway={data.cloudflareGateway}
+        canViewSecrets={role === "SUPERADMIN"}
       />
     </PageContainer>
   );

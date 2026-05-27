@@ -47,9 +47,13 @@ export const v5Products: V5Product[] = [
     creditPrice: "расширение — от 199 ₽",
     creditCost: null,
     tone: "free",
-    cta: "Начать практику",
-    directCta: "Открыть практику",
-    directHref: "/practice",
+    cta: "Сегодняшний вопрос",
+    directCta: "Открыть практику в кабинете",
+    // B300: /practice was retired in B287 — the canonical practice
+    // surface lives inside the cabinet at app.eterapy.com/modalities.
+    // Use an absolute URL so the link works from the public product
+    // page on eterapy.com.
+    directHref: "https://app.eterapy.com/modalities",
     mechanics: ["один вопрос в день", "короткий ракурс", "мягкие напоминания", "кредиты за осмысленное действие"],
     privacy: "Напоминания и сохранение работают только по выбранным пользователем каналам.",
     result: "Ежедневная привычка, которая пополняет личную карту без давления и публичности.",

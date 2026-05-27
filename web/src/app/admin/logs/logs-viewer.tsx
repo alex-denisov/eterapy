@@ -132,6 +132,20 @@ function prettyJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function softButton(active: boolean) {
+  return active
+    ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-white shadow-sm"
+    : "border-[var(--soft-paper-edge)] bg-white/65 text-[var(--soft-ink-soft)] hover:text-[var(--soft-ink)]";
+}
+
+function runtimeLevelClass(level: RuntimeLogEntry["level"]) {
+  if (level === "error") return "border-red-500/30 bg-red-500/10 text-red-700";
+  if (level === "warn") return "border-amber-500/30 bg-amber-500/10 text-amber-700";
+  if (level === "info") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
+  if (level === "debug") return "border-sky-500/30 bg-sky-500/10 text-sky-700";
+  return "border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]";
+}
+
 function DiagnosticsPanel() {
   const [snapshot, setSnapshot] = useState<DiagnosticsSnapshot | null>(null);
   const [error, setError] = useState("");
@@ -307,7 +321,7 @@ function RuntimeLogsPanel() {
             setError("");
             setSearch(event.target.value);
           }}
-          className="h-8 max-w-sm bg-card/50 text-sm"
+          className="h-8 max-w-sm border-[var(--soft-paper-edge)] bg-white/70 text-sm"
         />
         <select
           value={level}
@@ -316,7 +330,7 @@ function RuntimeLogsPanel() {
             setError("");
             setLevel(event.target.value);
           }}
-          className="h-8 rounded-lg border border-border/40 bg-background px-2 text-xs"
+          className="h-8 rounded-lg border border-[var(--soft-paper-edge)] bg-white/70 px-2 text-xs text-[var(--soft-ink)]"
         >
           <option value="all">Все уровни</option>
           <option value="error">error</option>
@@ -332,7 +346,7 @@ function RuntimeLogsPanel() {
             setError("");
             setSource(event.target.value);
           }}
-          className="h-8 rounded-lg border border-border/40 bg-background px-2 text-xs"
+          className="h-8 rounded-lg border border-[var(--soft-paper-edge)] bg-white/70 px-2 text-xs text-[var(--soft-ink)]"
         >
           <option value="all">Все источники</option>
           {sources.map((item) => (
@@ -357,7 +371,7 @@ function RuntimeLogsPanel() {
 
       <div className="grid gap-2 lg:grid-cols-4">
         {sources.map((item) => (
-          <div key={item.key} className="rounded-lg border border-border/30 bg-card/20 p-3">
+          <div key={item.key} className="rounded-lg border border-[var(--soft-paper-edge)] bg-white/65 p-3">
             <div className="mb-1 flex items-center justify-between gap-2">
               <p className="truncate text-xs font-semibold">{item.label}</p>
               <span className={`rounded-full border px-1.5 py-0.5 text-[10px] ${statusClass(item.exists ? "ok" : "down")}`}>
@@ -370,35 +384,44 @@ function RuntimeLogsPanel() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/30 bg-black/20">
-        <div className="flex items-center justify-between border-b border-border/20 px-4 py-2 text-xs text-muted-foreground">
+      <div className="overflow-hidden rounded-xl border border-[var(--soft-paper-edge)] bg-white/65">
+        <div className="flex items-center justify-between border-b border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-4 py-2 text-xs text-[var(--soft-ink-soft)]">
           <span>{entries.length} записей</span>
           <span>{snapshot?.generatedAt ? `snapshot ${formatDate(snapshot.generatedAt)}` : "ожидание"}</span>
         </div>
-        <div className="max-h-[640px] divide-y divide-border/10 overflow-auto">
+        <div className="max-h-[640px] divide-y divide-[var(--soft-paper-edge)] overflow-auto">
           {entries.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">Нет runtime-записей или источники логов не найдены</div>
+            <div className="py-12 text-center text-sm text-[var(--soft-ink-soft)]">Нет runtime-записей или источники логов не найдены</div>
           ) : entries.map((entry) => (
-            <div key={entry.id} className="grid gap-2 px-4 py-3 lg:grid-cols-[9rem_7rem_minmax(0,1fr)]">
-              <span className="font-mono text-[11px] text-muted-foreground">{formatDate(entry.timestamp)}</span>
-              <div className="flex flex-col gap-1">
-                <Badge className={`${entry.level === "error" ? "bg-red-500/15 text-red-300" : entry.level === "warn" ? "bg-amber-500/15 text-amber-300" : "bg-muted/20 text-muted-foreground"} w-fit text-[10px]`}>
-                  {entry.level}
-                </Badge>
-                <span className="text-[10px] text-muted-foreground">{entry.sourceLabel}</span>
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{entry.event}</p>
-                <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-md bg-black/30 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                  {entry.raw}
-                </pre>
-                {Object.keys(entry.fields).length > 0 && (
-                  <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-md bg-card/20 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {prettyJson(entry.fields)}
+            <details key={entry.id} className="group px-4 py-3">
+              <summary className="grid cursor-pointer list-none gap-2 lg:grid-cols-[11rem_9rem_minmax(0,1fr)]">
+                <span className="font-mono text-[11px] text-[var(--soft-ink-soft)]">{formatDate(entry.timestamp)}</span>
+                <div className="flex flex-col gap-1">
+                  <Badge className={`${runtimeLevelClass(entry.level)} w-fit border text-[10px]`}>
+                    {entry.level}
+                  </Badge>
+                  <span className="text-[10px] text-[var(--soft-ink-soft)]">{entry.sourceLabel}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-[var(--soft-ink)]">{entry.event}</p>
+                  <p className="mt-1 truncate font-mono text-[11px] text-[var(--soft-ink-soft)]">{entry.filePath}</p>
+                </div>
+              </summary>
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Raw</p>
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-3 text-[11px] leading-relaxed text-[var(--soft-ink)]">
+                    {entry.raw}
                   </pre>
-                )}
+                </div>
+                <div>
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Parsed fields</p>
+                  <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-3 text-[11px] leading-relaxed text-[var(--soft-ink)]">
+                    {Object.keys(entry.fields).length > 0 ? prettyJson(entry.fields) : "нет дополнительных полей"}
+                  </pre>
+                </div>
               </div>
-            </div>
+            </details>
           ))}
         </div>
       </div>
@@ -411,15 +434,13 @@ export function AdminLogsConsole({ logs }: { logs: LogEntry[] }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-2 rounded-xl border border-border/30 bg-card/20 p-1" data-testid="admin-observability-tabs">
+      <div className="flex flex-wrap gap-2 rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-1" data-testid="admin-observability-tabs">
         {Object.entries(LOG_TABS).map(([key, label]) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key as keyof typeof LOG_TABS)}
-            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              tab === key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}
+            className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${softButton(tab === key)}`}
           >
             {label}
           </button>
@@ -458,13 +479,11 @@ export function LogsViewer({ logs }: { logs: LogEntry[] }) {
       <div className="flex flex-wrap gap-3 items-center">
         <Input placeholder="Поиск по пользователю, действию, деталям..."
           value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-card/50 max-w-sm h-8 text-sm" />
+          className="max-w-sm h-8 border-[var(--soft-paper-edge)] bg-white/70 text-sm" />
         <div className="flex gap-1">
           {Object.entries(ACTION_GROUPS).map(([key, label]) => (
             <button key={key} onClick={() => setGroup(key as keyof typeof ACTION_GROUPS)}
-              className={`rounded-lg px-3 py-1 text-xs transition-colors ${
-                group === key ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}>
+              className={`rounded-lg border px-3 py-1 text-xs transition-colors ${softButton(group === key)}`}>
               {label}
             </button>
           ))}

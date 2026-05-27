@@ -21,6 +21,8 @@ jest.mock("@/lib/db", () => ({
   default: {
     aIProviderConfig: { findMany: jest.fn(), upsert: jest.fn() },
     aIRoutingPolicy: { findMany: jest.fn(), upsert: jest.fn() },
+    aIPromptConfig: { findMany: jest.fn() },
+    aIRequest: { findMany: jest.fn() },
     aIProviderCredential: { findMany: jest.fn() },
     aIProviderModel: { findMany: jest.fn() },
     auditLog: { create: jest.fn() },
@@ -53,6 +55,8 @@ describe("admin AI control API", () => {
     mockGetUserPermissions.mockResolvedValue(["ai.configure"]);
     (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIRoutingPolicy.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIPromptConfig.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.aIRequest.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIProviderCredential.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIProviderModel.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.$queryRaw as jest.Mock).mockResolvedValue([]);
@@ -69,7 +73,7 @@ describe("admin AI control API", () => {
       tpmLimit: null,
       inputTokenCostMicros: null,
       outputTokenCostMicros: null,
-      metadata: null,
+      metadata: { cloudflareGatewayEnabled: true },
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -96,10 +100,16 @@ describe("admin AI control API", () => {
 
     expect(response.status).toBe(200);
     expect(body.requestId).toBe("admin-ai-control-123");
-    expect(body.providers).toHaveLength(4);
+    expect(body.providers).toHaveLength(5);
     expect(body.providers[0]).toEqual(expect.objectContaining({
       provider: AIProvider.OPENROUTER,
     }));
+    expect(body.providers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ provider: AIProvider.GEMINI }),
+    ]));
+    expect(body.prompts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ feature: "dialogue-primary-answer" }),
+    ]));
     expect(body.policies).toEqual(expect.arrayContaining([
       expect.objectContaining({
         feature: "dialogue-primary-answer",
@@ -121,10 +131,16 @@ describe("admin AI control API", () => {
       priority: 10,
       defaultModel: "openai/gpt-4o-mini",
       timeoutMs: 30000,
+      cloudflareGatewayEnabled: true,
     })))!;
 
     expect(response.status).toBe(200);
     expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalled();
+    expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        metadata: { cloudflareGatewayEnabled: true },
+      }),
+    }));
     expect(mockDb.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         action: "AI_PROVIDER_CONFIG_UPDATE",

@@ -16,10 +16,16 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(page).toContain("free, paid, sensitive, speech");
     expect(page).not.toContain("font-heading text-2xl font-bold");
     expect(center).toContain('data-testid="admin-ai-v42-guardrails"');
+    expect(center).toContain('data-testid="admin-ai-ops-metrics"');
+    expect(center).toContain('data-testid="admin-ai-prompts"');
+    expect(center).toContain('data-testid="admin-ai-interactions"');
     expect(center).toContain("free layer");
     expect(center).toContain("paid layer");
-    expect(center).toContain("human boundary");
+    expect(center).toContain("audit boundary");
+    expect(center).toContain("GEMINI");
     expect(route).toContain("updateAIRoutingPolicy");
+    expect(route).toContain("cloudflareGatewayEnabled");
     expect(adminConfig).toContain("AI_ROUTING_POLICY_UPDATE");
+    expect(adminConfig).toContain("listAIPromptConfigs");
   });
 });

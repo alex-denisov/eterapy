@@ -1,0 +1,285 @@
+import { AIProvider } from "@prisma/client";
+import {
+  AIProviderError,
+  classifyProviderError,
+  type AIGatewayAdapter,
+  type AIGatewayCompletionRequest,
+  type AIGatewayCompletionResponse,
+  type AIProviderHealth,
+} from "@/lib/ai-gateway/adapters";
+import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
+import type { AIGatewayMessage, AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
+import { log, serializeError } from "@/lib/logger";
+
+const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+type GeminiRole = "user" | "model";
+
+type GeminiPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } }
+  | { fileData: { mimeType: string; fileUri: string } };
+
+interface GeminiContent {
+  role?: GeminiRole;
+  parts: GeminiPart[];
+}
+
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
+interface GeminiAdapterOptions {
+  apiKey?: string;
+  baseURL?: string;
+  defaultModel?: string;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}
+
+function contentToText(content: AIGatewayMessageContent) {
+  if (typeof content === "string") return content;
+  return content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n\n");
+}
+
+function dataUrlToPart(url: string): GeminiPart | null {
+  const match = /^data:(image\/(?:png|jpeg|jpg|webp));base64,([a-zA-Z0-9+/=]+)$/i.exec(url);
+  if (!match) return null;
+  const mimeType = match[1].toLowerCase() === "image/jpg" ? "image/jpeg" : match[1];
+  return { inlineData: { mimeType, data: match[2] } };
+}
+
+function imageUrlToPart(url: string): GeminiPart {
+  const dataPart = dataUrlToPart(url);
+  if (dataPart) return dataPart;
+  return {
+    fileData: {
+      mimeType: url.toLowerCase().includes(".webp")
+        ? "image/webp"
+        : url.toLowerCase().includes(".jpg") || url.toLowerCase().includes(".jpeg")
+          ? "image/jpeg"
+          : "image/png",
+      fileUri: url,
+    },
+  };
+}
+
+function contentToParts(content: AIGatewayMessageContent): GeminiPart[] {
+  if (typeof content === "string") return [{ text: content }];
+  return content.flatMap((block) => {
+    if (block.type === "text") return [{ text: block.text }];
+    return [imageUrlToPart(block.image_url.url)];
+  });
+}
+
+function splitSystem(messages: AIGatewayMessage[]) {
+  const system = messages
+    .filter((message) => message.role === "system")
+    .map((message) => contentToText(message.content))
+    .join("\n\n")
+    .trim();
+
+  const contents = messages
+    .filter((message) => message.role !== "system")
+    .map((message): GeminiContent => ({
+      role: message.role === "assistant" ? "model" : "user",
+      parts: contentToParts(message.content),
+    }));
+
+  return {
+    systemInstruction: system ? { parts: [{ text: system }] } : undefined,
+    contents: contents.length > 0 ? contents : [{ role: "user" as const, parts: [{ text: "" }] }],
+  };
+}
+
+async function fetchWithTimeout(fetchImpl: typeof fetch, url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetchImpl(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function parseError(response: Response) {
+  try {
+    const body = await response.json() as { error?: { message?: string } };
+    return body.error?.message || response.statusText || `HTTP ${response.status}`;
+  } catch {
+    return response.statusText || `HTTP ${response.status}`;
+  }
+}
+
+function joinBaseUrl(baseURL: string, path: string) {
+  return `${baseURL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatewayAdapter {
+  const apiKey = options.apiKey ?? "";
+  const configured = Boolean(apiKey);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+  const defaultModel = options.defaultModel ?? DEFAULT_GEMINI_MODEL;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  function requireConfigured() {
+    if (!configured) {
+      throw new AIProviderError("Gemini API key is not configured", {
+        provider: AIProvider.GEMINI,
+        code: "MISSING_CONFIG",
+        retryable: false,
+      });
+    }
+  }
+
+  function headers() {
+    return {
+      "content-type": "application/json",
+      "x-goog-api-key": apiKey,
+      ...cloudflareGatewayAuthHeaders(baseURL),
+    };
+  }
+
+  const adapter: AIGatewayAdapter = {
+    provider: AIProvider.GEMINI,
+
+    async complete(request: AIGatewayCompletionRequest): Promise<AIGatewayCompletionResponse> {
+      requireConfigured();
+      const model = request.model ?? defaultModel;
+      const startedAt = Date.now();
+      const geminiMessages = splitSystem(request.messages);
+
+      try {
+        const response = await fetchWithTimeout(fetchImpl, joinBaseUrl(baseURL, `models/${model}:generateContent`), {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({
+            ...geminiMessages,
+            generationConfig: {
+              maxOutputTokens: request.maxTokens,
+              temperature: request.temperature,
+            },
+          }),
+        }, request.timeoutMs ?? timeoutMs);
+
+        if (!response.ok) {
+          throw Object.assign(new Error(await parseError(response)), { status: response.status });
+        }
+
+        const body = await response.json() as GeminiResponse;
+        const choice = body.candidates?.[0];
+        const text = choice?.content?.parts
+          ?.map((part) => part.text ?? "")
+          .join("")
+          .trim() ?? "";
+
+        if (!text) {
+          throw new AIProviderError("Gemini returned an empty completion", {
+            provider: AIProvider.GEMINI,
+            code: "EMPTY_RESPONSE",
+            retryable: true,
+          });
+        }
+
+        const promptTokens = body.usageMetadata?.promptTokenCount ?? 0;
+        const completionTokens = body.usageMetadata?.candidatesTokenCount ?? 0;
+        const totalTokens = body.usageMetadata?.totalTokenCount ?? promptTokens + completionTokens;
+        const latencyMs = Date.now() - startedAt;
+
+        log.info("ai-gateway-gemini-completed", {
+          requestId: request.requestId,
+          feature: request.feature,
+          provider: AIProvider.GEMINI,
+          model,
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          latencyMs,
+          finishReason: choice?.finishReason,
+        });
+
+        return {
+          text,
+          provider: AIProvider.GEMINI,
+          model,
+          finishReason: choice?.finishReason,
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          latencyMs,
+        };
+      } catch (err) {
+        if (err instanceof AIProviderError) throw err;
+        const classified = classifyProviderError(err);
+        log.warn("ai-gateway-gemini-failed", {
+          requestId: request.requestId,
+          feature: request.feature,
+          provider: AIProvider.GEMINI,
+          model,
+          code: classified.code,
+          retryable: classified.retryable,
+          error: serializeError(err),
+        });
+        throw new AIProviderError("Gemini completion failed", {
+          provider: AIProvider.GEMINI,
+          code: classified.code,
+          retryable: classified.retryable,
+          cause: err,
+        });
+      }
+    },
+
+    async healthcheck(model = defaultModel): Promise<AIProviderHealth> {
+      if (!configured) {
+        return {
+          provider: AIProvider.GEMINI,
+          status: "missing_config",
+          model,
+          message: "Gemini API key is not configured",
+        };
+      }
+
+      const startedAt = Date.now();
+      try {
+        await adapter.complete({
+          feature: "ai-healthcheck",
+          messages: [{ role: "user", content: "ping" }],
+          model,
+          maxTokens: 8,
+          temperature: 0,
+          timeoutMs,
+        });
+        return {
+          provider: AIProvider.GEMINI,
+          status: "ok",
+          model,
+          latencyMs: Date.now() - startedAt,
+        };
+      } catch (err) {
+        return {
+          provider: AIProvider.GEMINI,
+          status: "down",
+          model,
+          latencyMs: Date.now() - startedAt,
+          message: err instanceof Error ? err.message : "Gemini healthcheck failed",
+        };
+      }
+    },
+  };
+
+  return adapter;
+}

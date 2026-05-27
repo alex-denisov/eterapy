@@ -34,7 +34,7 @@ async function requireAIConfigure(req: NextRequest) {
     return { context, error: errorWithRequestContext("FORBIDDEN", "Forbidden", 403, context) };
   }
 
-  return { context, session };
+  return { context, session, role };
 }
 
 export async function GET(req: NextRequest) {
@@ -46,8 +46,9 @@ export async function GET(req: NextRequest) {
   const provider = providerParam && (Object.values(AIProvider) as string[]).includes(providerParam)
     ? (providerParam as AIProvider)
     : undefined;
+  const includeSecrets = access.role === "SUPERADMIN" && url.searchParams.get("includeSecrets") === "1";
 
-  const credentials = await listCredentials(provider);
+  const credentials = await listCredentials(provider, { includeSecrets });
   return jsonWithRequestContext({ credentials }, { status: 200 }, access.context);
 }
 

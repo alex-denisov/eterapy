@@ -114,18 +114,18 @@ function BalanceSummaryLink({
       prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
       className={cn(
-        "hidden h-9 items-stretch overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-xs font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
+        "hidden h-8 items-stretch overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[12px] font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
         className,
       )}
       data-testid="header-balance-summary"
     >
-      <span className="flex items-center gap-1 pl-3 pr-2.5 text-[var(--soft-terracotta-dark)]" aria-label="Кредиты ясности">
-        <Sparkles className="size-3.5" aria-hidden="true" />
-        <span className="min-w-[1.25rem] text-center">{clarityCredits}</span>
+      <span className="flex items-center gap-1 pl-2.5 pr-2 text-[var(--soft-terracotta-dark)]" aria-label="Кредиты ясности">
+        <Sparkles className="size-3" aria-hidden="true" />
+        <span className="min-w-[1rem] text-center">{clarityCredits}</span>
       </span>
-      <span aria-hidden="true" className="my-2 w-px bg-[var(--soft-paper-edge)]" />
-      <span className="hidden items-center gap-0.5 pl-2.5 pr-3 text-[var(--soft-bordeaux)] sm:flex" aria-label="Денежный баланс">
-        <span className="min-w-[2.5rem] text-right">{rub}</span>
+      <span aria-hidden="true" className="my-1.5 w-px bg-[var(--soft-paper-edge)]" />
+      <span className="hidden items-center gap-0.5 pl-2 pr-2.5 text-[var(--soft-bordeaux)] sm:flex" aria-label="Денежный баланс">
+        <span className="min-w-[2.25rem] text-right">{rub}</span>
         <span className="opacity-70">₽</span>
       </span>
     </Link>
@@ -417,7 +417,7 @@ export function Header() {
                 <Link
                   href={mainUrl("/checkin")}
                   className={cn(
-                    "soft-button soft-button-primary inline-flex h-9 min-w-[148px] items-center justify-center px-4 text-sm",
+                    "soft-button soft-button-primary inline-flex h-8 min-w-[132px] items-center justify-center gap-1 rounded-full px-3 text-[13px]",
                     softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                   )}
                   data-testid="header-dialogue-cta"
@@ -433,7 +433,7 @@ export function Header() {
               <Link href={mainUrl("/login")}
                 prefetch={false}
                 className={cn(
-                  "soft-button soft-button-ghost h-9 min-w-[80px] items-center justify-center px-4 text-sm",
+                  "soft-button soft-button-ghost h-8 min-w-[72px] items-center justify-center rounded-full px-3 text-[13px]",
                   "hidden md:inline-flex",
                   softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
@@ -442,7 +442,7 @@ export function Header() {
               <Link
                 href={mainUrl("/checkin")}
                 className={cn(
-                  "soft-button soft-button-primary h-9 px-4 text-sm",
+                  "soft-button soft-button-primary inline-flex h-8 min-w-[132px] items-center justify-center rounded-full px-3 text-[13px]",
                   softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
               >
@@ -451,7 +451,7 @@ export function Header() {
             </>
           )}
           <button
-            className="ml-1 flex h-10 w-10 items-center justify-center rounded-full border border-border/40 text-muted-foreground transition-colors hover:border-primary/45 hover:text-foreground md:hidden"
+            className="ml-1 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)] md:hidden"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Меню"
           >
