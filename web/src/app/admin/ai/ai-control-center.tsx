@@ -191,6 +191,17 @@ function formatUsdMicros(value: number) {
   }).format(usdFromMicros(value));
 }
 
+function formatUsdAmount(value: number) {
+  const abs = Math.abs(value);
+  const fractionDigits = abs > 0 && abs < 1 ? 4 : 2;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
+}
+
 function statusTone(status: string) {
   const normalized = status.toUpperCase();
   if (normalized === "SUCCEEDED" || normalized === "OK") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
@@ -211,15 +222,49 @@ function keyState(credential: CredentialRow) {
   return { label: "не проверялся", tone: statusTone("unknown") };
 }
 
-function modelPricingLabel(model: ModelRow) {
+function numberFromUnknown(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function modelCatalogPricing(model: ModelRow) {
   const metadata = model.metadata;
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
   const pricing = (metadata as Record<string, unknown>).pricing;
   if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)) return null;
-  const prompt = Number((pricing as Record<string, unknown>).prompt);
-  const completion = Number((pricing as Record<string, unknown>).completion);
-  if (!Number.isFinite(prompt) || !Number.isFinite(completion)) return null;
-  return `$${prompt}/$${completion} per token`;
+  const prompt = numberFromUnknown((pricing as Record<string, unknown>).prompt);
+  const completion = numberFromUnknown((pricing as Record<string, unknown>).completion);
+  if (prompt == null || completion == null) return null;
+  return {
+    source: "catalog",
+    inputUsdPerMillion: prompt * 1_000_000,
+    outputUsdPerMillion: completion * 1_000_000,
+  };
+}
+
+function providerDefaultPricing(provider?: ProviderRow) {
+  const input = numberFromUnknown(provider?.inputTokenCostMicros);
+  const output = numberFromUnknown(provider?.outputTokenCostMicros);
+  if (input == null && output == null) return null;
+  return {
+    source: "provider default",
+    inputUsdPerMillion: (input ?? 0) / 1000,
+    outputUsdPerMillion: (output ?? 0) / 1000,
+  };
+}
+
+function modelPricing(model: ModelRow, provider?: ProviderRow) {
+  return modelCatalogPricing(model) ?? providerDefaultPricing(provider);
+}
+
+function modelPricingLabel(model: ModelRow, provider?: ProviderRow) {
+  const pricing = modelPricing(model, provider);
+  if (!pricing) return null;
+  return `${pricing.source}: ${formatUsdAmount(pricing.inputUsdPerMillion)} in / ${formatUsdAmount(pricing.outputUsdPerMillion)} out за 1M токенов`;
 }
 
 function renderAuditContent(content: unknown) {
@@ -291,11 +336,13 @@ function MetricCard({
 function ModelSelect({
   value,
   models,
+  provider,
   onChange,
   placeholder,
 }: {
   value: string;
   models: ModelRow[];
+  provider?: ProviderRow;
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
@@ -313,22 +360,89 @@ function ModelSelect({
     >
       <option value="__none__">{placeholder ?? "Модель по умолчанию"}</option>
       {models.length === 0 && <option value="" disabled>Список моделей пуст - обновите каталог</option>}
-      {models.slice(0, 250).map((model) => (
-        <option key={model.modelId} value={model.modelId}>
-          {model.isFree ? "Free · " : ""}
-          {model.modelId}
-          {model.displayName ? ` - ${model.displayName}` : ""}
-          {modelPricingLabel(model) ? ` · ${modelPricingLabel(model)}` : ""}
-        </option>
-      ))}
+      {models.slice(0, 250).map((model) => {
+        const pricingLabel = modelPricingLabel(model, provider);
+        return (
+          <option key={model.modelId} value={model.modelId}>
+            {model.isFree ? "Free · " : ""}
+            {model.modelId}
+            {model.displayName ? ` - ${model.displayName}` : ""}
+            {pricingLabel ? ` · ${pricingLabel}` : ""}
+          </option>
+        );
+      })}
       {showCustom && <option value="__custom__">{value} (текущее, нет в каталоге)</option>}
     </select>
+  );
+}
+
+function ModelPricingPreview({ provider, models }: { provider: ProviderRow; models: ModelRow[] }) {
+  const rows = models.slice(0, 8);
+  return (
+    <div className="mb-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3" data-testid={`ai-model-pricing-${provider.provider}`}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Стоимость моделей</p>
+          <p className="mt-0.5 text-[11px] text-[var(--soft-ink-soft)]">
+            Каталог провайдера имеет приоритет; если цена не пришла, используется ставка провайдера.
+          </p>
+        </div>
+        <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">
+          USD за 1M токенов
+        </SoftBadge>
+      </div>
+      {rows.length === 0 ? (
+        <p className="text-xs text-[var(--soft-ink-soft)]">Каталог моделей пуст. Обновите модели после добавления активного ключа.</p>
+      ) : (
+        <div className="overflow-auto">
+          <table className="w-full min-w-[620px] text-left text-[11px]">
+            <thead className="text-[var(--soft-ink-soft)]">
+              <tr>
+                <th className="py-1 pr-3 font-medium">Model</th>
+                <th className="py-1 pr-3 font-medium">Context</th>
+                <th className="py-1 pr-3 font-medium">Price source</th>
+                <th className="py-1 font-medium">Input / output</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--soft-paper-edge)]">
+              {rows.map((model) => {
+                const pricing = modelPricing(model, provider);
+                return (
+                  <tr key={model.modelId}>
+                    <td className="max-w-[18rem] truncate py-1.5 pr-3 font-mono text-[var(--soft-ink)]">
+                      {model.isFree ? "Free · " : ""}{model.modelId}
+                    </td>
+                    <td className="py-1.5 pr-3 text-[var(--soft-ink-soft)]">
+                      {model.contextWindow ? formatTokens(model.contextWindow) : "-"}
+                    </td>
+                    <td className="py-1.5 pr-3 text-[var(--soft-ink-soft)]">
+                      {pricing?.source ?? "не задана"}
+                    </td>
+                    <td className="py-1.5 text-[var(--soft-ink)]">
+                      {pricing
+                        ? `${formatUsdAmount(pricing.inputUsdPerMillion)} / ${formatUsdAmount(pricing.outputUsdPerMillion)}`
+                        : "стоимость не задана"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {models.length > rows.length && (
+            <p className="mt-2 text-[11px] text-[var(--soft-ink-soft)]">
+              Показаны первые {rows.length} из {models.length}; полный список доступен в селекторах моделей.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
 function CredentialRowEditor({
   credential,
   models,
+  provider,
   onUpdate,
   onDelete,
   onCheck,
@@ -337,6 +451,7 @@ function CredentialRowEditor({
 }: {
   credential: CredentialRow;
   models: ModelRow[];
+  provider: ProviderRow;
   onUpdate: (payload: Record<string, unknown>, msg: string) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
   onCheck: () => Promise<void> | void;
@@ -414,6 +529,7 @@ function CredentialRowEditor({
         <ModelSelect
           value={draft.modelOverride}
           models={models}
+          provider={provider}
           onChange={(value) => setDraft({ ...draft, modelOverride: value })}
           placeholder="Override модели"
         />
@@ -765,6 +881,13 @@ export function AIControlCenter({
           {PROVIDERS.map((provider) => {
             const providerCredentials = credentials.filter((credential) => credential.provider === provider);
             const providerModels = models[provider] ?? [];
+            const providerConfig = providers.find((row) => row.provider === provider) ?? {
+              provider,
+              displayName: provider,
+              enabled: false,
+              priority: 100,
+              timeoutMs: 30_000,
+            };
             const activeCredentials = providerCredentials.filter((credential) => credential.enabled);
             const lastFetchedAt = providerModels[0]?.fetchedAt ?? null;
             const refreshDisabled = refreshing === provider || isPending || (provider !== AIProvider.OPENROUTER && activeCredentials.length === 0);
@@ -790,6 +913,7 @@ export function AIControlCenter({
                     {refreshing === provider ? "Обновляем..." : "Обновить модели"}
                   </Button>
                 </div>
+                <ModelPricingPreview provider={providerConfig} models={providerModels} />
                 <div className="divide-y divide-[var(--soft-paper-edge)] overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)]">
                   {providerCredentials.length === 0 ? (
                     <p className="px-4 py-3 text-sm text-[var(--soft-ink-soft)]">Ключи не настроены</p>
@@ -798,6 +922,7 @@ export function AIControlCenter({
                       key={credential.id}
                       credential={credential}
                       models={providerModels}
+                      provider={providerConfig}
                       onUpdate={(payload, msg) => patchCredential(credential.id, payload, msg)}
                       onDelete={() => deleteCredentialById(credential.id, credential.label)}
                       onCheck={() => checkCredentialById(credential.id, credential.label)}
@@ -822,11 +947,14 @@ export function AIControlCenter({
                     className="flex h-9 w-full rounded-md border border-[var(--soft-paper-edge)] bg-white/70 px-3 text-sm text-[var(--soft-ink)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--soft-bordeaux)]"
                   >
                     <option value="">Модель по умолчанию</option>
-                    {providerModels.slice(0, 250).map((model) => (
-                      <option key={model.modelId} value={model.modelId}>
-                        {model.isFree ? "Free · " : ""}{model.modelId}
-                      </option>
-                    ))}
+                    {providerModels.slice(0, 250).map((model) => {
+                      const pricingLabel = modelPricingLabel(model, providerConfig);
+                      return (
+                        <option key={model.modelId} value={model.modelId}>
+                          {model.isFree ? "Free · " : ""}{model.modelId}{pricingLabel ? ` · ${pricingLabel}` : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                   <Input name="baseUrlOverride" placeholder="Base URL ключа" />
                   <Input name="priority" type="number" placeholder="Priority" />

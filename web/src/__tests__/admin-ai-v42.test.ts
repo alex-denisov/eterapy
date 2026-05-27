@@ -19,6 +19,9 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(center).toContain('data-testid="admin-ai-ops-metrics"');
     expect(center).toContain('data-testid="admin-ai-prompts"');
     expect(center).toContain('data-testid="admin-ai-interactions"');
+    expect(center).toContain("ai-model-pricing");
+    expect(center).toContain("USD за 1M токенов");
+    expect(center).toContain("provider default");
     expect(center).toContain("free layer");
     expect(center).toContain("paid layer");
     expect(center).toContain("audit boundary");
