@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import db from "@/lib/db";
+import { log, serializeError } from "@/lib/logger";
 
 // B334: landing "проверенные специалисты" now reads from db.practitioner
 // instead of a hardcoded list. We select the top-4 verified ACTIVE
@@ -37,37 +38,45 @@ type SpecialistCard = {
 };
 
 async function loadTopSpecialists(): Promise<SpecialistCard[]> {
-  // ACTIVE + verified practitioners only — these are the ones we are
-  // willing to surface as social proof on the landing.
-  const rows = await db.practitioner.findMany({
-    where: { status: "ACTIVE", verified: true },
-    select: {
-      slug: true,
-      title: true,
-      pricePerSession: true,
-      ratingSum: true,
-      reviewCount: true,
-      user: { select: { name: true } },
-    },
-    // Best balance of "highly rated" and "actually reviewed" — featured
-    // founding/verified profiles first, then high score.
-    orderBy: [
-      { founding: "desc" },
-      { reviewCount: "desc" },
-      { ratingSum: "desc" },
-    ],
-    take: 4,
-  });
+  // Landing must never be blocked by a DB outage. Any query failure
+  // (connection refused, table missing, migration pending) silently
+  // falls back to the curated list so the page still renders.
+  try {
+    // ACTIVE + verified practitioners only — these are the ones we are
+    // willing to surface as social proof on the landing.
+    const rows = await db.practitioner.findMany({
+      where: { status: "ACTIVE", verified: true },
+      select: {
+        slug: true,
+        title: true,
+        pricePerSession: true,
+        ratingSum: true,
+        reviewCount: true,
+        user: { select: { name: true } },
+      },
+      // Best balance of "highly rated" and "actually reviewed" — featured
+      // founding/verified profiles first, then high score.
+      orderBy: [
+        { founding: "desc" },
+        { reviewCount: "desc" },
+        { ratingSum: "desc" },
+      ],
+      take: 4,
+    });
 
-  if (rows.length === 0) return FALLBACK_SPECIALISTS;
+    if (rows.length === 0) return FALLBACK_SPECIALISTS;
 
-  return rows.map((row) => ({
-    slug: row.slug,
-    name: row.user.name ?? "Специалист",
-    title: row.title,
-    rating: row.reviewCount > 0 ? Number((row.ratingSum / row.reviewCount).toFixed(1)) : 0,
-    pricePerSession: row.pricePerSession,
-  }));
+    return rows.map((row) => ({
+      slug: row.slug,
+      name: row.user.name ?? "Специалист",
+      title: row.title,
+      rating: row.reviewCount > 0 ? Number((row.ratingSum / row.reviewCount).toFixed(1)) : 0,
+      pricePerSession: row.pricePerSession,
+    }));
+  } catch (error) {
+    log.warn("specialists-teaser.db_fallback", { error: serializeError(error) });
+    return FALLBACK_SPECIALISTS;
+  }
 }
 
 export async function SpecialistsTeaserSection() {
