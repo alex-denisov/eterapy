@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles, Check } from "lucide-react";
+import { ArrowRight, Sparkles, Check, LockKeyhole, Compass, Leaf } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
@@ -74,9 +74,17 @@ export default async function ClarityPracticePage() {
   }
 
   const { card } = await getOrCreateDailyCard(userId);
-  const [strip, streak] = await Promise.all([
+  const [strip, streak, activeRoute] = await Promise.all([
     loadStreakStrip(userId),
     loadTotalStreak(userId),
+    // B329: surface the user's active 7-day route on the practice page so
+    // the daily ritual and the structured route live on one screen
+    // (per docs/Design/v4.2/screens/mission_detail.jsx layout).
+    db.clarityRoute.findFirst({
+      where: { userId, status: { in: ["ACTIVE", "PAUSED"] } },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, status: true, currentDay: true },
+    }),
   ]);
   const completed = Boolean(card.completedAt);
 
@@ -131,8 +139,71 @@ export default async function ClarityPracticePage() {
         </div>
       </section>
 
-      {/* What you get */}
-      <section className="mt-6 grid gap-4 md:grid-cols-3" data-testid="practice-value">
+      {/* B329: "зачем" gradient card — v4.2 mission_detail.jsx:82-86. */}
+      <section
+        className="mt-6 soft-card p-6 md:p-7"
+        data-testid="practice-why"
+        style={{ background: "linear-gradient(140deg, #FFFCF5, #F4D9C1)" }}
+      >
+        <p className="soft-eyebrow" style={{ color: "var(--soft-terracotta-dark)" }}>зачем</p>
+        <p className="mt-3 font-heading italic text-[var(--soft-bordeaux)]" style={{ fontSize: 19, lineHeight: 1.55 }}>
+          Ежедневная практика помогает не «делать что-то правильно», а замечать своё состояние раньше,
+          чем оно превратится в тревогу или ссору.
+        </p>
+      </section>
+
+      {/* B329: "как пройти" numbered steps — v4.2 mission_detail.jsx:89-101. */}
+      <section className="mt-4 soft-card p-6 md:p-7" data-testid="practice-steps">
+        <p className="soft-eyebrow mb-4">как пройти сегодня</p>
+        <div className="flex flex-col gap-3">
+          {[
+            "Открыть практику в момент паузы — обед, поездка, перед сном",
+            "Ответить на вопрос дня — без редактирования",
+            "Выбрать ракурс, который сейчас неудобный — там и будет рост",
+            "Записать один маленький шаг",
+          ].map((step, i) => (
+            <div key={step} className="flex items-start gap-4">
+              <div
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold"
+                style={{
+                  background: completed ? "var(--soft-sage, #9DAE89)" : "var(--soft-terracotta-dark)",
+                  color: "#FBF0E1",
+                }}
+              >
+                {completed ? <Check className="size-4" aria-hidden="true" /> : i + 1}
+              </div>
+              <p className="pt-0.5 text-[15px] leading-relaxed text-[var(--soft-ink)]">{step}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* B329: extra practice slot — docs §4 "Дополнительная практика 99 ₽ или 1 кредит". */}
+      <section
+        className="mt-4 soft-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between"
+        data-testid="practice-extra-slot"
+      >
+        <div>
+          <p className="soft-eyebrow" style={{ color: "var(--soft-terracotta-dark)" }}>хочется ещё одну сегодня?</p>
+          <h3 className="soft-h3 mt-2">Дополнительная практика — 99 ₽ или 1 кредит</h3>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            {completed
+              ? "Вы уже прошли сегодняшнюю — можно открыть ещё одну: новый вопрос, новый ракурс."
+              : "Сначала завершите сегодняшнюю — а потом можно купить ещё одну на этот же день."}
+          </p>
+        </div>
+        <Link
+          href={mainUrl("/products/clarity-practice")}
+          className="soft-button soft-button-primary shrink-0"
+          data-testid="practice-extra-cta"
+        >
+          {completed ? "Купить ещё одну" : "Открыть продукт"}
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </section>
+
+      {/* B329: 3-up value cards moved BELOW interactive blocks. */}
+      <section className="mt-4 grid gap-4 md:grid-cols-3" data-testid="practice-value">
         {[
           {
             eyebrow: "вопрос",
@@ -158,20 +229,67 @@ export default async function ClarityPracticePage() {
         ))}
       </section>
 
-      {/* Differentiator: 7 дней — отдельный продукт */}
-      <section className="mt-6 soft-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between" data-testid="practice-seven-days-link">
-        <div>
-          <p className="soft-eyebrow">если нужен маршрут с началом и концом</p>
-          <h3 className="soft-h3 mt-2">7 дней к ясности — отдельный продукт</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Один большой вопрос, неделя сфокусированной работы и итоговая карта. Не подменяет ежедневную
-            практику — это разовый интенсив.
-          </p>
-        </div>
-        <Link href={mainUrl("/products/seven-days")} className="soft-button soft-button-ghost shrink-0">
-          Открыть маршрут
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
+      {/* B329: 7-day route — show current progress if active, else upsell. */}
+      {activeRoute ? (
+        <section
+          className="mt-4 soft-card p-6 md:p-7"
+          data-testid="practice-active-route"
+          style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="soft-eyebrow" style={{ color: "var(--soft-terracotta-dark)" }}>ваш маршрут</p>
+              <h3 className="soft-h3 mt-2">{activeRoute.title}</h3>
+              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+                День {activeRoute.currentDay} из 7 ·{" "}
+                {activeRoute.status === "PAUSED" ? "на паузе" : "активен"}
+              </p>
+            </div>
+            <Compass className="size-7 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+          </div>
+          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/50">
+            <div
+              className="h-full rounded-full bg-[var(--soft-terracotta-dark)] transition-all"
+              style={{ width: `${Math.round(((activeRoute.currentDay - 1) / 7) * 100)}%` }}
+            />
+          </div>
+          <Link
+            href={mainUrl("/products/seven-days")}
+            className="soft-button soft-button-primary mt-5 inline-flex"
+            data-testid="practice-route-continue"
+          >
+            Продолжить день {activeRoute.currentDay}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </section>
+      ) : (
+        <section
+          className="mt-4 soft-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between"
+          data-testid="practice-seven-days-link"
+        >
+          <div>
+            <p className="soft-eyebrow">если нужен маршрут с началом и концом</p>
+            <h3 className="soft-h3 mt-2">7 дней к ясности — отдельный продукт</h3>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Один большой вопрос, неделя сфокусированной работы и итоговая карта. Не подменяет
+              ежедневную практику — это разовый интенсив.
+            </p>
+          </div>
+          <Link href={mainUrl("/products/seven-days")} className="soft-button soft-button-ghost shrink-0">
+            <Leaf className="size-4" aria-hidden="true" />
+            Открыть маршрут
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </section>
+      )}
+
+      {/* B329: privacy/credit disclaimer — v4.2 mission_detail.jsx:108-115. */}
+      <section className="mt-4 soft-card-flat flex items-start gap-3 p-4">
+        <LockKeyhole className="size-4 shrink-0 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+        <p className="text-[13.5px] leading-relaxed text-[var(--soft-ink-soft)]">
+          Прогресс практики засчитывается только за реальное действие — не за просмотр или открытие
+          страницы. Кредиты не выводятся деньгами и не тратятся на встречи со специалистами.
+        </p>
       </section>
     </PageContainer>
   );
