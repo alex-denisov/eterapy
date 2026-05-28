@@ -26,15 +26,15 @@ export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
 };
 
 export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
-  [AIProvider.OPENAI]: "gpt-4o-mini",
+  [AIProvider.OPENAI]: "gpt-4.1-mini",
   [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
-  [AIProvider.FIREWORKS]: "accounts/fireworks/models/kimi-k2p6",
+  [AIProvider.FIREWORKS]: "accounts/fireworks/models/gpt-oss-120b",
   [AIProvider.OPENROUTER]: "openrouter/free",
   [AIProvider.GEMINI]: "gemini-2.5-flash",
   [AIProvider.GROQ]: "llama-3.1-8b-instant",
   [AIProvider.MISTRAL]: "mistral-small-latest",
   [AIProvider.CEREBRAS]: "zai-glm-4.7",
-  [AIProvider.COHERE]: "command-a-plus-05-2026",
+  [AIProvider.COHERE]: "command-r",
 };
 
 export function cloudflareGatewayEnabled(metadata: unknown) {

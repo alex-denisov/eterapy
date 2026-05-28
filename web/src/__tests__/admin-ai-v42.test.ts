@@ -23,6 +23,13 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(center).toContain("Input $/1M");
     expect(center).toContain("Output $/1M");
     expect(center).toContain("provider default");
+    expect(center).toContain("reference/free");
+    expect(center).toContain("MODEL_PRICING_REFERENCE_USD_PER_MILLION");
+    expect(center).toContain("providerOrderWithAllProviders");
+    expect(center).toContain("modelPreferencesWithRecommendations");
+    expect(center).toContain("credentialOverrides");
+    expect(center).toContain("<datalist");
+    expect(center).toContain("Рекомендовано:");
     expect(center).toContain("TABLE_PAGE_SIZE = 25");
     expect(center).toContain("<PaginationBar");
     expect(center).toContain("data-testid=\"ai-credentials-create-manual\"");

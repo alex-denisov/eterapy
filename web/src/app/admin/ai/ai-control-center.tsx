@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState, useTransition } from "react";
+import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -21,6 +21,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  MODEL_PRICING_REFERENCE_USD_PER_MILLION,
+  getReferenceModelPricing,
+} from "@/lib/ai-gateway/model-pricing-reference";
 
 const AIProvider = {
   OPENAI: "OPENAI",
@@ -320,7 +324,7 @@ function numberFromUnknown(value: unknown) {
   return null;
 }
 
-function modelCatalogPricing(model: ModelRow) {
+function modelCatalogPricing(model: ModelRow, provider?: AIProvider) {
   if (model.isFree) {
     return {
       source: "free",
@@ -334,6 +338,16 @@ function modelCatalogPricing(model: ModelRow) {
       inputUsdPerMillion: (model.inputTokenCostMicros ?? 0) / 1000,
       outputUsdPerMillion: (model.outputTokenCostMicros ?? 0) / 1000,
     };
+  }
+  if (provider) {
+    const reference = getReferenceModelPricing(provider, model.modelId);
+    if (reference) {
+      return {
+        source: reference.source ?? "reference",
+        inputUsdPerMillion: reference.input,
+        outputUsdPerMillion: reference.output,
+      };
+    }
   }
   const metadata = model.metadata;
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
@@ -361,13 +375,100 @@ function providerDefaultPricing(provider?: ProviderRow) {
 }
 
 function modelPricing(model: ModelRow, provider?: ProviderRow) {
-  return modelCatalogPricing(model) ?? providerDefaultPricing(provider);
+  return modelCatalogPricing(model, provider?.provider) ?? providerDefaultPricing(provider);
 }
 
 function modelPricingLabel(model: ModelRow, provider?: ProviderRow) {
   const pricing = modelPricing(model, provider);
   if (!pricing) return null;
   return `${pricing.source}: ${formatUsdAmount(pricing.inputUsdPerMillion)} in / ${formatUsdAmount(pricing.outputUsdPerMillion)} out за 1M токенов`;
+}
+
+function providerOrderWithAllProviders(order?: AIProvider[] | null) {
+  const seen = new Set<AIProvider>();
+  const clean = (order ?? []).filter((provider): provider is AIProvider => PROVIDERS.includes(provider)).filter((provider) => {
+    if (seen.has(provider)) return false;
+    seen.add(provider);
+    return true;
+  });
+  return [...clean, ...PROVIDERS.filter((provider) => !seen.has(provider))];
+}
+
+const CHEAP_MODEL_CANDIDATES: Record<AIProvider, string[]> = {
+  [AIProvider.OPENROUTER]: ["openrouter/free", "meta-llama/llama-3.1-8b-instruct:free", "google/gemini-2.0-flash-exp:free"],
+  [AIProvider.GROQ]: ["llama-3.1-8b-instant", "openai/gpt-oss-20b", "qwen/qwen3-32b"],
+  [AIProvider.MISTRAL]: ["mistral-small-latest", "ministral-8b-latest", "ministral-3b-latest"],
+  [AIProvider.GEMINI]: ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.5-flash"],
+  [AIProvider.CEREBRAS]: ["gpt-oss-120b", "qwen-3-32b", "zai-glm-4.7"],
+  [AIProvider.COHERE]: ["command-r7b-12-2024", "command-r", "command-r-08-2024"],
+  [AIProvider.OPENAI]: ["gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1-nano"],
+  [AIProvider.ANTHROPIC]: ["claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
+  [AIProvider.FIREWORKS]: ["accounts/fireworks/models/qwen3-30b-a3b", "accounts/fireworks/models/gpt-oss-120b", "accounts/fireworks/models/llama-v3p1-8b-instruct"],
+};
+
+const PREMIUM_MODEL_CANDIDATES: Record<AIProvider, string[]> = {
+  [AIProvider.OPENROUTER]: ["openrouter/free", "anthropic/claude-3.5-haiku:free", "meta-llama/llama-3.3-70b-instruct:free"],
+  [AIProvider.GROQ]: ["llama-3.3-70b-versatile", "qwen/qwen3-32b", "openai/gpt-oss-120b"],
+  [AIProvider.MISTRAL]: ["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"],
+  [AIProvider.GEMINI]: ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+  [AIProvider.CEREBRAS]: ["gpt-oss-120b", "zai-glm-4.7", "qwen-3-32b"],
+  [AIProvider.COHERE]: ["command-r", "command-r-08-2024", "command-a-03-2025"],
+  [AIProvider.OPENAI]: ["gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1"],
+  [AIProvider.ANTHROPIC]: ["claude-3-5-haiku-20241022", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
+  [AIProvider.FIREWORKS]: ["accounts/fireworks/models/gpt-oss-120b", "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct", "accounts/fireworks/models/kimi-k2p6"],
+};
+
+const SENSITIVE_MODEL_CANDIDATES: Record<AIProvider, string[]> = {
+  ...PREMIUM_MODEL_CANDIDATES,
+  [AIProvider.OPENROUTER]: ["openrouter/free"],
+  [AIProvider.GROQ]: ["openai/gpt-oss-safeguard-20b", "llama-3.3-70b-versatile", "openai/gpt-oss-120b"],
+  [AIProvider.GEMINI]: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"],
+  [AIProvider.OPENAI]: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
+};
+
+function candidateModelsForPolicy(provider: AIProvider, policy: PolicyRow) {
+  if (policy.tier === "free" || policy.tier === "cheap") return CHEAP_MODEL_CANDIDATES[provider];
+  if (policy.tier === "sensitive" || policy.tier === "vision" || policy.tier === "speech" || policy.tier === "compliance") {
+    return SENSITIVE_MODEL_CANDIDATES[provider];
+  }
+  return PREMIUM_MODEL_CANDIDATES[provider];
+}
+
+function pickRecommendedModel(provider: AIProvider, policy: PolicyRow, providerModels: ModelRow[]) {
+  const candidates = candidateModelsForPolicy(provider, policy);
+  const modelIds = new Set(providerModels.map((model) => model.modelId));
+  const direct = candidates.find((candidate) => modelIds.has(candidate));
+  if (direct) return direct;
+  if (provider === AIProvider.OPENROUTER) {
+    const freeModel = providerModels.find((model) => model.modelId === "openrouter/free")
+      ?? providerModels.find((model) => model.isFree || model.modelId.endsWith(":free"));
+    return freeModel?.modelId ?? candidates[0] ?? "";
+  }
+  return candidates[0] ?? providerModels[0]?.modelId ?? "";
+}
+
+function modelPreferencesWithRecommendations(policy: PolicyRow, models: ModelsByProvider) {
+  const next: Partial<Record<AIProvider, string>> = { ...(policy.modelPreferences ?? {}) };
+  for (const provider of PROVIDERS) {
+    if (!next[provider]) next[provider] = pickRecommendedModel(provider, policy, models[provider] ?? []);
+  }
+  return next;
+}
+
+function referenceModelRows(provider: AIProvider, existingModels: ModelRow[]) {
+  const existing = new Set(existingModels.map((model) => model.modelId));
+  return Object.entries(MODEL_PRICING_REFERENCE_USD_PER_MILLION[provider] ?? {})
+    .filter(([modelId]) => !existing.has(modelId))
+    .map(([modelId, pricing]): ModelRow => ({
+      modelId,
+      displayName: "Reference price",
+      isFree: pricing.input === 0 && pricing.output === 0,
+      contextWindow: null,
+      inputTokenCostMicros: null,
+      outputTokenCostMicros: null,
+      fetchedAt: "reference",
+      metadata: null,
+    }));
 }
 
 function renderAuditContent(content: unknown) {
@@ -529,40 +630,52 @@ function ModelSelect({
   provider,
   onChange,
   placeholder,
+  recommendedValue,
 }: {
   value: string;
   models: ModelRow[];
   provider?: ProviderRow;
   onChange: (value: string) => void;
   placeholder?: string;
+  recommendedValue?: string;
 }) {
-  const knownIds = new Set(models.map((model) => model.modelId));
-  const showCustom = value.trim().length > 0 && !knownIds.has(value.trim());
+  const datalistId = useId();
+  const recommended = recommendedValue && recommendedValue !== value ? recommendedValue : null;
   return (
-    <select
-      value={showCustom ? "__custom__" : value}
-      onChange={(event) => {
-        const next = event.target.value;
-        if (next === "__custom__") return;
-        onChange(next === "__none__" ? "" : next);
-      }}
-      className="h-7 w-full min-w-0 rounded-sm border border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--soft-bordeaux)]"
-    >
-      <option value="__none__">{placeholder ?? "Модель по умолчанию"}</option>
-      {models.length === 0 && <option value="" disabled>Список моделей пуст - обновите каталог</option>}
-      {models.slice(0, 250).map((model) => {
-        const pricingLabel = modelPricingLabel(model, provider);
-        return (
-          <option key={model.modelId} value={model.modelId}>
-            {model.isFree ? "Free · " : ""}
-            {model.modelId}
-            {model.displayName ? ` - ${model.displayName}` : ""}
-            {pricingLabel ? ` · ${pricingLabel}` : ""}
-          </option>
-        );
-      })}
-      {showCustom && <option value="__custom__">{value} (текущее, нет в каталоге)</option>}
-    </select>
+    <div className="grid gap-1">
+      <input
+        value={value}
+        list={datalistId}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder ?? "Начните вводить model id"}
+        className="h-7 w-full min-w-0 rounded-sm border border-[var(--soft-paper-edge)] bg-white px-1.5 font-mono text-[11px] text-[var(--soft-ink)] outline-none focus-visible:ring-1 focus-visible:ring-[var(--soft-bordeaux)]"
+        spellCheck={false}
+      />
+      <datalist id={datalistId}>
+        {recommended && <option value={recommended}>recommended</option>}
+        {models.slice(0, 500).map((model) => {
+          const pricingLabel = modelPricingLabel(model, provider);
+          const label = [
+            model.isFree ? "Free" : null,
+            model.displayName,
+            pricingLabel,
+          ].filter(Boolean).join(" · ");
+          return <option key={model.modelId} value={model.modelId}>{label}</option>;
+        })}
+      </datalist>
+      {recommended && (
+        <button
+          type="button"
+          className="w-fit text-left text-[10px] text-[var(--soft-bordeaux)] underline-offset-2 hover:underline"
+          onClick={() => onChange(recommended)}
+        >
+          Рекомендовано: {recommended}
+        </button>
+      )}
+      {models.length === 0 && (
+        <span className="text-[10px] text-[var(--soft-ink-soft)]">Каталог пуст, можно ввести model id вручную.</span>
+      )}
+    </div>
   );
 }
 
@@ -610,7 +723,7 @@ function ModelCostTableRow({
           aria-label={`${row.provider} ${row.model.modelId} output price micros`}
         />
       </td>
-      <td className={COMPACT_CELL_CLASS}>{formatDate(row.model.fetchedAt)}</td>
+      <td className={COMPACT_CELL_CLASS}>{row.model.fetchedAt === "reference" ? "reference seed" : formatDate(row.model.fetchedAt)}</td>
       <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
         <Button
           type="button"
@@ -876,8 +989,8 @@ function PolicyTableRow({
 }) {
   const [draft, setDraft] = useState({
     enabled: policy.enabled,
-    providerOrder: policy.providerOrder.length ? policy.providerOrder : PROVIDERS,
-    modelPreferences: { ...(policy.modelPreferences ?? {}) } as Partial<Record<AIProvider, string>>,
+    providerOrder: providerOrderWithAllProviders(policy.providerOrder),
+    modelPreferences: modelPreferencesWithRecommendations(policy, models),
     maxTokens: policy.maxTokens ?? "",
     temperature: policy.temperature ?? "",
     timeoutMs: policy.timeoutMs ?? "",
@@ -964,6 +1077,7 @@ function PolicyTableRow({
                 provider={providerConfigById.get(provider)}
                 onChange={(value) => updateModel(provider, value)}
                 placeholder="модель провайдера"
+                recommendedValue={pickRecommendedModel(provider, policy, models[provider] ?? [])}
               />
               <span className="inline-flex items-center justify-end gap-0.5">
                 <button type="button" onClick={() => moveProvider(provider, -1)} disabled={index === 0} aria-label={`Поднять ${provider}`} className="rounded border border-[var(--soft-paper-edge)] bg-white p-0.5 disabled:opacity-35"><ArrowUp className="h-3 w-3" /></button>
@@ -1144,6 +1258,7 @@ export function AIControlCenter({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<AIProvider | null>(null);
   const [checkingCredentialId, setCheckingCredentialId] = useState<string | null>(null);
+  const [credentialOverrides, setCredentialOverrides] = useState<Record<string, CredentialRow>>({});
   const [policyFilters, setPolicyFilters] = useState({
     product: "",
     title: "",
@@ -1196,6 +1311,10 @@ export function AIControlCenter({
   const router = useRouter();
 
   const providerById = useMemo(() => new Map(providers.map((provider) => [provider.provider, provider])), [providers]);
+  const visibleCredentials = useMemo(
+    () => credentials.map((credential) => credentialOverrides[credential.id] ?? credential),
+    [credentialOverrides, credentials],
+  );
 
   const featureErrors = useMemo(() => usageDetails
     .filter((row) => row.status !== "SUCCEEDED" && row.status !== "RUNNING")
@@ -1299,8 +1418,8 @@ export function AIControlCenter({
 
   const totals = useMemo(() => {
     const global = usage.find((row) => row.scopeType === "global" && row.scopeKey === "all");
-    const activeKeys = credentials.filter((credential) => credential.enabled && keyState(credential).label === "активен").length;
-    const failedKeys = credentials.filter((credential) => keyState(credential).label === "ошибка" || credential.regionBlocked).length;
+    const activeKeys = visibleCredentials.filter((credential) => credential.enabled && keyState(credential).label === "активен").length;
+    const failedKeys = visibleCredentials.filter((credential) => keyState(credential).label === "ошибка" || credential.regionBlocked).length;
     const llmErrors = usageTableRows.filter((row) => row.status !== "SUCCEEDED" && row.status !== "RUNNING").reduce((sum, row) => sum + row.attemptCount, 0);
     return {
       tokens: global?.tokens ?? usageTableRows.reduce((sum, row) => sum + row.totalTokens, 0),
@@ -1310,15 +1429,18 @@ export function AIControlCenter({
       failedKeys,
       llmErrors,
     };
-  }, [credentials, usage, usageTableRows]);
+  }, [usage, usageTableRows, visibleCredentials]);
 
   const modelCostRows = useMemo(() => {
-    return PROVIDERS.flatMap((provider) => (models[provider] ?? []).map((model) => ({
-      provider,
-      model,
-      providerConfig: providerById.get(provider),
-      pricing: modelPricing(model, providerById.get(provider)),
-    } satisfies ModelCostRow)));
+    return PROVIDERS.flatMap((provider) => {
+      const providerModels = models[provider] ?? [];
+      return [...providerModels, ...referenceModelRows(provider, providerModels)].map((model) => ({
+        provider,
+        model,
+        providerConfig: providerById.get(provider),
+        pricing: modelPricing(model, providerById.get(provider)),
+      } satisfies ModelCostRow));
+    });
   }, [models, providerById]);
 
   const filteredModelCostRows = useMemo(() => {
@@ -1517,10 +1639,13 @@ export function AIControlCenter({
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const body = await response.json().catch(() => null);
     if (!response.ok) {
-      const body = await response.json().catch(() => null);
       reportError(body?.message ?? "Не удалось обновить ключ");
       return;
+    }
+    if (body?.credential?.id) {
+      setCredentialOverrides((current) => ({ ...current, [body.credential.id]: body.credential }));
     }
     reportSuccess(successMessage);
   }
@@ -1533,6 +1658,9 @@ export function AIControlCenter({
       if (!response.ok) {
         reportError(body?.message ?? "Не удалось проверить ключ");
         return;
+      }
+      if (body?.credential?.id) {
+        setCredentialOverrides((current) => ({ ...current, [body.credential.id]: body.credential }));
       }
       reportSuccess(`Проверка ${label}: ${body.health?.status ?? "unknown"}${body.health?.latencyMs ? `, ${body.health.latencyMs} ms` : ""}`);
     } finally {
@@ -1611,7 +1739,7 @@ export function AIControlCenter({
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="admin-ai-ops-metrics">
         <MetricCard icon={Activity} label="requests" value={formatTokens(totals.requests)} hint={`tokens ${formatTokens(totals.tokens)} today`} />
         <MetricCard icon={DollarSign} label="usd usage" value={formatUsdMicros(totals.costMicros)} hint="расчет по provider/model cost" />
-        <MetricCard icon={KeyRound} label="api keys" value={`${totals.activeKeys}/${credentials.length}`} hint={`${totals.failedKeys} ключей в ошибке`} />
+        <MetricCard icon={KeyRound} label="api keys" value={`${totals.activeKeys}/${visibleCredentials.length}`} hint={`${totals.failedKeys} ключей в ошибке`} />
         <MetricCard icon={AlertTriangle} label="llm errors" value={formatTokens(totals.llmErrors)} hint={`${Object.keys(featureErrors).length} продуктов с ошибками`} />
       </section>
 
@@ -1721,9 +1849,9 @@ export function AIControlCenter({
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
-            {credentials.length === 0 ? (
+            {visibleCredentials.length === 0 ? (
               <tr><td colSpan={10} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Ключи не настроены</td></tr>
-            ) : credentials.map((credential) => {
+            ) : visibleCredentials.map((credential) => {
               const providerConfig = providerById.get(credential.provider) ?? {
                 provider: credential.provider,
                 displayName: credential.provider,
@@ -1793,6 +1921,8 @@ export function AIControlCenter({
                   <option value="all">Все</option>
                   <option value="free">free</option>
                   <option value="model">model</option>
+                  <option value="reference">reference</option>
+                  <option value="reference/free">reference/free</option>
                   <option value="catalog">catalog</option>
                   <option value="provider default">provider default</option>
                 </select>

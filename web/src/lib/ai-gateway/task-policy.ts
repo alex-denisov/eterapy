@@ -16,35 +16,88 @@ export type AdminAITaskPolicy = AITaskPolicyDefinition & {
 };
 
 const directPremiumOrder = [
-  AIProvider.GEMINI,
+  AIProvider.OPENROUTER,
   AIProvider.GROQ,
   AIProvider.MISTRAL,
+  AIProvider.GEMINI,
+  AIProvider.CEREBRAS,
+  AIProvider.COHERE,
   AIProvider.OPENAI,
   AIProvider.ANTHROPIC,
+  AIProvider.FIREWORKS,
+] as const;
+const cheapStructuredOrder = [
+  AIProvider.OPENROUTER,
+  AIProvider.GROQ,
+  AIProvider.MISTRAL,
+  AIProvider.GEMINI,
+  AIProvider.CEREBRAS,
+  AIProvider.COHERE,
+  AIProvider.OPENAI,
+  AIProvider.ANTHROPIC,
+  AIProvider.FIREWORKS,
+] as const;
+const freeOrder = [
+  AIProvider.OPENROUTER,
+  AIProvider.GROQ,
+  AIProvider.MISTRAL,
+  AIProvider.GEMINI,
+  AIProvider.CEREBRAS,
+  AIProvider.COHERE,
+  AIProvider.OPENAI,
+  AIProvider.ANTHROPIC,
+  AIProvider.FIREWORKS,
+] as const;
+const directSensitiveOrder = [
+  AIProvider.GEMINI,
+  AIProvider.OPENAI,
+  AIProvider.ANTHROPIC,
+  AIProvider.MISTRAL,
+  AIProvider.GROQ,
   AIProvider.COHERE,
   AIProvider.CEREBRAS,
   AIProvider.FIREWORKS,
 ] as const;
-const cheapStructuredOrder = [
-  AIProvider.GEMINI,
-  AIProvider.GROQ,
-  AIProvider.MISTRAL,
-  AIProvider.COHERE,
-  AIProvider.OPENAI,
-  AIProvider.ANTHROPIC,
-  AIProvider.OPENROUTER,
-] as const;
-const freeOrder = [
-  AIProvider.OPENROUTER,
-  AIProvider.GEMINI,
-  AIProvider.GROQ,
-  AIProvider.MISTRAL,
-  AIProvider.COHERE,
-  AIProvider.FIREWORKS,
-  AIProvider.OPENAI,
-] as const;
 
-export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
+const cheapModelPreferences: Record<AIProvider, string> = {
+  [AIProvider.OPENROUTER]: "openrouter/free",
+  [AIProvider.GROQ]: "llama-3.1-8b-instant",
+  [AIProvider.MISTRAL]: "mistral-small-latest",
+  [AIProvider.GEMINI]: "gemini-2.5-flash-lite",
+  [AIProvider.CEREBRAS]: "gpt-oss-120b",
+  [AIProvider.COHERE]: "command-r7b-12-2024",
+  [AIProvider.OPENAI]: "gpt-4.1-mini",
+  [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
+  [AIProvider.FIREWORKS]: "accounts/fireworks/models/qwen3-30b-a3b",
+};
+
+const premiumModelPreferences: Record<AIProvider, string> = {
+  [AIProvider.OPENROUTER]: "openrouter/free",
+  [AIProvider.GROQ]: "llama-3.3-70b-versatile",
+  [AIProvider.MISTRAL]: "mistral-small-latest",
+  [AIProvider.GEMINI]: "gemini-2.5-flash",
+  [AIProvider.CEREBRAS]: "gpt-oss-120b",
+  [AIProvider.COHERE]: "command-r",
+  [AIProvider.OPENAI]: "gpt-4.1-mini",
+  [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
+  [AIProvider.FIREWORKS]: "accounts/fireworks/models/gpt-oss-120b",
+};
+
+const sensitiveModelPreferences: Record<AIProvider, string> = {
+  ...premiumModelPreferences,
+  [AIProvider.GROQ]: "openai/gpt-oss-safeguard-20b",
+  [AIProvider.GEMINI]: "gemini-2.5-flash",
+  [AIProvider.OPENAI]: "gpt-4.1-mini",
+  [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
+};
+
+function defaultModelPreferencesForTier(tier: AITaskTier): Record<AIProvider, string> {
+  if (tier === "free" || tier === "cheap") return cheapModelPreferences;
+  if (tier === "sensitive" || tier === "vision" || tier === "speech" || tier === "compliance") return sensitiveModelPreferences;
+  return premiumModelPreferences;
+}
+
+const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
   {
     feature: "dialogue-primary-answer",
     enabled: true,
@@ -92,7 +145,7 @@ export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
     tier: "sensitive",
     title: "Sensitive / crisis triage",
     purpose: "Кризис, жалобы, безопасность и ограничения ответа.",
-    providerOrder: [...directPremiumOrder],
+    providerOrder: [...directSensitiveOrder],
     maxTokens: 450,
     temperature: 0,
     timeoutMs: 25_000,
@@ -129,7 +182,7 @@ export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
     tier: "vision",
     title: "OCR переписки",
     purpose: "Vision/OCR extraction из скриншота перед пользовательским подтверждением и PII masking.",
-    providerOrder: [...directPremiumOrder],
+    providerOrder: [...directSensitiveOrder],
     modelPreferences: { [AIProvider.OPENAI]: "gpt-4.1-mini" },
     maxTokens: 1600,
     temperature: 0,
@@ -143,7 +196,7 @@ export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
     tier: "vision",
     title: "Разбор переписки",
     purpose: "Text/vision pipeline после PII masking и user confirmation.",
-    providerOrder: [...directPremiumOrder],
+    providerOrder: [...directSensitiveOrder],
     maxTokens: 2600,
     temperature: 0.3,
     timeoutMs: 60_000,
@@ -287,7 +340,7 @@ export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
     tier: "compliance",
     title: "Practitioner compliance review",
     purpose: "Флаги нарушений правил платформы и evidence summary для модератора.",
-    providerOrder: [...directPremiumOrder],
+    providerOrder: [...directSensitiveOrder],
     maxTokens: 700,
     temperature: 0,
     timeoutMs: 35_000,
@@ -299,13 +352,21 @@ export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = [
     tier: "speech",
     title: "Practitioner Pro session summary",
     purpose: "Саммари встречи после STT/diarization.",
-    providerOrder: [...directPremiumOrder],
+    providerOrder: [...directSensitiveOrder],
     maxTokens: 1500,
     temperature: 0.25,
     timeoutMs: 45_000,
     fallbackNotes: "Audio stays outside OpenRouter; summary follows direct provider policy.",
   },
 ];
+
+export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = DEFAULT_AI_TASK_POLICY_DEFINITIONS.map((policy) => ({
+  ...policy,
+  modelPreferences: {
+    ...defaultModelPreferencesForTier(policy.tier),
+    ...(policy.modelPreferences ?? {}),
+  },
+}));
 
 const defaultPolicyByFeature = new Map(
   DEFAULT_AI_TASK_POLICIES.flatMap((policy) => {

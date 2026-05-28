@@ -12,6 +12,10 @@ import {
   DIRECT_PROVIDER_BASE_URLS,
   resolvedProviderBaseUrl,
 } from "@/lib/ai-gateway/provider-runtime";
+import {
+  getReferenceModelPricing,
+  microsPerThousandFromUsdPerMillion,
+} from "@/lib/ai-gateway/model-pricing-reference";
 
 export interface AIModelInfo {
   modelId: string;
@@ -38,11 +42,6 @@ export class AIModelFetchError extends Error {
 
 const FETCH_TIMEOUT_MS = 15_000;
 
-function microsPerThousand(usdPerMillion: number | null | undefined) {
-  if (typeof usdPerMillion !== "number" || !Number.isFinite(usdPerMillion)) return null;
-  return Math.round(usdPerMillion * 1000);
-}
-
 function openRouterUsdPerTokenToMicrosPerThousand(value: string | undefined) {
   if (!value) return null;
   const parsed = Number(value);
@@ -50,49 +49,12 @@ function openRouterUsdPerTokenToMicrosPerThousand(value: string | undefined) {
   return Math.round(parsed * 1_000_000_000);
 }
 
-const KNOWN_MODEL_PRICING_USD_PER_MILLION: Partial<Record<AIProvider, Record<string, { input: number; output: number }>>> = {
-  [AIProvider.OPENAI]: {
-    "gpt-4o-mini": { input: 0.15, output: 0.6 },
-    "gpt-4.1-mini": { input: 0.4, output: 1.6 },
-  },
-  [AIProvider.GEMINI]: {
-    "gemini-2.5-flash": { input: 0.3, output: 2.5 },
-    "gemini-2.0-flash": { input: 0.1, output: 0.4 },
-  },
-  [AIProvider.GROQ]: {
-    "llama-3.1-8b-instant": { input: 0.05, output: 0.08 },
-    "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 },
-    "qwen/qwen3-32b": { input: 0.29, output: 0.59 },
-    "openai/gpt-oss-safeguard-20b": { input: 0.075, output: 0.3 },
-  },
-  [AIProvider.MISTRAL]: {
-    "mistral-small-latest": { input: 0.1, output: 0.3 },
-    "mistral-medium-latest": { input: 0.4, output: 2.0 },
-    "mistral-medium-2505": { input: 0.4, output: 2.0 },
-    "mistral-medium-2508": { input: 0.4, output: 2.0 },
-  },
-  [AIProvider.COHERE]: {
-    "command-a-plus-05-2026": { input: 2.5, output: 10 },
-    "command-a-03-2025": { input: 2.5, output: 10 },
-    "command-r-plus": { input: 2.5, output: 10 },
-    "command-r": { input: 0.15, output: 0.6 },
-  },
-  [AIProvider.CEREBRAS]: {
-    "gpt-oss-120b": { input: 0.25, output: 0.69 },
-    "zai-glm-4.7": { input: 0.25, output: 0.69 },
-  },
-  [AIProvider.FIREWORKS]: {
-    "accounts/fireworks/models/kimi-k2p6": { input: 1.5, output: 6 },
-    "accounts/fireworks/models/gpt-oss-120b": { input: 0.9, output: 0.9 },
-  },
-};
-
 function knownModelPricing(provider: AIProvider, modelId: string) {
-  const direct = KNOWN_MODEL_PRICING_USD_PER_MILLION[provider]?.[modelId];
+  const direct = getReferenceModelPricing(provider, modelId);
   if (!direct) return { inputTokenCostMicros: null, outputTokenCostMicros: null };
   return {
-    inputTokenCostMicros: microsPerThousand(direct.input),
-    outputTokenCostMicros: microsPerThousand(direct.output),
+    inputTokenCostMicros: microsPerThousandFromUsdPerMillion(direct.input),
+    outputTokenCostMicros: microsPerThousandFromUsdPerMillion(direct.output),
   };
 }
 
@@ -354,9 +316,20 @@ export async function updateCachedModelPricing(input: {
   inputTokenCostMicros?: number | null;
   outputTokenCostMicros?: number | null;
 }) {
-  return db.aIProviderModel.update({
+  const reference = getReferenceModelPricing(input.provider, input.modelId);
+  return db.aIProviderModel.upsert({
     where: { provider_modelId: { provider: input.provider, modelId: input.modelId } },
-    data: {
+    create: {
+      provider: input.provider,
+      modelId: input.modelId,
+      displayName: reference ? "Reference price" : null,
+      isFree: reference?.input === 0 && reference.output === 0,
+      inputTokenCostMicros: input.inputTokenCostMicros ?? null,
+      outputTokenCostMicros: input.outputTokenCostMicros ?? null,
+      ...(reference ? { metadata: { pricingSource: reference.source ?? "reference" } } : {}),
+      fetchedAt: new Date(),
+    },
+    update: {
       inputTokenCostMicros: input.inputTokenCostMicros ?? null,
       outputTokenCostMicros: input.outputTokenCostMicros ?? null,
     },
