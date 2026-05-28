@@ -75,6 +75,49 @@ export async function POST(req: NextRequest) {
 
     log.info("telegram-webhook-message", { command: text.split(" ")[0] });
 
+    // B333: staff reply routing. When a message arrives in the
+    // configured support group, see if it is a Telegram-reply to one of
+    // our forwarded user messages — we tagged those with a
+    // "conversation: <id>" line. Extract that and persist the staff
+    // text as a SupportMessage so the polling chat widget surfaces it.
+    const supportGroupChatId =
+      process.env.TELEGRAM_SUPPORT_CHAT_ID ?? process.env.SUPPORT_TELEGRAM_CHAT_ID ?? null;
+    if (supportGroupChatId && chatId === supportGroupChatId && msg.reply_to_message?.text) {
+      const conversationIdMatch = msg.reply_to_message.text.match(/conversation:\s*([A-Za-z0-9_-]+)/);
+      const conversationId = conversationIdMatch?.[1];
+      if (conversationId) {
+        const conversation = await db.supportConversation.findUnique({ where: { id: conversationId } });
+        if (conversation && conversation.status === "OPEN") {
+          // Dedupe — Telegram retries can re-deliver the same update.
+          const existing = msg.message_id !== undefined
+            ? await db.supportMessage.findFirst({
+                where: { conversationId, telegramMessageId: msg.message_id },
+                select: { id: true },
+              })
+            : null;
+          if (!existing) {
+            await db.supportMessage.create({
+              data: {
+                conversationId,
+                role: "STAFF",
+                content: text,
+                telegramMessageId: msg.message_id ?? null,
+              },
+            });
+            await db.supportConversation.update({
+              where: { id: conversationId },
+              data: {
+                telegramChatId: chatId,
+                telegramThreadId: msg.message_thread_id ?? null,
+              },
+            });
+          }
+          await completeWebhookEvent(claim.event.id, { result: "support-reply" });
+          return NextResponse.json({ ok: true });
+        }
+      }
+    }
+
     if (text.startsWith("/start")) {
       const token = text.split(" ")[1]?.trim();
 
@@ -173,7 +216,16 @@ interface TelegramUpdate {
   message?: {
     text?: string;
     date?: number;
+    message_id?: number;
+    message_thread_id?: number;
     chat: { id: number };
     from?: { username?: string };
+    // B333: staff replies in the support group carry the original
+    // forwarded message in reply_to_message so we can pick up the
+    // `conversation: <id>` marker without storing thread maps.
+    reply_to_message?: {
+      text?: string;
+      message_id?: number;
+    };
   };
 }

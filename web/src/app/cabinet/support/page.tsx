@@ -1,15 +1,26 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { auth } from "@/lib/auth";
 import { mainUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
+import { SupportChat } from "@/components/support/support-chat";
 
 export const metadata: Metadata = {
   title: "Поддержка — кабинет ETerapy",
   robots: noIndexRobots,
 };
 
-export default function CabinetSupportPage() {
+// B333: deep-link the actual support bot. Previously this pointed at
+// /telegram which then redirected to telegram.org generic landing.
+const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "eterapy_bot";
+
+export default async function CabinetSupportPage() {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const telegramSupportUrl = userId
+    ? `https://t.me/${TELEGRAM_BOT_USERNAME}?start=support_${userId}`
+    : `https://t.me/${TELEGRAM_BOT_USERNAME}?start=support`;
   return (
     <main className="soft-clarity-page" data-testid="cabinet-support-page">
       <section className="soft-shell py-10 md:py-14">
@@ -44,14 +55,19 @@ export default function CabinetSupportPage() {
             <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
               Быстрые вопросы прямо в Telegram. Отвечаем командой поддержки.
             </p>
-            <Link
-              href={mainUrl("/telegram")}
+            {/* B333: deep-link directly into our support bot with the
+                user's id encoded as a /start payload, so staff sees who
+                is writing in. */}
+            <a
+              href={telegramSupportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="soft-button soft-button-primary mt-4 h-9 px-4 text-sm"
               data-testid="cabinet-support-telegram"
             >
               Открыть бот
               <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
+            </a>
           </div>
 
           <div className="soft-card p-6">
@@ -69,6 +85,17 @@ export default function CabinetSupportPage() {
             </a>
           </div>
         </div>
+
+        {/* B333: in-cabinet chat MVP. The user types here; their message
+            is stored in the DB and forwarded to the support TG group via
+            sendTelegram(). Polling (3s) renders staff replies as they
+            land. SSE is the natural next step once traffic justifies it. */}
+        {userId && (
+          <div className="mt-8" data-testid="cabinet-support-chat-section">
+            <h2 className="soft-h3 mb-3">Чат с поддержкой</h2>
+            <SupportChat />
+          </div>
+        )}
 
         <div className="soft-card mt-8 p-6" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
           <p className="soft-eyebrow">если сейчас тяжело</p>

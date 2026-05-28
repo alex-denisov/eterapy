@@ -78,6 +78,7 @@ model User {
   referralsGiven         ReferralAttribution[] @relation("ReferralReferrer")
   referralsReceived      ReferralAttribution[] @relation("ReferralReferredUser")
   channelAttributions    ChannelAttribution[]
+  supportConversations   SupportConversation[]
 
   @@map("users")
 }
@@ -1401,4 +1402,49 @@ model AnalyticsEvent {
   @@index([userId, createdAt])
   @@index([dialogueId])
   @@map("analytics_events")
+}
+
+// ─── B333 · Support Chat (Cabinet ↔ Telegram) ──────────────────────────────
+//
+// MVP polling-based chat. A SupportConversation is opened on the first
+// user message; it stays open until support staff or a sweeper closes it.
+// Every user message is also forwarded to the configured Telegram support
+// group via Bot API. Staff replies that come back through the Telegram
+// webhook are written into SupportMessage with role=STAFF and surface in
+// the cabinet UI on the next poll (~3s).
+
+model SupportConversation {
+  id              String           @id @default(cuid())
+  userId          String           @map("user_id")
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Telegram group + message metadata for staff↔user routing.
+  telegramChatId  String?          @map("telegram_chat_id")
+  telegramThreadId Int?            @map("telegram_thread_id")
+  status          String           @default("OPEN") // OPEN | CLOSED
+  subject         String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt      @map("updated_at")
+  closedAt        DateTime?        @map("closed_at")
+
+  messages        SupportMessage[]
+
+  @@index([userId, status])
+  @@index([telegramChatId, telegramThreadId])
+  @@map("support_conversations")
+}
+
+model SupportMessage {
+  id              String              @id @default(cuid())
+  conversationId  String              @map("conversation_id")
+  conversation    SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role            String              // USER | STAFF | SYSTEM
+  content         String
+  // For staff messages — the upstream Telegram message id so we can
+  // dedupe webhook re-deliveries.
+  telegramMessageId Int?              @map("telegram_message_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  @@index([conversationId, createdAt])
+  @@index([telegramMessageId])
+  @@map("support_messages")
 }
