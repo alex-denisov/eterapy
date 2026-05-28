@@ -20,7 +20,16 @@
 import { AIProvider } from "@prisma/client";
 
 const CF_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
-export type CloudflareGatewayProvider = "openai" | "anthropic" | "openrouter" | "groq" | "azure-openai" | "google-ai-studio";
+export type CloudflareGatewayProvider =
+  | "openai"
+  | "anthropic"
+  | "openrouter"
+  | "groq"
+  | "mistral"
+  | "cerebras"
+  | "cohere-compatibility"
+  | "azure-openai"
+  | "google-ai-studio";
 
 export interface CloudflareGatewayConfig {
   accountId: string;
@@ -46,6 +55,8 @@ export function buildCloudflareGatewayUrl(input: {
 }): string {
   const providerPath = input.provider === "google-ai-studio"
     ? "google-ai-studio/v1"
+    : input.provider === "cohere-compatibility"
+      ? "cohere/compatibility/v1"
     : input.provider;
   return `https://gateway.ai.cloudflare.com/v1/${input.accountId}/${input.gatewayId}/${providerPath}`;
 }
@@ -56,6 +67,9 @@ export function cloudflareProviderForAIProvider(provider: AIProvider): Cloudflar
   if (provider === AIProvider.OPENROUTER) return "openrouter";
   if (provider === AIProvider.GEMINI) return "google-ai-studio";
   if (provider === AIProvider.GROQ) return "groq";
+  if (provider === AIProvider.MISTRAL) return "mistral";
+  if (provider === AIProvider.CEREBRAS) return "cerebras";
+  if (provider === AIProvider.COHERE) return "cohere-compatibility";
   return null;
 }
 

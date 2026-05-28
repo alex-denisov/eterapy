@@ -4,8 +4,10 @@
 import { isCloudflareAIGatewayUrl } from "@/lib/ai-gateway/openai-adapter";
 import {
   buildCloudflareGatewayUrl,
+  buildCloudflareGatewayUrlForAIProvider,
   getCloudflareGatewayConfig,
 } from "@/lib/ai-gateway/cloudflare-gateway";
+import { AIProvider } from "@prisma/client";
 
 describe("OpenAI Cloudflare AI Gateway integration", () => {
   describe("isCloudflareAIGatewayUrl", () => {
@@ -47,6 +49,29 @@ describe("OpenAI Cloudflare AI Gateway integration", () => {
         gatewayId: "eterapy-openai",
         provider: "openrouter",
       })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/openrouter");
+    });
+
+    it("builds OpenAI-compatible gateway URL shapes for direct providers", () => {
+      expect(buildCloudflareGatewayUrlForAIProvider({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: AIProvider.GROQ,
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/groq");
+      expect(buildCloudflareGatewayUrlForAIProvider({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: AIProvider.MISTRAL,
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/mistral");
+      expect(buildCloudflareGatewayUrlForAIProvider({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: AIProvider.CEREBRAS,
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/cerebras");
+      expect(buildCloudflareGatewayUrlForAIProvider({
+        accountId: "abc123",
+        gatewayId: "eterapy-openai",
+        provider: AIProvider.COHERE,
+      })).toBe("https://gateway.ai.cloudflare.com/v1/abc123/eterapy-openai/cohere/compatibility/v1");
     });
   });
 
