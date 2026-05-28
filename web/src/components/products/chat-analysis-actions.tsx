@@ -144,11 +144,13 @@ function StructuredResult({ data, result, onSave, onDelete, onDeleteSource, load
         </p>
       </div>
 
-      {/* action buttons */}
+      {/* action buttons. B320: when result.saved (auto-saved on generate for
+          authenticated users), label flips to "Сохранено в кабинете" — the
+          phrasing the user expected and that matches the cabinet location. */}
       <div className="flex flex-wrap gap-3">
-        <Button onClick={onSave} disabled={loading || result.saved} className="soft-button soft-button-ghost">
+        <Button onClick={onSave} disabled={loading || result.saved} className="soft-button soft-button-ghost" data-testid="chat-analysis-save">
           <Save className="size-4" aria-hidden="true" />
-          {result.saved ? "Сохранено" : "Сохранить в Мою карту"}
+          {result.saved ? "Сохранено в кабинете" : loading ? "Сохраняем…" : "Сохранить разбор"}
         </Button>
         <a href={`/api/products/chat-analysis/${result.id}/export`} className="soft-button soft-button-ghost">
           <Download className="size-4" aria-hidden="true" />

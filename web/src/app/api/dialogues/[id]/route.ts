@@ -5,6 +5,7 @@ import { z } from "zod";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { claimGuestDialoguesForUser } from "@/lib/claim-guest-dialogues";
 import { readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
@@ -26,7 +27,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const context = requestContextFromHeaders(request.headers);
   const session = await auth();
   const userId = session?.user?.id ?? null;
-  const guestSessionId = userId ? null : readGuestSessionId(request);
+  // B316: claim guest dialogues at first authenticated hit. We do not
+  // clear the cookie here (the list endpoint takes care of that) — the
+  // claim itself is idempotent.
+  const lingeringGuestId = readGuestSessionId(request);
+  if (userId && lingeringGuestId) {
+    await claimGuestDialoguesForUser({ userId, guestSessionId: lingeringGuestId });
+  }
+  const guestSessionId = userId ? null : lingeringGuestId;
   const whereOwner = ownerWhere(userId, guestSessionId);
 
   if (!whereOwner) {
@@ -182,6 +190,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     if (turn.type === "question" && turn.question) {
+      // B317: guarantee chips on every turn. LLM occasionally omits the
+      // chips array even though the system prompt asks for one — when
+      // that happens we fall back to a neutral set so the user can still
+      // tap-respond without typing.
+      const FALLBACK_CHIPS = ["Скорее да", "Скорее нет", "Сложно сказать", "Расскажу подробнее"];
+      const chips = (turn.chips && turn.chips.length > 0) ? turn.chips : FALLBACK_CHIPS;
+
       await db.dialogue.update({
         where: { id: dialogue.id },
         data: {
@@ -191,7 +206,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
               content: turn.question,
               metadata: {
                 kind: "clarifying_question",
-                chips: turn.chips ?? [],
+                chips,
                 source: turn.source,
                 provider: turn.provider,
                 model: turn.model,
@@ -217,7 +232,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           createdAt: withQuestion!.createdAt.toISOString(), updatedAt: withQuestion!.updatedAt.toISOString(),
           messages: withQuestion!.messages.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: m.createdAt.toISOString() })),
         },
-        nextQuestion: { question: turn.question, chips: turn.chips ?? [] },
+        nextQuestion: { question: turn.question, chips },
       }, { status: 200 }, context);
     }
   }

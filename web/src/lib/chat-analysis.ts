@@ -219,8 +219,16 @@ export async function generateChatAnalysis(input: {
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const fallback = heuristicChatAnalysis(input.sourceText);
 
+  // B320: emphasize relationship context. Without this the model defaulted
+  // to romantic-partner framing even when the user selected "начальник" or
+  // "коллега" and wrote a workplace-themed goal, because heated chat logs
+  // bias the prior. The context block is now MANDATORY framing for the
+  // analysis rather than a soft hint.
   const systemPrompt = [
     "You are ETerapy. Analyze the chat conversation in Russian.",
+    "CRITICAL: the user provides a CONTEXT block describing (1) who the other person is in their life (партнёр, бывший(ая), родитель, друг, коллега, начальник, другой), (2) their current feeling, and (3) what they want from the analysis.",
+    "You MUST respect the relationship label literally. If the context says начальник or коллега, this is a WORKPLACE conversation — do NOT frame it as a romantic or family conflict. If the context says родитель, frame it as parent-child dynamics. If партнёр or бывший(ая), frame it as romantic.",
+    "If the user's goal is stated, the insight, tone analysis, and reply variants must all align with that goal.",
     "Return ONLY valid JSON — no markdown, no code fences — with this exact structure:",
     '{"insight":"one meaningful insight sentence","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"..."},{"style":"прямой","text":"..."},{"style":"границы","text":"..."}],"safetyNote":"..."}',
     "Rules: tonesThem and tonesMe each have exactly 4 items with realistic percentages summing to roughly 200%.",
@@ -239,11 +247,15 @@ export async function generateChatAnalysis(input: {
         { role: "system", content: systemPrompt },
         {
           role: "user",
+          // B320: place CONTEXT before the chat log and label it explicitly so
+          // the model treats it as the framing rather than background hint.
           content: [
-            input.contextNote ? `Context from user before analysis:\n${normalize(input.contextNote).slice(0, 1200)}` : "",
+            input.contextNote
+              ? `CONTEXT (must shape the entire analysis):\n${normalize(input.contextNote).slice(0, 1200)}`
+              : "CONTEXT: no explicit context provided — infer cautiously and avoid assuming romantic framing.",
             "Chat log to analyze:",
             normalize(input.sourceText.slice(0, 8000)),
-          ].filter(Boolean).join("\n\n"),
+          ].join("\n\n"),
         },
       ],
     });

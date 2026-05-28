@@ -27,6 +27,13 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
 import { track } from "@/lib/analytics";
 
+// B319: hard cap on user input length per turn. 1200 characters is roomy
+// for a thoughtful 2-3 paragraph reply while still keeping LLM context
+// bounded and discouraging novella-length submissions that derail the
+// clarifying loop. Counter switches to amber at -200 and to bordeaux
+// at -50 from the cap.
+const DIALOGUE_INPUT_MAX_CHARS = 1200;
+
 type DialogueMessage = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
@@ -89,6 +96,11 @@ export default function CheckinPage() {
   });
   const [clarification, setClarification] = useState("");
   const [clarifyingAnswers, setClarifyingAnswers] = useState<string[]>([]);
+  // B318: inline typing indicator + sending lock without leaving the
+  // clarifying screen. While `awaitingAssistant=true`, the user's last
+  // bubble is already on screen (optimistic), the input is disabled but
+  // visible, and a soft-typing dot row renders below the user's bubble.
+  const [awaitingAssistant, setAwaitingAssistant] = useState(false);
   const [dialogue, setDialogue] = useState<DialoguePayload | null>(null);
   const [phase, setPhase] = useState<"question" | "clarifying" | "processing" | "result" | "safety">("question");
   const [error, setError] = useState("");
@@ -318,11 +330,17 @@ export default function CheckinPage() {
 
   async function sendClarification(skip = false, overrideText?: string) {
     if (!dialogue) return;
+    if (awaitingAssistant) return;
     const answer = skip ? "Пропущено" : (overrideText ?? clarification.trim());
     if (!answer) return;
 
     setError("");
-    setPhase("processing");
+    // B318: optimistic append — user bubble shows immediately, no phase
+    // switch to "processing" while we wait for the next clarifying turn.
+    const nextAnswers = [...clarifyingAnswers, answer];
+    setClarifyingAnswers(nextAnswers);
+    setClarification("");
+    setAwaitingAssistant(true);
 
     try {
       const data = await requestJson<{
@@ -334,22 +352,26 @@ export default function CheckinPage() {
         body: JSON.stringify({ message: answer }),
       });
 
-      const nextAnswers = [...clarifyingAnswers, answer];
-      setClarifyingAnswers(nextAnswers);
-      setClarification("");
-
       if (data.nextQuestion) {
         setDialogue({
           ...dialogue,
           ...data.dialogue,
           clarifyingQuestions: [...(dialogue.clarifyingQuestions ?? []), data.nextQuestion],
         });
+        setAwaitingAssistant(false);
         setPhase("clarifying");
       } else {
         setDialogue(data.dialogue);
+        setAwaitingAssistant(false);
+        setPhase("processing");
         await generateAnswer(data.dialogue.id);
       }
     } catch (err) {
+      // Roll the optimistic bubble back so the user can retry without
+      // duplicating their answer.
+      setClarifyingAnswers(clarifyingAnswers);
+      setClarification(answer);
+      setAwaitingAssistant(false);
       setPhase("clarifying");
       setError(err instanceof Error ? err.message : "Не удалось отправить уточнение");
     }
@@ -411,16 +433,30 @@ export default function CheckinPage() {
               <textarea
                 id="dialogue-question"
                 value={question}
-                onChange={(event) => setQuestion(event.target.value)}
+                onChange={(event) => setQuestion(event.target.value.slice(0, DIALOGUE_INPUT_MAX_CHARS))}
                 placeholder="Расскажите своими словами. Не нужно структурировать — мы поможем."
                 className="soft-question-input"
                 rows={5}
+                maxLength={DIALOGUE_INPUT_MAX_CHARS}
                 data-testid="dialogue-question-input"
               />
               <div className="soft-ask-foot">
                 <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
                   {restoring ? "Восстанавливаю сохраненный диалог..." : "Регистрация понадобится только если вы захотите сохранить результат."}
                 </p>
+                <span
+                  className={`text-xs tabular-nums ${
+                    question.length >= DIALOGUE_INPUT_MAX_CHARS - 50
+                      ? "text-[var(--soft-bordeaux)] font-semibold"
+                      : question.length >= DIALOGUE_INPUT_MAX_CHARS - 200
+                        ? "text-[var(--soft-terracotta-dark)]"
+                        : "text-[var(--soft-ink-faint)]"
+                  }`}
+                  data-testid="dialogue-question-char-counter"
+                  aria-live="polite"
+                >
+                  {question.length}/{DIALOGUE_INPUT_MAX_CHARS}
+                </span>
                 <Button
                   onClick={startDialogue}
                   disabled={restoring || question.trim().length < 3}
@@ -469,7 +505,19 @@ export default function CheckinPage() {
             </div>
           ))}
 
-          {currentClarifyingQuestion && (
+          {/* B318: while waiting for the next turn, show a typing-dots bubble
+              instead of jumping to the processing phase. The user's last
+              optimistic bubble has already been rendered above. */}
+          {awaitingAssistant && (
+            <div className="soft-msg-row soft-msg-row-assistant" data-testid="dialogue-typing-indicator">
+              <div className="soft-msg-avatar" aria-hidden="true" />
+              <div className="soft-msg-bubble soft-msg-bubble-assistant">
+                <div className="soft-typing"><span /><span /><span /></div>
+              </div>
+            </div>
+          )}
+
+          {!awaitingAssistant && currentClarifyingQuestion && (
             <div className="soft-msg-row soft-msg-row-assistant">
               <div className="soft-msg-avatar" aria-hidden="true" />
               <div>
@@ -481,12 +529,13 @@ export default function CheckinPage() {
                   </p>
                 </div>
                 {(currentClarifyingQuestion.chips?.length ?? 0) > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2" data-testid="dialogue-clarifying-chips">
                     {currentClarifyingQuestion.chips?.map((chip) => (
                       <button
                         key={chip}
                         type="button"
                         className="soft-chip"
+                        disabled={awaitingAssistant}
                         onClick={() => void sendClarification(false, chip)}
                       >
                         {chip}
@@ -498,30 +547,52 @@ export default function CheckinPage() {
             </div>
           )}
 
+          {/* B318: the composer stays visible at all times; we just lock it
+              while we wait for the next turn so the user can see exactly
+              where their next reply will go. */}
           <div className="soft-ask-card soft-dialogue-composer">
             <label htmlFor="dialogue-clarification" className="sr-only">Ответ на уточнение</label>
             <textarea
               id="dialogue-clarification"
               value={clarification}
-              onChange={(event) => setClarification(event.target.value)}
-              placeholder="Ответьте своими словами или выберите вариант выше…"
+              onChange={(event) => setClarification(event.target.value.slice(0, DIALOGUE_INPUT_MAX_CHARS))}
+              placeholder={awaitingAssistant
+                ? "Подождите, платформа сейчас сформулирует следующий вопрос…"
+                : "Ответьте своими словами или выберите вариант выше…"}
               className="soft-question-input soft-dialogue-composer-input"
               rows={4}
+              maxLength={DIALOGUE_INPUT_MAX_CHARS}
+              disabled={awaitingAssistant}
               data-testid="dialogue-clarification-input"
             />
             <div className="soft-ask-foot">
               <button
                 type="button"
                 onClick={() => void sendClarification(true)}
+                disabled={awaitingAssistant}
                 className="soft-button soft-button-soft"
                 data-testid="dialogue-skip-clarification"
               >
                 Пропустить вопрос
               </button>
+              {/* B319: char counter — soft-amber from 1000, soft-bordeaux from 1150 */}
+              <span
+                className={`text-xs tabular-nums ${
+                  clarification.length >= DIALOGUE_INPUT_MAX_CHARS - 50
+                    ? "text-[var(--soft-bordeaux)] font-semibold"
+                    : clarification.length >= DIALOGUE_INPUT_MAX_CHARS - 200
+                      ? "text-[var(--soft-terracotta-dark)]"
+                      : "text-[var(--soft-ink-faint)]"
+                }`}
+                data-testid="dialogue-char-counter"
+                aria-live="polite"
+              >
+                {clarification.length}/{DIALOGUE_INPUT_MAX_CHARS}
+              </span>
               <button
                 type="button"
                 onClick={() => void sendClarification(false)}
-                disabled={!clarification.trim()}
+                disabled={awaitingAssistant || !clarification.trim()}
                 className="soft-button soft-button-primary"
                 data-testid="dialogue-send-clarification"
               >

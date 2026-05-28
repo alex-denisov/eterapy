@@ -46,7 +46,8 @@ describe("B087/B088 chat analysis product", () => {
     expect(route).toContain("contextNote: input.contextNote");
     expect(route).toContain("analysisContextNote");
     expect(helper).toContain("contextNote?: string");
-    expect(helper).toContain("Context from user before analysis:");
+    // B320: prompt now labels the context as mandatory framing instead of a soft hint.
+    expect(helper).toContain("CONTEXT (must shape the entire analysis)");
   });
 
   it("allows user to delete the raw source while keeping the result (B088)", () => {

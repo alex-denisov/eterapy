@@ -9,7 +9,8 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { classifyDialogueQuestion, DIALOGUE_TOPICS } from "@/lib/dialogue-router";
 import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
 import { generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
-import { ensureGuestSession, readGuestSessionId } from "@/lib/guest-session";
+import { claimGuestDialoguesForUser } from "@/lib/claim-guest-dialogues";
+import { ensureGuestSession, GUEST_SESSION_COOKIE, readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { markReferralMeaningfulAction } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
@@ -44,7 +45,16 @@ export async function GET(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const session = await auth();
   const userId = session?.user?.id ?? null;
-  const guestSessionId = userId ? null : readGuestSessionId(request);
+  // B316: if a user logged in mid-flow, claim any orphan dialogues from
+  // their guest cookie before we read them. The cookie is cleared below
+  // so the sweep runs exactly once per browser.
+  const lingeringGuestId = readGuestSessionId(request);
+  let guestClaimRan = false;
+  if (userId && lingeringGuestId) {
+    await claimGuestDialoguesForUser({ userId, guestSessionId: lingeringGuestId });
+    guestClaimRan = true;
+  }
+  const guestSessionId = userId ? null : lingeringGuestId;
   const whereOwner = ownerWhere(userId, guestSessionId);
 
   if (!whereOwner) {
@@ -81,7 +91,7 @@ export async function GET(request: NextRequest) {
   const page = dialogues.slice(0, limit);
   const nextCursor = dialogues.length > limit ? page.at(-1)?.id ?? null : null;
 
-  return jsonWithRequestContext({
+  const response = jsonWithRequestContext({
     dialogues: page.map((dialogue) => ({
       id: dialogue.id,
       title: dialogue.title,
@@ -95,6 +105,20 @@ export async function GET(request: NextRequest) {
     })),
     nextCursor,
   }, { status: 200 }, context);
+
+  // B316: after a successful claim sweep, drop the guest cookie so the
+  // sweep does not repeat on every cabinet API call.
+  if (guestClaimRan) {
+    response.cookies.set(GUEST_SESSION_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    });
+  }
+
+  return response;
 }
 
 export async function POST(request: NextRequest) {

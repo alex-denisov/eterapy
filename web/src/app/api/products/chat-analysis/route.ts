@@ -227,16 +227,21 @@ export async function POST(request: NextRequest) {
       requestId: context.requestId,
     });
 
+    // B320: автосохранение в кабинет для залогиненного пользователя — любой
+    // готовый разбор сразу попадает в Мою карту. Пользователь всё ещё может
+    // отозвать его кнопкой "Удалить разбор".
     const updated = await db.productResult.update({
       where: { id: resultRecord.id },
       data: {
         status: "READY",
         resultText: generated.text,
+        savedAt: resultRecord.savedAt ?? new Date(),
         metadata: {
           ...(metadata ?? {}),
           analysisContextNote: input.contextNote ?? null,
           generationMetadata: generated.metadata,
           generationConfirmedAt: new Date().toISOString(),
+          autoSavedAt: resultRecord.savedAt ? null : new Date().toISOString(),
         },
       },
     });
