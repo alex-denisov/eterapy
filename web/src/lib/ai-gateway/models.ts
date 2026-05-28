@@ -9,6 +9,7 @@ import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gatewa
 import { isFreeOpenRouterModel } from "@/lib/ai-gateway/openrouter-adapter";
 import {
   providerConfigToRouting,
+  DIRECT_PROVIDER_BASE_URLS,
   resolvedProviderBaseUrl,
 } from "@/lib/ai-gateway/provider-runtime";
 
@@ -17,6 +18,8 @@ export interface AIModelInfo {
   displayName?: string | null;
   isFree: boolean;
   contextWindow?: number | null;
+  inputTokenCostMicros?: number | null;
+  outputTokenCostMicros?: number | null;
   metadata?: unknown;
 }
 
@@ -34,6 +37,64 @@ export class AIModelFetchError extends Error {
 }
 
 const FETCH_TIMEOUT_MS = 15_000;
+
+function microsPerThousand(usdPerMillion: number | null | undefined) {
+  if (typeof usdPerMillion !== "number" || !Number.isFinite(usdPerMillion)) return null;
+  return Math.round(usdPerMillion * 1000);
+}
+
+function openRouterUsdPerTokenToMicrosPerThousand(value: string | undefined) {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.round(parsed * 1_000_000_000);
+}
+
+const KNOWN_MODEL_PRICING_USD_PER_MILLION: Partial<Record<AIProvider, Record<string, { input: number; output: number }>>> = {
+  [AIProvider.OPENAI]: {
+    "gpt-4o-mini": { input: 0.15, output: 0.6 },
+    "gpt-4.1-mini": { input: 0.4, output: 1.6 },
+  },
+  [AIProvider.GEMINI]: {
+    "gemini-2.5-flash": { input: 0.3, output: 2.5 },
+    "gemini-2.0-flash": { input: 0.1, output: 0.4 },
+  },
+  [AIProvider.GROQ]: {
+    "llama-3.1-8b-instant": { input: 0.05, output: 0.08 },
+    "llama-3.3-70b-versatile": { input: 0.59, output: 0.79 },
+    "qwen/qwen3-32b": { input: 0.29, output: 0.59 },
+    "openai/gpt-oss-safeguard-20b": { input: 0.075, output: 0.3 },
+  },
+  [AIProvider.MISTRAL]: {
+    "mistral-small-latest": { input: 0.1, output: 0.3 },
+    "mistral-medium-latest": { input: 0.4, output: 2.0 },
+    "mistral-medium-2505": { input: 0.4, output: 2.0 },
+    "mistral-medium-2508": { input: 0.4, output: 2.0 },
+  },
+  [AIProvider.COHERE]: {
+    "command-a-plus-05-2026": { input: 2.5, output: 10 },
+    "command-a-03-2025": { input: 2.5, output: 10 },
+    "command-r-plus": { input: 2.5, output: 10 },
+    "command-r": { input: 0.15, output: 0.6 },
+  },
+  [AIProvider.CEREBRAS]: {
+    "gpt-oss-120b": { input: 0.25, output: 0.69 },
+    "zai-glm-4.7": { input: 0.25, output: 0.69 },
+  },
+  [AIProvider.FIREWORKS]: {
+    "accounts/fireworks/models/kimi-k2p6": { input: 1.5, output: 6 },
+    "accounts/fireworks/models/gpt-oss-120b": { input: 0.9, output: 0.9 },
+  },
+};
+
+function knownModelPricing(provider: AIProvider, modelId: string) {
+  const direct = KNOWN_MODEL_PRICING_USD_PER_MILLION[provider]?.[modelId];
+  if (!direct) return { inputTokenCostMicros: null, outputTokenCostMicros: null };
+  return {
+    inputTokenCostMicros: microsPerThousand(direct.input),
+    outputTokenCostMicros: microsPerThousand(direct.output),
+  };
+}
 
 const OPENROUTER_META_MODELS: AIModelInfo[] = [
   {
@@ -66,7 +127,7 @@ async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
 }
 
 async function fetchOpenAIModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? "https://api.openai.com/v1";
+  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENAI]!;
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       Authorization: `Bearer ${credential.apiKey}`,
@@ -80,12 +141,13 @@ async function fetchOpenAIModels(credential: DecryptedAICredential): Promise<AIM
       modelId: row.id as string,
       displayName: null,
       isFree: false,
+      ...knownModelPricing(AIProvider.OPENAI, row.id as string),
       metadata: row,
     }));
 }
 
 async function fetchAnthropicModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? "https://api.anthropic.com/v1";
+  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.ANTHROPIC]!;
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       "x-api-key": credential.apiKey,
@@ -105,7 +167,7 @@ async function fetchAnthropicModels(credential: DecryptedAICredential): Promise<
 }
 
 async function fetchFireworksModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? "https://api.fireworks.ai/inference/v1";
+  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS]!;
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: { Authorization: `Bearer ${credential.apiKey}` },
   });
@@ -116,6 +178,32 @@ async function fetchFireworksModels(credential: DecryptedAICredential): Promise<
       modelId: row.id as string,
       displayName: null,
       isFree: false,
+      ...knownModelPricing(AIProvider.FIREWORKS, row.id as string),
+      metadata: row,
+    }));
+}
+
+async function fetchOpenAICompatibleModels(input: {
+  provider: AIProvider;
+  credential: DecryptedAICredential;
+  defaultBaseUrl: string;
+}): Promise<AIModelInfo[]> {
+  const baseUrl = input.credential.baseUrlOverride?.replace(/\/+$/, "") ?? input.defaultBaseUrl;
+  const data = await fetchJSON(`${baseUrl}/models`, {
+    headers: {
+      Authorization: `Bearer ${input.credential.apiKey}`,
+      ...cloudflareGatewayAuthHeaders(baseUrl),
+    },
+  });
+  const list = (data as { data?: Array<{ id?: string; name?: string; owned_by?: string; context_length?: number; context_window?: number; max_context_length?: number }> }).data ?? [];
+  return list
+    .filter((row) => typeof row.id === "string" && row.id.length > 0)
+    .map((row) => ({
+      modelId: row.id as string,
+      displayName: row.name ?? null,
+      isFree: false,
+      contextWindow: row.context_length ?? row.context_window ?? row.max_context_length ?? null,
+      ...knownModelPricing(input.provider, row.id as string),
       metadata: row,
     }));
 }
@@ -130,7 +218,7 @@ interface GeminiModelRow {
 }
 
 async function fetchGeminiModels(credential: DecryptedAICredential): Promise<AIModelInfo[]> {
-  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? "https://generativelanguage.googleapis.com/v1beta";
+  const baseUrl = credential.baseUrlOverride?.replace(/\/+$/, "") ?? DIRECT_PROVIDER_BASE_URLS[AIProvider.GEMINI]!;
   const data = await fetchJSON(`${baseUrl}/models`, {
     headers: {
       "x-goog-api-key": credential.apiKey,
@@ -149,6 +237,7 @@ async function fetchGeminiModels(credential: DecryptedAICredential): Promise<AIM
       displayName: row.displayName ?? null,
       isFree: false,
       contextWindow: row.inputTokenLimit ?? null,
+      ...knownModelPricing(AIProvider.GEMINI, row.name.replace(/^models\//, "")),
       metadata: row,
     }));
 }
@@ -182,6 +271,8 @@ async function fetchOpenRouterModels(credential: DecryptedAICredential | null): 
         displayName: row.name ?? null,
         isFree,
         contextWindow: typeof row.context_length === "number" ? row.context_length : null,
+        inputTokenCostMicros: openRouterUsdPerTokenToMicrosPerThousand(row.pricing?.prompt),
+        outputTokenCostMicros: openRouterUsdPerTokenToMicrosPerThousand(row.pricing?.completion),
         metadata: row,
       };
     });
@@ -212,6 +303,18 @@ export async function fetchModelsFromProvider(input: {
     case AIProvider.GEMINI:
       if (!credential) throw new AIModelFetchError("Gemini model list requires a credential");
       return fetchGeminiModels(credential);
+    case AIProvider.GROQ:
+      if (!credential) throw new AIModelFetchError("Groq model list requires a credential");
+      return fetchOpenAICompatibleModels({ provider: AIProvider.GROQ, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GROQ]! });
+    case AIProvider.MISTRAL:
+      if (!credential) throw new AIModelFetchError("Mistral model list requires a credential");
+      return fetchOpenAICompatibleModels({ provider: AIProvider.MISTRAL, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.MISTRAL]! });
+    case AIProvider.CEREBRAS:
+      if (!credential) throw new AIModelFetchError("Cerebras model list requires a credential");
+      return fetchOpenAICompatibleModels({ provider: AIProvider.CEREBRAS, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.CEREBRAS]! });
+    case AIProvider.COHERE:
+      if (!credential) throw new AIModelFetchError("Cohere model list requires a credential");
+      return fetchOpenAICompatibleModels({ provider: AIProvider.COHERE, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE]! });
     default: {
       const _exhaustive: never = input.provider;
       throw new AIModelFetchError(`Unknown provider: ${_exhaustive as string}`);
@@ -231,6 +334,8 @@ export async function listCachedModels(provider: AIProvider): Promise<CachedAIMo
     displayName: row.displayName,
     isFree: row.isFree,
     contextWindow: row.contextWindow,
+    inputTokenCostMicros: row.inputTokenCostMicros,
+    outputTokenCostMicros: row.outputTokenCostMicros,
     metadata: row.metadata,
     fetchedAt: row.fetchedAt,
   }));
@@ -241,6 +346,21 @@ export interface RefreshResult {
   count: number;
   fetchedAt: Date;
   removed: number;
+}
+
+export async function updateCachedModelPricing(input: {
+  provider: AIProvider;
+  modelId: string;
+  inputTokenCostMicros?: number | null;
+  outputTokenCostMicros?: number | null;
+}) {
+  return db.aIProviderModel.update({
+    where: { provider_modelId: { provider: input.provider, modelId: input.modelId } },
+    data: {
+      inputTokenCostMicros: input.inputTokenCostMicros ?? null,
+      outputTokenCostMicros: input.outputTokenCostMicros ?? null,
+    },
+  });
 }
 
 export async function refreshModelsForProvider(provider: AIProvider): Promise<RefreshResult> {
@@ -261,8 +381,15 @@ export async function refreshModelsForProvider(provider: AIProvider): Promise<Re
   const models = await fetchModelsFromProvider({ provider, credential });
   const fetchedAt = new Date();
 
-  const upserts = models.map((model) =>
-    db.aIProviderModel.upsert({
+  const upserts = models.map((model) => {
+    const priceUpdate = model.inputTokenCostMicros != null || model.outputTokenCostMicros != null
+      ? {
+        inputTokenCostMicros: model.inputTokenCostMicros ?? null,
+        outputTokenCostMicros: model.outputTokenCostMicros ?? null,
+      }
+      : {};
+
+    return db.aIProviderModel.upsert({
       where: { provider_modelId: { provider, modelId: model.modelId } },
       create: {
         provider,
@@ -270,6 +397,8 @@ export async function refreshModelsForProvider(provider: AIProvider): Promise<Re
         displayName: model.displayName ?? null,
         isFree: model.isFree,
         contextWindow: model.contextWindow ?? null,
+        inputTokenCostMicros: model.inputTokenCostMicros ?? null,
+        outputTokenCostMicros: model.outputTokenCostMicros ?? null,
         metadata: model.metadata as never,
         fetchedAt,
       },
@@ -277,11 +406,12 @@ export async function refreshModelsForProvider(provider: AIProvider): Promise<Re
         displayName: model.displayName ?? null,
         isFree: model.isFree,
         contextWindow: model.contextWindow ?? null,
+        ...priceUpdate,
         metadata: model.metadata as never,
         fetchedAt,
       },
-    }),
-  );
+    });
+  });
 
   await db.$transaction(upserts);
 

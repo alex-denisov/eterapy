@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { Prisma } from "@prisma/client";
+import { AIProvider, Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 
@@ -62,6 +62,22 @@ export function estimateAICostMicros(usage: AIUsageAmount, rate: AICostRate = {}
   const inputRate = rate.inputTokenCostMicros ?? 0;
   const outputRate = rate.outputTokenCostMicros ?? 0;
   return Math.ceil(((usage.promptTokens * inputRate) + (usage.completionTokens * outputRate)) / 1000);
+}
+
+export async function resolveAIModelCostRate(input: {
+  provider: AIProvider;
+  model: string;
+  fallback?: AICostRate | null;
+}, client = db): Promise<AICostRate> {
+  const row = await client.aIProviderModel.findUnique({
+    where: { provider_modelId: { provider: input.provider, modelId: input.model } },
+    select: { inputTokenCostMicros: true, outputTokenCostMicros: true },
+  }).catch(() => null);
+
+  return {
+    inputTokenCostMicros: row?.inputTokenCostMicros ?? input.fallback?.inputTokenCostMicros ?? null,
+    outputTokenCostMicros: row?.outputTokenCostMicros ?? input.fallback?.outputTokenCostMicros ?? null,
+  };
 }
 
 export function enforceAIBudget(input: {

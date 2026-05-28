@@ -100,12 +100,16 @@ describe("admin AI control API", () => {
 
     expect(response.status).toBe(200);
     expect(body.requestId).toBe("admin-ai-control-123");
-    expect(body.providers).toHaveLength(5);
+    expect(body.providers).toHaveLength(9);
     expect(body.providers[0]).toEqual(expect.objectContaining({
       provider: AIProvider.OPENROUTER,
     }));
     expect(body.providers).toEqual(expect.arrayContaining([
       expect.objectContaining({ provider: AIProvider.GEMINI }),
+      expect.objectContaining({ provider: AIProvider.GROQ, baseUrl: "https://api.groq.com/openai/v1" }),
+      expect.objectContaining({ provider: AIProvider.MISTRAL }),
+      expect.objectContaining({ provider: AIProvider.CEREBRAS }),
+      expect.objectContaining({ provider: AIProvider.COHERE }),
     ]));
     expect(body.prompts).toEqual(expect.arrayContaining([
       expect.objectContaining({ feature: "dialogue-primary-answer" }),

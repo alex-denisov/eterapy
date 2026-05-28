@@ -15,9 +15,14 @@ describe("AI Gateway domain", () => {
       AIProvider.FIREWORKS,
       AIProvider.OPENROUTER,
       AIProvider.GEMINI,
+      AIProvider.GROQ,
+      AIProvider.MISTRAL,
+      AIProvider.CEREBRAS,
+      AIProvider.COHERE,
     ]);
     expect(AI_PROVIDER_LABELS[AIProvider.GEMINI]).toBe("Google Gemini");
     expect(AI_PROVIDER_LABELS[AIProvider.FIREWORKS]).toBe("Fireworks AI");
+    expect(AI_PROVIDER_LABELS[AIProvider.GROQ]).toBe("Groq");
   });
 
   it("normalizes feature keys for policy lookup", () => {
@@ -33,8 +38,12 @@ describe("AI Gateway domain", () => {
     expect(defaultProviderOrder()).toEqual([
       AIProvider.OPENROUTER,
       AIProvider.GEMINI,
+      AIProvider.GROQ,
+      AIProvider.MISTRAL,
       AIProvider.OPENAI,
       AIProvider.ANTHROPIC,
+      AIProvider.COHERE,
+      AIProvider.CEREBRAS,
       AIProvider.FIREWORKS,
     ]);
   });

@@ -1044,6 +1044,8 @@ model AIProviderModel {
   displayName     String?    @map("display_name")
   isFree          Boolean    @default(false) @map("is_free")
   contextWindow   Int?       @map("context_window")
+  inputTokenCostMicros  Int? @map("input_token_cost_micros")
+  outputTokenCostMicros Int? @map("output_token_cost_micros")
   metadata        Json?
   fetchedAt       DateTime   @map("fetched_at")
   createdAt       DateTime   @default(now()) @map("created_at")
@@ -1076,6 +1078,10 @@ enum AIProvider {
   FIREWORKS
   OPENROUTER
   GEMINI
+  GROQ
+  MISTRAL
+  CEREBRAS
+  COHERE
 }
 
 enum AIRequestStatus {

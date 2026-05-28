@@ -13,6 +13,7 @@ jest.mock("@/lib/db", () => ({
     aIRequest: { create: jest.fn(), update: jest.fn() },
     aIAttempt: { create: jest.fn() },
     aIProviderCredential: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
+    aIProviderModel: { findUnique: jest.fn() },
     $executeRaw: jest.fn(),
   },
 }));
@@ -82,6 +83,7 @@ describe("aiComplete gateway migration", () => {
     });
     (mockDb.aIRequest.update as jest.Mock).mockResolvedValue({});
     (mockDb.aIAttempt.create as jest.Mock).mockResolvedValue({});
+    (mockDb.aIProviderModel.findUnique as jest.Mock).mockResolvedValue(null);
     (mockDb.$executeRaw as jest.Mock).mockResolvedValue(1);
     mockRunFallback.mockResolvedValue({
       response: {

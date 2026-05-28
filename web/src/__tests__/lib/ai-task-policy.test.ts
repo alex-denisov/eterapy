@@ -16,6 +16,10 @@ describe("AI task taxonomy and default routing policy", () => {
       "product-deep-report",
       "product-chat-analysis-ocr",
       "product-chat-analysis",
+      "product-tarot",
+      "product-natal-chart",
+      "product-numerology",
+      "product-my-map",
       "session-summary",
       "session-compliance",
     ]));
@@ -33,9 +37,16 @@ describe("AI task taxonomy and default routing policy", () => {
     const compliance = getDefaultAIRoutingPolicy("session-compliance");
     const chatOcr = getDefaultAIRoutingPolicy("product-chat-analysis-ocr");
 
-    expect(safety?.providerOrder).toEqual([AIProvider.OPENAI, AIProvider.GEMINI, AIProvider.ANTHROPIC]);
-    expect(compliance?.providerOrder).toEqual([AIProvider.OPENAI, AIProvider.GEMINI, AIProvider.ANTHROPIC]);
-    expect(chatOcr?.providerOrder).toEqual([AIProvider.OPENAI, AIProvider.GEMINI, AIProvider.ANTHROPIC]);
+    expect(safety?.providerOrder).not.toContain(AIProvider.OPENROUTER);
+    expect(compliance?.providerOrder).not.toContain(AIProvider.OPENROUTER);
+    expect(chatOcr?.providerOrder).not.toContain(AIProvider.OPENROUTER);
+    expect(safety?.providerOrder).toEqual(expect.arrayContaining([
+      AIProvider.GEMINI,
+      AIProvider.GROQ,
+      AIProvider.MISTRAL,
+      AIProvider.OPENAI,
+      AIProvider.ANTHROPIC,
+    ]));
     expect(safety?.fallbackNotes).toContain("No OpenRouter");
     expect(compliance?.fallbackNotes).toContain("human");
     expect(chatOcr?.fallbackNotes).toContain("screenshots stay on direct providers");

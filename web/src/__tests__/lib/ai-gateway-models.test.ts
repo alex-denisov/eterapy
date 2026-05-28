@@ -95,7 +95,7 @@ describe("ai-gateway/models", () => {
     mockFetch({
       data: [
         { id: "meta-llama/llama-3.1-70b-instruct:free", name: "Llama 3.1 70B Free", context_length: 8192, pricing: { prompt: "0", completion: "0" } },
-        { id: "openai/gpt-4o-mini", name: "GPT-4o mini", context_length: 128000, pricing: { prompt: "0.00015", completion: "0.0006" } },
+        { id: "openai/gpt-4o-mini", name: "GPT-4o mini", context_length: 128000, pricing: { prompt: "0.00000015", completion: "0.0000006" } },
       ],
     });
     const models = await fetchModelsFromProvider({
@@ -110,6 +110,22 @@ describe("ai-gateway/models", () => {
     expect(free?.isFree).toBe(true);
     const paid = models.find((m) => m.modelId === "openai/gpt-4o-mini");
     expect(paid?.isFree).toBe(false);
+    expect(paid?.inputTokenCostMicros).toBe(150);
+    expect(paid?.outputTokenCostMicros).toBe(600);
+  });
+
+  it("returns OpenAI-compatible Groq models with known model pricing", async () => {
+    mockFetch({ data: [{ id: "llama-3.1-8b-instant", context_window: 131072 }] });
+    const models = await fetchModelsFromProvider({
+      provider: AIProvider.GROQ,
+      credential: baseCred({ provider: AIProvider.GROQ }),
+    });
+    expect(models[0]).toMatchObject({
+      modelId: "llama-3.1-8b-instant",
+      contextWindow: 131072,
+      inputTokenCostMicros: 50,
+      outputTokenCostMicros: 80,
+    });
   });
 
   it("OpenRouter does NOT require a credential (public catalogue)", async () => {

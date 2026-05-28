@@ -55,6 +55,7 @@ export function cloudflareProviderForAIProvider(provider: AIProvider): Cloudflar
   if (provider === AIProvider.ANTHROPIC) return "anthropic";
   if (provider === AIProvider.OPENROUTER) return "openrouter";
   if (provider === AIProvider.GEMINI) return "google-ai-studio";
+  if (provider === AIProvider.GROQ) return "groq";
   return null;
 }
 

@@ -85,11 +85,14 @@ describe("Fireworks adapter", () => {
   });
 
   it("checks model health when configured", async () => {
-    const retrieve = jest.fn().mockResolvedValue({ id: "accounts/fireworks/models/llama-v3p1-8b-instruct" });
+    const create = jest.fn().mockResolvedValue({
+      model: "accounts/fireworks/models/llama-v3p1-8b-instruct",
+      choices: [{ message: { content: "OK" }, finish_reason: "stop" }],
+      usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 },
+    });
     const adapter = createFireworksAdapter({
       client: {
-        chat: { completions: { create: jest.fn() } },
-        models: { retrieve },
+        chat: { completions: { create } },
       },
     });
 
@@ -99,6 +102,10 @@ describe("Fireworks adapter", () => {
       model: "accounts/fireworks/models/llama-v3p1-8b-instruct",
       latencyMs: expect.any(Number),
     }));
-    expect(retrieve).toHaveBeenCalledWith("accounts/fireworks/models/llama-v3p1-8b-instruct", { timeout: 30_000 });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      model: "accounts/fireworks/models/llama-v3p1-8b-instruct",
+      max_tokens: 128,
+      temperature: 0,
+    }), { timeout: 30_000 });
   });
 });

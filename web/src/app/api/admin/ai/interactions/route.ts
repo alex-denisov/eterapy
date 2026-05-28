@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { AIProvider, AIRequestStatus } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
@@ -9,9 +10,13 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 
 const querySchema = z.object({
   period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  daysBack: z.coerce.number().int().min(1).max(31).optional(),
   feature: z.string().trim().max(96).optional(),
+  status: z.union([z.nativeEnum(AIRequestStatus), z.literal("all")]).optional(),
+  provider: z.union([z.nativeEnum(AIProvider), z.literal("all")]).optional(),
   q: z.string().trim().max(200).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
+  sort: z.enum(["createdAt_desc", "createdAt_asc", "tokens_desc", "cost_desc"]).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -35,9 +40,13 @@ export async function GET(req: NextRequest) {
 
   const interactions = await listAdminAIInteractions({
     period: parsed.data.period ?? aiBudgetPeriod(),
+    daysBack: parsed.data.daysBack ?? 7,
     feature: parsed.data.feature,
+    status: parsed.data.status,
+    provider: parsed.data.provider,
     q: parsed.data.q,
     limit: parsed.data.limit ?? 50,
+    sort: parsed.data.sort,
   });
   return jsonWithRequestContext({ interactions }, { status: 200 }, context);
 }

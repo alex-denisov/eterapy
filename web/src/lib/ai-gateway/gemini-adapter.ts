@@ -257,9 +257,12 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
       try {
         await adapter.complete({
           feature: "ai-healthcheck",
-          messages: [{ role: "user", content: "ping" }],
+          messages: [
+            { role: "system", content: "Return exactly OK and no explanation." },
+            { role: "user", content: "ping" },
+          ],
           model,
-          maxTokens: 8,
+          maxTokens: 64,
           temperature: 0,
           timeoutMs,
         });

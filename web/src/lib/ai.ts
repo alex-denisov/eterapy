@@ -20,6 +20,7 @@ import {
   enforceAIBudget,
   estimateAICostMicros,
   recordAIUsageLedger,
+  resolveAIModelCostRate,
 } from "@/lib/ai-gateway/usage";
 import {
   listActiveCredentialsForProvider,
@@ -32,6 +33,7 @@ import {
   serializeAIMessagesForAdmin,
 } from "@/lib/ai-gateway/prompts";
 import {
+  DEFAULT_PROVIDER_MODELS,
   buildAdapterForCredential,
   providerConfigToRouting,
   providerLabel,
@@ -39,11 +41,15 @@ import {
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
-  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: "openrouter/free", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.GEMINI, enabled: true, priority: 15, defaultModel: "gemini-2.5-flash", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: "accounts/fireworks/models/kimi-k2p6", timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENROUTER], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.GEMINI, enabled: true, priority: 15, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GEMINI], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.GROQ, enabled: true, priority: 18, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GROQ], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.MISTRAL, enabled: true, priority: 19, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.MISTRAL], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.COHERE, enabled: true, priority: 35, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.CEREBRAS, enabled: true, priority: 38, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
 
 interface AIRequestOptions {
@@ -58,7 +64,7 @@ interface AIRequestOptions {
 interface AIResponse {
   text: string;
   model: string;
-  provider: "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini";
+  provider: "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere";
   tokensIn: number;
   tokensOut: number;
   latencyMs: number;
@@ -191,13 +197,18 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       },
     });
     const providerConfig = providerConfigs.find((config) => config.provider === response.provider);
+    const costRate = await resolveAIModelCostRate({
+      provider: response.provider,
+      model: response.model,
+      fallback: {
+        inputTokenCostMicros: providerConfig?.inputTokenCostMicros,
+        outputTokenCostMicros: providerConfig?.outputTokenCostMicros,
+      },
+    });
     const estimatedCostMicros = estimateAICostMicros({
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
-    }, {
-      inputTokenCostMicros: providerConfig?.inputTokenCostMicros,
-      outputTokenCostMicros: providerConfig?.outputTokenCostMicros,
-    });
+    }, costRate);
 
     await Promise.all([
       ...attempts.map((attempt) => db.aIAttempt.create({

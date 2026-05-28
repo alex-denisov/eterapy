@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import {
   listAIPromptConfigs,
+  resetAIPromptConfig,
   updateAIPromptConfig,
 } from "@/lib/ai-gateway/prompts";
 import { getUserPermissions } from "@/lib/moderator-permissions";
@@ -62,6 +63,24 @@ export async function PATCH(req: NextRequest) {
     return jsonWithRequestContext({ prompt }, { status: 200 }, access.context);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Prompt update failed";
+    return errorWithRequestContext("BAD_REQUEST", message, 400, access.context);
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const access = await requireSuperadminAIConfigure(req);
+  if ("error" in access) return access.error;
+
+  const feature = new URL(req.url).searchParams.get("feature") ?? "";
+  if (!feature.trim()) {
+    return errorWithRequestContext("BAD_REQUEST", "feature query param is required", 400, access.context);
+  }
+
+  try {
+    const prompt = await resetAIPromptConfig(access.session.user.id, feature);
+    return jsonWithRequestContext({ prompt }, { status: 200 }, access.context);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Prompt reset failed";
     return errorWithRequestContext("BAD_REQUEST", message, 400, access.context);
   }
 }

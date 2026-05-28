@@ -93,7 +93,7 @@ export async function generateSymbolicProductResult(input: {
 
   try {
     const response = await aiComplete({
-      feature: "product-symbolic",
+      feature: `product-${input.productKey}`,
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 1400,

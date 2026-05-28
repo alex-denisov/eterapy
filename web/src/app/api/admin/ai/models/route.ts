@@ -1,5 +1,6 @@
 import { AIProvider } from "@prisma/client";
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { getUserPermissions } from "@/lib/moderator-permissions";
@@ -8,8 +9,16 @@ import {
   AIModelFetchError,
   listCachedModels,
   refreshModelsForProvider,
+  updateCachedModelPricing,
 } from "@/lib/ai-gateway/models";
 import { logAudit } from "@/lib/audit";
+
+const modelPricingSchema = z.object({
+  provider: z.nativeEnum(AIProvider),
+  modelId: z.string().trim().min(1).max(300),
+  inputTokenCostMicros: z.coerce.number().int().min(0).optional().nullable(),
+  outputTokenCostMicros: z.coerce.number().int().min(0).optional().nullable(),
+});
 
 async function requireAIConfigure(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -64,7 +73,7 @@ export async function POST(req: NextRequest) {
   if (!provider) {
     return errorWithRequestContext(
       "BAD_REQUEST",
-      "provider query param is required (OPENAI|ANTHROPIC|FIREWORKS|OPENROUTER|GEMINI)",
+      `provider query param is required (${Object.values(AIProvider).join("|")})`,
       400,
       access.context,
     );
@@ -89,5 +98,29 @@ export async function POST(req: NextRequest) {
       : err instanceof Error ? err.message
       : "Model refresh failed";
     return errorWithRequestContext("UPSTREAM_ERROR", message, 502, access.context);
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const access = await requireAIConfigure(req);
+  if ("error" in access) return access.error;
+
+  const parsed = modelPricingSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return errorWithRequestContext("BAD_REQUEST", "Invalid model pricing payload", 400, access.context);
+  }
+
+  try {
+    const model = await updateCachedModelPricing(parsed.data);
+    await logAudit(access.session.user.id, "AI_MODEL_PRICING_UPDATE", `${parsed.data.provider}:${parsed.data.modelId}`, JSON.stringify({
+      provider: parsed.data.provider,
+      modelId: parsed.data.modelId,
+      inputTokenCostMicros: parsed.data.inputTokenCostMicros ?? null,
+      outputTokenCostMicros: parsed.data.outputTokenCostMicros ?? null,
+    }));
+    return jsonWithRequestContext({ ok: true, model }, { status: 200 }, access.context);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Model pricing update failed";
+    return errorWithRequestContext("NOT_FOUND", message, 404, access.context);
   }
 }

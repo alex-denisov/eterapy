@@ -1,7 +1,7 @@
 import { AIProvider, type AIProviderConfig, type AIRoutingPolicy } from "@prisma/client";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { AI_PROVIDER_LABELS, aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
+import { AI_GATEWAY_PROVIDERS, AI_PROVIDER_LABELS, aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import { listAdminAIInteractions } from "@/lib/ai-gateway/interactions";
 import { listAIPromptConfigs } from "@/lib/ai-gateway/prompts";
 import { getAIUsageDetails, getAIUsageLedger } from "@/lib/ai-gateway/usage";
@@ -12,9 +12,14 @@ import {
   buildCloudflareGatewayUrl,
   buildCloudflareGatewayUrlForAIProvider,
   getCloudflareGatewayConfig,
+  isCloudflareAIGatewayUrl,
 } from "@/lib/ai-gateway/cloudflare-gateway";
 import { mergeAITaskPolicies } from "@/lib/ai-gateway/task-policy";
-import { cloudflareGatewayEnabled } from "@/lib/ai-gateway/provider-runtime";
+import {
+  DEFAULT_PROVIDER_MODELS,
+  DIRECT_PROVIDER_BASE_URLS,
+  cloudflareGatewayEnabled,
+} from "@/lib/ai-gateway/provider-runtime";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -41,11 +46,15 @@ export interface AIRoutingPolicyInput {
 }
 
 const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
-  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: "openrouter/free", timeoutMs: 30_000 },
-  { provider: AIProvider.GEMINI, enabled: true, priority: 15, defaultModel: "gemini-2.5-flash", timeoutMs: 30_000 },
-  { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: "gpt-4o-mini", timeoutMs: 30_000 },
-  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: "claude-3-5-haiku-20241022", timeoutMs: 30_000 },
-  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: "accounts/fireworks/models/kimi-k2p6", timeoutMs: 30_000 },
+  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENROUTER], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENROUTER], timeoutMs: 30_000 },
+  { provider: AIProvider.GEMINI, enabled: true, priority: 15, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GEMINI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GEMINI], timeoutMs: 30_000 },
+  { provider: AIProvider.GROQ, enabled: true, priority: 18, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GROQ], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GROQ], timeoutMs: 30_000 },
+  { provider: AIProvider.MISTRAL, enabled: true, priority: 19, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.MISTRAL], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.MISTRAL], timeoutMs: 30_000 },
+  { provider: AIProvider.OPENAI, enabled: true, priority: 20, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENAI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000 },
+  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.ANTHROPIC], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000 },
+  { provider: AIProvider.COHERE, enabled: true, priority: 35, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000 },
+  { provider: AIProvider.CEREBRAS, enabled: true, priority: 38, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.CEREBRAS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000 },
+  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000 },
 ];
 
 export async function getAIControlCenterData(period = aiBudgetPeriod(), options: { includeSecrets?: boolean } = {}) {
@@ -57,11 +66,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
     credentials,
     prompts,
     interactions,
-    openaiModels,
-    anthropicModels,
-    fireworksModels,
-    openrouterModels,
-    geminiModels,
+    modelLists,
   ] = await Promise.all([
     db.aIProviderConfig.findMany({ orderBy: [{ priority: "asc" }, { provider: "asc" }] }),
     db.aIRoutingPolicy.findMany({ orderBy: { feature: "asc" } }),
@@ -69,12 +74,8 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
     getAIUsageDetails(period),
     listCredentials(undefined, { includeSecrets: options.includeSecrets }),
     listAIPromptConfigs(),
-    options.includeSecrets ? listAdminAIInteractions({ period, limit: 40 }) : Promise.resolve([]),
-    listCachedModels(AIProvider.OPENAI),
-    listCachedModels(AIProvider.ANTHROPIC),
-    listCachedModels(AIProvider.FIREWORKS),
-    listCachedModels(AIProvider.OPENROUTER),
-    listCachedModels(AIProvider.GEMINI),
+    options.includeSecrets ? listAdminAIInteractions({ period, daysBack: 7, limit: 80 }) : Promise.resolve([]),
+    Promise.all(AI_GATEWAY_PROVIDERS.map(async (provider) => [provider, await listCachedModels(provider)] as const)),
   ]);
 
   const providerByName = new Map(storedProviders.map((provider) => [provider.provider, provider]));
@@ -99,13 +100,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
     };
   });
 
-  const models: Record<AIProvider, typeof openaiModels> = {
-    [AIProvider.OPENAI]: openaiModels,
-    [AIProvider.ANTHROPIC]: anthropicModels,
-    [AIProvider.FIREWORKS]: fireworksModels,
-    [AIProvider.OPENROUTER]: openrouterModels,
-    [AIProvider.GEMINI]: geminiModels,
-  };
+  const models = Object.fromEntries(modelLists) as Record<AIProvider, Awaited<ReturnType<typeof listCachedModels>>>;
 
   const cfGateway = getCloudflareGatewayConfig();
   const cloudflareGateway = cfGateway
@@ -148,6 +143,21 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
 }
 
 export async function updateAIProviderConfig(actorId: string, input: AIProviderConfigInput): Promise<AIProviderConfig> {
+  const cfGateway = getCloudflareGatewayConfig();
+  const cfBaseUrl = cfGateway
+    ? buildCloudflareGatewayUrlForAIProvider({
+      accountId: cfGateway.accountId,
+      gatewayId: cfGateway.gatewayId,
+      provider: input.provider,
+    })
+    : null;
+  const directBaseUrl = DIRECT_PROVIDER_BASE_URLS[input.provider];
+  const requestedBaseUrl = input.baseUrl || null;
+  const baseUrl = input.cloudflareGatewayEnabled === true && cfBaseUrl
+    ? cfBaseUrl
+    : input.cloudflareGatewayEnabled === false && isCloudflareAIGatewayUrl(requestedBaseUrl)
+      ? directBaseUrl
+      : requestedBaseUrl;
   const metadata = {
     cloudflareGatewayEnabled: input.cloudflareGatewayEnabled === true,
   };
@@ -158,7 +168,7 @@ export async function updateAIProviderConfig(actorId: string, input: AIProviderC
       displayName: AI_PROVIDER_LABELS[input.provider],
       enabled: input.enabled,
       priority: input.priority,
-      baseUrl: input.baseUrl || null,
+      baseUrl,
       defaultModel: input.defaultModel || null,
       timeoutMs: input.timeoutMs,
       inputTokenCostMicros: input.inputTokenCostMicros ?? null,
@@ -168,7 +178,7 @@ export async function updateAIProviderConfig(actorId: string, input: AIProviderC
     update: {
       enabled: input.enabled,
       priority: input.priority,
-      baseUrl: input.baseUrl || null,
+      baseUrl,
       defaultModel: input.defaultModel || null,
       timeoutMs: input.timeoutMs,
       inputTokenCostMicros: input.inputTokenCostMicros ?? null,

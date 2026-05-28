@@ -29,6 +29,7 @@ type RawPolicy = {
   purpose?: string;
   fallbackNotes?: string;
   source?: "default" | "database";
+  modelPreferences?: Partial<Record<AIProvider, string>> | null;
   maxTokens?: number | null;
   temperature?: number | null;
   timeoutMs?: number | null;
@@ -61,6 +62,8 @@ type RawModel = {
   displayName?: string | null;
   isFree: boolean;
   contextWindow?: number | null;
+  inputTokenCostMicros?: number | null;
+  outputTokenCostMicros?: number | null;
   fetchedAt: Date;
   metadata?: unknown;
 };
@@ -106,6 +109,7 @@ type RawInteraction = {
   requestId: string | null;
   messages: Array<{ role: string; content: unknown }>;
   responseText: string | null;
+  errorText: string | null;
   responseProvider: string | null;
   responseModel: string | null;
   attempts: Array<{
@@ -157,6 +161,7 @@ export default async function AdminAIPage() {
     purpose: policy.purpose,
     fallbackNotes: policy.fallbackNotes,
     source: policy.source,
+    modelPreferences: policy.modelPreferences ?? null,
     maxTokens: policy.maxTokens,
     temperature: policy.temperature,
     timeoutMs: policy.timeoutMs,
@@ -191,6 +196,8 @@ export default async function AdminAIPage() {
         displayName: model.displayName ?? null,
         isFree: model.isFree,
         contextWindow: model.contextWindow ?? null,
+        inputTokenCostMicros: model.inputTokenCostMicros ?? null,
+        outputTokenCostMicros: model.outputTokenCostMicros ?? null,
         fetchedAt: model.fetchedAt.toISOString(),
         metadata: model.metadata,
       })),

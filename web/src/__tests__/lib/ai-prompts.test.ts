@@ -43,7 +43,15 @@ describe("AI prompt configs", () => {
         feature: "product-deep-report",
         source: "default",
       }),
+      expect.objectContaining({
+        feature: "product-tarot",
+        source: "default",
+        productKey: "tarot",
+      }),
     ]));
+    const clarifier = prompts.find((prompt) => prompt.feature === "dialogue-clarifier");
+    expect(clarifier?.promptText).toContain("Rust");
+    expect(clarifier?.promptText).toContain("JSON");
   });
 
   it("replaces the system message with enabled database prompt text", async () => {

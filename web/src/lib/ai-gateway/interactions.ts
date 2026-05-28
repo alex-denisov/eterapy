@@ -34,16 +34,18 @@ export interface AdminAIInteractionRow {
   requestId: string | null;
   messages: AdminAIInteractionMessage[];
   responseText: string | null;
+  errorText: string | null;
   responseProvider: string | null;
   responseModel: string | null;
   attempts: AdminAIInteractionAttempt[];
 }
 
-function periodBounds(period: string) {
+function periodBounds(period: string, daysBack = 1) {
   const safe = PERIOD_RE.test(period) ? period : aiBudgetPeriod();
-  const start = new Date(`${safe}T00:00:00.000Z`);
-  const end = new Date(start);
+  const end = new Date(`${safe}T00:00:00.000Z`);
   end.setUTCDate(end.getUTCDate() + 1);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - Math.min(Math.max(daysBack, 1), 31));
   return { start, end };
 }
 
@@ -61,25 +63,40 @@ function messagesFromMetadata(metadata: Record<string, unknown>) {
 
 export async function listAdminAIInteractions(input: {
   period?: string;
+  daysBack?: number;
   feature?: string | null;
+  status?: AIRequestStatus | "all" | null;
+  provider?: AIProvider | "all" | null;
   q?: string | null;
   limit?: number;
+  sort?: "createdAt_desc" | "createdAt_asc" | "tokens_desc" | "cost_desc";
 } = {}): Promise<AdminAIInteractionRow[]> {
-  const { start, end } = periodBounds(input.period ?? aiBudgetPeriod());
+  const { start, end } = periodBounds(input.period ?? aiBudgetPeriod(), input.daysBack ?? 1);
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
   const q = input.q?.trim().toLowerCase() || null;
   const feature = input.feature?.trim() || null;
+  const provider = input.provider && input.provider !== "all" ? input.provider : null;
+  const status = input.status && input.status !== "all" ? input.status : null;
+  const orderBy = input.sort === "createdAt_asc"
+    ? { createdAt: "asc" as const }
+    : input.sort === "tokens_desc"
+      ? { totalTokens: "desc" as const }
+      : input.sort === "cost_desc"
+        ? { estimatedCostMicros: "desc" as const }
+        : { createdAt: "desc" as const };
 
   const rows = await db.aIRequest.findMany({
     where: {
       createdAt: { gte: start, lt: end },
       ...(feature && feature !== "all" ? { feature } : {}),
+      ...(status ? { status } : {}),
+      ...(provider ? { attempts: { some: { provider } } } : {}),
     },
     include: {
       user: { select: { id: true, name: true, email: true } },
       attempts: { orderBy: { startedAt: "asc" } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy,
     take: limit,
   });
 
@@ -87,6 +104,7 @@ export async function listAdminAIInteractions(input: {
     .map((row): AdminAIInteractionRow => {
       const metadata = metadataObject(row.metadata);
       const responseText = typeof metadata.responseText === "string" ? metadata.responseText : null;
+      const errorText = typeof metadata.error === "string" ? metadata.error : null;
       const requestId = typeof metadata.requestId === "string" ? metadata.requestId : null;
       const responseProvider = typeof metadata.responseProvider === "string" ? metadata.responseProvider : null;
       const responseModel = typeof metadata.responseModel === "string" ? metadata.responseModel : null;
@@ -105,6 +123,7 @@ export async function listAdminAIInteractions(input: {
         requestId,
         messages: messagesFromMetadata(metadata),
         responseText,
+        errorText,
         responseProvider,
         responseModel,
         attempts: row.attempts.map((attempt) => ({

@@ -6,6 +6,10 @@ export const AI_GATEWAY_PROVIDERS = [
   AIProvider.FIREWORKS,
   AIProvider.OPENROUTER,
   AIProvider.GEMINI,
+  AIProvider.GROQ,
+  AIProvider.MISTRAL,
+  AIProvider.CEREBRAS,
+  AIProvider.COHERE,
 ] as const;
 
 export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
@@ -14,6 +18,10 @@ export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
   [AIProvider.FIREWORKS]: "Fireworks AI",
   [AIProvider.OPENROUTER]: "OpenRouter",
   [AIProvider.GEMINI]: "Google Gemini",
+  [AIProvider.GROQ]: "Groq",
+  [AIProvider.MISTRAL]: "Mistral AI",
+  [AIProvider.CEREBRAS]: "Cerebras",
+  [AIProvider.COHERE]: "Cohere",
 };
 
 export type AIGatewayContentBlock =
@@ -53,8 +61,12 @@ export function defaultProviderOrder(): AIProvider[] {
   return [
     AIProvider.OPENROUTER,
     AIProvider.GEMINI,
+    AIProvider.GROQ,
+    AIProvider.MISTRAL,
     AIProvider.OPENAI,
     AIProvider.ANTHROPIC,
+    AIProvider.COHERE,
+    AIProvider.CEREBRAS,
     AIProvider.FIREWORKS,
   ];
 }
