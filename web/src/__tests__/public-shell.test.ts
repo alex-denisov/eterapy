@@ -47,10 +47,13 @@ describe("v5 public shell", () => {
     expect(header).toContain("Кредиты ясности");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");
+    // B323: footer taxonomy aligned with docs/13_Prices_Breakdown — free
+    // entries / paid digital / esoteric / specialists. Old labels
+    // "Психология" and "Социальное и обучение" replaced.
     expect(footer).toContain('title: "Бесплатно"');
-    expect(footer).toContain('title: "Психология"');
+    expect(footer).toContain('title: "Платные разборы"');
     expect(footer).toContain('title: "Эзотерика"');
-    expect(footer).toContain('title: "Социальное и обучение"');
+    expect(footer).toContain('title: "Со специалистами"');
     expect(softCss).toContain(".soft-user-menu");
     expect(softCss).toContain("soft-footer-columns");
   });

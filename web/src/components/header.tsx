@@ -114,7 +114,7 @@ function BalanceSummaryLink({
       prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
       className={cn(
-        "hidden h-8 items-stretch overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[12px] font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
+        "hidden h-7 items-stretch overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[12px] font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
         className,
       )}
       data-testid="header-balance-summary"
@@ -123,7 +123,7 @@ function BalanceSummaryLink({
         <Sparkles className="size-3" aria-hidden="true" />
         <span className="min-w-[1rem] text-center">{clarityCredits}</span>
       </span>
-      <span aria-hidden="true" className="my-1.5 w-px bg-[var(--soft-paper-edge)]" />
+      <span aria-hidden="true" className="my-1 w-px bg-[var(--soft-paper-edge)]" />
       <span className="hidden items-center gap-0.5 pl-2 pr-2.5 text-[var(--soft-bordeaux)] sm:flex" aria-label="Денежный баланс">
         <span className="min-w-[2.25rem] text-right">{rub}</span>
         <span className="opacity-70">₽</span>
@@ -132,7 +132,7 @@ function BalanceSummaryLink({
   );
 }
 
-function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; balanceKopecks: number }) {
+function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -141,30 +141,42 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
   const name = session.user?.name?.split(" ")[0] ?? session.user?.email ?? "Пользователь";
   const [focusedIndex, setFocusedIndex] = useState(-1);
 
-  const rub = formatBalanceRub(balanceKopecks);
-
+  // B324: menu items aligned with actual /cabinet/* routes that exist on
+  // disk (see web/src/app/cabinet/**). Practitioner gets the full
+  // practitioner sub-area; admin/superadmin get the canonical admin entry
+  // points. Client gets every cabinet surface they can actually navigate.
   const menuItems = role === "PRACTITIONER" ? [
     { href: appUrl("/practitioner"), label: "Главная специалиста", icon: LayoutDashboard },
     { href: appUrl("/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
     { href: appUrl("/practitioner/requests"), label: "Заявки", icon: BookOpen },
+    { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Compass },
+    { href: appUrl("/practitioner/reviews"), label: "Отзывы", icon: Heart },
     { href: appUrl("/practitioner/earnings"), label: "Выплаты", icon: CreditCard },
+    { href: appUrl("/practitioner/profile"), label: "Профиль", icon: Settings },
     { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ] : role === "SUPERADMIN" ? [
     { href: adminUrl("/admin"), label: "Панель управления", icon: LayoutDashboard },
     { href: adminUrl("/admin/metrics"), label: "Метрики", icon: Compass },
+    { href: adminUrl("/admin/users"), label: "Пользователи", icon: BookOpen },
     { href: adminUrl("/admin/pricing"), label: "Цены и тарифы", icon: CreditCard },
     { href: adminUrl("/admin/ai"), label: "AI и маршрутизация", icon: Sparkles },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : role === "ADMIN" ? [
     { href: adminUrl("/admin"), label: "Панель администратора", icon: LayoutDashboard },
+    { href: adminUrl("/admin/clients"), label: "Клиенты", icon: BookOpen },
+    { href: adminUrl("/admin/practitioners"), label: "Специалисты", icon: Compass },
+    { href: adminUrl("/admin/payments"), label: "Платежи", icon: CreditCard },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
     { href: appUrl(""), label: "Главная кабинета", icon: LayoutDashboard },
     { href: appUrl("/action-history"), label: "Моя карта", icon: Compass },
+    { href: appUrl("/practice"), label: "Практика ясности", icon: Sparkles },
     { href: appUrl("/questions"), label: "История разборов", icon: BookOpen },
+    { href: appUrl("/products"), label: "Продукты", icon: Heart },
     { href: appUrl("/credits"), label: "Кредиты ясности", icon: Sparkles },
     { href: appUrl("/bookings"), label: "Мои записи", icon: CalendarDays },
     { href: appUrl("/billing"), label: "Подписка и оплата", icon: CreditCard },
+    { href: appUrl("/support"), label: "Поддержка", icon: CircleHelp },
     { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ];
 
@@ -258,6 +270,9 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
           aria-labelledby="user-menu"
           className="soft-user-menu absolute right-0 top-full z-50 mt-2 min-w-[260px] text-[var(--soft-ink)] outline-none"
         >
+          {/* B324: header pill already shows balance + credits; do not
+              repeat them inside the dropdown — keeps the menu focused on
+              navigation, not state. */}
           <div className="border-b border-[var(--soft-paper-edge)] px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[linear-gradient(140deg,#E8C4B8,#F4D5C8)] text-sm font-bold text-[var(--soft-bordeaux)]">
@@ -268,10 +283,6 @@ function UserMenu({ session, balanceKopecks }: { session: NonNullable<ReturnType
                 <p className="truncate text-xs text-[var(--soft-ink-faint)]">{session.user?.email}</p>
               </div>
             </div>
-            <p className="mt-1 flex items-center gap-1 text-xs text-[var(--soft-terracotta-dark)]">
-              <CreditCard className="size-3" aria-hidden="true" />
-              {rub} ₽
-            </p>
           </div>
           <div className="py-1">
             {menuItems.map((item, i) => {
@@ -436,15 +447,16 @@ export function Header() {
                 </Link>
               )}
               <NotificationBell variant="header" />
-              <UserMenu session={session} balanceKopecks={balanceKopecks} />
-              {/* B312: match soft-user-pill exactly — h-8, text-[13px], gap-1.5,
-                  px-2.5. Previously these CTAs used text-[12px] which looked
-                  visually smaller than the user-pill on the same baseline. */}
+              <UserMenu session={session} />
+              {/* B321: ALL header items at canonical v4.2 user-pill height —
+                  h-7 (28px), text-[13px], px-3 (12px). Matches
+                  docs/Design/v4.2/style.css .user-pill spec exactly so
+                  every right-cluster element sits on one baseline. */}
               {showNewDialogueCta && (
                 <Link
                   href={mainUrl("/checkin")}
                   className={cn(
-                    "soft-button soft-button-primary inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-2.5 text-[13px] leading-none",
+                    "soft-button soft-button-primary inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] leading-none",
                     softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                   )}
                   data-testid="header-dialogue-cta"
@@ -460,7 +472,7 @@ export function Header() {
               <Link href={mainUrl("/login")}
                 prefetch={false}
                 className={cn(
-                  "soft-button soft-button-ghost h-8 items-center justify-center rounded-full px-2.5 text-[13px] leading-none",
+                  "soft-button soft-button-ghost h-7 items-center justify-center rounded-full px-3 text-[13px] leading-none",
                   "hidden md:inline-flex",
                   softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
@@ -469,7 +481,7 @@ export function Header() {
               <Link
                 href={mainUrl("/checkin")}
                 className={cn(
-                  "soft-button soft-button-primary inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-2.5 text-[13px] leading-none",
+                  "soft-button soft-button-primary inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] leading-none",
                   softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
               >
@@ -478,7 +490,7 @@ export function Header() {
             </>
           )}
           <button
-            className="ml-1 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)] md:hidden"
+            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)] md:hidden"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Меню"
           >

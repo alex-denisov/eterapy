@@ -51,24 +51,31 @@ const CATEGORIES: Category[] = [
   { id: "joint", label: "Совместные сессии", live: true, icon: Users },
 ];
 
+// B322 / B323: prices aligned with docs/ETerapy_v5_Product_Package/13_Prices_Breakdown.md.
+// Order: free entries (clarity-practice, primary, circle, pair, compatibility, seven-days)
+// surface first; paid digital products next; specialist live sessions last. `kind` carries
+// the user-visible category badge ("Бесплатно" / "Цифровое" / "Маршрут" / "Встреча").
 const SERVICES: ServiceCard[] = [
-  { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатный старт", href: "/checkin", icon: Heart },
+  // Free entries
+  { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатно", href: "/checkin", icon: Heart },
+  { id: "practice", title: "Практика ясности", desc: "Ежедневные короткие вопросы, задания и мягкий ритм.", price: "0 ₽", cat: "practice", kind: "Бесплатно", href: "/products/clarity-practice", icon: Leaf },
+  { id: "compat", title: "Совместимость", desc: "Парный отчёт по приглашению и согласию партнёра — есть бесплатный teaser.", price: "0 ₽ teaser · 790 ₽", cat: "social", kind: "Бесплатный teaser", href: "/products/compatibility", icon: Users },
+  { id: "circle", title: "Круг ясности", desc: "Бережный групповой формат: 2–5 участников и общий вопрос — есть бесплатный teaser.", price: "0 ₽ teaser · 790 ₽", cat: "social", kind: "Бесплатный teaser", href: "/products/circle", icon: Users },
+  { id: "pair", title: "Разобраться вдвоём", desc: "Отдельные ответы, взаимное согласие и общий результат — teaser бесплатный.", price: "0 ₽ teaser · 790 ₽", cat: "social", kind: "Бесплатный teaser", href: "/products/pair", icon: Heart },
+  { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5–10 минут в день — день 1 бесплатно.", price: "День 1 · 990 ₽ полный", cat: "practice", kind: "День 1 бесплатно", href: "/products/seven-days", icon: Calendar },
+  // Paid digital products
   { id: "angles", title: "4 ракурса ответа", desc: "Разум · чувства · символ · действие. Часто первый платный шаг после ответа.", price: "299 ₽", cat: "digital", kind: "Цифровое", href: "/products/perspectives", icon: Compass },
-  { id: "report", title: "Глубокий отчёт", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: "590 ₽", cat: "digital", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
-  { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: "390–1 490 ₽", cat: "digital", kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
-  { id: "compat", title: "Совместимость", desc: "Парный отчёт по приглашению и согласию партнёра.", price: "590–990 ₽", cat: "social", kind: "Для двоих", href: "/products/compatibility", icon: Users },
-  { id: "circle", title: "Круг ясности", desc: "Бережный групповой формат: 2–5 участников и общий вопрос.", price: "790 ₽", cat: "social", kind: "Для круга", href: "/products/circle", icon: Users },
-  { id: "pair", title: "Разобраться вдвоём", desc: "Отдельные ответы, взаимное согласие и общий результат.", price: "790 ₽", cat: "social", kind: "Для двоих", href: "/products/pair", icon: Heart },
-  { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5-10 минут в день.", price: "990 ₽", cat: "practice", kind: "Маршрут", href: "/products/seven-days", icon: Calendar },
-  { id: "practice", title: "Практика ясности", desc: "Ежедневные короткие вопросы, задания и мягкий ритм.", price: "0 ₽", cat: "practice", kind: "Практика", href: "/products/clarity-practice", icon: Leaf },
+  { id: "report", title: "Глубокий отчёт", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: "690 ₽", cat: "digital", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
+  { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: "299–1 290 ₽", cat: "digital", kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
   { id: "map", title: "Моя карта ETerapy", desc: "Личное пространство вопросов, выводов и повторяющихся тем.", price: "990 ₽", cat: "practice", kind: "Приватное", href: "/products/my-map", icon: Compass },
+  { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "/products/tarot", icon: Moon },
+  { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
+  { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
+  // Specialist live sessions
   { id: "psy-live", title: "Встреча с психологом", desc: "50 минут с проверенным специалистом после контекста.", price: "от 4 500 ₽", cat: "psy", kind: "Встреча", href: "/practitioners", icon: Heart },
   { id: "coach-live", title: "Коуч-сессия", desc: "Карьера, призвание, переход.", price: "от 3 200 ₽", cat: "coach", kind: "Встреча", href: "/practitioners", icon: Leaf },
   { id: "legal-live", title: "Юридическая консультация", desc: "Семейное право, документы, опека.", price: "от 6 000 ₽", cat: "legal", kind: "Встреча", href: "/practitioners", icon: Lock },
   { id: "finance-live", title: "Финансовый коуч", desc: "Деньги, тревога, личный финансовый план.", price: "от 3 200 ₽", cat: "finance", kind: "Встреча", href: "/practitioners", icon: Bookmark },
-  { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "/products/tarot", icon: Moon },
-  { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
-  { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
   { id: "joint-pair", title: "Эзотерик + психотерапевт", desc: "Совместная сессия двух специалистов.", price: "от 4 500 ₽", cat: "joint", kind: "Встреча", href: "/products/joint-session", icon: Users },
 ];
 

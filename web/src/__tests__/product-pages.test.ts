@@ -98,7 +98,10 @@ describe("v5 product pages", () => {
   it("documents required privacy and paid-product mechanics", () => {
     const products = source("lib/v5-products.ts");
 
-    expect(products).toContain("предупреждение о персональных данных");
+    // B330: chat-analysis lost the "предупреждение о персональных данных"
+    // mechanic copy when the misleading consent checkbox was removed. The
+    // remaining privacy primitives (delete source, partner consent for
+    // compatibility) are still required.
     expect(products).toContain("удаление источника");
     expect(products).toContain("согласие партнера");
     expect(products).toContain("пауза и продолжение");

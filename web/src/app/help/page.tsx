@@ -264,12 +264,14 @@ function HelpContent() {
               href: "mailto:support@eterapy.com",
             },
             {
+              // B332: "форма без email" должна вести на /cabinet/support, где
+              // и живёт форма обратной связи, а не на /settings.
               label: "Анонимно",
               value: "форма без email",
               desc: "Для чувствительных тем",
               bg: "linear-gradient(140deg, #D6DECC, #E5EBDC)",
               color: "#3A4A36",
-              href: appUrl("/settings"),
+              href: appUrl("/support"),
             },
           ].map((ch) => (
             <a

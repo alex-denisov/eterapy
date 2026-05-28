@@ -8,6 +8,10 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
   const mutedCls = cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]");
   const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
+  // B323: columns aligned with docs/13_Prices_Breakdown — free entries up
+  // top, paid digital deepenings, esoteric, then specialist/live. The
+  // "Бесплатно" column lists every product that has a meaningful free
+  // entry surface (not just zero-price ones).
   const columns = [
     {
       title: "Бесплатно",
@@ -15,36 +19,37 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/checkin"), "Первичный разбор"],
         [mainUrl("/library"), "Библиотека вопросов"],
         [mainUrl("/products/clarity-practice"), "Практика ясности"],
-        [mainUrl("/products/circle"), "Круг ясности"],
-        [mainUrl("/products/pair"), "Разобраться вдвоём"],
+        [mainUrl("/products/circle"), "Круг ясности · teaser"],
+        [mainUrl("/products/pair"), "Разобраться вдвоём · teaser"],
+        [mainUrl("/products/compatibility"), "Совместимость · teaser"],
+        [mainUrl("/products/seven-days"), "7 дней — день 1"],
       ],
     },
     {
-      title: "Психология",
+      title: "Платные разборы",
       links: [
-        [mainUrl("/products/perspectives"), "4 ракурса"],
-        [mainUrl("/products/deep-report"), "Глубокий отчёт"],
-        [mainUrl("/products/chat-analysis"), "Разбор переписки"],
-        [mainUrl("/products/compatibility"), "Совместимость"],
-        [mainUrl("/products/seven-days"), "7 дней к ясности"],
+        [mainUrl("/products/perspectives"), "4 ракурса · 299 ₽"],
+        [mainUrl("/products/deep-report"), "Глубокий отчёт · 690 ₽"],
+        [mainUrl("/products/chat-analysis"), "Разбор переписки · от 299 ₽"],
+        [mainUrl("/products/seven-days"), "7 дней к ясности · 990 ₽"],
+        [mainUrl("/products/my-map"), "Расширенная карта · 990 ₽"],
       ],
     },
     {
       title: "Эзотерика",
       links: [
-        [mainUrl("/products/tarot"), "Таро"],
-        [mainUrl("/products/natal-chart"), "Астрология"],
-        [mainUrl("/products/numerology"), "Нумерология"],
-        [mainUrl("/products/my-map"), "Расширенная карта"],
+        [mainUrl("/products/tarot"), "Таро · 390 ₽"],
+        [mainUrl("/products/natal-chart"), "Натальная карта · 590 ₽"],
+        [mainUrl("/products/numerology"), "Нумерология · 390 ₽"],
       ],
     },
     {
-      title: "Социальное и обучение",
+      title: "Со специалистами",
       links: [
         [mainUrl("/practitioners"), "Специалисты"],
+        [mainUrl("/products/joint-session"), "Эзотерик + психотерапевт"],
         [mainUrl("/practitioners/apply"), "Стать специалистом"],
         [mainUrl("/telegram"), "Telegram"],
-        [mainUrl("/products/clarity-practice"), "Задания практики"],
       ],
     },
     {

@@ -83,12 +83,13 @@ function ToneBar({ label, pct, color }: { label: string; pct: number; color: str
   );
 }
 
-function StructuredResult({ data, result, onSave, onDelete, onDeleteSource, loading }: {
+function StructuredResult({ data, result, onSave, onDelete, onDeleteSource, onStartNew, loading }: {
   data: ChatAnalysisStructured;
   result: ChatAnalysisResult;
   onSave: () => void;
   onDelete: () => void;
   onDeleteSource: () => void;
+  onStartNew: () => void;
   loading: boolean;
 }) {
   return (
@@ -166,6 +167,18 @@ function StructuredResult({ data, result, onSave, onDelete, onDeleteSource, load
           <Trash2 className="size-4" aria-hidden="true" />
           Удалить разбор
         </Button>
+        {/* B330: explicit "start over" entry. Resets the form to the input
+            tab without touching the saved result in My Map, so the user can
+            queue up a second analysis right after the first. */}
+        <Button
+          onClick={onStartNew}
+          disabled={loading}
+          className="soft-button soft-button-primary"
+          data-testid="chat-analysis-start-new"
+        >
+          <ArrowRight className="size-4" aria-hidden="true" />
+          Начать новый разбор
+        </Button>
       </div>
     </div>
   );
@@ -181,7 +194,10 @@ export function ChatAnalysisActions() {
   const [tab, setTab] = useState<"input" | "context" | "result">("input");
   const [sourceText, setSourceText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  const [consent, setConsent] = useState(false);
+  // B330: removed the "Я подтверждаю, что переписка — моя" checkbox. A chat
+  // is by definition between two people, so the original copy was misleading.
+  // Privacy is now conveyed via a soft inline notice + the delete-source
+  // affordance after generation.
   const [contact, setContact] = useState<string | null>(null);
   const [emotion, setEmotion] = useState<string | null>(null);
   const [goal, setGoal] = useState("");
@@ -196,8 +212,15 @@ export function ChatAnalysisActions() {
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
         const existing = payload.results?.[0] ?? null;
-        setResult(existing);
-        if (existing?.resultText) setTab("result");
+        // B330: do NOT auto-restore an already-saved analysis on mount.
+        // A saved record lives in Мою карту; re-entering /products/chat-analysis
+        // should start fresh so the user can buy and run another analysis.
+        // We still surface an unsaved preview so an in-progress upload isn't
+        // lost on refresh.
+        if (existing && !existing.saved) {
+          setResult(existing);
+          if (existing.resultText) setTab("result");
+        }
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -226,11 +249,6 @@ export function ChatAnalysisActions() {
   // up a long conversation across multiple screenshots.
   async function uploadScreenshots(files: FileList | null) {
     if (!files || files.length === 0) return;
-    if (!consent) {
-      setMessage("Сначала подтвердите согласие на использование переписки выше.");
-      setStatus("error");
-      return;
-    }
     setStatus("loading");
     setMessage(null);
     try {
@@ -265,11 +283,6 @@ export function ChatAnalysisActions() {
   // Read a .txt or Telegram export file as plain text into the textarea.
   async function uploadTextFile(file: File | null) {
     if (!file) return;
-    if (!consent) {
-      setMessage("Сначала подтвердите согласие на использование переписки выше.");
-      setStatus("error");
-      return;
-    }
     setStatus("loading");
     setMessage(null);
     try {
@@ -287,11 +300,6 @@ export function ChatAnalysisActions() {
   // Paste from clipboard — works for "Из Telegram" affordance. Browsers
   // require user gesture, which the chip click provides.
   async function pasteFromClipboard() {
-    if (!consent) {
-      setMessage("Сначала подтвердите согласие на использование переписки выше.");
-      setStatus("error");
-      return;
-    }
     setMessage(null);
     try {
       const text = await navigator.clipboard.readText();
@@ -401,12 +409,33 @@ export function ChatAnalysisActions() {
       await jsonRequest(`/api/products/chat-analysis/${result.id}`, { method: "DELETE" });
       setResult(null);
       setSourceText("");
+      setUploadedFiles([]);
+      setContact(null);
+      setEmotion(null);
+      setGoal("");
       setTab("input");
       setStatus("idle");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось удалить результат");
       setStatus("error");
     }
+  }
+
+  // B330: "Начать новый разбор" — clear local form state and go to input
+  // tab. We deliberately do NOT delete the saved result from the cabinet;
+  // it stays in My Map. The entitlement is also dropped from local state
+  // so the next analysis triggers a fresh purchase / credit deduction.
+  function startNewAnalysis() {
+    setResult(null);
+    setHasEntitlement(false);
+    setSourceText("");
+    setUploadedFiles([]);
+    setContact(null);
+    setEmotion(null);
+    setGoal("");
+    setMessage(null);
+    setStatus("idle");
+    setTab("input");
   }
 
   const parsed: ChatAnalysisStructured | null = result?.resultText
@@ -439,28 +468,13 @@ export function ChatAnalysisActions() {
         </p>
       )}
 
-      {/* tab 1: input — v4.2 design: consent first, three affordances, then textarea */}
+      {/* tab 1: input — v4.2 design: three affordances + soft privacy notice */}
       {tab === "input" && (
         <div className="soft-card mt-4 p-5" data-testid="chat-analysis-input">
-          {/* Privacy consent BEFORE upload — required by 04_UI_UX_Mechanics_and_DoD §2.7 */}
-          <label
-            className="mb-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-4"
-            data-testid="chat-analysis-consent"
-          >
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-              className="mt-1 size-4 shrink-0 accent-[var(--soft-bordeaux)]"
-            />
-            <span className="text-[13px] leading-snug text-[var(--soft-ink-soft)]">
-              <LockKeyhole className="mr-1 inline size-3 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-              <span className="font-semibold text-[var(--soft-bordeaux)]">Я подтверждаю</span>, что эта
-              переписка — моя или у меня есть согласие собеседника на её разбор. Имена будут автоматически
-              заменены, исходник можно удалить в любой момент.
-            </span>
-          </label>
-
+          {/* B330: replaced the "Я подтверждаю что переписка — моя" checkbox
+              with a soft inline privacy notice. The original copy was
+              misleading (chats are by definition multi-party) and blocked
+              the upload flow. */}
           <p className="soft-eyebrow mb-3">переписка</p>
           <textarea
             value={sourceText}
@@ -468,7 +482,7 @@ export function ChatAnalysisActions() {
             placeholder={"Вставьте фрагмент диалога. Имена будут автоматически заменены на «Я» и «Собеседник». Файлы тоже подойдут — .txt, экспорт из Telegram, скриншоты."}
             className="soft-question-input"
             rows={8}
-            disabled={status === "loading" || !consent}
+            disabled={status === "loading"}
             data-testid="chat-analysis-textarea"
           />
 
@@ -477,7 +491,7 @@ export function ChatAnalysisActions() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={!consent || status === "loading"}
+              disabled={status === "loading"}
               className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="chat-analysis-upload-file"
             >
@@ -499,7 +513,7 @@ export function ChatAnalysisActions() {
             <button
               type="button"
               onClick={() => screenshotInputRef.current?.click()}
-              disabled={!consent || status === "loading"}
+              disabled={status === "loading"}
               className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="chat-analysis-upload-screenshot"
             >
@@ -522,7 +536,7 @@ export function ChatAnalysisActions() {
             <button
               type="button"
               onClick={() => void pasteFromClipboard()}
-              disabled={!consent || status === "loading"}
+              disabled={status === "loading"}
               className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
               data-testid="chat-analysis-upload-paste"
             >
@@ -548,7 +562,7 @@ export function ChatAnalysisActions() {
           </p>
           <Button
             onClick={proceedToContext}
-            disabled={status === "loading" || sourceText.trim().length < 10 || !consent}
+            disabled={status === "loading" || sourceText.trim().length < 10}
             className="soft-button soft-button-primary mt-5"
           >
             Дальше: контекст
@@ -654,6 +668,7 @@ export function ChatAnalysisActions() {
               onSave={saveReport}
               onDelete={deleteReport}
               onDeleteSource={deleteSource}
+              onStartNew={startNewAnalysis}
               loading={status === "loading"}
             />
           ) : (

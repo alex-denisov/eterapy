@@ -303,10 +303,12 @@
 
   .soft-user-pill,
   .soft-user-icon {
-    /* B301: compact header — 32px (h-8) so every right-cluster element
-       (balance pill, help, bell, avatar, CTA) sits on the same baseline. */
-    height: 2rem;
-    min-height: 2rem;
+    /* B321: align with v4.2 .user-pill spec (style.css:nav block) — 28px
+       baseline so every header chip (balance pill, help, bell, avatar,
+       CTA buttons) sits at the canonical compact height. v4.2 user-pill
+       declares padding: 6px 12px; font-size: 13px → ~28px tall. */
+    height: 1.75rem;
+    min-height: 1.75rem;
     align-items: center;
     border: 1px solid var(--soft-paper-edge);
     background: var(--soft-paper-card);
@@ -322,14 +324,14 @@
     display: inline-flex;
     gap: 0.375rem;
     border-radius: 999px;
-    padding: 0 0.625rem;
+    padding: 0 0.75rem;
     font-size: 0.8125rem;
   }
 
   .soft-user-icon {
     display: inline-flex;
-    width: 2rem;
-    min-width: 2rem;
+    width: 1.75rem;
+    min-width: 1.75rem;
     justify-content: center;
     border-radius: 999px;
     padding: 0;

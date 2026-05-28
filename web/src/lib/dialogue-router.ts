@@ -20,6 +20,25 @@ export const DIALOGUE_DIFFICULTIES = [
 export type DialogueTopic = typeof DIALOGUE_TOPICS[number];
 export type DialogueDifficulty = typeof DIALOGUE_DIFFICULTIES[number];
 
+// B325: human-readable Russian labels for the topic enum. The enum
+// itself stays English so the DB / API contract is stable, but every
+// user-facing surface (cabinet, my map, primary answer header) must
+// resolve through here — no raw "relationships"/"career" strings in UI.
+const DIALOGUE_TOPIC_LABELS_RU: Record<DialogueTopic, string> = {
+  relationships: "Отношения",
+  career: "Карьера",
+  money: "Деньги",
+  family: "Семья",
+  self: "Я и опоры",
+  anxiety: "Тревога",
+  other: "Другое",
+};
+
+export function dialogueTopicLabelRu(topic: string | null | undefined): string {
+  if (!topic) return "Другое";
+  return DIALOGUE_TOPIC_LABELS_RU[topic as DialogueTopic] ?? "Другое";
+}
+
 export interface DialogueRoutingResult {
   topic: DialogueTopic;
   difficulty: DialogueDifficulty;

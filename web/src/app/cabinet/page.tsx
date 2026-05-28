@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
+import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 export default async function ClientCabinetPage() {
@@ -29,9 +30,16 @@ export default async function ClientCabinetPage() {
       take: 4,
       select: { id: true, title: true, status: true, topic: true, updatedAt: true },
     }),
+    // B326: "ближайшая встреча" must be a real future appointment, not
+    // any past/cancelled record. Filter on scheduledAt > now AND active
+    // statuses; order by the earliest upcoming slot.
     db.booking.findFirst({
-      where: { clientId: userId, status: { in: ["PENDING", "CONFIRMED"] } },
-      orderBy: { createdAt: "desc" },
+      where: {
+        clientId: userId,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        scheduledAt: { gt: new Date() },
+      },
+      orderBy: { scheduledAt: "asc" },
       include: { practitioner: { include: { user: { select: { name: true } } } } },
     }),
     db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
@@ -70,7 +78,9 @@ export default async function ClientCabinetPage() {
   for (const d of recentDialogues) {
     if (d.topic) topicCounts[d.topic] = (topicCounts[d.topic] ?? 0) + 1;
   }
-  const currentTheme = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  // B325: resolve the topic enum (English) into a Russian label for the UI.
+  const currentTopicKey = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const currentTheme = currentTopicKey ? dialogueTopicLabelRu(currentTopicKey) : null;
 
   const nextAction = activeRoutes[0]
     ? { href: appUrl("/products"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }

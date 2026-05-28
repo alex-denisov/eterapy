@@ -401,15 +401,12 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
         </div>
       </div>
 
-      {/* Матрица событий */}
+      {/* Матрица событий. B328: removed the redundant top-level Email/Telegram/Web
+          header row — every category card already exposes the same labels as
+          tappable bulk-toggle buttons. */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3">
           <h3 className="font-semibold">Управление уведомлениями</h3>
-          <div className="flex gap-3 text-xs text-muted-foreground/70 pr-1">
-            <span className="w-20 text-center">Email</span>
-            <span className="w-20 text-center">Telegram</span>
-            <span className="w-20 text-center">Web</span>
-          </div>
         </div>
 
         <div className="space-y-3" data-testid="notification-category-preferences">
