@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Fragment } from "react";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 
 interface PriceRate {
@@ -27,28 +26,43 @@ interface Props {
 }
 
 const PLAN_KEYS = [
-  { key: "plan.free.sessions",     label: "Бесплатный — сессий/мес",    type: "number" },
-  { key: "plan.starter.sessions",  label: "Стартовый — сессий/мес",     type: "number" },
-  { key: "plan.starter.price",     label: "Стартовый — цена ₽/мес",     type: "number" },
-  { key: "plan.standard.sessions", label: "Стандартный — сессий/мес",   type: "number" },
-  { key: "plan.standard.price",    label: "Стандартный — цена ₽/мес",   type: "number" },
-  { key: "plan.unlimited.price",   label: "Безлимитный — цена ₽/мес",   type: "number" },
-  { key: "platform.commission_pct",label: "Комиссия платформы %",        type: "number" },
-  { key: "tools.default_limit",    label: "Лимит инструментов (default)",type: "number" },
-  { key: "session.min_price",      label: "Минимальная цена сессии ₽",   type: "number" },
+  { key: "plan.free.sessions", label: "Бесплатный: сессий/мес", unit: "шт" },
+  { key: "plan.starter.sessions", label: "Стартовый: сессий/мес", unit: "шт" },
+  { key: "plan.starter.price", label: "Стартовый: цена/мес", unit: "₽" },
+  { key: "plan.standard.sessions", label: "Стандартный: сессий/мес", unit: "шт" },
+  { key: "plan.standard.price", label: "Стандартный: цена/мес", unit: "₽" },
+  { key: "plan.unlimited.price", label: "Безлимитный: цена/мес", unit: "₽" },
+  { key: "platform.commission_pct", label: "Комиссия платформы", unit: "%" },
+  { key: "tools.default_limit", label: "Лимит инструментов по умолчанию", unit: "шт" },
+  { key: "session.min_price", label: "Минимальная цена сессии", unit: "₽" },
 ];
 
 const PRODUCT_PRICE_KEYS = [
-  { key: "product.perspectives.price",  label: "4 Ракурса ответа ₽",     type: "number" },
-  { key: "product.deep-report.price",   label: "Глубокий отчёт ₽",       type: "number" },
-  { key: "product.chat-analysis.price", label: "Анализ переписки ₽",     type: "number" },
-  { key: "product.seven-days.price",    label: "7 дней к ясности ₽",     type: "number" },
-  { key: "product.circle.price",        label: "Круг ясности ₽",         type: "number" },
-  { key: "product.pair.price",          label: "Разобраться вдвоём ₽",   type: "number" },
-  { key: "subscription.plus.price",     label: "Подписка Plus ₽/мес",    type: "number" },
-  { key: "subscription.premium.price",  label: "Подписка Premium ₽/мес", type: "number" },
-  { key: "subscription.pro.price",      label: "Practitioner Pro ₽/мес", type: "number" },
+  { key: "product.perspectives.price", label: "4 ракурса ответа", unit: "₽" },
+  { key: "product.deep-report.price", label: "Глубокий отчёт", unit: "₽" },
+  { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽" },
+  { key: "product.seven-days.price", label: "7 дней к ясности", unit: "₽" },
+  { key: "product.circle.price", label: "Круг ясности", unit: "₽" },
+  { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽" },
+  { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес" },
+  { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес" },
+  { key: "subscription.pro.price", label: "Practitioner Pro", unit: "₽/мес" },
 ];
+
+const DURATION_LABELS: Record<number, string> = {
+  15: "15 мин",
+  30: "30 мин",
+  45: "45 мин",
+  60: "1 час",
+  90: "1.5 ч",
+  120: "2 ч",
+};
+
+function minRate(practitioner: Practitioner) {
+  return practitioner.priceRates
+    .filter((rate) => rate.enabled && rate.priceRub > 0)
+    .sort((a, b) => a.priceRub - b.priceRub)[0] ?? null;
+}
 
 export function PricingEditor({ initialSettings, practitioners }: Props) {
   const [settings, setSettings] = useState<Record<string, string>>(initialSettings);
@@ -75,29 +89,30 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: toSave }),
       });
-      const d = await res.json();
-      if (d.ok) toast.success("Настройки сохранены");
-      else toast.error(d.error ?? "Ошибка");
-    } catch { toast.error("Ошибка сети"); }
-    finally { setSavingSettings(false); }
+      const data = await res.json();
+      if (data.ok) toast.success("Настройки сохранены");
+      else toast.error(data.error ?? "Ошибка");
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   async function handleBulkApply() {
-    const activeDurations = Object.entries(bulkRates).filter(([,v]) => v.enabled && v.price > 0);
+    const activeDurations = Object.entries(bulkRates).filter(([, value]) => value.enabled && value.price > 0);
     if (activeDurations.length === 0) { toast.error("Включите хотя бы один тариф"); return; }
-
-    const targets = filteredPractitioners;
-    if (!confirm(`Применить тарифы к ${targets.length} практикам?`)) return;
+    if (!confirm(`Применить тарифы к ${practitioners.length} практикам?`)) return;
 
     setApplyingBulk(true);
     let ok = 0;
-    for (const p of targets) {
-      const rates = Object.entries(bulkRates).map(([dur, v]) => ({
-        durationMin: Number(dur),
-        priceRub: v.price,
-        enabled: v.enabled,
+    for (const practitioner of practitioners) {
+      const rates = Object.entries(bulkRates).map(([durationMin, value]) => ({
+        durationMin: Number(durationMin),
+        priceRub: value.price,
+        enabled: value.enabled,
       }));
-      const res = await fetch(`/api/admin/practitioners/${p.id}/rates`, {
+      const res = await fetch(`/api/admin/practitioners/${practitioner.id}/rates`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rates }),
@@ -108,168 +123,144 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     setApplyingBulk(false);
   }
 
-  const filteredPractitioners = practitioners;
-
-  const DURATION_LABELS: Record<number, string> = {
-    15: "15 мин", 30: "30 мин", 45: "45 мин", 60: "1 час", 90: "1.5 ч", 120: "2 ч",
-  };
+  function settingsTable(title: string, rows: typeof PLAN_KEYS) {
+    return (
+      <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+        <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
+        <div className="overflow-x-auto">
+          <table className="soft-admin-data-table min-w-[720px]">
+            <thead><tr><th>Параметр</th><th>Ключ</th><th>Значение</th><th>Ед.</th></tr></thead>
+            <tbody>
+              {rows.map(({ key, label, unit }) => (
+                <tr key={key}>
+                  <td>{label}</td>
+                  <td><code>{key}</code></td>
+                  <td>
+                    <input
+                      type="number"
+                      min={0}
+                      value={settings[key] ?? ""}
+                      onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
+                      className="soft-admin-table-filter mt-0 h-8 w-32 min-w-32"
+                    />
+                  </td>
+                  <td>{unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Тестовый режим */}
-      <Card className={`border-2 ${testMode ? "border-yellow-500/40 bg-yellow-500/5" : "border-border/40 bg-card/50"}`}>
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-semibold">🧪 Тестовый режим</h2>
-                {testMode && <Badge className="bg-yellow-500/20 text-yellow-400">Активен</Badge>}
-              </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                В тестовом режиме стоимость сессий = 0 ₽. Для тестирования видеочата.
-              </p>
-            </div>
-            <button
-              onClick={() => setTestMode(!testMode)}
-              className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${testMode ? "bg-yellow-500" : "bg-muted/40"}`}
-            >
-              <span
-                className={`h-6 w-6 transform rounded-full bg-white shadow transition-transform ${testMode ? "translate-x-7" : "translate-x-1"}`}
-              />
-            </button>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+        <div>
+          <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Режим цен</h2>
+          <p className="text-xs text-[var(--soft-ink-faint)]">Тестовый режим делает стоимость сессий 0 ₽ для проверки видеочата.</p>
+        </div>
+        <label className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--soft-bordeaux)]">
+          <input type="checkbox" checked={testMode} onChange={(event) => setTestMode(event.target.checked)} />
+          Тестовый режим
+        </label>
+        <button onClick={handleSaveSettings} disabled={savingSettings} className="soft-admin-action" data-variant="primary">
+          {savingSettings ? "Сохранение..." : "Сохранить все настройки"}
+        </button>
+      </div>
 
-      {/* Настройки платформы */}
-      <Card className="border-border/40 bg-card/50">
-        <CardContent className="p-6">
-          <h2 className="font-semibold mb-5">Тарифные планы и комиссия</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {PLAN_KEYS.map(({ key, label }) => (
-              <div key={key}>
-                <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
-                <input type="number" min={0}
-                  value={settings[key] ?? ""}
-                  onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))}
-                  className="w-full rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-              </div>
-            ))}
+      <div className="grid gap-5 xl:grid-cols-2">
+        {settingsTable("Тарифные планы и комиссия", PLAN_KEYS)}
+        {settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS)}
+      </div>
+
+      <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Тарифы практиков</h2>
+            <p className="text-xs text-[var(--soft-ink-faint)]">Индивидуальные ставки по длительности сессии.</p>
           </div>
-          <button onClick={handleSaveSettings} disabled={savingSettings}
-            className="mt-5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-navy disabled:opacity-50">
-            {savingSettings ? "Сохранение..." : "Сохранить"}
+          <button onClick={() => setBulkMode(!bulkMode)} className="soft-admin-action">
+            {bulkMode ? "Закрыть массовое" : "Массовое применение"}
           </button>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Цифровые продукты и подписки */}
-      <Card className="border-border/40 bg-card/50">
-        <CardContent className="p-6">
-          <h2 className="font-semibold mb-1">Цены цифровых продуктов и подписок</h2>
-          <p className="text-xs text-muted-foreground mb-5">Цены в рублях. Изменения сохраняются через кнопку &laquo;Сохранить&raquo; выше.</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PRODUCT_PRICE_KEYS.map(({ key, label }) => (
-              <div key={key}>
-                <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
-                <input type="number" min={0}
-                  value={settings[key] ?? ""}
-                  onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))}
-                  className="w-full rounded-lg border border-border/40 bg-background/50 px-3 py-2 text-sm focus:border-primary focus:outline-none" />
-              </div>
-            ))}
-          </div>
-          <button onClick={handleSaveSettings} disabled={savingSettings}
-            className="mt-5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-navy disabled:opacity-50">
-            {savingSettings ? "Сохранение..." : "Сохранить продуктовые цены"}
-          </button>
-        </CardContent>
-      </Card>
-
-      {/* Тарифы практиков */}
-      <Card className="border-border/40 bg-card/50">
-        <CardContent className="p-6">
-          <div className="mb-4 flex items-center justify-between flex-wrap gap-3">
-            <h2 className="font-semibold">Тарифы практиков</h2>
-            <button onClick={() => setBulkMode(!bulkMode)}
-              className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                bulkMode ? "border-primary bg-primary/10 text-primary" : "border-border/40 text-muted-foreground hover:text-foreground"
-              }`}>
-              {bulkMode ? "Отмена массового" : "⚡ Массовое применение"}
-            </button>
-          </div>
-
-          {/* Массовое применение */}
-          {bulkMode && (
-            <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <p className="text-sm font-medium mb-3">Задать тарифы для всех практиков:</p>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {Object.entries(DURATION_LABELS).map(([dur, label]) => {
-                  const d = Number(dur);
-                  const r = bulkRates[d];
+        {bulkMode && (
+          <div className="mb-4 overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-white/55 p-3">
+            <table className="soft-admin-data-table min-w-[760px]">
+              <thead><tr><th>Длительность</th><th>Включить</th><th>Цена</th></tr></thead>
+              <tbody>
+                {Object.entries(DURATION_LABELS).map(([duration, label]) => {
+                  const durationMin = Number(duration);
+                  const rate = bulkRates[durationMin];
                   return (
-                    <div key={d} className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${r.enabled ? "border-primary/30" : "border-border/20 opacity-60"}`}>
-                      <button onClick={() => setBulkRates(prev => ({ ...prev, [d]: { ...prev[d], enabled: !prev[d].enabled } }))}
-                        className={`h-4 w-8 rounded-full transition-colors ${r.enabled ? "bg-primary" : "bg-muted/40"}`}>
-                        <span className={`block h-3 w-3 rounded-full bg-white mx-0.5 transition-transform ${r.enabled ? "translate-x-4" : ""}`} />
-                      </button>
-                      <span className="text-xs w-12">{label}</span>
-                      <input type="number" min={0} step={50} value={r.price}
-                        onChange={e => setBulkRates(prev => ({ ...prev, [d]: { ...prev[d], price: Number(e.target.value) } }))}
-                        disabled={!r.enabled}
-                        className="w-20 rounded border border-border/30 bg-background/50 px-2 py-1 text-xs disabled:opacity-40 focus:border-primary focus:outline-none" />
-                      <span className="text-xs text-muted-foreground">₽</span>
-                    </div>
+                    <tr key={duration}>
+                      <td>{label}</td>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={rate.enabled}
+                          onChange={() => setBulkRates((current) => ({ ...current, [durationMin]: { ...current[durationMin], enabled: !current[durationMin].enabled } }))}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min={0}
+                          step={50}
+                          value={rate.price}
+                          disabled={!rate.enabled}
+                          onChange={(event) => setBulkRates((current) => ({ ...current, [durationMin]: { ...current[durationMin], price: Number(event.target.value) } }))}
+                          className="soft-admin-table-filter mt-0 h-8 w-32 min-w-32"
+                        />
+                      </td>
+                    </tr>
                   );
                 })}
-              </div>
-              <button onClick={handleBulkApply} disabled={applyingBulk}
-                className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-navy disabled:opacity-50">
-                {applyingBulk ? "Применяем..." : `Применить к ${filteredPractitioners.length} практикам`}
-              </button>
-            </div>
-          )}
-
-          {/* Список практиков */}
-          <div className="space-y-2">
-            {filteredPractitioners.map(p => {
-              const minRate = p.priceRates.filter(r => r.enabled && r.priceRub > 0)
-                .sort((a, b) => a.priceRub - b.priceRub)[0];
-              const isExpanded = expandedPrac === p.id;
-
-              return (
-                <div key={p.id} className="rounded-xl border border-border/30 bg-card/20 overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 cursor-pointer"
-                    onClick={() => setExpandedPrac(isExpanded ? null : p.id)}>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{p.user.name}</p>
-                      <p className="text-xs text-muted-foreground">{p.user.email}</p>
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {minRate ? (
-                        <span className="text-xs text-primary">
-                          от {minRate.priceRub.toLocaleString("ru")} ₽/{DURATION_LABELS[minRate.durationMin]}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/50">нет тарифов</span>
-                      )}
-                      <span className="text-muted-foreground text-xs">{isExpanded ? "▲" : "▼"}</span>
-                    </div>
-                  </div>
-                  {isExpanded && (
-                    <div className="border-t border-border/20 px-4 py-4">
-                      <PriceRatesEditor
-                        practitionerId={p.id}
-                        initialRates={p.priceRates}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+              </tbody>
+            </table>
+            <button onClick={handleBulkApply} disabled={applyingBulk} className="soft-admin-action mt-3" data-variant="primary">
+              {applyingBulk ? "Применяем..." : `Применить к ${practitioners.length} практикам`}
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        )}
+
+        <div className="overflow-x-auto">
+          <table className="soft-admin-data-table min-w-[980px]">
+            <thead><tr><th>Практик</th><th>Email</th><th>Статус</th><th>Базовая цена</th><th>Минимальная ставка</th><th>Действия</th></tr></thead>
+            <tbody>
+              {practitioners.map((practitioner) => {
+                const rate = minRate(practitioner);
+                const expanded = expandedPrac === practitioner.id;
+                return (
+                  <Fragment key={practitioner.id}>
+                    <tr>
+                      <td>{practitioner.user.name}</td>
+                      <td>{practitioner.user.email}</td>
+                      <td><span className="soft-admin-status-pill" data-tone={practitioner.status === "ACTIVE" ? "ok" : "warn"}>{practitioner.status}</span></td>
+                      <td>{practitioner.pricePerSession.toLocaleString("ru-RU")} ₽ / {practitioner.sessionDuration} мин</td>
+                      <td>{rate ? `${rate.priceRub.toLocaleString("ru-RU")} ₽ / ${DURATION_LABELS[rate.durationMin]}` : "нет ставок"}</td>
+                      <td>
+                        <button className="soft-admin-action" onClick={() => setExpandedPrac(expanded ? null : practitioner.id)}>
+                          {expanded ? "Скрыть" : "Редактировать"}
+                        </button>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr key={`${practitioner.id}-rates`}>
+                        <td colSpan={6}>
+                          <PriceRatesEditor practitionerId={practitioner.id} initialRates={practitioner.priceRates} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

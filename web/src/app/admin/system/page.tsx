@@ -60,13 +60,24 @@ export default async function AdminSystemPage() {
     { label: "Ожидают", value: status.stats.pendingBookings },
     { label: "Audit logs", value: status.stats.auditLogs },
     { label: "Telegram", value: status.stats.telegramLinked },
+    { label: "Jobs pending", value: status.stats.jobsPending },
+    { label: "Jobs failed", value: status.stats.jobsFailed },
+    { label: "Jobs dead", value: status.stats.jobsDead },
+    { label: "AI 24h", value: status.stats.aiRequests24h },
+    { label: "AI errors 24h", value: status.stats.aiErrors24h },
+    { label: "Notify prefs", value: status.stats.notificationPreferences },
   ];
+  const queuePressure = status.stats.jobsPending + status.stats.jobsFailed + status.stats.jobsDead;
+  const aiErrorRate = status.stats.aiRequests24h > 0
+    ? Math.round((status.stats.aiErrors24h / status.stats.aiRequests24h) * 100)
+    : 0;
 
   return (
-    <PageContainer maxWidth="6xl">
+    <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold">Система</h1>
+          <p className="premium-eyebrow">ops center</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Система</h1>
           <p className="mt-1 text-sm text-muted-foreground">Живой статус платформы, зависимостей и production cron-контуров</p>
         </div>
         <div className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${statusClasses(status.status)}`} data-testid="system-overall-status">
@@ -75,7 +86,7 @@ export default async function AdminSystemPage() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid gap-3 lg:grid-cols-5">
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Server className="h-4 w-4 text-primary" />
@@ -100,11 +111,27 @@ export default async function AdminSystemPage() {
           <p className="text-sm font-medium">{new Date(status.ready.timestamp).toLocaleString("ru-RU")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{status.env.nodeEnv} · {status.env.appUrl}</p>
         </div>
+        <div className="rounded-lg border border-border/30 bg-card/40 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <Settings2 className="h-4 w-4 text-primary" />
+            Queue pressure
+          </div>
+          <p className="text-2xl font-bold text-primary">{queuePressure.toLocaleString("ru-RU")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{status.stats.jobsFailed} failed · {status.stats.jobsDead} dead</p>
+        </div>
+        <div className="rounded-lg border border-border/30 bg-card/40 p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <AlertTriangle className="h-4 w-4 text-primary" />
+            AI error rate
+          </div>
+          <p className="text-2xl font-bold text-primary">{aiErrorRate}%</p>
+          <p className="mt-1 text-xs text-muted-foreground">{status.stats.aiErrors24h}/{status.stats.aiRequests24h} за 24 часа</p>
+        </div>
       </div>
 
       <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">База данных</h2>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">База данных и нагрузка</h2>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {statCards.map((stat) => (
             <div key={stat.label} className="rounded-lg border border-border/30 bg-card/30 px-4 py-3">
               <p className="text-xl font-bold text-primary">{stat.value.toLocaleString("ru")}</p>

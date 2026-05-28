@@ -7,18 +7,16 @@ import {
   BellRing,
   BrainCircuit,
   BookOpenText,
-  BriefcaseBusiness,
   CalendarDays,
+  Database,
   FolderOpen,
   Gauge,
   LayoutDashboard,
   MessageSquareWarning,
   Settings,
-  Shield,
   ShieldAlert,
   SlidersHorizontal,
   Users,
-  UserRound,
   WalletCards,
   Wrench,
   LogOut,
@@ -41,19 +39,11 @@ interface NavItem {
 }
 
 // Unified nav order — single source of truth for both ADMIN and SUPERADMIN.
-// Order:
-//   1. Dashboard
-//   2. Role sections: Clients → Practitioners → Moderators (per backlog 11.1)
-//   3. Workflow: Applications → Bookings → Complaints
-//   4. Finance & analytics: Payouts → Pricing → Metrics
-//   5. Records & diagnostics: Sessions → Files → Logs → All users
-//   6. System (ops) — last
+// User management is intentionally merged into /admin/users; role-specific
+// pages remain reachable as drill-downs from the unified table.
 const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin"),              icon: LayoutDashboard,      label: "Обзор" },
-
-  { href: adminUrl("/admin/clients"),      icon: Users,                label: "Клиенты",          permission: "clients.view" },
-  { href: adminUrl("/admin/practitioners"),icon: BriefcaseBusiness,    label: "Практики",         permission: "practitioners.view" },
-  { href: adminUrl("/admin/moderators"),   icon: Shield,               label: "Модераторы",       superadminOnly: true },
+  { href: adminUrl("/admin/users"),        icon: Users,                label: "Все пользователи" },
 
   { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки",           permission: "practitioners.view" },
   { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования" },
@@ -69,7 +59,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии",           superadminOnly: true },
   { href: adminUrl("/admin/files"),        icon: FolderOpen,           label: "Файлы",            superadminOnly: true },
   { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Логи",             superadminOnly: true },
-  { href: adminUrl("/admin/users"),        icon: UserRound,            label: "Все пользователи", superadminOnly: true },
+  { href: adminUrl("/admin/database"),     icon: Database,             label: "База данных",      permission: "system.read" },
 
   { href: adminUrl("/admin/jobs"),         icon: ListTodo,             label: "Задачи (очередь)", permission: "system.read" },
   { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Система",          permission: "system.read" },

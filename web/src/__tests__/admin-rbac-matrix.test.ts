@@ -8,7 +8,7 @@ import {
   V5_REQUIRED_PERMISSIONS,
   getUserPermissions,
 } from "@/lib/moderator-permissions";
-import { PATCH as patchUsers } from "@/app/api/admin/users/route";
+import { PATCH as patchUsers, POST as postUsers } from "@/app/api/admin/users/route";
 import { POST as postPractitionerPayout } from "@/app/api/admin/practitioners/[id]/payout/route";
 import { PATCH as patchSettings } from "@/app/api/admin/settings/route";
 
@@ -22,8 +22,10 @@ jest.mock("@/lib/db", () => ({
   default: {
     moderatorPermission: { findMany: jest.fn() },
     user: {
+      findUnique: jest.fn(),
       update: jest.fn(),
     },
+    $transaction: jest.fn(),
     practitioner: {
       findUnique: jest.fn(),
     },
@@ -151,6 +153,83 @@ describe("v5 admin RBAC matrix", () => {
       select: { id: true, name: true, freeToolsLimit: true, role: true },
     });
     expect(mockLogAudit).toHaveBeenCalledWith("superadmin-1", "PROFILE_UPDATE", "client-1", "freeToolsLimit,role");
+  });
+
+  it("keeps manual moderator creation SUPERADMIN-only", async () => {
+    const response = await postUsers(request("https://admin.eterapy.com/api/admin/users", "POST", {
+      role: "ADMIN",
+      name: "Moderator",
+      email: "moderator@example.com",
+      password: "strongpass",
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error).toContain("ADMIN");
+    expect(mockDb.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("creates practitioner accounts from the unified users endpoint", async () => {
+    mockAuth.mockResolvedValueOnce({
+      user: { id: "superadmin-1", role: "SUPERADMIN" },
+      expires: "2026-04-28T00:00:00.000Z",
+    } as never);
+    (mockDb.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+    const txUserCreate = jest.fn().mockResolvedValue({
+      id: "user-pr-1",
+      email: "praktik@example.com",
+      name: "Анна Практик",
+      role: "PRACTITIONER",
+      createdAt: new Date("2026-05-29T00:00:00.000Z"),
+    });
+    const txPractitionerFindUnique = jest.fn().mockResolvedValue(null);
+    const txPractitionerCreate = jest.fn().mockResolvedValue({
+      id: "prac-1",
+      slug: "anna-praktik",
+      status: "PENDING",
+    });
+    (mockDb.$transaction as jest.Mock).mockImplementation(async (callback) => callback({
+      user: { create: txUserCreate },
+      practitioner: {
+        findUnique: txPractitionerFindUnique,
+        create: txPractitionerCreate,
+      },
+    }));
+
+    const response = await postUsers(request("https://admin.eterapy.com/api/admin/users", "POST", {
+      role: "PRACTITIONER",
+      name: "Анна Практик",
+      email: "praktik@example.com",
+      password: "strongpass",
+      title: "Психолог",
+      bio: "Работает с отношениями",
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(txUserCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        role: "PRACTITIONER",
+        provider: "manual",
+        emailVerified: true,
+      }),
+    }));
+    expect(txPractitionerCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-pr-1",
+        slug: "anna-praktik",
+        status: "PENDING",
+        title: "Психолог",
+      }),
+    }));
+    expect(mockLogAudit).toHaveBeenCalledWith(
+      "superadmin-1",
+      "PRACTITIONER_CREATE",
+      "user-pr-1",
+      "created practitioner by admin (manual)",
+    );
   });
 
   it("blocks practitioner payout without practitioners.payout", async () => {

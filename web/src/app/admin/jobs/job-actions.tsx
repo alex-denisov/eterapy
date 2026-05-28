@@ -7,9 +7,10 @@ interface Props {
   jobId: string;
   status: string;
   maxAttempts: number;
+  label?: string;
 }
 
-export function JobActions({ jobId, status, maxAttempts }: Props) {
+export function JobActions({ jobId, status, maxAttempts, label = "Повторить" }: Props) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -35,9 +36,9 @@ export function JobActions({ jobId, status, maxAttempts }: Props) {
     <button
       onClick={requeue}
       disabled={loading}
-      className="shrink-0 rounded-lg border border-border/30 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-border/60 transition-colors disabled:opacity-50"
+      className="soft-admin-action shrink-0"
     >
-      {loading ? "..." : `↩ Повторить (${maxAttempts} попыток)`}
+      {loading ? "..." : `${label} (${maxAttempts})`}
     </button>
   );
 }

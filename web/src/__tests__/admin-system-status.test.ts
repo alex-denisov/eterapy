@@ -23,6 +23,9 @@ jest.mock("@/lib/db", () => ({
     practitioner: { count: jest.fn() },
     booking: { count: jest.fn() },
     auditLog: { count: jest.fn() },
+    job: { count: jest.fn() },
+    aIRequest: { count: jest.fn() },
+    aIProviderCredential: { findMany: jest.fn() },
     notificationPreference: { count: jest.fn() },
   },
 }));
@@ -50,6 +53,16 @@ describe("admin system status API", () => {
     (mockDb.practitioner.count as jest.Mock).mockResolvedValue(4);
     (mockDb.booking.count as jest.Mock).mockResolvedValueOnce(20).mockResolvedValueOnce(2);
     (mockDb.auditLog.count as jest.Mock).mockResolvedValue(30);
+    (mockDb.job.count as jest.Mock)
+      .mockResolvedValueOnce(7)
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(0);
+    (mockDb.aIRequest.count as jest.Mock)
+      .mockResolvedValueOnce(12)
+      .mockResolvedValueOnce(2);
+    (mockDb.aIProviderCredential.findMany as jest.Mock).mockResolvedValue([
+      { provider: "OPENROUTER", lastSuccessAt: new Date(), lastErrorAt: null, consecutiveFailures: 0, regionBlocked: false },
+    ]);
     (mockDb.notificationPreference.count as jest.Mock).mockResolvedValue(5);
   });
 
@@ -61,8 +74,11 @@ describe("admin system status API", () => {
     expect(body.requestId).toBe("admin-status-123");
     expect(body.ready.status).toBe("ok");
     expect(body.stats.users).toBe(10);
+    expect(body.stats.jobsPending).toBe(7);
+    expect(body.stats.aiRequests24h).toBe(12);
     expect(body.services).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "database", status: "ok" }),
+      expect.objectContaining({ key: "ai-openrouter", status: "ok" }),
     ]));
   });
 

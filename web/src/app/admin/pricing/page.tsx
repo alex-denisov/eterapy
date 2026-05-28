@@ -23,9 +23,10 @@ export default async function AdminPricingPage() {
   ]);
 
   return (
-    <PageContainer maxWidth="4xl">
+    <PageContainer maxWidth="full" className="py-8">
       <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">Цены и тарифы</h1>
+        <p className="premium-eyebrow">монетизация</p>
+        <h1 className="premium-title mt-2 text-3xl md:text-4xl">Цены и тарифы</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Управление тарифными планами, комиссией и ценами практиков. Изменения применяются немедленно.
         </p>

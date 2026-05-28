@@ -1,19 +1,135 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { JobStatus, Prisma } from "@prisma/client";
 import { BellRing, Clock3, RotateCcw, ShieldAlert } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { getAdminNotificationDiagnostics } from "@/lib/admin-notification-diagnostics";
+import db from "@/lib/db";
+import { NOTIFICATION_DELIVERY_JOB_TYPE } from "@/lib/notification-delivery";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
+import { JobActions } from "../jobs/job-actions";
 
-function statusClass(status: string) {
-  if (status === "SUCCEEDED") return "border-emerald-500/25 bg-emerald-500/10 text-emerald-300";
-  if (status === "PENDING" || status === "RUNNING") return "border-amber-500/25 bg-amber-500/10 text-amber-300";
-  return "border-red-500/25 bg-red-500/10 text-red-300";
+type SearchParams = {
+  q?: string;
+  event?: string;
+  channel?: string;
+  status?: string;
+  sort?: string;
+  dir?: string;
+  page?: string;
+};
+
+type DeliveryPayload = {
+  userId?: string;
+  event?: string;
+  channel?: string;
+  requestId?: string;
+};
+
+const PAGE_SIZE = 25;
+const MAX_SCAN = 1000;
+const SORT_FIELDS = ["createdAt", "updatedAt", "runAfter", "status", "attempts"] as const;
+
+function payloadSummary(payload: Prisma.JsonValue | null): DeliveryPayload {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+  const value = payload as Record<string, unknown>;
+  return {
+    userId: typeof value.userId === "string" ? value.userId : undefined,
+    event: typeof value.event === "string" ? value.event : undefined,
+    channel: typeof value.channel === "string" ? value.channel : undefined,
+    requestId: typeof value.requestId === "string" ? value.requestId : undefined,
+  };
 }
 
-export default async function AdminNotificationsPage() {
+function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
+  const next = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value) next.set(key, value);
+  }
+  for (const [key, value] of Object.entries(patch)) {
+    if (value) next.set(key, value);
+    else next.delete(key);
+  }
+  if (!("page" in patch)) next.set("page", "1");
+  const query = next.toString();
+  return query ? `/admin/notifications?${query}` : "/admin/notifications";
+}
+
+function HiddenParams({ params, except = [] }: { params: SearchParams; except?: string[] }) {
+  return (
+    <>
+      {Object.entries(params).map(([key, value]) => {
+        if (!value || key === "page" || except.includes(key)) return null;
+        return <input key={key} type="hidden" name={key} value={value} />;
+      })}
+    </>
+  );
+}
+
+function SortLink({ params, field, children }: { params: SearchParams; field: string; children: React.ReactNode }) {
+  const active = params.sort === field;
+  const dir = params.dir === "asc" ? "asc" : "desc";
+  const nextDir = active && dir === "asc" ? "desc" : "asc";
+  return (
+    <Link className="soft-admin-sort-link" href={makeUrl(params, { sort: field, dir: nextDir })}>
+      {children}{active ? ` ${dir === "asc" ? "up" : "down"}` : ""}
+    </Link>
+  );
+}
+
+function HeaderInput({ params, name, placeholder }: { params: SearchParams; name: keyof SearchParams; placeholder: string }) {
+  return (
+    <form action="/admin/notifications">
+      <HiddenParams params={params} except={[name]} />
+      <input className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
+    </form>
+  );
+}
+
+function HeaderSelect({ params, name, options }: { params: SearchParams; name: keyof SearchParams; options: Array<{ value: string; label: string }> }) {
+  return (
+    <form action="/admin/notifications">
+      <HiddenParams params={params} except={[name]} />
+      <select className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""}>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      <button className="soft-admin-action mt-1" type="submit">ok</button>
+    </form>
+  );
+}
+
+function statusTone(status: string) {
+  if (status === JobStatus.SUCCEEDED) return "ok";
+  if (status === JobStatus.FAILED || status === JobStatus.DEAD) return "danger";
+  return "warn";
+}
+
+function buildOrderBy(params: SearchParams): Prisma.JobOrderByWithRelationInput {
+  const field = SORT_FIELDS.includes(params.sort as typeof SORT_FIELDS[number]) ? params.sort! : "createdAt";
+  const dir = params.dir === "asc" ? "asc" : "desc";
+  return { [field]: dir };
+}
+
+function matchesText(job: { id: string; error: string | null; payload: DeliveryPayload }, query: string) {
+  const q = query.toLowerCase();
+  return [
+    job.id,
+    job.error ?? "",
+    job.payload.userId ?? "",
+    job.payload.event ?? "",
+    job.payload.channel ?? "",
+    job.payload.requestId ?? "",
+  ].some((value) => value.toLowerCase().includes(q));
+}
+
+export default async function AdminNotificationsPage(props: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await props.searchParams;
   const session = await auth();
   const role = session?.user?.role ?? "";
   if (!session?.user?.id || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
@@ -21,65 +137,126 @@ export default async function AdminNotificationsPage() {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("notifications.diagnose")) redirect("/admin");
 
-  const diagnostics = await getAdminNotificationDiagnostics();
+  const page = Math.max(1, Number(params.page) || 1);
+  const where: Prisma.JobWhereInput = { type: NOTIFICATION_DELIVERY_JOB_TYPE };
+  if (params.status && Object.values(JobStatus).includes(params.status as JobStatus)) {
+    where.status = params.status as JobStatus;
+  }
+
+  const [grouped, scanned] = await Promise.all([
+    db.job.groupBy({
+      by: ["status"],
+      where: { type: NOTIFICATION_DELIVERY_JOB_TYPE },
+      _count: { _all: true },
+    }),
+    db.job.findMany({
+      where,
+      orderBy: buildOrderBy(params),
+      take: MAX_SCAN,
+      select: {
+        id: true,
+        status: true,
+        attempts: true,
+        maxAttempts: true,
+        runAfter: true,
+        error: true,
+        payload: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  const stats: Record<JobStatus, number> = {
+    PENDING: 0,
+    RUNNING: 0,
+    SUCCEEDED: 0,
+    FAILED: 0,
+    DEAD: 0,
+  };
+  for (const row of grouped) stats[row.status] = row._count._all;
+
+  const normalized = scanned.map((job) => ({ ...job, payload: payloadSummary(job.payload) }));
+  const filtered = normalized.filter((job) => {
+    if (params.channel?.trim() && (job.payload.channel ?? "").toLowerCase() !== params.channel.trim().toLowerCase()) return false;
+    if (params.event?.trim() && !(job.payload.event ?? "").toLowerCase().includes(params.event.trim().toLowerCase())) return false;
+    if (params.q?.trim() && !matchesText(job, params.q.trim())) return false;
+    return true;
+  });
+  const total = filtered.length;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const jobs = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const statCards = [
-    { label: "Pending", value: diagnostics.stats.PENDING, icon: Clock3 },
-    { label: "Running", value: diagnostics.stats.RUNNING, icon: RotateCcw },
-    { label: "Succeeded", value: diagnostics.stats.SUCCEEDED, icon: BellRing },
-    { label: "Dead", value: diagnostics.stats.DEAD, icon: ShieldAlert },
+    { label: "Pending", value: stats.PENDING, icon: Clock3, tone: "warn" },
+    { label: "Running", value: stats.RUNNING, icon: RotateCcw, tone: "warn" },
+    { label: "Succeeded", value: stats.SUCCEEDED, icon: BellRing, tone: "ok" },
+    { label: "Dead", value: stats.DEAD, icon: ShieldAlert, tone: "danger" },
   ];
 
   return (
-    <PageContainer maxWidth="6xl">
-      <div className="mb-6">
-        <h1 className="font-heading text-2xl font-bold">Диагностика уведомлений</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Очередь <code>{diagnostics.jobType}</code>: email, Telegram и web delivery attempts без раскрытия email, Telegram ID и текста payload.
-        </p>
-      </div>
-
-      <div className="mb-6 grid gap-3 sm:grid-cols-4">
-        {statCards.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-lg border border-border/30 bg-card/40 p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Icon className="h-4 w-4 text-primary" />
-              {label}
-            </div>
-            <p className="text-2xl font-bold text-primary">{value.toLocaleString("ru")}</p>
-          </div>
-        ))}
-      </div>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Последние delivery jobs</h2>
-        <div className="overflow-hidden rounded-lg border border-border/30 bg-card/30">
-          <div className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr] gap-3 border-b border-border/20 px-4 py-2 text-xs font-medium uppercase text-muted-foreground">
-            <span>Событие</span>
-            <span>Канал</span>
-            <span>Статус</span>
-            <span>Retry</span>
-          </div>
-          <div className="divide-y divide-border/10">
-            {diagnostics.recent.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Delivery jobs пока нет</div>
-            ) : diagnostics.recent.map((job) => (
-              <div key={job.id} className="grid grid-cols-[1fr_0.8fr_0.8fr_0.8fr] gap-3 px-4 py-3 text-sm" data-testid="notification-diagnostic-row">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{job.payload.event ?? "unknown"}</p>
-                  <p className="truncate text-xs text-muted-foreground">{job.payload.requestId ?? job.id}</p>
-                  {job.error && <p className="mt-1 truncate text-xs text-red-300">{job.error}</p>}
-                </div>
-                <span className="text-muted-foreground">{job.payload.channel ?? "unknown"}</span>
-                <span className={`h-fit w-fit rounded-full border px-2 py-0.5 text-xs ${statusClass(job.status)}`}>{job.status}</span>
-                <div className="text-xs text-muted-foreground">
-                  <p>{job.attempts}/{job.maxAttempts}</p>
-                  <p>{new Date(job.runAfter).toLocaleString("ru-RU")}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+    <PageContainer maxWidth="full" className="py-8">
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="premium-eyebrow">уведомления</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Диагностика уведомлений</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Очередь <code>{NOTIFICATION_DELIVERY_JOB_TYPE}</code>: email, Telegram и web delivery attempts без раскрытия PII payload.
+          </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {statCards.map(({ label, value, icon: Icon, tone }) => (
+            <span key={label} className="soft-admin-status-pill gap-1.5" data-tone={tone}>
+              <Icon className="size-3.5" aria-hidden="true" />
+              {label}: {value.toLocaleString("ru-RU")}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
+        <table className="soft-admin-data-table min-w-[1180px]" data-testid="admin-notification-jobs-table">
+          <thead>
+            <tr>
+              <th><SortLink params={params} field="createdAt">Событие</SortLink><HeaderInput params={params} name="event" placeholder="event" /></th>
+              <th>Канал<HeaderInput params={params} name="channel" placeholder="email/web/telegram" /></th>
+              <th><SortLink params={params} field="status">Статус</SortLink><HeaderSelect params={params} name="status" options={[{ value: "", label: "Все" }, ...Object.values(JobStatus).map((item) => ({ value: item, label: item }))]} /></th>
+              <th><SortLink params={params} field="attempts">Retry</SortLink></th>
+              <th>Request</th>
+              <th><SortLink params={params} field="runAfter">Run after</SortLink></th>
+              <th><SortLink params={params} field="updatedAt">Обновлено</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></th>
+              <th>Ошибка</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.length === 0 ? (
+              <tr><td colSpan={9} className="text-center">Delivery jobs пока нет</td></tr>
+            ) : jobs.map((job) => (
+              <tr key={job.id} data-testid="notification-diagnostic-row">
+                <td>{job.payload.event ?? "unknown"}</td>
+                <td>{job.payload.channel ?? "unknown"}</td>
+                <td><span className="soft-admin-status-pill" data-tone={statusTone(job.status)}>{job.status}</span></td>
+                <td>{job.attempts}/{job.maxAttempts}</td>
+                <td className="max-w-44 truncate">{job.payload.requestId ?? job.id}</td>
+                <td>{job.runAfter.toLocaleString("ru-RU")}</td>
+                <td>{job.updatedAt.toLocaleString("ru-RU")}</td>
+                <td className="max-w-md truncate">{job.error ?? "нет"}</td>
+                <td><JobActions jobId={job.id} status={job.status} maxAttempts={job.maxAttempts} label="Отправить" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.max(1, page - 1)) })}>Назад</Link>
+        <span className="text-xs text-[var(--soft-ink-faint)]">
+          Показано {jobs.length} из {total.toLocaleString("ru-RU")} · {page} / {pageCount}
+          {scanned.length >= MAX_SCAN ? ` · скан ${MAX_SCAN}` : ""}
+        </span>
+        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.min(pageCount, page + 1)) })}>Вперёд</Link>
+      </div>
     </PageContainer>
   );
 }

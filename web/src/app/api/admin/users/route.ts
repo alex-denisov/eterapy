@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
+import { Role, Specialty } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { generateUniqueSlug } from "@/lib/slug";
+
+const CREATABLE_ROLES: Role[] = [Role.CLIENT, Role.PRACTITIONER, Role.ADMIN];
 
 async function requireAdmin() {
   const session = await auth();
@@ -23,7 +27,7 @@ export async function GET(req: NextRequest) {
   const users = await db.user.findMany({
     where: {
       ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { email: { contains: search, mode: "insensitive" } }] } : {}),
-      ...(role ? { role: role as "CLIENT" | "PRACTITIONER" | "ADMIN" } : {}),
+      ...(role && Object.values(Role).includes(role as Role) ? { role: role as Role } : {}),
     },
     select: {
       id: true, name: true, email: true, role: true, createdAt: true, deletedAt: true,
@@ -43,13 +47,23 @@ export async function POST(req: NextRequest) {
   const adminId = session.user!.id!;
   const adminRole = session.user!.role!;
   const permissions = await getUserPermissions(adminId, adminRole);
-  if (!permissions.includes("clients.create")) {
-    return NextResponse.json({ error: "Нет полномочия clients.create" }, { status: 403 });
-  }
 
   const body = await req.json().catch(() => ({}));
+  const requestedRole = typeof body.role === "string" && CREATABLE_ROLES.includes(body.role as Role)
+    ? body.role as Role
+    : Role.CLIENT;
+  const canCreateRole = adminRole === Role.SUPERADMIN
+    || permissions.includes("users.create")
+    || (requestedRole === Role.CLIENT && permissions.includes("clients.create"))
+    || (requestedRole === Role.PRACTITIONER && permissions.includes("practitioners.create"));
+  if (!canCreateRole || (requestedRole === Role.ADMIN && adminRole !== Role.SUPERADMIN)) {
+    return NextResponse.json({ error: `Нет полномочия для создания роли ${requestedRole}` }, { status: 403 });
+  }
+
   const rawEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const name = typeof body.name === "string" ? body.name.trim() : "";
+  const rawPassword = typeof body.password === "string" ? body.password : "";
+  const hasPassword = rawPassword.trim().length > 0;
   const birthDate = typeof body.birthDate === "string" && body.birthDate ? new Date(body.birthDate) : null;
   const birthTime = typeof body.birthTime === "string" && body.birthTime.trim() ? body.birthTime.trim() : null;
   const birthPlace = typeof body.birthPlace === "string" && body.birthPlace.trim() ? body.birthPlace.trim() : null;
@@ -57,7 +71,28 @@ export async function POST(req: NextRequest) {
   const telegramUsername = typeof body.telegramUsername === "string"
     ? body.telegramUsername.trim().replace(/^@/, "") || null
     : null;
-  const sendResetLink = body.sendResetLink !== false; // default true
+  const sendResetLink = !hasPassword && body.sendResetLink !== false; // default true when password is not set
+
+  const title = typeof body.title === "string" && body.title.trim()
+    ? body.title.trim()
+    : "Практик ETerapy";
+  const bio = typeof body.bio === "string" && body.bio.trim()
+    ? body.bio.trim()
+    : "Профиль создан администратором. Заполните описание перед публикацией.";
+  const experience = typeof body.experience === "string" && body.experience.trim()
+    ? body.experience.trim()
+    : "1 год";
+  const specialties = Array.isArray(body.specialties)
+    ? body.specialties.filter((value: unknown): value is Specialty => (
+        typeof value === "string" && Object.values(Specialty).includes(value as Specialty)
+      ))
+    : [];
+  const pricePerSession = Number.isInteger(Number(body.pricePerSession)) && Number(body.pricePerSession) > 0
+    ? Number(body.pricePerSession)
+    : 1500;
+  const sessionDuration = [15, 30, 45, 60, 90, 120].includes(Number(body.sessionDuration))
+    ? Number(body.sessionDuration)
+    : 60;
 
   if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
     return NextResponse.json({ error: "Некорректный email" }, { status: 400 });
@@ -65,47 +100,82 @@ export async function POST(req: NextRequest) {
   if (!name) {
     return NextResponse.json({ error: "Имя обязательно" }, { status: 400 });
   }
+  if (hasPassword && rawPassword.length < 8) {
+    return NextResponse.json({ error: "Пароль должен быть не менее 8 символов" }, { status: 400 });
+  }
 
   const existing = await db.user.findUnique({ where: { email: rawEmail }, select: { id: true } });
   if (existing) {
     return NextResponse.json({ error: "Email уже используется" }, { status: 409 });
   }
 
-  // Random unusable placeholder password — user will set it via reset link
-  const tempPassword = randomBytes(24).toString("hex");
-  const hashed = await bcrypt.hash(tempPassword, 10);
+  // Without a manual password the account receives an unusable placeholder and a reset-link.
+  const passwordToHash = hasPassword ? rawPassword : randomBytes(24).toString("hex");
+  const hashed = await bcrypt.hash(passwordToHash, 10);
   const resetToken = sendResetLink ? randomBytes(24).toString("hex") : null;
 
-  const created = await db.user.create({
-    data: {
-      email: rawEmail,
-      name,
-      password: hashed,
-      role: "CLIENT",
-      emailVerified: false,
-      provider: "manual", // canonical channel (registrationChannel column is legacy, read via resolveRegistrationChannel)
-      birthDate,
-      birthTime,
-      birthPlace,
-      timezone,
-      telegramUsername,
-      resetToken,
-      resetExpires: resetToken ? new Date(Date.now() + 3_600_000) : null,
-    },
-    select: { id: true, email: true, name: true, createdAt: true },
+  const created = await db.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email: rawEmail,
+        name,
+        password: hashed,
+        role: requestedRole,
+        emailVerified: hasPassword && requestedRole !== Role.CLIENT,
+        provider: "manual", // canonical channel (registrationChannel column is legacy, read via resolveRegistrationChannel)
+        birthDate,
+        birthTime,
+        birthPlace,
+        timezone,
+        telegramUsername,
+        resetToken,
+        resetExpires: resetToken ? new Date(Date.now() + 3_600_000) : null,
+      },
+      select: { id: true, email: true, name: true, role: true, createdAt: true },
+    });
+
+    if (requestedRole !== Role.PRACTITIONER) {
+      return { user, practitioner: null };
+    }
+
+    const slug = await generateUniqueSlug(name, async (candidate) => {
+      const exists = await tx.practitioner.findUnique({ where: { slug: candidate }, select: { id: true } });
+      return !!exists;
+    });
+    const practitioner = await tx.practitioner.create({
+      data: {
+        userId: user.id,
+        slug,
+        status: "PENDING",
+        title,
+        bio,
+        experience,
+        specialties,
+        pricePerSession,
+        sessionDuration,
+      },
+      select: { id: true, slug: true, status: true },
+    });
+
+    return { user, practitioner };
   });
 
-  await logAudit(adminId, "REGISTER", created.id, "created by admin (manual)");
+  await logAudit(
+    adminId,
+    requestedRole === Role.PRACTITIONER ? "PRACTITIONER_CREATE" : "REGISTER",
+    created.user.id,
+    `created ${requestedRole.toLowerCase()} by admin (manual)`,
+  );
 
   if (resetToken) {
     try {
-      await sendPasswordResetEmail(created.email, created.name, resetToken);
+      await sendPasswordResetEmail(created.user.email, created.user.name, resetToken);
     } catch {
       // non-blocking — user still created, admin can resend from panel
     }
   }
 
-  return NextResponse.json({ ok: true, user: created });
+  return NextResponse.json({ ok: true, user: created.user, practitioner: created.practitioner });
 }
 
 export async function PATCH(req: NextRequest) {
