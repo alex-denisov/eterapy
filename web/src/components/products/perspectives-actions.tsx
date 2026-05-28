@@ -414,9 +414,34 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
               <Download className="size-4" aria-hidden="true" />
               Экспорт
             </a>
+            {/* B311: real share — Web Share API where available (mobile),
+                clipboard fallback elsewhere. The share-card backend is not
+                yet built; this links to the public product page with the
+                dialogueId so a recipient lands on the same 4-angles UX. */}
             <Button
-              onClick={() => { /* share: future */ }}
+              onClick={async () => {
+                if (!result?.id) return;
+                const shareUrl = `${window.location.origin}/products/perspectives?dialogueId=${encodeURIComponent(result.id)}`;
+                const shareText = "4 ракурса ответа — ETerapy";
+                if (typeof navigator.share === "function") {
+                  try {
+                    await navigator.share({ title: shareText, url: shareUrl });
+                    return;
+                  } catch {
+                    // user cancelled — fall through to clipboard
+                  }
+                }
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  setMessage("Ссылка скопирована в буфер обмена.");
+                  setStatus("error");
+                } catch {
+                  setMessage("Не удалось скопировать — скопируйте URL вручную из адресной строки.");
+                  setStatus("error");
+                }
+              }}
               className="soft-button soft-button-ghost"
+              data-testid="perspectives-share"
             >
               <Share2 className="size-4" aria-hidden="true" />
               Поделиться
