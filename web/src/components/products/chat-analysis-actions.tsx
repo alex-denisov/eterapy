@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Download, EyeOff, FileImage, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
+import { ArrowRight, ClipboardPaste, Download, EyeOff, FileText, ImageIcon, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
@@ -178,10 +178,13 @@ export function ChatAnalysisActions() {
 
   const [tab, setTab] = useState<"input" | "context" | "result">("input");
   const [sourceText, setSourceText] = useState("");
-  const [screenshotName, setScreenshotName] = useState<string | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [consent, setConsent] = useState(false);
   const [contact, setContact] = useState<string | null>(null);
   const [emotion, setEmotion] = useState<string | null>(null);
   const [goal, setGoal] = useState("");
+  const screenshotInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -198,29 +201,107 @@ export function ChatAnalysisActions() {
     return () => { cancelled = true; };
   }, [authStatus]);
 
-  async function uploadScreenshot(file: File | null) {
-    if (!file) return;
+  function readAsDataURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function readAsText(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+      reader.readAsText(file);
+    });
+  }
+
+  // Upload one or more screenshots. Each image is OCR'd server-side and the
+  // recognized text is appended to the running sourceText so users can build
+  // up a long conversation across multiple screenshots.
+  async function uploadScreenshots(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    if (!consent) {
+      setMessage("Сначала подтвердите согласие на использование переписки выше.");
+      setStatus("error");
+      return;
+    }
     setStatus("loading");
     setMessage(null);
-    setScreenshotName(file.name);
     try {
-      const imageDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result ?? ""));
-        reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
-        reader.readAsDataURL(file);
-      });
-      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
-        method: "POST",
-        body: JSON.stringify({ action: "screenshot_preview", imageDataUrl, fileName: file.name }),
-      });
-      setHasEntitlement(Boolean(payload.hasEntitlement));
-      setResult(payload.result ?? null);
-      setSourceText("");
+      let combined = sourceText.trim();
+      const newNames: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const imageDataUrl = await readAsDataURL(file);
+        const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
+          method: "POST",
+          body: JSON.stringify({ action: "screenshot_preview", imageDataUrl, fileName: file.name }),
+        });
+        setHasEntitlement(Boolean(payload.hasEntitlement));
+        const recognized = payload.result?.metadata?.recognizedText ?? "";
+        if (recognized) {
+          combined = combined ? `${combined}\n\n${recognized}` : recognized;
+        }
+        newNames.push(`${file.name}${recognized ? "" : " (текст не распознан)"}`);
+        // Keep the latest preview result so the user can see something even
+        // before generating; downstream upload_preview will rebuild it.
+        setResult(payload.result ?? null);
+      }
+      setSourceText(combined);
+      setUploadedFiles((prev) => [...prev, ...newNames]);
       setStatus("idle");
-      setTab("context");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось распознать скриншот");
+      setStatus("error");
+    }
+  }
+
+  // Read a .txt or Telegram export file as plain text into the textarea.
+  async function uploadTextFile(file: File | null) {
+    if (!file) return;
+    if (!consent) {
+      setMessage("Сначала подтвердите согласие на использование переписки выше.");
+      setStatus("error");
+      return;
+    }
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const text = await readAsText(file);
+      const combined = sourceText.trim() ? `${sourceText.trim()}\n\n${text}` : text;
+      setSourceText(combined.slice(0, 10000));
+      setUploadedFiles((prev) => [...prev, file.name]);
+      setStatus("idle");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось прочитать файл");
+      setStatus("error");
+    }
+  }
+
+  // Paste from clipboard — works for "Из Telegram" affordance. Browsers
+  // require user gesture, which the chip click provides.
+  async function pasteFromClipboard() {
+    if (!consent) {
+      setMessage("Сначала подтвердите согласие на использование переписки выше.");
+      setStatus("error");
+      return;
+    }
+    setMessage(null);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setMessage("В буфере обмена нет текста — скопируйте переписку и нажмите ещё раз.");
+        setStatus("error");
+        return;
+      }
+      const combined = sourceText.trim() ? `${sourceText.trim()}\n\n${text}` : text;
+      setSourceText(combined.slice(0, 10000));
+    } catch {
+      setMessage("Браузер не дал доступ к буферу обмена — скопируйте текст в поле руками.");
       setStatus("error");
     }
   }
@@ -356,46 +437,116 @@ export function ChatAnalysisActions() {
         </p>
       )}
 
-      {/* tab 1: input */}
+      {/* tab 1: input — v4.2 design: consent first, three affordances, then textarea */}
       {tab === "input" && (
-        <div className="soft-card mt-4 p-5">
+        <div className="soft-card mt-4 p-5" data-testid="chat-analysis-input">
+          {/* Privacy consent BEFORE upload — required by 04_UI_UX_Mechanics_and_DoD §2.7 */}
+          <label
+            className="mb-4 flex cursor-pointer items-start gap-3 rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-4"
+            data-testid="chat-analysis-consent"
+          >
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              className="mt-1 size-4 shrink-0 accent-[var(--soft-bordeaux)]"
+            />
+            <span className="text-[13px] leading-snug text-[var(--soft-ink-soft)]">
+              <LockKeyhole className="mr-1 inline size-3 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+              <span className="font-semibold text-[var(--soft-bordeaux)]">Я подтверждаю</span>, что эта
+              переписка — моя или у меня есть согласие собеседника на её разбор. Имена будут автоматически
+              заменены, исходник можно удалить в любой момент.
+            </span>
+          </label>
+
           <p className="soft-eyebrow mb-3">переписка</p>
           <textarea
             value={sourceText}
             onChange={(e) => setSourceText(e.target.value)}
-            placeholder={"— Ты опять не отвечаешь.\n— Я был занят, говорил же.\n— Каждый раз «занят». Я для тебя на втором месте?\n— Ну вот, опять начинается."}
+            placeholder={"Вставьте фрагмент диалога. Имена будут автоматически заменены на «Я» и «Собеседник». Файлы тоже подойдут — .txt, экспорт из Telegram, скриншоты."}
             className="soft-question-input"
             rows={8}
-            disabled={status === "loading"}
+            disabled={status === "loading" || !consent}
+            data-testid="chat-analysis-textarea"
           />
-          <div className="mt-4 flex flex-wrap gap-3">
-            <label className="soft-button soft-button-ghost inline-flex cursor-pointer items-center">
-              <FileImage className="size-4" aria-hidden="true" />
-              {status === "loading" && screenshotName ? "Распознаем..." : "Загрузить скриншот"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="sr-only"
-                disabled={status === "loading"}
-                onChange={(e) => {
-                  void uploadScreenshot(e.target.files?.[0] ?? null);
-                  e.currentTarget.value = "";
-                }}
-              />
-            </label>
+
+          {/* Three input affordances — v4.2 deepenings.jsx:26-30 */}
+          <div className="mt-4 flex flex-wrap gap-2" data-testid="chat-analysis-upload-row">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={!consent || status === "loading"}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="chat-analysis-upload-file"
+            >
+              <FileText className="size-4" aria-hidden="true" />
+              Загрузить файл
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.html,.json,text/plain,text/html,application/json"
+              className="sr-only"
+              disabled={status === "loading"}
+              onChange={(e) => {
+                void uploadTextFile(e.target.files?.[0] ?? null);
+                e.currentTarget.value = "";
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => screenshotInputRef.current?.click()}
+              disabled={!consent || status === "loading"}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="chat-analysis-upload-screenshot"
+            >
+              <ImageIcon className="size-4" aria-hidden="true" />
+              {status === "loading" ? "Распознаём…" : "Скриншот"}
+            </button>
+            <input
+              ref={screenshotInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              className="sr-only"
+              disabled={status === "loading"}
+              onChange={(e) => {
+                void uploadScreenshots(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => void pasteFromClipboard()}
+              disabled={!consent || status === "loading"}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
+              data-testid="chat-analysis-upload-paste"
+            >
+              <ClipboardPaste className="size-4" aria-hidden="true" />
+              Вставить из Telegram
+            </button>
           </div>
-          {screenshotName && (
-            <p className="mt-2 text-xs text-[var(--soft-ink-soft)]">
-              <Upload className="mr-1 inline size-3" aria-hidden="true" />
-              {screenshotName}
-            </p>
+
+          {uploadedFiles.length > 0 && (
+            <ul className="mt-3 flex flex-col gap-1" data-testid="chat-analysis-file-list">
+              {uploadedFiles.map((name, i) => (
+                <li key={`${name}-${i}`} className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
+                  <Upload className="size-3" aria-hidden="true" />
+                  {name}
+                </li>
+              ))}
+            </ul>
           )}
-          <p className="mt-4 text-xs text-[var(--soft-ink-faint)]">
-            🔒 Имена автоматически заменяются. Переписка не хранится дольше 30 дней.
+
+          <p className="mt-4 flex items-center gap-1.5 text-xs text-[var(--soft-ink-faint)]">
+            <LockKeyhole className="size-3" aria-hidden="true" />
+            Имена автоматически заменяются. Переписка не хранится дольше 30 дней.
           </p>
           <Button
             onClick={proceedToContext}
-            disabled={status === "loading" || sourceText.trim().length < 10}
+            disabled={status === "loading" || sourceText.trim().length < 10 || !consent}
             className="soft-button soft-button-primary mt-5"
           >
             Дальше: контекст

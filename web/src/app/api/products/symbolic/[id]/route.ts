@@ -1,0 +1,93 @@
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import db from "@/lib/db";
+import { requestContextFromHeaders } from "@/lib/request-context";
+
+const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology", "my-map"] as const;
+
+const patchSchema = z.object({ action: z.enum(["save"]) });
+
+function serialize(result: {
+  id: string;
+  productKey: string;
+  status: string;
+  title: string;
+  previewText: string | null;
+  resultText: string | null;
+  savedAt: Date | null;
+  deletedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: result.id,
+    productKey: result.productKey,
+    status: result.status,
+    title: result.title,
+    previewText: result.previewText,
+    resultText: result.resultText,
+    saved: Boolean(result.savedAt),
+    deletedAt: result.deletedAt?.toISOString() ?? null,
+    createdAt: result.createdAt.toISOString(),
+    updatedAt: result.updatedAt.toISOString(),
+  };
+}
+
+// B308: PATCH /api/products/symbolic/[id] — "save to My Map" affordance for
+// tarot / natal-chart / numerology / my-map. Spec (04_UI_UX_Mechanics §10)
+// requires every symbolic result to be saveable into the user's personal map.
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  const parsed = patchSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid action", 400, context);
+
+  const { id } = await params;
+  const result = await db.productResult.findFirst({
+    where: {
+      id,
+      userId,
+      productKey: { in: [...SYMBOLIC_PRODUCT_KEYS] },
+      deletedAt: null,
+    },
+  });
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
+
+  if (parsed.data.action === "save") {
+    // Idempotent: setting savedAt twice is safe — keeps the first save time.
+    const updated = await db.productResult.update({
+      where: { id: result.id },
+      data: { savedAt: result.savedAt ?? new Date() },
+    });
+    return jsonWithRequestContext({ result: serialize(updated) }, { status: 200 }, context);
+  }
+
+  return errorWithRequestContext("VALIDATION_ERROR", "Unsupported action", 400, context);
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  const { id } = await params;
+  const result = await db.productResult.findFirst({
+    where: {
+      id,
+      userId,
+      productKey: { in: [...SYMBOLIC_PRODUCT_KEYS] },
+      deletedAt: null,
+    },
+  });
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
+
+  await db.productResult.update({
+    where: { id: result.id },
+    data: { deletedAt: new Date() },
+  });
+  return jsonWithRequestContext({ ok: true }, { status: 200 }, context);
+}

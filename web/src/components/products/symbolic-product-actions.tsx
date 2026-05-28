@@ -96,6 +96,26 @@ export function SymbolicProductActions({
     }
   }
 
+  // B308: real save → PATCH /api/products/symbolic/[id] with action: "save".
+  // Spec (04_UI_UX_Mechanics §10) requires every symbolic result to be
+  // saveable into My Map.
+  async function saveToMap() {
+    if (!result) return;
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const payload = await jsonRequest<ApiPayload>(`/api/products/symbolic/${result.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ action: "save" }),
+      });
+      setResult(payload.result ?? result);
+      setStatus("idle");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось сохранить в Мою карту");
+      setStatus("error");
+    }
+  }
+
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid={`symbolic-product-actions-${productKey}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -166,9 +186,15 @@ export function SymbolicProductActions({
               <article className="mt-3 whitespace-pre-wrap font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
                 {result.resultText}
               </article>
-              <Button type="button" disabled className="soft-button soft-button-ghost mt-5">
+              <Button
+                type="button"
+                onClick={saveToMap}
+                disabled={result.saved || status === "loading"}
+                className="soft-button soft-button-ghost mt-5"
+                data-testid={`symbolic-save-${productKey}`}
+              >
                 <Save className="size-4" aria-hidden="true" />
-                {result.saved ? "Сохранено" : "Сохранится в историю кабинета"}
+                {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем…" : "Сохранить в Мою карту"}
               </Button>
             </>
           ) : (

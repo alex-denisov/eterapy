@@ -23,14 +23,75 @@ type ApiPayload = {
   error?: string;
 };
 
-const DAYS = [
-  { n: 1, t: "Услышать",           d: "Сегодня — только сформулировать. Без выводов. 5 минут." },
-  { n: 2, t: "Замедлить",          d: "Заметить тело: где напряжение, где тепло. 7 минут." },
-  { n: 3, t: "Развилка",           d: "Разделить: что зависит от вас, что — нет. 10 минут." },
-  { n: 4, t: "Маленький эксперимент", d: "Один безопасный шаг — и заметить, что изменилось." },
-  { n: 5, t: "Голос внутри",       d: "Поговорить с той частью себя, которая боится больше всего." },
-  { n: 6, t: "Кому довериться",    d: "Выбрать одного человека, с которым можно разделить кусочек." },
-  { n: 7, t: "Карта ясности",      d: "Собрать инсайты в одну страницу. Решить, что дальше." },
+type DayContent = {
+  n: number;
+  t: string;
+  d: string;
+  // B310: expand each day with a body, a journal prompt, and a duration —
+  // before this, "Открыть" advanced state without delivering any content,
+  // which is the exact UX flaw the user flagged.
+  body: string;
+  journalPrompt: string;
+  durationMin: number;
+};
+
+const DAYS: DayContent[] = [
+  {
+    n: 1,
+    t: "Услышать",
+    d: "Сегодня — только сформулировать. Без выводов. 5 минут.",
+    body: "Запишите тот вопрос, который занимает вас сейчас, своими словами. Не пытайтесь его улучшить или сделать «правильным» — просто как есть. Если внутри несколько слоёв, разрешите им быть всем.",
+    journalPrompt: "Если бы я мог рассказать этот вопрос одному человеку, которому полностью доверяю — какими словами я бы начал?",
+    durationMin: 5,
+  },
+  {
+    n: 2,
+    t: "Замедлить",
+    d: "Заметить тело: где напряжение, где тепло. 7 минут.",
+    body: "Сядьте удобно. Проследите, где в теле эта тема живёт прямо сейчас. Не пытайтесь «починить» — только заметить и описать без оценок.",
+    journalPrompt: "Какая часть тела громче всего откликается на эту тему? Какое это ощущение — на что похоже?",
+    durationMin: 7,
+  },
+  {
+    n: 3,
+    t: "Развилка",
+    d: "Разделить: что зависит от вас, что — нет. 10 минут.",
+    body: "Возьмите чистый лист. Слева — что в этой ситуации зависит только от вас. Справа — что не зависит. Граница часто проходит не там, где кажется на первый взгляд.",
+    journalPrompt: "Что я могу сделать своим действием, а что — нет, как бы я ни старался?",
+    durationMin: 10,
+  },
+  {
+    n: 4,
+    t: "Маленький эксперимент",
+    d: "Один безопасный шаг — и заметить, что изменилось.",
+    body: "Выберите один маленький эксперимент: не решение, а опыт. Что-то, что можно сделать сегодня и потом заметить эффект. Маленький — значит безопасный.",
+    journalPrompt: "Какой один маленький шаг я могу попробовать сегодня — такой, чтобы он ничего не ломал, но что-то немного сдвигал?",
+    durationMin: 10,
+  },
+  {
+    n: 5,
+    t: "Голос внутри",
+    d: "Поговорить с той частью себя, которая боится больше всего.",
+    body: "Та часть вас, которая боится — что она хочет защитить? Попробуйте написать ей коротко: «Я слышу тебя. Чего ты боишься?» — и посмотрите, что приходит в ответ.",
+    journalPrompt: "Если бы испуганная часть меня могла говорить вслух — что бы она сказала?",
+    durationMin: 10,
+  },
+  {
+    n: 6,
+    t: "Кому довериться",
+    d: "Выбрать одного человека, с которым можно разделить кусочек.",
+    body: "Выберите одного человека, которому можно рассказать один маленький кусочек темы. Не всю — только то, что хочется разделить. Цель — не получить совет, а перестать нести одному.",
+    journalPrompt: "Кто этот человек? Какую часть истории я хочу рассказать? И что мне НЕ нужно от него — совет, оценку, решение?",
+    durationMin: 10,
+  },
+  {
+    n: 7,
+    t: "Карта ясности",
+    d: "Собрать инсайты в одну страницу. Решить, что дальше.",
+    body: "Сегодня — итог. Что вы заметили за неделю? Что окрепло, что стихло? Какой один следующий шаг вы хотите взять с собой? После сохранения мы соберём это в карту, которую можно перечитать или поделиться со специалистом.",
+    journalPrompt: "Если бы я мог взять в следующую неделю одно решение, одно ощущение и один вопрос — какие они?",
+    durationMin: 15,
+  },
 ];
 
 async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
@@ -229,6 +290,58 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
             </div>
           </div>
 
+          {/* B310: Today's day content — expanded card with body + journal
+              prompt + duration. Spec DoD §9 requires per-day micro-result. */}
+          {!isCompleted && currentDay >= 1 && currentDay <= 7 && (() => {
+            const today = DAYS[currentDay - 1];
+            return (
+              <div
+                className="mt-4 rounded-[20px] p-6"
+                style={{
+                  background: "linear-gradient(160deg, #FFFCF5 0%, #F4D9C1 100%)",
+                  outline: "2px solid var(--soft-terracotta-dark)",
+                  outlineOffset: 1,
+                }}
+                data-testid="seven-days-today-card"
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="soft-eyebrow text-[var(--soft-terracotta-dark)]">
+                    день {today.n} · сегодня · ~{today.durationMin} минут
+                  </span>
+                </div>
+                <h3
+                  className="mt-2 font-heading italic text-[var(--soft-bordeaux)]"
+                  style={{ fontSize: "clamp(1.5rem, 2.4vw, 2rem)", lineHeight: 1.15 }}
+                  data-testid="seven-days-today-title"
+                >
+                  {today.t}
+                </h3>
+                <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-[var(--soft-ink)]">
+                  {today.body}
+                </p>
+                <div className="mt-4 rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
+                  <p className="soft-eyebrow">вопрос на сегодня</p>
+                  <p className="mt-2 font-heading text-[1.05rem] italic leading-relaxed text-[var(--soft-bordeaux)]">
+                    {today.journalPrompt}
+                  </p>
+                </div>
+                <Button
+                  onClick={completeDay}
+                  disabled={status === "loading" || !isActive}
+                  className="soft-button soft-button-primary mt-5"
+                  data-testid="seven-days-complete-day"
+                >
+                  {status === "loading" ? "Сохраняем…" : "Готово · завершить день"}
+                </Button>
+                {!isActive && (
+                  <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
+                    Маршрут на паузе — возобновите его кнопкой ниже, чтобы завершить день.
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           {/* day list */}
           <div className="mt-4 flex flex-col gap-3">
             {DAYS.map((d, i) => {
@@ -262,14 +375,9 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                       <p className="mt-0.5 text-sm text-[var(--soft-ink-soft)]">{d.d}</p>
                     </div>
                     {today && (
-                      <Button
-                        onClick={completeDay}
-                        disabled={status === "loading" || !isActive}
-                        className="soft-button soft-button-primary shrink-0"
-                        data-testid="seven-days-complete-day"
-                      >
-                        {status === "loading" ? "Сохраняем…" : "Прочитал · завершить день"}
-                      </Button>
+                      <span className="shrink-0 rounded-full bg-[var(--soft-terracotta-dark)] px-3 py-1 text-xs font-semibold text-[#FBF0E1]">
+                        сейчас выше ↑
+                      </span>
                     )}
                     {done && (
                       <span className="shrink-0 rounded-full border border-[var(--soft-paper-edge)] px-3 py-1 text-xs text-[var(--soft-ink-faint)]">

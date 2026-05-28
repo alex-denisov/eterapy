@@ -6,6 +6,7 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
+import { JointSessionActions } from "@/components/products/joint-session-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
@@ -624,6 +625,7 @@ function ProductActionSurface({
   if (product.slug === "my-map") {
     return <SymbolicProductActions productKey="my-map" title="Расширенная карта" promptLabel="Что собрать в карту" placeholder="Хочу собрать темы года: отношения, работа, голос, границы. Что повторялось и что стало тише?" creditCost={6} />;
   }
+  if (product.slug === "joint-session") return <JointSessionActions />;
   return null;
 }
 
