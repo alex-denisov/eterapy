@@ -82,17 +82,13 @@ export default async function ClientCabinetPage() {
 
   return (
     <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
-      {/* v4: eyebrow "мой кабинет" + h1 + action button */}
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="soft-eyebrow">мой кабинет</p>
-          <h1 className="soft-h1 mt-2">
-            С возвращением, <span className="soft-italic">{firstName}</span>
-          </h1>
-        </div>
-        <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary">
-          Новый разбор
-        </Link>
+      {/* v4: eyebrow "мой кабинет" + h1. B313: removed in-page "Новый разбор"
+          CTA — it duplicated the header CTA and visually crowded the H1 row. */}
+      <div className="mb-6">
+        <p className="soft-eyebrow">мой кабинет</p>
+        <h1 className="soft-h1 mt-2">
+          С возвращением, <span className="soft-italic">{firstName}</span>
+        </h1>
       </div>
 
       {/* v4.2: 3-col stat grid — тема / кредиты / подписка */}

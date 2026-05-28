@@ -357,11 +357,22 @@ export function Header() {
   // Keep the soft-paper styling on every surface — including admin —
   // so the visual baseline is identical across all logged-in areas.
   const softPublicHeader = true;
-  const cabinetHref = session?.user?.role === "PRACTITIONER"
+  const role: string = session?.user?.role ?? "CLIENT";
+  const cabinetHref = role === "PRACTITIONER"
     ? appUrl("/practitioner")
-    : session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN"
+    : role === "ADMIN" || role === "SUPERADMIN"
       ? adminUrl("/admin")
       : appUrl("");
+
+  // B314: role-specific right-cluster visibility.
+  //   CLIENT — balance (rub + clarity-credits), help, bell, dropdown, Новый разбор
+  //   PRACTITIONER — help, bell, dropdown, Новый разбор (no clarity-credits; they are not buyers of products)
+  //   ADMIN / SUPERADMIN / MODERATOR — bell + dropdown only (no balance, no help, no Новый разбор)
+  const isStaff = role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR";
+  const isPractitioner = role === "PRACTITIONER";
+  const showBalanceSummary = isAuthenticated && !isStaff && !isPractitioner;
+  const showHelpIcon = isAuthenticated && !isStaff;
+  const showNewDialogueCta = isAuthenticated && !isStaff;
 
   return (
     <header
@@ -381,8 +392,10 @@ export function Header() {
           <VectorBrandLogo height={28} theme={softPublicHeader ? "light" : "dark"} />
         </Link>
 
-        {/* Public navigation stays on eterapy.com even inside app.eterapy.com cabinets. */}
-        <nav className="hidden items-center gap-1 md:flex">
+        {/* Public navigation stays on eterapy.com even inside app.eterapy.com cabinets.
+            B315: justify-center so the nav sits in the middle of the 1fr grid track —
+            previously it stuck to the left edge of column 2 after the B298 grid rework. */}
+        <nav className="hidden items-center justify-center gap-1 md:flex">
           {nav.map((item) => {
             const itemPathname = new URL(item.href, "https://eterapy.com").pathname;
             const active = pathname === itemPathname || pathname.startsWith(itemPathname + "/");
@@ -406,40 +419,48 @@ export function Header() {
         <div className="flex items-center justify-end gap-1.5">
           {isAuthenticated && session ? (
             <>
-              <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
-              <Link
-                href={isAppArea ? appUrl("/support") : mainUrl("/help")}
-                prefetch={false}
-                aria-label="Поддержка и помощь"
-                className="soft-user-icon"
-              >
-                <CircleHelp className="size-4" />
-              </Link>
+              {/* B314: balance + help hidden for staff (ADMIN/SUPERADMIN/MODERATOR);
+                  balance also hidden for PRACTITIONER (they don't buy via credits).
+                  bell + dropdown remain on every authenticated surface. */}
+              {showBalanceSummary && (
+                <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
+              )}
+              {showHelpIcon && (
+                <Link
+                  href={isAppArea ? appUrl("/support") : mainUrl("/help")}
+                  prefetch={false}
+                  aria-label="Поддержка и помощь"
+                  className="soft-user-icon"
+                >
+                  <CircleHelp className="size-4" />
+                </Link>
+              )}
               <NotificationBell variant="header" />
               <UserMenu session={session} balanceKopecks={balanceKopecks} />
-              {/* B303: "Новый разбор" always visible — even inside the cabinet —
-                  so header parity holds between eterapy.com and app.eterapy.com.
-                  B304: shrunk to h-8 with no min-width and text-[12px] to match
-                  the visual weight of the icon-only buttons (balance, help, bell). */}
-              <Link
-                href={mainUrl("/checkin")}
-                className={cn(
-                  "soft-button soft-button-primary inline-flex h-8 items-center justify-center gap-1 rounded-full px-2.5 text-[12px] leading-none",
-                  softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
-                )}
-                data-testid="header-dialogue-cta"
-                data-analytics-event="dialogue_cta_clicked"
-                data-analytics-target="/checkin"
-              >
-                Новый разбор
-              </Link>
+              {/* B312: match soft-user-pill exactly — h-8, text-[13px], gap-1.5,
+                  px-2.5. Previously these CTAs used text-[12px] which looked
+                  visually smaller than the user-pill on the same baseline. */}
+              {showNewDialogueCta && (
+                <Link
+                  href={mainUrl("/checkin")}
+                  className={cn(
+                    "soft-button soft-button-primary inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-2.5 text-[13px] leading-none",
+                    softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
+                  )}
+                  data-testid="header-dialogue-cta"
+                  data-analytics-event="dialogue_cta_clicked"
+                  data-analytics-target="/checkin"
+                >
+                  Новый разбор
+                </Link>
+              )}
             </>
           ) : (
             <>
               <Link href={mainUrl("/login")}
                 prefetch={false}
                 className={cn(
-                  "soft-button soft-button-ghost h-8 items-center justify-center rounded-full px-2.5 text-[12px] leading-none",
+                  "soft-button soft-button-ghost h-8 items-center justify-center rounded-full px-2.5 text-[13px] leading-none",
                   "hidden md:inline-flex",
                   softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
                 )}>
@@ -448,7 +469,7 @@ export function Header() {
               <Link
                 href={mainUrl("/checkin")}
                 className={cn(
-                  "soft-button soft-button-primary inline-flex h-8 items-center justify-center rounded-full px-2.5 text-[12px] leading-none",
+                  "soft-button soft-button-primary inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-2.5 text-[13px] leading-none",
                   softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
                 )}
               >
