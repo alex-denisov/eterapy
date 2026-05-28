@@ -15,6 +15,7 @@ import {
   CircleHelp,
   Compass,
   CreditCard,
+  Heart,
   LayoutDashboard,
   LogOut,
   Settings,

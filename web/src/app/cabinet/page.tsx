@@ -31,16 +31,20 @@ export default async function ClientCabinetPage() {
       select: { id: true, title: true, status: true, topic: true, updatedAt: true },
     }),
     // B326: "ближайшая встреча" must be a real future appointment, not
-    // any past/cancelled record. Filter on scheduledAt > now AND active
-    // statuses; order by the earliest upcoming slot.
+    // any past/cancelled record. The booking time lives on its TimeSlot —
+    // filter slot.startAt > now AND active statuses; order by the earliest
+    // upcoming slot.
     db.booking.findFirst({
       where: {
         clientId: userId,
         status: { in: ["PENDING", "CONFIRMED"] },
-        scheduledAt: { gt: new Date() },
+        slot: { startAt: { gt: new Date() } },
       },
-      orderBy: { scheduledAt: "asc" },
-      include: { practitioner: { include: { user: { select: { name: true } } } } },
+      orderBy: { slot: { startAt: "asc" } },
+      include: {
+        practitioner: { include: { user: { select: { name: true } } } },
+        slot: { select: { startAt: true } },
+      },
     }),
     db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
     db.userSubscription.findFirst({
