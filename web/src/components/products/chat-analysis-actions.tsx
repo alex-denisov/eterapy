@@ -254,26 +254,47 @@ export function ChatAnalysisActions() {
     try {
       let combined = sourceText.trim();
       const newNames: string[] = [];
+      let failedCount = 0;
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const imageDataUrl = await readAsDataURL(file);
-        const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
-          method: "POST",
-          body: JSON.stringify({ action: "screenshot_preview", imageDataUrl, fileName: file.name }),
-        });
-        setHasEntitlement(Boolean(payload.hasEntitlement));
-        const recognized = payload.result?.metadata?.recognizedText ?? "";
-        if (recognized) {
-          combined = combined ? `${combined}\n\n${recognized}` : recognized;
+        // G7: one screenshot that the OCR can't read must NOT discard the
+        // others or the text already typed. Catch per-file, mark it as
+        // "не распознан", and keep going — the user can still paste manually.
+        try {
+          const imageDataUrl = await readAsDataURL(file);
+          const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
+            method: "POST",
+            body: JSON.stringify({ action: "screenshot_preview", imageDataUrl, fileName: file.name }),
+          });
+          setHasEntitlement(Boolean(payload.hasEntitlement));
+          const recognized = payload.result?.metadata?.recognizedText ?? "";
+          if (recognized) {
+            combined = combined ? `${combined}\n\n${recognized}` : recognized;
+            newNames.push(file.name);
+          } else {
+            failedCount += 1;
+            newNames.push(`${file.name} (текст не распознан)`);
+          }
+          // Keep the latest preview result so the user can see something even
+          // before generating; downstream upload_preview will rebuild it.
+          setResult(payload.result ?? null);
+        } catch {
+          failedCount += 1;
+          newNames.push(`${file.name} (текст не распознан)`);
         }
-        newNames.push(`${file.name}${recognized ? "" : " (текст не распознан)"}`);
-        // Keep the latest preview result so the user can see something even
-        // before generating; downstream upload_preview will rebuild it.
-        setResult(payload.result ?? null);
       }
       setSourceText(combined);
       setUploadedFiles((prev) => [...prev, ...newNames]);
-      setStatus("idle");
+      if (failedCount > 0) {
+        setMessage(
+          failedCount === files.length
+            ? "Не удалось распознать текст на скриншоте. Попробуйте другой файл или вставьте текст вручную в поле ниже."
+            : `Часть скриншотов (${failedCount}) не распозналась — добавьте их текст вручную в поле ниже.`,
+        );
+        setStatus("error");
+      } else {
+        setStatus("idle");
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось распознать скриншот");
       setStatus("error");

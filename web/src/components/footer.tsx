@@ -12,6 +12,8 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   // top, paid digital deepenings, esoteric, then specialist/live. The
   // "Бесплатно" column lists every product that has a meaningful free
   // entry surface (not just zero-price ones).
+  // G2: the footer is navigation, not a price list — prices live on each
+  // product page, so labels carry no "₽" and no "teaser" wording here.
   const columns = [
     {
       title: "Бесплатно",
@@ -19,28 +21,27 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/checkin"), "Первичный разбор"],
         [mainUrl("/library"), "Библиотека вопросов"],
         [mainUrl("/products/clarity-practice"), "Практика ясности"],
-        [mainUrl("/products/circle"), "Круг ясности · teaser"],
-        [mainUrl("/products/pair"), "Разобраться вдвоём · teaser"],
-        [mainUrl("/products/compatibility"), "Совместимость · teaser"],
-        [mainUrl("/products/seven-days"), "7 дней — день 1"],
+        [mainUrl("/products/circle"), "Круг ясности"],
+        [mainUrl("/products/pair"), "Разобраться вдвоём"],
+        [mainUrl("/products/compatibility"), "Совместимость"],
+        [mainUrl("/products/seven-days"), "7 дней к ясности"],
       ],
     },
     {
       title: "Платные разборы",
       links: [
-        [mainUrl("/products/perspectives"), "4 ракурса · 299 ₽"],
-        [mainUrl("/products/deep-report"), "Глубокий отчёт · 690 ₽"],
-        [mainUrl("/products/chat-analysis"), "Разбор переписки · от 299 ₽"],
-        [mainUrl("/products/seven-days"), "7 дней к ясности · 990 ₽"],
-        [mainUrl("/products/my-map"), "Расширенная карта · 990 ₽"],
+        [mainUrl("/products/perspectives"), "4 ракурса"],
+        [mainUrl("/products/deep-report"), "Глубокий отчёт"],
+        [mainUrl("/products/chat-analysis"), "Разбор переписки"],
+        [mainUrl("/products/my-map"), "Расширенная карта"],
       ],
     },
     {
       title: "Эзотерика",
       links: [
-        [mainUrl("/products/tarot"), "Таро · 390 ₽"],
-        [mainUrl("/products/natal-chart"), "Натальная карта · 590 ₽"],
-        [mainUrl("/products/numerology"), "Нумерология · 390 ₽"],
+        [mainUrl("/products/tarot"), "Таро"],
+        [mainUrl("/products/natal-chart"), "Натальная карта"],
+        [mainUrl("/products/numerology"), "Нумерология"],
       ],
     },
     {

@@ -58,6 +58,23 @@ const directSensitiveOrder = [
   AIProvider.CEREBRAS,
   AIProvider.FIREWORKS,
 ] as const;
+// G7: OCR sends an actual image. Only these providers' configured models can
+// read pixels — Gemini Flash, OpenAI gpt-4.1-mini and Anthropic Claude 3 Haiku
+// are all multimodal. The other "sensitive" providers (Mistral-small, Groq
+// gpt-oss, Cohere command-r, Cerebras/Fireworks gpt-oss) are TEXT-ONLY: routing
+// a screenshot to them silently drops the image and returns garbage, which is
+// exactly what surfaced to users as "Не удалось распознать скриншот". So the
+// vision pipeline must never fall through to a text-only provider.
+const directVisionOrder = [
+  AIProvider.GEMINI,
+  AIProvider.OPENAI,
+  AIProvider.ANTHROPIC,
+] as const;
+const visionModelPreferences: Partial<Record<AIProvider, string>> = {
+  [AIProvider.GEMINI]: "gemini-2.5-flash",
+  [AIProvider.OPENAI]: "gpt-4.1-mini",
+  [AIProvider.ANTHROPIC]: "claude-3-haiku-20240307",
+};
 
 const cheapModelPreferences: Record<AIProvider, string> = {
   [AIProvider.OPENROUTER]: "openrouter/free",
@@ -182,13 +199,15 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     tier: "vision",
     title: "OCR переписки",
     purpose: "Vision/OCR extraction из скриншота перед пользовательским подтверждением и PII masking.",
-    providerOrder: [...directSensitiveOrder],
-    modelPreferences: { [AIProvider.OPENAI]: "gpt-4.1-mini" },
+    // G7: vision-only provider order — never route a screenshot to a text-only
+    // model, which used to silently fail with "Не удалось распознать скриншот".
+    providerOrder: [...directVisionOrder],
+    modelPreferences: { ...visionModelPreferences },
     maxTokens: 1600,
     temperature: 0,
     timeoutMs: 45_000,
     perUserDailyTokenBudget: 8_000,
-    fallbackNotes: "No OpenRouter/free: screenshots stay on direct providers; image is not persisted after OCR.",
+    fallbackNotes: "Vision-capable providers only (Gemini/OpenAI/Anthropic); image is not persisted after OCR.",
   },
   {
     feature: "product-chat-analysis",

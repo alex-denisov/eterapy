@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Mail, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowRight, Mail, MessageCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { mainUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
 import { SupportChat } from "@/components/support/support-chat";
+import { ComplaintForm } from "@/components/support/complaint-form";
 
 export const metadata: Metadata = {
   title: "Поддержка — кабинет ETerapy",
@@ -33,7 +34,7 @@ export default async function CabinetSupportPage() {
           в 80% случаев ответ уже там.
         </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3" data-testid="cabinet-support-channels">
+        <div className="mt-8 grid gap-4 md:grid-cols-2" data-testid="cabinet-support-channels">
           <div className="soft-card p-6">
             <Mail className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
             <h2 className="soft-h3 mt-3">Email</h2>
@@ -69,21 +70,15 @@ export default async function CabinetSupportPage() {
               <ArrowRight className="size-4" aria-hidden="true" />
             </a>
           </div>
+        </div>
 
-          <div className="soft-card p-6">
-            <ShieldCheck className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-            <h2 className="soft-h3 mt-3">Жалоба или нарушение</h2>
-            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              Если специалист повёл себя некорректно, оплата зависла или нарушена приватность.
-            </p>
-            <a
-              href="mailto:safety@eterapy.com?subject=%D0%96%D0%B0%D0%BB%D0%BE%D0%B1%D0%B0"
-              className="soft-button soft-button-primary mt-4 h-9 px-4 text-sm"
-              data-testid="cabinet-support-safety"
-            >
-              safety@eterapy.com
-            </a>
-          </div>
+        {/* G8: structured complaint intake. Replaces the old
+            mailto:safety@ card — captures a category + description and
+            routes through the same support pipeline (DB + Telegram). The
+            reply lands in the in-cabinet chat below, so no separate email
+            return address is needed. */}
+        <div className="mt-4">
+          <ComplaintForm />
         </div>
 
         {/* B333: in-cabinet chat MVP. The user types here; their message

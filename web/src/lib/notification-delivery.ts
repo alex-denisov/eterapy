@@ -173,7 +173,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "REPORT_READY":
       return { title: "Отчет готов", body: data.title || "Ваш разбор готов к чтению", href: data.reportUrl || "/cabinet/action-history" };
     case "PARTNER_COMPLETED":
-      return { title: "Партнер завершил часть", body: "Можно открыть совместный teaser", href: data.reportUrl || "/products/pair" };
+      return { title: "Партнер завершил часть", body: "Можно открыть совместный результат", href: data.reportUrl || "/products/pair" };
     case "CIRCLE_READY":
       return { title: "Круг ясности готов", body: "Ответов достаточно для общего вывода", href: data.circleUrl || "/products/circle" };
     case "ROUTE_REMINDER":
@@ -233,7 +233,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "REPORT_READY":
       return `Отчет готов\n${data.title ?? "Ваш разбор готов к чтению"}.\n<a href="${data.reportUrl ?? `${baseUrl}/cabinet/action-history`}">Открыть →</a>`;
     case "PARTNER_COMPLETED":
-      return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/products/pair`}">Открыть teaser →</a>`;
+      return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/products/pair`}">Открыть результат →</a>`;
     case "CIRCLE_READY":
       return `Круг ясности готов\n<a href="${data.circleUrl ?? `${baseUrl}/products/circle`}">Открыть круг →</a>`;
     case "ROUTE_REMINDER":

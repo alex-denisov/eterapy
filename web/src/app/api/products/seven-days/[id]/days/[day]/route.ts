@@ -5,6 +5,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { generateFinalReport } from "@/lib/seven-days";
+import { userHasActiveEntitlement } from "@/lib/entitlements";
 
 const PRODUCT_KEY = "seven-days";
 
@@ -38,6 +39,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   if (route.currentDay !== targetDay) {
     return errorWithRequestContext("CONFLICT", "Can only complete the current day", 409, context);
+  }
+
+  // G9 · Day 1 is free (13_Prices_Breakdown §11). Completing day 1 unlocks
+  // days 2–7 + the final report, so payment is required from this point on.
+  // Days 2–7 are only reachable after a paid completion of day 1, but we
+  // re-check on every completion to stay safe if an entitlement lapses.
+  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  if (!hasEntitlement) {
+    return errorWithRequestContext(
+      "PAYMENT_REQUIRED",
+      "День 1 бесплатный. Откройте полный маршрут, чтобы продолжить к дням 2–7 и получить итоговый отчёт.",
+      402,
+      context,
+    );
   }
 
   if (targetDay < 7) {

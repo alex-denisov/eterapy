@@ -262,7 +262,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
     case "REPORT_READY":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Отчет готов</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.title ?? "Ваш разбор"} можно открыть в кабинете.</p>${btn(data.reportUrl ?? `${BASE_URL}/cabinet/action-history`, "Открыть отчет")}`;
     case "PARTNER_COMPLETED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Вторая часть готова</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Партнер завершил свою часть. Можно открыть teaser и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Вторая часть готова</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Партнер завершил свою часть. Можно открыть результат и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
     case "CIRCLE_READY":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Круг ясности собран</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Ответов уже достаточно, чтобы собрать общий мягкий вывод.</p>${btn(data.circleUrl ?? `${BASE_URL}/circle`, "Открыть круг")}`;
     case "ROUTE_REMINDER":

@@ -103,7 +103,7 @@ describe("v5 product pages", () => {
     // remaining privacy primitives (delete source, partner consent for
     // compatibility) are still required.
     expect(products).toContain("удаление источника");
-    expect(products).toContain("согласие партнера");
+    expect(products).toContain("согласие партнёра");
     expect(products).toContain("пауза и продолжение");
     expect(products).toContain("сохранить, скрыть или удалить");
     expect(products).toContain("открытие через entitlement");

@@ -10,6 +10,54 @@ import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
+import { log, serializeError } from "@/lib/logger";
+
+// G4: proper Russian pluralisation for "разбор" so the "текущая тема" card
+// reads naturally for 1 / 2–4 / 5+ / 11–14 cases (not the naive 2–4 check).
+function pluralRazbor(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "разбор";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "разбора";
+  return "разборов";
+}
+
+type RecommendedPractitioner = {
+  slug: string;
+  name: string;
+  title: string;
+  pricePerSession: number;
+};
+
+// G5: when the client has no upcoming booking we still want the "ближайшая
+// встреча" slot filled — with a gentle recommendation to talk to a real
+// specialist. We surface the single best-ranked ACTIVE + verified
+// practitioner (founding → reviewCount → ratingSum), and never let a DB
+// hiccup crash the cabinet: on any failure we just render nothing.
+async function loadRecommendedPractitioner(): Promise<RecommendedPractitioner | null> {
+  try {
+    const row = await db.practitioner.findFirst({
+      where: { status: "ACTIVE", verified: true },
+      orderBy: [{ founding: "desc" }, { reviewCount: "desc" }, { ratingSum: "desc" }],
+      select: {
+        slug: true,
+        title: true,
+        pricePerSession: true,
+        user: { select: { name: true } },
+      },
+    });
+    if (!row) return null;
+    return {
+      slug: row.slug,
+      name: row.user.name ?? "Специалист",
+      title: row.title,
+      pricePerSession: row.pricePerSession,
+    };
+  } catch (error) {
+    log.warn("cabinet.recommended_practitioner_fallback", { error: serializeError(error) });
+    return null;
+  }
+}
 
 export default async function ClientCabinetPage() {
   const session = await auth();
@@ -23,7 +71,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, userData, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits] = await Promise.all([
+  const [recentDialogues, upcomingBooking, userData, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits, topicGroups, recommendedPractitioner] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -67,6 +115,15 @@ export default async function ClientCabinetPage() {
     getOrCreateDailyCard(userId),
     db.dailyCard.count({ where: { userId } }),
     getClarityCreditBalance(userId),
+    // G4: count dialogues per topic across ALL history (not just the last 4),
+    // so the "текущая тема" card can show "N разборов на эту тему" instead of
+    // the misleading total "разборов за всё время".
+    db.dialogue.groupBy({
+      by: ["topic"],
+      where: { userId, deletedAt: null, topic: { not: null } },
+      _count: { _all: true },
+    }),
+    loadRecommendedPractitioner(),
   ]);
 
   const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
@@ -78,12 +135,13 @@ export default async function ClientCabinetPage() {
       : getSubscriptionStatusLabel(activeSubscription.status)
     : "Базовый доступ";
 
-  const topicCounts: Record<string, number> = {};
-  for (const d of recentDialogues) {
-    if (d.topic) topicCounts[d.topic] = (topicCounts[d.topic] ?? 0) + 1;
-  }
+  // G4: the dominant theme is the topic with the most dialogues across the
+  // whole history, and `currentThemeCount` is that topic's own count — so the
+  // card no longer mixes "тема X" with the grand total of all разборы.
+  const sortedTopics = [...topicGroups].sort((a, b) => b._count._all - a._count._all);
+  const currentTopicKey = sortedTopics[0]?.topic ?? null;
+  const currentThemeCount = sortedTopics[0]?._count._all ?? 0;
   // B325: resolve the topic enum (English) into a Russian label for the UI.
-  const currentTopicKey = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   const currentTheme = currentTopicKey ? dialogueTopicLabelRu(currentTopicKey) : null;
 
   const nextAction = activeRoutes[0]
@@ -119,7 +177,7 @@ export default async function ClientCabinetPage() {
                 {currentTheme}
               </p>
               <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-                {dialogueCount} {dialogueCount === 1 ? "разбор" : dialogueCount >= 2 && dialogueCount <= 4 ? "разбора" : "разборов"} за всё время
+                {currentThemeCount} {pluralRazbor(currentThemeCount)} на эту тему
               </p>
             </>
           ) : (
@@ -180,8 +238,11 @@ export default async function ClientCabinetPage() {
         </div>
       </div>
 
-      {/* v4.2: upcoming booking — full-width dark bordeaux card, only when booking exists */}
-      {upcomingBooking && (
+      {/* v4.2: "ближайшая встреча" slot. B326: a real future appointment renders
+          as the dark bordeaux card. G5: when there is NO upcoming booking we
+          keep the slot alive with a softer recommendation card — nudging the
+          client toward a real specialist, themed around their dominant topic. */}
+      {upcomingBooking ? (
         <div className="mb-4 rounded-[var(--soft-radius-xl)] p-5" style={{ background: "var(--soft-bordeaux)", color: "#FBF0E1" }}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -198,7 +259,34 @@ export default async function ClientCabinetPage() {
             </Link>
           </div>
         </div>
-      )}
+      ) : recommendedPractitioner ? (
+        <div
+          className="mb-4 rounded-[var(--soft-radius-xl)] border border-[var(--soft-paper-edge)] p-5"
+          style={{ background: "var(--soft-paper-deep)" }}
+          data-testid="client-practitioner-suggestion"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="soft-eyebrow">если хочется живого разговора</p>
+              <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
+                {currentTheme
+                  ? `Тема «${currentTheme}» возвращается — может, обсудить её с человеком?`
+                  : "Можно обсудить ваш вопрос с живым специалистом"}
+              </p>
+              <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+                {recommendedPractitioner.name} · {recommendedPractitioner.title} · от{" "}
+                {recommendedPractitioner.pricePerSession.toLocaleString("ru-RU")} ₽
+              </p>
+            </div>
+            <Link
+              href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)}
+              className="soft-button soft-button-primary shrink-0"
+            >
+              Записаться
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       {/* v4: recent dialogues card — directly below stat grid */}
       <div className="soft-card mb-4 p-5">

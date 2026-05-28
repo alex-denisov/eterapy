@@ -132,13 +132,14 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
   async function startRoute() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы открыть маршрут с баланса, кредитами ясности или картой.");
+      setMessage("Войдите, чтобы начать маршрут — первый день бесплатно.");
       setStatus("error");
       return;
     }
     setStatus("loading");
     setMessage(null);
     try {
+      // G9: day 1 is free, so START no longer requires an entitlement.
       const payload = await jsonRequest<ApiPayload>("/api/products/seven-days", {
         method: "POST",
         body: JSON.stringify({ action: "start", dialogueId }),
@@ -148,11 +149,6 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
       setStatus("idle");
     } catch (error) {
       const typed = error as Error & { status?: number };
-      if (typed.status === 402) {
-        setMessage("Откройте маршрут с баланса, кредитами ясности или картой — после этого день 1 начнется здесь же.");
-        setStatus("error");
-        return;
-      }
       setMessage(typed.message || "Не удалось начать маршрут");
       setStatus("error");
     }
@@ -170,7 +166,15 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
       setResult(payload.result ?? null);
       setStatus("idle");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось завершить день");
+      const typed = error as Error & { status?: number };
+      if (typed.status === 402) {
+        // G9: paywall hit when advancing past the free day 1.
+        setHasEntitlement(false);
+        setMessage("День 1 бесплатный. Откройте полный маршрут, чтобы продолжить к дням 2–7.");
+        setStatus("error");
+        return;
+      }
+      setMessage(typed.message || "Не удалось завершить день");
       setStatus("error");
     }
   }
@@ -208,9 +212,14 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
     );
   }
 
-  const currentDay = result?.currentDay ?? 0;
-  const isActive = result?.status === "ACTIVE";
-  const isCompleted = result?.status === "COMPLETED";
+  // G9 · The latest route is either an in-progress cycle or a finished one.
+  // Splitting them lets us (a) always offer a fresh start when nothing is
+  // active and (b) keep the finished cycle's report reachable next to the
+  // "new cycle" CTA.
+  const activeRoute = result && result.status !== "COMPLETED" ? result : null;
+  const completedRoute = result && result.status === "COMPLETED" ? result : null;
+  const currentDay = activeRoute?.currentDay ?? 0;
+  const isActive = activeRoute?.status === "ACTIVE";
 
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid="seven-days-actions">
@@ -220,7 +229,7 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
           <h2 className="soft-h3 mt-2">7 дней к ясности</h2>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "доступ открыт" : "нужна оплата"}
+          {hasEntitlement ? "доступ открыт" : "день 1 бесплатно"}
         </span>
       </div>
 
@@ -230,49 +239,71 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
         </p>
       )}
 
-      {/* not started */}
-      {!result && (
-        <div className="mt-5">
-          <p className="mt-2 mb-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Каждый день — один шаг: мысль, практика или вопрос. По 5–10 минут. Семь дней — и важный вопрос виден иначе.
+      {/* completed cycle summary + new-cycle entry */}
+      {completedRoute && (
+        <div className="soft-card-flat mt-5 p-4 text-center" data-testid="seven-days-completed">
+          <p className="soft-eyebrow">прошлый цикл завершён</p>
+          <p className="mt-2 font-heading text-lg italic text-[var(--soft-ink-soft)] leading-relaxed">
+            Мы собрали ваши инсайты в одну страницу — её можно сохранить, поделиться или взять с собой к специалисту.
           </p>
-          <Button
-            onClick={startRoute}
-            disabled={!hasEntitlement || status === "loading" || status === "paying"}
-            className="soft-button soft-button-primary"
-          >
-            <LockKeyhole className="size-4" aria-hidden="true" />
-            Начать маршрут
-          </Button>
-          {!hasEntitlement && (
-            <div className="mt-3">
-              <ProductPurchaseControls
-                productKey="seven-days"
-                label="Открыть с баланса"
-                checkoutSource="seven-days-start"
-                creditCost={8}
-                onUnlocked={() => { setHasEntitlement(true); void startRoute(); }}
-              />
-            </div>
-          )}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            {completedRoute.reportId && (
+              <Link
+                href={appUrl(`/results/${completedRoute.reportId}`)}
+                className="soft-button soft-button-primary inline-flex"
+                data-testid="seven-days-result-link"
+              >
+                Посмотреть итоговый отчет
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            )}
+            <Link
+              href="/checkin?nextProduct=seven-days"
+              className="soft-button soft-button-ghost inline-flex"
+              data-testid="seven-days-new-cycle"
+            >
+              Новый цикл с другим вопросом
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       )}
 
-      {/* progress tracker */}
-      {result && (
+      {/* start a (new) route — shown whenever no cycle is active. Day 1 is
+          free; payment is asked for only when advancing past it. */}
+      {!activeRoute && dialogueId && (
+        <div className="mt-5" data-testid="seven-days-start-block">
+          <p className="mt-2 mb-5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Каждый день — один шаг: мысль, практика или вопрос. По 5–10 минут. Первый день — бесплатно,
+            чтобы попробовать. Дни 2–7, прогресс и итоговый отчёт открываются по оплате маршрута.
+          </p>
+          <Button
+            onClick={startRoute}
+            disabled={status === "loading" || status === "paying"}
+            className="soft-button soft-button-primary"
+            data-testid="seven-days-start"
+          >
+            <Play className="size-4" aria-hidden="true" />
+            {completedRoute ? "Начать новый цикл — день 1 бесплатно" : "Начать — первый день бесплатно"}
+          </Button>
+        </div>
+      )}
+
+      {/* progress tracker for the active cycle */}
+      {activeRoute && (
         <>
           <div className="mt-5 rounded-[20px] p-5" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="soft-eyebrow">прогресс</p>
                 <p className="font-heading text-[1.75rem] font-semibold text-[var(--soft-bordeaux)]">
-                  {isCompleted ? "Завершено!" : `День ${currentDay} из 7`}
+                  {`День ${currentDay} из 7`}
                 </p>
               </div>
               <div className="flex gap-1.5">
                 {DAYS.map((d, i) => {
                   const done = i + 1 < currentDay;
-                  const today = i + 1 === currentDay && !isCompleted;
+                  const today = i + 1 === currentDay;
                   return (
                     <div
                       key={d.n}
@@ -292,7 +323,7 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
 
           {/* B310: Today's day content — expanded card with body + journal
               prompt + duration. Spec DoD §9 requires per-day micro-result. */}
-          {!isCompleted && currentDay >= 1 && currentDay <= 7 && (() => {
+          {currentDay >= 1 && currentDay <= 7 && (() => {
             const today = DAYS[currentDay - 1];
             return (
               <div
@@ -325,18 +356,48 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                     {today.journalPrompt}
                   </p>
                 </div>
-                <Button
-                  onClick={completeDay}
-                  disabled={status === "loading" || !isActive}
-                  className="soft-button soft-button-primary mt-5"
-                  data-testid="seven-days-complete-day"
-                >
-                  {status === "loading" ? "Сохраняем…" : "Готово · завершить день"}
-                </Button>
-                {!isActive && (
-                  <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
-                    Маршрут на паузе — возобновите его кнопкой ниже, чтобы завершить день.
-                  </p>
+
+                {/* G9: day-1 paywall gate. Day 1 is free to read + reflect on;
+                    finishing it (to unlock days 2–7 + the report) is paid. */}
+                {currentDay === 1 && !hasEntitlement ? (
+                  <div
+                    className="mt-5 rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4"
+                    data-testid="seven-days-day1-paywall"
+                  >
+                    <div className="flex items-center gap-2">
+                      <LockKeyhole className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                      <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">дальше — по оплате</p>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                      Первый день — бесплатно. Чтобы пройти дни 2–7, видеть прогресс и получить итоговый
+                      отчёт с сохранением в карту, откройте полный маршрут.
+                    </p>
+                    <div className="mt-3">
+                      <ProductPurchaseControls
+                        productKey="seven-days"
+                        label="Открыть маршрут"
+                        checkoutSource="seven-days-day1-gate"
+                        creditCost={8}
+                        onUnlocked={() => setHasEntitlement(true)}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      onClick={completeDay}
+                      disabled={status === "loading" || !isActive}
+                      className="soft-button soft-button-primary mt-5"
+                      data-testid="seven-days-complete-day"
+                    >
+                      {status === "loading" ? "Сохраняем…" : "Готово · завершить день"}
+                    </Button>
+                    {!isActive && (
+                      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
+                        Маршрут на паузе — возобновите его кнопкой ниже, чтобы завершить день.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             );
@@ -345,9 +406,9 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
           {/* day list */}
           <div className="mt-4 flex flex-col gap-3">
             {DAYS.map((d, i) => {
-              const done = i + 1 < currentDay || isCompleted;
-              const today = i + 1 === currentDay && !isCompleted;
-              const future = i + 1 > currentDay && !isCompleted;
+              const done = i + 1 < currentDay;
+              const today = i + 1 === currentDay;
+              const future = i + 1 > currentDay;
               return (
                 <div
                   key={d.n}
@@ -385,7 +446,9 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                       </span>
                     )}
                     {future && (
-                      <span className="shrink-0 text-xs text-[var(--soft-ink-faint)]">Скоро</span>
+                      <span className="shrink-0 text-xs text-[var(--soft-ink-faint)]">
+                        {i + 1 === 2 && !hasEntitlement ? "По оплате" : "Скоро"}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -394,35 +457,15 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
           </div>
 
           {/* pause / resume */}
-          {!isCompleted && (
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={togglePause} disabled={status === "loading"} className="soft-button soft-button-ghost">
-                {isActive ? (
-                  <><Pause className="size-4" aria-hidden="true" /> Сделать перерыв</>
-                ) : (
-                  <><Play className="size-4" aria-hidden="true" /> Возобновить маршрут</>
-                )}
-              </Button>
-            </div>
-          )}
-
-          {isCompleted && (
-            <div className="soft-card-flat mt-5 p-4 text-center">
-              <p className="font-heading text-lg italic text-[var(--soft-ink-soft)] leading-relaxed">
-                После 7-го дня мы соберём ваши инсайты в одну страницу — её можно сохранить, поделиться или взять с собой к специалисту.
-              </p>
-              {result.reportId && (
-                <Link
-                  href={appUrl(`/results/${result.reportId}`)}
-                  className="soft-button soft-button-primary mt-4 inline-flex"
-                  data-testid="seven-days-result-link"
-                >
-                  Посмотреть итоговый отчет
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={togglePause} disabled={status === "loading"} className="soft-button soft-button-ghost">
+              {isActive ? (
+                <><Pause className="size-4" aria-hidden="true" /> Сделать перерыв</>
+              ) : (
+                <><Play className="size-4" aria-hidden="true" /> Возобновить маршрут</>
               )}
-            </div>
-          )}
+            </Button>
+          </div>
         </>
       )}
     </div>

@@ -344,6 +344,55 @@
     background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
   }
 
+  /* G1: compact header CTA. The generic .soft-button forces min-height:3rem
+     (48px) which dwarfs the 28px user-pill / icon chips, so "Войти",
+     "Начать диалог" and "Новый разбор" looked oversized. This dedicated
+     class pins all three CTAs to the same 28px baseline as .soft-user-pill
+     so the right cluster reads as one consistent row. */
+  .soft-header-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 1.75rem;
+    min-height: 1.75rem;
+    padding: 0 0.85rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    transition-property: background-color, border-color, box-shadow, color, filter, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .soft-header-cta:active {
+    transform: scale(0.96);
+  }
+
+  .soft-header-cta-primary {
+    background: var(--soft-terracotta);
+    color: #fff8f1;
+    box-shadow: 0 8px 20px -12px rgba(214, 117, 88, 0.72);
+  }
+
+  .soft-header-cta-primary:hover {
+    background: var(--soft-terracotta-dark);
+  }
+
+  .soft-header-cta-ghost {
+    border-color: rgba(92, 42, 44, 0.18);
+    background: transparent;
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-header-cta-ghost:hover {
+    border-color: rgba(92, 42, 44, 0.32);
+    background: rgba(92, 42, 44, 0.05);
+  }
+
   .soft-dot-badge {
     position: absolute;
     right: -0.25rem;
@@ -1621,6 +1670,127 @@
     border-color: var(--soft-paper-edge) !important;
   }
 
+  .soft-admin-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+    font-size: 0.78rem;
+  }
+
+  .soft-admin-data-table thead {
+    background: color-mix(in srgb, var(--soft-paper-deep) 78%, white);
+  }
+
+  .soft-admin-data-table th {
+    vertical-align: top;
+    padding: 0.4rem 0.5rem;
+    text-align: left;
+    font-weight: 700;
+    color: var(--soft-bordeaux);
+    white-space: nowrap;
+  }
+
+  .soft-admin-data-table td {
+    padding: 0.38rem 0.5rem;
+    vertical-align: middle;
+    border-top: 1px solid var(--soft-paper-edge);
+    background: color-mix(in srgb, var(--soft-paper-card) 95%, white);
+  }
+
+  .soft-admin-data-table tbody tr:hover td {
+    background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
+  }
+
+  .soft-admin-table-filter {
+    margin-top: 0.25rem;
+    width: 100%;
+    min-width: 7rem;
+    height: 1.7rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 0.35rem;
+    background: var(--soft-paper-card);
+    padding: 0 0.38rem;
+    color: var(--soft-ink);
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  .soft-admin-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--soft-bordeaux);
+    text-decoration: none;
+  }
+
+  .soft-admin-sort-link:hover {
+    color: var(--soft-terracotta-dark);
+  }
+
+  .soft-admin-status-pill,
+  .soft-admin-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.65rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 999px;
+    background: var(--soft-paper-card);
+    padding: 0.16rem 0.55rem;
+    color: var(--soft-bordeaux);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .soft-admin-status-pill[data-tone="ok"] {
+    border-color: color-mix(in srgb, var(--soft-sage) 46%, var(--soft-paper-edge));
+    background: var(--soft-sage-soft);
+  }
+
+  .soft-admin-status-pill[data-tone="warn"] {
+    border-color: color-mix(in srgb, var(--soft-terracotta) 36%, var(--soft-paper-edge));
+    background: var(--soft-apricot);
+  }
+
+  .soft-admin-status-pill[data-tone="danger"] {
+    border-color: color-mix(in srgb, var(--soft-rose) 62%, var(--soft-paper-edge));
+    background: var(--soft-rose);
+  }
+
+  .soft-admin-action {
+    cursor: pointer;
+    transition: background-color var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-admin-action:hover {
+    border-color: var(--soft-terracotta);
+    background: var(--soft-apricot);
+  }
+
+  .soft-admin-action[data-variant="primary"] {
+    border-color: var(--soft-terracotta);
+    background: var(--soft-terracotta);
+    color: #fff8f1;
+  }
+
+  .soft-admin-action[data-variant="subtle"] {
+    background: color-mix(in srgb, var(--soft-paper-card) 72%, var(--soft-paper-deep));
+    color: var(--soft-ink-soft);
+  }
+
+  .soft-admin-action[data-variant="danger"] {
+    border-color: color-mix(in srgb, var(--soft-rose) 60%, var(--soft-paper-edge));
+    background: var(--soft-rose);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-admin-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+
   .soft-admin-shell code {
     border-radius: 0.45rem;
     background: var(--soft-paper-deep);
@@ -1654,6 +1824,48 @@
   .soft-admin-shell [class*="text-green"],
   .soft-admin-shell [class*="text-emerald"] {
     filter: saturate(0.82);
+  }
+
+  .soft-admin-shell [class*="bg-red"],
+  .soft-admin-shell [class*="bg-destructive"] {
+    background-color: var(--soft-rose) !important;
+  }
+
+  .soft-admin-shell [class*="text-red"],
+  .soft-admin-shell [class*="text-destructive"] {
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-admin-shell [class*="border-red"],
+  .soft-admin-shell [class*="border-destructive"] {
+    border-color: color-mix(in srgb, var(--soft-rose) 64%, var(--soft-paper-edge)) !important;
+  }
+
+  .soft-admin-shell [class*="bg-yellow"] {
+    background-color: var(--soft-apricot) !important;
+  }
+
+  .soft-admin-shell [class*="text-yellow"] {
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-admin-shell [class*="border-yellow"] {
+    border-color: color-mix(in srgb, var(--soft-apricot) 72%, var(--soft-paper-edge)) !important;
+  }
+
+  .soft-admin-shell [class*="bg-green"],
+  .soft-admin-shell [class*="bg-emerald"] {
+    background-color: var(--soft-sage-soft) !important;
+  }
+
+  .soft-admin-shell [class*="text-green"],
+  .soft-admin-shell [class*="text-emerald"] {
+    color: var(--soft-bordeaux) !important;
+  }
+
+  .soft-admin-shell [class*="border-green"],
+  .soft-admin-shell [class*="border-emerald"] {
+    border-color: color-mix(in srgb, var(--soft-sage) 56%, var(--soft-paper-edge)) !important;
   }
 
   @media (max-width: 920px) {

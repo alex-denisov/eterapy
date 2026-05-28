@@ -419,23 +419,29 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                     <p className="text-sm font-semibold">{categoryMeta.label}</p>
                     <p className="text-xs text-muted-foreground/70">{categoryMeta.description}</p>
                   </div>
-                  <div className="flex gap-2">
+                  {/* B328 + G6: the channel bulk-toggle buttons must sit directly
+                      above the per-event toggle columns below. Each toggle lives in
+                      a `w-20` centred column inside a `flex gap-3` row, so this
+                      header row mirrors that exact grid (w-20 + gap-3) instead of
+                      the old free-flowing `gap-2` that drifted out of alignment. */}
+                  <div className="flex gap-3 shrink-0">
                     {(["EMAIL", "TELEGRAM", "WEB"] as const).map(channel => (
-                      <button
-                        key={channel}
-                        type="button"
-                        onClick={() => {
-                          const allEnabled = categoryEvents.every(({ event }) => getPref(event, channel)?.enabled ?? channel !== "TELEGRAM");
-                          if (channel === "TELEGRAM" && !tgStatus.linked && !allEnabled) {
-                            toast("Сначала привяжите Telegram-аккаунт");
-                            return;
-                          }
-                          setCategoryChannel(category, channel, !allEnabled);
-                        }}
-                        className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 py-1 text-[11px] text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)]"
-                      >
-                        {channel === "EMAIL" ? "Email" : channel === "TELEGRAM" ? "Telegram" : "Web"}
-                      </button>
+                      <div key={channel} className="w-20 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allEnabled = categoryEvents.every(({ event }) => getPref(event, channel)?.enabled ?? channel !== "TELEGRAM");
+                            if (channel === "TELEGRAM" && !tgStatus.linked && !allEnabled) {
+                              toast("Сначала привяжите Telegram-аккаунт");
+                              return;
+                            }
+                            setCategoryChannel(category, channel, !allEnabled);
+                          }}
+                          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 py-1 text-[11px] text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)]"
+                        >
+                          {channel === "EMAIL" ? "Email" : channel === "TELEGRAM" ? "Telegram" : "Web"}
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>

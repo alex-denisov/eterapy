@@ -221,7 +221,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
           <h2 className="soft-h3 mt-2">Создайте общий вопрос</h2>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "полный итог открыт" : "teaser бесплатно"}
+          {hasEntitlement ? "полный итог открыт" : "начало бесплатно"}
         </span>
       </div>
 

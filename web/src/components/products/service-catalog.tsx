@@ -59,9 +59,9 @@ const SERVICES: ServiceCard[] = [
   // Free entries
   { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатно", href: "/checkin", icon: Heart },
   { id: "practice", title: "Практика ясности", desc: "Ежедневные короткие вопросы, задания и мягкий ритм.", price: "0 ₽", cat: "practice", kind: "Бесплатно", href: "/products/clarity-practice", icon: Leaf },
-  { id: "compat", title: "Совместимость", desc: "Парный отчёт по приглашению и согласию партнёра — есть бесплатный teaser.", price: "0 ₽ teaser · 790 ₽", cat: "social", kind: "Бесплатный teaser", href: "/products/compatibility", icon: Users },
-  { id: "circle", title: "Круг ясности", desc: "Бережный групповой формат: 2–5 участников и общий вопрос — есть бесплатный teaser.", price: "0 ₽ teaser · 790 ₽", cat: "social", kind: "Бесплатный teaser", href: "/products/circle", icon: Users },
-  { id: "pair", title: "Разобраться вдвоём", desc: "Отдельные ответы, взаимное согласие и общий результат — teaser бесплатный.", price: "0 ₽ teaser · 790 ₽", cat: "social", kind: "Бесплатный teaser", href: "/products/pair", icon: Heart },
+  { id: "compat", title: "Совместимость", desc: "Парный разбор: сильные стороны взаимодействия и зоны различий — по приглашению и согласию партнёра.", price: "Начало · 790 ₽", cat: "social", kind: "Начало бесплатно", href: "/products/compatibility", icon: Users },
+  { id: "circle", title: "Круг ясности", desc: "Бережный групповой формат: 2–5 участников и один общий вопрос.", price: "Начало · 790 ₽", cat: "social", kind: "Начало бесплатно", href: "/products/circle", icon: Users },
+  { id: "pair", title: "Разобраться вдвоём", desc: "Общий вопрос на двоих: где совпали ожидания, где напряжение и что стоит обсудить.", price: "Начало · 790 ₽", cat: "social", kind: "Начало бесплатно", href: "/products/pair", icon: Heart },
   { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5–10 минут в день — день 1 бесплатно.", price: "День 1 · 990 ₽ полный", cat: "practice", kind: "День 1 бесплатно", href: "/products/seven-days", icon: Calendar },
   // Paid digital products
   { id: "angles", title: "4 ракурса ответа", desc: "Разум · чувства · символ · действие. Часто первый платный шаг после ответа.", price: "299 ₽", cat: "digital", kind: "Цифровое", href: "/products/perspectives", icon: Compass },

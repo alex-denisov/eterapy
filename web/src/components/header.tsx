@@ -456,10 +456,7 @@ export function Header() {
               {showNewDialogueCta && (
                 <Link
                   href={mainUrl("/checkin")}
-                  className={cn(
-                    "soft-button soft-button-primary inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] leading-none",
-                    softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
-                  )}
+                  className="soft-header-cta soft-header-cta-primary"
                   data-testid="header-dialogue-cta"
                   data-analytics-event="dialogue_cta_clicked"
                   data-analytics-target="/checkin"
@@ -472,19 +469,12 @@ export function Header() {
             <>
               <Link href={mainUrl("/login")}
                 prefetch={false}
-                className={cn(
-                  "soft-button soft-button-ghost h-7 items-center justify-center rounded-full px-3 text-[13px] leading-none",
-                  "hidden md:inline-flex",
-                  softPublicHeader ? "text-[var(--soft-bordeaux)] hover:bg-[rgba(92,42,44,0.05)]" : "text-muted-foreground",
-                )}>
+                className="soft-header-cta soft-header-cta-ghost hidden md:inline-flex">
                 Войти
               </Link>
               <Link
                 href={mainUrl("/checkin")}
-                className={cn(
-                  "soft-button soft-button-primary inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-3 text-[13px] leading-none",
-                  softPublicHeader && "!bg-[var(--soft-terracotta)] !text-white !shadow-[0_10px_26px_-12px_rgba(214,117,88,.72)] hover:!bg-[var(--soft-terracotta-dark)]",
-                )}
+                className="soft-header-cta soft-header-cta-primary"
               >
                 Начать диалог
               </Link>

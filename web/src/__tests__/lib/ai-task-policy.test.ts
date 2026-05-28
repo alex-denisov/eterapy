@@ -49,7 +49,15 @@ describe("AI task taxonomy and default routing policy", () => {
     ]));
     expect(safety?.fallbackNotes).toContain("No OpenRouter");
     expect(compliance?.fallbackNotes).toContain("human");
-    expect(chatOcr?.fallbackNotes).toContain("screenshots stay on direct providers");
+    // G7: OCR must route only to vision-capable providers (never a text-only
+    // model that would silently drop the image), and never persist the image.
+    expect(chatOcr?.providerOrder).toEqual([
+      AIProvider.GEMINI,
+      AIProvider.OPENAI,
+      AIProvider.ANTHROPIC,
+    ]);
+    expect(chatOcr?.fallbackNotes).toContain("Vision-capable providers only");
+    expect(chatOcr?.fallbackNotes).toContain("not persisted");
   });
 
   it("marks database policies while still showing default taxonomy metadata", () => {
