@@ -7,7 +7,7 @@ import {
   type AIGatewayCompletionResponse,
   type AIProviderHealth,
 } from "@/lib/ai-gateway/adapters";
-import { cloudflareGatewayAuthHeaders } from "@/lib/ai-gateway/cloudflare-gateway";
+import { cloudflareGatewayAuthHeaders, isCloudflareAIGatewayUrl } from "@/lib/ai-gateway/cloudflare-gateway";
 import type { AIGatewayMessage, AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
 import { log, serializeError } from "@/lib/logger";
 
@@ -85,22 +85,31 @@ function contentToParts(content: AIGatewayMessageContent): GeminiPart[] {
   });
 }
 
-function splitSystem(messages: AIGatewayMessage[]) {
+function splitSystem(messages: AIGatewayMessage[], inlineSystemInstruction = false) {
   const system = messages
     .filter((message) => message.role === "system")
     .map((message) => contentToText(message.content))
     .join("\n\n")
     .trim();
 
-  const contents = messages
+  let contents = messages
     .filter((message) => message.role !== "system")
     .map((message): GeminiContent => ({
       role: message.role === "assistant" ? "model" : "user",
       parts: contentToParts(message.content),
     }));
 
+  if (inlineSystemInstruction && system) {
+    const systemPart = { text: `System instruction:\n${system}` };
+    if (contents[0]?.role === "user") {
+      contents = [{ ...contents[0], parts: [systemPart, ...contents[0].parts] }, ...contents.slice(1)];
+    } else {
+      contents = [{ role: "user", parts: [systemPart] }, ...contents];
+    }
+  }
+
   return {
-    systemInstruction: system ? { parts: [{ text: system }] } : undefined,
+    systemInstruction: system && !inlineSystemInstruction ? { parts: [{ text: system }] } : undefined,
     contents: contents.length > 0 ? contents : [{ role: "user" as const, parts: [{ text: "" }] }],
   };
 }
@@ -161,7 +170,7 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
       requireConfigured();
       const model = request.model ?? defaultModel;
       const startedAt = Date.now();
-      const geminiMessages = splitSystem(request.messages);
+      const geminiMessages = splitSystem(request.messages, isCloudflareAIGatewayUrl(baseURL));
 
       try {
         const response = await fetchWithTimeout(fetchImpl, joinBaseUrl(baseURL, `models/${model}:generateContent`), {

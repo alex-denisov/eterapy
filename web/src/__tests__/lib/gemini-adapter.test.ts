@@ -58,6 +58,45 @@ describe("Gemini adapter", () => {
     }));
   });
 
+  it("inlines system instructions for Cloudflare Google AI Studio gateway", async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [
+        { content: { parts: [{ text: "OK" }] }, finishReason: "STOP" },
+      ],
+      usageMetadata: {
+        promptTokenCount: 4,
+        candidatesTokenCount: 1,
+        totalTokenCount: 5,
+      },
+    }), { status: 200 }));
+    const adapter = createGeminiAdapter({
+      apiKey: "gemini-key",
+      baseURL: "https://gateway.ai.cloudflare.com/v1/account/gateway/google-ai-studio/v1",
+      defaultModel: "gemini-2.5-flash",
+      fetchImpl,
+    });
+
+    await adapter.complete({
+      feature: "ai-healthcheck",
+      messages: [
+        { role: "system", content: "Return exactly OK." },
+        { role: "user", content: "ping" },
+      ],
+      maxTokens: 64,
+      temperature: 0,
+    });
+
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.systemInstruction).toBeUndefined();
+    expect(body.contents[0]).toEqual({
+      role: "user",
+      parts: [
+        { text: "System instruction:\nReturn exactly OK." },
+        { text: "ping" },
+      ],
+    });
+  });
+
   it("maps HTTP failures into provider errors for fallback routing", async () => {
     const fetchImpl = jest.fn().mockResolvedValue(new Response(JSON.stringify({
       error: { message: "rate limited" },
