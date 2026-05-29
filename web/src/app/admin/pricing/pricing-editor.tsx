@@ -25,28 +25,37 @@ interface Props {
   practitioners: Practitioner[];
 }
 
-const PLAN_KEYS = [
-  { key: "plan.free.sessions", label: "Бесплатный: сессий/мес", unit: "шт" },
-  { key: "plan.starter.sessions", label: "Стартовый: сессий/мес", unit: "шт" },
-  { key: "plan.starter.price", label: "Стартовый: цена/мес", unit: "₽" },
-  { key: "plan.standard.sessions", label: "Стандартный: сессий/мес", unit: "шт" },
-  { key: "plan.standard.price", label: "Стандартный: цена/мес", unit: "₽" },
-  { key: "plan.unlimited.price", label: "Безлимитный: цена/мес", unit: "₽" },
-  { key: "platform.commission_pct", label: "Комиссия платформы", unit: "%" },
-  { key: "tools.default_limit", label: "Лимит инструментов по умолчанию", unit: "шт" },
-  { key: "session.min_price", label: "Минимальная цена сессии", unit: "₽" },
+// T9: recommended defaults sourced from docs/ETerapy_v5_Product_Package/
+// 13_Prices_Breakdown.md so the admin sees the canonical reference price as a
+// placeholder even before a value is stored in settings.
+interface PriceKey {
+  key: string;
+  label: string;
+  unit: string;
+  recommended?: number;
+}
+
+const PLAN_KEYS: PriceKey[] = [
+  { key: "plan.free.sessions", label: "Бесплатный: сессий/мес", unit: "шт", recommended: 0 },
+  { key: "platform.commission_pct", label: "Комиссия платформы", unit: "%", recommended: 20 },
+  { key: "tools.default_limit", label: "Лимит инструментов по умолчанию", unit: "шт", recommended: 3 },
+  { key: "session.min_price", label: "Минимальная цена сессии", unit: "₽", recommended: 1500 },
+  { key: "subscription.practitioner-pro.price", label: "Practitioner Pro", unit: "₽/мес", recommended: 1490 },
+  { key: "subscription.practitioner-pro-plus.price", label: "Practitioner Pro+", unit: "₽/мес", recommended: 2990 },
 ];
 
-const PRODUCT_PRICE_KEYS = [
-  { key: "product.perspectives.price", label: "4 ракурса ответа", unit: "₽" },
-  { key: "product.deep-report.price", label: "Глубокий отчёт", unit: "₽" },
-  { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽" },
-  { key: "product.seven-days.price", label: "7 дней к ясности", unit: "₽" },
-  { key: "product.circle.price", label: "Круг ясности", unit: "₽" },
-  { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽" },
-  { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес" },
-  { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес" },
-  { key: "subscription.pro.price", label: "Practitioner Pro", unit: "₽/мес" },
+const PRODUCT_PRICE_KEYS: PriceKey[] = [
+  { key: "product.perspectives.price", label: "4 ракурса ответа", unit: "₽", recommended: 299 },
+  { key: "product.deep-report.price", label: "Глубокий отчёт", unit: "₽", recommended: 690 },
+  { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽", recommended: 790 },
+  { key: "product.seven-days.price", label: "7 дней к ясности", unit: "₽", recommended: 790 },
+  { key: "product.circle.price", label: "Круг ясности", unit: "₽", recommended: 790 },
+  { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽", recommended: 790 },
+  { key: "product.compatibility.price", label: "Совместимость", unit: "₽", recommended: 790 },
+  { key: "product.daily-practice.price", label: "Расширенный разбор практики", unit: "₽", recommended: 199 },
+  { key: "product.map-upgrade.price", label: "Апгрейд карты", unit: "₽", recommended: 990 },
+  { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес", recommended: 490 },
+  { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес", recommended: 1290 },
 ];
 
 const DURATION_LABELS: Record<number, string> = {
@@ -123,7 +132,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     setApplyingBulk(false);
   }
 
-  function settingsTable(title: string, rows: typeof PLAN_KEYS) {
+  function settingsTable(title: string, rows: PriceKey[]) {
     return (
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
@@ -131,7 +140,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
           <table className="soft-admin-data-table min-w-[720px]">
             <thead><tr><th>Параметр</th><th>Ключ</th><th>Значение</th><th>Ед.</th></tr></thead>
             <tbody>
-              {rows.map(({ key, label, unit }) => (
+              {rows.map(({ key, label, unit, recommended }) => (
                 <tr key={key}>
                   <td>{label}</td>
                   <td><code>{key}</code></td>
@@ -140,6 +149,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                       type="number"
                       min={0}
                       value={settings[key] ?? ""}
+                      placeholder={recommended !== undefined ? `реком. ${recommended}` : ""}
                       onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
                       className="soft-admin-table-filter mt-0 h-8 w-32 min-w-32"
                     />
