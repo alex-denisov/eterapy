@@ -1,19 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { MessageCircle, Trash2 } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { loginUrl, mainUrl } from "@/lib/subdomain";
-
-const STATUS_LABELS: Record<string, string> = {
-  AWAITING_USER: "ждет уточнения",
-  PROCESSING: "в обработке",
-  ANSWERED: "есть ответ",
-  SAFETY_INTERRUPTED: "экстренная поддержка",
-  ARCHIVED: "архив",
-  OPEN: "открыт",
-};
+import { QuestionsList, type QuestionItem } from "./questions-list";
 
 async function deleteQuestion(formData: FormData) {
   "use server";
@@ -50,17 +43,36 @@ export default async function CabinetQuestionsPage() {
       { updatedAt: "desc" },
       { id: "desc" },
     ],
-    take: 50,
+    take: 200,
     select: {
       id: true,
       title: true,
       status: true,
       topic: true,
-      difficulty: true,
       updatedAt: true,
       _count: { select: { messages: true, productResults: true, clarityRoutes: true } },
     },
   });
+
+  // T18: precompute Russian labels + href server-side so the client list never
+  // imports server-only modules (dialogue-router pulls in the AI gateway) and
+  // never shows raw enum values ("self" / "answered"). The difficulty chip
+  // ("low"/"medium") was an internal routing signal with no user meaning — it
+  // is dropped entirely here.
+  const items: QuestionItem[] = dialogues.map((dialogue) => ({
+    id: dialogue.id,
+    title: dialogue.title,
+    status: dialogue.status,
+    statusLabel: dialogueStatusLabelRu(dialogue.status),
+    topic: dialogue.topic ?? "other",
+    topicLabel: dialogueTopicLabelRu(dialogue.topic),
+    href: mainUrl(`/checkin?dialogueId=${dialogue.id}`),
+    updatedAtMs: dialogue.updatedAt.getTime(),
+    updatedLabel: dialogue.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" }),
+    messages: dialogue._count.messages,
+    productResults: dialogue._count.productResults,
+    clarityRoutes: dialogue._count.clarityRoutes,
+  }));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6" data-testid="client-questions-page">
@@ -78,7 +90,7 @@ export default async function CabinetQuestionsPage() {
         </Link>
       </div>
 
-      {dialogues.length === 0 ? (
+      {items.length === 0 ? (
         <section className="soft-card p-8 text-center">
           <MessageCircle className="mx-auto size-9 text-[var(--soft-terracotta-dark)]" />
           <h2 className="soft-h3 mt-4">Пока нет сохраненных вопросов</h2>
@@ -90,41 +102,7 @@ export default async function CabinetQuestionsPage() {
           </Link>
         </section>
       ) : (
-        <div className="space-y-3">
-          {dialogues.map((dialogue) => (
-            <article key={dialogue.id} className="soft-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="soft-chip soft-chip-warm">{STATUS_LABELS[dialogue.status] ?? dialogue.status.toLowerCase()}</span>
-                  {dialogue.topic && <span className="soft-chip">{dialogue.topic}</span>}
-                  {dialogue.difficulty && <span className="soft-chip">{dialogue.difficulty}</span>}
-                </div>
-                <h2 className="mt-3 font-heading text-2xl font-medium text-[var(--soft-ink)]">
-                  {dialogue.title}
-                </h2>
-                <p className="mt-2 text-sm text-[var(--soft-ink-faint)]">
-                  Обновлено {dialogue.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                  {" · "}
-                  {dialogue._count.messages} сообщений
-                  {dialogue._count.productResults > 0 && ` · ${dialogue._count.productResults} результатов`}
-                  {dialogue._count.clarityRoutes > 0 && ` · ${dialogue._count.clarityRoutes} маршрутов`}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Link href={mainUrl(`/checkin?dialogueId=${dialogue.id}`)} className="soft-button soft-button-ghost">
-                  Открыть
-                </Link>
-                <form action={deleteQuestion}>
-                  <input type="hidden" name="id" value={dialogue.id} />
-                  <button type="submit" className="soft-button soft-button-ghost text-[var(--soft-bordeaux)]">
-                    <Trash2 className="size-4" />
-                    Удалить
-                  </button>
-                </form>
-              </div>
-            </article>
-          ))}
-        </div>
+        <QuestionsList items={items} deleteAction={deleteQuestion} />
       )}
     </div>
   );
