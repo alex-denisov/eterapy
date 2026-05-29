@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
+import { getClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
 
 function isAdminOrSuper(role?: string) {
   return role === "ADMIN" || role === "SUPERADMIN";
@@ -20,6 +21,7 @@ const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
   block:            "clients.block",
   unblock:          "clients.block",
   update_balance:   "SUPERADMIN_ONLY",
+  update_clarity_credits: "SUPERADMIN_ONLY",
   set_free_limit:   "SUPERADMIN_ONLY",
   soft_delete:      "clients.delete",
   restore:          "clients.delete",
@@ -169,6 +171,33 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       await db.user.update({ where: { id }, data: { balance: kopecks } });
       await logAudit(adminId, "PROFILE_UPDATE", id, `balance=${kopecks}${reason ? ` (${reason})` : ""}`);
       return NextResponse.json({ ok: true });
+    }
+    case "update_clarity_credits": {
+      // Clarity credits are a client-only currency; gate by user class so the
+      // option stays inert for practitioners/staff (T4).
+      if (targetUser.role !== "CLIENT") {
+        return NextResponse.json({ error: "Кредиты ясности доступны только клиентам" }, { status: 400 });
+      }
+      const target = Number(body.clarityCredits);
+      if (!Number.isInteger(target) || target < 0) {
+        return NextResponse.json({ error: "Некорректное количество кредитов" }, { status: 400 });
+      }
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const current = await getClarityCreditBalance(id);
+      const delta = target - current;
+      if (delta !== 0) {
+        await db.$transaction((tx) =>
+          recordClarityCreditEntry(tx, {
+            userId: id,
+            amount: delta,
+            type: "adjustment",
+            source: "admin",
+            metadata: { reason: reason || "admin manual adjustment", by: adminId },
+          }),
+        );
+      }
+      await logAudit(adminId, "PROFILE_UPDATE", id, `clarity_credits=${target}${reason ? ` (${reason})` : ""}`);
+      return NextResponse.json({ ok: true, clarityCredits: target });
     }
     case "soft_delete": {
       // Sets deletedAt = now. /api/cron/cleanup purges users after 10 days.

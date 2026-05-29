@@ -18,6 +18,7 @@ export interface AdminUserRow {
   blockedAt: string | null;
   freeToolsLimit: number | null;
   balance: number;
+  clarityCredits: number;
   provider: string | null;
   telegramUsername: string | null;
   practitioner: {
@@ -44,6 +45,7 @@ interface UsersControlPanelProps {
     canResetPassword: boolean;
     canImpersonate: boolean;
     canManageRoles: boolean;
+    canManageBalance: boolean;
   };
 }
 
@@ -54,15 +56,27 @@ const ROLE_LABELS: Record<AdminUserRow["role"], string> = {
   SUPERADMIN: "Суперадмин",
 };
 
+// T4: acquisition channel derived from User.provider (already persisted).
+// Unknown / missing provider falls back to "manual".
+const CHANNEL_LABELS: Record<string, string> = {
+  web: "Web", app: "App", telegram: "Telegram", vk: "VK", manual: "Manual",
+};
+function channelOf(provider: string | null): keyof typeof CHANNEL_LABELS {
+  switch ((provider ?? "").toLowerCase()) {
+    case "vk": return "vk";
+    case "telegram": case "max": return "telegram";
+    case "ios": case "android": return "app";
+    case "web": case "google": case "mobile_web": return "web";
+    case "": case "manual": return "manual";
+    default: return "manual";
+  }
+}
+
 function statusOf(row: AdminUserRow) {
   if (row.deletedAt) return { label: "Удалён", tone: "danger" };
   if (row.blockedAt) return { label: "Блок", tone: "danger" };
   if (!row.emailVerified) return { label: "Email нет", tone: "warn" };
   return { label: "Активен", tone: "ok" };
-}
-
-function formatRub(kopecks: number) {
-  return `${Math.round(kopecks / 100).toLocaleString("ru-RU")} ₽`;
 }
 
 function makeUrl(searchParams: URLSearchParams, patch: Record<string, string | null>) {
@@ -266,12 +280,14 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
     name: row.name,
     role: row.role,
     freeToolsLimit: row.freeToolsLimit == null ? "" : String(row.freeToolsLimit),
+    balanceRub: String(Math.round(row.balance / 100)),
+    clarityCredits: String(row.clarityCredits),
   }])));
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
-  function updateDraft(id: string, patch: Partial<{ name: string; role: AdminUserRow["role"]; freeToolsLimit: string }>) {
+  function updateDraft(id: string, patch: Partial<{ name: string; role: AdminUserRow["role"]; freeToolsLimit: string; balanceRub: string; clarityCredits: string }>) {
     setDrafts((current) => ({
       ...current,
       [id]: { ...current[id], ...patch },
@@ -308,6 +324,33 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить роль/лимит");
+      }
+
+      // T4: money balance — editable for any class; clarity credits — clients only.
+      if (permissions.canManageBalance) {
+        const nextRub = Number(draft.balanceRub);
+        if (Number.isFinite(nextRub) && nextRub !== Math.round(row.balance / 100)) {
+          const response = await fetch(`/api/admin/users/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "update_balance", balanceRub: nextRub, reason: "admin users table" }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить баланс");
+        }
+
+        if (row.role === "CLIENT") {
+          const nextCredits = Number(draft.clarityCredits);
+          if (Number.isInteger(nextCredits) && nextCredits !== row.clarityCredits) {
+            const response = await fetch(`/api/admin/users/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "update_clarity_credits", clarityCredits: nextCredits, reason: "admin users table" }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить кредиты ясности");
+          }
+        }
       }
 
       toast.success("Пользователь обновлён");
@@ -376,6 +419,20 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 />
               </th>
               <th>
+                Канал
+                <FilterSelect
+                  param="channel"
+                  options={[
+                    { value: "", label: "Все каналы" },
+                    { value: "web", label: "Web" },
+                    { value: "app", label: "App" },
+                    { value: "telegram", label: "Telegram" },
+                    { value: "vk", label: "VK" },
+                    { value: "manual", label: "Manual" },
+                  ]}
+                />
+              </th>
+              <th>
                 <SortHeader field="status" label="Статус" />
                 <FilterSelect
                   param="status"
@@ -388,7 +445,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   ]}
                 />
               </th>
-              <th><SortHeader field="balance" label="Баланс" /></th>
+              <th><SortHeader field="balance" label="Баланс ₽ · кредиты" /></th>
               <th><SortHeader field="createdAt" label="Регистрация" /></th>
               <th>Лимит</th>
               <th>Продуктовая активность</th>
@@ -399,7 +456,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center">Пользователи не найдены</td>
+                <td colSpan={10} className="text-center">Пользователи не найдены</td>
               </tr>
             ) : rows.map((row) => {
               const draft = drafts[row.id] ?? { name: row.name, role: row.role, freeToolsLimit: "" };
@@ -429,8 +486,36 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                       ))}
                     </select>
                   </td>
+                  <td><span className="soft-admin-status-pill">{CHANNEL_LABELS[channelOf(row.provider)]}</span></td>
                   <td><span className="soft-admin-status-pill" data-tone={status.tone}>{status.label}</span></td>
-                  <td>{formatRub(row.balance)}</td>
+                  <td>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1">
+                        <input
+                          className="soft-admin-table-filter mt-0 h-8 w-24 min-w-24"
+                          value={draft.balanceRub}
+                          disabled={!permissions.canManageBalance || row.role === "SUPERADMIN"}
+                          inputMode="numeric"
+                          onChange={(event) => updateDraft(row.id, { balanceRub: event.target.value })}
+                          aria-label={`Денежный баланс ${row.email}`}
+                          title="Денежный баланс, ₽"
+                        />
+                        <span className="text-[0.68rem] text-[var(--soft-ink-faint)]">₽</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input
+                          className="soft-admin-table-filter mt-0 h-8 w-24 min-w-24 disabled:opacity-40"
+                          value={row.role === "CLIENT" ? draft.clarityCredits : "—"}
+                          disabled={!permissions.canManageBalance || row.role !== "CLIENT"}
+                          inputMode="numeric"
+                          onChange={(event) => updateDraft(row.id, { clarityCredits: event.target.value })}
+                          aria-label={`Кредиты ясности ${row.email}`}
+                          title={row.role === "CLIENT" ? "Кредиты ясности" : "Кредиты ясности доступны только клиентам"}
+                        />
+                        <span className="text-[0.68rem] text-[var(--soft-ink-faint)]">кр.</span>
+                      </div>
+                    </div>
+                  </td>
                   <td>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
                   <td>
                     <input

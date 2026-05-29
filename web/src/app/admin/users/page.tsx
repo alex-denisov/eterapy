@@ -12,9 +12,21 @@ type SearchParams = {
   q?: string;
   role?: string;
   status?: string;
+  channel?: string;
   sort?: string;
   dir?: string;
   page?: string;
+};
+
+// T4: acquisition channel is derived from the existing User.provider column
+// (already in the DB). Each UI channel maps to one or more raw provider values;
+// a missing/unknown provider is surfaced as "manual".
+const CHANNEL_PROVIDERS: Record<string, string[]> = {
+  web: ["web", "google", "mobile_web"],
+  app: ["ios", "android"],
+  telegram: ["telegram", "max"],
+  vk: ["vk"],
+  manual: ["manual"],
 };
 
 const PAGE_SIZE = 25;
@@ -52,6 +64,13 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
 
   if (params.role && Object.values(Role).includes(params.role as Role) && roles.includes(params.role as Role)) {
     where.role = params.role as Role;
+  }
+
+  if (params.channel && CHANNEL_PROVIDERS[params.channel]) {
+    const providers = CHANNEL_PROVIDERS[params.channel];
+    where.provider = params.channel === "manual"
+      ? { in: [...providers, ""] }
+      : { in: providers };
   }
 
   if (params.status === "active") {
@@ -142,6 +161,17 @@ export default async function AdminUsersPage(props: {
     : [];
   const permissionCountByUser = new Map(permissionCounts.map((row) => [row.moderatorId, row._count._all]));
 
+  // T4: clarity-credit balance per client (active pending+confirmed ledger sum).
+  const clientIds = users.filter((u) => u.role === Role.CLIENT).map((u) => u.id);
+  const creditSums = clientIds.length > 0
+    ? await db.clarityCreditLedgerEntry.groupBy({
+      by: ["userId"],
+      where: { userId: { in: clientIds }, status: { in: ["pending", "confirmed"] } },
+      _sum: { amount: true },
+    })
+    : [];
+  const creditByUser = new Map(creditSums.map((row) => [row.userId, row._sum.amount ?? 0]));
+
   const rows: AdminUserRow[] = users.map((user) => ({
     id: user.id,
     name: user.name,
@@ -153,6 +183,7 @@ export default async function AdminUsersPage(props: {
     emailVerified: user.emailVerified,
     freeToolsLimit: user.freeToolsLimit,
     balance: user.balance,
+    clarityCredits: creditByUser.get(user.id) ?? 0,
     provider: user.provider,
     telegramUsername: user.telegramUsername,
     practitioner: user.practitioner ? {
@@ -200,6 +231,7 @@ export default async function AdminUsersPage(props: {
           canResetPassword: role === "SUPERADMIN" || permissions.includes("users.reset_password") || permissions.includes("clients.reset_password"),
           canImpersonate: role === "SUPERADMIN" || permissions.includes("users.impersonate"),
           canManageRoles: role === "SUPERADMIN",
+          canManageBalance: role === "SUPERADMIN",
         }}
       />
     </PageContainer>
