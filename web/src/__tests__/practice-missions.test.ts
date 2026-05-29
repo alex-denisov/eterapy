@@ -36,6 +36,34 @@ describe("B203 Practice and missions", () => {
     expect(actions).toContain("+1 кредит ясности");
   });
 
+  it("T20: builds the daily card as a monitored LLM three-beat ritual with a deterministic fallback", () => {
+    const lib = source("src/lib/daily-card.ts");
+    const policy = source("src/lib/ai-gateway/task-policy.ts");
+
+    // Question → perspective → step generated through the monitored gateway feature.
+    expect(lib).toContain("generateDailyPracticeContent");
+    expect(lib).toContain('feature: "daily-practice"');
+    expect(lib).toContain("perspective");
+    expect(lib).toContain("step");
+    // Deterministic fallback templates must carry all three beats.
+    expect(lib).toContain("dailyCardBeats");
+    expect(lib).toContain('source: "deterministic_v1"');
+
+    // Registered in the superadmin AI-центр task policies so it is configurable + monitored.
+    expect(policy).toContain('feature: "daily-practice"');
+  });
+
+  it("T20: surfaces ракурс дня and маленький шаг in the full practice ritual", () => {
+    const page = source("src/app/cabinet/practice/page.tsx");
+    const actions = source("src/components/cabinet/daily-practice-actions.tsx");
+
+    expect(page).toContain('variant="full"');
+    expect(page).toContain("dailyCardBeats");
+    expect(actions).toContain("ракурс дня");
+    expect(actions).toContain("маленький шаг");
+    expect(actions).toContain("practice-reflection-input");
+  });
+
   it("keeps clarity-practice as the single public daily-practice entry", () => {
     // /products/missions was retired in B287 — there is one canonical
     // product surface (/products/clarity-practice) and one cabinet

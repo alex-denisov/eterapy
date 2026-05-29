@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
-import { getOrCreateDailyCard, dailyCardDate } from "@/lib/daily-card";
+import { getOrCreateDailyCard, dailyCardDate, dailyCardBeats } from "@/lib/daily-card";
 import { mainUrl } from "@/lib/subdomain";
 
 const WEEKDAY_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
@@ -87,6 +87,7 @@ export default async function ClarityPracticePage() {
     }),
   ]);
   const completed = Boolean(card.completedAt);
+  const beats = dailyCardBeats(card.metadata);
 
   return (
     <PageContainer>
@@ -104,7 +105,14 @@ export default async function ClarityPracticePage() {
             <p className="mt-5 max-w-prose text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               {card.body}
             </p>
-            <DailyPracticeActions completed={completed} />
+            <DailyPracticeActions
+              completed={completed}
+              variant="full"
+              prompt={card.prompt}
+              perspective={beats.perspective}
+              step={beats.step}
+              initialReflection={card.reflectionText}
+            />
           </div>
           <aside className="rounded-[1.5rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
             <p className="soft-eyebrow">эта неделя</p>
@@ -159,8 +167,8 @@ export default async function ClarityPracticePage() {
           {[
             "Открыть практику в момент паузы — обед, поездка, перед сном",
             "Ответить на вопрос дня — без редактирования",
-            "Выбрать ракурс, который сейчас неудобный — там и будет рост",
-            "Записать один маленький шаг",
+            "Прочитать ракурс дня и примерить его на свою ситуацию",
+            "Сделать маленький шаг, который предлагает практика",
           ].map((step, i) => (
             <div key={step} className="flex items-start gap-4">
               <div

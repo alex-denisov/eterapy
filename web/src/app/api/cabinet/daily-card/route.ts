@@ -2,18 +2,21 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import db from "@/lib/db";
-import { getOrCreateDailyCard } from "@/lib/daily-card";
+import { getOrCreateDailyCard, dailyCardBeats } from "@/lib/daily-card";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { notify } from "@/lib/notifications";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { mainUrl } from "@/lib/subdomain";
 
 function serialize(card: Awaited<ReturnType<typeof getOrCreateDailyCard>>["card"]) {
+  const beats = dailyCardBeats(card.metadata);
   return {
     id: card.id,
     title: card.title,
     body: card.body,
     prompt: card.prompt,
+    perspective: beats.perspective,
+    step: beats.step,
     cardDate: card.cardDate.toISOString(),
     sharedAt: card.sharedAt?.toISOString() ?? null,
     completedAt: card.completedAt?.toISOString() ?? null,
