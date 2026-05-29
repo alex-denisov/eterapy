@@ -10,13 +10,16 @@ describe("admin logs observability UI", () => {
     const page = source("src/app/admin/logs/page.tsx");
     const viewer = source("src/app/admin/logs/logs-viewer.tsx");
 
-    expect(page).toContain("AdminLogsConsole");
+    // T7: audit/diagnostics/runtime now live in one tabbed surface rendered
+    // in the new soft-admin table style; the legacy dark console was removed.
+    expect(page).toContain("LogsTabs");
+    expect(page).toContain('data-testid="admin-audit-log-table"');
     expect(viewer).toContain("admin-observability-tabs");
-    expect(viewer).toContain("Diagnostics live");
-    expect(viewer).toContain("Runtime logs");
+    expect(viewer).toContain("Диагностика (live)");
+    expect(viewer).toContain("Runtime");
+    expect(viewer).toContain("soft-admin-data-table");
     expect(viewer).toContain("fetch(\"/api/diagnostics\"");
     expect(viewer).toContain("new EventSource(streamUrl)");
     expect(viewer).toContain("/api/admin/logs/runtime/stream");
-    expect(viewer).toContain("polling fallback");
   });
 });

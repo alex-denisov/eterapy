@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { AdminLogsConsole } from "./logs-viewer";
+import { LogsTabs } from "./logs-viewer";
 import { PageContainer } from "@/components/ui/page-container";
 
 type SearchParams = {
@@ -154,7 +154,9 @@ export default async function AdminLogsPage(props: {
         <span className="soft-admin-status-pill">50 событий на страницу</span>
       </div>
 
-      <section className="mb-6 overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
+      <LogsTabs auditTable={
+        <>
+      <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
         <table className="soft-admin-data-table min-w-[1120px]" data-testid="admin-audit-log-table">
           <thead>
             <tr>
@@ -188,13 +190,13 @@ export default async function AdminLogsPage(props: {
         </table>
       </section>
 
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.max(1, page - 1)) })}>Назад</Link>
         <span className="text-xs text-[var(--soft-ink-faint)]">Показано {enriched.length} из {total.toLocaleString("ru-RU")} · {page} / {pageCount}</span>
         <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.min(pageCount, page + 1)) })}>Вперёд</Link>
       </div>
-
-      <AdminLogsConsole logs={enriched} />
+        </>
+      } />
     </PageContainer>
   );
 }
