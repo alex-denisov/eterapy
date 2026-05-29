@@ -112,15 +112,16 @@ export default async function ClarityPracticePage() {
       <section className="soft-card overflow-hidden p-7 md:p-10" data-testid="practice-today" style={{ background: "linear-gradient(160deg,#FFFCF5 0%,#F4D9C1 100%)" }}>
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
-            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">сегодняшний вопрос ясности</p>
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">практика ясности</p>
             <h1
               className="mt-3 font-heading italic leading-snug text-[var(--soft-bordeaux)]"
               style={{ fontSize: "clamp(1.75rem, 2.6vw, 2.5rem)" }}
             >
-              {card.prompt}
+              Сегодняшний вопрос ясности
             </h1>
             <p className="mt-5 max-w-prose text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              {card.body}
+              Запишите свой вопрос дня — то, что просит внимания прямо сейчас.
+              ETerapy предложит ракурс дня и один маленький шаг, который можно сделать сегодня.
             </p>
             <DailyPracticeActions
               completed={completed}
@@ -132,34 +133,48 @@ export default async function ClarityPracticePage() {
             />
           </div>
           <aside className="rounded-[1.5rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
-            <p className="soft-eyebrow">эта неделя</p>
+            <div className="flex items-center justify-between">
+              <p className="soft-eyebrow">эта неделя</p>
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-terracotta-dark)]" data-testid="practice-streak-total">
+                <Sparkles className="size-3" aria-hidden="true" />
+                {streak} {streak === 1 ? "день" : streak >= 2 && streak <= 4 ? "дня" : "дней"} подряд
+              </span>
+            </div>
+            {/* G14: real Mon→Sun week — done days fill terracotta with a check,
+                today gets a ringed apricot tile, future days read as dashed/muted. */}
             <div className="mt-4 grid grid-cols-7 gap-1.5" data-testid="practice-streak-strip">
               {strip.map((day) => {
-                const filledClass = day.done
+                const cellClass = day.done
                   ? "border-[var(--soft-terracotta-dark)] bg-[var(--soft-terracotta-dark)] text-[#FBF0E1]"
                   : day.isToday
-                    ? "border-[var(--soft-apricot)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]"
-                    : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink-faint)]";
+                    ? "border-2 border-[var(--soft-terracotta-dark)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]"
+                    : day.isFuture
+                      ? "border border-dashed border-[var(--soft-paper-edge)] text-[var(--soft-ink-faint)] opacity-60"
+                      : "border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] text-[var(--soft-ink-faint)]";
                 return (
-                  <div
-                    key={day.key}
-                    className={`grid aspect-square place-items-center rounded-[10px] border text-[11px] font-semibold ${filledClass}`}
-                    title={day.key}
-                  >
-                    {day.done ? <Check className="size-3" aria-hidden="true" /> : day.isToday ? "•" : day.label}
+                  <div key={day.key} className="flex flex-col items-center gap-1" title={day.key}>
+                    <span className="text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">{day.label}</span>
+                    <div className={`grid aspect-square w-full place-items-center rounded-[10px] text-[12px] font-semibold ${cellClass}`}>
+                      {day.done ? <Check className="size-3.5" aria-hidden="true" /> : day.dayNum}
+                    </div>
                   </div>
                 );
               })}
             </div>
-            <p className="mt-3 flex items-center justify-between text-xs">
-              <span className="text-[var(--soft-ink-soft)]" data-testid="practice-streak-total">
-                {streak} {streak === 1 ? "день" : streak >= 2 && streak <= 4 ? "дня" : "дней"} подряд
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[var(--soft-ink-faint)]">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2.5 rounded-[4px] bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                пройдено
               </span>
-              <span className="inline-flex items-center gap-1 font-semibold text-[var(--soft-terracotta-dark)]">
-                <Sparkles className="size-3" aria-hidden="true" />
-                +1 за день
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2.5 rounded-[4px] border-2 border-[var(--soft-terracotta-dark)] bg-[var(--soft-apricot)]" aria-hidden="true" />
+                сегодня
               </span>
-            </p>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="size-2.5 rounded-[4px] border border-dashed border-[var(--soft-paper-edge)]" aria-hidden="true" />
+                впереди
+              </span>
+            </div>
           </aside>
         </div>
       </section>
@@ -182,10 +197,9 @@ export default async function ClarityPracticePage() {
         <p className="soft-eyebrow mb-4">как пройти сегодня</p>
         <div className="flex flex-col gap-3">
           {[
-            "Открыть практику в момент паузы — обед, поездка, перед сном",
-            "Ответить на вопрос дня — без редактирования",
-            "Прочитать ракурс дня и примерить его на свою ситуацию",
-            "Сделать маленький шаг, который предлагает практика",
+            "Запишите свой вопрос дня — то, что правда просит внимания прямо сейчас",
+            "Прочитайте ракурс дня — мягкий разворот взгляда на вашу ситуацию",
+            "Сделайте маленький шаг с рекомендацией — за пару минут",
           ].map((step, i) => (
             <div key={step} className="flex items-start gap-4">
               <div
