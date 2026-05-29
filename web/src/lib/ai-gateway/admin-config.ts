@@ -153,13 +153,26 @@ export async function updateAIProviderConfig(actorId: string, input: AIProviderC
     : null;
   const directBaseUrl = DIRECT_PROVIDER_BASE_URLS[input.provider];
   const requestedBaseUrl = input.baseUrl || null;
-  const baseUrl = input.cloudflareGatewayEnabled === true && cfBaseUrl
+
+  // CF Gateway is only actually applied when it is requested AND the provider
+  // is supported AND a gateway URL could be built (env configured). Otherwise
+  // the provider runs directly — even if the admin left the checkbox checked
+  // for an unsupported provider, so the stored metadata reflects reality.
+  const cfApplied = input.cloudflareGatewayEnabled === true && Boolean(cfBaseUrl);
+
+  // Server-authoritative base URL resolution (self-healing):
+  //   • CF on + supported  → the Cloudflare Gateway URL
+  //   • CF off / unsupported → the admin's explicit *non-CF* custom URL if
+  //     they typed one, otherwise the provider's standard direct base URL.
+  // This guarantees we never persist a stale/empty/dead Cloudflare URL when
+  // the gateway is turned off, which was leaving providers stuck "в ошибке".
+  const baseUrl = cfApplied
     ? cfBaseUrl
-    : input.cloudflareGatewayEnabled === false && isCloudflareAIGatewayUrl(requestedBaseUrl)
-      ? directBaseUrl
-      : requestedBaseUrl;
+    : (requestedBaseUrl && !isCloudflareAIGatewayUrl(requestedBaseUrl))
+      ? requestedBaseUrl
+      : (directBaseUrl ?? requestedBaseUrl);
   const metadata = {
-    cloudflareGatewayEnabled: input.cloudflareGatewayEnabled === true,
+    cloudflareGatewayEnabled: cfApplied,
   };
   const providerConfig = await db.aIProviderConfig.upsert({
     where: { provider: input.provider },

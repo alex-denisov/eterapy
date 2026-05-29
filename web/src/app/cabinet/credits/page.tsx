@@ -7,7 +7,7 @@ import { ProductPurchaseControls } from "@/components/products/product-purchase-
 import { auth } from "@/lib/auth";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import db from "@/lib/db";
-import { getProductCreditCost, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
+import { getProductCreditCost, getProductPriceKopecks, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { v5Products } from "@/lib/v5-products";
 
@@ -32,6 +32,15 @@ const SOURCE_LABELS: Record<string, string> = {
   mission: "Миссия",
   admin: "Начисление от команды",
 };
+
+// Russian plural for "кредит" (1 кредит · 2–4 кредита · 5+ кредитов).
+function creditsWord(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "кредит";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "кредита";
+  return "кредитов";
+}
 
 export default async function CabinetCreditsPage() {
   const session = await auth();
@@ -64,10 +73,14 @@ export default async function CabinetCreditsPage() {
     }
   }
 
+  // G13: each digital product carries both a кредит cost and a ₽ price so the
+  // page can upsell paid products to subscribers (show the ruble price, not
+  // just "входит в подписку").
   const creditProducts = v5Products
     .map((product) => ({
       product,
       creditCost: product.productKey ? getProductCreditCost(product.productKey) : null,
+      priceKopecks: product.productKey ? getProductPriceKopecks(product.productKey) : null,
     }))
     .filter((item) => item.product.productKey && item.creditCost);
 
@@ -130,28 +143,45 @@ export default async function CabinetCreditsPage() {
         </div>
       </section>
 
+      {/* G13: sell digital products to subscribers — every card shows its real
+          ₽ price (and credit equivalent) instead of a generic "входит в
+          подписку" label, so a paid subscriber sees exactly what each
+          upgrade costs and can buy in one tap. */}
+      <div className="mb-3 mt-2 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="soft-eyebrow">углубления и форматы</p>
+          <h2 className="soft-h2 mt-1">Откройте больше ясности</h2>
+        </div>
+        <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
+          Списывайте кредиты или оплачивайте с баланса. Продукты из вашего тарифа открыты сразу.
+        </p>
+      </div>
       <section className="grid gap-4 lg:grid-cols-2">
-        {creditProducts.map(({ product, creditCost }) => {
+        {creditProducts.map(({ product, creditCost, priceKopecks }) => {
           const productKey = product.productKey!;
           const includedInPlan = subscriptionProducts.has(productKey);
           const unlocked = activeProducts.has(productKey) || includedInPlan;
-          const badgeLabel = includedInPlan
-            ? "входит в подписку"
+          const priceRub = priceKopecks ? Math.round(priceKopecks / 100).toLocaleString("ru-RU") : null;
+          const creditLine = creditCost ? `или −${creditCost} ${creditsWord(creditCost)} ясности` : null;
+          // The badge never wraps: subscription/open states keep the warm pill,
+          // a purchasable product surfaces its price as the headline number.
+          const badge = includedInPlan
+            ? { label: "входит в подписку", className: "soft-badge soft-badge-warm" }
             : unlocked
-              ? "доступ открыт"
-              : `${creditCost} кредита`;
+              ? { label: "доступ открыт", className: "soft-badge soft-badge-warm" }
+              : { label: priceRub ? `${priceRub} ₽` : `${creditCost} ${creditsWord(creditCost ?? 0)}`, className: "soft-badge" };
           return (
-            <article key={product.slug} className="soft-card p-5" data-testid={`credits-product-${product.slug}`}>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+            <article key={product.slug} className="soft-card flex flex-col p-5" data-testid={`credits-product-${product.slug}`}>
+              <div className="flex flex-nowrap items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="soft-eyebrow">{product.eyebrow}</p>
                   <h2 className="soft-h3 mt-2">{product.name}</h2>
                 </div>
-                <span className={unlocked ? "soft-badge soft-badge-warm" : "soft-badge"}>
-                  {badgeLabel}
+                <span className={`${badge.className} shrink-0 whitespace-nowrap`} data-testid={`credits-badge-${product.slug}`}>
+                  {badge.label}
                 </span>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 {unlocked ? (
                   <Link href={appUrl(product.route)} className="soft-button soft-button-primary">
@@ -159,17 +189,27 @@ export default async function CabinetCreditsPage() {
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
                 ) : (
-                  <ProductPurchaseControls
-                    productKey={productKey}
-                    label="Открыть с баланса"
-                    checkoutSource={`cabinet-credits-${product.slug}`}
-                    creditCost={creditCost}
-                  />
+                  <>
+                    <ProductPurchaseControls
+                      productKey={productKey}
+                      label="Открыть с баланса"
+                      checkoutSource={`cabinet-credits-${product.slug}`}
+                      creditCost={creditCost}
+                    />
+                    {(priceRub || creditLine) && (
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-[var(--soft-ink-faint)]">
+                        <Sparkles className="size-3.5" aria-hidden="true" />
+                        {priceRub ? `${priceRub} ₽ ` : ""}{creditLine}
+                      </span>
+                    )}
+                  </>
                 )}
-                <span className="inline-flex items-center gap-1 text-xs text-[var(--soft-ink-faint)]">
-                  <Sparkles className="size-3.5" aria-hidden="true" />
-                  {includedInPlan ? "открыто по подписке" : unlocked ? "доступ уже открыт" : "можно списать кредиты"}
-                </span>
+                {unlocked && (
+                  <span className="inline-flex items-center gap-1 text-xs text-[var(--soft-ink-faint)]">
+                    <Sparkles className="size-3.5" aria-hidden="true" />
+                    {includedInPlan ? "открыто по подписке" : "доступ уже открыт"}
+                  </span>
+                )}
               </div>
             </article>
           );

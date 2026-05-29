@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { getLedgerTypeLabel } from "@/lib/billing-labels";
 
 const PAGE_SIZE = 25;
@@ -132,24 +132,48 @@ export function BillingHistoryTable({
 
   return (
     <div data-testid="client-billing-history-table">
-      {/* Controls: search + direction filter + sort */}
+      {/* G15: one compact toolbar — small search, an inline segmented direction
+          filter, and a small sort select — instead of the previous oversized
+          two-row control block. */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+        <div className="relative min-w-[150px] flex-1 sm:max-w-[240px]">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
           <input
             type="search"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setPage(0); }}
-            placeholder="Поиск по описанию"
-            className="soft-input w-full pl-9"
+            placeholder="Поиск"
+            className="soft-input h-9 w-full pl-8 text-sm"
             data-testid="billing-history-search"
             aria-label="Поиск по истории платежей"
           />
         </div>
+        <div
+          className="inline-flex shrink-0 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-0.5"
+          role="group"
+          aria-label="Фильтр по типу операции"
+        >
+          {directionFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => { setDirection(f.key); setPage(0); }}
+              aria-pressed={direction === f.key}
+              className={
+                direction === f.key
+                  ? "rounded-full bg-[var(--soft-bordeaux)] px-3 py-1 text-xs font-semibold text-white transition-colors"
+                  : "rounded-full px-3 py-1 text-xs font-medium text-[var(--soft-ink-soft)] transition-colors hover:text-[var(--soft-bordeaux)]"
+              }
+              data-testid={`billing-history-filter-${f.key}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <select
           value={sort}
           onChange={(e) => { setSort(e.target.value as SortKey); setPage(0); }}
-          className="soft-input"
+          className="soft-input h-9 shrink-0 text-sm"
           data-testid="billing-history-sort"
           aria-label="Сортировка истории платежей"
         >
@@ -158,19 +182,6 @@ export function BillingHistoryTable({
           <option value="amount_desc">Сумма ↓</option>
           <option value="amount_asc">Сумма ↑</option>
         </select>
-      </div>
-      <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Фильтр по типу операции">
-        {directionFilters.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => { setDirection(f.key); setPage(0); }}
-            className={direction === f.key ? "soft-chip soft-chip-warm" : "soft-chip"}
-            data-testid={`billing-history-filter-${f.key}`}
-          >
-            {f.label}
-          </button>
-        ))}
       </div>
 
       {filtered.length === 0 ? (
@@ -194,10 +205,15 @@ export function BillingHistoryTable({
                 {pageRows.map((row) => (
                   <tr key={row.id} className="border-t border-[var(--soft-paper-edge)]">
                     <td className="py-3 pr-3">
-                      <span className="inline-flex items-center gap-2 font-medium text-[var(--soft-ink)]">
-                        {row.direction === "deposit"
-                          ? <ArrowDown className="size-3.5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                          : <ArrowUp className="size-3.5 text-[var(--soft-bordeaux)]" aria-hidden="true" />}
+                      {/* G15: a small colored dot + the colored +/− amount carry
+                          direction — clearer than the previous up/down arrows,
+                          which clients read as sort controls, not money flow. */}
+                      <span className="inline-flex items-center gap-2.5 font-medium text-[var(--soft-ink)]">
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ background: row.direction === "deposit" ? "var(--soft-terracotta-dark)" : "var(--soft-bordeaux)" }}
+                          aria-hidden="true"
+                        />
                         {row.label}
                       </span>
                     </td>

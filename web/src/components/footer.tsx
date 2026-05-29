@@ -15,6 +15,11 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   // unrelated themes. The footer is navigation, not a price list (G2): prices
   // live on each product page, so labels carry no "₽". Where a free entry exists
   // it is communicated in the product's own copy, not implied by a footer column.
+  // T8: footer condensed from 7 → 5 columns so the whole row fits on one line
+  // (the 7-column layout pushed "Помощь" onto a second row). The four product
+  // families are merged into two thematic columns by meaning: solo AI analyses
+  // ("Разборы"), shared + habit formats ("Вместе и практика"), and the symbolic
+  // + human track ("Эзотерика и специалисты"). Platform + Help stay separate.
   const columns = [
     {
       title: "Разборы",
@@ -27,36 +32,25 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       ],
     },
     {
-      title: "Для двоих и круга",
+      title: "Вместе и практика",
       links: [
         [mainUrl("/products/pair"), "Разобраться вдвоём"],
         [mainUrl("/products/compatibility"), "Совместимость"],
         [mainUrl("/products/circle"), "Круг ясности"],
-      ],
-    },
-    {
-      title: "Практика",
-      links: [
         [mainUrl("/products/clarity-practice"), "Практика ясности"],
         [mainUrl("/products/seven-days"), "7 дней к ясности"],
         [mainUrl("/library"), "Библиотека вопросов"],
       ],
     },
     {
-      title: "Эзотерика",
+      title: "Эзотерика и специалисты",
       links: [
         [mainUrl("/products/tarot"), "Таро"],
         [mainUrl("/products/natal-chart"), "Натальная карта"],
         [mainUrl("/products/numerology"), "Нумерология"],
-      ],
-    },
-    {
-      title: "Со специалистами",
-      links: [
-        [mainUrl("/practitioners"), "Специалисты"],
         [mainUrl("/products/joint-session"), "Эзотерик + психотерапевт"],
+        [mainUrl("/practitioners"), "Специалисты"],
         [mainUrl("/practitioners/apply"), "Стать специалистом"],
-        [mainUrl("/telegram"), "Telegram"],
       ],
     },
     {
@@ -66,6 +60,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/pricing"), "Тарифы"],
         [mainUrl("/how-it-works"), "Как работает"],
         [mainUrl("/about"), "О проекте"],
+        [mainUrl("/telegram"), "Telegram"],
       ],
     },
     {

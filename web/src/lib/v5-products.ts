@@ -103,20 +103,18 @@ export const v5Products: V5Product[] = [
     route: "/products/chat-analysis",
     name: "Разбор переписки",
     eyebrow: "Приватный анализ",
-    summary: "Анализ текста или скрина переписки: Start для первой покупки, Deep для динамики общения, Pro с вариантами ответа.",
-    // B322 / T13: docs §7 — Start 299 ₽, Deep 890 ₽, Pro 1290 ₽. Default entry tier Start.
-    // T13: keep the entry price visible but drop the inline tier-price dump
-    // ("Start · Deep 890 ₽ / Pro 1290 ₽") — the exact price for the chosen depth
-    // is always shown before payment, so the hero stays clean and not misleading.
-    price: "от 299 ₽",
-    priceMeta: "Глубина Start · Deep · Pro — точная цена видна до оплаты",
-    creditPrice: "от −2 кредитов ясности",
+    summary: "Анализ текста или скриншота переписки: тон, эмоции, границы и бережные варианты ответа.",
+    // T9: single price for now (390 ₽ = V5_PRODUCT_PRICES_KOPECKS["chat-analysis"]).
+    // The earlier Start/Deep/Pro tier copy is removed until those tiers ship.
+    price: "390 ₽",
+    priceMeta: "разовый разбор · или −2 кредита ясности",
+    creditPrice: "или −2 кредита ясности",
     creditCost: 2,
     tone: "private",
     cta: "Разобрать переписку",
     directCta: "Разобрать переписку",
     productKey: "chat-analysis",
-    mechanics: ["вставка или загрузка", "распознавание текста до оплаты", "удаление источника", "варианты ответа в Pro"],
+    mechanics: ["вставка или загрузка", "распознавание текста до оплаты", "удаление источника", "варианты ответа"],
     privacy: "Источник переписки можно удалить в любой момент после генерации разбора.",
     result: "Наблюдения по динамике общения, границам и возможным формулировкам ответа.",
   },

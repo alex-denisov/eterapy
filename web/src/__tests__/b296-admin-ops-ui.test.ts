@@ -11,7 +11,8 @@ describe("B296 admin operations UI", () => {
     const shell = source("src/app/admin/admin-shell.tsx");
 
     expect(page).toContain('data-testid="admin-users-unified-page"');
-    expect(panel).toContain("soft-admin-data-table");
+    // T3: users table migrated to the compact "Промты продуктов" style.
+    expect(panel).toContain("CompactTableShell");
     expect(panel).toContain("canManageRoles");
     expect(panel).toContain("/api/admin/impersonate?userId=");
     expect(shell).toContain('label: "Все пользователи"');

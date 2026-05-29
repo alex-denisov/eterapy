@@ -17,7 +17,8 @@ describe("admin logs observability UI", () => {
     expect(viewer).toContain("admin-observability-tabs");
     expect(viewer).toContain("Диагностика (live)");
     expect(viewer).toContain("Runtime");
-    expect(viewer).toContain("soft-admin-data-table");
+    // T6: diagnostics + runtime tables migrated to the compact "Промты" style.
+    expect(viewer).toContain("CompactTableShell");
     expect(viewer).toContain("fetch(\"/api/diagnostics\"");
     expect(viewer).toContain("new EventSource(streamUrl)");
     expect(viewer).toContain("/api/admin/logs/runtime/stream");

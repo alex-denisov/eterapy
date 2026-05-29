@@ -55,11 +55,12 @@ describe("v5 public shell", () => {
     // conditionally-free products (круг, пара, совместимость, 7 дней) were filed
     // under "Бесплатно". Columns are now thematic; free entries are communicated
     // on each product page, not implied by a footer column.
+    // T8: condensed to 5 thematic columns so the whole row fits one line.
     expect(footer).toContain('title: "Разборы"');
-    expect(footer).toContain('title: "Для двоих и круга"');
-    expect(footer).toContain('title: "Практика"');
-    expect(footer).toContain('title: "Эзотерика"');
-    expect(footer).toContain('title: "Со специалистами"');
+    expect(footer).toContain('title: "Вместе и практика"');
+    expect(footer).toContain('title: "Эзотерика и специалисты"');
+    expect(footer).toContain('title: "Платформа"');
+    expect(footer).toContain('title: "Помощь"');
     // The footer must NOT reintroduce the misleading price-based columns.
     expect(footer).not.toContain('title: "Бесплатно"');
     expect(footer).not.toContain('title: "Платные разборы"');

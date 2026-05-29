@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2, Compass, Footprints } from "lucide-react";
+import { CheckCircle2, Loader2, Compass, Footprints, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const REFLECTION_LIMIT = 1200;
+const QUESTION_LIMIT = 600;
 
 interface DailyPracticeActionsProps {
   completed: boolean;
   /** Full three-beat ritual surfaces these; the compact cabinet-home CTA omits them. */
   variant?: "compact" | "full";
+  /** A suggested вопрос дня the user can borrow if they're stuck (full variant). */
   prompt?: string;
   perspective?: string | null;
   step?: string | null;
+  /** The user-authored вопрос дня stored on the card (full variant). */
   initialReflection?: string | null;
 }
 
@@ -26,11 +28,18 @@ export function DailyPracticeActions({
 }: DailyPracticeActionsProps) {
   const [done, setDone] = useState(completed);
   const [loading, setLoading] = useState(false);
-  const [reflection, setReflection] = useState(initialReflection ?? "");
-  const [message, setMessage] = useState<string | null>(completed ? "Практика на сегодня завершена." : null);
+  const [question, setQuestion] = useState(initialReflection ?? "");
+  const [beats, setBeats] = useState<{ perspective: string | null; step: string | null }>({
+    perspective: perspective ?? null,
+    step: step ?? null,
+  });
+  const [message, setMessage] = useState<string | null>(
+    completed ? "Практика на сегодня завершена." : null,
+  );
 
   const isFull = variant === "full";
 
+  // Compact CTA (cabinet home): a single "mark done" action, no ritual.
   async function completePractice() {
     setLoading(true);
     setMessage(null);
@@ -38,10 +47,7 @@ export function DailyPracticeActions({
       const response = await fetch("/api/cabinet/daily-card", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "complete",
-          ...(isFull ? { reflectionText: reflection } : {}),
-        }),
+        body: JSON.stringify({ action: "complete" }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Не удалось завершить практику");
@@ -54,7 +60,37 @@ export function DailyPracticeActions({
     }
   }
 
-  // Compact CTA used on the cabinet home dashboard — single button, no ritual.
+  // Full ritual (/cabinet/practice): the user writes their own вопрос дня, the
+  // LLM returns ракурс дня + маленький шаг.
+  async function reflect() {
+    const trimmed = question.trim();
+    if (trimmed.length < 3) {
+      setMessage("Запишите вопрос дня — хотя бы несколько слов.");
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/cabinet/daily-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reflect", question: trimmed }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Не удалось обработать вопрос");
+      setDone(true);
+      setBeats({
+        perspective: payload.card?.perspective ?? beats.perspective,
+        step: payload.card?.step ?? beats.step,
+      });
+      setMessage(payload.rewardGranted ? "+1 кредит ясности начислен." : "Практика на сегодня уже пройдена.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось обработать вопрос");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   if (!isFull) {
     return (
       <div className="mt-3">
@@ -76,65 +112,98 @@ export function DailyPracticeActions({
     );
   }
 
-  // Full three-beat ritual on /cabinet/practice: ответ на вопрос дня → reveal
-  // ракурс дня + маленький шаг.
+  // ---- Full variant ----
+  if (done) {
+    return (
+      <div className="mt-5" data-testid="practice-ritual">
+        {/* Beat 1 — the user's own вопрос дня */}
+        {question.trim() && (
+          <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="practice-user-question">
+            <p className="soft-eyebrow inline-flex items-center gap-1.5 text-[var(--soft-terracotta-dark)]">
+              <Sparkles className="size-3.5" aria-hidden="true" />
+              ваш вопрос дня
+            </p>
+            <p className="mt-2 font-heading text-[17px] italic leading-relaxed text-[var(--soft-bordeaux)]">
+              {question.trim()}
+            </p>
+          </div>
+        )}
+
+        {/* Beats 2 & 3 — ракурс + маленький шаг */}
+        {(beats.perspective || beats.step) && (
+          <div className="mt-3 grid gap-3" data-testid="practice-beats">
+            {beats.perspective && (
+              <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="practice-perspective">
+                <p className="soft-eyebrow inline-flex items-center gap-1.5 text-[var(--soft-terracotta-dark)]">
+                  <Compass className="size-3.5" aria-hidden="true" />
+                  ракурс дня
+                </p>
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--soft-ink)]">{beats.perspective}</p>
+              </div>
+            )}
+            {beats.step && (
+              <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="practice-step">
+                <p className="soft-eyebrow inline-flex items-center gap-1.5 text-[var(--soft-terracotta-dark)]">
+                  <Footprints className="size-3.5" aria-hidden="true" />
+                  маленький шаг
+                </p>
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--soft-ink)]">{beats.step}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--soft-terracotta-dark)]">
+          <CheckCircle2 className="size-3.5" aria-hidden="true" />
+          {message ?? "Практика на сегодня завершена."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-5" data-testid="practice-ritual">
-      <label className="soft-eyebrow" htmlFor="practice-reflection">
-        ваш ответ на вопрос дня
+      <label className="soft-eyebrow" htmlFor="practice-question">
+        ваш вопрос дня
       </label>
       <textarea
-        id="practice-reflection"
+        id="practice-question"
         className="soft-input mt-2 min-h-28 w-full resize-y"
-        placeholder={prompt ? `Ответьте себе: ${prompt}` : "Запишите, что приходит в ответ — без редактирования."}
-        value={reflection}
-        maxLength={REFLECTION_LIMIT}
-        onChange={(event) => setReflection(event.target.value)}
-        disabled={done}
+        placeholder="О чём сегодня хочется получить ясность? Например: «Почему меня задевает эта ситуация на работе?»"
+        value={question}
+        maxLength={QUESTION_LIMIT}
+        onChange={(event) => setQuestion(event.target.value)}
         data-testid="practice-reflection-input"
       />
       <div className="mt-1 flex items-center justify-between text-[11px] text-[var(--soft-ink-faint)]">
-        <span>Ответ виден только вам.</span>
-        <span>{reflection.length}/{REFLECTION_LIMIT}</span>
+        <span>Ваш вопрос виден только вам.</span>
+        <span>{question.length}/{QUESTION_LIMIT}</span>
       </div>
+
+      {prompt && !question.trim() && (
+        <button
+          type="button"
+          onClick={() => setQuestion(prompt)}
+          className="mt-2 inline-flex items-start gap-1.5 text-left text-xs text-[var(--soft-terracotta-dark)] underline-offset-2 hover:underline"
+          data-testid="practice-suggested-prompt"
+        >
+          <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          Нужна подсказка? «{prompt}»
+        </button>
+      )}
 
       <Button
         type="button"
-        onClick={completePractice}
-        disabled={done || loading}
-        className={done ? "soft-button soft-button-ghost mt-3" : "soft-button soft-button-primary mt-3"}
+        onClick={reflect}
+        disabled={loading || question.trim().length < 3}
+        className="soft-button soft-button-primary mt-3"
         data-testid="practice-complete-button"
       >
-        {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="size-4" aria-hidden="true" />}
-        {done ? "Практика завершена" : "Завершить практику"}
+        {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Compass className="size-4" aria-hidden="true" />}
+        Получить ракурс и шаг
       </Button>
       {message && (
         <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{message}</p>
-      )}
-
-      {/* Beats two & three reveal once the day is reflected on — keeping the
-          ритуал order вопрос → ракурс → шаг. */}
-      {done && (perspective || step) && (
-        <div className="mt-5 grid gap-3" data-testid="practice-beats">
-          {perspective && (
-            <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="practice-perspective">
-              <p className="soft-eyebrow inline-flex items-center gap-1.5 text-[var(--soft-terracotta-dark)]">
-                <Compass className="size-3.5" aria-hidden="true" />
-                ракурс дня
-              </p>
-              <p className="mt-2 text-[15px] leading-relaxed text-[var(--soft-ink)]">{perspective}</p>
-            </div>
-          )}
-          {step && (
-            <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="practice-step">
-              <p className="soft-eyebrow inline-flex items-center gap-1.5 text-[var(--soft-terracotta-dark)]">
-                <Footprints className="size-3.5" aria-hidden="true" />
-                маленький шаг
-              </p>
-              <p className="mt-2 text-[15px] leading-relaxed text-[var(--soft-ink)]">{step}</p>
-            </div>
-          )}
-        </div>
       )}
     </div>
   );

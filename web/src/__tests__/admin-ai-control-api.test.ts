@@ -128,29 +128,75 @@ describe("admin AI control API", () => {
   });
 
   it("updates provider config and writes audit", async () => {
-    const response = (await PATCH(request({
-      type: "provider",
-      provider: AIProvider.OPENROUTER,
-      enabled: true,
-      priority: 10,
-      defaultModel: "openai/gpt-4o-mini",
-      timeoutMs: 30000,
-      cloudflareGatewayEnabled: true,
-    })))!;
+    // CF Gateway is only marked applied when the gateway env is actually
+    // configured. Set it up so enabling the toggle legitimately routes
+    // OpenRouter through the Cloudflare Gateway URL.
+    const prevAccount = process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    const prevGateway = process.env.CF_AI_GATEWAY_ID;
+    process.env.CF_AI_GATEWAY_ACCOUNT_ID = "acc-test";
+    process.env.CF_AI_GATEWAY_ID = "eterapy-test";
 
-    expect(response.status).toBe(200);
-    expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalled();
-    expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
-      create: expect.objectContaining({
-        metadata: { cloudflareGatewayEnabled: true },
-      }),
-    }));
-    expect(mockDb.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
-      data: expect.objectContaining({
-        action: "AI_PROVIDER_CONFIG_UPDATE",
-        userId: "admin-1",
-      }),
-    }));
+    try {
+      const response = (await PATCH(request({
+        type: "provider",
+        provider: AIProvider.OPENROUTER,
+        enabled: true,
+        priority: 10,
+        defaultModel: "openai/gpt-4o-mini",
+        timeoutMs: 30000,
+        cloudflareGatewayEnabled: true,
+      })))!;
+
+      expect(response.status).toBe(200);
+      expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalled();
+      expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
+          metadata: { cloudflareGatewayEnabled: true },
+          baseUrl: "https://gateway.ai.cloudflare.com/v1/acc-test/eterapy-test/openrouter",
+        }),
+      }));
+      expect(mockDb.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          action: "AI_PROVIDER_CONFIG_UPDATE",
+          userId: "admin-1",
+        }),
+      }));
+    } finally {
+      process.env.CF_AI_GATEWAY_ACCOUNT_ID = prevAccount;
+      process.env.CF_AI_GATEWAY_ID = prevGateway;
+    }
+  });
+
+  it("falls back to the direct base URL and clears CF metadata when gateway is not configured", async () => {
+    // No CF env configured → enabling the toggle cannot apply CF, so the
+    // provider must run on its standard direct URL and metadata must report
+    // CF as NOT applied (prevents providers being stuck on a dead gateway).
+    const prevAccount = process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    const prevGateway = process.env.CF_AI_GATEWAY_ID;
+    delete process.env.CF_AI_GATEWAY_ACCOUNT_ID;
+    delete process.env.CF_AI_GATEWAY_ID;
+
+    try {
+      const response = (await PATCH(request({
+        type: "provider",
+        provider: AIProvider.GROQ,
+        enabled: true,
+        priority: 5,
+        timeoutMs: 30000,
+        cloudflareGatewayEnabled: true,
+      })))!;
+
+      expect(response.status).toBe(200);
+      expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({
+          metadata: { cloudflareGatewayEnabled: false },
+          baseUrl: "https://api.groq.com/openai/v1",
+        }),
+      }));
+    } finally {
+      process.env.CF_AI_GATEWAY_ACCOUNT_ID = prevAccount;
+      process.env.CF_AI_GATEWAY_ID = prevGateway;
+    }
   });
 
   it("updates routing policy and normalizes feature key", async () => {

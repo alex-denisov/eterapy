@@ -3,6 +3,8 @@ import { appUrl, mainUrl } from "@/lib/subdomain";
 import db from "@/lib/db";
 import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import { stripMarkdown } from "@/lib/markdown";
+import { tryParseChatAnalysis } from "@/lib/chat-analysis";
+import { tryParsePerspectives } from "@/lib/perspectives";
 
 export type MyMapItemKind = "dialogue" | "product" | "route";
 
@@ -51,6 +53,63 @@ function truncate(text: string | null | undefined, fallback: string) {
   const clean = stripMarkdown(text);
   if (!clean) return fallback;
   return clean.length > 180 ? `${clean.slice(0, 180).trim()}...` : clean;
+}
+
+function looksLikeJson(text: string): boolean {
+  const t = text.trim();
+  return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
+}
+
+/**
+ * T10: some products persist a STRUCTURED JSON result (chat-analysis tones,
+ * perspectives angles) rather than markdown prose. Dumping that JSON into the
+ * map tile showed users raw `"label":"Уклончивый","pct":50}` noise. This turns
+ * each known structured result into clean, human-readable prose, and guards
+ * against ever surfacing raw JSON for any other product.
+ */
+function readableProductBody(
+  productKey: string,
+  resultText: string | null | undefined,
+  previewText: string | null | undefined,
+): { description: string; bodyMarkdown: string } {
+  const raw = (resultText ?? "").trim();
+  const fallback = "Сохранённый результат готов к просмотру.";
+
+  if (productKey === "chat-analysis") {
+    const parsed = tryParseChatAnalysis(raw) ?? tryParseChatAnalysis((previewText ?? "").trim());
+    if (parsed) {
+      const tones = parsed.tonesThem.slice(0, 3).map((t) => t.label).filter(Boolean).join(", ");
+      const reply = parsed.replies.find((r) => r.text?.trim())?.text?.trim();
+      const body = [
+        parsed.insight,
+        tones ? `Тон собеседника: ${tones}.` : "",
+        reply ? `Бережный вариант ответа: «${reply}»` : "",
+      ].filter(Boolean).join("\n\n");
+      return { description: truncate(parsed.insight, fallback), bodyMarkdown: body };
+    }
+  }
+
+  if (productKey === "perspectives") {
+    const parsed = tryParsePerspectives(raw) ?? tryParsePerspectives((previewText ?? "").trim());
+    if (parsed) {
+      const body = parsed.angles
+        .map((angle) => `**${angle.title}.** ${angle.ask || angle.step || (angle.options[0] ?? "")}`.trim())
+        .filter(Boolean)
+        .join("\n\n");
+      const first = parsed.angles[0];
+      return {
+        description: truncate(first ? `${first.title}: ${first.ask || first.step}` : "", fallback),
+        bodyMarkdown: body || (first?.title ?? ""),
+      };
+    }
+  }
+
+  // Generic guard: prefer the first non-JSON prose candidate; never leak JSON.
+  const proseCandidate = [raw, (previewText ?? "").trim()].find((c) => c && !looksLikeJson(c)) ?? "";
+  return {
+    description: truncate(proseCandidate, fallback),
+    bodyMarkdown: proseCandidate,
+  };
 }
 
 export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
@@ -130,19 +189,27 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
       })),
     ...products
       .filter((product) => !isHiddenFromMap(product.metadata))
-      .map((product) => ({
-        kind: "product" as const,
-        id: product.id,
-        title: product.title,
-        eyebrow: PRODUCT_LABELS[product.productKey] ?? "Результат",
-        description: truncate(product.previewText ?? product.resultText, "Сохраненный результат готов к просмотру."),
-        bodyMarkdown: product.resultText ?? product.previewText ?? "",
-        href: appUrl(`/cabinet/results/${product.id}`),
-        updatedAt: product.updatedAt,
-        status: product.status,
-        exportText: `${PRODUCT_LABELS[product.productKey] ?? "Результат"}: ${product.title}\n${product.resultText ?? product.previewText ?? ""}`,
-        shareTopic: product.productKey,
-      })),
+      .map((product) => {
+        const { description, bodyMarkdown } = readableProductBody(
+          product.productKey,
+          product.resultText,
+          product.previewText,
+        );
+        return {
+          kind: "product" as const,
+          id: product.id,
+          title: product.title,
+          eyebrow: PRODUCT_LABELS[product.productKey] ?? "Результат",
+          description,
+          bodyMarkdown,
+          href: appUrl(`/cabinet/results/${product.id}`),
+          updatedAt: product.updatedAt,
+          status: product.status,
+          // Export keeps the readable prose too (never the raw JSON blob).
+          exportText: `${PRODUCT_LABELS[product.productKey] ?? "Результат"}: ${product.title}\n${bodyMarkdown}`,
+          shareTopic: product.productKey,
+        };
+      }),
     ...routes
       .filter((route) => !isHiddenFromMap(route.metadata))
       .map((route) => ({

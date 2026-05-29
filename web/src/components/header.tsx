@@ -387,15 +387,17 @@ export function Header() {
       ? adminUrl("/admin")
       : appUrl("");
 
-  // B314: role-specific right-cluster visibility.
+  // B314 / G16: role-specific right-cluster visibility.
   //   CLIENT — balance (rub + clarity-credits), help, bell, dropdown, Новый разбор
-  //   PRACTITIONER — help, bell, dropdown, Новый разбор (no clarity-credits; they are not buyers of products)
+  //   PRACTITIONER — help, bell, dropdown (no clarity-credits, no «Новый разбор» —
+  //     practitioners run sessions, they don't start client dialogues)
   //   ADMIN / SUPERADMIN / MODERATOR — bell + dropdown only (no balance, no help, no Новый разбор)
   const isStaff = role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR";
   const isPractitioner = role === "PRACTITIONER";
   const showBalanceSummary = isAuthenticated && !isStaff && !isPractitioner;
   const showHelpIcon = isAuthenticated && !isStaff;
-  const showNewDialogueCta = isAuthenticated && !isStaff;
+  // G16: «Новый разбор» is a client-only action. Hide it for practitioners and staff.
+  const showNewDialogueCta = isAuthenticated && !isStaff && !isPractitioner;
 
   return (
     <header
@@ -529,10 +531,14 @@ export function Header() {
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">
                   Личный кабинет
                 </Link>
-                <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
-                  className="rounded-lg bg-[var(--soft-terracotta)] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--soft-terracotta-dark)]">
-                  Начать диалог
-                </Link>
+                {/* G16: «Начать диалог» mirrors the desktop «Новый разбор» gate —
+                    client-only, hidden for practitioners and staff. */}
+                {showNewDialogueCta && (
+                  <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
+                    className="rounded-lg bg-[var(--soft-terracotta)] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--soft-terracotta-dark)]">
+                    Начать диалог
+                  </Link>
+                )}
                 {isAppArea && (
                   <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
                     className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">

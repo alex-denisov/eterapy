@@ -350,7 +350,7 @@ function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
           <button
             onClick={applyReschedule}
             disabled={submitting}
-            className="rounded-lg bg-[var(--soft-bordeaux)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-[var(--soft-terracotta)] px-3 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-50"
           >
             {submitting ? "..." : "Подтвердить"}
           </button>

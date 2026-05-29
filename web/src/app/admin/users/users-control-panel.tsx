@@ -6,6 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Ban, LogIn, Plus, RefreshCw, RotateCcw, Save, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import {
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_HEADER_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
+} from "@/components/admin/compact-table";
 
 export interface AdminUserRow {
   id: string;
@@ -100,12 +107,22 @@ function SortHeader({ field, label }: { field: string; label: string }) {
   return (
     <button
       type="button"
-      className="soft-admin-sort-link"
+      className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
       onClick={() => router.push(makeUrl(searchParams, { sort: field, dir: nextDir }))}
     >
-      {label}
-      {active && <span>{dir === "asc" ? "up" : "down"}</span>}
+      <span>{label}</span>
+      <span className={active ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"}>
+        {active ? (dir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
     </button>
+  );
+}
+
+function PlainHeader({ label }: { label: string }) {
+  return (
+    <div className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+      {label}
+    </div>
   );
 }
 
@@ -122,9 +139,9 @@ function FilterInput({
 
   return (
     <div className="relative">
-      <Search className="pointer-events-none absolute left-1.5 top-1.5 size-3 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+      <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
       <input
-        className="soft-admin-table-filter pl-5"
+        className={`${COMPACT_INPUT_CLASS} pl-5`}
         value={value}
         placeholder={placeholder}
         onChange={(event) => setValue(event.target.value)}
@@ -148,7 +165,7 @@ function FilterSelect({
   const value = searchParams.get(param) ?? "";
   return (
     <select
-      className="soft-admin-table-filter"
+      className={COMPACT_SELECT_CLASS}
       value={value}
       onChange={(event) => router.push(makeUrl(searchParams, { [param]: event.target.value }))}
     >
@@ -397,15 +414,14 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
 
-      <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[1180px]">
-          <thead>
+      <CompactTableShell minWidth="1180px">
+          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <th>
+              <th className={COMPACT_HEADER_CLASS}>
                 <SortHeader field="name" label="Имя" />
                 <FilterInput param="q" placeholder="имя/email" />
               </th>
-              <th>
+              <th className={COMPACT_HEADER_CLASS}>
                 <SortHeader field="role" label="Роль" />
                 <FilterSelect
                   param="role"
@@ -418,8 +434,8 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   ]}
                 />
               </th>
-              <th>
-                Канал
+              <th className={COMPACT_HEADER_CLASS}>
+                <PlainHeader label="Канал" />
                 <FilterSelect
                   param="channel"
                   options={[
@@ -432,7 +448,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   ]}
                 />
               </th>
-              <th>
+              <th className={COMPACT_HEADER_CLASS}>
                 <SortHeader field="status" label="Статус" />
                 <FilterSelect
                   param="status"
@@ -445,18 +461,18 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   ]}
                 />
               </th>
-              <th><SortHeader field="balance" label="Баланс ₽ · кредиты" /></th>
-              <th><SortHeader field="createdAt" label="Регистрация" /></th>
-              <th>Лимит</th>
-              <th>Продуктовая активность</th>
-              <th>Профиль роли</th>
-              <th>Действия</th>
+              <th className={COMPACT_HEADER_CLASS}><SortHeader field="balance" label="Баланс · кредиты" /></th>
+              <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
+              <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Лимит" /></th>
+              <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Активность" /></th>
+              <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Профиль роли" /></th>
+              <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center">Пользователи не найдены</td>
+                <td colSpan={10} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
               </tr>
             ) : rows.map((row) => {
               const draft = drafts[row.id] ?? { name: row.name, role: row.role, freeToolsLimit: "" };
@@ -464,19 +480,19 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               const canEditName = permissions.canEdit && row.role !== "SUPERADMIN";
               const canManageRole = permissions.canManageRoles && row.role !== "SUPERADMIN";
               return (
-                <tr key={row.id}>
-                  <td className="min-w-72">
+                <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
+                  <td className={`${COMPACT_CELL_CLASS} min-w-[14rem]`}>
                     <input
-                      className="soft-admin-table-filter mt-0 h-8 min-w-56"
+                      className={COMPACT_INPUT_CLASS}
                       value={draft.name}
                       disabled={!canEditName}
                       onChange={(event) => updateDraft(row.id, { name: event.target.value })}
                     />
-                    <div className="mt-1 truncate text-[0.68rem] text-[var(--soft-ink-faint)]">{row.email}</div>
+                    <div className="mt-0.5 truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</div>
                   </td>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <select
-                      className="soft-admin-table-filter mt-0 h-8"
+                      className={COMPACT_SELECT_CLASS}
                       value={draft.role}
                       disabled={!canManageRole}
                       onChange={(event) => updateDraft(row.id, { role: event.target.value as AdminUserRow["role"] })}
@@ -486,13 +502,13 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                       ))}
                     </select>
                   </td>
-                  <td><span className="soft-admin-status-pill">{CHANNEL_LABELS[channelOf(row.provider)]}</span></td>
-                  <td><span className="soft-admin-status-pill" data-tone={status.tone}>{status.label}</span></td>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill">{CHANNEL_LABELS[channelOf(row.provider)]}</span></td>
+                  <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={status.tone}>{status.label}</span></td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-1">
                         <input
-                          className="soft-admin-table-filter mt-0 h-8 w-24 min-w-24"
+                          className={`${COMPACT_INPUT_CLASS} w-20`}
                           value={draft.balanceRub}
                           disabled={!permissions.canManageBalance || row.role === "SUPERADMIN"}
                           inputMode="numeric"
@@ -500,11 +516,11 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                           aria-label={`Денежный баланс ${row.email}`}
                           title="Денежный баланс, ₽"
                         />
-                        <span className="text-[0.68rem] text-[var(--soft-ink-faint)]">₽</span>
+                        <span className="text-[10px] text-[var(--soft-ink-faint)]">₽</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <input
-                          className="soft-admin-table-filter mt-0 h-8 w-24 min-w-24 disabled:opacity-40"
+                          className={`${COMPACT_INPUT_CLASS} w-20 disabled:opacity-40`}
                           value={row.role === "CLIENT" ? draft.clarityCredits : "—"}
                           disabled={!permissions.canManageBalance || row.role !== "CLIENT"}
                           inputMode="numeric"
@@ -512,14 +528,14 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                           aria-label={`Кредиты ясности ${row.email}`}
                           title={row.role === "CLIENT" ? "Кредиты ясности" : "Кредиты ясности доступны только клиентам"}
                         />
-                        <span className="text-[0.68rem] text-[var(--soft-ink-faint)]">кр.</span>
+                        <span className="text-[10px] text-[var(--soft-ink-faint)]">кр.</span>
                       </div>
                     </div>
                   </td>
-                  <td>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
-                  <td>
+                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <input
-                      className="soft-admin-table-filter mt-0 h-8 w-20 min-w-20"
+                      className={`${COMPACT_INPUT_CLASS} w-16`}
                       value={draft.freeToolsLimit}
                       disabled={!permissions.canManageRoles}
                       placeholder="0"
@@ -527,14 +543,14 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                       onChange={(event) => updateDraft(row.id, { freeToolsLimit: event.target.value })}
                     />
                   </td>
-                  <td>
-                    <div className="grid grid-cols-3 gap-1 text-center text-[0.68rem]">
+                  <td className={COMPACT_CELL_CLASS}>
+                    <div className="flex gap-1 text-center text-[10px]">
                       <span className="soft-admin-status-pill">{row.bookingsCount} B</span>
                       <span className="soft-admin-status-pill">{row.entitlementsCount} P</span>
                       <span className="soft-admin-status-pill">{row.subscriptionsCount} S</span>
                     </div>
                   </td>
-                  <td className="min-w-56">
+                  <td className={`${COMPACT_CELL_CLASS} min-w-[10rem]`}>
                     {row.role === "PRACTITIONER" && row.practitioner ? (
                       <Link className="soft-admin-action" href={`/admin/practitioners?email=${encodeURIComponent(row.email)}`}>
                         {row.practitioner.status} · {row.practitioner.commissionPercent}%
@@ -551,7 +567,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                       <span className="soft-admin-status-pill">core</span>
                     )}
                   </td>
-                  <td>
+                  <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                     <div className="flex flex-wrap gap-1.5">
                       <button type="button" className="soft-admin-action" data-variant="primary" onClick={() => void saveRow(row.id)} disabled={pending || row.role === "SUPERADMIN"}>
                         <Save className="size-3.5" aria-hidden="true" />
@@ -586,8 +602,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               );
             })}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(searchParams, { page: String(Math.max(1, page - 1)) })} aria-disabled={page <= 1}>

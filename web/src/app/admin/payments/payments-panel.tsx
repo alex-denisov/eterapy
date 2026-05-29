@@ -94,7 +94,7 @@ export function PaymentsPanel({
               Выбрано: {selected.size} · {totalSelected.toLocaleString("ru")} ₽
             </span>
             <button onClick={() => { [...selected].forEach(id => markPaid(id)); setSelected(new Set()); }}
-              className="rounded-lg bg-[var(--soft-bordeaux)] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:opacity-90">
+              className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)]">
               Отметить оплаченными
             </button>
           </div>
@@ -140,7 +140,7 @@ export function PaymentsPanel({
                   <div className="flex gap-1 items-center justify-end">
                     <button onClick={() => markPaid(p.id)}
                       disabled={processing === p.id || p.practitionerEarnings === 0}
-                      className="rounded-lg bg-[var(--soft-bordeaux)] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-40 transition-colors">
+                      className="rounded-lg bg-[var(--soft-terracotta)] px-2.5 py-1 text-xs font-medium text-[#fff8f1] hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-40 transition-colors">
                       {processing === p.id ? "..." : "Выплатить"}
                     </button>
                     <div className="relative group">

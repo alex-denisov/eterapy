@@ -569,28 +569,36 @@ export default function BillingPage() {
               {linkedCards.map((card) => (
                 <div
                   key={card.id}
-                  className="relative flex flex-col justify-between rounded-[1.25rem] p-5 text-white shadow-sm"
+                  className="relative flex flex-col justify-between overflow-hidden rounded-[1.25rem] p-5 text-white shadow-md"
                   style={{
                     minHeight: 168,
+                    // G15: darker gradients so the card number stays legible
+                    // (white-on-dark) end-to-end — the previous mid-tone fills
+                    // dropped the «•••• last4» contrast to near-invisible.
                     background: card.isDefault
-                      ? "linear-gradient(140deg, var(--soft-bordeaux), var(--soft-terracotta-dark))"
-                      : "linear-gradient(140deg, #6b5d57, #8a7a72)",
+                      ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)"
+                      : "linear-gradient(135deg, #2f2b29 0%, #4a423d 100%)",
                   }}
                   data-testid="client-saved-card"
                 >
                   <div className="flex items-start justify-between">
-                    <span className="text-sm font-bold tracking-wide opacity-90">{getBrandLabel(card.brand)}</span>
+                    <span className="text-sm font-bold uppercase tracking-wider text-white/95">{getBrandLabel(card.brand)}</span>
                     {card.isDefault && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">
                         <Check className="h-3 w-3" /> основная
                       </span>
                     )}
                   </div>
                   <div className="mt-4">
-                    <div className="font-heading text-lg tracking-[0.18em]">•••• {card.last4}</div>
-                    <div className="mt-1 flex items-center justify-between text-xs opacity-80">
-                      <span>{card.cardholderName || "—"}</span>
-                      <span>{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
+                    <div
+                      className="font-heading text-xl font-semibold tracking-[0.22em] text-white"
+                      style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
+                    >
+                      •••• {card.last4}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-white/85">
+                      <span className="truncate pr-2">{card.cardholderName || "—"}</span>
+                      <span className="shrink-0 tabular-nums">{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
                     </div>
                   </div>
                   <div className="mt-4 flex items-center gap-2">
@@ -627,24 +635,19 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Top-up — free-text custom amount */}
+      {/* Top-up — free-text custom amount (G15: borderless big-number field
+          inside a soft panel so the amount never merges with an input border;
+          quick-amount chips live under the number for one-tap presets). */}
       <div className="soft-card p-6">
         <div className="soft-eyebrow mb-4">пополнить баланс</div>
-        <div className="flex flex-wrap gap-2 mb-3">
-          {[500, 1000, 2000, 3000, 5000].map((amount) => (
-            <button
-              key={amount}
-              onClick={() => setTopUpAmount(amount)}
-              className={topUpAmount === amount ? "soft-chip soft-chip-warm" : "soft-chip"}
-            >
-              {amount.toLocaleString("ru-RU")} ₽
-            </button>
-          ))}
-        </div>
-        <label className="block">
-          <span className="soft-eyebrow">сумма пополнения, ₽</span>
-          <div className="relative mt-1">
+
+        <div className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
+          <label htmlFor="client-topup-amount" className="block text-xs font-medium text-[var(--soft-ink-faint)]">
+            Сумма пополнения
+          </label>
+          <div className="mt-1 flex items-baseline gap-2">
             <input
+              id="client-topup-amount"
               type="number"
               inputMode="numeric"
               min={MIN_TOPUP_RUB}
@@ -655,18 +658,29 @@ export default function BillingPage() {
                 const next = Math.floor(Number(e.target.value));
                 setTopUpAmount(Number.isFinite(next) ? next : 0);
               }}
-              className="soft-input w-full pr-8"
+              className="w-full min-w-0 border-0 bg-transparent p-0 font-heading text-4xl font-semibold text-[var(--soft-bordeaux)] outline-none placeholder:text-[var(--soft-ink-faint)] focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               data-testid="client-topup-amount"
               aria-label="Сумма пополнения"
             />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--soft-ink-faint)]">₽</span>
+            <span className="shrink-0 font-heading text-3xl font-semibold text-[var(--soft-bordeaux)]">₽</span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[500, 1000, 2000, 3000, 5000].map((amount) => (
+              <button
+                key={amount}
+                onClick={() => setTopUpAmount(amount)}
+                className={topUpAmount === amount ? "soft-chip soft-chip-warm" : "soft-chip"}
+              >
+                {amount.toLocaleString("ru-RU")} ₽
+              </button>
+            ))}
           </div>
           {!topUpValid && topUpAmount > 0 && (
-            <p className="mt-1 text-xs" style={{ color: "var(--soft-bordeaux)" }}>
+            <p className="mt-3 text-xs" style={{ color: "var(--soft-bordeaux)" }}>
               Сумма от {MIN_TOPUP_RUB} до {MAX_TOPUP_RUB.toLocaleString("ru-RU")} ₽
             </p>
           )}
-        </label>
+        </div>
 
         <div className="mt-4">
           {linkedCards.length > 0 ? (

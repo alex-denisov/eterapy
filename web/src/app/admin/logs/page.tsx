@@ -46,11 +46,16 @@ function HiddenParams({ params, except = [] }: { params: SearchParams; except?: 
   );
 }
 
+// Compact table style shared with the "Промты продуктов" table on /admin/ai.
+const LOG_CELL_CLASS = "border-r border-[var(--soft-paper-edge)] px-1.5 py-1 align-top";
+const LOG_HEADER_CLASS = "border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium";
+const LOG_INPUT_CLASS = "h-7 w-full min-w-0 border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
+
 function HeaderInput({ params, name, placeholder }: { params: SearchParams; name: keyof SearchParams; placeholder: string }) {
   return (
     <form action="/admin/logs">
       <HiddenParams params={params} except={[name]} />
-      <input className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
+      <input className={LOG_INPUT_CLASS} name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
     </form>
   );
 }
@@ -60,9 +65,23 @@ function SortLink({ params, field, children }: { params: SearchParams; field: st
   const dir = params.dir === "asc" ? "asc" : "desc";
   const nextDir = active && dir === "asc" ? "desc" : "asc";
   return (
-    <Link className="soft-admin-sort-link" href={makeUrl(params, { sort: field, dir: nextDir })}>
-      {children}{active ? ` ${dir === "asc" ? "up" : "down"}` : ""}
+    <Link
+      className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
+      href={makeUrl(params, { sort: field, dir: nextDir })}
+    >
+      <span>{children}</span>
+      <span className={active ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"}>
+        {active ? (dir === "asc" ? "↑" : "↓") : "↕"}
+      </span>
     </Link>
+  );
+}
+
+function PlainLogHeader({ label }: { label: string }) {
+  return (
+    <div className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+      {label}
+    </div>
   );
 }
 
@@ -156,38 +175,40 @@ export default async function AdminLogsPage(props: {
 
       <LogsTabs auditTable={
         <>
-      <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[1120px]" data-testid="admin-audit-log-table">
-          <thead>
+      <section className="max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
+        <div className="max-w-full overflow-auto">
+        <table className="w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth: "1120px" }} data-testid="admin-audit-log-table">
+          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <th><SortLink params={params} field="createdAt">Время</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></th>
-              <th><SortLink params={params} field="action">Действие</SortLink><HeaderInput params={params} name="action" placeholder="action" /></th>
-              <th><SortLink params={params} field="userId">Актор</SortLink><HeaderInput params={params} name="actor" placeholder="userId" /></th>
-              <th><SortLink params={params} field="targetId">Цель</SortLink><HeaderInput params={params} name="target" placeholder="targetId" /></th>
-              <th>IP</th>
-              <th>Детали</th>
-              <th>ID</th>
+              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="createdAt">Время</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></th>
+              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="action">Действие</SortLink><HeaderInput params={params} name="action" placeholder="action" /></th>
+              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="userId">Актор</SortLink><HeaderInput params={params} name="actor" placeholder="userId" /></th>
+              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="targetId">Цель</SortLink><HeaderInput params={params} name="target" placeholder="targetId" /></th>
+              <th className={LOG_HEADER_CLASS}><PlainLogHeader label="IP" /></th>
+              <th className={LOG_HEADER_CLASS}><PlainLogHeader label="Детали" /></th>
+              <th className={`${LOG_HEADER_CLASS} border-r-0`}><PlainLogHeader label="ID" /></th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[var(--soft-paper-edge)]">
             {enriched.length === 0 ? (
-              <tr><td colSpan={7} className="text-center">События не найдены</td></tr>
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">События не найдены</td></tr>
             ) : enriched.map((log) => (
-              <tr key={log.id}>
-                <td>{new Date(log.createdAt).toLocaleString("ru-RU")}</td>
-                <td><span className="soft-admin-status-pill" data-tone={actionTone(log.action)}>{log.action}</span></td>
-                <td>
+              <tr key={log.id} className="hover:bg-[var(--soft-surface)]">
+                <td className={`${LOG_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(log.createdAt).toLocaleString("ru-RU")}</td>
+                <td className={LOG_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={actionTone(log.action)}>{log.action}</span></td>
+                <td className={LOG_CELL_CLASS}>
                   <div>{log.actorName}</div>
-                  <div className="text-[0.68rem] text-[var(--soft-ink-faint)]">{log.actorEmail || log.userId}</div>
+                  <div className="text-[10px] text-[var(--soft-ink-faint)]">{log.actorEmail || log.userId}</div>
                 </td>
-                <td>{log.targetName ?? "нет"}</td>
-                <td>{log.ip ?? "нет"}</td>
-                <td className="max-w-lg truncate">{log.details ?? "нет"}</td>
-                <td className="max-w-44 truncate">{log.id}</td>
+                <td className={LOG_CELL_CLASS}>{log.targetName ?? "нет"}</td>
+                <td className={LOG_CELL_CLASS}>{log.ip ?? "нет"}</td>
+                <td className={`${LOG_CELL_CLASS} max-w-lg truncate`}>{log.details ?? "нет"}</td>
+                <td className={`${LOG_CELL_CLASS} max-w-44 truncate border-r-0 font-mono text-[10px] text-[var(--soft-ink-faint)]`}>{log.id}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">

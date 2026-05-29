@@ -6,6 +6,7 @@ import { BookingStatus, PractitionerStatus, TransactionStatus } from "@prisma/cl
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { getBookingStatus } from "@/lib/booking-status";
 import { AdminActions } from "./admin-actions";
 import { DeepMetrics } from "./deep-metrics";
 
@@ -447,7 +448,7 @@ export default async function AdminPage() {
                       <td>{booking.client.name}</td>
                       <td>{booking.practitioner.user.name}</td>
                       <td>{formatRub(booking.priceRub)}</td>
-                      <td><span className="soft-admin-status-pill" data-tone={booking.status === "COMPLETED" ? "ok" : booking.status === "CANCELLED" ? "danger" : "warn"}>{booking.status}</span></td>
+                      <td><span className="soft-admin-status-pill" data-tone={booking.status === "COMPLETED" ? "ok" : booking.status === "CANCELLED" ? "danger" : "warn"}>{getBookingStatus(booking.status).label}</span></td>
                       <td>{new Date(booking.createdAt).toLocaleDateString("ru-RU")}</td>
                     </tr>
                   ))}

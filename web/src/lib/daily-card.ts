@@ -78,6 +78,22 @@ export function dailyCardBeats(metadata: unknown): { perspective: string | null;
   };
 }
 
+/** Read the user-authored вопрос дня out of a stored DailyCard.metadata blob. */
+export function dailyCardUserQuestion(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const meta = metadata as Record<string, unknown>;
+  return typeof meta.userQuestion === "string" && meta.userQuestion.trim() ? meta.userQuestion : null;
+}
+
+// G14: when the LLM is unavailable we still return a warm, useful ракурс + шаг
+// so the user-authored question always gets a response.
+const GENERIC_PRACTICE_RESPONSE = {
+  perspective:
+    "Посмотрите на свой вопрос так, будто его задаёт близкий человек: что в нём вы услышали бы как просьбу позаботиться о себе, а не как требование немедленно всё решить?",
+  step:
+    "Выберите одно маленькое действие на ближайший час, которое сделает ситуацию на 5% яснее, и сделайте именно его — не дожидаясь идеального момента.",
+};
+
 export function dailyCardDate(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
@@ -184,6 +200,70 @@ export async function generateDailyPracticeContent(
   } catch (error) {
     log.warn("daily-practice-fallback", { userId, error: serializeError(error) });
     return { content: fallback, source: "deterministic_v1" };
+  }
+}
+
+function parsePracticeBeatsResponse(text: string): { perspective: string; step: string } | null {
+  if (!text) return null;
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const raw = JSON.parse(match[0]) as Record<string, unknown>;
+    const perspective = typeof raw.perspective === "string" ? raw.perspective.trim() : "";
+    const step = typeof raw.step === "string" ? raw.step.trim() : "";
+    if (!perspective || !step) return null;
+    return { perspective: perspective.slice(0, 400), step: step.slice(0, 280) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * G14 — Практика ясности core mechanic. The user writes their OWN вопрос дня;
+ * we run it through the monitored `daily-practice` policy and return the two
+ * remaining beats: ракурс дня (a gentle reframe / action) and маленький шаг
+ * (one concrete doable step with a recommendation). The user's question is
+ * their own text, so it is safe to send. Always returns content — on any
+ * failure it falls back to a warm generic response so the ritual never breaks.
+ */
+export async function generatePracticeResponseForQuestion(
+  userId: string,
+  question: string,
+): Promise<{ perspective: string; step: string; source: "ai" | "deterministic_v1" }> {
+  const cleaned = question.trim().slice(0, 400);
+  if (!cleaned) return { ...GENERIC_PRACTICE_RESPONSE, source: "deterministic_v1" };
+
+  try {
+    const response = await aiComplete({
+      feature: "daily-practice",
+      userId,
+      maxTokens: 400,
+      temperature: 0.8,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "Ты ведёшь ежедневную «Практику ясности» в продукте ETerapy — мягком сервисе самонаблюдения.",
+            "Человек написал свой вопрос дня. Ответь двумя частями. Верни ТОЛЬКО JSON без markdown:",
+            '{"perspective": "...", "step": "..."}',
+            "perspective — ракурс дня: один бережный разворот взгляда, помогающий увидеть ситуацию иначе (1–2 предложения, обращение на «вы»).",
+            "step — маленький шаг: одно конкретное, выполнимое за минуты действие на сегодня с короткой рекомендацией (1–2 предложения).",
+            "Тон: тёплый, поддерживающий, без диагнозов, без медицинских/юридических/финансовых советов, без кризисных тем. Только русский язык.",
+          ].join(" "),
+        },
+        {
+          role: "user",
+          content: `Мой вопрос дня: «${cleaned}». Дай ракурс дня и маленький шаг.`,
+        },
+      ],
+    });
+
+    const parsed = parsePracticeBeatsResponse(response.text);
+    if (!parsed) return { ...GENERIC_PRACTICE_RESPONSE, source: "deterministic_v1" };
+    return { ...parsed, source: "ai" };
+  } catch (error) {
+    log.warn("daily-practice-reflect-fallback", { userId, error: serializeError(error) });
+    return { ...GENERIC_PRACTICE_RESPONSE, source: "deterministic_v1" };
   }
 }
 

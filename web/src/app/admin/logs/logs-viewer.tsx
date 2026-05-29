@@ -1,6 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_HEADER_CLASS,
+} from "@/components/admin/compact-table";
+
+// Header label cell for the compact diagnostics/runtime tables.
+function LogHeaderLabel({ label }: { label: string }) {
+  return (
+    <th className={COMPACT_HEADER_CLASS} scope="col">
+      <div className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+        {label}
+      </div>
+    </th>
+  );
+}
 
 interface DiagnosticsSnapshot {
   timestamp?: string;
@@ -151,23 +167,22 @@ function DiagnosticsPanel() {
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[720px]">
-          <thead>
+      <CompactTableShell minWidth="720px">
+          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <th>Сервис</th>
-              <th>Статус</th>
-              <th>Снимок</th>
+              <LogHeaderLabel label="Сервис" />
+              <LogHeaderLabel label="Статус" />
+              <LogHeaderLabel label="Снимок" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[var(--soft-paper-edge)]">
             {services.map(([key, label, value]) => {
               const status = key === "env" ? (value ? "ok" : "unknown") : asStatus(value);
               return (
-                <tr key={key}>
-                  <td className="font-medium">{label}</td>
-                  <td><span className="soft-admin-status-pill" data-tone={diagTone(status)}>{status}</span></td>
-                  <td>
+                <tr key={key} className="hover:bg-[var(--soft-surface)]">
+                  <td className={`${COMPACT_CELL_CLASS} font-medium`}>{label}</td>
+                  <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={diagTone(status)}>{status}</span></td>
+                  <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                     <pre className="max-h-44 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-2 text-[11px] leading-relaxed text-[var(--soft-ink-soft)]">
                       {prettyJson(value ?? { status: "loading" })}
                     </pre>
@@ -176,8 +191,7 @@ function DiagnosticsPanel() {
               );
             })}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
     </div>
   );
 }
@@ -303,38 +317,37 @@ function RuntimeLogsPanel() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[960px]">
-          <thead>
+      <CompactTableShell minWidth="960px">
+          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <th>Время</th>
-              <th>Уровень</th>
-              <th>Источник</th>
-              <th>Событие</th>
-              <th>Файл</th>
+              <LogHeaderLabel label="Время" />
+              <LogHeaderLabel label="Уровень" />
+              <LogHeaderLabel label="Источник" />
+              <LogHeaderLabel label="Событие" />
+              <LogHeaderLabel label="Файл" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[var(--soft-paper-edge)]">
             {entries.length === 0 ? (
-              <tr><td colSpan={5} className="text-center">Нет runtime-записей или источники логов не найдены</td></tr>
+              <tr><td colSpan={5} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Нет runtime-записей или источники логов не найдены</td></tr>
             ) : entries.map((entry) => {
               const isExpanded = expandedId === entry.id;
               return (
                 <>
                   <tr
                     key={entry.id}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:bg-[var(--soft-surface)]"
                     onClick={() => setExpandedId(isExpanded ? null : entry.id)}
                   >
-                    <td className="whitespace-nowrap font-mono text-[11px]">{formatDate(entry.timestamp)}</td>
-                    <td><span className="soft-admin-status-pill" data-tone={runtimeTone(entry.level)}>{entry.level}</span></td>
-                    <td>{entry.sourceLabel}</td>
-                    <td className="max-w-md truncate font-medium">{entry.event}</td>
-                    <td className="max-w-xs truncate font-mono text-[11px] text-[var(--soft-ink-faint)]">{entry.filePath}</td>
+                    <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap font-mono text-[10px]`}>{formatDate(entry.timestamp)}</td>
+                    <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={runtimeTone(entry.level)}>{entry.level}</span></td>
+                    <td className={COMPACT_CELL_CLASS}>{entry.sourceLabel}</td>
+                    <td className={`${COMPACT_CELL_CLASS} max-w-md truncate font-medium`}>{entry.event}</td>
+                    <td className={`${COMPACT_CELL_CLASS} max-w-xs truncate border-r-0 font-mono text-[10px] text-[var(--soft-ink-faint)]`}>{entry.filePath}</td>
                   </tr>
                   {isExpanded && (
                     <tr key={`${entry.id}-detail`}>
-                      <td colSpan={5}>
+                      <td colSpan={5} className="border-r-0 px-1.5 py-2">
                         <div className="grid gap-2 lg:grid-cols-2">
                           <div>
                             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Raw</p>
@@ -352,8 +365,7 @@ function RuntimeLogsPanel() {
               );
             })}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
     </div>
   );
 }

@@ -36,11 +36,17 @@ describe("B053 account access states", () => {
     await expect(getAccountAccessState("missing-1")).resolves.toBe("missing");
   });
 
-  it("maps inactive states to logout reasons", () => {
+  it("fails open to active when the DB lookup throws (transient outage)", async () => {
+    (mockDb.user.findUnique as jest.Mock).mockRejectedValueOnce(new Error("connection reset"));
+    await expect(getAccountAccessState("flaky-1")).resolves.toBe("active");
+  });
+
+  it("maps inactive states to logout reasons (missing is NOT a logout)", () => {
     expect(inactiveAccountReason("active")).toBeNull();
     expect(inactiveAccountReason("blocked")).toBe("blocked");
     expect(inactiveAccountReason("deleted")).toBe("deleted");
-    expect(inactiveAccountReason("missing")).toBe("deleted");
+    // A missing row for a valid session is transient — must not force logout.
+    expect(inactiveAccountReason("missing")).toBeNull();
   });
 
   it("guards cabinet and admin layouts and renders inactive login state", () => {

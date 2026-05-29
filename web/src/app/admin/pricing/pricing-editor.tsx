@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Fragment } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 
@@ -74,8 +75,18 @@ function minRate(practitioner: Practitioner) {
 }
 
 export function PricingEditor({ initialSettings, practitioners }: Props) {
+  const router = useRouter();
   const [settings, setSettings] = useState<Record<string, string>>(initialSettings);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // After a save we call router.refresh(); the server component then re-reads
+  // platform settings and passes a fresh `initialSettings`. Re-seed local state
+  // from it so the inputs authoritatively reflect the persisted DB values
+  // (this is what makes a saved price visibly "stick" without a manual reload).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSettings(initialSettings);
+  }, [initialSettings]);
   const [testMode, setTestMode] = useState(initialSettings["session.test_mode"] === "true");
   const [expandedPrac, setExpandedPrac] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
@@ -99,8 +110,13 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
         body: JSON.stringify({ settings: toSave }),
       });
       const data = await res.json();
-      if (data.ok) toast.success("Настройки сохранены");
-      else toast.error(data.error ?? "Ошибка");
+      if (data.ok) {
+        toast.success("Настройки сохранены");
+        // Re-read from the server so the inputs reflect persisted DB values.
+        router.refresh();
+      } else {
+        toast.error(data.error ?? "Ошибка");
+      }
     } catch {
       toast.error("Ошибка сети");
     } finally {

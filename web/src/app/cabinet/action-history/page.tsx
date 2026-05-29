@@ -177,9 +177,24 @@ export default async function MyMapPage() {
                       {recentItem.description.slice(0, 160)}{recentItem.description.length > 160 ? "..." : ""}
                     </p>
                   ) : null}
-                  <div className="flex gap-3 mt-6">
-                    <span className="soft-chip soft-chip-warm">{recentItem.eyebrow}</span>
-                    <Link href={recentItem.href} className="soft-chip">Открыть →</Link>
+                  <div className="flex flex-wrap items-center gap-3 mt-6">
+                    {/* Eyebrow chip: bordeaux fill so the category never blends
+                        into the warm tile gradient. */}
+                    <span
+                      className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
+                      style={{ background: "var(--soft-bordeaux)", color: "#FBF0E1" }}
+                    >
+                      {recentItem.eyebrow}
+                    </span>
+                    {/* Primary action: terracotta button stands clearly apart
+                        from the cream/apricot tile (was a near-invisible chip). */}
+                    <Link
+                      href={recentItem.href}
+                      className="soft-button soft-button-primary"
+                      style={{ minHeight: "2.25rem", padding: "0.5rem 1.1rem", fontSize: "0.875rem" }}
+                    >
+                      Открыть разбор →
+                    </Link>
                   </div>
                 </>
               ) : (
@@ -215,11 +230,14 @@ export default async function MyMapPage() {
                 carries its own recent-analyses block). The map view now leads
                 with the latest insight + stats, then the complete item list. */}
 
-            {/* Active routes — span 4 (if any) */}
+            {/* T11: "маршруты в работе" + "следующий шаг" now always fill the
+                full 12-col row. When active routes exist they split 6/6; when
+                there are none, "следующий шаг" spans the whole row so the line
+                never leaves an empty gap where the old third tile used to be. */}
             {activeRoutes.length > 0 && (
-              <div className="soft-map-tile col-span-12 md:col-span-4 p-6">
+              <div className="soft-map-tile col-span-12 md:col-span-6 p-6">
                 <div className="soft-eyebrow">маршруты в работе</div>
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {activeRoutes.slice(0, 2).map(route => (
                     <div key={route.id}>
                       <div style={{ fontFamily: "var(--font-heading)", fontSize: 17, color: "var(--soft-bordeaux)", fontWeight: 500 }}>
@@ -234,17 +252,19 @@ export default async function MyMapPage() {
               </div>
             )}
 
-            {/* Recommend / CTA — span 4 or 8 */}
-            <div className="soft-map-tile col-span-12 md:col-span-4 p-6"
+            {/* Recommend / CTA — fills the rest of the row */}
+            <div className={`soft-map-tile col-span-12 p-6 ${activeRoutes.length > 0 ? "md:col-span-6" : "md:col-span-12"}`}
               style={{ background: "linear-gradient(140deg, #DBD3EA, #E8E1F2)", color: "#4A3E5E" }}>
               <div className="soft-eyebrow" style={{ color: "#6B5C82" }}>следующий шаг</div>
-              <p className="mt-3 text-sm" style={{ fontFamily: "var(--font-heading)", fontSize: "1.1rem", lineHeight: 1.4, color: "#3A2E58" }}>
-                Продолжайте исследовать — каждый разбор делает карту точнее.
-              </p>
-              <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-4"
-                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
-                Новый разбор
-              </Link>
+              <div className={activeRoutes.length > 0 ? "" : "flex flex-col gap-3 md:flex-row md:items-center md:justify-between"}>
+                <p className="mt-3 text-sm" style={{ fontFamily: "var(--font-heading)", fontSize: "1.1rem", lineHeight: 1.4, color: "#3A2E58", maxWidth: 560 }}>
+                  Продолжайте исследовать — каждый разбор делает карту точнее.
+                </p>
+                <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-4 md:mt-0 shrink-0"
+                  style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+                  Новый разбор
+                </Link>
+              </div>
             </div>
 
             {/* Bottom CTA */}
@@ -272,25 +292,36 @@ export default async function MyMapPage() {
 
           {/* Items list */}
           <div className="soft-eyebrow mb-3">все элементы карты</div>
+          {/* T12: single-column cards — meta chips → title → full-width body →
+              actions footer. The previous two-column flex squeezed the prose
+              into a narrow track, so long unbroken tokens (chat-analysis
+              разбор, links) overflowed and looked clipped/unreadable. Body now
+              spans the whole card width with break-words so every разбор
+              renders cleanly, with a description fallback so a card is never
+              left with an empty body. */}
           <div className="grid gap-3" data-testid="my-map-items">
-            {items.map((item) => (
-              <article key={`${item.kind}:${item.id}`} className="soft-card p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            {items.map((item) => {
+              const previewBody = item.bodyMarkdown?.trim();
+              return (
+                <article key={`${item.kind}:${item.id}`} className="soft-card flex flex-col gap-4 p-5 md:p-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="soft-chip soft-chip-warm">{item.eyebrow}</span>
+                    <span className="soft-chip">{mapItemStatusRu(item.kind, item.status)}</span>
+                    <span className="soft-chip">{item.updatedAt.toLocaleDateString("ru-RU")}</span>
+                  </div>
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="soft-chip soft-chip-warm">{item.eyebrow}</span>
-                      <span className="soft-chip">{mapItemStatusRu(item.kind, item.status)}</span>
-                      <span className="soft-chip">{item.updatedAt.toLocaleDateString("ru-RU")}</span>
-                    </div>
-                    <h2 className="mt-3 font-heading text-xl font-medium" style={{ color: "var(--soft-ink)" }}>{item.title}</h2>
-                    {item.bodyMarkdown ? (
-                      <SoftMarkdown content={item.bodyMarkdown.slice(0, 360)} className="mt-2 max-w-3xl text-sm" />
+                    <h2 className="font-heading text-xl font-medium break-words" style={{ color: "var(--soft-ink)" }}>{item.title}</h2>
+                    {previewBody ? (
+                      <SoftMarkdown
+                        content={previewBody.slice(0, 460)}
+                        className="mt-2 break-words [overflow-wrap:anywhere]"
+                      />
                     ) : (
-                      <p className="mt-2 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
+                      <p className="mt-2 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
                     )}
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    <Link href={item.href} className="soft-button soft-button-ghost"
+                  <div className="flex flex-wrap gap-2 border-t border-[var(--soft-paper-edge)] pt-4">
+                    <Link href={item.href} className="soft-button soft-button-primary"
                       style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
                       Открыть
                     </Link>
@@ -323,7 +354,7 @@ export default async function MyMapPage() {
                         Скрыть
                       </button>
                     </form>
-                    <form action={deleteMapItem}>
+                    <form action={deleteMapItem} className="ml-auto">
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="id" value={item.id} />
                       <button type="submit" className="soft-button soft-button-ghost"
@@ -336,9 +367,9 @@ export default async function MyMapPage() {
                       </button>
                     </form>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         </>
       )}

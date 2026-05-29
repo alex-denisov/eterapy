@@ -7,36 +7,53 @@ import { DailyPracticeActions } from "@/components/cabinet/daily-practice-action
 import { getOrCreateDailyCard, dailyCardDate, dailyCardBeats } from "@/lib/daily-card";
 import { mainUrl } from "@/lib/subdomain";
 
-const WEEKDAY_RU = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+// Monday-based weekday labels for the «эта неделя» calendar.
+const WEEKDAY_RU_SHORT = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
 
-async function loadStreakStrip(userId: string): Promise<Array<{ key: string; label: string; done: boolean; isToday: boolean }>> {
+type WeekDayCell = {
+  key: string;
+  label: string;
+  dayNum: number;
+  done: boolean;
+  isToday: boolean;
+  isFuture: boolean;
+};
+
+// G14: render the actual calendar week (Mon→Sun) so completed days fill in,
+// today is highlighted, and days still ahead read as muted/coming — instead of
+// an ambiguous trailing 7-day strip.
+async function loadWeekStrip(userId: string): Promise<WeekDayCell[]> {
   const today = dailyCardDate(new Date());
-  const sevenAgo = new Date(today);
-  sevenAgo.setUTCDate(sevenAgo.getUTCDate() - 6);
+  const mondayOffset = (today.getUTCDay() + 6) % 7; // 0 = Monday
+  const monday = new Date(today);
+  monday.setUTCDate(monday.getUTCDate() - mondayOffset);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(sunday.getUTCDate() + 6);
 
-  // We treat "completed" as a DailyCard row with completedAt set in the
-  // last 7 days (the daily-card POST handler stamps completedAt and
-  // grants the +1 кредит ledger entry atomically).
+  // A "completed" day is a DailyCard with completedAt set (the daily-card POST
+  // handler stamps completedAt and grants the +1 кредит ledger entry atomically).
   const cards = await db.dailyCard.findMany({
     where: {
       userId,
-      cardDate: { gte: sevenAgo, lte: today },
+      cardDate: { gte: monday, lte: sunday },
       completedAt: { not: null },
     },
     select: { cardDate: true },
   });
   const doneByISO = new Set(cards.map((c) => c.cardDate.toISOString().slice(0, 10)));
 
-  const strip: Array<{ key: string; label: string; done: boolean; isToday: boolean }> = [];
-  for (let i = 6; i >= 0; i--) {
-    const day = new Date(today);
-    day.setUTCDate(day.getUTCDate() - i);
+  const strip: WeekDayCell[] = [];
+  for (let i = 0; i < 7; i++) {
+    const day = new Date(monday);
+    day.setUTCDate(day.getUTCDate() + i);
     const iso = day.toISOString().slice(0, 10);
     strip.push({
       key: iso,
-      label: WEEKDAY_RU[day.getUTCDay()],
+      label: WEEKDAY_RU_SHORT[i],
+      dayNum: day.getUTCDate(),
       done: doneByISO.has(iso),
-      isToday: i === 0,
+      isToday: day.getTime() === today.getTime(),
+      isFuture: day.getTime() > today.getTime(),
     });
   }
   return strip;
@@ -75,7 +92,7 @@ export default async function ClarityPracticePage() {
 
   const { card } = await getOrCreateDailyCard(userId);
   const [strip, streak, activeRoute] = await Promise.all([
-    loadStreakStrip(userId),
+    loadWeekStrip(userId),
     loadTotalStreak(userId),
     // B329: surface the user's active 7-day route on the practice page so
     // the daily ritual and the structured route live on one screen

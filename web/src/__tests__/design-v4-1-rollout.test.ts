@@ -48,10 +48,10 @@ describe("design v4.2 rollout", () => {
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("490");
     expect(pricing).toContain("Без скидок на встречи со специалистами");
-    // B322: aligned with docs/13_Prices_Breakdown — Start tier 299 ₽,
-    // chat-analysis range 299–1290, natal 590, joint от 4 500.
+    // T9: chat-analysis is a single 390 ₽ price (tiers removed until they ship);
+    // natal 590, joint от 4 500.
     expect(catalog).toContain("590 ₽");
-    expect(catalog).toContain("299–1 290 ₽");
+    expect(catalog).toContain("390 ₽");
     expect(catalog).toContain("от 4 500 ₽");
     expect(products).toContain("один отчёт на двоих");
   });

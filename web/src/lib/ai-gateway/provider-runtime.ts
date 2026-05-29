@@ -4,6 +4,7 @@ import { createAnthropicAdapter } from "@/lib/ai-gateway/anthropic-adapter";
 import {
   buildCloudflareGatewayUrlForAIProvider,
   getCloudflareGatewayConfig,
+  isCloudflareAIGatewayUrl,
 } from "@/lib/ai-gateway/cloudflare-gateway";
 import type { DecryptedAICredential } from "@/lib/ai-gateway/credentials";
 import { createFireworksAdapter } from "@/lib/ai-gateway/fireworks-adapter";
@@ -61,16 +62,41 @@ export function resolvedProviderBaseUrl(input: {
   providerConfig?: Pick<AIRoutingProviderConfig, "provider" | "baseUrl" | "cloudflareGatewayEnabled"> | null;
 }) {
   if (input.credential?.baseUrlOverride) return input.credential.baseUrlOverride;
-  if (input.providerConfig?.baseUrl) return input.providerConfig.baseUrl;
-  if (!input.providerConfig?.cloudflareGatewayEnabled) return undefined;
 
-  const gateway = getCloudflareGatewayConfig();
-  if (!gateway) return undefined;
-  return buildCloudflareGatewayUrlForAIProvider({
-    accountId: gateway.accountId,
-    gatewayId: gateway.gatewayId,
-    provider: input.providerConfig.provider,
-  }) ?? undefined;
+  const config = input.providerConfig;
+  const cfEnabled = config?.cloudflareGatewayEnabled === true;
+
+  if (config?.baseUrl) {
+    // Self-heal stale rows: if the gateway is OFF but a Cloudflare Gateway URL
+    // was left behind in `baseUrl` (e.g. saved before the toggle was wired),
+    // ignore it and fall through to the provider's standard direct URL so the
+    // provider works directly instead of being stuck "в ошибке". A genuine
+    // non-CF custom base URL is still respected.
+    if (!(isCloudflareAIGatewayUrl(config.baseUrl) && !cfEnabled)) {
+      return config.baseUrl;
+    }
+  }
+
+  if (cfEnabled && config) {
+    const gateway = getCloudflareGatewayConfig();
+    if (gateway) {
+      const cfUrl = buildCloudflareGatewayUrlForAIProvider({
+        accountId: gateway.accountId,
+        gatewayId: gateway.gatewayId,
+        provider: config.provider,
+      });
+      if (cfUrl) return cfUrl;
+    }
+  }
+
+  // CF off (or unsupported / not configured): fall back to the standard
+  // direct base URL for the provider. Adapters that carry their own default
+  // can still receive undefined and use it.
+  if (config) {
+    const direct = DIRECT_PROVIDER_BASE_URLS[config.provider];
+    if (direct) return direct;
+  }
+  return undefined;
 }
 
 export function buildAdapterForCredential(
