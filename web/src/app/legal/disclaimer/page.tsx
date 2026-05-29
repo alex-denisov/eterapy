@@ -6,13 +6,18 @@ export const metadata = {
 
 export default function DisclaimerPage() {
   return (
-    <article className="prose prose-invert prose-sm max-w-none">
+    <article className="legal-prose">
       <h1 className="font-heading text-2xl font-bold">Дисклеймер и ограничения ответственности</h1>
-      <p className="text-muted-foreground">Редакция от 16 мая 2026 г.</p>
+      <p className="legal-meta">Редакция от 16 мая 2026 г.</p>
 
-      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-5 not-prose mb-6">
-        <p className="text-sm font-semibold text-yellow-400 mb-2">Важно прочитать перед использованием</p>
-        <p className="text-sm text-muted-foreground">
+      <div
+        className="not-prose mb-6 rounded-2xl border p-5"
+        style={{ borderColor: "var(--soft-apricot)", background: "linear-gradient(140deg, #FBEFE0, #F8E6D1)" }}
+      >
+        <p className="mb-2 text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+          Важно прочитать перед использованием
+        </p>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
           ETerapy — это платформа для рефлексии и осмысления жизненных вопросов. Она не является
           медицинской, психологической, юридической или финансовой консультацией и не может их заменить.
         </p>

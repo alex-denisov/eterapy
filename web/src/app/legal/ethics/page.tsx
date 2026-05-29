@@ -5,10 +5,10 @@ export const metadata = createPublicPageMetadata("/legal/ethics");
 
 export default function EthicsPage() {
   return (
-    <article className="prose prose-invert prose-sm max-w-none">
+    <article className="legal-prose">
       <PublicJsonLd route="/legal/ethics" />
       <h1 className="font-heading text-2xl font-bold">Этический кодекс практика</h1>
-      <p className="text-muted-foreground">
+      <p className="legal-meta">
         Все верифицированные практики ETerapy обязаны соблюдать настоящий кодекс.
         Нарушение влечёт меры согласно разделу 4.
       </p>
@@ -58,7 +58,10 @@ export default function EthicsPage() {
       </ul>
 
       <h2>4. Последствия нарушений</h2>
-      <div className="rounded-xl border border-border/40 bg-card/30 p-4 not-prose">
+      <div
+        className="not-prose rounded-2xl p-5"
+        style={{ border: "1px solid var(--soft-paper-edge)", background: "var(--soft-paper-deep)" }}
+      >
         <div className="space-y-3 text-sm">
           {[
             { step: "1", action: "Предупреждение", desc: "Первое подтверждённое нарушение. Фиксируется в профиле." },
@@ -67,12 +70,15 @@ export default function EthicsPage() {
             { step: "4", action: "Блокировка", desc: "Постоянная блокировка аккаунта без возврата." },
           ].map((item) => (
             <div key={item.step} className="flex gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                style={{ background: "var(--soft-apricot)", color: "var(--soft-bordeaux)" }}
+              >
                 {item.step}
               </span>
               <div>
-                <p className="font-medium text-foreground">{item.action}</p>
-                <p className="text-muted-foreground">{item.desc}</p>
+                <p className="font-semibold" style={{ color: "var(--soft-ink)" }}>{item.action}</p>
+                <p style={{ color: "var(--soft-ink-soft)" }}>{item.desc}</p>
               </div>
             </div>
           ))}

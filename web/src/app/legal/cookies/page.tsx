@@ -6,9 +6,9 @@ export const metadata = {
 
 export default function CookiesPage() {
   return (
-    <article className="prose prose-invert prose-sm max-w-none">
+    <article className="legal-prose">
       <h1 className="font-heading text-2xl font-bold">Политика использования cookies</h1>
-      <p className="text-muted-foreground">Редакция от 16 мая 2026 г.</p>
+      <p className="legal-meta">Редакция от 16 мая 2026 г.</p>
 
       <h2>1. Что такое cookies</h2>
       <p>

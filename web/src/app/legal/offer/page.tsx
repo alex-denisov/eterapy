@@ -5,10 +5,10 @@ export const metadata = createPublicPageMetadata("/legal/offer");
 
 export default function OfferPage() {
   return (
-    <article className="prose prose-invert prose-sm max-w-none">
+    <article className="legal-prose">
       <PublicJsonLd route="/legal/offer" />
       <h1 className="font-heading text-2xl font-bold">Публичная оферта</h1>
-      <p className="text-muted-foreground">Редакция от 16 мая 2026 г.</p>
+      <p className="legal-meta">Редакция от 16 мая 2026 г.</p>
 
       <h2>1. Общие положения</h2>
       <p>

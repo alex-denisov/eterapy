@@ -2013,3 +2013,116 @@
     transform: scale(1.08) rotate(8deg);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Legal & "О проекте" long-form documents — Soft Clarity prose.       */
+/* Replaces the old `prose prose-invert` (dark-theme) typography that  */
+/* clashed with the warm paper background.                             */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .legal-prose {
+    color: var(--soft-ink-soft);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    max-width: none;
+  }
+
+  .legal-prose > :first-child {
+    margin-top: 0;
+  }
+
+  .legal-prose h1 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: clamp(1.75rem, 3.2vw, 2.25rem);
+    font-weight: 600;
+    line-height: 1.15;
+    margin: 0 0 0.5rem;
+  }
+
+  .legal-prose h2 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 2.25rem 0 0.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--soft-paper-edge);
+  }
+
+  .legal-prose h3 {
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 1.5rem 0 0.5rem;
+  }
+
+  .legal-prose p {
+    margin: 0 0 1rem;
+  }
+
+  .legal-prose ul,
+  .legal-prose ol {
+    margin: 0 0 1.25rem;
+    padding-left: 0;
+    list-style: none;
+  }
+
+  .legal-prose li {
+    position: relative;
+    margin-bottom: 0.5rem;
+    padding-left: 1.4rem;
+  }
+
+  .legal-prose ul > li::before {
+    content: "";
+    position: absolute;
+    left: 0.1rem;
+    top: 0.62rem;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 999px;
+    background: var(--soft-terracotta);
+  }
+
+  .legal-prose ol {
+    counter-reset: legal-counter;
+  }
+
+  .legal-prose ol > li {
+    counter-increment: legal-counter;
+  }
+
+  .legal-prose ol > li::before {
+    content: counter(legal-counter) ".";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--soft-terracotta-dark);
+    font-weight: 600;
+  }
+
+  .legal-prose a {
+    color: var(--soft-terracotta-dark);
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .legal-prose a:hover {
+    color: var(--soft-bordeaux);
+  }
+
+  .legal-prose strong {
+    color: var(--soft-ink);
+    font-weight: 600;
+  }
+
+  .legal-meta {
+    margin: 0 0 1.75rem;
+    color: var(--soft-ink-faint);
+    font-size: 0.85rem;
+  }
+}
