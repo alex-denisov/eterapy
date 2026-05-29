@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { AdminActions } from "./admin-actions";
+import { DeepMetrics } from "./deep-metrics";
 
 const PRODUCT_PRICES_RUB: Record<string, number> = {
   perspectives: 299,
@@ -280,7 +281,6 @@ export default async function AdminPage() {
           <span className="soft-admin-status-pill" data-tone={canViewBusiness ? "ok" : "warn"}>
             {canViewBusiness ? "business metrics" : "операционный доступ"}
           </span>
-          <Link className="soft-admin-action" href="/admin/metrics">глубокие метрики</Link>
           <Link className="soft-admin-action" href="/admin/system">система</Link>
         </div>
       </div>
@@ -311,11 +311,11 @@ export default async function AdminPage() {
 
       {business ? (
         <>
-          <section className="mb-6 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+          <section className="mb-6 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]" data-testid="admin-cta-monetization-funnel">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Воронка бесплатное → платное за 30 дней</h2>
-                <p className="text-xs text-[var(--soft-ink-faint)]">Основной сигнал по CTA после Диалога ясности и paid-углублениям.</p>
+                <p className="text-xs text-[var(--soft-ink-faint)]">Основной сигнал по CTA после Диалога ясности и paid-углублениям — one primary CTA.</p>
               </div>
               <span className="soft-admin-status-pill" data-tone="ok">AnalyticsEvent</span>
             </div>
@@ -386,6 +386,16 @@ export default async function AdminPage() {
               </div>
             </section>
           </div>
+
+          {/* T3: deep product metrics migrated from the standalone /admin/metrics
+              page so Обзор is the single business-monitoring center. */}
+          <section className="mb-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Продуктовые метрики</h2>
+              <span className="soft-admin-status-pill" data-tone="ok">DAU · MAU · churn · воронка</span>
+            </div>
+            <DeepMetrics />
+          </section>
         </>
       ) : (
         <section className="mb-6 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-sm text-[var(--soft-ink-soft)] shadow-[var(--soft-shadow-sm)]">

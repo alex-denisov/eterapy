@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  BarChart3,
   BellRing,
   BrainCircuit,
   BookOpenText,
@@ -51,7 +50,6 @@ const NAV_ITEMS: NavItem[] = [
 
   { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Выплаты",          superadminOnly: true },
   { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
-  { href: adminUrl("/admin/metrics"),      icon: BarChart3,            label: "Метрики",          superadminOnly: true },
   { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "AI-центр",         permission: "ai.configure" },
   { href: adminUrl("/admin/notifications"),icon: BellRing,             label: "Уведомления",      permission: "notifications.diagnose" },
 

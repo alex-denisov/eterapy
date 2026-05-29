@@ -21,16 +21,19 @@ describe("B230 v4.2 CTA monetization analytics", () => {
     expect(checkin).toContain('data-analytics-cta-role="bundle"');
   });
 
-  it("shows CTA monetization events in admin metrics", () => {
-    const metrics = source("src/app/admin/metrics/page.tsx");
+  it("shows CTA monetization events in the admin overview (T3: metrics merged into Обзор)", () => {
+    // T3: the standalone /admin/metrics page was retired; its monitoring
+    // content now lives in the Обзор business center (admin/page.tsx) plus the
+    // deep-metrics component.
+    const overview = source("src/app/admin/page.tsx");
 
-    expect(metrics).toContain("triage_primary_clicked");
-    expect(metrics).toContain("triage_secondary_clicked");
-    expect(metrics).toContain("triage_subscription_clicked");
-    expect(metrics).toContain("credits_spend_clicked");
-    expect(metrics).toContain('data-testid="admin-cta-monetization-funnel"');
-    expect(metrics).toContain("one primary CTA");
-    expect(metrics).toContain('"chat-analysis": 390');
-    expect(metrics).toContain('"compatibility": 590');
+    expect(overview).toContain("triage_primary_clicked");
+    expect(overview).toContain("triage_secondary_clicked");
+    expect(overview).toContain("triage_subscription_clicked");
+    expect(overview).toContain("credits_spend_clicked");
+    expect(overview).toContain('data-testid="admin-cta-monetization-funnel"');
+    expect(overview).toContain("one primary CTA");
+    expect(overview).toContain('"chat-analysis": 390');
+    expect(overview).toContain("compatibility: 590");
   });
 });
