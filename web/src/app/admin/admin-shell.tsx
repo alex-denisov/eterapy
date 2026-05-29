@@ -26,7 +26,6 @@ import {
 import type { Permission } from "@/lib/moderator-permissions";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { BrandSignature } from "@/components/brand/brand-mark";
 
 interface NavItem {
   href: string;
@@ -127,10 +126,10 @@ export function AdminShell({
         className="soft-admin-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
         style={{ top: "var(--header-height)" }}
       >
-        <div className="mb-5 border-b border-[var(--soft-paper-edge)] px-2 pb-4">
-          <BrandSignature compact theme="light" />
-        </div>
-        <div className="mb-5 px-2" data-testid="admin-shell-user">
+        {/* T10: logo intentionally omitted here — the public-shell-header
+            already renders the brand mark, so a second copy in the sidebar
+            duplicated it on every admin page. */}
+        <div className="mb-5 mt-1 px-2" data-testid="admin-shell-user">
           <div className="flex items-center gap-3">
             <div className="soft-app-avatar flex h-10 w-10 shrink-0 items-center justify-center text-sm font-semibold">
               {initial}

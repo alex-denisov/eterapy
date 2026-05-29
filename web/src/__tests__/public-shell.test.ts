@@ -42,9 +42,12 @@ describe("v5 public shell", () => {
     expect(header).toContain("useClarityCreditBalance");
     expect(header).toContain("soft-user-pill");
     expect(header).toContain("soft-user-icon");
-    expect(header).toContain("Главная кабинета");
+    // T11: dropdown mirrors the real CLIENT_NAV cabinet sidebar one-to-one.
+    expect(header).toContain('label: "Главная"');
     expect(header).toContain("Моя карта");
+    expect(header).toContain("История разборов");
     expect(header).toContain("Кредиты ясности");
+    expect(header).toContain("Практика ясности");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");
     // T12: footer taxonomy is grouped by product FAMILY, not by price. The old

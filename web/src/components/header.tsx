@@ -9,17 +9,26 @@ import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
 import { NotificationBell } from "@/components/notification-bell";
 import {
+  Banknote,
   BookOpen,
+  Bookmark,
   CalendarDays,
   ChevronDown,
   CircleHelp,
   Compass,
   CreditCard,
-  Heart,
+  History,
   LayoutDashboard,
+  Leaf,
+  Lock,
   LogOut,
+  MessageCircle,
   Settings,
   Sparkles,
+  Star,
+  UserPen,
+  Users,
+  Wallet,
 } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
 
@@ -146,38 +155,40 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
   // disk (see web/src/app/cabinet/**). Practitioner gets the full
   // practitioner sub-area; admin/superadmin get the canonical admin entry
   // points. Client gets every cabinet surface they can actually navigate.
+  // T11: dropdown sections must mirror the actual cabinet sidebars
+  // (CLIENT_NAV / PRACTITIONER_NAV in components/cabinet/cabinet-shell.tsx)
+  // one-to-one, including order, labels and icons. Admin/superadmin use a
+  // curated subset of the admin shell entry points.
   const menuItems = role === "PRACTITIONER" ? [
-    { href: appUrl("/practitioner"), label: "Главная специалиста", icon: LayoutDashboard },
+    { href: appUrl("/practitioner"), label: "Сводка", icon: LayoutDashboard },
+    { href: appUrl("/practitioner/profile"), label: "Мой профиль", icon: UserPen },
+    { href: appUrl("/practitioner/services"), label: "Услуги и цены", icon: Bookmark },
     { href: appUrl("/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
-    { href: appUrl("/practitioner/requests"), label: "Заявки", icon: BookOpen },
-    { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Compass },
-    { href: appUrl("/practitioner/reviews"), label: "Отзывы", icon: Heart },
-    { href: appUrl("/practitioner/earnings"), label: "Выплаты", icon: CreditCard },
-    { href: appUrl("/practitioner/profile"), label: "Профиль", icon: Settings },
-    { href: appUrl("/settings"), label: "Настройки", icon: Settings },
+    { href: appUrl("/practitioner/requests"), label: "Заявки", icon: MessageCircle },
+    { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Users },
+    { href: appUrl("/practitioner/earnings"), label: "Выплаты", icon: Banknote },
+    { href: appUrl("/practitioner/reviews"), label: "Отзывы", icon: Star },
+    { href: appUrl("/practitioner/ethics"), label: "Этический кодекс", icon: Lock },
   ] : role === "SUPERADMIN" ? [
-    { href: adminUrl("/admin"), label: "Панель управления", icon: LayoutDashboard },
-    { href: adminUrl("/admin/metrics"), label: "Метрики", icon: Compass },
-    { href: adminUrl("/admin/users"), label: "Пользователи", icon: BookOpen },
+    { href: adminUrl("/admin"), label: "Обзор", icon: LayoutDashboard },
+    { href: adminUrl("/admin/users"), label: "Все пользователи", icon: Users },
     { href: adminUrl("/admin/pricing"), label: "Цены и тарифы", icon: CreditCard },
-    { href: adminUrl("/admin/ai"), label: "AI и маршрутизация", icon: Sparkles },
+    { href: adminUrl("/admin/ai"), label: "AI-центр", icon: Sparkles },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : role === "ADMIN" ? [
-    { href: adminUrl("/admin"), label: "Панель администратора", icon: LayoutDashboard },
-    { href: adminUrl("/admin/clients"), label: "Клиенты", icon: BookOpen },
-    { href: adminUrl("/admin/practitioners"), label: "Специалисты", icon: Compass },
-    { href: adminUrl("/admin/payments"), label: "Платежи", icon: CreditCard },
+    { href: adminUrl("/admin"), label: "Обзор", icon: LayoutDashboard },
+    { href: adminUrl("/admin/users"), label: "Все пользователи", icon: Users },
+    { href: adminUrl("/admin/applications"), label: "Заявки", icon: BookOpen },
+    { href: adminUrl("/admin/bookings"), label: "Бронирования", icon: CalendarDays },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
-    { href: appUrl(""), label: "Главная кабинета", icon: LayoutDashboard },
+    { href: appUrl(""), label: "Главная", icon: LayoutDashboard },
     { href: appUrl("/action-history"), label: "Моя карта", icon: Compass },
-    { href: appUrl("/practice"), label: "Практика ясности", icon: Sparkles },
-    { href: appUrl("/questions"), label: "История разборов", icon: BookOpen },
-    { href: appUrl("/products"), label: "Продукты", icon: Heart },
+    { href: appUrl("/questions"), label: "История разборов", icon: History },
+    { href: appUrl("/bookings"), label: "Записи", icon: CalendarDays },
     { href: appUrl("/credits"), label: "Кредиты ясности", icon: Sparkles },
-    { href: appUrl("/bookings"), label: "Мои записи", icon: CalendarDays },
-    { href: appUrl("/billing"), label: "Подписка и оплата", icon: CreditCard },
-    { href: appUrl("/support"), label: "Поддержка", icon: CircleHelp },
+    { href: appUrl("/practice"), label: "Практика ясности", icon: Leaf },
+    { href: appUrl("/billing"), label: "Подписка и оплата", icon: Wallet },
     { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ];
 
