@@ -1,5 +1,6 @@
 /**
  * GET /api/billing/cards — Список привязанных карт пользователя
+ * PATCH /api/billing/cards — Назначить карту основной ({ cardId, action: "set_default" })
  * DELETE /api/billing/cards?cardId=xxx — Удалить привязанную карту
  */
 import { NextRequest } from "next/server";
@@ -24,6 +25,34 @@ export async function GET(req: NextRequest) {
   });
 
   return jsonWithRequestContext({ cards }, undefined, context);
+}
+
+export async function PATCH(req: NextRequest) {
+  const context = requestContextFromHeaders(req.headers);
+  const session = await auth();
+  if (!session?.user?.id) {
+    return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const cardId = typeof body?.cardId === "string" ? body.cardId : null;
+  if (!cardId || body?.action !== "set_default") {
+    return errorWithRequestContext("VALIDATION_ERROR", "cardId и action: set_default обязательны", 400, context);
+  }
+
+  const card = await db.savedCard.findFirst({ where: { id: cardId, userId: session.user.id } });
+  if (!card) {
+    return errorWithRequestContext("CARD_NOT_FOUND", "Карта не найдена", 404, context);
+  }
+
+  // Single-default invariant: clear all of the user's cards, then set the one.
+  await db.$transaction([
+    db.savedCard.updateMany({ where: { userId: session.user.id }, data: { isDefault: false } }),
+    db.savedCard.update({ where: { id: cardId }, data: { isDefault: true } }),
+  ]);
+
+  log.info("billing-card-set-default", { requestId: context.requestId, userId: session.user.id, cardId });
+  return jsonWithRequestContext({ ok: true }, undefined, context);
 }
 
 export async function DELETE(req: NextRequest) {

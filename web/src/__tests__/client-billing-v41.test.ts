@@ -8,7 +8,7 @@ function source(relativePath: string) {
 }
 
 describe("B206 client billing v4.1 cabinet", () => {
-  it("surfaces subscription status, balance, cards, entitlements, and billing history from live APIs", () => {
+  it("surfaces subscription status, balance, cards, and billing history from live APIs", () => {
     const page = source("src/app/cabinet/billing/page.tsx");
     const creditsPage = source("src/app/cabinet/credits/page.tsx");
     const transactionsRoute = source("src/app/api/billing/transactions/route.ts");
@@ -16,17 +16,42 @@ describe("B206 client billing v4.1 cabinet", () => {
 
     expect(page).toContain('data-testid="client-billing-subscription"');
     expect(page).toContain('data-testid="client-saved-cards"');
-    expect(page).toContain('data-testid="client-open-entitlements"');
     expect(page).toContain('data-testid="client-billing-history"');
     expect(page).toContain("fetch(\"/api/billing/entitlements\")");
     expect(page).toContain("fetch(\"/api/billing/transactions\")");
     expect(page).toContain("fetch(\"/api/billing/cards\")");
     expect(page).toContain("fetch(\"/api/billing/balance\")");
+    // T21: "открытые продукты" entitlements block was removed from billing.
+    expect(page).not.toContain('data-testid="client-open-entitlements"');
     // Credits live on their own page (B235: credits moved out of billing)
     expect(creditsPage).toContain('data-testid="cabinet-credits-page"');
     expect(creditsPage).toContain("getClarityCreditBalance");
     expect(transactionsRoute).toContain("clarityCredits");
     expect(entitlementsRoute).toContain("listUserEntitlements");
+  });
+
+  it("T21: redesigns billing — custom top-up input, set-default card, unified history table", () => {
+    const page = source("src/app/cabinet/billing/page.tsx");
+    const table = source("src/components/cabinet/billing-history-table.tsx");
+    const cardsRoute = source("src/app/api/billing/cards/route.ts");
+
+    // Free-text custom top-up amount (no longer a fixed 500₽).
+    expect(page).toContain('data-testid="client-topup-amount"');
+    expect(page).toContain('type="number"');
+    // Saved cards rendered as visual faces with set-primary action.
+    expect(page).toContain("async function handleSetDefaultCard");
+    expect(page).toContain('data-testid="client-set-default-card"');
+    expect(page).toContain('action: "set_default"');
+    // Dead stepper chips removed.
+    expect(page).not.toContain('"1. Проверка"');
+    // Unified deposits + spends history table.
+    expect(page).toContain("<BillingHistoryTable");
+    expect(table).toContain("client-billing-history-table");
+    expect(table).toContain("billing-history-search");
+    expect(table).toContain("billing-history-sort");
+    // PATCH set_default handler exists on the cards API.
+    expect(cardsRoute).toContain("export async function PATCH");
+    expect(cardsRoute).toContain("set_default");
   });
 
   it("makes plan upgrade and cancellation controls actionable instead of decorative", () => {

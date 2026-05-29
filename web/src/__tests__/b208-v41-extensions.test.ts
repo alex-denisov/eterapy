@@ -20,13 +20,12 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     expect(register).toContain("Без рекламы и продажи данных");
   });
 
-  it("keeps checkout/billing payment controls styled as a v4.1 review/pay surface", () => {
+  it("keeps checkout/billing payment controls on a v4.1 secure-pay surface", () => {
     const billing = source("src/app/cabinet/billing/page.tsx");
 
     expect(billing).toContain('data-testid="client-checkout-panel"');
-    expect(billing).toContain("1. Проверка");
-    expect(billing).toContain("2. Оплата");
-    expect(billing).toContain("3. Готово");
+    // T21: the dead "1. Проверка / 2. Оплата / 3. Готово" stepper chips were removed.
+    expect(billing).not.toContain("1. Проверка");
     expect(billing).toContain("Платёж защищён");
     expect(billing).toContain("/api/billing/create-payment");
     expect(billing).toContain("/api/billing/pay-with-saved-card");

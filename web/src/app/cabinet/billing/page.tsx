@@ -7,12 +7,11 @@ import Link from "next/link";
 import { Loader2, Plus, ArrowUpRight, Shield, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getLedgerTypeLabel,
-  getProductLabel,
   getSubscriptionPlanLabel,
   getSubscriptionStatusLabel,
 } from "@/lib/billing-labels";
 import { mainUrl } from "@/lib/subdomain";
+import { BillingHistoryTable } from "@/components/cabinet/billing-history-table";
 
 // Static metadata mirrors V5_SUBSCRIPTION_PLANS so we don't drag the
 // server-only entitlements module (uses prisma) into the client bundle.
@@ -20,6 +19,9 @@ const CLIENT_PLANS: Record<"plus" | "premium", { name: string; amountKopecks: nu
   plus: { name: "Plus", amountKopecks: 49000, trialDays: 7, creditsPerPeriod: 10, includedProductsCount: 2 },
   premium: { name: "Premium", amountKopecks: 129000, trialDays: 7, creditsPerPeriod: 30, includedProductsCount: 9 },
 };
+
+const MIN_TOPUP_RUB = 100;
+const MAX_TOPUP_RUB = 100000;
 
 const FEATURES = [
   "История вопросов и сохранение выводов",
@@ -55,15 +57,6 @@ interface BillingLedgerEntry {
   createdAt: string;
 }
 
-interface BillingEntitlement {
-  id: string;
-  productKey: string;
-  source: string;
-  status: string;
-  active: boolean;
-  validUntil: string | null;
-}
-
 interface BillingSubscription {
   id: string;
   planKey: string;
@@ -94,10 +87,10 @@ export default function BillingPage() {
   const [payingWithSaved, setPayingWithSaved] = useState(false);
   const [transactions, setTransactions] = useState<BillingTransaction[]>([]);
   const [ledger, setLedger] = useState<BillingLedgerEntry[]>([]);
-  const [entitlements, setEntitlements] = useState<BillingEntitlement[]>([]);
   const [subscriptions, setSubscriptions] = useState<BillingSubscription[]>([]);
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
+  const [settingDefaultCardId, setSettingDefaultCardId] = useState<string | null>(null);
   const selectedPlan = searchParams?.get("plan");
   const selectedPlanKey = selectedPlan === "plus" || selectedPlan === "premium" ? selectedPlan : "premium";
 
@@ -136,7 +129,6 @@ export default function BillingPage() {
     fetch("/api/billing/entitlements")
       .then(r => r.json())
       .then(d => {
-        setEntitlements(d.entitlements ?? []);
         setSubscriptions(d.subscriptions ?? []);
       })
       .catch(() => {});
@@ -176,7 +168,6 @@ export default function BillingPage() {
       if (cardsRes?.cards) setLinkedCards(cardsRes.cards);
       if (txRes?.transactions) setTransactions(txRes.transactions);
       if (txRes?.ledger) setLedger(txRes.ledger);
-      if (entRes?.entitlements) setEntitlements(entRes.entitlements);
       if (entRes?.subscriptions) setSubscriptions(entRes.subscriptions);
 
       const stillPending = (txRes?.transactions ?? []).some((t: { status: string }) => t.status === "PENDING");
@@ -212,6 +203,10 @@ export default function BillingPage() {
   }, [searchParams, router, balanceRub]);
 
   async function handleTopUp() {
+    if (!Number.isFinite(topUpAmount) || topUpAmount < MIN_TOPUP_RUB || topUpAmount > MAX_TOPUP_RUB) {
+      toast.error(`Сумма от ${MIN_TOPUP_RUB} до ${MAX_TOPUP_RUB.toLocaleString("ru-RU")} ₽`);
+      return;
+    }
     setCreatingPayment(true);
     try {
       const res = await fetch("/api/billing/create-payment", {
@@ -274,7 +269,36 @@ export default function BillingPage() {
     }
   }
 
+  async function handleSetDefaultCard(cardId: string) {
+    setSettingDefaultCardId(cardId);
+    // Optimistic single-default flip so the UI feels instant.
+    setLinkedCards(prev => prev.map(c => ({ ...c, isDefault: c.id === cardId })));
+    try {
+      const res = await fetch("/api/billing/cards", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId, action: "set_default" }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Основная карта обновлена");
+      } else {
+        toast.error(data.error || "Не удалось назначить основную карту");
+        loadData();
+      }
+    } catch {
+      toast.error("Ошибка сети");
+      loadData();
+    } finally {
+      setSettingDefaultCardId(null);
+    }
+  }
+
   async function handlePayWithSavedCard(cardId: string) {
+    if (!Number.isFinite(topUpAmount) || topUpAmount < MIN_TOPUP_RUB || topUpAmount > MAX_TOPUP_RUB) {
+      toast.error(`Сумма от ${MIN_TOPUP_RUB} до ${MAX_TOPUP_RUB.toLocaleString("ru-RU")} ₽`);
+      return;
+    }
     setPayingWithSaved(true);
     try {
       const res = await fetch("/api/billing/pay-with-saved-card", {
@@ -383,6 +407,7 @@ export default function BillingPage() {
   // V5_SUBSCRIPTION_PLANS registry via getSubscriptionPlan(slug).
   const CLIENT_PLAN_KEYS: Array<"plus" | "premium"> = ["plus", "premium"];
   const balanceKopecks = Math.round(Number(balanceRub) * 100);
+  const topUpValid = Number.isFinite(topUpAmount) && topUpAmount >= MIN_TOPUP_RUB && topUpAmount <= MAX_TOPUP_RUB;
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -514,136 +539,170 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Payment method */}
+      {/* Payment methods — saved cards rendered as visual card faces */}
       <div className="soft-card p-6" data-testid="client-saved-cards">
         <div data-testid="client-checkout-panel">
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          {["1. Проверка", "2. Оплата", "3. Готово"].map((step, index) => (
-            <span key={step} className={index === 1 ? "soft-chip soft-chip-warm" : "soft-chip"}>{step}</span>
-          ))}
-        </div>
-        <div className="soft-eyebrow mb-4">способ оплаты</div>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center rounded-md text-xs font-bold"
-              style={{ width: 48, height: 32, background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}>
-              CARD
-            </div>
-            <div>
-              <button
-                onClick={handleLinkCard}
-                disabled={savingCard}
-                className="flex items-center gap-1.5 text-sm"
-                style={{ color: "var(--soft-terracotta-dark)" }}
-              >
-                {savingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                Привязать карту
-              </button>
-            </div>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="soft-eyebrow">мои карты</div>
+            <button
+              onClick={handleLinkCard}
+              disabled={savingCard}
+              className="soft-button soft-button-ghost"
+              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+            >
+              {savingCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Привязать карту
+            </button>
           </div>
-        </div>
 
-        {/* Saved cards */}
-        {loadingCards ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--soft-ink-faint)" }} />
-          </div>
-        ) : linkedCards.length > 0 && (
-          <div className="mt-4 space-y-2">
-            {linkedCards.map((card) => (
-              <div key={card.id} className="flex items-center justify-between"
-                style={{ padding: "12px 0", borderTop: "1px solid var(--soft-paper-edge)" }}>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center rounded-md text-xs font-bold"
-                    style={{ width: 48, height: 32, background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}>
-                    {getBrandLabel(card.brand)}
+          {loadingCards ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--soft-ink-faint)" }} />
+            </div>
+          ) : linkedCards.length === 0 ? (
+            <div className="py-8 text-center text-sm" style={{ color: "var(--soft-ink-faint)" }}>
+              <p>Карт пока нет</p>
+              <p className="text-xs mt-1">Привяжите карту, чтобы пополнять баланс в один тап</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {linkedCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="relative flex flex-col justify-between rounded-[1.25rem] p-5 text-white shadow-sm"
+                  style={{
+                    minHeight: 168,
+                    background: card.isDefault
+                      ? "linear-gradient(140deg, var(--soft-bordeaux), var(--soft-terracotta-dark))"
+                      : "linear-gradient(140deg, #6b5d57, #8a7a72)",
+                  }}
+                  data-testid="client-saved-card"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="text-sm font-bold tracking-wide opacity-90">{getBrandLabel(card.brand)}</span>
+                    {card.isDefault && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-medium">
+                        <Check className="h-3 w-3" /> основная
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">•••• {card.last4}</span>
-                      {card.isDefault && (
-                        <span className="soft-badge" style={{ fontSize: 11 }}>
-                          <Check className="h-3 w-3" /> основная
-                        </span>
-                      )}
+                  <div className="mt-4">
+                    <div className="font-heading text-lg tracking-[0.18em]">•••• {card.last4}</div>
+                    <div className="mt-1 flex items-center justify-between text-xs opacity-80">
+                      <span>{card.cardholderName || "—"}</span>
+                      <span>{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
                     </div>
-                    <div className="text-xs" style={{ color: "var(--soft-ink-faint)", marginTop: 2 }}>
-                      {card.expiryMonth}/{card.expiryYear.slice(-2)}
-                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      onClick={() => handlePayWithSavedCard(card.id)}
+                      disabled={payingWithSaved}
+                      className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[var(--soft-bordeaux)] transition-opacity hover:opacity-80 disabled:opacity-50"
+                    >
+                      {payingWithSaved ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Пополнить"}
+                    </button>
+                    {!card.isDefault && (
+                      <button
+                        onClick={() => handleSetDefaultCard(card.id)}
+                        disabled={settingDefaultCardId === card.id}
+                        className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                        data-testid="client-set-default-card"
+                      >
+                        {settingDefaultCardId === card.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Сделать основной"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleRemoveCard(card.id)}
+                      className="ml-auto rounded-full bg-white/15 p-1.5 transition-opacity hover:opacity-80"
+                      title="Удалить карту"
+                      aria-label="Удалить карту"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePayWithSavedCard(card.id)}
-                    disabled={payingWithSaved}
-                    className="soft-chip"
-                  >
-                    {payingWithSaved ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Пополнить"}
-                  </button>
-                  <button
-                    onClick={() => handleRemoveCard(card.id)}
-                    className="p-1.5 transition-colors hover:opacity-70"
-                    title="Удалить карту"
-                    style={{ color: "var(--soft-ink-faint)" }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Top-up amounts */}
+      {/* Top-up — free-text custom amount */}
       <div className="soft-card p-6">
         <div className="soft-eyebrow mb-4">пополнить баланс</div>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {[300, 500, 1000, 2000, 3000, 5000].map((amount) => (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {[500, 1000, 2000, 3000, 5000].map((amount) => (
             <button
               key={amount}
               onClick={() => setTopUpAmount(amount)}
               className={topUpAmount === amount ? "soft-chip soft-chip-warm" : "soft-chip"}
             >
-              {amount} ₽
+              {amount.toLocaleString("ru-RU")} ₽
             </button>
           ))}
         </div>
-
-        {linkedCards.length > 0 ? (
-          <div className="space-y-2">
-            <button
-              onClick={() => {
-                const defaultCard = linkedCards.find(c => c.isDefault) ?? linkedCards[0];
-                handlePayWithSavedCard(defaultCard.id);
+        <label className="block">
+          <span className="soft-eyebrow">сумма пополнения, ₽</span>
+          <div className="relative mt-1">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={MIN_TOPUP_RUB}
+              max={MAX_TOPUP_RUB}
+              step={50}
+              value={topUpAmount}
+              onChange={(e) => {
+                const next = Math.floor(Number(e.target.value));
+                setTopUpAmount(Number.isFinite(next) ? next : 0);
               }}
-              disabled={payingWithSaved}
-              className="soft-button soft-button-primary w-full"
-            >
-              {payingWithSaved
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <>Пополнить на {topUpAmount} ₽ с •••• {linkedCards.find(c => c.isDefault)?.last4 ?? linkedCards[0].last4}<ArrowUpRight className="h-4 w-4" /></>
-              }
-            </button>
+              className="soft-input w-full pr-8"
+              data-testid="client-topup-amount"
+              aria-label="Сумма пополнения"
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--soft-ink-faint)]">₽</span>
+          </div>
+          {!topUpValid && topUpAmount > 0 && (
+            <p className="mt-1 text-xs" style={{ color: "var(--soft-bordeaux)" }}>
+              Сумма от {MIN_TOPUP_RUB} до {MAX_TOPUP_RUB.toLocaleString("ru-RU")} ₽
+            </p>
+          )}
+        </label>
+
+        <div className="mt-4">
+          {linkedCards.length > 0 ? (
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  const defaultCard = linkedCards.find(c => c.isDefault) ?? linkedCards[0];
+                  handlePayWithSavedCard(defaultCard.id);
+                }}
+                disabled={payingWithSaved || !topUpValid}
+                className="soft-button soft-button-primary w-full"
+              >
+                {payingWithSaved
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <>Пополнить на {topUpAmount.toLocaleString("ru-RU")} ₽ с •••• {linkedCards.find(c => c.isDefault)?.last4 ?? linkedCards[0].last4}<ArrowUpRight className="h-4 w-4" /></>
+                }
+              </button>
+              <button
+                onClick={handleTopUp}
+                disabled={creatingPayment || !topUpValid}
+                className="soft-button soft-button-ghost w-full"
+              >
+                {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : null}
+                Другой способ оплаты
+              </button>
+            </div>
+          ) : (
             <button
               onClick={handleTopUp}
-              disabled={creatingPayment}
-              className="soft-button soft-button-ghost w-full"
+              disabled={creatingPayment || !topUpValid}
+              className="soft-button soft-button-primary w-full"
             >
-              {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : null}
-              Другой способ оплаты
+              {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount.toLocaleString("ru-RU")} ₽<ArrowUpRight className="h-4 w-4" /></>}
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleTopUp}
-            disabled={creatingPayment || !topUpAmount}
-            className="soft-button soft-button-primary w-full"
-          >
-            {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount} ₽<ArrowUpRight className="h-4 w-4" /></>}
-          </button>
-        )}
+          )}
+        </div>
 
         <div className="flex items-center gap-2 mt-3 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
           <Shield className="h-3 w-3" />
@@ -651,29 +710,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Open entitlements */}
-      {entitlements.length > 0 && (
-        <div className="soft-card p-6" data-testid="client-open-entitlements">
-          <div className="soft-eyebrow mb-4">открытые продукты</div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {entitlements.slice(0, 8).map((e) => (
-              <div key={e.id} className="soft-card-flat p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{getProductLabel(e.productKey)}</span>
-                  <span className="soft-badge" style={e.active ? {} : { background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}>
-                    {e.active ? "Активен" : e.status}
-                  </span>
-                </div>
-                <div className="text-xs mt-1" style={{ color: "var(--soft-ink-faint)" }}>
-                  {e.source}{e.validUntil ? ` · до ${new Date(e.validUntil).toLocaleDateString("ru-RU")}` : ""}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Payment history */}
+      {/* Payment history — unified deposits + spends table (T21) */}
       <div className="soft-card p-6" data-testid="client-billing-history">
         <div className="flex items-center justify-between gap-3 mb-4">
           <span className="soft-eyebrow">история платежей</span>
@@ -692,59 +729,7 @@ export default function BillingPage() {
             </button>
           )}
         </div>
-        {transactions.length === 0 ? (
-          <div className="py-8 text-center text-sm" style={{ color: "var(--soft-ink-faint)" }}>
-            <p>Операций пока нет</p>
-            <p className="text-xs mt-1">Здесь будут отображаться ваши платежи и списания</p>
-          </div>
-        ) : (
-          <div className="space-y-0">
-            {transactions.slice(0, 10).map((t, i) => (
-              <div key={t.id} className="flex items-center justify-between"
-                style={{ padding: "14px 0", borderTop: i ? "1px solid var(--soft-paper-edge)" : "none" }}>
-                <div>
-                  <div className="font-medium" style={{ fontSize: 15 }}>{t.description || "Пополнение"}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--soft-ink-faint)" }}>
-                    {new Date(t.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span style={{ fontFamily: "var(--font-heading)", color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-                    {Number(t.amountRub) > 0 ? "+" : ""}{Number(t.amountRub).toFixed(2)} ₽
-                  </span>
-                  <span className="soft-badge soft-badge-warm" style={{ fontSize: 11 }}>
-                    {t.status === "SUCCEEDED" 
-                      ? "Оплачено" 
-                      : t.status === "PENDING" 
-                        ? "В обработке" 
-                        : "Отменён"}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        {ledger.length > 0 && (
-          <div className="mt-6">
-            <div className="soft-eyebrow mb-3">история баланса</div>
-            <div className="space-y-0">
-              {ledger.slice(0, 8).map((entry, i) => (
-                <div key={entry.id} className="flex items-center justify-between"
-                  style={{ padding: "14px 0", borderTop: i ? "1px solid var(--soft-paper-edge)" : "none" }}>
-                  <div>
-                    <div className="font-medium" style={{ fontSize: 15 }}>{entry.description || getLedgerTypeLabel(entry.type)}</div>
-                    <div className="text-xs mt-0.5" style={{ color: "var(--soft-ink-faint)" }}>
-                      {new Date(entry.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
-                    </div>
-                  </div>
-                  <span style={{ fontFamily: "var(--font-heading)", color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-                    {Number(entry.amountRub) >= 0 ? "+" : ""}{Number(entry.amountRub).toFixed(2)} ₽
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <BillingHistoryTable transactions={transactions} ledger={ledger} />
       </div>
     </div>
   );
