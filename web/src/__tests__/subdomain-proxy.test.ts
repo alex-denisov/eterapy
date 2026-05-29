@@ -33,6 +33,18 @@ describe("subdomain proxy rewrites", () => {
     }
   });
 
+  it("keeps the practitioner cabinet on the app subdomain (T23 regression)", () => {
+    // /cabinet/practitioner strips to /practitioner on the app subdomain.
+    // It must NOT redirect to main, otherwise the whole practitioner cabinet
+    // (home + every subpage) bounces to eterapy.com and login is unreachable.
+    expect(shouldRedirectAppPublicPathToMain("/practitioner")).toBe(false);
+    expect(shouldRedirectAppPublicPathToMain("/practitioner/clients")).toBe(false);
+    expect(shouldRedirectAppPublicPathToMain("/practitioner/schedule")).toBe(false);
+    // The public directory (plural) stays canonical on the main domain.
+    expect(shouldRedirectAppPublicPathToMain("/practitioners")).toBe(true);
+    expect(shouldRedirectAppPublicPathToMain("/practitioners/some-slug")).toBe(true);
+  });
+
   it("allows /modalities on app subdomain so /cabinet/modalities nav link resolves correctly", () => {
     // /modalities must NOT be in the redirect list — after the proxy strips /cabinet,
     // app.eterapy.com/modalities must be rewritten to /cabinet/modalities, not sent to main domain.

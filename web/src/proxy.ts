@@ -98,7 +98,12 @@ const APP_PUBLIC_MAIN_PATHS = [
   "/login",
   "/numerology",
   "/pair",
-  "/practitioner",
+  // NOTE: "/practitioner" (singular) is intentionally NOT here. The practitioner
+  // cabinet home is /cabinet/practitioner, which the app subdomain strips to
+  // /practitioner — listing it would bounce the whole practitioner cabinet
+  // (and every /practitioner/* subpage) back to the main domain (T23 bug).
+  // The public directory is /practitioners (plural); the legacy singular
+  // /practitioner → /practitioners redirect still fires on the main domain.
   "/practitioners",
   "/products/circle",
   "/products/clarity-practice",
