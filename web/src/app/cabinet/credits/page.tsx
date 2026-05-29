@@ -7,7 +7,7 @@ import { ProductPurchaseControls } from "@/components/products/product-purchase-
 import { auth } from "@/lib/auth";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import db from "@/lib/db";
-import { getProductCreditCost, listUserEntitlements } from "@/lib/entitlements";
+import { getProductCreditCost, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { v5Products } from "@/lib/v5-products";
 
@@ -17,6 +17,20 @@ const TYPE_LABELS: Record<string, string> = {
   expire: "Сгорание",
   clawback: "Отмена",
   adjustment: "Коррекция",
+};
+
+// Human-readable Russian labels for the credit-ledger `source` field. Without
+// this map the page leaked raw enum values ("daily_practice", "subscription")
+// straight into the operations feed.
+const SOURCE_LABELS: Record<string, string> = {
+  daily_practice: "Практика ясности",
+  subscription: "Подписка",
+  referral: "Реферальная программа",
+  circle_invite: "Круг ясности",
+  purchase: "Покупка кредитов",
+  product: "Открытие продукта",
+  mission: "Миссия",
+  admin: "Начисление от команды",
 };
 
 export default async function CabinetCreditsPage() {
@@ -35,6 +49,21 @@ export default async function CabinetCreditsPage() {
     listUserEntitlements(userId),
   ]);
   const activeProducts = new Set(access.entitlements.filter((item) => item.active).map((item) => item.productKey));
+
+  // Premium/Plus subscribers get a set of mechanics opened by their plan (docs
+  // 13_Prices_Breakdown.md / 15_Financial_Model). Fold those into a single set
+  // so a subscribed user sees the same "open" state credits would grant.
+  const activeSubscriptions = access.subscriptions.filter((item) => item.active);
+  const subscriptionProducts = new Set<string>();
+  for (const subscription of activeSubscriptions) {
+    const plan = getSubscriptionPlan(subscription.planKey);
+    plan?.includedProducts.forEach((key) => subscriptionProducts.add(key));
+    if (subscription.planKey === "premium") {
+      subscriptionProducts.add("circle");
+      subscriptionProducts.add("pair");
+    }
+  }
+
   const creditProducts = v5Products
     .map((product) => ({
       product,
@@ -89,7 +118,7 @@ export default async function CabinetCreditsPage() {
                 <div>
                   <p className="font-medium text-[var(--soft-ink)]">{TYPE_LABELS[entry.type] ?? entry.type}</p>
                   <p className="text-xs text-[var(--soft-ink-faint)]">
-                    {entry.source} · {entry.createdAt.toLocaleDateString("ru-RU")}
+                    {SOURCE_LABELS[entry.source] ?? entry.source} · {entry.createdAt.toLocaleDateString("ru-RU")}
                   </p>
                 </div>
                 <span className={entry.amount >= 0 ? "text-[var(--soft-terracotta-dark)]" : "text-[var(--soft-bordeaux)]"}>
@@ -104,7 +133,13 @@ export default async function CabinetCreditsPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         {creditProducts.map(({ product, creditCost }) => {
           const productKey = product.productKey!;
-          const unlocked = activeProducts.has(productKey);
+          const includedInPlan = subscriptionProducts.has(productKey);
+          const unlocked = activeProducts.has(productKey) || includedInPlan;
+          const badgeLabel = includedInPlan
+            ? "входит в подписку"
+            : unlocked
+              ? "доступ открыт"
+              : `${creditCost} кредита`;
           return (
             <article key={product.slug} className="soft-card p-5" data-testid={`credits-product-${product.slug}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -113,14 +148,14 @@ export default async function CabinetCreditsPage() {
                   <h2 className="soft-h3 mt-2">{product.name}</h2>
                 </div>
                 <span className={unlocked ? "soft-badge soft-badge-warm" : "soft-badge"}>
-                  {unlocked ? "доступ открыт" : `${creditCost} кредита`}
+                  {badgeLabel}
                 </span>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 {unlocked ? (
                   <Link href={appUrl(product.route)} className="soft-button soft-button-primary">
-                    Открыть механику
+                    Перейти к разбору
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
                 ) : (
@@ -133,7 +168,7 @@ export default async function CabinetCreditsPage() {
                 )}
                 <span className="inline-flex items-center gap-1 text-xs text-[var(--soft-ink-faint)]">
                   <Sparkles className="size-3.5" aria-hidden="true" />
-                  можно списать кредиты
+                  {includedInPlan ? "открыто по подписке" : unlocked ? "доступ уже открыт" : "можно списать кредиты"}
                 </span>
               </div>
             </article>
