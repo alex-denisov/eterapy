@@ -1656,13 +1656,56 @@ export function AIControlCenter({
       const response = await fetch(`/api/admin/ai/credentials/${id}/check`, { method: "POST" });
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        reportError(body?.message ?? "Не удалось проверить ключ");
+        // T1: even a failed request must surface in the Health column, not just
+        // a toast — synthesize an error state so the badge flips to «ошибка».
+        const message = body?.error ?? body?.message ?? "Не удалось проверить ключ";
+        setCredentialOverrides((current) => {
+          const base = current[id] ?? credentials.find((c) => c.id === id);
+          if (!base) return current;
+          return {
+            ...current,
+            [id]: {
+              ...base,
+              lastErrorAt: new Date().toISOString(),
+              lastErrorCode: body?.code ?? "HEALTHCHECK_FAILED",
+              lastErrorMessage: message,
+              consecutiveFailures: (base.consecutiveFailures ?? 0) + 1,
+            },
+          };
+        });
+        reportError(message);
         return;
       }
-      if (body?.credential?.id) {
-        setCredentialOverrides((current) => ({ ...current, [body.credential.id]: body.credential }));
+      const status: string = body?.health?.status ?? "unknown";
+      const healthy = status === "ok";
+      // Prefer the authoritative credential row the API returns; fall back to
+      // applying the health result onto the existing row so the Health column
+      // (keyState reads lastSuccessAt/lastErrorAt) always reflects this check.
+      setCredentialOverrides((current) => {
+        const nowIso = new Date().toISOString();
+        if (body?.credential?.id) {
+          return { ...current, [body.credential.id]: body.credential };
+        }
+        const base = current[id] ?? credentials.find((c) => c.id === id);
+        if (!base) return current;
+        return {
+          ...current,
+          [id]: healthy
+            ? { ...base, lastSuccessAt: nowIso, lastErrorCode: null, lastErrorMessage: null, consecutiveFailures: 0 }
+            : {
+                ...base,
+                lastErrorAt: nowIso,
+                lastErrorCode: body?.health?.code ?? "HEALTHCHECK_FAILED",
+                lastErrorMessage: body?.health?.message ?? status,
+                consecutiveFailures: (base.consecutiveFailures ?? 0) + 1,
+              },
+        };
+      });
+      if (healthy) {
+        reportSuccess(`Проверка ${label}: ${status}${body.health?.latencyMs ? `, ${body.health.latencyMs} ms` : ""}`);
+      } else {
+        reportError(`Проверка ${label}: ${status}${body?.health?.message ? ` — ${body.health.message}` : ""}`);
       }
-      reportSuccess(`Проверка ${label}: ${body.health?.status ?? "unknown"}${body.health?.latencyMs ? `, ${body.health.latencyMs} ms` : ""}`);
     } finally {
       setCheckingCredentialId(null);
     }
