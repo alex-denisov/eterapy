@@ -39,6 +39,24 @@ export function dialogueTopicLabelRu(topic: string | null | undefined): string {
   return DIALOGUE_TOPIC_LABELS_RU[topic as DialogueTopic] ?? "Другое";
 }
 
+// T16: human-readable Russian labels for the DialogueStatus enum. The enum
+// stays English (DB / API contract), but no UI surface should render raw
+// lowercased values like "answered" / "awaiting_user" — resolve through here.
+const DIALOGUE_STATUS_LABELS_RU: Record<string, string> = {
+  OPEN: "Открыт",
+  AWAITING_USER: "Ждёт вашего ответа",
+  PROCESSING: "Готовится ответ",
+  ANSWERED: "Ответ готов",
+  SAFETY_INTERRUPTED: "Приостановлен",
+  ARCHIVED: "В архиве",
+  DELETED: "Удалён",
+};
+
+export function dialogueStatusLabelRu(status: string | null | undefined): string {
+  if (!status) return "Разбор";
+  return DIALOGUE_STATUS_LABELS_RU[status] ?? "Разбор";
+}
+
 export interface DialogueRoutingResult {
   topic: DialogueTopic;
   difficulty: DialogueDifficulty;

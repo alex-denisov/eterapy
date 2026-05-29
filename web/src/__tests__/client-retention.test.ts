@@ -21,7 +21,14 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain("getSubscriptionPlanLabel");
     expect(page).toContain("db.clarityRoute.findMany");
     expect(page).toContain('appUrl("/questions")');
-    expect(page).toContain("История разборов");
+    // T16: the cabinet home shows a single "недавние разборы" block with an
+    // "Все разборы →" link to the history page. The previously duplicated
+    // in-page "История разборов" card was removed (the sidebar nav keeps that
+    // label — see the cabinet-shell assertion below).
+    expect(page).toContain("недавние разборы");
+    expect(page).toContain("Все разборы");
+    expect(page).not.toContain("История разборов");
+    expect(page).toContain("dialogueStatusLabelRu");
     expect(page).toContain("mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`)");
   });
 

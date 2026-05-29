@@ -8,7 +8,7 @@ import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
-import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
+import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
 
@@ -288,9 +288,18 @@ export default async function ClientCabinetPage() {
         </div>
       ) : null}
 
-      {/* v4: recent dialogues card — directly below stat grid */}
-      <div className="soft-card mb-4 p-5">
-        <p className="soft-eyebrow mb-4">недавние разборы</p>
+      {/* v4: recent dialogues card — directly below stat grid. T16: показываем
+          последние 4 разбора с русскими ярлыками темы и статуса, плюс кнопка
+          «Все разборы» → история. Дублирующий блок со старым заголовком убран. */}
+      <div className="soft-card mb-4 p-5" data-testid="client-recent-questions">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="soft-eyebrow">недавние разборы</p>
+          {recentDialogues.length > 0 && (
+            <Link href={appUrl("/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+              Все разборы →
+            </Link>
+          )}
+        </div>
         {recentDialogues.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся последние диалоги.</p>
         ) : recentDialogues.map((d, i) => (
@@ -305,7 +314,9 @@ export default async function ClientCabinetPage() {
               </span>
               <div>
                 <p style={{ fontWeight: 500 }}>{d.title}</p>
-                <p style={{ fontSize: 12.5, color: "var(--soft-ink-faint)", marginTop: 2 }}>{d.topic ?? "разбор"} · {d.status.toLowerCase()}</p>
+                <p style={{ fontSize: 12.5, color: "var(--soft-ink-faint)", marginTop: 2 }}>
+                  {dialogueTopicLabelRu(d.topic)} · {dialogueStatusLabelRu(d.status)}
+                </p>
               </div>
             </div>
             <Link href={mainUrl(`/checkin?dialogueId=${d.id}`)} className="soft-chip shrink-0">Открыть →</Link>
@@ -313,8 +324,8 @@ export default async function ClientCabinetPage() {
         ))}
       </div>
 
-      {/* Next action + Recent questions */}
-      <div className="mb-4 grid gap-4 md:grid-cols-2">
+      {/* Next action — full width now that the duplicate history block is gone (T16). */}
+      <div className="mb-4">
         <section className="soft-card p-5" data-testid="client-next-action">
           <p className="soft-eyebrow">Следующий шаг</p>
           <h2 className="soft-h3 mt-3">{nextAction.label}</h2>
@@ -322,25 +333,6 @@ export default async function ClientCabinetPage() {
           <Link href={nextAction.href} className="soft-button soft-button-primary mt-5">
             Продолжить
           </Link>
-        </section>
-        <section className="soft-card p-5" data-testid="client-recent-questions">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <p className="soft-eyebrow">История разборов</p>
-            <Link href={appUrl("/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
-              Все →
-            </Link>
-          </div>
-          {recentDialogues.length === 0 ? (
-            <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся последние диалоги.</p>
-          ) : recentDialogues.slice(0, 3).map((dialogue) => (
-            <Link key={dialogue.id} href={mainUrl(`/checkin?dialogueId=${dialogue.id}`)}
-              className="soft-card-flat mb-2 block p-3 transition-colors hover:border-[var(--soft-terracotta)]">
-              <p className="line-clamp-1 text-sm font-semibold" style={{ color: "var(--soft-ink)" }}>{dialogue.title}</p>
-              <p className="mt-1 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                {dialogue.topic ?? "вопрос"} · {dialogue.updatedAt.toLocaleDateString("ru-RU")}
-              </p>
-            </Link>
-          ))}
         </section>
       </div>
 
