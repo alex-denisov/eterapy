@@ -6,10 +6,30 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { listMyMapItems, mergeMapMetadata, type MyMapItemKind } from "@/lib/my-map";
+import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 function shareHref(title: string, topic: string) {
   return mainUrl(`/share?from=my-map&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
+}
+
+// T17: map every item status to a Russian label — no raw "answered"/"ready"
+// tokens. Dialogue statuses reuse the shared dialogue helper; product/route
+// statuses are mapped here.
+const MAP_STATUS_LABELS_RU: Record<string, string> = {
+  READY: "Готов",
+  PROCESSING: "Готовится",
+  ACTIVE: "В процессе",
+  PAUSED: "На паузе",
+  COMPLETED: "Завершён",
+  CANCELLED: "Отменён",
+  DELETED: "Удалён",
+};
+
+function mapItemStatusRu(kind: MyMapItemKind, status: string): string {
+  if (kind === "dialogue") return dialogueStatusLabelRu(status);
+  return MAP_STATUS_LABELS_RU[status] ?? status.toLowerCase();
 }
 
 async function hideMapItem(formData: FormData) {
@@ -93,7 +113,6 @@ export default async function MyMapPage() {
   const routeCount = items.filter((item) => item.kind === "route").length;
   const dialogueCount = items.filter((item) => item.kind === "dialogue").length;
   const recentItem = items[0];
-  const recentDialogues = items.filter(i => i.kind === "dialogue").slice(0, 3);
   const activeRoutes = items.filter(i => i.kind === "route");
 
   return (
@@ -148,11 +167,16 @@ export default async function MyMapPage() {
                   <div className="mt-3" style={{ fontFamily: "var(--font-heading)", fontStyle: "italic", fontSize: "clamp(1.4rem, 2.5vw, 2rem)", lineHeight: 1.25, color: "var(--soft-bordeaux)", maxWidth: 520 }}>
                     {recentItem.title}
                   </div>
-                  {recentItem.description && (
+                  {recentItem.bodyMarkdown ? (
+                    <SoftMarkdown
+                      content={recentItem.bodyMarkdown.slice(0, 520)}
+                      className="mt-3 text-sm"
+                    />
+                  ) : recentItem.description ? (
                     <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)", maxWidth: 460 }}>
                       {recentItem.description.slice(0, 160)}{recentItem.description.length > 160 ? "..." : ""}
                     </p>
-                  )}
+                  ) : null}
                   <div className="flex gap-3 mt-6">
                     <span className="soft-chip soft-chip-warm">{recentItem.eyebrow}</span>
                     <Link href={recentItem.href} className="soft-chip">Открыть →</Link>
@@ -186,24 +210,10 @@ export default async function MyMapPage() {
               </div>
             </div>
 
-            {/* Recent dialogues — span 4 */}
-            {recentDialogues.length > 0 && (
-              <div className="soft-map-tile col-span-12 md:col-span-4 p-6">
-                <div className="soft-eyebrow">недавние разборы</div>
-                <div className="mt-4 space-y-0">
-                  {recentDialogues.map((item, i) => (
-                    <div key={item.id} style={{ padding: "10px 0", borderBottom: i < recentDialogues.length - 1 ? "1px solid var(--soft-paper-edge)" : "none" }}>
-                      <div style={{ fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".1em", color: "var(--soft-ink-faint)" }}>
-                        {item.updatedAt.toLocaleDateString("ru-RU")}
-                      </div>
-                      <Link href={item.href} className="block mt-1 text-sm hover:text-[var(--soft-terracotta-dark)] transition-colors" style={{ color: "var(--soft-ink-soft)" }}>
-                        {item.title.slice(0, 72)}{item.title.length > 72 ? "..." : ""}
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* T17: the "недавние разборы" tile was removed — it duplicated the
+                full "все элементы карты" list below (and the cabinet home already
+                carries its own recent-analyses block). The map view now leads
+                with the latest insight + stats, then the complete item list. */}
 
             {/* Active routes — span 4 (if any) */}
             {activeRoutes.length > 0 && (
@@ -269,11 +279,15 @@ export default async function MyMapPage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="soft-chip soft-chip-warm">{item.eyebrow}</span>
-                      <span className="soft-chip">{item.status.toLowerCase()}</span>
+                      <span className="soft-chip">{mapItemStatusRu(item.kind, item.status)}</span>
                       <span className="soft-chip">{item.updatedAt.toLocaleDateString("ru-RU")}</span>
                     </div>
                     <h2 className="mt-3 font-heading text-xl font-medium" style={{ color: "var(--soft-ink)" }}>{item.title}</h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
+                    {item.bodyMarkdown ? (
+                      <SoftMarkdown content={item.bodyMarkdown.slice(0, 360)} className="mt-2 max-w-3xl text-sm" />
+                    ) : (
+                      <p className="mt-2 max-w-3xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <Link href={item.href} className="soft-button soft-button-ghost"

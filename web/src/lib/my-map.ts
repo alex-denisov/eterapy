@@ -1,6 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { appUrl, mainUrl } from "@/lib/subdomain";
 import db from "@/lib/db";
+import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
+import { stripMarkdown } from "@/lib/markdown";
 
 export type MyMapItemKind = "dialogue" | "product" | "route";
 
@@ -10,6 +12,9 @@ export type MyMapItem = {
   title: string;
   eyebrow: string;
   description: string;
+  // T17: full Markdown body (untruncated) so map surfaces can render formatted
+  // prose instead of the cleaned one-line `description` preview.
+  bodyMarkdown: string;
   href: string;
   updatedAt: Date;
   status: string;
@@ -42,7 +47,8 @@ export function isHiddenFromMap(value: Prisma.JsonValue | null | undefined) {
 }
 
 function truncate(text: string | null | undefined, fallback: string) {
-  const clean = (text ?? "").replace(/\s+/g, " ").trim();
+  // T17: strip Markdown tokens so the one-line preview never shows raw "##"/"**".
+  const clean = stripMarkdown(text);
   if (!clean) return fallback;
   return clean.length > 180 ? `${clean.slice(0, 180).trim()}...` : clean;
 }
@@ -112,8 +118,10 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
         kind: "dialogue" as const,
         id: dialogue.id,
         title: dialogue.title,
-        eyebrow: dialogue.topic ? `Вопрос · ${dialogue.topic}` : "Вопрос",
+        // T17: render the topic as a Russian label, never the raw enum ("self").
+        eyebrow: `Вопрос · ${dialogueTopicLabelRu(dialogue.topic)}`,
         description: truncate(dialogue.messages[0]?.content, "Диалог сохранен в вашей карте."),
+        bodyMarkdown: dialogue.messages[0]?.content ?? "",
         href: mainUrl(`/checkin?dialogueId=${dialogue.id}`),
         updatedAt: dialogue.updatedAt,
         status: dialogue.status,
@@ -128,7 +136,8 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
         title: product.title,
         eyebrow: PRODUCT_LABELS[product.productKey] ?? "Результат",
         description: truncate(product.previewText ?? product.resultText, "Сохраненный результат готов к просмотру."),
-        href: appUrl(`/cabinet/action-history?item=${product.id}`),
+        bodyMarkdown: product.resultText ?? product.previewText ?? "",
+        href: appUrl(`/cabinet/results/${product.id}`),
         updatedAt: product.updatedAt,
         status: product.status,
         exportText: `${PRODUCT_LABELS[product.productKey] ?? "Результат"}: ${product.title}\n${product.resultText ?? product.previewText ?? ""}`,
@@ -142,6 +151,7 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
         title: route.title,
         eyebrow: "Маршрут",
         description: `День ${route.currentDay}. Статус: ${route.status === "PAUSED" ? "пауза" : route.status.toLowerCase()}.`,
+        bodyMarkdown: "",
         href: mainUrl("/products/seven-days"),
         updatedAt: route.updatedAt,
         status: route.status,

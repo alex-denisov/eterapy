@@ -4,6 +4,7 @@ import { ArrowLeft, Sparkles, Download } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { loginUrl, appUrl } from "@/lib/subdomain";
 
 const PRODUCT_LABELS: Record<string, string> = {
@@ -78,9 +79,7 @@ export default async function CabinetResultPage({
       <section className="soft-card mt-4 p-7" data-testid="cabinet-result-body">
         {isReady ? (
           body ? (
-            <div className="space-y-4 text-[15px] leading-relaxed text-[var(--soft-ink)] whitespace-pre-wrap">
-              {body}
-            </div>
+            <SoftMarkdown content={body} className="text-[15px] text-[var(--soft-ink)]" />
           ) : (
             <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               Отчёт сгенерирован, но текст ещё не загружен — это редкая ситуация. Напишите нам в поддержку

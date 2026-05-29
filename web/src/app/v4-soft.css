@@ -1960,6 +1960,48 @@
   }
 }
 
+/* T17: prose styling for rendered Markdown answers (My Map, result pages). */
+.soft-prose h2,
+.soft-prose h3,
+.soft-prose h4,
+.soft-prose h5 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--soft-bordeaux);
+  line-height: 1.25;
+  margin-top: 1.1em;
+  margin-bottom: 0.35em;
+}
+.soft-prose h2 { font-size: 1.25rem; }
+.soft-prose h3 { font-size: 1.1rem; }
+.soft-prose h4,
+.soft-prose h5 { font-size: 1rem; }
+.soft-prose p {
+  color: var(--soft-ink-soft);
+}
+.soft-prose strong {
+  color: var(--soft-ink);
+  font-weight: 600;
+}
+.soft-prose em {
+  font-style: italic;
+}
+.soft-prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--soft-paper-deep);
+  border: 1px solid var(--soft-paper-edge);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+.soft-prose ul,
+.soft-prose ol {
+  color: var(--soft-ink-soft);
+}
+.soft-prose li {
+  margin-bottom: 0.25em;
+}
+
 @keyframes softHaloBreathe {
   0%,
   100% {
