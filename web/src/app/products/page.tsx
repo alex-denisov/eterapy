@@ -39,13 +39,13 @@ export default function ProductsPage() {
         </div>
         <aside className="soft-card soft-products-preview" aria-label="Как выбирается продукт">
           <div className="relative">
-            <p className="soft-eyebrow">после первичного ответа</p>
-            <h2 className="soft-h3 mt-3">Формат подбирается по контексту</h2>
+            <p className="soft-eyebrow">как это работает</p>
+            <h2 className="soft-h3 mt-3">Начните бесплатно — углубляйтесь, когда сами захотите</h2>
             <div className="mt-5 grid gap-3">
               {[
-                { icon: MessageSquareText, title: "Бесплатный вход", text: "первичный ответ и triage без оплаты" },
-                { icon: FileText, title: "Прямой заказ", text: "отчёт, ракурсы, переписка, Таро или 7 дней" },
-                { icon: HeartHandshake, title: "Живая помощь", text: "специалист или совместная сессия по полной ставке" },
+                { icon: MessageSquareText, title: "Первый разбор — бесплатно", text: "Расскажите о ситуации, ответьте на пару уточняющих вопросов и сразу получите разбор. Без карты и регистрации." },
+                { icon: FileText, title: "Углубитесь, когда захотите", text: "Подробный отчёт, четыре ракурса, разбор переписки, расклад Таро или маршрут на 7 дней — открываете только то, что нужно." },
+                { icon: HeartHandshake, title: "Перейдите к живой встрече", text: "Когда хочется поддержки человека — психолог, коуч или совместная сессия со специалистом по понятной цене." },
               ].map((item) => (
                 <div key={item.title} className="soft-card-flat flex items-start gap-3 p-4">
                   <span className="soft-step-number shrink-0" style={{ width: "2.1rem" }}>

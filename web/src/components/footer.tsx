@@ -8,32 +8,38 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
   const mutedCls = cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]");
   const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
-  // B323: columns aligned with docs/13_Prices_Breakdown — free entries up
-  // top, paid digital deepenings, esoteric, then specialist/live. The
-  // "Бесплатно" column lists every product that has a meaningful free
-  // entry surface (not just zero-price ones).
-  // G2: the footer is navigation, not a price list — prices live on each
-  // product page, so labels carry no "₽" and no "teaser" wording here.
+  // T12: footer columns are grouped by product FAMILY, not by price. Earlier the
+  // "Бесплатно / Платные разборы / Эзотерика" split was misleading — several
+  // products (круг, пара, совместимость, 7 дней) start free but have a paid part,
+  // so calling them "Бесплатно" was wrong, and the price-based labels mixed
+  // unrelated themes. The footer is navigation, not a price list (G2): prices
+  // live on each product page, so labels carry no "₽". Where a free entry exists
+  // it is communicated in the product's own copy, not implied by a footer column.
   const columns = [
     {
-      title: "Бесплатно",
+      title: "Разборы",
       links: [
         [mainUrl("/checkin"), "Первичный разбор"],
-        [mainUrl("/library"), "Библиотека вопросов"],
-        [mainUrl("/products/clarity-practice"), "Практика ясности"],
-        [mainUrl("/products/circle"), "Круг ясности"],
-        [mainUrl("/products/pair"), "Разобраться вдвоём"],
-        [mainUrl("/products/compatibility"), "Совместимость"],
-        [mainUrl("/products/seven-days"), "7 дней к ясности"],
-      ],
-    },
-    {
-      title: "Платные разборы",
-      links: [
         [mainUrl("/products/perspectives"), "4 ракурса"],
         [mainUrl("/products/deep-report"), "Глубокий отчёт"],
         [mainUrl("/products/chat-analysis"), "Разбор переписки"],
         [mainUrl("/products/my-map"), "Расширенная карта"],
+      ],
+    },
+    {
+      title: "Для двоих и круга",
+      links: [
+        [mainUrl("/products/pair"), "Разобраться вдвоём"],
+        [mainUrl("/products/compatibility"), "Совместимость"],
+        [mainUrl("/products/circle"), "Круг ясности"],
+      ],
+    },
+    {
+      title: "Практика",
+      links: [
+        [mainUrl("/products/clarity-practice"), "Практика ясности"],
+        [mainUrl("/products/seven-days"), "7 дней к ясности"],
+        [mainUrl("/library"), "Библиотека вопросов"],
       ],
     },
     {

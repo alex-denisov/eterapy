@@ -47,13 +47,19 @@ describe("v5 public shell", () => {
     expect(header).toContain("Кредиты ясности");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");
-    // B323: footer taxonomy aligned with docs/13_Prices_Breakdown — free
-    // entries / paid digital / esoteric / specialists. Old labels
-    // "Психология" and "Социальное и обучение" replaced.
-    expect(footer).toContain('title: "Бесплатно"');
-    expect(footer).toContain('title: "Платные разборы"');
+    // T12: footer taxonomy is grouped by product FAMILY, not by price. The old
+    // price-based split ("Бесплатно" / "Платные разборы") was misleading because
+    // conditionally-free products (круг, пара, совместимость, 7 дней) were filed
+    // under "Бесплатно". Columns are now thematic; free entries are communicated
+    // on each product page, not implied by a footer column.
+    expect(footer).toContain('title: "Разборы"');
+    expect(footer).toContain('title: "Для двоих и круга"');
+    expect(footer).toContain('title: "Практика"');
     expect(footer).toContain('title: "Эзотерика"');
     expect(footer).toContain('title: "Со специалистами"');
+    // The footer must NOT reintroduce the misleading price-based columns.
+    expect(footer).not.toContain('title: "Бесплатно"');
+    expect(footer).not.toContain('title: "Платные разборы"');
     expect(softCss).toContain(".soft-user-menu");
     expect(softCss).toContain("soft-footer-columns");
   });

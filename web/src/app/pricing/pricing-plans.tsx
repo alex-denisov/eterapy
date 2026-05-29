@@ -121,9 +121,6 @@ export function PricingPlans() {
             >
               На год <span style={{ opacity: 0.72, marginLeft: "0.25rem" }}>· 2 месяца в подарок</span>
             </button>
-            <Link href="/pricing/compare" className="soft-chip">
-              Подробное сравнение
-            </Link>
           </div>
         </div>
       </section>
@@ -251,7 +248,14 @@ export function PricingPlans() {
           })}
         </div>
 
-        <p className="mt-6 text-center text-xs" style={{ color: "var(--soft-ink-faint)", maxWidth: "38rem", marginInline: "auto" }}>
+        <div className="mt-7 flex justify-center">
+          <Link href="/pricing/compare" className="soft-button soft-button-ghost">
+            Подробное сравнение тарифов
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </div>
+
+        <p className="mt-5 text-center text-xs" style={{ color: "var(--soft-ink-faint)", maxWidth: "38rem", marginInline: "auto" }}>
           Подписку можно отменить в один клик в кабинете. Возврат за неиспользованный период по запросу.
         </p>
       </section>

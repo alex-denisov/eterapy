@@ -104,9 +104,12 @@ export const v5Products: V5Product[] = [
     name: "Разбор переписки",
     eyebrow: "Приватный анализ",
     summary: "Анализ текста или скрина переписки: Start для первой покупки, Deep для динамики общения, Pro с вариантами ответа.",
-    // B322: docs §7 — Start 299 ₽, Deep 890 ₽, Pro 1290 ₽. Default entry tier Start.
-    price: "299 ₽",
-    priceMeta: "Start · Deep 890 ₽ / Pro 1290 ₽",
+    // B322 / T13: docs §7 — Start 299 ₽, Deep 890 ₽, Pro 1290 ₽. Default entry tier Start.
+    // T13: keep the entry price visible but drop the inline tier-price dump
+    // ("Start · Deep 890 ₽ / Pro 1290 ₽") — the exact price for the chosen depth
+    // is always shown before payment, so the hero stays clean and not misleading.
+    price: "от 299 ₽",
+    priceMeta: "Глубина Start · Deep · Pro — точная цена видна до оплаты",
     creditPrice: "от −2 кредитов ясности",
     creditCost: 2,
     tone: "private",
