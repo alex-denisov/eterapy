@@ -14,9 +14,20 @@ import {
   PRACTITIONER_HIGH_RISK_SCORE,
 } from "@/lib/practitioner-antifraud";
 import { log } from "@/lib/logger";
+import { notify } from "@/lib/notifications";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? "admin@eterapy.com";
+
+const COMPLAINT_REASON_LABELS: Record<string, string> = {
+  PRACTITIONER_NO_SHOW: "Практик не явился",
+  ETHICAL_VIOLATION: "Нарушение этического кодекса",
+  MANIPULATION: "Запугивание/манипуляции",
+  TECHNICAL_ISSUE: "Технический сбой",
+  EARLY_TERMINATION: "Сессия закончилась раньше",
+  PAYMENT_ISSUE: "Проблема с оплатой",
+  OTHER: "Другое",
+};
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -104,17 +115,33 @@ export async function POST(req: NextRequest) {
 
   await logAudit(session.user.id, "COMPLAINT_SUBMITTED", bookingId, `Причина: ${reason}`);
 
+  // T22: route the new-complaint alert through the durable notification
+  // pipeline so every moderator/admin gets it in their bell, Telegram and
+  // preference-respecting email — not just the single shared ADMIN_EMAIL inbox.
+  // COMPLIANCE_ALERT is already role-targeted to ADMIN/SUPERADMIN/MODERATOR.
+  const reasonLabel = COMPLAINT_REASON_LABELS[reason] ?? reason;
+  // MODERATOR is surfaced in the notification-settings UI as a forward-looking
+  // role, but the DB Role enum only has ADMIN/SUPERADMIN today.
+  const reviewers = await db.user.findMany({
+    where: { role: { in: ["ADMIN", "SUPERADMIN"] } },
+    select: { id: true },
+  });
+  await Promise.all(
+    reviewers.map((reviewer) =>
+      notify({
+        userId: reviewer.id,
+        event: "COMPLIANCE_ALERT",
+        data: {
+          summary: `Жалоба «${reasonLabel}» на сессию с ${booking.practitioner.user.name ?? "практиком"}`,
+          reviewUrl: "/admin/complaints",
+        },
+      }).catch((e) => log.error("complaints.reviewer_notify_failed", { err: e, reviewerId: reviewer.id })),
+    ),
+  );
+
   // Уведомляем администратора
   if (process.env.RESEND_API_KEY) {
-    const REASON_LABELS: Record<string, string> = {
-      PRACTITIONER_NO_SHOW: "Практик не явился",
-      ETHICAL_VIOLATION: "Нарушение этического кодекса",
-      MANIPULATION: "Запугивание/манипуляции",
-      TECHNICAL_ISSUE: "Технический сбой",
-      EARLY_TERMINATION: "Сессия закончилась раньше",
-      PAYMENT_ISSUE: "Проблема с оплатой",
-      OTHER: "Другое",
-    };
+    const REASON_LABELS = COMPLAINT_REASON_LABELS;
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     resend.emails.send({
       from: "ETerapy <noreply@eterapy.com>",
