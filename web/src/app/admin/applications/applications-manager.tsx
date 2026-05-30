@@ -71,10 +71,11 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
         <Input placeholder="Поиск по имени, email, тексту..."
           value={search} onChange={e => setSearch(e.target.value)}
           className="bg-card/50 max-w-xs h-8 text-sm" />
-        <div className="flex gap-1">
+        <div className="soft-admin-seg">
           {[["all", "Все"], ["PENDING", "Новые"], ["REVIEWING", "На проверке"], ["APPROVED", "Одобренные"], ["REJECTED", "Отклонённые"]].map(([v, l]) => (
             <button key={v} onClick={() => setFilterStatus(v)}
-              className={`rounded-lg px-3 py-1 text-xs transition-colors ${filterStatus === v ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+              data-active={filterStatus === v}
+              className="soft-admin-seg-btn">
               {l}
             </button>
           ))}

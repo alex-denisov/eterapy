@@ -74,7 +74,7 @@ const SERVICES: ServiceCard[] = [
   { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
   { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
   // Specialist live sessions
-  { id: "psy-live", title: "Встреча с психологом", desc: "50 минут с проверенным специалистом после контекста.", price: "от 4 500 ₽", cat: "psy", kind: "Встреча", href: "/practitioners", icon: Heart },
+  { id: "psy-live", title: "Встреча с психологом", desc: "60 минут онлайн с проверенным специалистом — он заранее видит ваш разбор.", price: "от 4 500 ₽", cat: "psy", kind: "Встреча", href: "/practitioners", icon: Heart },
   { id: "coach-live", title: "Коуч-сессия", desc: "Карьера, призвание, переход.", price: "от 3 200 ₽", cat: "coach", kind: "Встреча", href: "/practitioners", icon: Leaf },
   { id: "legal-live", title: "Юридическая консультация", desc: "Семейное право, документы, опека.", price: "от 6 000 ₽", cat: "legal", kind: "Встреча", href: "/practitioners", icon: Lock },
   { id: "finance-live", title: "Финансовый коуч", desc: "Деньги, тревога, личный финансовый план.", price: "от 3 200 ₽", cat: "finance", kind: "Встреча", href: "/practitioners", icon: Bookmark },

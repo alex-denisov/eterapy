@@ -127,21 +127,22 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
   return (
     <div className="space-y-4">
       {/* Фильтры */}
-      <div className="flex gap-1 flex-wrap">
-        {[
-          ["all", "Все"],
-          ["OPEN", `Новые (${counts.OPEN})`],
-          ["REVIEWING", `На рассмотрении (${counts.REVIEWING})`],
-          ["RESOLVED", `Решены (${counts.RESOLVED})`],
-          ["CLOSED", `Закрыты (${counts.CLOSED})`],
-        ].map(([v, l]) => (
-          <button key={v} onClick={() => setFilterStatus(v)}
-            className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
-              filterStatus === v ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}>
-            {l}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="soft-admin-seg">
+          {[
+            ["all", "Все"],
+            ["OPEN", `Новые (${counts.OPEN})`],
+            ["REVIEWING", `На рассмотрении (${counts.REVIEWING})`],
+            ["RESOLVED", `Решены (${counts.RESOLVED})`],
+            ["CLOSED", `Закрыты (${counts.CLOSED})`],
+          ].map(([v, l]) => (
+            <button key={v} onClick={() => setFilterStatus(v)}
+              data-active={filterStatus === v}
+              className="soft-admin-seg-btn">
+              {l}
+            </button>
+          ))}
+        </div>
         <span className="ml-auto text-xs text-muted-foreground self-center">{filtered.length}</span>
       </div>
 

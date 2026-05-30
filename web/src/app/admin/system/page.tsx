@@ -15,10 +15,28 @@ function statusLabel(status: "ok" | "degraded" | "down" | "missing_config") {
   return "Down";
 }
 
-function statusClasses(status: "ok" | "degraded" | "down" | "missing_config") {
-  if (status === "ok") return "border-emerald-500/25 bg-emerald-500/10 text-emerald-300";
-  if (status === "missing_config" || status === "degraded") return "border-amber-500/25 bg-amber-500/10 text-amber-300";
-  return "border-red-500/25 bg-red-500/10 text-red-300";
+type Tone = "ok" | "warn" | "danger" | "neutral";
+
+// D6: readable semantic colors on the light admin shell (the old -300 Tailwind
+// shades washed out on the warm paper background).
+const TONE_COLOR: Record<Tone, string> = {
+  ok: "#2e7d4f",
+  warn: "var(--soft-terracotta-dark)",
+  danger: "#b3261e",
+  neutral: "var(--soft-bordeaux)",
+};
+
+function statusTone(status: "ok" | "degraded" | "down" | "missing_config"): "ok" | "warn" | "danger" {
+  if (status === "ok") return "ok";
+  if (status === "down") return "danger";
+  return "warn";
+}
+
+// A metric is green when healthy (0 problems) and red/amber otherwise.
+function statTone(label: string, value: number): Tone {
+  if (["Jobs failed", "Jobs dead", "AI errors 24h"].includes(label)) return value > 0 ? "danger" : "ok";
+  if (["Ожидают", "Jobs pending"].includes(label)) return value > 0 ? "warn" : "ok";
+  return "neutral";
 }
 
 function StatusIcon({ status }: { status: "ok" | "degraded" | "down" | "missing_config" }) {
@@ -36,7 +54,7 @@ function ServiceRow({ service }: { service: SystemService }) {
           {service.latencyMs !== undefined ? `${service.detail} · ${service.latencyMs} ms` : service.detail}
         </p>
       </div>
-      <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${statusClasses(service.status)}`}>
+      <span className="soft-admin-status-pill shrink-0 gap-1.5" data-tone={statusTone(service.status)}>
         <StatusIcon status={service.status} />
         {statusLabel(service.status)}
       </span>
@@ -80,7 +98,7 @@ export default async function AdminSystemPage() {
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">Система</h1>
           <p className="mt-1 text-sm text-muted-foreground">Живой статус платформы, зависимостей и production cron-контуров</p>
         </div>
-        <div className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${statusClasses(status.status)}`} data-testid="system-overall-status">
+        <div className="soft-admin-status-pill w-fit gap-2 px-3 py-1.5 text-sm" data-tone={statusTone(status.status)} data-testid="system-overall-status">
           <StatusIcon status={status.status} />
           {statusLabel(status.status)}
         </div>
@@ -92,7 +110,7 @@ export default async function AdminSystemPage() {
             <Server className="h-4 w-4 text-primary" />
             Liveness
           </div>
-          <p className="text-2xl font-bold text-emerald-300">{status.live.status}</p>
+          <p className="text-2xl font-bold" style={{ color: TONE_COLOR[status.live.status === "ok" ? "ok" : "danger"] }}>{status.live.status}</p>
           <p className="mt-1 text-xs text-muted-foreground">uptime {status.live.uptimeSec}s · v{status.live.version}</p>
         </div>
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
@@ -100,7 +118,7 @@ export default async function AdminSystemPage() {
             <Database className="h-4 w-4 text-primary" />
             Readiness
           </div>
-          <p className={`text-2xl font-bold ${status.ready.status === "ok" ? "text-emerald-300" : "text-red-300"}`}>{status.ready.status}</p>
+          <p className="text-2xl font-bold" style={{ color: TONE_COLOR[status.ready.status === "ok" ? "ok" : "danger"] }}>{status.ready.status}</p>
           <p className="mt-1 text-xs text-muted-foreground">{status.ready.checks.length} dependency checks</p>
         </div>
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
@@ -116,7 +134,7 @@ export default async function AdminSystemPage() {
             <Settings2 className="h-4 w-4 text-primary" />
             Queue pressure
           </div>
-          <p className="text-2xl font-bold text-primary">{queuePressure.toLocaleString("ru-RU")}</p>
+          <p className="text-2xl font-bold" style={{ color: TONE_COLOR[queuePressure === 0 ? "ok" : (status.stats.jobsFailed > 0 || status.stats.jobsDead > 0 ? "danger" : "warn")] }}>{queuePressure.toLocaleString("ru-RU")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{status.stats.jobsFailed} failed · {status.stats.jobsDead} dead</p>
         </div>
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
@@ -124,7 +142,7 @@ export default async function AdminSystemPage() {
             <AlertTriangle className="h-4 w-4 text-primary" />
             AI error rate
           </div>
-          <p className="text-2xl font-bold text-primary">{aiErrorRate}%</p>
+          <p className="text-2xl font-bold" style={{ color: TONE_COLOR[aiErrorRate === 0 ? "ok" : aiErrorRate >= 15 ? "danger" : "warn"] }}>{aiErrorRate}%</p>
           <p className="mt-1 text-xs text-muted-foreground">{status.stats.aiErrors24h}/{status.stats.aiRequests24h} за 24 часа</p>
         </div>
       </div>
@@ -134,7 +152,7 @@ export default async function AdminSystemPage() {
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {statCards.map((stat) => (
             <div key={stat.label} className="rounded-lg border border-border/30 bg-card/30 px-4 py-3">
-              <p className="text-xl font-bold text-primary">{stat.value.toLocaleString("ru")}</p>
+              <p className="text-xl font-bold" style={{ color: TONE_COLOR[statTone(stat.label, stat.value)] }}>{stat.value.toLocaleString("ru")}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
             </div>
           ))}

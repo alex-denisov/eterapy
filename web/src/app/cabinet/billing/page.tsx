@@ -81,7 +81,11 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
 
   const [balanceRub, setBalanceRub] = useState("0.00");
-  const [topUpAmount, setTopUpAmount] = useState(500);
+  // B11/D9: keep the raw input as a string so the field can be fully cleared
+  // (a numeric state coerced "" → 0 and trapped a leading "0"). topUpAmount is
+  // the derived number used by validation and payment calls.
+  const [topUpRaw, setTopUpRaw] = useState("500");
+  const topUpAmount = topUpRaw.trim() === "" ? 0 : Math.max(0, Math.floor(Number(topUpRaw)) || 0);
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [savingCard, setSavingCard] = useState(false);
   const [payingWithSaved, setPayingWithSaved] = useState(false);
@@ -594,7 +598,7 @@ export default function BillingPage() {
                       className="font-heading text-xl font-semibold tracking-[0.22em] text-white"
                       style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
                     >
-                      •••• {card.last4}
+                      •••• •••• •••• {card.last4}
                     </div>
                     <div className="mt-2 flex items-center justify-between text-xs text-white/85">
                       <span className="truncate pr-2">{card.cardholderName || "—"}</span>
@@ -648,17 +652,17 @@ export default function BillingPage() {
           <div className="mt-1 flex items-baseline gap-2">
             <input
               id="client-topup-amount"
-              type="number"
+              type="text"
               inputMode="numeric"
-              min={MIN_TOPUP_RUB}
-              max={MAX_TOPUP_RUB}
-              step={50}
-              value={topUpAmount}
+              pattern="[0-9]*"
+              placeholder="0"
+              value={topUpRaw}
               onChange={(e) => {
-                const next = Math.floor(Number(e.target.value));
-                setTopUpAmount(Number.isFinite(next) ? next : 0);
+                // digits only; strip a leading zero so "0" never gets stuck
+                const cleaned = e.target.value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
+                setTopUpRaw(cleaned);
               }}
-              className="w-full min-w-0 border-0 bg-transparent p-0 font-heading text-4xl font-semibold text-[var(--soft-bordeaux)] outline-none placeholder:text-[var(--soft-ink-faint)] focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="w-full min-w-0 border-0 bg-transparent p-0 font-heading text-4xl font-semibold text-[var(--soft-bordeaux)] outline-none placeholder:text-[var(--soft-ink-faint)] focus:outline-none focus:ring-0"
               data-testid="client-topup-amount"
               aria-label="Сумма пополнения"
             />
@@ -668,7 +672,7 @@ export default function BillingPage() {
             {[500, 1000, 2000, 3000, 5000].map((amount) => (
               <button
                 key={amount}
-                onClick={() => setTopUpAmount(amount)}
+                onClick={() => setTopUpRaw(String(amount))}
                 className={topUpAmount === amount ? "soft-chip soft-chip-warm" : "soft-chip"}
               >
                 {amount.toLocaleString("ru-RU")} ₽

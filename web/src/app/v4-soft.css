@@ -1791,6 +1791,55 @@
     opacity: 0.48;
   }
 
+  /* Unified admin segmented control / filter-tab button (D3, D5).
+     Replaces the low-contrast `bg-primary/15 text-primary` toggles whose
+     active text was unreadable. Active = bordeaux fill + light text. */
+  .soft-admin-seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    border-radius: 0.85rem;
+    border: 1px solid var(--soft-paper-edge);
+    background: var(--soft-surface, var(--soft-paper-deep));
+    padding: 0.25rem;
+  }
+
+  .soft-admin-seg-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border: 1px solid transparent;
+    border-radius: 0.6rem;
+    padding: 0.3rem 0.75rem;
+    color: var(--soft-ink-soft);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color var(--motion-base) var(--ease-standard),
+      border-color var(--motion-base) var(--ease-standard),
+      color var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-admin-seg-btn:hover {
+    color: var(--soft-ink);
+    background: var(--soft-paper-card);
+  }
+
+  .soft-admin-seg-btn[data-active="true"] {
+    border-color: var(--soft-bordeaux);
+    background: var(--soft-bordeaux);
+    color: #fff8f1;
+    box-shadow: var(--soft-shadow-sm);
+  }
+
+  .soft-admin-seg-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+
   .soft-admin-shell code {
     border-radius: 0.45rem;
     background: var(--soft-paper-deep);

@@ -85,19 +85,18 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">Сортировка:</span>
-        {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
-          <button
-            key={k}
-            onClick={() => setSort(k)}
-            className={`rounded-lg px-3 py-1 text-xs transition-colors ${
-              sort === k
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {SORT_LABELS[k]}
-          </button>
-        ))}
+        <div className="soft-admin-seg">
+          {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+            <button
+              key={k}
+              onClick={() => setSort(k)}
+              data-active={sort === k}
+              className="soft-admin-seg-btn"
+            >
+              {SORT_LABELS[k]}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -322,8 +321,8 @@ function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
                   onClick={() => setPicked(s)}
                   className={`rounded-md border px-2 py-1 text-xs transition-colors ${
                     isPicked
-                      ? "border-primary bg-primary/15 text-primary"
-                      : "border-border/40 text-muted-foreground hover:text-foreground"
+                      ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] font-semibold text-[var(--soft-bordeaux)]"
+                      : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:text-[var(--soft-ink)]"
                   }`}
                 >
                   {time}

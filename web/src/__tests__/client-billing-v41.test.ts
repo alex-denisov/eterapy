@@ -37,7 +37,7 @@ describe("B206 client billing v4.1 cabinet", () => {
 
     // Free-text custom top-up amount (no longer a fixed 500₽).
     expect(page).toContain('data-testid="client-topup-amount"');
-    expect(page).toContain('type="number"');
+    expect(page).toContain('inputMode="numeric"');
     // Saved cards rendered as visual faces with set-primary action.
     expect(page).toContain("async function handleSetDefaultCard");
     expect(page).toContain('data-testid="client-set-default-card"');
