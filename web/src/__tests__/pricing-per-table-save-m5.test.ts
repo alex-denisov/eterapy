@@ -14,7 +14,9 @@ describe("M5/B2 — Save button inside each pricing table", () => {
 
   it("drops the single global «Сохранить все настройки» button", () => {
     expect(source).not.toContain("Сохранить все настройки");
-    expect(source).toContain('settingsTable("Тарифные планы и комиссия", PLAN_KEYS, "plans")');
+    // M6: the standalone «Тарифные планы и комиссия» table was removed; products
+    // + all subscriptions now live in a single table.
+    expect(source).not.toContain('settingsTable("Тарифные планы и комиссия"');
     expect(source).toContain('settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS, "products")');
   });
 });

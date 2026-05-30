@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ interface Practitioner {
   pricePerSession: number;
   sessionDuration: number;
   status: string;
+  commissionPercent: number | null;
   user: { name: string; email: string };
   priceRates: PriceRate[];
 }
@@ -36,15 +37,9 @@ interface PriceKey {
   recommended?: number;
 }
 
-const PLAN_KEYS: PriceKey[] = [
-  { key: "plan.free.sessions", label: "Бесплатный: сессий/мес", unit: "шт", recommended: 0 },
-  { key: "platform.commission_pct", label: "Комиссия платформы", unit: "%", recommended: 20 },
-  { key: "tools.default_limit", label: "Лимит инструментов по умолчанию", unit: "шт", recommended: 3 },
-  { key: "session.min_price", label: "Минимальная цена сессии", unit: "₽", recommended: 1500 },
-  { key: "subscription.practitioner-pro.price", label: "Practitioner Pro", unit: "₽/мес", recommended: 1490 },
-  { key: "subscription.practitioner-pro-plus.price", label: "Practitioner Pro+", unit: "₽/мес", recommended: 2990 },
-];
-
+// M6: digital products + all subscriptions (client and practitioner) live in a
+// single table. Platform commission moved to the per-practitioner table, and the
+// obsolete free-session / tool-limit / min-price settings were removed.
 const PRODUCT_PRICE_KEYS: PriceKey[] = [
   { key: "product.perspectives.price", label: "4 ракурса ответа", unit: "₽", recommended: 299 },
   { key: "product.deep-report.price", label: "Глубокий отчёт", unit: "₽", recommended: 690 },
@@ -57,6 +52,8 @@ const PRODUCT_PRICE_KEYS: PriceKey[] = [
   { key: "product.map-upgrade.price", label: "Апгрейд карты", unit: "₽", recommended: 990 },
   { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес", recommended: 490 },
   { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес", recommended: 1290 },
+  { key: "subscription.practitioner-pro.price", label: "Practitioner Pro: подписка практика", unit: "₽/мес", recommended: 1490 },
+  { key: "subscription.practitioner-pro-plus.price", label: "Practitioner Pro+: подписка практика", unit: "₽/мес", recommended: 2990 },
 ];
 
 const DURATION_LABELS: Record<number, string> = {
@@ -68,10 +65,14 @@ const DURATION_LABELS: Record<number, string> = {
   120: "2 ч",
 };
 
-function minRate(practitioner: Practitioner) {
-  return practitioner.priceRates
-    .filter((rate) => rate.enabled && rate.priceRub > 0)
-    .sort((a, b) => a.priceRub - b.priceRub)[0] ?? null;
+// M7: a single "Базовая цена" = the price for a 60-minute session. Prefer the
+// enabled 60-min rate; fall back to the practitioner's default session price when
+// their default duration is 60 min. Used for the column value, sort and filter.
+function basePrice60(practitioner: Practitioner): number | null {
+  const sixty = practitioner.priceRates.find((rate) => rate.durationMin === 60 && rate.enabled && rate.priceRub > 0);
+  if (sixty) return sixty.priceRub;
+  if (practitioner.sessionDuration === 60 && practitioner.pricePerSession > 0) return practitioner.pricePerSession;
+  return null;
 }
 
 export function PricingEditor({ initialSettings, practitioners }: Props) {
@@ -100,6 +101,64 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     120: { price: 0, enabled: false },
   });
   const [applyingBulk, setApplyingBulk] = useState(false);
+  // M6/M7: per-practitioner commission editing + search/sort on the rates table.
+  const [commissionDraft, setCommissionDraft] = useState<Record<string, string>>({});
+  const [savingCommission, setSavingCommission] = useState<string | null>(null);
+  const [pracQuery, setPracQuery] = useState("");
+  const [pracSort, setPracSort] = useState<"name" | "price" | "commission">("price");
+  const [pracDir, setPracDir] = useState<"asc" | "desc">("asc");
+
+  function togglePracSort(field: "name" | "price" | "commission") {
+    if (pracSort === field) {
+      setPracDir((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setPracSort(field);
+      setPracDir("asc");
+    }
+  }
+
+  const visiblePractitioners = useMemo(() => {
+    const query = pracQuery.trim().toLowerCase();
+    const filtered = query
+      ? practitioners.filter(
+          (p) => p.user.name.toLowerCase().includes(query) || p.user.email.toLowerCase().includes(query),
+        )
+      : practitioners;
+    const sorted = [...filtered].sort((a, b) => {
+      if (pracSort === "name") return a.user.name.localeCompare(b.user.name, "ru");
+      if (pracSort === "commission") return (a.commissionPercent ?? 0) - (b.commissionPercent ?? 0);
+      return (basePrice60(a) ?? Number.POSITIVE_INFINITY) - (basePrice60(b) ?? Number.POSITIVE_INFINITY);
+    });
+    return pracDir === "desc" ? sorted.reverse() : sorted;
+  }, [practitioners, pracQuery, pracSort, pracDir]);
+
+  async function saveCommission(id: string) {
+    const raw = commissionDraft[id];
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0 || n > 100) {
+      toast.error("Комиссия должна быть целым числом от 0 до 100");
+      return;
+    }
+    setSavingCommission(id);
+    try {
+      const res = await fetch(`/api/admin/practitioners/${id}/profile`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commissionPercent: n }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Комиссия обновлена");
+        router.refresh();
+      } else {
+        toast.error(data.error ?? "Ошибка");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setSavingCommission(null);
+    }
+  }
 
   // M5/B2: save only the given scope's keys (each table has its own button).
   // Passing no keys saves the price mode (test_mode) from the «Режим цен» card.
@@ -212,20 +271,27 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
         </button>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        {settingsTable("Тарифные планы и комиссия", PLAN_KEYS, "plans")}
-        {settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS, "products")}
-      </div>
+      {settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS, "products")}
 
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Тарифы практиков</h2>
-            <p className="text-xs text-[var(--soft-ink-faint)]">Индивидуальные ставки по длительности сессии.</p>
+            <p className="text-xs text-[var(--soft-ink-faint)]">Базовая цена (60 мин), индивидуальная комиссия и ставки по длительности.</p>
           </div>
-          <button onClick={() => setBulkMode(!bulkMode)} className="soft-admin-action">
-            {bulkMode ? "Закрыть массовое" : "Массовое применение"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="search"
+              value={pracQuery}
+              onChange={(event) => setPracQuery(event.target.value)}
+              placeholder="Поиск: имя или email"
+              className="soft-admin-table-filter mt-0 h-8 w-56"
+              aria-label="Поиск практика"
+            />
+            <button onClick={() => setBulkMode(!bulkMode)} className="soft-admin-action">
+              {bulkMode ? "Закрыть массовое" : "Массовое применение"}
+            </button>
+          </div>
         </div>
 
         {bulkMode && (
@@ -270,10 +336,31 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
 
         <div className="overflow-x-auto">
           <table className="soft-admin-data-table min-w-[980px]">
-            <thead><tr><th>Практик</th><th>Email</th><th>Статус</th><th>Базовая цена</th><th>Минимальная ставка</th><th>Действия</th></tr></thead>
+            <thead>
+              <tr>
+                <th>
+                  <button type="button" className="font-inherit cursor-pointer bg-transparent" onClick={() => togglePracSort("name")}>
+                    Практик{pracSort === "name" ? (pracDir === "asc" ? " ▲" : " ▼") : ""}
+                  </button>
+                </th>
+                <th>Email</th>
+                <th>Статус</th>
+                <th>
+                  <button type="button" className="font-inherit cursor-pointer bg-transparent" onClick={() => togglePracSort("price")}>
+                    Базовая цена (60 мин){pracSort === "price" ? (pracDir === "asc" ? " ▲" : " ▼") : ""}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="font-inherit cursor-pointer bg-transparent" onClick={() => togglePracSort("commission")}>
+                    Комиссия{pracSort === "commission" ? (pracDir === "asc" ? " ▲" : " ▼") : ""}
+                  </button>
+                </th>
+                <th>Действия</th>
+              </tr>
+            </thead>
             <tbody>
-              {practitioners.map((practitioner) => {
-                const rate = minRate(practitioner);
+              {visiblePractitioners.map((practitioner) => {
+                const base = basePrice60(practitioner);
                 const expanded = expandedPrac === practitioner.id;
                 return (
                   <Fragment key={practitioner.id}>
@@ -281,11 +368,34 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                       <td>{practitioner.user.name}</td>
                       <td>{practitioner.user.email}</td>
                       <td><span className="soft-admin-status-pill" data-tone={practitioner.status === "ACTIVE" ? "ok" : "warn"}>{practitioner.status}</span></td>
-                      <td>{practitioner.pricePerSession.toLocaleString("ru-RU")} ₽ / {practitioner.sessionDuration} мин</td>
-                      <td>{rate ? `${rate.priceRub.toLocaleString("ru-RU")} ₽ / ${DURATION_LABELS[rate.durationMin]}` : "нет ставок"}</td>
+                      <td>{base !== null ? `${base.toLocaleString("ru-RU")} ₽` : "—"}</td>
+                      <td>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            value={commissionDraft[practitioner.id] ?? String(practitioner.commissionPercent ?? 25)}
+                            onChange={(event) => setCommissionDraft((current) => ({ ...current, [practitioner.id]: event.target.value }))}
+                            className="soft-admin-table-filter mt-0 h-8 w-16 min-w-16"
+                            aria-label={`Комиссия ${practitioner.user.email}`}
+                          />
+                          <span className="text-xs text-[var(--soft-ink-faint)]">%</span>
+                          <button
+                            type="button"
+                            className="soft-admin-action"
+                            data-variant="primary"
+                            disabled={savingCommission === practitioner.id}
+                            onClick={() => saveCommission(practitioner.id)}
+                            title="Сохранить комиссию"
+                          >
+                            {savingCommission === practitioner.id ? "…" : "✓"}
+                          </button>
+                        </div>
+                      </td>
                       <td>
                         <button className="soft-admin-action" onClick={() => setExpandedPrac(expanded ? null : practitioner.id)}>
-                          {expanded ? "Скрыть" : "Редактировать"}
+                          {expanded ? "Скрыть ставки" : "Ставки"}
                         </button>
                       </td>
                     </tr>
