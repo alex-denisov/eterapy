@@ -7,6 +7,8 @@ declare module "next-auth" {
       id: string;
       role?: string;
       emailVerified?: string | null;
+      /** Set when the session is being impersonated (B1): the real superadmin id. */
+      impersonatedBy?: string;
     } & DefaultSession["user"];
   }
 

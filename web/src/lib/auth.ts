@@ -1,12 +1,15 @@
 import NextAuth from "next-auth";
+import type { Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import { headers } from "next/headers";
 import { usersDb } from "./users-db";
 import db from "./db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "./audit";
 import { authConfig } from "./auth.config";
 import { authRateLimitKey, checkAuthRateLimit } from "./auth-rate-limit";
+import { readImpersonation } from "./impersonation";
 
 type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken", unknown>>;
 
@@ -72,7 +75,7 @@ export async function authorize(credentials: CredentialsInput | undefined) {
   };
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
   ...authConfig,
   debug: process.env.NODE_ENV !== "production",
   providers: [
@@ -162,3 +165,57 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   },
 });
+
+/**
+ * B1: impersonation-aware `auth()`. Every call site imports this single export,
+ * so wrapping it here makes impersonation work platform-wide with zero
+ * call-site changes — and keeps the real session cookie untouched.
+ *
+ * Rules:
+ * - Admin host (admin.eterapy.com) ALWAYS returns the real session, so a
+ *   superadmin is never demoted to the impersonated user while in the admin
+ *   panel (this was the source of the redirect loops).
+ * - On the cabinet host, an impersonation cookie is honored only when the real
+ *   session belongs to its issuer and that issuer is an admin/superadmin.
+ */
+export async function auth(): Promise<Session | null> {
+  const session = await rawAuth();
+  if (!session?.user) return session;
+
+  let host = "";
+  try {
+    const h = await headers();
+    host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").toLowerCase();
+  } catch {
+    host = "";
+  }
+  if (host.startsWith("admin.")) return session;
+
+  try {
+    const imp = await readImpersonation();
+    if (!imp) return session;
+    if (!["ADMIN", "SUPERADMIN"].includes(session.user.role ?? "")) return session;
+    if (session.user.id !== imp.impersonatorId) return session;
+
+    const target = await db.user.findUnique({
+      where: { id: imp.targetUserId },
+      select: { id: true, name: true, email: true, role: true, blockedAt: true, deletedAt: true },
+    });
+    if (!target || target.blockedAt || target.deletedAt) return session;
+
+    return {
+      ...session,
+      user: {
+        ...session.user,
+        id: target.id,
+        name: target.name ?? session.user.name,
+        email: target.email ?? session.user.email,
+        role: target.role,
+        impersonatedBy: imp.impersonatorId,
+      },
+    };
+  } catch {
+    // Impersonation resolution must never break a normal auth() call.
+    return session;
+  }
+}

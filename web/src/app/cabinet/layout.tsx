@@ -43,12 +43,15 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   });
   const subLabel = activeSub ? subscriptionLabel(activeSub.planKey, activeSub.currentPeriodEnd) : "Бесплатный";
 
-  // Проверяем режим имперсонации
+  // B1: impersonation is now carried by a separate cookie and surfaced via
+  // session.user.impersonatedBy (resolved in the auth() wrapper). Keep the
+  // legacy cookie checks as a fallback for in-flight old sessions.
   const cookieStore = await cookies();
   const isImpersonating =
+    Boolean(session.user?.impersonatedBy) ||
+    cookieStore.has("eterapy-imp") ||
     cookieStore.has("admin-impersonating") ||
-    cookieStore.has("admin-session-backup") ||
-    cookieStore.has("__Host-admin-session-backup");
+    cookieStore.has("admin-session-backup");
 
   return (
     <>
