@@ -402,11 +402,8 @@ export function LogsTabs({ auditTable }: { auditTable: React.ReactNode }) {
               key={key}
               type="button"
               onClick={() => setTab(key as keyof typeof LOG_TABS)}
-              className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                active
-                  ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-white shadow-sm"
-                  : "border-[var(--soft-paper-edge)] bg-white/65 text-[var(--soft-ink-soft)] hover:text-[var(--soft-ink)]"
-              }`}
+              data-active={active}
+              className="soft-admin-seg-btn"
             >
               {label}
             </button>

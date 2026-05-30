@@ -82,11 +82,8 @@ export default async function AdminBookingsPage(props: {
             <a
               key={s.value}
               href={`/admin/bookings?${new URLSearchParams({ status: s.value, search })}`}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                statusFilter === s.value
-                  ? "border border-brand-soft-gold/35 bg-brand-soft-gold/15 text-brand-soft-gold"
-                  : "border border-border/30 bg-card/30 text-muted-foreground hover:text-foreground"
-              }`}
+              data-active={statusFilter === s.value}
+              className="soft-admin-seg-btn"
             >
               {s.label}
             </a>
