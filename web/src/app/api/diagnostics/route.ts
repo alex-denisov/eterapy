@@ -42,14 +42,25 @@ export async function GET() {
     (results.yookassa as Record<string, unknown>).error = err instanceof Error ? err.message : String(err);
   }
 
-  // Check Telegram
+  // Check Telegram — probe the actual bot via getMe. A HEAD to the bare host
+  // (api.telegram.org) does NOT reflect bot health and produced a false "down"
+  // (B4). getMe returns {ok:true,result:{username}} for a valid token.
   try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch("https://api.telegram.org", { method: "HEAD", signal: controller.signal });
-    clearTimeout(id);
-    (results.telegram as Record<string, unknown>).ok = res.ok || res.status < 500;
-    (results.telegram as Record<string, unknown>).status = res.status;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) {
+      (results.telegram as Record<string, unknown>).ok = false;
+      (results.telegram as Record<string, unknown>).error = "TELEGRAM_BOT_TOKEN not set";
+    } else {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: controller.signal });
+      clearTimeout(id);
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string; result?: { username?: string } };
+      (results.telegram as Record<string, unknown>).ok = Boolean(data?.ok);
+      (results.telegram as Record<string, unknown>).status = res.status;
+      if (data?.result?.username) (results.telegram as Record<string, unknown>).username = data.result.username;
+      if (!data?.ok && data?.description) (results.telegram as Record<string, unknown>).error = data.description;
+    }
   } catch (err: unknown) {
     (results.telegram as Record<string, unknown>).error = err instanceof Error ? err.message : String(err);
     (results.telegram as Record<string, unknown>).isTimeout = err instanceof Error && err.name === "AbortError";
