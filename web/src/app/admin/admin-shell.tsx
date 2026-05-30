@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Gauge,
   LayoutDashboard,
+  LifeBuoy,
   MessageSquareWarning,
   Settings,
   ShieldAlert,
@@ -62,6 +63,8 @@ const NAV_ITEMS: NavItem[] = [
 
   { href: adminUrl("/admin/jobs"),         icon: ListTodo,             label: "Задачи (очередь)", permission: "system.read" },
   { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Система",          permission: "system.read" },
+
+  { href: adminUrl("/admin/support"),      icon: LifeBuoy,             label: "Поддержка" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
