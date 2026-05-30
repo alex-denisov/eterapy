@@ -15,9 +15,10 @@ import {
 } from "@/lib/practitioner-antifraud";
 import { log } from "@/lib/logger";
 import { notify } from "@/lib/notifications";
+import { ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "@/lib/env";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? "admin@eterapy.com";
+const ADMIN_EMAIL = ADMIN_NOTIFICATION_EMAIL;
 
 const COMPLAINT_REASON_LABELS: Record<string, string> = {
   PRACTITIONER_NO_SHOW: "Практик не явился",
@@ -144,7 +145,7 @@ export async function POST(req: NextRequest) {
     const REASON_LABELS = COMPLAINT_REASON_LABELS;
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     resend.emails.send({
-      from: "ETerapy <noreply@eterapy.com>",
+      from: EMAIL_FROM,
       to: ADMIN_EMAIL,
       subject: `⚠️ Новая жалоба: ${REASON_LABELS[reason] ?? reason}`,
       html: `<html><body style="font-family:Arial;background:#0D1B2A;color:#e2e8f0;padding:32px">

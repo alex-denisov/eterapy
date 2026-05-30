@@ -1,6 +1,5 @@
 import { mainUrl } from "@/lib/subdomain";
-
-const DEFAULT_BOT_URL = "https://t.me/eterapy_bot";
+import { TELEGRAM_BOT_URL } from "@/lib/env";
 
 export type TelegramGrowthEntry = {
   key: "dialogue" | "practice" | "circle" | "pair";
@@ -42,7 +41,7 @@ export const TELEGRAM_GROWTH_ENTRIES: TelegramGrowthEntry[] = [
 ];
 
 export function getTelegramBotBaseUrl() {
-  return process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL ?? DEFAULT_BOT_URL;
+  return TELEGRAM_BOT_URL;
 }
 
 export function getTelegramStartUrl(payload: string) {

@@ -8,8 +8,9 @@ import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
 import { SlotPicker } from "./slot-picker";
+import { APP_URL } from "@/lib/env";
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+const BASE_URL = APP_URL;
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #E8C4B8, #F4D5C8)",

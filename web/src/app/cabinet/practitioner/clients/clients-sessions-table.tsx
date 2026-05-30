@@ -63,9 +63,10 @@ export function ClientsSessionsTable({ rows }: { rows: SessionRow[] }) {
   const [dateFilter, setDateFilter] = useState("");
   const [sort, setSort] = useState<SortMode>("nearest");
   const [page, setPage] = useState(1);
+  // Date.now() is impure; capture it lazily at mount so render stays pure.
+  const [now] = useState(() => Date.now());
 
   const filtered = useMemo(() => {
-    const now = Date.now();
     const q = query.trim().toLowerCase();
     const list = rows.filter((row) => {
       if (category !== "all" && categoryOf(row.status) !== category) return false;
@@ -89,7 +90,7 @@ export function ClientsSessionsTable({ rows }: { rows: SessionRow[] }) {
       return Math.abs(ta - now) - Math.abs(tb - now);
     });
     return sorted;
-  }, [rows, category, query, dateFilter, sort]);
+  }, [rows, category, query, dateFilter, sort, now]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);

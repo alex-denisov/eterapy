@@ -1,7 +1,7 @@
 import { Resend } from "resend";
+import { EMAIL_FROM as FROM } from "@/lib/env";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = "ETerapy <noreply@eterapy.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // ─── Shared helpers ────────────────────────────────────────────────────────────

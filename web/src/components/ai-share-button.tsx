@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Link as LinkIcon, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { SoftHaloMark } from "@/components/brand/brand-mark";
+import { APP_URL } from "@/lib/env";
 
 interface AIShareButtonProps {
   tool: string;
@@ -50,7 +51,7 @@ const TEMPLATES = [
 ];
 
 function appOrigin() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  return APP_URL;
 }
 
 function insightPreview(resultText: string) {

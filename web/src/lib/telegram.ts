@@ -15,6 +15,7 @@
  */
 
 import { log } from "./logger";
+import { telegramBotUsername } from "@/lib/env";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const API_BASE = process.env.TELEGRAM_API_BASE?.trim()
@@ -69,8 +70,7 @@ export function generateLinkToken(userId: string): string {
 
 /** Формирует ссылку для привязки Telegram */
 export function getTelegramLinkUrl(token: string): string {
-  const botUsername = process.env.TELEGRAM_BOT_USERNAME ?? "eterapy_bot";
-  return `https://t.me/${botUsername}?start=${token}`;
+  return `https://t.me/${telegramBotUsername()}?start=${token}`;
 }
 
 /** Отправляет Telegram через getUpdates (polling-based) — только для webhook endpoint */

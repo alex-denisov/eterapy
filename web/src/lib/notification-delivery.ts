@@ -6,6 +6,7 @@ import { enqueueJob, type JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
 import { getTelegramRuntimeConfig, sendTelegram } from "@/lib/telegram";
 import type { NotifEvent } from "@/lib/notification-events";
+import { APP_URL } from "@/lib/env";
 
 export const NOTIFICATION_DELIVERY_JOB_TYPE = "notification.delivery";
 export const NOTIFICATION_DELIVERY_MAX_ATTEMPTS = 3;
@@ -190,7 +191,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
 }
 
 function formatTelegramMessage(event: NotifEvent, name: string, data: Record<string, string>): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const baseUrl = APP_URL;
   switch (event) {
     case "BOOKING_REQUESTED":
       return `📅 Новая запись\nКлиент ${data.clientName} хочет записаться на ${data.date} в ${data.time}.\n<a href="${baseUrl}/cabinet/practitioner/clients">Подтвердить →</a>`;

@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { setTelegramWebhook } from "@/lib/telegram";
+import { APP_URL } from "@/lib/env";
 
 export async function POST(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
   }
 
   const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL
-    || `${process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com"}/api/telegram/webhook`;
+    || `${APP_URL}/api/telegram/webhook`;
 
   const ok = await setTelegramWebhook(webhookUrl);
   

@@ -12,6 +12,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
+import { APP_URL } from "@/lib/env";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     return errorWithRequestContext("CARD_NOT_FOUND", "Карта не найдена", 404, context);
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const baseUrl = APP_URL;
   const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
 

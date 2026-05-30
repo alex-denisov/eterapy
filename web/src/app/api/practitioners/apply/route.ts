@@ -9,9 +9,10 @@ import db from "@/lib/db";
 import { Resend } from "resend";
 import { validateName, validateEmail, validateTelegramUsername } from "@/lib/validation";
 import { log } from "@/lib/logger";
+import { ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "@/lib/env";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL ?? "admin@eterapy.com";
+const ADMIN_EMAIL = ADMIN_NOTIFICATION_EMAIL;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   // Уведомляем суперадмина
   if (process.env.RESEND_API_KEY) {
     await resend.emails.send({
-      from: "ETerapy <noreply@eterapy.com>",
+      from: EMAIL_FROM,
       to: ADMIN_EMAIL,
       subject: `Новая заявка практика: ${name}`,
       html: `<!DOCTYPE html>

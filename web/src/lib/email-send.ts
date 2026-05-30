@@ -4,9 +4,9 @@
  */
 import type { NotifEvent } from "@/lib/notification-events";
 import { log } from "@/lib/logger";
+import { EMAIL_FROM as FROM } from "@/lib/env";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-const FROM = "ETerapy <noreply@eterapy.com>";
 
 // Единый шаблон — тот же стиль что в lib/email.ts
 function emailWrapper(body: string) {

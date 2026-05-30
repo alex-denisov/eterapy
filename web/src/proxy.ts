@@ -4,10 +4,8 @@ import { getSessionFromCookie } from "@/lib/session-from-cookie";
 import { applyRequestContextHeaders, requestContextFromHeaders } from "@/lib/request-context";
 import { shouldNoIndex } from "@/lib/seo";
 import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
+import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
 
-const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
-const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
 const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
 const PROTO = "https://";
 

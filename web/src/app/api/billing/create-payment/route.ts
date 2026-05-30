@@ -15,6 +15,7 @@ import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
 import { trackServerEvent } from "@/lib/analytics";
+import { APP_URL } from "@/lib/env";
 
 function buildBillingReturnUrl(baseUrl: string, purchase: ResolvedBillingPurchase) {
   const fallbackPath = "/cabinet/billing";
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Valid return URL — always a full absolute URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const baseUrl = APP_URL;
   const returnUrl = buildBillingReturnUrl(baseUrl, purchase);
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
 

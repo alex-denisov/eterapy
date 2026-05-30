@@ -6,6 +6,7 @@ import { encode as jwtEncode } from "next-auth/jwt";
 import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 import { homeUrlForRole, loginUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
+import { APP_URL } from "@/lib/env";
 
 /**
  * VK ID Token Exchange endpoint (GET).
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     const tokenParams = new URLSearchParams();
     tokenParams.set("grant_type", "authorization_code");
     tokenParams.set("code", code);
-    tokenParams.set("redirect_uri", `${process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com"}/callback/vk`);
+    tokenParams.set("redirect_uri", `${APP_URL}/callback/vk`);
     tokenParams.set("client_id", process.env.VK_CLIENT_ID!);
     tokenParams.set("client_secret", process.env.VK_CLIENT_SECRET!);
     if (codeVerifier) tokenParams.set("code_verifier", codeVerifier);

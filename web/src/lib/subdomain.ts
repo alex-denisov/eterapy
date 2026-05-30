@@ -1,6 +1,6 @@
-export const MAIN_DOMAIN = process.env.NEXT_PUBLIC_MAIN_DOMAIN ?? "eterapy.com";
-export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.eterapy.com";
-export const ADMIN_DOMAIN = process.env.NEXT_PUBLIC_ADMIN_DOMAIN ?? "admin.eterapy.com";
+export { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
+import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
+
 export const PRIMARY_DOMAIN_ONLY = process.env.NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY !== "false";
 export const USE_SUBDOMAINS =
   process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true" && !PRIMARY_DOMAIN_ONLY;

@@ -11,6 +11,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { APP_URL } from "@/lib/env";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   const amountKopecks = Math.max(Number(body.amountKopecks) || 100, 100);
   const description = body.description || "Привязка банковской карты";
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const baseUrl = APP_URL;
   const returnUrl = `${baseUrl}/cabinet/billing?payment=card-saved`;
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
 

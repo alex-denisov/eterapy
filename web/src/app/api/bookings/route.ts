@@ -20,6 +20,7 @@ import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { assessBookingRisk } from "@/lib/practitioner-antifraud";
 import { trackServerEvent } from "@/lib/analytics";
 import { log } from "@/lib/logger";
+import { APP_URL } from "@/lib/env";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ function fmtSlot(slot: { startAt: Date; endAt: Date } | null): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatBooking(b: any) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+  const appUrl = APP_URL;
   const showVideo = ["CONFIRMED", "IN_PROGRESS"].includes(b.status);
   return {
     id: b.id,
@@ -422,7 +423,7 @@ export async function PATCH(req: NextRequest) {
       await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+    const appUrl = APP_URL;
     const emailData = {
       bookingId,
       clientName: booking.client.name,

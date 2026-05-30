@@ -15,6 +15,7 @@ import { sendTelegram } from "@/lib/telegram";
 import { formatTelegramGrowthMessage, resolveTelegramGrowthPayload } from "@/lib/telegram-growth";
 import { log, serializeError } from "@/lib/logger";
 import { claimWebhookEvent, completeWebhookEvent, failWebhookEvent } from "@/lib/webhook-idempotency";
+import { APP_URL } from "@/lib/env";
 
 /** Безопасная отправка — не кидает ошибку, логирует при неудаче */
 async function safeSend(chatId: string, text: string) {
@@ -130,7 +131,7 @@ export async function POST(req: NextRequest) {
       const token = text.split(" ")[1]?.trim();
 
       if (!token) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://eterapy.com";
+        const baseUrl = APP_URL;
         await safeSend(chatId,
           `👋 Добро пожаловать в ETerapy!\n\nЧтобы получать уведомления, привяжите Telegram к своему аккаунту:\n\n1. Войдите на <a href="${baseUrl}">ETerapy</a>\n2. Перейдите в Настройки → Уведомления\n3. Нажмите Привязать Telegram`
         );

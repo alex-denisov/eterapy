@@ -1,4 +1,6 @@
 
+import { YUKASSA_API_URL } from "@/lib/env";
+
 export type YukassaPaymentStatus =
   | "pending"
   | "waiting_for_capture"
@@ -69,7 +71,7 @@ export interface YooKassaPaymentMethod {
 const SHOP_ID = process.env.YUKASSA_SHOP_ID;
 const SECRET_KEY = process.env.YUKASSA_SECRET_KEY;
 
-const API_URL = "https://api.yookassa.ru/v3";
+const API_URL = YUKASSA_API_URL;
 
 function getAuthHeader() {
   if (!SHOP_ID || !SECRET_KEY) {
