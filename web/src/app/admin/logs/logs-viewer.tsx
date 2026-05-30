@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CompactTableShell,
   COMPACT_CELL_CLASS,
@@ -209,6 +209,12 @@ function RuntimeLogsPanel() {
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // B5: while a log row is expanded, freeze incoming snapshots so the live
+  // 3s refresh doesn't re-render the table out from under the reader. A ref
+  // keeps the SSE/poll closures from going stale.
+  const pausedRef = useRef(false);
+  useEffect(() => { pausedRef.current = expandedId !== null; }, [expandedId]);
+
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ limit: "200", level, source, intervalMs: "3000" });
     if (search.trim()) params.set("q", search.trim());
@@ -222,6 +228,7 @@ function RuntimeLogsPanel() {
   }, [level, search, source]);
 
   const fetchSnapshot = useCallback(async () => {
+    if (pausedRef.current) return; // B5: don't overwrite while reading an expanded log
     const response = await fetch(snapshotUrl, { cache: "no-store" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Runtime logs unavailable");
@@ -234,9 +241,10 @@ function RuntimeLogsPanel() {
     let pollTimer: number | null = null;
 
     sourceEvents.addEventListener("snapshot", (event) => {
-      setSnapshot(JSON.parse((event as MessageEvent).data) as RuntimeLogSnapshot);
       setStreamState("live");
       setError("");
+      if (pausedRef.current) return; // B5: paused while a log is expanded
+      setSnapshot(JSON.parse((event as MessageEvent).data) as RuntimeLogSnapshot);
     });
     sourceEvents.addEventListener("error", (event) => {
       if ((event as MessageEvent).data) setError((event as MessageEvent).data);
@@ -294,8 +302,13 @@ function RuntimeLogsPanel() {
           <option value="all">Все источники</option>
           {sources.map((item) => (<option key={item.key} value={item.key}>{item.label}</option>))}
         </select>
-        <span className="soft-admin-status-pill ml-auto" data-tone={streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}>
-          {streamState === "live" ? "live SSE" : streamState === "polling" ? "polling" : streamState}
+        <span
+          className="soft-admin-status-pill ml-auto"
+          data-tone={expandedId ? "warn" : streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}
+        >
+          {expandedId
+            ? "пауза · читаете лог"
+            : streamState === "live" ? "live SSE" : streamState === "polling" ? "polling" : streamState}
         </span>
       </div>
 
