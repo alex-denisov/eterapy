@@ -75,6 +75,8 @@ export function ClientsTable({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [localUsers, setLocalUsers] = useState(users);
   const [showCreate, setShowCreate] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const filtered = useMemo(() => {
     let list = [...localUsers];
@@ -90,6 +92,10 @@ export function ClientsTable({
     });
     return list;
   }, [localUsers, search, sortField, sortDir, filterStatus]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function handleSort(field: "name" | "email" | "createdAt") {
     if (sortField === field) {
@@ -109,15 +115,14 @@ export function ClientsTable({
       {/* Фильтры */}
       <form autoComplete="off" onSubmit={e => e.preventDefault()} className="flex flex-wrap gap-3 mb-4 items-center">
         <Input placeholder="Поиск по имени или email..." value={search}
-          onChange={e => setSearch(e.target.value)} className="bg-card/50 max-w-xs"
+          onChange={e => { setSearch(e.target.value); setPage(1); }} className="bg-card/50 max-w-xs"
           autoComplete="off" spellCheck={false} type="search"
           name="client-search" id="client-search" data-form-type="other" />
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {(["all", "active", "blocked", "deleted"] as const).map(f => (
-            <button key={f} onClick={() => setFilterStatus(f)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors ${
-                filterStatus === f ? "border-primary bg-primary/10 text-primary" : "border-border/30 text-muted-foreground hover:text-foreground"
-              }`}>
+            <button key={f} type="button" onClick={() => { setFilterStatus(f); setPage(1); }}
+              data-active={filterStatus === f}
+              className="soft-admin-seg-btn">
               {{ all: "Все", active: "Активные", blocked: "Заблокированные", deleted: "Удалённые" }[f]}
             </button>
           ))}
@@ -177,7 +182,7 @@ export function ClientsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/10">
-            {filtered.map(u => (
+            {paged.map(u => (
               <React.Fragment key={u.id}>
                 <tr className={`hover:bg-white/3 transition-colors ${expandedId === u.id ? "bg-white/3" : ""}`}>
                   <td className="p-3">
@@ -238,6 +243,20 @@ export function ClientsTable({
           <div className="py-8 text-center text-sm text-muted-foreground">Пользователи не найдены</div>
         )}
       </div>
+
+      {pageCount > 1 && (
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+          <button type="button" className="soft-admin-action" data-variant="subtle"
+            onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>
+            Назад
+          </button>
+          <span>{safePage} / {pageCount}</span>
+          <button type="button" className="soft-admin-action" data-variant="subtle"
+            onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={safePage >= pageCount}>
+            Вперёд
+          </button>
+        </div>
+      )}
     </div>
   );
 }
