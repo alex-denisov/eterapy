@@ -94,6 +94,8 @@ export function PractitionersPanel({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const filtered = useMemo(() => {
     let arr = [...list];
@@ -121,6 +123,10 @@ export function PractitionersPanel({
     });
     return arr;
   }, [list, search, filterStatus, sortField, sortDir]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function handleSort(field: "name" | "createdAt" | "sessionCount") {
     if (sortField === field) {
@@ -167,15 +173,14 @@ export function PractitionersPanel({
       {/* Фильтры */}
       <form autoComplete="off" onSubmit={e => e.preventDefault()} className="flex flex-wrap gap-3 items-center">
         <Input placeholder="Поиск по имени, email, специализации..."
-          value={search} onChange={e => setSearch(e.target.value)}
+          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
           className="bg-card/50 max-w-xs h-8 text-sm"
           name="practitioner-search" id="practitioner-search" autoComplete="off" data-form-type="other" />
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1.5">
           {["all", "PENDING", "ACTIVE", "SUSPENDED", "BLOCKED"].map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)}
-              className={`rounded-lg px-3 py-1 text-xs transition-colors ${
-                filterStatus === s ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"
-              }`}>
+            <button key={s} type="button" onClick={() => { setFilterStatus(s); setPage(1); }}
+              data-active={filterStatus === s}
+              className="soft-admin-seg-btn">
               {s === "all" ? "Все" : STATUS_LABELS[s]}
             </button>
           ))}
@@ -206,7 +211,7 @@ export function PractitionersPanel({
       </form>
 
       {/* Счётчик */}
-      <p className="text-xs text-muted-foreground">Показано: {filtered.length} из {list.length}</p>
+      <p className="text-xs text-muted-foreground">Показано: {paged.length} из {filtered.length} (всего {list.length})</p>
 
       {/* Таблица */}
       <div className="rounded-xl border border-border/30 overflow-hidden">
@@ -225,7 +230,7 @@ export function PractitionersPanel({
             </tr>
           </thead>
           <tbody className="divide-y divide-border/10">
-            {filtered.map(p => (
+            {paged.map(p => (
               <React.Fragment key={p.id}>
                 <tr className={`hover:bg-white/3 transition-colors ${expandedId === p.id ? "bg-white/3" : ""}`}>
                   <td className="p-3">
@@ -329,6 +334,20 @@ export function PractitionersPanel({
           <div className="py-12 text-center text-muted-foreground text-sm">Нет практиков</div>
         )}
       </div>
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <button type="button" className="soft-admin-action" data-variant="subtle"
+            onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>
+            Назад
+          </button>
+          <span>{safePage} / {pageCount}</span>
+          <button type="button" className="soft-admin-action" data-variant="subtle"
+            onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={safePage >= pageCount}>
+            Вперёд
+          </button>
+        </div>
+      )}
     </div>
   );
 }
