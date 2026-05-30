@@ -15,6 +15,7 @@ import {
   Settings,
   ShieldAlert,
   SlidersHorizontal,
+  Star,
   Users,
   WalletCards,
   Wrench,
@@ -46,6 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки",           permission: "practitioners.view" },
   { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования" },
   { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы" },
+  { href: adminUrl("/admin/reviews"),      icon: Star,                 label: "Отзывы",           permission: "safety.review" },
   { href: adminUrl("/admin/antifraud"),     icon: ShieldAlert,          label: "Антифрод",         permission: "antifraud.review" },
 
   { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Выплаты",          superadminOnly: true },
