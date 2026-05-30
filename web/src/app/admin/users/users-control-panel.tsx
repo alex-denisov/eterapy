@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Ban, LogIn, Plus, RefreshCw, RotateCcw, Save, Search, X } from "lucide-react";
+import { Ban, LogIn, Pencil, Plus, RefreshCw, RotateCcw, Save, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -293,6 +293,10 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
+  // M1: rows are read-only until the operator explicitly enters edit mode via the
+  // pencil button. Only one row can be edited at a time, which prevents the
+  // accidental edits the always-on inputs used to cause.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState(() => Object.fromEntries(rows.map((row) => [row.id, {
     name: row.name,
     role: row.role,
@@ -309,6 +313,32 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
       ...current,
       [id]: { ...current[id], ...patch },
     }));
+  }
+
+  /** Reset a row's draft to the persisted values (used on enter/cancel edit). */
+  function resetDraft(id: string) {
+    const row = rowsById.get(id);
+    if (!row) return;
+    setDrafts((current) => ({
+      ...current,
+      [id]: {
+        name: row.name,
+        role: row.role,
+        freeToolsLimit: row.freeToolsLimit == null ? "" : String(row.freeToolsLimit),
+        balanceRub: String(Math.round(row.balance / 100)),
+        clarityCredits: String(row.clarityCredits),
+      },
+    }));
+  }
+
+  function enterEdit(id: string) {
+    resetDraft(id);
+    setEditingId(id);
+  }
+
+  function cancelEdit(id: string) {
+    resetDraft(id);
+    setEditingId(null);
   }
 
   async function saveRow(id: string) {
@@ -371,6 +401,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
       }
 
       toast.success("Пользователь обновлён");
+      setEditingId(null);
       startTransition(() => router.refresh());
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Ошибка сохранения");
@@ -479,13 +510,17 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               const status = statusOf(row);
               const canEditName = permissions.canEdit && row.role !== "SUPERADMIN";
               const canManageRole = permissions.canManageRoles && row.role !== "SUPERADMIN";
+              const editing = editingId === row.id;
+              const canEditRow =
+                row.role !== "SUPERADMIN" &&
+                (canEditName || canManageRole || permissions.canManageBalance || permissions.canManageRoles);
               return (
                 <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
                   <td className={`${COMPACT_CELL_CLASS} min-w-[14rem]`}>
                     <input
                       className={COMPACT_INPUT_CLASS}
                       value={draft.name}
-                      disabled={!canEditName}
+                      disabled={!canEditName || !editing}
                       onChange={(event) => updateDraft(row.id, { name: event.target.value })}
                     />
                     <div className="mt-0.5 truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</div>
@@ -494,7 +529,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                     <select
                       className={COMPACT_SELECT_CLASS}
                       value={draft.role}
-                      disabled={!canManageRole}
+                      disabled={!canManageRole || !editing}
                       onChange={(event) => updateDraft(row.id, { role: event.target.value as AdminUserRow["role"] })}
                     >
                       {Object.entries(ROLE_LABELS).map(([value, label]) => (
@@ -510,7 +545,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                         <input
                           className={`${COMPACT_INPUT_CLASS} w-20`}
                           value={draft.balanceRub}
-                          disabled={!permissions.canManageBalance || row.role === "SUPERADMIN"}
+                          disabled={!permissions.canManageBalance || row.role === "SUPERADMIN" || !editing}
                           inputMode="numeric"
                           onChange={(event) => updateDraft(row.id, { balanceRub: event.target.value })}
                           aria-label={`Денежный баланс ${row.email}`}
@@ -522,7 +557,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                         <input
                           className={`${COMPACT_INPUT_CLASS} w-20 disabled:opacity-40`}
                           value={row.role === "CLIENT" ? draft.clarityCredits : "—"}
-                          disabled={!permissions.canManageBalance || row.role !== "CLIENT"}
+                          disabled={!permissions.canManageBalance || row.role !== "CLIENT" || !editing}
                           inputMode="numeric"
                           onChange={(event) => updateDraft(row.id, { clarityCredits: event.target.value })}
                           aria-label={`Кредиты ясности ${row.email}`}
@@ -537,7 +572,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                     <input
                       className={`${COMPACT_INPUT_CLASS} w-16`}
                       value={draft.freeToolsLimit}
-                      disabled={!permissions.canManageRoles}
+                      disabled={!permissions.canManageRoles || !editing}
                       placeholder="0"
                       inputMode="numeric"
                       onChange={(event) => updateDraft(row.id, { freeToolsLimit: event.target.value })}
@@ -569,10 +604,25 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   </td>
                   <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                     <div className="flex flex-wrap gap-1.5">
-                      <button type="button" className="soft-admin-action" data-variant="primary" onClick={() => void saveRow(row.id)} disabled={pending || row.role === "SUPERADMIN"}>
-                        <Save className="size-3.5" aria-hidden="true" />
-                        Save
-                      </button>
+                      {editing ? (
+                        <>
+                          <button type="button" className="soft-admin-action" data-variant="primary" onClick={() => void saveRow(row.id)} disabled={pending} title="Сохранить изменения">
+                            <Save className="size-3.5" aria-hidden="true" />
+                            Сохранить
+                          </button>
+                          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => cancelEdit(row.id)} disabled={pending} title="Отменить">
+                            <X className="size-3.5" aria-hidden="true" />
+                            Отмена
+                          </button>
+                        </>
+                      ) : (
+                        canEditRow && (
+                          <button type="button" className="soft-admin-action" onClick={() => enterEdit(row.id)} disabled={pending} title="Редактировать">
+                            <Pencil className="size-3.5" aria-hidden="true" />
+                            Изменить
+                          </button>
+                        )
+                      )}
                       {permissions.canResetPassword && row.role !== "SUPERADMIN" && (
                         <button type="button" className="soft-admin-action" onClick={() => void userAction(row.id, "reset_password")}>
                           <RotateCcw className="size-3.5" aria-hidden="true" />
