@@ -42,10 +42,34 @@ export function PaymentsPanel({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comment, setComment] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<"earnings" | "revenue">("earnings");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
-  const filtered = practitioners.filter(p =>
-    !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = practitioners
+    .filter(p =>
+      !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const av = sortKey === "earnings" ? a.practitionerEarnings : a.totalRevenue;
+      const bv = sortKey === "earnings" ? b.practitionerEarnings : b.totalRevenue;
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  function toggleSort(key: "earnings" | "revenue") {
+    if (sortKey === key) {
+      setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  }
+  const mark = (key: "earnings" | "revenue") => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
 
   function toggleSelect(id: string) {
     setSelected(prev => {
@@ -86,7 +110,7 @@ export function PaymentsPanel({
     <div className="space-y-4">
       <div className="flex gap-3 items-center">
         <Input placeholder="Поиск практика..."
-          value={search} onChange={e => setSearch(e.target.value)}
+          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
           className="bg-card/50 max-w-xs h-8 text-sm" />
         {selected.size > 0 && (
           <div className="flex items-center gap-3 ml-auto">
@@ -113,14 +137,22 @@ export function PaymentsPanel({
               </th>
               <th className="text-left p-3 text-xs text-muted-foreground font-medium">Практик</th>
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">Сессий</th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Оборот</th>
+              <th className="text-right p-3 text-xs text-muted-foreground font-medium">
+                <button type="button" className="cursor-pointer bg-transparent" onClick={() => toggleSort("revenue")}>
+                  Оборот{mark("revenue")}
+                </button>
+              </th>
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">Комиссия</th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">К выплате</th>
+              <th className="text-right p-3 text-xs text-muted-foreground font-medium">
+                <button type="button" className="cursor-pointer bg-transparent" onClick={() => toggleSort("earnings")}>
+                  К выплате{mark("earnings")}
+                </button>
+              </th>
               <th className="p-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/10">
-            {filtered.map(p => (
+            {paged.map(p => (
               <tr key={p.id} className={`hover:bg-white/2 ${selected.has(p.id) ? "bg-primary/3" : ""}`}>
                 <td className="p-3">
                   <input type="checkbox" checked={selected.has(p.id)}
@@ -171,6 +203,20 @@ export function PaymentsPanel({
           </tbody>
         </table>
       </div>
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <button type="button" className="soft-admin-action" data-variant="subtle"
+            onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>
+            Назад
+          </button>
+          <span>{safePage} / {pageCount}</span>
+          <button type="button" className="soft-admin-action" data-variant="subtle"
+            onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={safePage >= pageCount}>
+            Вперёд
+          </button>
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">
         * Оборот считается по всем завершённым сессиям за всё время. Фактические выплаты
