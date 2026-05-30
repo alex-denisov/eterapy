@@ -6,7 +6,7 @@ const shell = fs.readFileSync(path.join(process.cwd(), "src/components/cabinet/c
 describe("v5 practitioner shell", () => {
   it("keeps practitioner navigation explicit and work-focused", () => {
     expect(shell).toContain("PRACTITIONER_NAV");
-    expect(shell).toContain('label: "Мой профиль"');
+    expect(shell).toContain('label: "Настройки"'); // M10: profile page renamed to Настройки
     expect(shell).toContain('label: "Расписание"');
     expect(shell).toContain('label: "Клиенты"');
     expect(shell).toContain('label: "Выплаты"');

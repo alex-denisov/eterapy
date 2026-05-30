@@ -255,9 +255,26 @@ export default async function PractitionerCabinetPage() {
                   : ""}
               </p>
             </div>
-            <Link href={appUrl("/practitioner/services")} className="soft-chip">
-              Ссылки и widget →
-            </Link>
+            {/* M9: subscription CTA — mirror the client cabinet. Primary
+                "Подключить Pro" when not subscribed; manage link otherwise. */}
+            {proSubscription ? (
+              <div className="flex flex-col items-end gap-2">
+                <Link href={appUrl("/practitioner/services")} className="soft-chip">
+                  Ссылки и widget →
+                </Link>
+                <Link href={appUrl("/billing")} className="soft-chip">
+                  Управлять подпиской →
+                </Link>
+              </div>
+            ) : (
+              <Link
+                href={appUrl("/billing")}
+                className="soft-button soft-button-primary"
+                data-testid="practitioner-subscribe-cta"
+              >
+                Подключить Practitioner Pro
+              </Link>
+            )}
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             {[

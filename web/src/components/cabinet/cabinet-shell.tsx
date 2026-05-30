@@ -42,7 +42,7 @@ const CLIENT_NAV: NavItem[] = [
 
 const PRACTITIONER_NAV: NavItem[] = [
   { href: appUrl("/practitioner"), icon: LayoutDashboard, label: "Сводка" },
-  { href: appUrl("/practitioner/profile"), icon: UserPen, label: "Мой профиль" },
+  { href: appUrl("/practitioner/profile"), icon: UserPen, label: "Настройки" },
   { href: appUrl("/practitioner/services"), icon: Bookmark, label: "Услуги и цены" },
   { href: appUrl("/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
   { href: appUrl("/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
