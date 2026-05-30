@@ -194,7 +194,7 @@ jobs:
           NEXT_PUBLIC_MAIN_DOMAIN: 'eterapy.com'
           NEXT_PUBLIC_APP_DOMAIN: 'app.eterapy.com'
           NEXT_PUBLIC_ADMIN_DOMAIN: 'admin.eterapy.com'
-          NEXT_PUBLIC_LIVEKIT_URL: 'wss://eterapy.com:7880'
+          NEXT_PUBLIC_LIVEKIT_URL: 'wss://app.eterapy.com'
           NODE_ENV: production
         run: npm run build
 
