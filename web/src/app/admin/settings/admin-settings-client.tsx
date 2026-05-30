@@ -6,6 +6,7 @@ import { BellRing, BrainCircuit, Database, LockKeyhole, Settings2, SlidersHorizo
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NotificationSettings } from "@/components/notifications/notification-settings";
 
 const QUICK_LINKS = [
   { href: "/admin/ai", label: "AI-центр", desc: "провайдеры, ключи, промты и маршрутизация", icon: BrainCircuit },
@@ -19,10 +20,12 @@ export function AdminSettingsClient({
   email,
   name,
   role,
+  telegramStatus,
 }: {
   email: string;
   name: string;
   role: string;
+  telegramStatus: { linked: boolean; username: string | null };
 }) {
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -102,6 +105,19 @@ export function AdminSettingsClient({
             </Button>
           </div>
         </form>
+      </section>
+
+      {/* B6: notification management on the same admin/settings page (no
+          separate route), same component as the client cabinet. */}
+      <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-sm)] lg:col-span-2">
+        <div className="mb-4 flex items-center gap-2">
+          <BellRing className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+          <h2 className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">Мои уведомления</h2>
+        </div>
+        <NotificationSettings
+          telegramStatus={telegramStatus}
+          role={(role === "SUPERADMIN" ? "SUPERADMIN" : "ADMIN") as "ADMIN" | "SUPERADMIN"}
+        />
       </section>
 
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-sm)] lg:col-span-2">
