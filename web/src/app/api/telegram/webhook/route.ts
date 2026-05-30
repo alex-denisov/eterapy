@@ -118,6 +118,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // B7: the notification bot must stay silent in the support group — running
+    // /start/command logic there spammed staff with linking replies. The
+    // dedicated support bot (/api/telegram/support-webhook) now owns the group.
+    if (supportGroupChatId && chatId === supportGroupChatId) {
+      await completeWebhookEvent(claim.event.id, { result: "support-group-ignored" });
+      return NextResponse.json({ ok: true });
+    }
+
     if (text.startsWith("/start")) {
       const token = text.split(" ")[1]?.trim();
 

@@ -5,7 +5,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { log, serializeError } from "@/lib/logger";
-import { sendTelegram } from "@/lib/telegram";
+import { sendTelegramSupport } from "@/lib/telegram";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 
 // B333 · Cabinet ↔ Telegram support chat.
@@ -141,7 +141,9 @@ export async function POST(request: NextRequest) {
       `conversation: ${conversation.id}\n\n` +
       parsed.data.content;
     try {
-      await sendTelegram(SUPPORT_GROUP_CHAT_ID, text);
+      // B7: forward via the dedicated support bot so staff replies come back
+      // through the support bot's webhook (not the notification bot).
+      await sendTelegramSupport(SUPPORT_GROUP_CHAT_ID, text);
     } catch (error) {
       log.warn("support.forward_to_telegram_failed", {
         requestId: context.requestId,
