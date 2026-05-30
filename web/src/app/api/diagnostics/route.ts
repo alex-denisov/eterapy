@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { getTelegramBotHealth } from "@/lib/telegram";
 
 export async function GET() {
   const session = await auth();
@@ -42,28 +43,18 @@ export async function GET() {
     (results.yookassa as Record<string, unknown>).error = err instanceof Error ? err.message : String(err);
   }
 
-  // Check Telegram — probe the actual bot via getMe. A HEAD to the bare host
-  // (api.telegram.org) does NOT reflect bot health and produced a false "down"
-  // (B4). getMe returns {ok:true,result:{username}} for a valid token.
+  // Check Telegram — relay-aware getMe probe (B4). A HEAD to the bare host
+  // (api.telegram.org) does NOT reflect bot health AND is geo-blocked on the
+  // prod VPS, so it produced a false "down". getTelegramBotHealth() goes
+  // through the configured relay (TELEGRAM_API_BASE / Cloudflare Worker).
   try {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    if (!token) {
-      (results.telegram as Record<string, unknown>).ok = false;
-      (results.telegram as Record<string, unknown>).error = "TELEGRAM_BOT_TOKEN not set";
-    } else {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`https://api.telegram.org/bot${token}/getMe`, { signal: controller.signal });
-      clearTimeout(id);
-      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string; result?: { username?: string } };
-      (results.telegram as Record<string, unknown>).ok = Boolean(data?.ok);
-      (results.telegram as Record<string, unknown>).status = res.status;
-      if (data?.result?.username) (results.telegram as Record<string, unknown>).username = data.result.username;
-      if (!data?.ok && data?.description) (results.telegram as Record<string, unknown>).error = data.description;
-    }
+    const health = await getTelegramBotHealth();
+    (results.telegram as Record<string, unknown>).ok = health.ok;
+    if (health.status !== undefined) (results.telegram as Record<string, unknown>).status = health.status;
+    if (health.username) (results.telegram as Record<string, unknown>).username = health.username;
+    if (health.error) (results.telegram as Record<string, unknown>).error = health.error;
   } catch (err: unknown) {
     (results.telegram as Record<string, unknown>).error = err instanceof Error ? err.message : String(err);
-    (results.telegram as Record<string, unknown>).isTimeout = err instanceof Error && err.name === "AbortError";
   }
 
   return NextResponse.json(results);

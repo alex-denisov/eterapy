@@ -195,3 +195,27 @@ export async function getTelegramWebhookInfo(): Promise<{ ok: boolean; result?: 
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Bot liveness via getMe — relay-aware (uses API_BASE, which on the prod VPS is
+ * the Cloudflare Worker proxy because api.telegram.org is geo-blocked). B4.
+ */
+export async function getTelegramBotHealth(): Promise<{ ok: boolean; username?: string; status?: number; error?: string }> {
+  if (!BOT_TOKEN) return { ok: false, error: "TELEGRAM_BOT_TOKEN not set" };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(`${API_BASE}/getMe`, { signal: controller.signal });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string; result?: { username?: string } };
+    return {
+      ok: Boolean(data?.ok),
+      username: data?.result?.username,
+      status: res.status,
+      error: data?.ok ? undefined : data?.description,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
