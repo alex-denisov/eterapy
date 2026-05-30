@@ -170,12 +170,14 @@ describe("OpenRouter adapter", () => {
     }), expect.any(Object));
   });
 
-  it("checks model health when configured", async () => {
-    const retrieve = jest.fn().mockResolvedValue({ id: "openrouter/free" });
+  it("checks model health via a tiny completion (not models.retrieve)", async () => {
+    // M8: models.retrieve 404s for the "openrouter/free" meta id even though
+    // completions work — so the healthcheck must probe with a completion.
+    const create = jest.fn().mockResolvedValue({ model: "openrouter/free", choices: [{ message: { content: "pong" } }] });
     const adapter = createOpenRouterAdapter({
       client: {
-        chat: { completions: { create: jest.fn() } },
-        models: { retrieve },
+        chat: { completions: { create } },
+        models: { retrieve: jest.fn() },
       },
     });
 
@@ -185,6 +187,9 @@ describe("OpenRouter adapter", () => {
       model: "openrouter/free",
       latencyMs: expect.any(Number),
     }));
-    expect(retrieve).toHaveBeenCalledWith("openrouter/free", { timeout: 30_000 });
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "openrouter/free", max_tokens: 1 }),
+      expect.objectContaining({ timeout: 30_000 }),
+    );
   });
 });

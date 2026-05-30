@@ -181,12 +181,22 @@ export function createOpenRouterAdapter(options: OpenRouterAdapterOptions = {}):
 
       const startedAt = Date.now();
       try {
-        await client.models?.retrieve(model, { timeout: timeoutMs });
+        // M8: probe with a tiny completion, NOT models.retrieve. The default
+        // free id "openrouter/free" is a meta-router valid only for
+        // /chat/completions; GET /models/openrouter/free returns 404, which
+        // falsely marked OpenRouter "down" and circuit-broke the primary free
+        // provider, pushing routing onto paid providers.
+        const response = await requireClient().chat.completions.create(
+          { model, messages: [{ role: "user", content: "ping" }], max_tokens: 1 },
+          { timeout: timeoutMs },
+        );
+        const ok = Array.isArray(response.choices);
         return {
           provider: AIProvider.OPENROUTER,
-          status: "ok",
-          model,
+          status: ok ? "ok" : "down",
+          model: response.model ?? model,
           latencyMs: Date.now() - startedAt,
+          ...(ok ? {} : { message: "OpenRouter healthcheck returned no choices" }),
         };
       } catch (err) {
         return {
