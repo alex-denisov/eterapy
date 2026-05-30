@@ -222,6 +222,22 @@ export async function deleteCredential(actorId: string, id: string): Promise<voi
   }));
 }
 
+/**
+ * Map a raw provider failure message to a stable, human-meaningful code so the
+ * admin/ai panel can tell apart a genuinely broken/invalid key from one that is
+ * valid but simply out of credits (a billing action, not a key replacement).
+ */
+export function classifyHealthFailureCode(message: string | undefined, fallback: string): string {
+  if (!message) return fallback;
+  const text = message.toLowerCase();
+  if (/credit balance|insufficient|out of (credits|quota)|too low|billing|payment required|\b402\b/.test(text)) {
+    return "INSUFFICIENT_CREDITS";
+  }
+  if (/quota|rate limit|\b429\b/.test(text)) return "QUOTA_EXCEEDED";
+  if (/invalid (api key|x-api-key|token)|unauthorized|\b401\b|authentication/.test(text)) return "INVALID_KEY";
+  return fallback;
+}
+
 export async function checkCredentialHealth(actorId: string, id: string): Promise<{
   credential: CredentialPublicView;
   health: {
@@ -229,6 +245,7 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
     latencyMs?: number;
     message?: string;
     model?: string;
+    code?: string;
   };
 }> {
   const row = await db.aIProviderCredential.findUnique({ where: { id } });
@@ -247,7 +264,9 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
     } else {
       await markCredentialFailure({
         credentialId: row.id,
-        code: health.status === "missing_config" ? "MISSING_CONFIG" : "HEALTHCHECK_FAILED",
+        code: health.status === "missing_config"
+          ? "MISSING_CONFIG"
+          : classifyHealthFailureCode(health.message, "HEALTHCHECK_FAILED"),
         cooldownMs: 0,
         regionBlocked: false,
         message: health.message,
@@ -268,16 +287,22 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
         latencyMs: health.latencyMs,
         message: health.message,
         model: health.model,
+        code: health.status === "ok"
+          ? undefined
+          : health.status === "missing_config"
+            ? "MISSING_CONFIG"
+            : classifyHealthFailureCode(health.message, "HEALTHCHECK_FAILED"),
       },
     };
   } catch (error) {
     const providerError = error instanceof AIProviderError ? error : null;
+    const rawMessage = error instanceof Error ? error.message : String(error);
     await markCredentialFailure({
       credentialId: row.id,
-      code: providerError?.code ?? "HEALTHCHECK_FAILED",
+      code: providerError?.code ?? classifyHealthFailureCode(rawMessage, "HEALTHCHECK_FAILED"),
       cooldownMs: 0,
       regionBlocked: providerError?.code === "HTTP_403",
-      message: error instanceof Error ? error.message : String(error),
+      message: rawMessage,
     });
     await logAudit(actorId, "AI_CREDENTIAL_HEALTHCHECK", row.id, JSON.stringify({
       provider: row.provider,
@@ -291,7 +316,8 @@ export async function checkCredentialHealth(actorId: string, id: string): Promis
       health: {
         status: "down",
         latencyMs: Date.now() - startedAt,
-        message: error instanceof Error ? error.message : "Credential healthcheck failed",
+        message: rawMessage,
+        code: providerError?.code ?? classifyHealthFailureCode(rawMessage, "HEALTHCHECK_FAILED"),
       },
     };
   }

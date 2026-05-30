@@ -88,8 +88,13 @@ describe("Anthropic adapter", () => {
     });
   });
 
-  it("checks model health", async () => {
-    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({ id: "claude-3-5-haiku-20241022" }));
+  it("checks health with a minimal completion probe (not the metadata endpoint)", async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({
+      model: "claude-3-5-haiku-20241022",
+      stop_reason: "end_turn",
+      content: [{ type: "text", text: "ok" }],
+      usage: { input_tokens: 1, output_tokens: 1 },
+    }));
     const adapter = createAnthropicAdapter({ apiKey: "test-key", fetchImpl });
 
     await expect(adapter.healthcheck()).resolves.toEqual(expect.objectContaining({
@@ -98,9 +103,11 @@ describe("Anthropic adapter", () => {
       model: "claude-3-5-haiku-20241022",
       latencyMs: expect.any(Number),
     }));
+    // A real (1-token) messages call — GET /models would pass even for an
+    // out-of-credits key, so the probe must exercise the billed endpoint.
     expect(fetchImpl).toHaveBeenCalledWith(
-      "https://api.anthropic.com/v1/models/claude-3-5-haiku-20241022",
-      expect.objectContaining({ method: "GET" })
+      "https://api.anthropic.com/v1/messages",
+      expect.objectContaining({ method: "POST" }),
     );
   });
 

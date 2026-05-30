@@ -301,8 +301,23 @@ function statusTone(status: string) {
   if (normalized === "FAILED" || normalized === "TIMEOUT" || normalized === "RATE_LIMITED" || normalized === "DOWN") {
     return "border-red-500/30 bg-red-500/10 text-red-700";
   }
-  if (normalized === "SKIPPED" || normalized === "RUNNING") return "border-amber-500/30 bg-amber-500/10 text-amber-700";
+  if (normalized === "SKIPPED" || normalized === "RUNNING" || normalized === "WARN") return "border-amber-500/30 bg-amber-500/10 text-amber-700";
   return "border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]";
+}
+
+// Human-readable reasons for the admin so a failed key tells whether it needs a
+// replacement (INVALID_KEY) or just a billing top-up (INSUFFICIENT_CREDITS).
+const ERROR_CODE_LABELS: Record<string, string> = {
+  INSUFFICIENT_CREDITS: "нет средств на балансе провайдера — пополните счёт",
+  QUOTA_EXCEEDED: "превышена квота / лимит запросов",
+  INVALID_KEY: "неверный ключ — требуется замена",
+  MISSING_CONFIG: "ключ не настроен",
+  HEALTHCHECK_FAILED: "проверка не прошла",
+};
+
+export function errorCodeLabel(code: string | null | undefined): string | null {
+  if (!code) return null;
+  return ERROR_CODE_LABELS[code] ?? code;
 }
 
 function keyState(credential: CredentialRow) {
@@ -310,7 +325,14 @@ function keyState(credential: CredentialRow) {
   if (credential.regionBlocked) return { label: "region error", tone: statusTone("failed") };
   const successAt = credential.lastSuccessAt ? Date.parse(credential.lastSuccessAt) : 0;
   const errorAt = credential.lastErrorAt ? Date.parse(credential.lastErrorAt) : 0;
-  if (errorAt > successAt) return { label: "ошибка", tone: statusTone("failed") };
+  if (errorAt > successAt) {
+    // A valid key that's merely out of credits is a billing issue, not a broken
+    // key — surface it with a softer "warn" tone and a clear label.
+    if (credential.lastErrorCode === "INSUFFICIENT_CREDITS") {
+      return { label: "нет средств", tone: statusTone("warn") };
+    }
+    return { label: "ошибка", tone: statusTone("failed") };
+  }
   if (successAt > 0) return { label: "активен", tone: statusTone("ok") };
   return { label: "не проверялся", tone: statusTone("unknown") };
 }
@@ -915,8 +937,12 @@ function CredentialTableRow({
       </td>
       <td className={COMPACT_CELL_CLASS}>
         <SoftBadge className={state.tone}>{state.label}</SoftBadge>
-        {credential.lastErrorCode && <div className="mt-1 text-xs text-red-700">{credential.lastErrorCode}</div>}
-        {credential.lastErrorMessage && <div className="mt-1 max-w-[24rem] whitespace-normal break-words text-xs text-red-700">{credential.lastErrorMessage}</div>}
+        {credential.lastErrorCode && (
+          <div className={`mt-1 text-xs ${credential.lastErrorCode === "INSUFFICIENT_CREDITS" ? "text-amber-700" : "text-red-700"}`}>
+            {errorCodeLabel(credential.lastErrorCode)}
+          </div>
+        )}
+        {credential.lastErrorMessage && <div className="mt-1 max-w-[24rem] whitespace-normal break-words text-xs text-[var(--soft-ink-faint)]">{credential.lastErrorMessage}</div>}
       </td>
       <td className={COMPACT_CELL_CLASS}>
         <label className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">

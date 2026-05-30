@@ -239,9 +239,19 @@ export function createAnthropicAdapter(options: AnthropicAdapterOptions = {}): A
 
       const startedAt = Date.now();
       try {
-        const response = await fetchWithTimeout(fetchImpl, `${baseURL}/models/${encodeURIComponent(model)}`, {
-          method: "GET",
+        // Probe with a minimal (1-token) completion rather than GET /models.
+        // The metadata endpoint succeeds for any valid key even when the
+        // account is out of credits, so it would mislabel an unusable key as
+        // healthy. A real, tiny messages call surfaces billing/credit problems
+        // accurately (e.g. "credit balance is too low").
+        const response = await fetchWithTimeout(fetchImpl, `${baseURL}/messages`, {
+          method: "POST",
           headers: headers(),
+          body: JSON.stringify({
+            model,
+            max_tokens: 1,
+            messages: [{ role: "user", content: "ping" }],
+          }),
         }, timeoutMs);
         if (!response.ok) {
           throw Object.assign(new Error(await parseError(response)), { status: response.status });
