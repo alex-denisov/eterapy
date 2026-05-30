@@ -11,6 +11,7 @@ import {
   practitionerTelegramStartUrl,
   practitionerWidgetSnippet,
 } from "@/lib/practitioner-links";
+import { ActiveTariffsEditor } from "./active-tariffs-editor";
 
 export default async function PractitionerServicesPage() {
   const session = await auth();
@@ -117,44 +118,17 @@ export default async function PractitionerServicesPage() {
             <p className="soft-eyebrow">активные тарифы</p>
             <span className="soft-badge soft-badge-warm">{activeRates.filter((rate) => rate.enabled).length} активно</span>
           </div>
-          <div className="grid gap-3">
-            {activeRates.map((rate) => {
-              const net = rate.priceRub - Math.round(rate.priceRub * commissionPercent / 100);
-              return (
-                <article
-                  key={rate.id}
-                  className="soft-card-flat flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  style={{ opacity: rate.enabled ? 1 : 0.62 }}
-                >
-                  <div className="flex items-start gap-4">
-                    <span className={`mt-1 h-5 w-9 rounded-full border ${rate.enabled ? "border-[var(--soft-terracotta)] bg-[var(--soft-apricot)]" : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]"}`}>
-                      <span
-                        className="block h-4 w-4 rounded-full bg-[var(--soft-paper-card)] shadow-sm"
-                        style={{ transform: rate.enabled ? "translate(18px, 1px)" : "translate(1px, 1px)" }}
-                      />
-                    </span>
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-semibold text-[var(--soft-ink)]">Индивидуальная сессия</h2>
-                        <span className="soft-badge soft-badge-lilac text-[11px]">{rate.durationMin} мин</span>
-                      </div>
-                      <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                        Онлайн · клиент видит цену до записи · чистыми после комиссии: {net.toLocaleString("ru-RU")} ₽
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 sm:justify-end">
-                    <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
-                      {rate.priceRub.toLocaleString("ru-RU")} ₽
-                    </p>
-                    <Link href={appUrl("/practitioner/schedule")} className="soft-chip">
-                      Изменить
-                    </Link>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+          <ActiveTariffsEditor
+            practitionerId={practitioner.id}
+            initialRates={activeRates.map((rate) => ({
+              id: rate.id,
+              durationMin: rate.durationMin,
+              priceRub: rate.priceRub,
+              enabled: rate.enabled,
+            }))}
+            commissionPercent={commissionPercent}
+            readOnly={practitioner.priceRates.length === 0}
+          />
         </section>
 
         <aside className="grid gap-4">
@@ -198,8 +172,8 @@ export default async function PractitionerServicesPage() {
       </section>
 
       <div className="mt-5 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-sm text-[var(--soft-ink-soft)]">
-        Изменение тарифов сейчас проходит через расписание и поддержку, чтобы не ломать уже созданные записи.
-        Следующим блоком будет безопасное редактирование услуг с аудитом изменений.
+        Вы управляете показом форматов клиентам прямо здесь — переключателем. Цена встречи устанавливается
+        платформой и не меняется практиком, чтобы защитить уже созданные записи и витрину.
       </div>
     </div>
   );

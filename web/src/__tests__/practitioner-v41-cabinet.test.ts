@@ -27,7 +27,11 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(page).toContain("db.practitioner.findUnique");
     expect(page).toContain("priceRates");
     expect(page).toContain("activeRates");
-    expect(page).toContain("Индивидуальная сессия");
+    // M11: the per-tariff card (incl. "Индивидуальная сессия") now lives in the
+    // interactive ActiveTariffsEditor client component.
+    expect(page).toContain("ActiveTariffsEditor");
+    const editor = source("src/app/cabinet/practitioner/services/active-tariffs-editor.tsx");
+    expect(editor).toContain("Индивидуальная сессия");
     expect(page).toContain("комиссия платформы");
     expect(page).toContain("Без скидок на встречи");
     expect(page).toContain('mainUrl("/products/joint-session")');
