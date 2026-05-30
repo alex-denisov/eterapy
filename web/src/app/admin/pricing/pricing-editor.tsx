@@ -77,7 +77,8 @@ function minRate(practitioner: Practitioner) {
 export function PricingEditor({ initialSettings, practitioners }: Props) {
   const router = useRouter();
   const [settings, setSettings] = useState<Record<string, string>>(initialSettings);
-  const [savingSettings, setSavingSettings] = useState(false);
+  // M5/B2: track which scope is saving so each table's own button shows state.
+  const [savingScope, setSavingScope] = useState<string | null>(null);
 
   // After a save we call router.refresh(); the server component then re-reads
   // platform settings and passes a fresh `initialSettings`. Re-seed local state
@@ -100,9 +101,13 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
   });
   const [applyingBulk, setApplyingBulk] = useState(false);
 
-  async function handleSaveSettings() {
-    setSavingSettings(true);
-    const toSave = { ...settings, "session.test_mode": testMode ? "true" : "false" };
+  // M5/B2: save only the given scope's keys (each table has its own button).
+  // Passing no keys saves the price mode (test_mode) from the «Режим цен» card.
+  async function saveSettings(scope: string, keys?: PriceKey[]) {
+    setSavingScope(scope);
+    const toSave: Record<string, string> = keys
+      ? Object.fromEntries(keys.map((row) => [row.key, settings[row.key] ?? ""]))
+      : { "session.test_mode": testMode ? "true" : "false" };
     try {
       const res = await fetch("/api/admin/settings", {
         method: "PATCH",
@@ -111,8 +116,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
       });
       const data = await res.json();
       if (data.ok) {
-        toast.success("Настройки сохранены");
-        // Re-read from the server so the inputs reflect persisted DB values.
+        toast.success("Сохранено");
         router.refresh();
       } else {
         toast.error(data.error ?? "Ошибка");
@@ -120,7 +124,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     } catch {
       toast.error("Ошибка сети");
     } finally {
-      setSavingSettings(false);
+      setSavingScope(null);
     }
   }
 
@@ -148,7 +152,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     setApplyingBulk(false);
   }
 
-  function settingsTable(title: string, rows: PriceKey[]) {
+  function settingsTable(title: string, rows: PriceKey[], scope: string) {
     return (
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
@@ -176,6 +180,18 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
             </tbody>
           </table>
         </div>
+        {/* M5/B2: each editable table saves its own values. */}
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => saveSettings(scope, rows)}
+            disabled={savingScope === scope}
+            className="soft-admin-action"
+            data-variant="primary"
+            data-testid={`pricing-save-${scope}`}
+          >
+            {savingScope === scope ? "Сохранение..." : "Сохранить настройки"}
+          </button>
+        </div>
       </section>
     );
   }
@@ -191,14 +207,14 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
           <input type="checkbox" checked={testMode} onChange={(event) => setTestMode(event.target.checked)} />
           Тестовый режим
         </label>
-        <button onClick={handleSaveSettings} disabled={savingSettings} className="soft-admin-action" data-variant="primary">
-          {savingSettings ? "Сохранение..." : "Сохранить все настройки"}
+        <button onClick={() => saveSettings("mode")} disabled={savingScope === "mode"} className="soft-admin-action" data-variant="primary" data-testid="pricing-save-mode">
+          {savingScope === "mode" ? "Сохранение..." : "Сохранить режим"}
         </button>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
-        {settingsTable("Тарифные планы и комиссия", PLAN_KEYS)}
-        {settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS)}
+        {settingsTable("Тарифные планы и комиссия", PLAN_KEYS, "plans")}
+        {settingsTable("Цифровые продукты и подписки", PRODUCT_PRICE_KEYS, "products")}
       </div>
 
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
