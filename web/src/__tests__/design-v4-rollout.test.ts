@@ -37,7 +37,10 @@ describe("design v4 rollout", () => {
     expect(layout).toContain('url: "/icon.svg"');
     expect(header).toContain("toCabinetPathname(pathname)");
     expect(header).toContain('isAdminHost = mounted && hostname.startsWith("admin.")');
-    expect(header).toContain('isAppArea = cabinetPathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost');
+    // N7: /help is a public page and must show the landing nav, so it is no
+    // longer bucketed as an "app area".
+    expect(header).toContain('isAppArea = cabinetPathname.startsWith("/cabinet") || isAppHost');
+    expect(header).not.toContain('pathname.startsWith("/help") || isAppHost');
     expect(header).toContain("<UserMenu session={session}");
     expect(header).toContain("Моя карта");
     expect(header).toContain('data-testid="header-dialogue-cta"');

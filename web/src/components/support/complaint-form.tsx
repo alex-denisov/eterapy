@@ -1,19 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Send, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, Send, ShieldCheck } from "lucide-react";
 
 // G8 · Жалоба или нарушение.
 //
-// Replaces the old mailto:safety@ card. A complaint is just a structured
-// support message: we capture a category + description and POST it to the
-// existing /api/support/messages pipeline, which stores it in the DB and
-// forwards it to the support Telegram group.
+// A complaint is a structured support message: category + description POSTed to
+// /api/support/messages, which stores it and forwards it to the Telegram support
+// group. The reply lands in the in-cabinet support chat — no email round-trip.
 //
-// On the "форма без email" concern: this form lives in the authenticated
-// cabinet, so the account IS the return address. The reply lands in the
-// in-cabinet support chat below — no email round-trip, nothing anonymous
-// that staff couldn't answer.
+// N1a: the whole form stays collapsed behind a trigger until the user opens it,
+// so the support page isn't dominated by a big form by default.
+// N1b/N1c: the category select and the textarea use a normal bordered field
+// style (FIELD_CLASS) instead of the giant hero question input, and the textarea
+// shows a live character counter.
 
 const CATEGORIES = [
   { value: "specialist", label: "Поведение специалиста" },
@@ -32,9 +32,13 @@ const CATEGORY_LABEL: Record<CategoryValue, string> = {
 };
 
 const DETAILS_MIN = 10;
-const DETAILS_MAX = 2000;
+const DETAILS_MAX = 1000;
+
+const FIELD_CLASS =
+  "mt-1 w-full rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink)] transition-colors focus:border-[var(--soft-bordeaux)] focus:outline-none focus:ring-2 focus:ring-[var(--soft-bordeaux)]/20";
 
 export function ComplaintForm() {
+  const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<CategoryValue>("specialist");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -83,13 +87,39 @@ export function ComplaintForm() {
         </p>
         <button
           type="button"
-          onClick={() => setDone(false)}
+          onClick={() => {
+            setDone(false);
+            setOpen(true);
+          }}
           className="soft-button soft-button-ghost mt-4 h-9 px-4 text-sm"
           data-testid="cabinet-support-complaint-reset"
         >
           Отправить ещё одну
         </button>
       </div>
+    );
+  }
+
+  // N1a: collapsed trigger — the form expands only when the user wants it.
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="soft-card flex w-full items-center justify-between gap-3 p-5 text-left transition-colors hover:bg-[var(--soft-surface)]"
+        data-testid="cabinet-support-complaint-trigger"
+      >
+        <span className="flex items-center gap-3">
+          <ShieldCheck className="size-5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+          <span>
+            <span className="soft-h3 block">Сообщить о проблеме</span>
+            <span className="mt-1 block text-sm text-[var(--soft-ink-soft)]">
+              Поведение специалиста, оплата, приватность — опишите ситуацию, ответим в чате ниже.
+            </span>
+          </span>
+        </span>
+        <ChevronDown className="size-5 shrink-0 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+      </button>
     );
   }
 
@@ -102,23 +132,21 @@ export function ComplaintForm() {
         ситуацию. Ответ придёт в чат поддержки ниже, на email писать не нужно.
       </p>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-[var(--soft-ink-soft)]">Категория</span>
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value as CategoryValue)}
-            className="soft-question-input mt-1 w-full"
-            data-testid="cabinet-support-complaint-category"
-          >
-            {CATEGORIES.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <label className="mt-4 block max-w-sm text-sm">
+        <span className="text-[var(--soft-ink-soft)]">Категория</span>
+        <select
+          value={category}
+          onChange={(event) => setCategory(event.target.value as CategoryValue)}
+          className={FIELD_CLASS}
+          data-testid="cabinet-support-complaint-category"
+        >
+          {CATEGORIES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="mt-4 block text-sm">
         <span className="text-[var(--soft-ink-soft)]">Что случилось</span>
@@ -126,30 +154,44 @@ export function ComplaintForm() {
           value={details}
           onChange={(event) => setDetails(event.target.value.slice(0, DETAILS_MAX))}
           placeholder="Опишите: что произошло, когда, какой специалист или заказ, чем мы можем помочь."
-          className="soft-question-input mt-1 w-full resize-none"
-          rows={4}
+          className={`${FIELD_CLASS} resize-none leading-relaxed`}
+          rows={5}
           maxLength={DETAILS_MAX}
           disabled={submitting}
           data-testid="cabinet-support-complaint-details"
         />
+        <span className="mt-1 block text-right text-xs text-[var(--soft-ink-faint)]" data-testid="cabinet-support-complaint-counter">
+          {details.length} / {DETAILS_MAX}
+        </span>
       </label>
 
       {error && (
-        <p className="mt-2 text-xs text-[var(--soft-bordeaux)]" data-testid="cabinet-support-complaint-error">
+        <p className="mt-1 text-xs text-[var(--soft-bordeaux)]" data-testid="cabinet-support-complaint-error">
           {error}
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={() => void submit()}
-        disabled={submitting || details.trim().length < DETAILS_MIN}
-        className="soft-button soft-button-primary mt-4 h-9 px-4 text-sm"
-        data-testid="cabinet-support-complaint-submit"
-      >
-        <Send className="size-4" aria-hidden="true" />
-        Отправить жалобу
-      </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={submitting || details.trim().length < DETAILS_MIN}
+          className="soft-button soft-button-primary h-9 px-4 text-sm"
+          data-testid="cabinet-support-complaint-submit"
+        >
+          <Send className="size-4" aria-hidden="true" />
+          Отправить жалобу
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          disabled={submitting}
+          className="soft-button soft-button-ghost h-9 px-4 text-sm"
+          data-testid="cabinet-support-complaint-cancel"
+        >
+          Свернуть
+        </button>
+      </div>
     </div>
   );
 }

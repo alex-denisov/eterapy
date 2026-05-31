@@ -40,11 +40,11 @@ export default async function AdminSupportPage() {
               Вопросы по доступам, ролям, инцидентам и конфиденциальности.
             </p>
             <a
-              href="mailto:hello@eterapy.com"
+              href="mailto:support@eterapy.com"
               className="soft-button soft-button-primary mt-4 h-9 px-4 text-sm"
               data-testid="admin-support-email"
             >
-              hello@eterapy.com
+              support@eterapy.com
             </a>
           </div>
 

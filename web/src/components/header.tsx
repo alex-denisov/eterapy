@@ -131,7 +131,13 @@ function BalanceSummaryLink({
     >
       <span className="flex items-center gap-1 pl-2.5 pr-2 text-[var(--soft-terracotta-dark)]" aria-label="Кредиты ясности">
         <Sparkles className="size-3" aria-hidden="true" />
-        <span className="min-w-[1rem] text-center">{clarityCredits}</span>
+        {/* N8 quick win: at zero credits the half turns into a top-up cue
+            instead of a dead "0" — the pill already routes to /credits. */}
+        {clarityCredits > 0 ? (
+          <span className="min-w-[1rem] text-center">{clarityCredits}</span>
+        ) : (
+          <span className="text-[11px]" data-testid="header-credits-topup">Пополнить</span>
+        )}
       </span>
       <span aria-hidden="true" className="my-1 w-px bg-[var(--soft-paper-edge)]" />
       <span className="hidden items-center gap-0.5 pl-2 pr-2.5 text-[var(--soft-bordeaux)] sm:flex" aria-label="Денежный баланс">
@@ -373,7 +379,11 @@ export function Header() {
   if (shouldHideHeader) return null;
 
   const isAppHost = mounted && hostname.startsWith("app.");
-  const isAppArea = cabinetPathname.startsWith("/cabinet") || pathname.startsWith("/help") || isAppHost || isAdminArea || isAdminHost;
+  // N7: /help on eterapy.com is a PUBLIC page — it must keep the landing nav
+  // menu like every other non-cabinet surface. (It used to be bucketed as an
+  // "app area", which stripped its navigation.) The cabinet/app/admin hosts
+  // still suppress the public nav.
+  const isAppArea = cabinetPathname.startsWith("/cabinet") || isAppHost || isAdminArea || isAdminHost;
   const showPublicNav = !isAppArea;
   const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
 
@@ -452,7 +462,12 @@ export function Header() {
               )}
               {showHelpIcon && (
                 <Link
-                  href={isAppArea ? appUrl("/support") : mainUrl("/help")}
+                  // N5a: this icon only renders for authenticated non-staff
+                  // users, so it always takes them into the cabinet support
+                  // surface (chat + complaint + contacts), even when they're
+                  // browsing the public site. Anonymous visitors get the public
+                  // /help knowledge base via the footer / nav instead.
+                  href={appUrl("/support")}
                   prefetch={false}
                   aria-label="Поддержка и помощь"
                   className="soft-user-icon"
@@ -462,6 +477,23 @@ export function Header() {
               )}
               <NotificationBell variant="header" />
               <UserMenu session={session} />
+              {/* N8 (funnel brainstorm): a client-only SECONDARY entry into the
+                  in-cabinet paid services ("Услуги внутри кабинета") — the single
+                  highest-leverage "order a service" affordance, present on every
+                  cabinet page so the "got my answer, what now?" moment always has
+                  a next step. Kept visually secondary so «Новый разбор» stays the
+                  lone Primary CTA. */}
+              {showNewDialogueCta && (
+                <Link
+                  href={appUrl("/products")}
+                  className="soft-header-cta soft-header-cta-ghost hidden lg:inline-flex"
+                  data-testid="header-deepen-cta"
+                  data-analytics-event="deepening_option_clicked"
+                  data-analytics-target="/products"
+                >
+                  Разобрать глубже
+                </Link>
+              )}
               {/* B321: ALL header items at canonical v4.2 user-pill height —
                   h-7 (28px), text-[13px], px-3 (12px). Matches
                   docs/Design/v4.2/style.css .user-pill spec exactly so

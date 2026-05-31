@@ -185,7 +185,7 @@ export function SupportChat() {
             value={draft}
             onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_MAX))}
             placeholder="Опишите коротко — что случилось, чем можно помочь."
-            className="soft-question-input flex-1 resize-none"
+            className="flex-1 resize-none rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm leading-relaxed text-[var(--soft-ink)] transition-colors focus:border-[var(--soft-bordeaux)] focus:outline-none focus:ring-2 focus:ring-[var(--soft-bordeaux)]/20"
             rows={2}
             maxLength={MESSAGE_MAX}
             disabled={sending}
