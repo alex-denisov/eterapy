@@ -167,11 +167,20 @@ jobs:
         working-directory: web
         env:
           # Placeholder server-side values — real runtime secrets live in the
-          # VPS staging .env.local. Build only needs these present/non-empty.
+          # VPS staging .env.local. Build only needs these present/non-empty:
+          # some route modules (e.g. yukassa) assert env presence during
+          # Next.js "collect page data". These dummies are NOT real credentials
+          # and the build makes no live calls (DATABASE_URL is a placeholder too).
           DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
           AUTH_SECRET: 'staging-build-placeholder-secret-min-32-characters'
           NEXTAUTH_URL: 'https://staging.eterapy.com'
           AUTH_TRUST_HOST: 'true'
+          RESEND_API_KEY: 'staging-build-placeholder'
+          YUKASSA_SHOP_ID: 'staging-build-placeholder'
+          YUKASSA_SECRET_KEY: 'staging-build-placeholder'
+          LIVEKIT_API_KEY: 'staging-build-placeholder'
+          LIVEKIT_API_SECRET: 'staging-build-placeholder'
+          TELEGRAM_BOT_TOKEN: 'staging-build-placeholder'
           # Public values baked into the client bundle — STAGING domains.
           NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: 'eterapy_staging_bot'
           NEXT_PUBLIC_APP_URL: 'https://staging.eterapy.com'
