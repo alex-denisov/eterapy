@@ -11,6 +11,8 @@ on:
       - '.github/workflows/deploy.yml'
       - '.github/workflows/deploy-staging.yml'
       - '.github/workflows/playwright.yml'
+      - 'deploy/*staging*'
+      - 'deploy/telegram-proxy*'
       - '.artifacts/**'
       - '.agents/**'
       - '.qwen/**'
