@@ -14,7 +14,7 @@
  * `https://api.telegram.org/bot<TOKEN>`.
  */
 
-import { log } from "./logger";
+import { log, serializeError } from "./logger";
 import { telegramBotUsername } from "@/lib/env";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
@@ -125,7 +125,11 @@ export function hasSupportBot(): boolean {
  * if the support bot is not configured, so the thread keeps working while the
  * env var is being rolled out.
  */
-export async function sendTelegramSupport(chatId: string, text: string, replyToMessageId?: number): Promise<void> {
+export async function sendTelegramSupport(
+  chatId: string,
+  text: string,
+  options?: { replyToMessageId?: number; messageThreadId?: number },
+): Promise<void> {
   const base = SUPPORT_BOT_TOKEN ? SUPPORT_API_BASE : API_BASE;
   if ((!SUPPORT_BOT_TOKEN && !BOT_TOKEN) || !base) {
     log.warn("telegram.support_bot_token_missing");
@@ -142,11 +146,44 @@ export async function sendTelegramSupport(chatId: string, text: string, replyToM
         text,
         parse_mode: "HTML",
         disable_web_page_preview: true,
-        ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+        ...(options?.messageThreadId ? { message_thread_id: options.messageThreadId } : {}),
+        ...(options?.replyToMessageId ? { reply_to_message_id: options.replyToMessageId } : {}),
       }),
       signal: controller.signal,
     });
     if (!res.ok) throw new Error(`Telegram API error: ${await res.text()}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * N1d multichat: create a dedicated forum topic in the support supergroup for a
+ * conversation, so every client gets their own thread. Returns the topic's
+ * message_thread_id, or null if the group isn't a forum / the bot lacks rights
+ * (the caller then falls back to the General topic + a conversation marker).
+ */
+export async function createSupportForumTopic(chatId: string, name: string): Promise<number | null> {
+  const base = SUPPORT_BOT_TOKEN ? SUPPORT_API_BASE : API_BASE;
+  if ((!SUPPORT_BOT_TOKEN && !BOT_TOKEN) || !base) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(`${base}/createForumTopic`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, name: name.slice(0, 128) }),
+      signal: controller.signal,
+    });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: { message_thread_id?: number } };
+    if (!data.ok || typeof data.result?.message_thread_id !== "number") {
+      log.warn("telegram.support_create_topic_failed", { response: data });
+      return null;
+    }
+    return data.result.message_thread_id;
+  } catch (error) {
+    log.warn("telegram.support_create_topic_error", { error: serializeError(error) });
+    return null;
   } finally {
     clearTimeout(timeout);
   }

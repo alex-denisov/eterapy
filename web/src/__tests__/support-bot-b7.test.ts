@@ -12,9 +12,13 @@ describe("B7 — dedicated Telegram support bot", () => {
     expect(lib).toContain("export function hasSupportBot");
   });
 
-  it("forwards cabinet support messages via the support bot", () => {
+  it("forwards cabinet support messages via the support bot into a per-client topic", () => {
     const route = source("src/app/api/support/messages/route.ts");
-    expect(route).toContain("sendTelegramSupport(SUPPORT_GROUP_CHAT_ID");
+    expect(route).toContain("sendTelegramSupport(");
+    expect(route).toContain("SUPPORT_GROUP_CHAT_ID");
+    // N1d multichat: each conversation gets its own forum topic.
+    expect(route).toContain("createSupportForumTopic");
+    expect(route).toContain("messageThreadId");
     expect(route).not.toContain("await sendTelegram(SUPPORT_GROUP_CHAT_ID");
   });
 

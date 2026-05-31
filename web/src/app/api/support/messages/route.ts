@@ -5,7 +5,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { log, serializeError } from "@/lib/logger";
-import { sendTelegramSupport } from "@/lib/telegram";
+import { sendTelegramSupport, createSupportForumTopic } from "@/lib/telegram";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 
 // B333 · Cabinet ↔ Telegram support chat.
@@ -135,15 +135,46 @@ export async function POST(request: NextRequest) {
   // an admin panel or, eventually, via a sweeper job.
   if (SUPPORT_GROUP_CHAT_ID) {
     const userLabel = session.user?.name ?? session.user?.email ?? `user:${userId.slice(0, 8)}`;
-    const text =
-      `<b>ETerapy support</b>\n` +
-      `от: ${userLabel} (${userId})\n` +
-      `conversation: ${conversation.id}\n\n` +
-      parsed.data.content;
     try {
+      // N1d multichat: give every conversation its own forum topic in the
+      // support supergroup, so staff can reply per-client (routed back by
+      // message_thread_id). Create the topic lazily on the first message.
+      let threadId = conversation.telegramThreadId ?? undefined;
+      let firstInTopic = false;
+      if (!threadId) {
+        const created = await createSupportForumTopic(
+          SUPPORT_GROUP_CHAT_ID,
+          `${userLabel} · ${conversation.id.slice(0, 6)}`,
+        );
+        if (created) {
+          threadId = created;
+          firstInTopic = true;
+          await db.supportConversation.update({
+            where: { id: conversation.id },
+            data: { telegramChatId: SUPPORT_GROUP_CHAT_ID, telegramThreadId: created },
+          });
+        }
+      }
+
+      // The header carries the conversation marker (reply-to fallback) and tells
+      // staff how to answer. Inside a topic only the first message needs it —
+      // later messages read like a normal chat thread.
+      const header =
+        `<b>ETerapy support</b>\n` +
+        `от: ${userLabel} (${userId})\n` +
+        `conversation: ${conversation.id}\n` +
+        (threadId
+          ? `Отвечайте прямо в этой теме — ответ дойдёт клиенту.\n\n`
+          : `↩️ Ответьте на это сообщение (Reply), чтобы ответ дошёл клиенту.\n\n`);
+      const body = threadId && !firstInTopic ? parsed.data.content : `${header}${parsed.data.content}`;
+
       // B7: forward via the dedicated support bot so staff replies come back
       // through the support bot's webhook (not the notification bot).
-      await sendTelegramSupport(SUPPORT_GROUP_CHAT_ID, text);
+      await sendTelegramSupport(
+        SUPPORT_GROUP_CHAT_ID,
+        body,
+        threadId ? { messageThreadId: threadId } : undefined,
+      );
     } catch (error) {
       log.warn("support.forward_to_telegram_failed", {
         requestId: context.requestId,

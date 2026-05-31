@@ -8,14 +8,21 @@
  *      → Telegram webhook targets worker.dev/webhook → worker forwards to eterapy.com
  *
  * Routes:
- *   /bot<TOKEN>/*  → https://api.telegram.org/bot<TOKEN>/*   (API proxy)
- *   /webhook       → https://eterapy.com/api/telegram/webhook (webhook relay)
+ *   /bot<TOKEN>/*    → https://api.telegram.org/bot<TOKEN>/*           (API proxy)
+ *   /webhook         → https://eterapy.com/api/telegram/webhook         (notif-bot relay)
+ *   /support-webhook → https://eterapy.com/api/telegram/support-webhook (support-bot relay)
+ *
+ * The relay matters because Telegram's delivery IPs are blocked by the
+ * Cloudflare edge in front of eterapy.com (the support bot showed a permanent
+ * "Connection timed out"), so staff replies never reached the cabinet chat.
+ * Telegram CAN reach this Worker; the Worker fetches the origin as an internal
+ * subrequest, which is not subject to the same edge bot-protection.
  *
  * Setup:
- *   1. Deploy: `npx wrangler deploy`
+ *   1. Deploy: `npx wrangler deploy -c deploy/telegram-proxy-wrangler.toml`
  *   2. Set env on VPS: TELEGRAM_API_BASE=https://<worker>.workers.dev/bot<TOKEN>
- *   3. Register webhook URL: https://<worker>.workers.dev/webhook
- *      (instead of https://eterapy.com/api/telegram/webhook)
+ *   3. Register webhook URLs at https://<worker>.workers.dev/webhook and
+ *      https://<worker>.workers.dev/support-webhook
  */
 
 const BACKEND_ORIGIN = "https://eterapy.com";
@@ -25,7 +32,7 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname + url.search;
 
-    if (path.startsWith("/webhook")) {
+    if (path.startsWith("/webhook") || path.startsWith("/support-webhook")) {
       return this.relayWebhook(request, path);
     }
 
