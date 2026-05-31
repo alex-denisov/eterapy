@@ -48,7 +48,10 @@ env:
   VPS_REPO_DIR: /home/admin/eterapy-staging
   VPS_WEB_DIR: /home/admin/eterapy-staging/web
   VPS_DEPLOY_DIR: /home/admin/eterapy-staging/deploy
-  HEALTH_URL: https://staging.eterapy.com/api/health
+  # Probe the app subdomain: it resolves directly to the VPS and /api/health is
+  # exempt from Basic Auth. staging.eterapy.com (main) stays behind Cloudflare
+  # until grey-clouded, so it would 301 here — switch back once DNS is direct.
+  HEALTH_URL: https://staging.app.eterapy.com/api/health
   APP_URL: https://staging.app.eterapy.com
   ADMIN_URL: https://staging.admin.eterapy.com
 
