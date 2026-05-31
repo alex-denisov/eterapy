@@ -368,26 +368,64 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
           VERIFY_RESULT: ${{ needs.verify.result }}
+          GH_ACTOR: ${{ github.actor }}
+          GH_REF: ${{ github.ref_name }}
           GH_SHA: ${{ github.sha }}
           GH_REPO: ${{ github.repository }}
           GH_RUN_ID: ${{ github.run_id }}
+          GH_MSG: ${{ github.event.head_commit.message }}
         run: |
           if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then
-            echo "Telegram not configured — skipping."
+            echo "Telegram not configured — skipping notification."
             exit 0
           fi
-          icon() { case "$1" in success) echo "OK";; failure) echo "FAIL";; skipped) echo "SKIP";; *) echo "?";; esac; }
+
+          icon() {
+            case "$1" in
+              success) echo "✅" ;;
+              failure) echo "❌" ;;
+              cancelled) echo "⚠️" ;;
+              skipped) echo "⏭" ;;
+              *) echo "❔" ;;
+            esac
+          }
+
           if [ "$VERIFY_RESULT" = "success" ]; then
-            HEADER="STAGING deploy SUCCESS"
+            HEADER="🧪 <b>STAGING deploy SUCCESS</b>"
+          elif [ "$DEPLOY_RESULT" = "failure" ]; then
+            HEADER="❌ <b>STAGING pipeline FAILED at DEPLOY</b>"
+          elif [ "$BUILD_RESULT" = "failure" ]; then
+            HEADER="❌ <b>STAGING pipeline FAILED at BUILD</b>"
+          elif [ "$TEST_RESULT" = "failure" ]; then
+            HEADER="❌ <b>STAGING pipeline FAILED at TESTS</b>"
+          elif [ "$INSTALL_RESULT" = "failure" ]; then
+            HEADER="❌ <b>STAGING pipeline FAILED at INSTALL</b>"
+          elif [ "$VERIFY_RESULT" = "failure" ]; then
+            HEADER="❌ <b>STAGING pipeline FAILED at VERIFY (deploy partial)</b>"
           else
-            HEADER="STAGING pipeline issue"
+            HEADER="❔ <b>STAGING pipeline finished with mixed status</b>"
           fi
-          STATUS_LINE="$(icon "$INSTALL_RESULT") install / $(icon "$TEST_RESULT") test / $(icon "$BUILD_RESULT") build / $(icon "$DEPLOY_RESULT") deploy / $(icon "$VERIFY_RESULT") verify"
+
+          STATUS_LINE="$(icon "$INSTALL_RESULT") install · $(icon "$TEST_RESULT") test · $(icon "$BUILD_RESULT") build · $(icon "$DEPLOY_RESULT") deploy · $(icon "$VERIFY_RESULT") verify"
+
           SHORT_SHA="${GH_SHA:0:7}"
-          TEXT=$(printf '%s\n\n%s\n\nEnv: staging\nCommit: %s\n\nhttps://github.com/%s/actions/runs/%s' \
-            "$HEADER" "$STATUS_LINE" "$SHORT_SHA" "$GH_REPO" "$GH_RUN_ID")
+          FIRST_LINE=$(printf '%s' "$GH_MSG" | head -n 1)
+          if [ ${#FIRST_LINE} -gt 200 ]; then
+            FIRST_LINE="${FIRST_LINE:0:200}…"
+          fi
+
+          esc() { printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+          ESC_MSG=$(esc "$FIRST_LINE")
+          ESC_ACTOR=$(esc "$GH_ACTOR")
+          ESC_REF=$(esc "$GH_REF")
+          ESC_REPO=$(esc "$GH_REPO")
+
+          TEXT=$(printf '%s\n\n%s\n\n<b>Env:</b> staging\n<b>Repo:</b> %s\n<b>Branch:</b> %s\n<b>Commit:</b> <code>%s</code>\n<b>Author:</b> %s\n<b>Message:</b> %s\n\n<a href="https://github.com/%s/actions/runs/%s">View run</a>' \
+            "$HEADER" "$STATUS_LINE" "$ESC_REPO" "$ESC_REF" "$SHORT_SHA" "$ESC_ACTOR" "$ESC_MSG" "$GH_REPO" "$GH_RUN_ID")
+
           curl -fsS -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TG_CHAT}" \
             --data-urlencode "text=${TEXT}" \
+            -d "parse_mode=HTML" \
             -d "disable_web_page_preview=true" \
             >/dev/null || echo "::warning::Telegram notification failed"

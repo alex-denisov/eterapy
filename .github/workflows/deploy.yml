@@ -9,6 +9,7 @@ on:
       - '.gitignore'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/workflows/deploy.yml'
+      - '.github/workflows/deploy-staging.yml'
       - '.github/workflows/playwright.yml'
       - '.artifacts/**'
       - '.agents/**'
