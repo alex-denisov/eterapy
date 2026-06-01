@@ -30,6 +30,14 @@ describe("M14 — admin reviews moderation", () => {
     const manager = source("src/app/admin/reviews/reviews-manager.tsx");
     expect(manager).toContain('data-testid="admin-reviews-manager"');
     expect(manager).toContain('data-testid="admin-review-row"');
+    // R1: practitioner + author filters and sort.
+    expect(manager).toContain('data-testid="reviews-filter-practitioner"');
+    expect(manager).toContain('data-testid="reviews-filter-author"');
+    expect(manager).toContain('data-testid="reviews-sort"');
+    expect(manager).toContain("rating-desc");
+    // R2: exact time, not just date.
+    expect(manager).toContain("function formatDateTime");
+    expect(manager).toContain('hour: "2-digit"');
     expect(manager).toContain('fetch(`/api/admin/reviews/${id}`');
     expect(manager).toContain('method: "PATCH"');
     expect(manager).toContain('method: "DELETE"');

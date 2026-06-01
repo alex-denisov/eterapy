@@ -30,13 +30,18 @@ const FILTERS: Array<{ key: string; label: string }> = [
   { key: "HIDDEN", label: "Скрытые" },
 ];
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("ru-RU", {
+// R2: show the exact time, not just the date.
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
+
+type SortMode = "date-desc" | "date-asc" | "rating-desc" | "rating-asc";
 
 export function ReviewsManager({
   reviews: initial,
@@ -47,12 +52,36 @@ export function ReviewsManager({
 }) {
   const [reviews, setReviews] = useState(initial);
   const [filter, setFilter] = useState("all");
+  const [practitioner, setPractitioner] = useState("all");
+  const [authorQuery, setAuthorQuery] = useState("");
+  const [sort, setSort] = useState<SortMode>("date-desc");
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const visible = useMemo(
-    () => (filter === "all" ? reviews : reviews.filter((r) => r.status === filter)),
-    [reviews, filter],
-  );
+  // R1: list of practitioners present in the reviews, for the dropdown filter.
+  const practitioners = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of reviews) {
+      if (r.practitionerSlug) map.set(r.practitionerSlug, r.practitionerName);
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
+  }, [reviews]);
+
+  const visible = useMemo(() => {
+    const q = authorQuery.trim().toLowerCase();
+    const list = reviews.filter((r) => {
+      if (filter !== "all" && r.status !== filter) return false;
+      if (practitioner !== "all" && r.practitionerSlug !== practitioner) return false;
+      if (q && !r.authorName.toLowerCase().includes(q) && !r.authorEmail.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    return [...list].sort((a, b) => {
+      if (sort === "rating-desc") return b.rating - a.rating;
+      if (sort === "rating-asc") return a.rating - b.rating;
+      const ta = new Date(a.createdAt).getTime();
+      const tb = new Date(b.createdAt).getTime();
+      return sort === "date-asc" ? ta - tb : tb - ta;
+    });
+  }, [reviews, filter, practitioner, authorQuery, sort]);
 
   async function setStatus(id: string, status: string) {
     const prev = reviews;
@@ -92,7 +121,7 @@ export function ReviewsManager({
 
   return (
     <div data-testid="admin-reviews-manager">
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <button
             key={f.key}
@@ -107,6 +136,44 @@ export function ReviewsManager({
             {f.label}
           </button>
         ))}
+      </div>
+
+      {/* R1: filter by practitioner / author, and sort by date or rating. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <select
+          value={practitioner}
+          onChange={(e) => setPractitioner(e.target.value)}
+          aria-label="Фильтр по практику"
+          className="rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
+          data-testid="reviews-filter-practitioner"
+        >
+          <option value="all">Все практики</option>
+          {practitioners.map(([slug, name]) => (
+            <option key={slug} value={slug}>{name}</option>
+          ))}
+        </select>
+        <input
+          type="search"
+          value={authorQuery}
+          onChange={(e) => setAuthorQuery(e.target.value)}
+          placeholder="Автор: имя или email"
+          aria-label="Поиск по автору отзыва"
+          className="rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
+          data-testid="reviews-filter-author"
+        />
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortMode)}
+          aria-label="Сортировка"
+          className="ml-auto rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
+          data-testid="reviews-sort"
+        >
+          <option value="date-desc">Сначала новые</option>
+          <option value="date-asc">Сначала старые</option>
+          <option value="rating-desc">Оценка: высокая → низкая</option>
+          <option value="rating-asc">Оценка: низкая → высокая</option>
+        </select>
+        <span className="text-xs text-muted-foreground">{visible.length}</span>
       </div>
 
       {visible.length === 0 ? (
@@ -144,7 +211,8 @@ export function ReviewsManager({
                       {r.text ? r.text : <span className="text-muted-foreground italic">без текста</span>}
                     </p>
                     <p className="mt-2 text-xs text-muted-foreground">
-                      {r.authorName} → практик <strong>{r.practitionerName}</strong> · {formatDate(r.createdAt)}
+                      {r.authorName}{r.authorEmail ? ` (${r.authorEmail})` : ""} → практик{" "}
+                      <strong>{r.practitionerName}</strong> · {formatDateTime(r.createdAt)}
                     </p>
                     {r.riskFlags.length > 0 && (
                       <p className="mt-1 text-xs text-red-400">{r.riskFlags.join(", ")}</p>
