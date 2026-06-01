@@ -22,6 +22,15 @@ export function PWAInstallPrompt() {
   useEffect(() => {
     if (isStandalone() || window.localStorage.getItem(DISMISSED_KEY) === "1") return;
 
+    // "Install the app" only makes sense for client-facing surfaces. In the
+    // admin/superadmin cabinet (desktop staff) the banner is irrelevant, and
+    // because we call preventDefault() Chrome logs an informational
+    // "Banner not shown: …preventDefault() called" notice there. Skip the admin
+    // area entirely so we never intercept the event where it isn't wanted.
+    const host = window.location.hostname;
+    const path = window.location.pathname;
+    if (host.startsWith("admin.") || path.startsWith("/admin")) return;
+
     function onBeforeInstallPrompt(event: Event) {
       event.preventDefault();
       setInstallEvent(event as BeforeInstallPromptEvent);
