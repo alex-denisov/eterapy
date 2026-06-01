@@ -29,6 +29,7 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { generateUniqueSlug } from "@/lib/slug";
+import { parsePractitionerVerificationMarker } from "@/lib/practitioner-verification";
 import type { Specialty } from "@prisma/client";
 import { log } from "@/lib/logger";
 
@@ -71,12 +72,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const isFirstApproval = status === "APPROVED" && application.status !== "APPROVED";
+  const verificationPractitionerId = parsePractitionerVerificationMarker(application.why);
 
   // Non-approval transition: just update status, no side effects.
   if (!isFirstApproval) {
     await db.practitionerApplication.update({ where: { id }, data: { status } });
     await logAudit(session.user!.id!, "PRACTITIONER_STATUS", id, `Заявка → ${status}`);
     return NextResponse.json({ ok: true, status, accountCreated: false });
+  }
+
+  if (verificationPractitionerId) {
+    const practitioner = await db.practitioner.findUnique({
+      where: { id: verificationPractitionerId },
+      select: { id: true, userId: true, user: { select: { email: true } } },
+    });
+    if (!practitioner || practitioner.user.email.toLowerCase() !== application.email.toLowerCase()) {
+      return NextResponse.json({ error: "Профиль практика для верификации не найден" }, { status: 404 });
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.practitioner.update({
+        where: { id: practitioner.id },
+        data: { verified: true },
+      });
+      await tx.practitionerApplication.update({
+        where: { id: application.id },
+        data: { status: "APPROVED" },
+      });
+    });
+    await logAudit(
+      session.user!.id!,
+      "PRACTITIONER_VERIFIED",
+      practitioner.userId,
+      `Верификация по заявке ${application.id}`,
+    );
+    return NextResponse.json({ ok: true, status: "APPROVED", verificationCompleted: true, practitionerId: practitioner.id });
   }
 
   // First-time APPROVED: create User + Practitioner + send reset email.

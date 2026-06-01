@@ -47,7 +47,7 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: appUrl("/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
   { href: appUrl("/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
   { href: appUrl("/practitioner/clients"), icon: Users, label: "Клиенты" },
-  { href: appUrl("/practitioner/earnings"), icon: Banknote, label: "Выплаты" },
+  { href: appUrl("/practitioner/earnings"), icon: Banknote, label: "Баланс" },
   { href: appUrl("/practitioner/reviews"), icon: Star, label: "Отзывы" },
   { href: appUrl("/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },
 ];

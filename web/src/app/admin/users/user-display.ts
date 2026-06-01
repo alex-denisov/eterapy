@@ -39,6 +39,14 @@ export interface AdminUserRow {
   bookingsCount: number;
   entitlementsCount: number;
   subscriptionsCount: number;
+  // U5 (antifraud): registration source + last-session provenance from logs.
+  registrationSource: string | null;
+  lastLogin: {
+    at: string;
+    ip: string | null;
+    device: string | null;
+    channel: string | null;
+  } | null;
 }
 
 export interface UserPermissions {

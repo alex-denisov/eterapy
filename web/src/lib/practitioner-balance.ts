@@ -7,7 +7,8 @@
  *   accruedNet     = sum(COMPLETED booking.priceRub) − commission
  *   paidOut        = sum(Payout.amountKopecks / 100) where status = DONE
  *   pendingPayout  = sum(Payout.amountKopecks / 100) where status in (PENDING, PROCESSING, HELD)
- *   currentBalance = accruedNet − paidOut − pendingPayout
+ *   internalCharges = practitioner-only charges paid from accrued earnings
+ *   currentBalance = accruedNet − paidOut − pendingPayout − internalCharges
  *
  * HELD payouts (created by `completeBookingAtSessionEnd` when an unresolved
  * complaint exists on the booking — see backlog 11.C.2/3) reserve money
@@ -17,13 +18,16 @@
  */
 
 import db from "@/lib/db";
+import { getBillingTransactionMetadata } from "@/lib/entitlements";
 
 export interface PractitionerBalance {
   practitionerId: string;
+  userId: string;
   commissionPercent: number;
   accruedNet: number;
   paidOut: number;
   pendingPayout: number;
+  internalCharges: number;
   currentBalance: number;
   completedSessionCount: number;
 }
@@ -40,7 +44,7 @@ export async function computePractitionerBalances(
   const [practitioners, bookings, payouts] = await Promise.all([
     db.practitioner.findMany({
       where: { id: { in: practitionerIds } },
-      select: { id: true, commissionPercent: true },
+      select: { id: true, userId: true, commissionPercent: true },
     }),
     db.booking.findMany({
       where: { practitionerId: { in: practitionerIds }, status: "COMPLETED" },
@@ -51,6 +55,13 @@ export async function computePractitionerBalances(
       select: { practitionerId: true, amountKopecks: true, status: true },
     }),
   ]);
+  const userIds = [...new Set(practitioners.map((p) => p.userId))];
+  const internalChargeTransactions = userIds.length > 0
+    ? await db.transaction.findMany({
+        where: { userId: { in: userIds }, status: "SUCCEEDED" },
+        select: { userId: true, amount: true, metadata: true },
+      })
+    : [];
 
   const result = new Map<string, PractitionerBalance>();
 
@@ -73,14 +84,28 @@ export async function computePractitionerBalances(
 
     const paidOut = Math.round(paidKopecks / 100);
     const pendingPayout = Math.round(pendingKopecks / 100);
-    const currentBalance = accruedNet - paidOut - pendingPayout;
+    const internalCharges = Math.round(
+      internalChargeTransactions
+        .filter((transaction) => {
+          if (transaction.userId !== p.userId) return false;
+          const metadata = getBillingTransactionMetadata(transaction);
+          return metadata.purchaseKind === "subscription"
+            && typeof metadata.planKey === "string"
+            && metadata.planKey.startsWith("practitioner_pro")
+            && metadata.checkoutSource === "practitioner_earnings_balance";
+        })
+        .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0) / 100,
+    );
+    const currentBalance = accruedNet - paidOut - pendingPayout - internalCharges;
 
     result.set(p.id, {
       practitionerId: p.id,
+      userId: p.userId,
       commissionPercent,
       accruedNet,
       paidOut,
       pendingPayout,
+      internalCharges,
       currentBalance,
       completedSessionCount: myBookings.length,
     });

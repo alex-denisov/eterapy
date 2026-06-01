@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
@@ -168,7 +169,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (!Number.isFinite(rub)) return NextResponse.json({ error: "Некорректный баланс" }, { status: 400 });
       const kopecks = Math.round(rub * 100);
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-      await db.user.update({ where: { id }, data: { balance: kopecks } });
+      const delta = kopecks - targetUser.balance;
+      await db.$transaction(async (tx) => {
+        await tx.user.update({ where: { id }, data: { balance: kopecks } });
+        if (delta !== 0) {
+          await tx.transaction.create({
+            data: {
+              userId: id,
+              amount: delta,
+              status: "SUCCEEDED",
+              provider: "manual",
+              description: reason || "Ручная корректировка баланса",
+              metadata: {
+                purchaseKind: "balance",
+                checkoutSource: "admin_manual_adjustment",
+                by: adminId,
+                reason: reason || "admin manual adjustment",
+              } as Prisma.InputJsonObject,
+            },
+          });
+        }
+      });
       await logAudit(adminId, "PROFILE_UPDATE", id, `balance=${kopecks}${reason ? ` (${reason})` : ""}`);
       return NextResponse.json({ ok: true });
     }

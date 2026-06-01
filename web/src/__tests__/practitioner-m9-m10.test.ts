@@ -9,6 +9,8 @@ describe("M9 — practitioner subscription CTA on Сводка", () => {
     expect(page).toContain('data-testid="practitioner-subscribe-cta"');
     expect(page).toContain("Подключить Practitioner Pro");
     expect(page).toContain("Управлять подпиской");
+    expect(page).toContain('href={appUrl("/practitioner/subscription")}');
+    expect(page).not.toContain('href={appUrl("/billing")}');
   });
 });
 

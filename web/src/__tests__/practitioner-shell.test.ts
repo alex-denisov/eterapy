@@ -9,7 +9,7 @@ describe("v5 practitioner shell", () => {
     expect(shell).toContain('label: "Настройки"'); // M10: profile page renamed to Настройки
     expect(shell).toContain('label: "Расписание"');
     expect(shell).toContain('label: "Клиенты"');
-    expect(shell).toContain('label: "Выплаты"');
+    expect(shell).toContain('label: "Баланс"');
   });
 
   it("exposes role-specific hooks for practitioner walkthroughs", () => {

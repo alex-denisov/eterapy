@@ -6,7 +6,9 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { computePractitionerBalance } from "@/lib/practitioner-balance";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
+import { PRACTITIONER_VERIFICATION_PREFIX } from "@/lib/practitioner-verification";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
+import { VerificationRequestCard } from "./verification-request-card";
 
 async function getPractitionerData(userId: string) {
   return db.practitioner.findUnique({
@@ -66,6 +68,7 @@ export default async function PractitionerCabinetPage() {
     complianceFlagCount,
     heldPayoutCount,
     riskyBookingCount,
+    verificationRequest,
   ] = await Promise.all([
     db.booking.findMany({
       where: { practitionerId: practitioner.id, status: "PENDING" },
@@ -106,6 +109,15 @@ export default async function PractitionerCabinetPage() {
     }),
     db.booking.count({
       where: { practitionerId: practitioner.id, OR: [{ riskScore: { gte: 50 } }, { riskFlags: { isEmpty: false } }] },
+    }),
+    db.practitionerApplication.findFirst({
+      where: {
+        email: practitioner.user.email,
+        why: { startsWith: PRACTITIONER_VERIFICATION_PREFIX },
+        status: { in: ["PENDING", "REVIEWING"] },
+      },
+      select: { status: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -262,13 +274,13 @@ export default async function PractitionerCabinetPage() {
                 <Link href={appUrl("/practitioner/services")} className="soft-chip">
                   Ссылки и widget →
                 </Link>
-                <Link href={appUrl("/billing")} className="soft-chip">
+                <Link href={appUrl("/practitioner/subscription")} className="soft-chip">
                   Управлять подпиской →
                 </Link>
               </div>
             ) : (
               <Link
-                href={appUrl("/billing")}
+                href={appUrl("/practitioner/subscription")}
                 className="soft-button soft-button-primary"
                 data-testid="practitioner-subscribe-cta"
               >
@@ -300,6 +312,9 @@ export default async function PractitionerCabinetPage() {
               <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
                 {practitioner.verified ? "Подтверждена" : "Нужна проверка"}
               </p>
+              {!practitioner.verified && (
+                <VerificationRequestCard pendingStatus={verificationRequest?.status ?? null} />
+              )}
             </div>
             <div className="soft-card-flat p-3">
               <p className="text-xs text-[var(--soft-ink-faint)]">Риск-профиль</p>

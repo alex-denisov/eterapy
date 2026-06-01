@@ -47,4 +47,12 @@ describe("M7 — single base price (60 min) per practitioner", () => {
     expect(editor).toContain("visiblePractitioners");
     expect(editor).toContain("setPracQuery");
   });
+
+  it("edits the 60-minute base price inline from the practitioner table", () => {
+    expect(editor).toContain("function startBasePriceEdit(practitioner: Practitioner)");
+    expect(editor).toContain("function saveBasePrice(practitioner: Practitioner)");
+    expect(editor).toContain("nextRatesWithBasePrice(practitioner, n)");
+    expect(editor).toContain("pricing-base-price-edit");
+    expect(editor).toContain("Сохранить базовую цену");
+  });
 });

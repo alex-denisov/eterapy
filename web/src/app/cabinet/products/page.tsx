@@ -2,20 +2,25 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, CheckCircle2, Sparkles, Wallet } from "lucide-react";
+import { ArrowRight, CheckCircle2, Wallet } from "lucide-react";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { auth } from "@/lib/auth";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import db from "@/lib/db";
-import { getProductCreditCost, listUserEntitlements } from "@/lib/entitlements";
+import { getProductCreditCost, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
 import { appUrl, loginUrl } from "@/lib/subdomain";
-import { v5Products } from "@/lib/v5-products";
+import { type V5Product, v5Products } from "@/lib/v5-products";
 
 function money(balanceKopecks: number) {
   return (balanceKopecks / 100).toLocaleString("ru-RU", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
+}
+
+function cabinetProductHref(product: V5Product) {
+  const href = product.directHref ?? product.route;
+  return href.startsWith("http") ? href : appUrl(href);
 }
 
 export default async function CabinetProductsPage() {
@@ -29,8 +34,17 @@ export default async function CabinetProductsPage() {
     listUserEntitlements(userId),
   ]);
   const activeProducts = new Set(access.entitlements.filter((item) => item.active).map((item) => item.productKey));
+  const activeSubscriptionProductKeys = new Set(
+    access.subscriptions
+      .filter((subscription) => subscription.active)
+      .flatMap((subscription) => {
+        const plan = getSubscriptionPlan(subscription.planKey);
+        const included = plan?.includedProducts ?? [];
+        return subscription.planKey === "premium" ? [...included, "circle", "pair"] : included;
+      }),
+  );
   const paidProducts = v5Products.filter((product) => product.productKey);
-  const freeProducts = v5Products.filter((product) => !product.productKey);
+  const supportProducts = v5Products.filter((product) => !product.productKey);
 
   return (
     <main className="max-w-6xl px-4 py-8 sm:px-6" data-testid="cabinet-products-page" style={{ paddingBottom: 80 }}>
@@ -73,7 +87,10 @@ export default async function CabinetProductsPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         {paidProducts.map((product) => {
           const creditCost = product.productKey ? getProductCreditCost(product.productKey) : null;
-          const unlocked = product.productKey ? activeProducts.has(product.productKey) : false;
+          const unlocked = product.productKey
+            ? activeProducts.has(product.productKey) || activeSubscriptionProductKeys.has(product.productKey)
+            : false;
+          const includedBySubscription = product.productKey ? activeSubscriptionProductKeys.has(product.productKey) : false;
           return (
             <article key={product.slug} className="soft-card p-5" data-testid={`cabinet-product-${product.slug}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -82,40 +99,41 @@ export default async function CabinetProductsPage() {
                   <h2 className="soft-h3 mt-2">{product.name}</h2>
                 </div>
                 <span className={unlocked ? "soft-badge soft-badge-warm" : "soft-badge"}>
-                  {unlocked ? "доступ открыт" : product.price}
+                  {unlocked ? (includedBySubscription ? "в подписке" : "доступ открыт") : product.price}
                 </span>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
-              <div className="mt-4 grid gap-2 text-xs text-[var(--soft-ink-soft)] sm:grid-cols-2">
-                {product.mechanics.slice(0, 4).map((item) => (
+              <div className="mt-4 grid gap-2 text-xs text-[var(--soft-ink-soft)] sm:grid-cols-3">
+                {product.mechanics.slice(0, 3).map((item) => (
                   <span key={item} className="flex items-start gap-2">
                     <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                     {item}
                   </span>
                 ))}
               </div>
-              <div className="mt-5 flex flex-wrap items-center gap-3">
+              <div className="mt-5 rounded-lg border border-[var(--soft-paper-edge)] bg-[color-mix(in_srgb,var(--soft-paper-card)_88%,white)] p-3">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--soft-bordeaux)]">{unlocked ? "Услуга доступна" : "Купить услугу"}</p>
+                    <p className="text-xs text-[var(--soft-ink-faint)]">{unlocked ? "Открывайте без повторной оплаты" : product.priceMeta}</p>
+                  </div>
+                  <Link href={appUrl(product.route)} className="soft-chip">
+                    Подробнее
+                  </Link>
+                </div>
                 {product.productKey && !unlocked ? (
                   <ProductPurchaseControls
                     productKey={product.productKey}
-                    label="Открыть с баланса"
+                    label="Купить"
                     checkoutSource={`cabinet-products-${product.slug}`}
                     creditCost={creditCost}
+                    variant="catalog"
                   />
                 ) : (
                   <Link href={appUrl(product.route)} className="soft-button soft-button-primary">
-                    Открыть механику
+                    Открыть
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </Link>
-                )}
-                <Link href={appUrl(product.route)} className="soft-button soft-button-ghost">
-                  Подробнее
-                </Link>
-                {creditCost && (
-                  <span className="inline-flex items-center gap-1 text-xs text-[var(--soft-ink-faint)]">
-                    <Sparkles className="size-3.5" aria-hidden="true" />
-                    {creditCost} кредита
-                  </span>
                 )}
               </div>
             </article>
@@ -123,17 +141,29 @@ export default async function CabinetProductsPage() {
         })}
       </section>
 
-      <section className="mt-5 grid gap-4 md:grid-cols-2">
-        {freeProducts.map((product) => (
-          <article key={product.slug} id={product.slug} className="soft-card-flat p-5">
-            <p className="soft-eyebrow">{product.eyebrow}</p>
-            <h2 className="soft-h3 mt-2">{product.name}</h2>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
-            <Link href={appUrl(product.directHref ?? product.route)} className="soft-chip mt-4 inline-flex">
-              {product.directCta ?? product.cta} →
-            </Link>
-          </article>
-        ))}
+      <section className="mt-6" aria-label="Ритм и живые встречи">
+        <div className="mb-3">
+          <p className="soft-eyebrow">без покупки цифрового отчёта</p>
+          <h2 className="soft-h3 mt-2">Ритм и живые встречи</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {supportProducts.map((product) => (
+            <article key={product.slug} id={product.slug} className="soft-card-flat p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="soft-eyebrow">{product.slug === "clarity-practice" ? "ежедневная практика" : "живая встреча"}</p>
+                  <h3 className="soft-h3 mt-2">{product.name}</h3>
+                </div>
+                <span className="soft-badge">{product.price}</span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
+              <Link href={cabinetProductHref(product)} className="soft-button soft-button-primary mt-4 inline-flex">
+                {product.directCta ?? product.cta}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );

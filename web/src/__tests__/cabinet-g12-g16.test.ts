@@ -10,6 +10,13 @@ describe("G16 — practitioner header hides «Новый разбор»", () => 
     // Mobile «Начать диалог» reuses the same gate so practitioners never see it.
     expect(header).toContain("{showNewDialogueCta && (");
   });
+
+  it("shows practitioners a money-only balance without clarity credits", () => {
+    const header = source("src/components/header.tsx");
+    expect(header).toContain("const showPractitionerMoneyBalance = isAuthenticated && isPractitioner;");
+    expect(header).toContain("header-money-balance");
+    expect(header).toContain('href={appUrl("/practitioner/earnings")}');
+  });
 });
 
 describe("G12 — action-history «все элементы карты» readable cards", () => {

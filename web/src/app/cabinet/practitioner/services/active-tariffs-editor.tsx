@@ -75,10 +75,10 @@ export function ActiveTariffsEditor({
         return (
           <article
             key={rate.id}
-            className="soft-card-flat flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"
+            className="soft-card-flat grid gap-4 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
             style={{ opacity: rate.enabled ? 1 : 0.62 }}
           >
-            <div className="flex items-start gap-4">
+            <div className="flex min-w-0 items-start gap-4">
               <div className="mt-0.5">
                 <ToggleSwitch
                   enabled={rate.enabled}
@@ -87,7 +87,7 @@ export function ActiveTariffsEditor({
                   label="Показывать тариф клиентам"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-semibold text-[var(--soft-ink)]">Индивидуальная сессия</h2>
                   <span className="soft-badge soft-badge-lilac text-[11px]">{rate.durationMin} мин</span>
@@ -98,8 +98,8 @@ export function ActiveTariffsEditor({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 sm:justify-end">
-              <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
+            <div className="flex items-center justify-end sm:w-32">
+              <p className="whitespace-nowrap text-right font-heading text-2xl font-semibold tabular-nums text-[var(--soft-bordeaux)]">
                 {rate.priceRub.toLocaleString("ru-RU")} ₽
               </p>
             </div>

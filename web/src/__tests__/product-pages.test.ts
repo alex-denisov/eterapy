@@ -120,7 +120,12 @@ describe("v5 product pages", () => {
 
     expect(cabinetProducts).toContain('data-testid="cabinet-products-page"');
     expect(cabinetProducts).toContain("<ProductPurchaseControls");
+    expect(cabinetProducts).toContain('variant="catalog"');
+    expect(cabinetProducts).toContain("Купить услугу");
+    expect(cabinetProducts).toContain("Ритм и живые встречи");
     expect(cabinetProducts).toContain('appUrl("/billing")');
+    expect(cabinetProducts).not.toContain("Открыть механику");
+    expect(source("components/products/product-purchase-controls.tsx")).toContain('variant?: "default" | "catalog"');
     expect(credits).toContain('data-testid="cabinet-credits-page"');
     expect(credits).toContain("getClarityCreditBalance");
     expect(shell).toContain('appUrl("/practice")');

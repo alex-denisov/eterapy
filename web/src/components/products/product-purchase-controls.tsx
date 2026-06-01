@@ -14,6 +14,7 @@ type ProductPurchaseControlsProps = {
   checkoutSource: string;
   creditCost?: number | null;
   className?: string;
+  variant?: "default" | "catalog";
   onUnlocked?: () => void;
 };
 
@@ -39,6 +40,7 @@ export function ProductPurchaseControls({
   checkoutSource,
   creditCost,
   className,
+  variant = "default",
   onUnlocked,
 }: ProductPurchaseControlsProps) {
   const pathname = usePathname();
@@ -106,6 +108,66 @@ export function ProductPurchaseControls({
         {label}
         <ArrowRight className="size-4" aria-hidden="true" />
       </Link>
+    );
+  }
+
+  if (variant === "catalog") {
+    return (
+      <div className="soft-product-purchase-controls min-w-0" data-testid={`product-purchase-${productKey}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={cn("soft-button soft-button-primary", className)}
+            disabled={busy}
+            onClick={payFromBalance}
+            data-analytics-event="balance_product_checkout_clicked"
+            data-analytics-product={productKey}
+            data-analytics-checkout-source={checkoutSource}
+          >
+            {action === "balance" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Wallet className="size-4" aria-hidden="true" />}
+            {action === "balance" ? "Покупаем" : label}
+          </button>
+          {typeof creditCost === "number" && creditCost > 0 && (
+            <button
+              type="button"
+              className="soft-chip h-9 justify-center px-3"
+              disabled={busy}
+              onClick={payWithCredits}
+              title={`Оплатить кредитами ясности: ${creditCost}`}
+              aria-label={`Оплатить кредитами ясности: ${creditCost}`}
+              data-analytics-event="credits_spend_clicked"
+              data-analytics-product={productKey}
+              data-analytics-checkout-source={checkoutSource}
+            >
+              {action === "credits" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Coins className="size-4" aria-hidden="true" />}
+              <span className="text-xs font-semibold">{creditCost}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="soft-chip h-9 justify-center px-3"
+            disabled={busy}
+            onClick={payWithCard}
+            title="Оплатить картой"
+            aria-label="Оплатить картой"
+            data-analytics-event="direct_product_checkout_clicked"
+            data-analytics-product={productKey}
+            data-analytics-checkout-source={checkoutSource}
+          >
+            {action === "card" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <CreditCard className="size-4" aria-hidden="true" />}
+          </button>
+        </div>
+        {message && (
+          <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
+            {message}{" "}
+            {message.includes("Пополните") && (
+              <Link href={appUrl("/billing")} prefetch={false} className="font-semibold underline">
+                Пополнить
+              </Link>
+            )}
+          </p>
+        )}
+      </div>
     );
   }
 

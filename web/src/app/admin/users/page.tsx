@@ -128,6 +128,7 @@ export default async function AdminUsersPage(props: {
         freeToolsLimit: true,
         balance: true,
         provider: true,
+        registrationChannel: true,
         telegramUsername: true,
         practitioner: {
           select: {
@@ -182,6 +183,31 @@ export default async function AdminUsersPage(props: {
     : [];
   const creditByUser = new Map(creditSums.map((row) => [row.userId, row._sum.amount ?? 0]));
 
+  // U5 (antifraud): latest LOGIN audit per user → last-session timestamp + IP +
+  // device + channel. distinct + desc returns the most recent row per user.
+  const loginEvents = users.length > 0
+    ? await db.auditLog.findMany({
+      where: { userId: { in: users.map((u) => u.id) }, action: "LOGIN" },
+      orderBy: { createdAt: "desc" },
+      distinct: ["userId"],
+      select: { userId: true, createdAt: true, ip: true, details: true },
+    })
+    : [];
+  const lastLoginByUser = new Map(loginEvents.map((event) => {
+    let device: string | null = null;
+    let channel: string | null = null;
+    if (event.details) {
+      try {
+        const parsed = JSON.parse(event.details) as { device?: unknown; channel?: unknown };
+        device = typeof parsed.device === "string" ? parsed.device : null;
+        channel = typeof parsed.channel === "string" ? parsed.channel : null;
+      } catch {
+        // legacy plain-text details ("Email: …" / "OAuth: …") — no structured data.
+      }
+    }
+    return [event.userId, { at: event.createdAt.toISOString(), ip: event.ip, device, channel }];
+  }));
+
   const rows: AdminUserRow[] = users.map((user) => ({
     id: user.id,
     name: user.name,
@@ -211,6 +237,8 @@ export default async function AdminUsersPage(props: {
     bookingsCount: user._count.bookingsAsClient,
     entitlementsCount: user._count.entitlements,
     subscriptionsCount: user._count.subscriptions,
+    registrationSource: user.registrationChannel ?? user.provider ?? null,
+    lastLogin: lastLoginByUser.get(user.id) ?? null,
   }));
 
   const canCreate = role === "SUPERADMIN"

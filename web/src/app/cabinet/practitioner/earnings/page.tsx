@@ -3,8 +3,9 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { ArrowDownCircle, ArrowUpCircle, Wallet, CalendarClock } from "lucide-react";
+import { CalendarClock, Wallet } from "lucide-react";
 import { PAYOUT_TZ, formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedule";
+import { EarningsMovementsTable, type EarningsMovementRow } from "./earnings-movements-table";
 
 interface Movement {
   id: string;
@@ -13,6 +14,7 @@ interface Movement {
   amountRub: number;
   label: string;
   sublabel: string;
+  status: string;
 }
 
 export default async function PractitionerEarningsPage() {
@@ -29,7 +31,7 @@ export default async function PractitionerEarningsPage() {
   const commissionPercent = practitioner.commissionPercent ?? 25;
   const commission = commissionPercent / 100;
 
-  const [completedBookings, payouts] = await Promise.all([
+  const [completedBookings, payouts, userBalance] = await Promise.all([
     db.booking.findMany({
       where: { practitionerId: practitioner.id, status: "COMPLETED" },
       orderBy: { createdAt: "desc" },
@@ -38,6 +40,10 @@ export default async function PractitionerEarningsPage() {
     db.payout.findMany({
       where: { practitionerId: practitioner.id },
       orderBy: { createdAt: "desc" },
+    }),
+    db.user.findUnique({
+      where: { id: session.user!.id },
+      select: { balance: true },
     }),
   ]);
 
@@ -58,6 +64,7 @@ export default async function PractitionerEarningsPage() {
   const pendingPayout = Math.round(pendingPayoutKopecks / 100);
 
   const currentBalance = accruedNet - paidOut - pendingPayout;
+  const cabinetBalanceRub = Math.round((userBalance?.balance ?? 0) / 100);
 
   const now = new Date();
   const nextPayoutOn = nextPayoutDate(now);
@@ -93,6 +100,7 @@ export default async function PractitionerEarningsPage() {
       amountRub: netOf(b.priceRub),
       label: `Сессия · ${b.client.name}`,
       sublabel: `${b.priceRub.toLocaleString("ru")} ₽ − ${commissionPercent}% комиссия`,
+      status: "COMPLETED",
     })),
     ...payouts.map<Movement>((p) => {
       const labels: Record<string, string> = {
@@ -113,20 +121,26 @@ export default async function PractitionerEarningsPage() {
         amountRub: netRub,
         label: labels[p.status] ?? "Выплата",
         sublabel: `Сессия · ${grossRub.toLocaleString("ru")} ₽ − комиссия ${feeRub.toLocaleString("ru")} ₽ (${commissionPercent}%)`,
+        status: p.status,
       };
     }),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
+  const movementRows: EarningsMovementRow[] = movements.map((movement) => ({
+    ...movement,
+    dateIso: movement.date.toISOString(),
+  }));
+
   return (
     <div className="p-6 md:p-8 max-w-5xl">
       <div className="soft-eyebrow">Финансы практика</div>
-      <h1 className="soft-h1 mt-2 mb-1">Выплаты и доходы</h1>
+      <h1 className="soft-h1 mt-2 mb-1">Баланс и доходы</h1>
       <p className="text-sm mb-6" style={{ color: "var(--soft-ink-soft)" }}>
-        Баланс, движение средств и предстоящие выплаты. Комиссия платформы · {commissionPercent}%
+        Денежный баланс кабинета, движение средств и предстоящие выплаты.
       </p>
 
       {/* Баланс + следующая выплата */}
-      <div className="grid gap-3 sm:grid-cols-2 mb-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-6">
         <div className="soft-card">
           <div className="p-4">
             <div className="flex items-start gap-3">
@@ -134,12 +148,31 @@ export default async function PractitionerEarningsPage() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--soft-ink-soft)]">Текущий баланс</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Баланс кабинета</p>
+                <p className="font-heading text-2xl font-bold text-primary tabular-nums">
+                  {cabinetBalanceRub.toLocaleString("ru")} ₽
+                </p>
+                <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
+                  Для подписки Practitioner Pro и внутренних покупок
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="soft-card">
+          <div className="p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-[var(--soft-ink-soft)]">К выплате</p>
                 <p className="font-heading text-2xl font-bold text-primary tabular-nums">
                   {currentBalance.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  К выплате на следующую дату
+                  После комиссии, hold и уже запрошенных выплат
                 </p>
               </div>
             </div>
@@ -195,42 +228,7 @@ export default async function PractitionerEarningsPage() {
       {/* Движение средств */}
       <div className="mb-6">
         <h2 className="font-semibold mb-3">Движение средств</h2>
-        {movements.length === 0 ? (
-          <div className="soft-card p-8 text-center text-sm text-[var(--soft-ink-soft)]">
-            Нет движений. Доход появится после первой завершённой сессии.
-          </div>
-        ) : (
-          <div className="soft-card overflow-hidden divide-y divide-border/10">
-            {movements.map((m) => {
-              const isEarning = m.kind === "earning";
-              return (
-                <div key={m.id} className="flex items-center gap-3 px-4 py-3">
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                      isEarning ? "bg-green-500/10 text-green-400" : "bg-orange-500/10 text-orange-400"
-                    }`}
-                  >
-                    {isEarning ? <ArrowDownCircle className="h-4 w-4" /> : <ArrowUpCircle className="h-4 w-4" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{m.label}</p>
-                    <p className="text-xs text-[var(--soft-ink-soft)] truncate">
-                      {formatPayoutDate(m.date)} · {m.sublabel}
-                    </p>
-                  </div>
-                  <p
-                    className={`text-sm font-medium tabular-nums whitespace-nowrap ${
-                      isEarning ? "text-green-400" : "text-orange-400"
-                    }`}
-                  >
-                    {isEarning ? "+" : "−"}
-                    {m.amountRub.toLocaleString("ru")} ₽
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <EarningsMovementsTable rows={movementRows} />
       </div>
 
       {/* По месяцам */}

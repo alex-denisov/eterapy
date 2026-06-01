@@ -1808,6 +1808,35 @@
     opacity: 0.48;
   }
 
+  .soft-admin-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 999px;
+    background: var(--soft-paper-card);
+    color: var(--soft-bordeaux);
+    transition: background-color var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-admin-icon-button:hover {
+    border-color: var(--soft-terracotta);
+    background: var(--soft-apricot);
+  }
+
+  .soft-admin-icon-button[data-variant="primary"] {
+    border-color: var(--soft-terracotta);
+    background: var(--soft-terracotta);
+    color: #fff8f1;
+  }
+
+  .soft-admin-icon-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+  }
+
   /* Unified admin segmented control / filter-tab button (D3, D5).
      Replaces the low-contrast `bg-primary/15 text-primary` toggles whose
      active text was unreadable. Active = bordeaux fill + light text. */

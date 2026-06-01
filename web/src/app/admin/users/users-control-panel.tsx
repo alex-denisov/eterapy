@@ -308,6 +308,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="balance" label="Баланс, ₽" /></th>
             <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Кредиты" hint="Кредиты ясности (только клиенты)" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" /></th>
             <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" /></th>
             <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Брони" hint="Количество бронирований сессий" /></th>
             <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Покупки" hint="Оплаченные продукты (entitlements)" /></th>
@@ -318,7 +319,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={12} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
+              <td colSpan={13} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
             </tr>
           ) : rows.map((row) => {
             const status = statusOf(row);
@@ -334,6 +335,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 <td className={NUM_CELL}>{Math.round(row.balance / 100).toLocaleString("ru-RU")}</td>
                 <td className={NUM_CELL}>{row.role === "CLIENT" ? row.clarityCredits : "—"}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{row.lastLogin ? new Date(row.lastLogin.at).toLocaleDateString("ru-RU") : "—"}</td>
                 <td className={NUM_CELL}>{row.freeToolsLimit == null ? "—" : row.freeToolsLimit === 0 ? "∞" : row.freeToolsLimit}</td>
                 <td className={NUM_CELL}>{row.bookingsCount}</td>
                 <td className={NUM_CELL}>{row.entitlementsCount}</td>

@@ -169,7 +169,17 @@ describe('Auth Configuration', () => {
 
       await authorize({ email: mockUser.email, password: 'correct' });
 
-      expect(logAudit).toHaveBeenCalledWith(mockUser.id, 'LOGIN', undefined, `Email: ${mockUser.email}`);
+      expect(logAudit).toHaveBeenCalledWith(
+        mockUser.id,
+        'LOGIN',
+        undefined,
+        expect.stringContaining('"method":"email"'),
+        undefined,
+      );
+      expect(JSON.parse((logAudit as jest.Mock).mock.calls[0][3])).toMatchObject({
+        method: 'email',
+        channel: 'email',
+      });
     });
 
     describe('Impersonation token', () => {

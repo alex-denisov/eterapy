@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Fragment } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 
@@ -104,6 +105,9 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
   // M6/M7: per-practitioner commission editing + search/sort on the rates table.
   const [commissionDraft, setCommissionDraft] = useState<Record<string, string>>({});
   const [savingCommission, setSavingCommission] = useState<string | null>(null);
+  const [basePriceDraft, setBasePriceDraft] = useState<Record<string, string>>({});
+  const [editingBasePrice, setEditingBasePrice] = useState<string | null>(null);
+  const [savingBasePrice, setSavingBasePrice] = useState<string | null>(null);
   const [pracQuery, setPracQuery] = useState("");
   const [pracSort, setPracSort] = useState<"name" | "price" | "commission">("price");
   const [pracDir, setPracDir] = useState<"asc" | "desc">("asc");
@@ -157,6 +161,55 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
       toast.error("Ошибка сети");
     } finally {
       setSavingCommission(null);
+    }
+  }
+
+  function startBasePriceEdit(practitioner: Practitioner) {
+    const current = basePrice60(practitioner);
+    setBasePriceDraft((draft) => ({ ...draft, [practitioner.id]: String(current ?? "") }));
+    setEditingBasePrice(practitioner.id);
+  }
+
+  function nextRatesWithBasePrice(practitioner: Practitioner, priceRub: number) {
+    const rates = new Map<number, PriceRate>();
+    for (const rate of practitioner.priceRates) {
+      rates.set(rate.durationMin, rate);
+    }
+    const current = rates.get(60);
+    rates.set(60, {
+      durationMin: 60,
+      priceRub,
+      enabled: current?.enabled ?? true,
+    });
+    return [...rates.values()].sort((a, b) => a.durationMin - b.durationMin);
+  }
+
+  async function saveBasePrice(practitioner: Practitioner) {
+    const raw = basePriceDraft[practitioner.id] ?? "";
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 0) {
+      toast.error("Базовая цена должна быть целым числом от 0 ₽");
+      return;
+    }
+    setSavingBasePrice(practitioner.id);
+    try {
+      const res = await fetch(`/api/admin/practitioners/${practitioner.id}/rates`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rates: nextRatesWithBasePrice(practitioner, n) }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast.success("Базовая цена обновлена");
+        setEditingBasePrice(null);
+        router.refresh();
+      } else {
+        toast.error(data.error ?? "Ошибка");
+      }
+    } catch {
+      toast.error("Ошибка сети");
+    } finally {
+      setSavingBasePrice(null);
     }
   }
 
@@ -368,7 +421,57 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                       <td>{practitioner.user.name}</td>
                       <td>{practitioner.user.email}</td>
                       <td><span className="soft-admin-status-pill" data-tone={practitioner.status === "ACTIVE" ? "ok" : "warn"}>{practitioner.status}</span></td>
-                      <td>{base !== null ? `${base.toLocaleString("ru-RU")} ₽` : "—"}</td>
+                      <td>
+                        <div className="relative inline-flex items-center gap-1.5">
+                          <span className="whitespace-nowrap tabular-nums">
+                            {base !== null ? `${base.toLocaleString("ru-RU")} ₽` : "—"}
+                          </span>
+                          <button
+                            type="button"
+                            className="soft-admin-icon-button"
+                            onClick={() => startBasePriceEdit(practitioner)}
+                            aria-label={`Изменить базовую цену ${practitioner.user.email}`}
+                            title="Изменить базовую цену"
+                            data-testid="pricing-base-price-edit"
+                          >
+                            <Pencil className="size-3.5" aria-hidden="true" />
+                          </button>
+                          {editingBasePrice === practitioner.id && (
+                            <div className="absolute left-0 top-full z-20 mt-1 flex items-center gap-1 rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-1.5 shadow-[var(--soft-shadow-sm)]">
+                              <input
+                                type="number"
+                                min={0}
+                                step={50}
+                                value={basePriceDraft[practitioner.id] ?? ""}
+                                onChange={(event) => setBasePriceDraft((draft) => ({ ...draft, [practitioner.id]: event.target.value }))}
+                                className="soft-admin-table-filter mt-0 h-8 w-28 min-w-28"
+                                aria-label={`Базовая цена ${practitioner.user.email}`}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                className="soft-admin-icon-button"
+                                data-variant="primary"
+                                disabled={savingBasePrice === practitioner.id}
+                                onClick={() => saveBasePrice(practitioner)}
+                                aria-label="Сохранить базовую цену"
+                                title="Сохранить"
+                              >
+                                <Check className="size-3.5" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                className="soft-admin-icon-button"
+                                onClick={() => setEditingBasePrice(null)}
+                                aria-label="Отменить изменение базовой цены"
+                                title="Отменить"
+                              >
+                                <X className="size-3.5" aria-hidden="true" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td>
                         <div className="flex items-center gap-1">
                           <input

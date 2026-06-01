@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 
 interface Application {
   id: string;
+  kind: "APPLICATION" | "VERIFICATION";
+  verificationPractitionerId: string | null;
   name: string;
   email: string;
   telegram: string | null;
@@ -54,7 +56,9 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
     const d = await res.json();
     if (d.ok) {
       setApps(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-      if (d.accountCreated) {
+      if (d.verificationCompleted) {
+        toast.success("Практик верифицирован · статус появится в кабинете и публичной карточке");
+      } else if (d.accountCreated) {
         toast.success(
           `Аккаунт практика создан · письмо со ссылкой на установку пароля отправлено на ${d.practitioner?.email ?? "указанный email"}`,
         );
@@ -100,6 +104,9 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="font-medium">{a.name}</p>
                       <Badge className={`${meta.color} text-xs`}>{meta.label}</Badge>
+                      {a.kind === "VERIFICATION" && (
+                        <Badge className="bg-primary/10 text-primary text-xs">Верификация</Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {a.email}
@@ -127,7 +134,16 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                       <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{a.about}</p>
                     </div>
 
-                    {a.why && (
+                    {a.kind === "VERIFICATION" && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Тип заявки</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Практик просит подтвердить личность/документы. При одобрении будет выставлен флаг verified.
+                        </p>
+                      </div>
+                    )}
+
+                    {a.why && a.kind !== "VERIFICATION" && (
                       <div>
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Почему ETerapy</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">{a.why}</p>

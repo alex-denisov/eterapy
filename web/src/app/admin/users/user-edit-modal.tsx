@@ -192,6 +192,34 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
         )}
 
         <div className="space-y-5">
+          {/* U5 — security / antifraud provenance (read-only, from the audit log) */}
+          <section>
+            <h3 className={`mb-2 ${LABEL}`}>Безопасность и антифрод</h3>
+            <dl className="grid gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
+              <div className="flex justify-between gap-2">
+                <dt className="text-[var(--soft-ink-faint)]">Источник регистрации</dt>
+                <dd className="font-medium text-[var(--soft-ink-strong)]">{row.registrationSource || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-[var(--soft-ink-faint)]">Последняя сессия</dt>
+                <dd className="font-medium text-[var(--soft-ink-strong)]">{row.lastLogin ? new Date(row.lastLogin.at).toLocaleString("ru-RU") : "нет данных"}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-[var(--soft-ink-faint)]">IP последнего входа</dt>
+                <dd className="font-mono text-[var(--soft-ink-strong)]">{row.lastLogin?.ip || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-[var(--soft-ink-faint)]">Устройство</dt>
+                <dd className="font-medium text-[var(--soft-ink-strong)]">{row.lastLogin?.device || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-[var(--soft-ink-faint)]">Канал входа</dt>
+                <dd className="font-medium text-[var(--soft-ink-strong)]">{row.lastLogin?.channel || "—"}</dd>
+              </div>
+            </dl>
+            <p className="mt-1.5 text-[10px] text-[var(--soft-ink-faint)]">Полная история входов — в разделе «Логи» (события LOGIN).</p>
+          </section>
+
           {/* Profile */}
           <section>
             <h3 className={`mb-2 ${LABEL}`}>Профиль</h3>

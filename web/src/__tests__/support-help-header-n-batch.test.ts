@@ -38,10 +38,9 @@ describe("N5/N7/N8 — header", () => {
     expect(header).not.toContain('pathname.startsWith("/help") || isAppHost');
   });
 
-  it("adds the client-only «Разобрать глубже» service CTA (N8)", () => {
-    expect(header).toContain("header-deepen-cta");
-    expect(header).toContain('data-analytics-event="deepening_option_clicked"');
-    expect(header).toContain("Разобрать глубже");
+  it("keeps the header CTA focused on one client dialogue action (N8)", () => {
+    expect(header).not.toContain("header-deepen-cta");
+    expect(header).not.toContain("Разобрать глубже");
     expect(header).toContain("header-credits-topup");
   });
 });

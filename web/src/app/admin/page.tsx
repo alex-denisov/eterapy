@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { getBookingStatus } from "@/lib/booking-status";
+import { getBillingTransactionMetadata } from "@/lib/entitlements";
 import { AdminActions } from "./admin-actions";
 import { DeepMetrics } from "./deep-metrics";
 
@@ -129,6 +130,11 @@ async function getStats(canViewBusiness: boolean) {
     newClientsMonth,
     bookingRevenue30d,
     bookingRevenueAll,
+    financeBookings,
+    financeTransactions,
+    payoutStatusSums,
+    disputedComplaints,
+    refundedBookings,
     totalBalance,
     clarityCreditBalance,
     activeSubscriptions,
@@ -150,6 +156,30 @@ async function getStats(canViewBusiness: boolean) {
     db.booking.aggregate({
       _sum: { priceRub: true },
       where: { status: BookingStatus.COMPLETED, priceRub: { gt: 0 } },
+    }),
+    db.booking.findMany({
+      where: { status: BookingStatus.COMPLETED, priceRub: { gt: 0 } },
+      select: {
+        priceRub: true,
+        updatedAt: true,
+        practitioner: { select: { commissionPercent: true } },
+      },
+    }),
+    db.transaction.findMany({
+      where: { status: TransactionStatus.SUCCEEDED },
+      select: { amount: true, provider: true, metadata: true, createdAt: true },
+    }),
+    db.payout.groupBy({
+      by: ["status"],
+      _sum: { amountKopecks: true },
+    }),
+    db.complaint.findMany({
+      where: { status: { in: ["OPEN", "REVIEWING"] } },
+      select: { booking: { select: { priceRub: true } } },
+    }),
+    db.booking.aggregate({
+      _sum: { priceRub: true },
+      where: { status: BookingStatus.REFUNDED, priceRub: { gt: 0 } },
     }),
     db.user.aggregate({ _sum: { balance: true } }),
     db.clarityCreditLedgerEntry.aggregate({
@@ -198,6 +228,48 @@ async function getStats(canViewBusiness: boolean) {
     }))
     .sort((a, b) => b.estimateRub - a.estimateRub);
   const estimatedProductRevenueRub = productRevenue.reduce((sum, row) => sum + row.estimateRub, 0);
+  const sessionGrossAllRub = financeBookings.reduce((sum, booking) => sum + booking.priceRub, 0);
+  const sessionPlatformFeeAllRub = financeBookings.reduce((sum, booking) => {
+    const commissionPercent = booking.practitioner.commissionPercent ?? 25;
+    return sum + Math.round((booking.priceRub * commissionPercent) / 100);
+  }, 0);
+  const sessionGross30dRub = financeBookings
+    .filter((booking) => booking.updatedAt >= thirtyDaysAgo)
+    .reduce((sum, booking) => sum + booking.priceRub, 0);
+  const sessionPlatformFee30dRub = financeBookings
+    .filter((booking) => booking.updatedAt >= thirtyDaysAgo)
+    .reduce((sum, booking) => {
+      const commissionPercent = booking.practitioner.commissionPercent ?? 25;
+      return sum + Math.round((booking.priceRub * commissionPercent) / 100);
+    }, 0);
+  const payoutAmountByStatus = new Map(
+    payoutStatusSums.map((row) => [row.status, Math.round((row._sum.amountKopecks ?? 0) / 100)]),
+  );
+  const finance = financeTransactions.reduce((acc, tx) => {
+    const metadata = getBillingTransactionMetadata(tx);
+    const rub = Math.round(Math.abs(tx.amount) / 100);
+    if (tx.amount > 0 && metadata.purchaseKind === "balance") {
+      if (tx.provider === "yookassa") acc.acquirerBalanceCreditsRub += rub;
+      if (tx.provider === "manual" || tx.provider === "internal") acc.manualBalanceCreditsRub += rub;
+    }
+    if (tx.amount > 0 && metadata.purchaseKind === "product") {
+      acc.digitalProductRevenueRub += rub;
+    }
+    if (tx.amount > 0 && metadata.purchaseKind === "subscription") {
+      if (metadata.planKey?.startsWith("practitioner_pro")) {
+        acc.practitionerSubscriptionRevenueRub += rub;
+      } else {
+        acc.clientSubscriptionRevenueRub += rub;
+      }
+    }
+    return acc;
+  }, {
+    acquirerBalanceCreditsRub: 0,
+    manualBalanceCreditsRub: 0,
+    digitalProductRevenueRub: 0,
+    clientSubscriptionRevenueRub: 0,
+    practitionerSubscriptionRevenueRub: 0,
+  });
 
   return {
     totalUsers,
@@ -219,6 +291,18 @@ async function getStats(canViewBusiness: boolean) {
       newClientsMonth,
       bookingRevenue30d: bookingRevenue30d._sum.priceRub ?? 0,
       bookingRevenueAll: bookingRevenueAll._sum.priceRub ?? 0,
+      sessionGrossAllRub,
+      sessionGross30dRub,
+      sessionPlatformFeeAllRub,
+      sessionPlatformFee30dRub,
+      practitionerNetAccruedRub: sessionGrossAllRub - sessionPlatformFeeAllRub,
+      heldPayoutAmountRub: payoutAmountByStatus.get("HELD") ?? 0,
+      pendingPayoutAmountRub: (payoutAmountByStatus.get("PENDING") ?? 0) + (payoutAmountByStatus.get("PROCESSING") ?? 0),
+      paidPayoutAmountRub: payoutAmountByStatus.get("DONE") ?? 0,
+      failedPayoutAmountRub: payoutAmountByStatus.get("FAILED") ?? 0,
+      disputedPotentialRefundsRub: disputedComplaints.reduce((sum, complaint) => sum + complaint.booking.priceRub, 0),
+      refundedBookingsRub: refundedBookings._sum.priceRub ?? 0,
+      ...finance,
       totalBalanceRub: Math.round((totalBalance._sum.balance ?? 0) / 100),
       clarityCreditBalance: clarityCreditBalance._sum.amount ?? 0,
       activeSubscriptions,
@@ -333,7 +417,7 @@ export default async function AdminPage() {
 
           <div className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
-              <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Деньги и покупки</h2>
+              <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Финансовый контур владельца</h2>
               <div className="overflow-x-auto">
                 <table className="soft-admin-data-table">
                   <thead>
@@ -346,11 +430,23 @@ export default async function AdminPage() {
                   <tbody>
                     <tr><td>Новых клиентов сегодня</td><td>{formatNumber(business.newClientsToday)}</td><td>CLIENT за текущие сутки</td></tr>
                     <tr><td>Новых клиентов в месяце</td><td>{formatNumber(business.newClientsMonth)}</td><td>CLIENT с начала месяца</td></tr>
-                    <tr><td>Выручка сессий 30 дней</td><td>{formatRub(business.bookingRevenue30d)}</td><td>COMPLETED бронирования</td></tr>
-                    <tr><td>Выручка цифровых продуктов 30 дней</td><td>{formatRub(business.transactionProductRevenueRub || business.estimatedProductRevenueRub)}</td><td>{business.transactionProductRevenueRub ? "по транзакциям" : "оценка по ProductEntitlement"}</td></tr>
-                    <tr><td>Активные подписки</td><td>{formatNumber(business.activeSubscriptions)}</td><td>TRIALING + ACTIVE</td></tr>
-                    <tr><td>Баланс клиентов</td><td>{formatRub(business.totalBalanceRub)}</td><td>денежный баланс в кабинетах</td></tr>
+                    <tr><td>Оборот сессий 30 дней</td><td>{formatRub(business.sessionGross30dRub)}</td><td>COMPLETED бронирования практиков</td></tr>
+                    <tr><td>Комиссия платформы 30 дней</td><td>{formatRub(business.sessionPlatformFee30dRub)}</td><td>доля ETerapy в сессиях</td></tr>
+                    <tr><td>Оборот сессий за всё время</td><td>{formatRub(business.sessionGrossAllRub)}</td><td>деньги, принесённые практиками</td></tr>
+                    <tr><td>Начислено практикам</td><td>{formatRub(business.practitionerNetAccruedRub)}</td><td>после комиссии платформы</td></tr>
+                    <tr><td>Hold / escrow практиков</td><td>{formatRub(business.heldPayoutAmountRub)}</td><td>HELD выплаты из-за жалоб и risk-сигналов</td></tr>
+                    <tr><td>Ожидает выплаты практикам</td><td>{formatRub(business.pendingPayoutAmountRub)}</td><td>PENDING + PROCESSING</td></tr>
+                    <tr><td>Уже выплачено практикам</td><td>{formatRub(business.paidPayoutAmountRub)}</td><td>DONE выплаты</td></tr>
+                    <tr><td>Потенциальные возвраты по спорам</td><td>{formatRub(business.disputedPotentialRefundsRub)}</td><td>OPEN/REVIEWING жалобы, сумма бронирований</td></tr>
+                    <tr><td>Фактические возвраты по сессиям</td><td>{formatRub(business.refundedBookingsRub)}</td><td>REFUNDED бронирования</td></tr>
+                    <tr><td>Цифровые продукты</td><td>{formatRub(business.digitalProductRevenueRub || business.transactionProductRevenueRub || business.estimatedProductRevenueRub)}</td><td>услуги и углубления</td></tr>
+                    <tr><td>Клиентские подписки</td><td>{formatRub(business.clientSubscriptionRevenueRub)}</td><td>Plus / Premium</td></tr>
+                    <tr><td>Подписки практиков</td><td>{formatRub(business.practitionerSubscriptionRevenueRub)}</td><td>Practitioner Pro / Pro+</td></tr>
+                    <tr><td>Пополнения через эквайер</td><td>{formatRub(business.acquirerBalanceCreditsRub)}</td><td>YooKassa balance top-up</td></tr>
+                    <tr><td>Ручные начисления</td><td>{formatRub(business.manualBalanceCreditsRub)}</td><td>superadmin/moderator/internal adjustments</td></tr>
+                    <tr><td>Баланс пользователей</td><td>{formatRub(business.totalBalanceRub)}</td><td>денежное обязательство в кабинетах</td></tr>
                     <tr><td>Баланс кредитов ясности</td><td>{formatNumber(business.clarityCreditBalance)}</td><td>confirmed ledger net</td></tr>
+                    <tr><td>Активные подписки</td><td>{formatNumber(business.activeSubscriptions)}</td><td>TRIALING + ACTIVE</td></tr>
                   </tbody>
                 </table>
               </div>

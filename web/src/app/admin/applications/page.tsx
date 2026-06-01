@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { parsePractitionerVerificationMarker } from "@/lib/practitioner-verification";
 import { ApplicationsManager } from "./applications-manager";
 import { PageContainer } from "@/components/ui/page-container";
 
@@ -28,11 +29,16 @@ export default async function AdminApplicationsPage() {
           <span>Всего: {applications.length}</span>
         </div>
       </div>
-      <ApplicationsManager applications={applications.map(a => ({
-        ...a,
-        createdAt: a.createdAt.toISOString(),
-        updatedAt: a.updatedAt.toISOString(),
-      }))} adminRole={role} />
+      <ApplicationsManager applications={applications.map(a => {
+        const verificationPractitionerId = parsePractitionerVerificationMarker(a.why);
+        return {
+          ...a,
+          kind: verificationPractitionerId ? "VERIFICATION" : "APPLICATION",
+          verificationPractitionerId,
+          createdAt: a.createdAt.toISOString(),
+          updatedAt: a.updatedAt.toISOString(),
+        };
+      })} adminRole={role} />
     </PageContainer>
   );
 }

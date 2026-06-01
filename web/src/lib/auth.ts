@@ -10,6 +10,18 @@ import { logAudit } from "./audit";
 import { authConfig } from "./auth.config";
 import { authRateLimitKey, checkAuthRateLimit } from "./auth-rate-limit";
 import { readImpersonation } from "./impersonation";
+import { getRequestMeta } from "./request-meta";
+
+/**
+ * U5 (antifraud) — record a LOGIN event with the source IP, device label and
+ * channel. IP goes in the AuditLog.ip column; device/channel are stored as JSON
+ * in details so the admin user card can surface "last session" provenance.
+ */
+async function logLoginEvent(userId: string, channel: string): Promise<void> {
+  const meta = await getRequestMeta();
+  const details = JSON.stringify({ method: channel, device: meta.device ?? null, channel });
+  await logAudit(userId, "LOGIN", undefined, details, meta.ip ?? undefined);
+}
 
 type CredentialsInput = Partial<Record<"email" | "password" | "impersonateToken", unknown>>;
 
@@ -64,7 +76,7 @@ export async function authorize(credentials: CredentialsInput | undefined) {
   const valid = isHashed ? await bcrypt.compare(password, user.password) : user.password === password;
   if (!valid) return null;
 
-  await logAudit(user.id, "LOGIN", undefined, `Email: ${email}`);
+  await logLoginEvent(user.id, "email");
 
   return {
     id: user.id,
@@ -136,7 +148,7 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
         // Сохраняем id для jwt callback
         user.id = dbUser.id;
         const provider = account?.provider ?? "oauth";
-        await logAudit(dbUser.id, "LOGIN", undefined, `OAuth: ${provider}`);
+        await logLoginEvent(dbUser.id, provider);
       }
       return true;
     },

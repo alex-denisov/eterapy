@@ -148,6 +148,36 @@ function BalanceSummaryLink({
   );
 }
 
+function MoneyBalanceLink({
+  balanceKopecks,
+  href,
+  label = "Баланс",
+  className,
+}: {
+  balanceKopecks: number;
+  href: string;
+  label?: string;
+  className?: string;
+}) {
+  const rub = formatBalanceRub(balanceKopecks);
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      aria-label={`${label}: ${rub} ₽`}
+      className={cn(
+        "hidden h-7 items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 text-[12px] font-semibold tabular-nums text-[var(--soft-bordeaux)] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
+        className,
+      )}
+      data-testid="header-money-balance"
+    >
+      <CreditCard className="size-3" aria-hidden="true" />
+      <span className="min-w-[2.25rem] text-right">{rub}</span>
+      <span className="opacity-70">₽</span>
+    </Link>
+  );
+}
+
 function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -172,7 +202,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: appUrl("/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
     { href: appUrl("/practitioner/requests"), label: "Заявки", icon: MessageCircle },
     { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Users },
-    { href: appUrl("/practitioner/earnings"), label: "Выплаты", icon: Banknote },
+    { href: appUrl("/practitioner/earnings"), label: "Баланс", icon: Banknote },
     { href: appUrl("/practitioner/reviews"), label: "Отзывы", icon: Star },
     { href: appUrl("/practitioner/ethics"), label: "Этический кодекс", icon: Lock },
   ] : role === "SUPERADMIN" ? [
@@ -399,12 +429,13 @@ export function Header() {
 
   // B314 / G16: role-specific right-cluster visibility.
   //   CLIENT — balance (rub + clarity-credits), help, bell, dropdown, Новый разбор
-  //   PRACTITIONER — help, bell, dropdown (no clarity-credits, no «Новый разбор» —
-  //     practitioners run sessions, they don't start client dialogues)
+  //   PRACTITIONER — money-only balance, help, bell, dropdown (no clarity-credits,
+  //     no «Новый разбор» — practitioners run sessions, they don't start client dialogues)
   //   ADMIN / SUPERADMIN / MODERATOR — bell + dropdown only (no balance, no help, no Новый разбор)
   const isStaff = role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR";
   const isPractitioner = role === "PRACTITIONER";
   const showBalanceSummary = isAuthenticated && !isStaff && !isPractitioner;
+  const showPractitionerMoneyBalance = isAuthenticated && isPractitioner;
   const showHelpIcon = isAuthenticated && !isStaff;
   // G16: «Новый разбор» is a client-only action. Hide it for practitioners and staff.
   const showNewDialogueCta = isAuthenticated && !isStaff && !isPractitioner;
@@ -460,6 +491,14 @@ export function Header() {
               {showBalanceSummary && (
                 <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
               )}
+              {showPractitionerMoneyBalance && (
+                <MoneyBalanceLink
+                  balanceKopecks={balanceKopecks}
+                  href={appUrl("/practitioner/earnings")}
+                  label="Баланс кабинета практика"
+                  className="sm:flex"
+                />
+              )}
               {showHelpIcon && (
                 <Link
                   // N5a: this icon only renders for authenticated non-staff
@@ -477,23 +516,6 @@ export function Header() {
               )}
               <NotificationBell variant="header" />
               <UserMenu session={session} />
-              {/* N8 (funnel brainstorm): a client-only SECONDARY entry into the
-                  in-cabinet paid services ("Услуги внутри кабинета") — the single
-                  highest-leverage "order a service" affordance, present on every
-                  cabinet page so the "got my answer, what now?" moment always has
-                  a next step. Kept visually secondary so «Новый разбор» stays the
-                  lone Primary CTA. */}
-              {showNewDialogueCta && (
-                <Link
-                  href={appUrl("/products")}
-                  className="soft-header-cta soft-header-cta-ghost hidden lg:inline-flex"
-                  data-testid="header-deepen-cta"
-                  data-analytics-event="deepening_option_clicked"
-                  data-analytics-target="/products"
-                >
-                  Разобрать глубже
-                </Link>
-              )}
               {/* B321: ALL header items at canonical v4.2 user-pill height —
                   h-7 (28px), text-[13px], px-3 (12px). Matches
                   docs/Design/v4.2/style.css .user-pill spec exactly so
@@ -553,12 +575,21 @@ export function Header() {
                   className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
                   Помощь
                 </Link>
-                <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-primary">
-                  <CreditCard className="size-4" aria-hidden="true" />
-                  {formatBalanceRub(balanceKopecks)} ₽
-                  <Sparkles className="size-4" aria-hidden="true" />
-                  {clarityCredits} кредитов
-                </div>
+                {isPractitioner ? (
+                  <Link href={appUrl("/practitioner/earnings")} prefetch={false} onClick={() => setMobileOpen(false)}
+                    className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
+                    <CreditCard className="size-4" aria-hidden="true" />
+                    {formatBalanceRub(balanceKopecks)} ₽
+                  </Link>
+                ) : (
+                  <Link href={appUrl("/credits")} prefetch={false} onClick={() => setMobileOpen(false)}
+                    className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
+                    <CreditCard className="size-4" aria-hidden="true" />
+                    {formatBalanceRub(balanceKopecks)} ₽
+                    <Sparkles className="size-4" aria-hidden="true" />
+                    {clarityCredits} кредитов
+                  </Link>
+                )}
                 <Link href={cabinetHref} prefetch={false} onClick={() => setMobileOpen(false)}
                   className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">
                   Личный кабинет
