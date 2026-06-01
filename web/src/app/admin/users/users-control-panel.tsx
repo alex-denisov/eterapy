@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Ban, LogIn, Pencil, Plus, RefreshCw, RotateCcw, Save, Search, X } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,77 +13,25 @@ import {
   COMPACT_INPUT_CLASS,
   COMPACT_SELECT_CLASS,
 } from "@/components/admin/compact-table";
+import {
+  type AdminUserRow,
+  type UserPermissions,
+  ROLE_LABELS,
+  roleColor,
+  channelLabel,
+  channelColor,
+  statusOf,
+} from "./user-display";
+import { UserEditModal } from "./user-edit-modal";
 
-export interface AdminUserRow {
-  id: string;
-  name: string;
-  email: string;
-  role: "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN";
-  createdAt: string;
-  emailVerified: boolean;
-  deletedAt: string | null;
-  blockedAt: string | null;
-  freeToolsLimit: number | null;
-  balance: number;
-  clarityCredits: number;
-  provider: string | null;
-  telegramUsername: string | null;
-  practitioner: {
-    id: string;
-    status: string;
-    title: string;
-    commissionPercent: number;
-  } | null;
-  moderatorPermissionsCount: number;
-  bookingsCount: number;
-  entitlementsCount: number;
-  subscriptionsCount: number;
-}
+export type { AdminUserRow } from "./user-display";
 
 interface UsersControlPanelProps {
   rows: AdminUserRow[];
   page: number;
   pageSize: number;
   total: number;
-  permissions: {
-    canCreate: boolean;
-    canEdit: boolean;
-    canBlock: boolean;
-    canResetPassword: boolean;
-    canImpersonate: boolean;
-    canManageRoles: boolean;
-    canManageBalance: boolean;
-  };
-}
-
-const ROLE_LABELS: Record<AdminUserRow["role"], string> = {
-  CLIENT: "Клиент",
-  PRACTITIONER: "Практик",
-  ADMIN: "Модератор",
-  SUPERADMIN: "Суперадмин",
-};
-
-// T4: acquisition channel derived from User.provider (already persisted).
-// Unknown / missing provider falls back to "manual".
-const CHANNEL_LABELS: Record<string, string> = {
-  web: "Web", app: "App", telegram: "Telegram", vk: "VK", manual: "Manual",
-};
-function channelOf(provider: string | null): keyof typeof CHANNEL_LABELS {
-  switch ((provider ?? "").toLowerCase()) {
-    case "vk": return "vk";
-    case "telegram": case "max": return "telegram";
-    case "ios": case "android": return "app";
-    case "web": case "google": case "mobile_web": return "web";
-    case "": case "manual": return "manual";
-    default: return "manual";
-  }
-}
-
-function statusOf(row: AdminUserRow) {
-  if (row.deletedAt) return { label: "Удалён", tone: "danger" };
-  if (row.blockedAt) return { label: "Блок", tone: "danger" };
-  if (!row.emailVerified) return { label: "Email нет", tone: "warn" };
-  return { label: "Активен", tone: "ok" };
+  permissions: UserPermissions;
 }
 
 function makeUrl(searchParams: URLSearchParams, patch: Record<string, string | null>) {
@@ -118,21 +66,18 @@ function SortHeader({ field, label }: { field: string; label: string }) {
   );
 }
 
-function PlainHeader({ label }: { label: string }) {
+function PlainHeader({ label, hint }: { label: string; hint?: string }) {
   return (
-    <div className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+    <div
+      className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
+      title={hint}
+    >
       {label}
     </div>
   );
 }
 
-function FilterInput({
-  param,
-  placeholder,
-}: {
-  param: string;
-  placeholder: string;
-}) {
+function FilterInput({ param, placeholder }: { param: string; placeholder: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get(param) ?? "");
@@ -153,13 +98,7 @@ function FilterInput({
   );
 }
 
-function FilterSelect({
-  param,
-  options,
-}: {
-  param: string;
-  options: Array<{ value: string; label: string }>;
-}) {
+function FilterSelect({ param, options }: { param: string; options: Array<{ value: string; label: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const value = searchParams.get(param) ?? "";
@@ -176,13 +115,7 @@ function FilterSelect({
   );
 }
 
-function CreateUserDialog({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [role, setRole] = useState<"CLIENT" | "PRACTITIONER" | "ADMIN">("CLIENT");
@@ -216,12 +149,7 @@ function CreateUserDialog({
     }
     toast.success("Пользователь создан");
     onClose();
-    setName("");
-    setEmail("");
-    setPassword("");
-    setTitle("");
-    setBio("");
-    setTelegramUsername("");
+    setName(""); setEmail(""); setPassword(""); setTitle(""); setBio(""); setTelegramUsername("");
     startTransition(() => router.refresh());
   }
 
@@ -288,140 +216,17 @@ function CreateUserDialog({
   );
 }
 
+const NUM_CELL = `${COMPACT_CELL_CLASS} whitespace-nowrap text-right tabular-nums`;
+
 export function UsersControlPanel({ rows, page, pageSize, total, permissions }: UsersControlPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
-  // M1: rows are read-only until the operator explicitly enters edit mode via the
-  // pencil button. Only one row can be edited at a time, which prevents the
-  // accidental edits the always-on inputs used to cause.
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState(() => Object.fromEntries(rows.map((row) => [row.id, {
-    name: row.name,
-    role: row.role,
-    freeToolsLimit: row.freeToolsLimit == null ? "" : String(row.freeToolsLimit),
-    balanceRub: String(Math.round(row.balance / 100)),
-    clarityCredits: String(row.clarityCredits),
-  }])));
+  // U1/U2: the table is READ-ONLY. Editing happens in a modal opened per row.
+  const [editing, setEditing] = useState<AdminUserRow | null>(null);
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
-
-  function updateDraft(id: string, patch: Partial<{ name: string; role: AdminUserRow["role"]; freeToolsLimit: string; balanceRub: string; clarityCredits: string }>) {
-    setDrafts((current) => ({
-      ...current,
-      [id]: { ...current[id], ...patch },
-    }));
-  }
-
-  /** Reset a row's draft to the persisted values (used on enter/cancel edit). */
-  function resetDraft(id: string) {
-    const row = rowsById.get(id);
-    if (!row) return;
-    setDrafts((current) => ({
-      ...current,
-      [id]: {
-        name: row.name,
-        role: row.role,
-        freeToolsLimit: row.freeToolsLimit == null ? "" : String(row.freeToolsLimit),
-        balanceRub: String(Math.round(row.balance / 100)),
-        clarityCredits: String(row.clarityCredits),
-      },
-    }));
-  }
-
-  function enterEdit(id: string) {
-    resetDraft(id);
-    setEditingId(id);
-  }
-
-  function cancelEdit(id: string) {
-    resetDraft(id);
-    setEditingId(null);
-  }
-
-  async function saveRow(id: string) {
-    const row = rowsById.get(id);
-    const draft = drafts[id];
-    if (!row || !draft) return;
-
-    try {
-      if (permissions.canEdit && draft.name.trim() && draft.name.trim() !== row.name) {
-        const response = await fetch(`/api/admin/users/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "update_name", name: draft.name.trim() }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить имя");
-      }
-
-      const patch: Record<string, unknown> = { userId: id };
-      if (permissions.canManageRoles && draft.role !== row.role) patch.role = draft.role;
-      if (permissions.canManageRoles && draft.freeToolsLimit !== String(row.freeToolsLimit ?? "")) {
-        if (draft.freeToolsLimit.trim() === "") patch.freeToolsLimit = 0;
-        else patch.freeToolsLimit = Number(draft.freeToolsLimit);
-      }
-      if (Object.keys(patch).length > 1) {
-        const response = await fetch("/api/admin/users", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patch),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить роль/лимит");
-      }
-
-      // T4: money balance — editable for any class; clarity credits — clients only.
-      if (permissions.canManageBalance) {
-        const nextRub = Number(draft.balanceRub);
-        if (Number.isFinite(nextRub) && nextRub !== Math.round(row.balance / 100)) {
-          const response = await fetch(`/api/admin/users/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "update_balance", balanceRub: nextRub, reason: "admin users table" }),
-          });
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить баланс");
-        }
-
-        if (row.role === "CLIENT") {
-          const nextCredits = Number(draft.clarityCredits);
-          if (Number.isInteger(nextCredits) && nextCredits !== row.clarityCredits) {
-            const response = await fetch(`/api/admin/users/${id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action: "update_clarity_credits", clarityCredits: nextCredits, reason: "admin users table" }),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || !data.ok) throw new Error(data.error ?? "Не удалось обновить кредиты ясности");
-          }
-        }
-      }
-
-      toast.success("Пользователь обновлён");
-      setEditingId(null);
-      startTransition(() => router.refresh());
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Ошибка сохранения");
-    }
-  }
-
-  async function userAction(id: string, action: "block" | "unblock" | "reset_password") {
-    const response = await fetch(`/api/admin/users/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, comment: "admin users table" }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) {
-      toast.error(typeof data.error === "string" ? data.error : "Действие не выполнено");
-      return;
-    }
-    toast.success("Готово");
-    startTransition(() => router.refresh());
-  }
 
   return (
     <div className="space-y-4">
@@ -444,214 +249,105 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
       </div>
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      {editing && (
+        <UserEditModal
+          row={editing}
+          permissions={permissions}
+          onClose={() => setEditing(null)}
+          onSaved={() => startTransition(() => router.refresh())}
+        />
+      )}
 
-      <CompactTableShell minWidth="1180px">
-          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
+      <CompactTableShell minWidth="1240px">
+        <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
+          <tr>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="name" label="Пользователь" />
+              <FilterInput param="q" placeholder="имя/email" />
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="role" label="Роль" />
+              <FilterSelect
+                param="role"
+                options={[
+                  { value: "", label: "Все роли" },
+                  { value: "CLIENT", label: "Клиенты" },
+                  { value: "PRACTITIONER", label: "Практики" },
+                  { value: "ADMIN", label: "Модераторы" },
+                  { value: "SUPERADMIN", label: "Суперадмины" },
+                ]}
+              />
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <PlainHeader label="Канал" hint="Канал привлечения (источник регистрации)" />
+              <FilterSelect
+                param="channel"
+                options={[
+                  { value: "", label: "Все каналы" },
+                  { value: "web", label: "Web" },
+                  { value: "app", label: "App" },
+                  { value: "telegram", label: "Telegram" },
+                  { value: "vk", label: "VK" },
+                  { value: "manual", label: "Manual" },
+                ]}
+              />
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="status" label="Статус" />
+              <FilterSelect
+                param="status"
+                options={[
+                  { value: "", label: "Все статусы" },
+                  { value: "active", label: "Активные" },
+                  { value: "blocked", label: "Блок" },
+                  { value: "deleted", label: "Удалённые" },
+                  { value: "unverified", label: "Email нет" },
+                ]}
+              />
+            </th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="balance" label="Баланс, ₽" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Кредиты" hint="Кредиты ясности (только клиенты)" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Брони" hint="Количество бронирований сессий" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Покупки" hint="Оплаченные продукты (entitlements)" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Подписки" hint="Активные подписки" /></th>
+            <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
             <tr>
-              <th className={COMPACT_HEADER_CLASS}>
-                <SortHeader field="name" label="Имя" />
-                <FilterInput param="q" placeholder="имя/email" />
-              </th>
-              <th className={COMPACT_HEADER_CLASS}>
-                <SortHeader field="role" label="Роль" />
-                <FilterSelect
-                  param="role"
-                  options={[
-                    { value: "", label: "Все роли" },
-                    { value: "CLIENT", label: "Клиенты" },
-                    { value: "PRACTITIONER", label: "Практики" },
-                    { value: "ADMIN", label: "Модераторы" },
-                    { value: "SUPERADMIN", label: "Суперадмины" },
-                  ]}
-                />
-              </th>
-              <th className={COMPACT_HEADER_CLASS}>
-                <PlainHeader label="Канал" />
-                <FilterSelect
-                  param="channel"
-                  options={[
-                    { value: "", label: "Все каналы" },
-                    { value: "web", label: "Web" },
-                    { value: "app", label: "App" },
-                    { value: "telegram", label: "Telegram" },
-                    { value: "vk", label: "VK" },
-                    { value: "manual", label: "Manual" },
-                  ]}
-                />
-              </th>
-              <th className={COMPACT_HEADER_CLASS}>
-                <SortHeader field="status" label="Статус" />
-                <FilterSelect
-                  param="status"
-                  options={[
-                    { value: "", label: "Все статусы" },
-                    { value: "active", label: "Активные" },
-                    { value: "blocked", label: "Блок" },
-                    { value: "deleted", label: "Удалённые" },
-                    { value: "unverified", label: "Email нет" },
-                  ]}
-                />
-              </th>
-              <th className={COMPACT_HEADER_CLASS}><SortHeader field="balance" label="Баланс · кредиты" /></th>
-              <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
-              <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Лимит" /></th>
-              <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Активность" /></th>
-              <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Профиль роли" /></th>
-              <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
+              <td colSpan={12} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
+          ) : rows.map((row) => {
+            const status = statusOf(row);
+            return (
+              <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
+                <td className={`${COMPACT_CELL_CLASS} min-w-[13rem]`}>
+                  <div className="truncate font-medium text-[var(--soft-ink-strong)]">{row.name || "—"}</div>
+                  <div className="truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</div>
+                </td>
+                <td className={`${COMPACT_CELL_CLASS} font-semibold ${roleColor(row.role)}`}>{ROLE_LABELS[row.role]}</td>
+                <td className={`${COMPACT_CELL_CLASS} ${channelColor(row.provider)}`}>{channelLabel(row.provider)}</td>
+                <td className={`${COMPACT_CELL_CLASS} font-medium ${status.className}`}>{status.label}</td>
+                <td className={NUM_CELL}>{Math.round(row.balance / 100).toLocaleString("ru-RU")}</td>
+                <td className={NUM_CELL}>{row.role === "CLIENT" ? row.clarityCredits : "—"}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
+                <td className={NUM_CELL}>{row.freeToolsLimit == null ? "—" : row.freeToolsLimit === 0 ? "∞" : row.freeToolsLimit}</td>
+                <td className={NUM_CELL}>{row.bookingsCount}</td>
+                <td className={NUM_CELL}>{row.entitlementsCount}</td>
+                <td className={NUM_CELL}>{row.subscriptionsCount}</td>
+                <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
+                  <button type="button" className="soft-admin-action" onClick={() => setEditing(row)} title="Открыть карточку пользователя">
+                    <Pencil className="size-3.5" aria-hidden="true" />
+                    Изменить
+                  </button>
+                </td>
               </tr>
-            ) : rows.map((row) => {
-              const draft = drafts[row.id] ?? { name: row.name, role: row.role, freeToolsLimit: "" };
-              const status = statusOf(row);
-              const canEditName = permissions.canEdit && row.role !== "SUPERADMIN";
-              const canManageRole = permissions.canManageRoles && row.role !== "SUPERADMIN";
-              const editing = editingId === row.id;
-              const canEditRow =
-                row.role !== "SUPERADMIN" &&
-                (canEditName || canManageRole || permissions.canManageBalance || permissions.canManageRoles);
-              return (
-                <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
-                  <td className={`${COMPACT_CELL_CLASS} min-w-[14rem]`}>
-                    <input
-                      className={COMPACT_INPUT_CLASS}
-                      value={draft.name}
-                      disabled={!canEditName || !editing}
-                      onChange={(event) => updateDraft(row.id, { name: event.target.value })}
-                    />
-                    <div className="mt-0.5 truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</div>
-                  </td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <select
-                      className={COMPACT_SELECT_CLASS}
-                      value={draft.role}
-                      disabled={!canManageRole || !editing}
-                      onChange={(event) => updateDraft(row.id, { role: event.target.value as AdminUserRow["role"] })}
-                    >
-                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill">{CHANNEL_LABELS[channelOf(row.provider)]}</span></td>
-                  <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={status.tone}>{status.label}</span></td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1">
-                        <input
-                          className={`${COMPACT_INPUT_CLASS} w-20`}
-                          value={draft.balanceRub}
-                          disabled={!permissions.canManageBalance || row.role === "SUPERADMIN" || !editing}
-                          inputMode="numeric"
-                          onChange={(event) => updateDraft(row.id, { balanceRub: event.target.value })}
-                          aria-label={`Денежный баланс ${row.email}`}
-                          title="Денежный баланс, ₽"
-                        />
-                        <span className="text-[10px] text-[var(--soft-ink-faint)]">₽</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <input
-                          className={`${COMPACT_INPUT_CLASS} w-20 disabled:opacity-40`}
-                          value={row.role === "CLIENT" ? draft.clarityCredits : "—"}
-                          disabled={!permissions.canManageBalance || row.role !== "CLIENT" || !editing}
-                          inputMode="numeric"
-                          onChange={(event) => updateDraft(row.id, { clarityCredits: event.target.value })}
-                          aria-label={`Кредиты ясности ${row.email}`}
-                          title={row.role === "CLIENT" ? "Кредиты ясности" : "Кредиты ясности доступны только клиентам"}
-                        />
-                        <span className="text-[10px] text-[var(--soft-ink-faint)]">кр.</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <input
-                      className={`${COMPACT_INPUT_CLASS} w-16`}
-                      value={draft.freeToolsLimit}
-                      disabled={!permissions.canManageRoles || !editing}
-                      placeholder="0"
-                      inputMode="numeric"
-                      onChange={(event) => updateDraft(row.id, { freeToolsLimit: event.target.value })}
-                    />
-                  </td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <div className="flex gap-1 text-center text-[10px]">
-                      <span className="soft-admin-status-pill">{row.bookingsCount} B</span>
-                      <span className="soft-admin-status-pill">{row.entitlementsCount} P</span>
-                      <span className="soft-admin-status-pill">{row.subscriptionsCount} S</span>
-                    </div>
-                  </td>
-                  <td className={`${COMPACT_CELL_CLASS} min-w-[10rem]`}>
-                    {row.role === "PRACTITIONER" && row.practitioner ? (
-                      <Link className="soft-admin-action" href={`/admin/practitioners?email=${encodeURIComponent(row.email)}`}>
-                        {row.practitioner.status} · {row.practitioner.commissionPercent}%
-                      </Link>
-                    ) : row.role === "ADMIN" ? (
-                      <Link className="soft-admin-action" href="/admin/moderators">
-                        права: {row.moderatorPermissionsCount}
-                      </Link>
-                    ) : row.role === "CLIENT" ? (
-                      <Link className="soft-admin-action" href={`/admin/bookings?search=${encodeURIComponent(row.email)}`}>
-                        бронирования
-                      </Link>
-                    ) : (
-                      <span className="soft-admin-status-pill">core</span>
-                    )}
-                  </td>
-                  <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                    <div className="flex flex-wrap gap-1.5">
-                      {editing ? (
-                        <>
-                          <button type="button" className="soft-admin-action" data-variant="primary" onClick={() => void saveRow(row.id)} disabled={pending} title="Сохранить изменения">
-                            <Save className="size-3.5" aria-hidden="true" />
-                            Сохранить
-                          </button>
-                          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => cancelEdit(row.id)} disabled={pending} title="Отменить">
-                            <X className="size-3.5" aria-hidden="true" />
-                            Отмена
-                          </button>
-                        </>
-                      ) : (
-                        canEditRow && (
-                          <button type="button" className="soft-admin-action" onClick={() => enterEdit(row.id)} disabled={pending} title="Редактировать">
-                            <Pencil className="size-3.5" aria-hidden="true" />
-                            Изменить
-                          </button>
-                        )
-                      )}
-                      {permissions.canResetPassword && row.role !== "SUPERADMIN" && (
-                        <button type="button" className="soft-admin-action" onClick={() => void userAction(row.id, "reset_password")}>
-                          <RotateCcw className="size-3.5" aria-hidden="true" />
-                          Reset
-                        </button>
-                      )}
-                      {permissions.canBlock && row.role !== "SUPERADMIN" && (
-                        <button
-                          type="button"
-                          className="soft-admin-action"
-                          data-variant={row.blockedAt ? "subtle" : "danger"}
-                          onClick={() => void userAction(row.id, row.blockedAt ? "unblock" : "block")}
-                        >
-                          <Ban className="size-3.5" aria-hidden="true" />
-                          {row.blockedAt ? "Unblock" : "Block"}
-                        </button>
-                      )}
-                      {permissions.canImpersonate && row.role !== "SUPERADMIN" && (
-                        <Link className="soft-admin-action" href={`/api/admin/impersonate?userId=${row.id}`} target="_blank">
-                          <LogIn className="size-3.5" aria-hidden="true" />
-                          Login
-                        </Link>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+            );
+          })}
+        </tbody>
       </CompactTableShell>
 
       <div className="flex flex-wrap items-center justify-between gap-2">

@@ -135,6 +135,10 @@ export default async function AdminUsersPage(props: {
             status: true,
             title: true,
             commissionPercent: true,
+            specialties: true,
+            tags: true,
+            pricePerSession: true,
+            sessionDuration: true,
           },
         },
         _count: {
@@ -149,17 +153,23 @@ export default async function AdminUsersPage(props: {
     db.user.count({ where }),
   ]);
 
+  // U4: pull the actual granted permission KEYS for moderators on this page so
+  // the edit modal can pre-fill the rights matrix without an extra round-trip.
   const moderatorIds = users
     .filter((user) => user.role === Role.ADMIN || user.role === Role.SUPERADMIN)
     .map((user) => user.id);
-  const permissionCounts = moderatorIds.length > 0
-    ? await db.moderatorPermission.groupBy({
-      by: ["moderatorId"],
+  const permissionRows = moderatorIds.length > 0
+    ? await db.moderatorPermission.findMany({
       where: { moderatorId: { in: moderatorIds }, granted: true },
-      _count: { _all: true },
+      select: { moderatorId: true, permission: true },
     })
     : [];
-  const permissionCountByUser = new Map(permissionCounts.map((row) => [row.moderatorId, row._count._all]));
+  const permissionsByUser = new Map<string, string[]>();
+  for (const row of permissionRows) {
+    const list = permissionsByUser.get(row.moderatorId) ?? [];
+    list.push(row.permission);
+    permissionsByUser.set(row.moderatorId, list);
+  }
 
   // T4: clarity-credit balance per client (active pending+confirmed ledger sum).
   const clientIds = users.filter((u) => u.role === Role.CLIENT).map((u) => u.id);
@@ -191,8 +201,13 @@ export default async function AdminUsersPage(props: {
       status: user.practitioner.status,
       title: user.practitioner.title,
       commissionPercent: user.practitioner.commissionPercent,
+      specialties: user.practitioner.specialties,
+      tags: user.practitioner.tags,
+      pricePerSession: user.practitioner.pricePerSession,
+      sessionDuration: user.practitioner.sessionDuration,
     } : null,
-    moderatorPermissionsCount: permissionCountByUser.get(user.id) ?? 0,
+    moderatorPermissions: permissionsByUser.get(user.id) ?? [],
+    moderatorPermissionsCount: (permissionsByUser.get(user.id) ?? []).length,
     bookingsCount: user._count.bookingsAsClient,
     entitlementsCount: user._count.entitlements,
     subscriptionsCount: user._count.subscriptions,
@@ -226,6 +241,10 @@ export default async function AdminUsersPage(props: {
           canImpersonate: role === "SUPERADMIN" || permissions.includes("users.impersonate"),
           canManageRoles: role === "SUPERADMIN",
           canManageBalance: role === "SUPERADMIN",
+          canManageRights: role === "SUPERADMIN",
+          canSetPassword: role === "SUPERADMIN" || permissions.includes("users.set_password") || permissions.includes("clients.set_password"),
+          canManagePractitioners: role === "SUPERADMIN" || permissions.includes("practitioners.edit"),
+          canDelete: role === "SUPERADMIN" || permissions.includes("users.delete") || permissions.includes("clients.delete"),
         }}
       />
     </PageContainer>

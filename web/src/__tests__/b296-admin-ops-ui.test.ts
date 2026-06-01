@@ -5,16 +5,18 @@ const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 describe("B296 admin operations UI", () => {
-  it("keeps all user roles in one editable admin table", () => {
+  it("keeps all user roles in one read-only admin table with modal editing", () => {
     const page = source("src/app/admin/users/page.tsx");
     const panel = source("src/app/admin/users/users-control-panel.tsx");
+    const modal = source("src/app/admin/users/user-edit-modal.tsx");
     const shell = source("src/app/admin/admin-shell.tsx");
 
     expect(page).toContain('data-testid="admin-users-unified-page"');
     // T3: users table migrated to the compact "Промты продуктов" style.
     expect(panel).toContain("CompactTableShell");
-    expect(panel).toContain("canManageRoles");
-    expect(panel).toContain("/api/admin/impersonate?userId=");
+    // U1/U2: role management + impersonation moved into the edit modal.
+    expect(modal).toContain("permissions.canManageRoles");
+    expect(modal).toContain("/api/admin/impersonate?userId=");
     expect(shell).toContain('label: "Все пользователи"');
     expect(shell).not.toContain('label: "Клиенты"');
   });
