@@ -5,15 +5,11 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import { SPECIALTY_OPTIONS } from "@/lib/types";
 
-const SPECIALTIES = [
-  { value: "TAROT",      label: "Таро" },
-  { value: "ASTROLOGY",  label: "Астрология" },
-  { value: "NUMEROLOGY", label: "Нумерология" },
-  { value: "PSYCHIC",    label: "Экстрасенсорика" },
-  { value: "RUNES",      label: "Руны" },
-  { value: "DREAMS",     label: "Сонники" },
-];
+// V8: categories come from the single canonical taxonomy (lib/types), shared
+// with the admin user modal and the public service cards.
+const SPECIALTIES = SPECIALTY_OPTIONS;
 
 interface InitialData {
   name: string;
@@ -153,10 +149,13 @@ export function PractitionerProfileEditor({
         </div>
       </div>
 
-      {/* Специализации */}
+      {/* Категории (специализации) */}
       <div className="soft-card">
         <div className="p-5">
-          <h2 className="font-semibold mb-3">Специализации</h2>
+          <h2 className="font-semibold mb-1">Категории</h2>
+          <p className="text-xs text-[var(--soft-ink-soft)]/60 mb-3">
+            Основная классификация. Влияет на фильтры каталога и показ в карточке услуги. Те же категории видит администратор.
+          </p>
           <div className="flex flex-wrap gap-2">
             {SPECIALTIES.map(s => (
               <button key={s.value} type="button" onClick={() => toggleSpecialty(s.value)}
@@ -175,12 +174,12 @@ export function PractitionerProfileEditor({
       {/* Теги */}
       <div className="soft-card">
         <div className="p-5">
-          <h2 className="font-semibold mb-3">Теги</h2>
+          <h2 className="font-semibold mb-1">Теги <span className="text-xs font-normal text-[var(--soft-ink-soft)]/60">(необязательно)</span></h2>
           <Input value={tagsStr} onChange={e => setTagsStr(e.target.value)}
             placeholder="отношения, карьера, самопознание, нумерология имени"
             className="bg-[rgba(255,255,255,0.035)]" />
           <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-1">
-            Через запятую. Помогают клиентам найти вас по запросу.
+            Через запятую. Дополнительные ключевые слова для поиска — основную классификацию задают категории выше.
           </p>
         </div>
       </div>

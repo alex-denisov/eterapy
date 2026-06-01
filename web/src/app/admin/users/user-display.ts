@@ -6,9 +6,14 @@
  * (users-control-panel) and the edit modal (user-edit-modal) stay consistent.
  */
 
+import { type Specialty, SPECIALTY_LABELS, SPECIALTY_ORDER } from "@/lib/types";
+
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN";
 
-export type Specialty = "TAROT" | "ASTROLOGY" | "NUMEROLOGY" | "PSYCHIC" | "RUNES" | "DREAMS";
+// V8: practitioner categories come from the single canonical source (lib/types)
+// so the admin modal, the profile editor and the public cards never drift apart.
+export type { Specialty };
+export { SPECIALTY_LABELS, SPECIALTY_ORDER };
 
 export interface AdminUserRow {
   id: string;
@@ -125,19 +130,6 @@ export function statusOf(row: Pick<AdminUserRow, "deletedAt" | "blockedAt" | "em
   if (!row.emailVerified) return { label: "Email не подтверждён", className: "text-amber-600" };
   return { label: "Активен", className: "text-emerald-600" };
 }
-
-export const SPECIALTY_LABELS: Record<Specialty, string> = {
-  TAROT: "Таро",
-  ASTROLOGY: "Астрология",
-  NUMEROLOGY: "Нумерология",
-  PSYCHIC: "Экстрасенсорика",
-  RUNES: "Руны",
-  DREAMS: "Сны",
-};
-
-export const SPECIALTY_ORDER: Specialty[] = [
-  "TAROT", "ASTROLOGY", "NUMEROLOGY", "PSYCHIC", "RUNES", "DREAMS",
-];
 
 export const SESSION_DURATIONS = [15, 30, 45, 60, 90, 120];
 

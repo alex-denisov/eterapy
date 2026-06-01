@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BadgeCheck, ArrowRight } from "lucide-react";
+import { SPECIALTY_LABELS as CANONICAL_SPECIALTY_LABELS } from "@/lib/types";
 
 // Map of deep-link `?format=` query values to the internal category id
 // used by CATEGORY_FILTERS. Keeps the practitioner CTA on product pages
@@ -46,13 +47,11 @@ const CATEGORY_FILTERS: Array<{ id: string; label: string; live: boolean; note?:
   { id: "joint", label: "Совместные сессии", live: true },
 ];
 
+// V8: the six enum categories use the canonical labels (lib/types) so cards
+// match the practitioner profile editor and the admin modal; the extra
+// free-text psychology labels below stay for legacy/seed specialties.
 const SPECIALTY_LABELS: Record<string, string> = {
-  TAROT: "Таро",
-  ASTROLOGY: "Астрология",
-  NUMEROLOGY: "Нумерология",
-  PSYCHIC: "Интуитивные практики",
-  RUNES: "Руны",
-  DREAMS: "Сны",
+  ...CANONICAL_SPECIALTY_LABELS,
   RELATIONSHIPS: "Отношения",
   SELF_ESTEEM: "Самооценка",
   ANXIETY: "Тревога",
