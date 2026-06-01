@@ -48,9 +48,21 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const status = (body as { status?: unknown }).status;
-  if (typeof status !== "string" || !VALID_STATUSES.includes(status as ReviewStatus)) {
+  // V4: a moderator may change the moderation `status` and/or edit the review
+  // `text` (redact inappropriate words / personal data). At least one required.
+  const rawStatus = (body as { status?: unknown }).status;
+  const rawText = (body as { text?: unknown }).text;
+  const hasStatus = rawStatus !== undefined;
+  const hasText = rawText !== undefined;
+
+  if (!hasStatus && !hasText) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+  if (hasStatus && (typeof rawStatus !== "string" || !VALID_STATUSES.includes(rawStatus as ReviewStatus))) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+  if (hasText && rawText !== null && typeof rawText !== "string") {
+    return NextResponse.json({ error: "Invalid text" }, { status: 400 });
   }
 
   const review = await db.review.findUnique({
@@ -61,16 +73,25 @@ export async function PATCH(
     return NextResponse.json({ error: "Review not found" }, { status: 404 });
   }
 
-  await db.review.update({ where: { id }, data: { status } });
-  await recomputePractitionerRating(review.practitionerId);
-  await logAudit(
-    session.user!.id,
-    "REVIEW_MODERATE",
-    id,
-    `status ${review.status} → ${status}`,
-  );
+  const data: { status?: ReviewStatus; text?: string | null } = {};
+  if (hasStatus) data.status = rawStatus as ReviewStatus;
+  if (hasText) {
+    const trimmed = typeof rawText === "string" ? rawText.trim().slice(0, 2000) : "";
+    data.text = trimmed.length > 0 ? trimmed : null;
+  }
 
-  return NextResponse.json({ ok: true, status });
+  await db.review.update({ where: { id }, data });
+  // Public rating counters depend only on PUBLISHED status, not on text.
+  if (hasStatus) await recomputePractitionerRating(review.practitionerId);
+
+  if (hasStatus) {
+    await logAudit(session.user!.id, "REVIEW_MODERATE", id, `status ${review.status} → ${rawStatus}`);
+  }
+  if (hasText) {
+    await logAudit(session.user!.id, "REVIEW_MODERATE", id, "text edited (redaction)");
+  }
+
+  return NextResponse.json({ ok: true, status: hasStatus ? rawStatus : review.status });
 }
 
 /** DELETE — permanently remove a review (admins/superadmins only). */

@@ -2,13 +2,13 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Sparkles, Users, Wallet } from "lucide-react";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { auth } from "@/lib/auth";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import db from "@/lib/db";
 import { getProductCreditCost, getProductPriceKopecks, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
-import { appUrl, loginUrl } from "@/lib/subdomain";
+import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { v5Products } from "@/lib/v5-products";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -141,6 +141,48 @@ export default async function CabinetCreditsPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* V10: paid recommendations — CTAs that a subscription never covers
+          (a live practitioner session + balance top-up), so even subscribers
+          always see a clear paid next step, not only "входит в подписку". */}
+      <div className="mb-3 mt-2">
+        <p className="soft-eyebrow">рекомендуем</p>
+        <h2 className="soft-h2 mt-1">Платные форматы и услуги</h2>
+      </div>
+      <section className="mb-6 grid gap-4 sm:grid-cols-2" data-testid="credits-paid-recommendations">
+        <article className="soft-card flex flex-col p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="soft-eyebrow">живая сессия</p>
+              <h3 className="soft-h3 mt-2">Записаться к специалисту</h3>
+            </div>
+            <span className="soft-badge shrink-0 whitespace-nowrap">от 1 500 ₽</span>
+          </div>
+          <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Разбор с проверенным практиком — таролог, астролог или психолог. Подберите специалиста и удобное время.
+          </p>
+          <Link href={mainUrl("/practitioners")} className="soft-button soft-button-primary mt-5 self-start">
+            <Users className="size-4" aria-hidden="true" />
+            Выбрать специалиста
+          </Link>
+        </article>
+        <article className="soft-card flex flex-col p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="soft-eyebrow">баланс</p>
+              <h3 className="soft-h3 mt-2">Пополнить и открыть больше</h3>
+            </div>
+            <span className="soft-badge shrink-0 whitespace-nowrap">картой или с баланса</span>
+          </div>
+          <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Пополните рублёвый баланс, чтобы оплачивать любые продукты и сессии сразу, без ожидания начисления кредитов.
+          </p>
+          <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5 self-start">
+            <Wallet className="size-4" aria-hidden="true" />
+            Пополнить баланс
+          </Link>
+        </article>
       </section>
 
       {/* G13: sell digital products to subscribers — every card shows its real
