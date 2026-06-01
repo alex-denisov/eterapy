@@ -33,6 +33,7 @@ export interface AdminUserRow {
     tags: string[];
     pricePerSession: number;
     sessionDuration: number;
+    priceRates: Array<{ durationMin: number; priceRub: number; enabled: boolean }>;
   } | null;
   moderatorPermissions: string[];
   moderatorPermissionsCount: number;

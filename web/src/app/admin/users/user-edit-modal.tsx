@@ -61,8 +61,15 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [commission, setCommission] = useState(pr ? String(pr.commissionPercent) : "");
   const [specialties, setSpecialties] = useState<Specialty[]>(pr ? pr.specialties : []);
   const [tags, setTags] = useState(pr ? pr.tags.join(", ") : "");
-  const [price, setPrice] = useState(pr ? String(pr.pricePerSession) : "");
-  const [duration, setDuration] = useState(pr ? pr.sessionDuration : 60);
+  // V3: session pricing as toggleable presets (PriceRate) — one row per standard
+  // duration, each with an enable checkbox + price, instead of a single value.
+  const [rates, setRates] = useState(() => {
+    const byDur = new Map((pr?.priceRates ?? []).map((r) => [r.durationMin, r]));
+    return SESSION_DURATIONS.map((d) => {
+      const r = byDur.get(d);
+      return { durationMin: d, enabled: r?.enabled ?? false, priceRub: r ? String(r.priceRub) : "" };
+    });
+  });
 
   const [busy, setBusy] = useState(false);
   const status = statusOf(row);
@@ -79,6 +86,12 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   }
   function toggleSpecialty(key: Specialty) {
     setSpecialties((current) => current.includes(key) ? current.filter((s) => s !== key) : [...current, key]);
+  }
+  function toggleRate(i: number) {
+    setRates((rs) => rs.map((r, idx) => idx === i ? { ...r, enabled: !r.enabled } : r));
+  }
+  function setRatePrice(i: number, value: string) {
+    setRates((rs) => rs.map((r, idx) => idx === i ? { ...r, priceRub: value } : r));
   }
 
   async function saveAll() {
@@ -127,17 +140,26 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       if (canEditRights && JSON.stringify([...perms].sort()) !== JSON.stringify([...row.moderatorPermissions].sort())) {
         await patchJson("/api/admin/moderators", { moderatorId: row.id, permissions: perms });
       }
-      // 8. Practitioner profile
+      // 8. Practitioner profile (title/categories/tags/commission)
       if (canEditPractitioner && pr) {
         const ppatch: Record<string, unknown> = {};
         if (permissions.canManageRoles && commission !== String(pr.commissionPercent)) ppatch.commissionPercent = Number(commission);
         if (JSON.stringify([...specialties].sort()) !== JSON.stringify([...pr.specialties].sort())) ppatch.specialties = specialties;
         const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
         if (JSON.stringify(tagList) !== JSON.stringify(pr.tags)) ppatch.tags = tagList;
-        if (price !== String(pr.pricePerSession)) ppatch.pricePerSession = Number(price);
-        if (duration !== pr.sessionDuration) ppatch.sessionDuration = duration;
         if (Object.keys(ppatch).length > 0) {
           await patchJson(`/api/admin/practitioners/${pr.id}/profile`, ppatch);
+        }
+      }
+      // 9. Session pricing presets (PriceRate) — superadmin only (rates API gate).
+      if (canEditPractitioner && pr && permissions.canManageRoles) {
+        const payload = rates
+          .filter((r) => r.enabled || r.priceRub.trim() !== "")
+          .map((r) => ({ durationMin: r.durationMin, priceRub: Number(r.priceRub) || 0, enabled: r.enabled }));
+        const orig = JSON.stringify((pr.priceRates ?? []).map((r) => ({ durationMin: r.durationMin, priceRub: r.priceRub, enabled: r.enabled })));
+        const next = JSON.stringify(payload);
+        if (next !== orig && payload.length > 0) {
+          await patchJson(`/api/admin/practitioners/${pr.id}/rates`, { rates: payload });
         }
       }
 
@@ -300,22 +322,30 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
           {canEditPractitioner && pr && (
             <section>
               <h3 className={`mb-2 ${LABEL}`}>Практик · профиль и тарифы</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="block">
-                  <span className={LABEL}>Стоимость сессии, ₽</span>
-                  <Input className={FIELD} inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} />
-                </label>
-                <label className="block">
-                  <span className={LABEL}>Длительность, мин</span>
-                  <select className={FIELD} value={duration} onChange={(e) => setDuration(Number(e.target.value))}>
-                    {SESSION_DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </label>
-                <label className="block">
-                  <span className={LABEL}>Комиссия, % {!permissions.canManageRoles && "(суперадмин)"}</span>
-                  <Input className={FIELD} inputMode="numeric" value={commission} disabled={!permissions.canManageRoles} onChange={(e) => setCommission(e.target.value)} />
-                </label>
-              </div>
+              <label className="block max-w-[12rem]">
+                <span className={LABEL}>Комиссия платформы, % {!permissions.canManageRoles && "(суперадмин)"}</span>
+                <Input className={FIELD} inputMode="numeric" value={commission} disabled={!permissions.canManageRoles} onChange={(e) => setCommission(e.target.value)} />
+              </label>
+
+              {/* V3: session tariffs as toggleable presets — one row per standard
+                  duration with an enable checkbox + price (superadmin sets price). */}
+              {permissions.canManageRoles && (
+                <div className="mt-3" data-testid="user-modal-rate-presets">
+                  <span className={LABEL}>Тарифы сессий — включение и цена</span>
+                  <p className="text-[10px] text-[var(--soft-ink-faint)]">Отметьте длительности, которые предлагает практик, и задайте цену ₽. Показ клиентам практик включает сам.</p>
+                  <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+                    {rates.map((r, i) => (
+                      <div key={r.durationMin} className="flex items-center gap-2 rounded-md border border-[var(--soft-paper-edge)] px-2.5 py-1.5">
+                        <label className="flex w-[5.5rem] shrink-0 items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+                          <input type="checkbox" checked={r.enabled} onChange={() => toggleRate(i)} className="accent-[var(--soft-bordeaux)]" />
+                          {r.durationMin} мин
+                        </label>
+                        <Input className={`${FIELD} mt-0`} inputMode="numeric" placeholder="цена ₽" value={r.priceRub} onChange={(e) => setRatePrice(i, e.target.value)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="mt-3">
                 <span className={LABEL}>Категории</span>
                 <div className="mt-1 flex flex-wrap gap-1.5">

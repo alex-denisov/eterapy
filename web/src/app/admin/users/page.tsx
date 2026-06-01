@@ -140,6 +140,10 @@ export default async function AdminUsersPage(props: {
             tags: true,
             pricePerSession: true,
             sessionDuration: true,
+            priceRates: {
+              select: { durationMin: true, priceRub: true, enabled: true },
+              orderBy: { durationMin: "asc" },
+            },
           },
         },
         _count: {
@@ -231,6 +235,7 @@ export default async function AdminUsersPage(props: {
       tags: user.practitioner.tags,
       pricePerSession: user.practitioner.pricePerSession,
       sessionDuration: user.practitioner.sessionDuration,
+      priceRates: user.practitioner.priceRates,
     } : null,
     moderatorPermissions: permissionsByUser.get(user.id) ?? [],
     moderatorPermissionsCount: (permissionsByUser.get(user.id) ?? []).length,

@@ -63,10 +63,11 @@ describe("U2/U4/U6 — user edit modal", () => {
     expect(modal).toContain("canEditRights");
   });
 
-  it("U6 — manages practitioner categories, tags, price, duration and commission", () => {
+  it("U6/V3 — manages practitioner categories, tags, commission and session tariff presets", () => {
     expect(modal).toContain("toggleSpecialty");
-    expect(modal).toContain("pricePerSession");
-    expect(modal).toContain("sessionDuration");
+    // V3: pricing moved to per-duration PriceRate presets (rates API).
+    expect(modal).toContain("toggleRate");
+    expect(modal).toContain("/rates");
     expect(modal).toContain("commissionPercent");
     expect(modal).toContain("/profile");
   });
