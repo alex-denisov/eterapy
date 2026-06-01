@@ -53,11 +53,11 @@ function useHostname() {
   return hostname;
 }
 
-function useBalance(userId: string | null | undefined) {
+function useBalance(userId: string | null | undefined, enabled = true) {
   const [balanceKopecks, setBalanceKopecks] = useState(0);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !enabled) {
       return;
     }
     let cancelled = false;
@@ -66,16 +66,34 @@ function useBalance(userId: string | null | undefined) {
       .then(d => { if (d && !cancelled) setBalanceKopecks(d.balanceKopecks ?? 0); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [enabled, userId]);
 
-  return userId ? balanceKopecks : 0;
+  return userId && enabled ? balanceKopecks : 0;
 }
 
-function useClarityCreditBalance(userId: string | null | undefined) {
+function usePractitionerBalance(userId: string | null | undefined, enabled: boolean) {
+  const [practitionerBalanceKopecks, setPractitionerBalanceKopecks] = useState(0);
+
+  useEffect(() => {
+    if (!userId || !enabled) {
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/practitioner/balance")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !cancelled) setPractitionerBalanceKopecks(d.currentBalanceKopecks ?? 0); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [enabled, userId]);
+
+  return userId && enabled ? practitionerBalanceKopecks : 0;
+}
+
+function useClarityCreditBalance(userId: string | null | undefined, enabled = true) {
   const [credits, setCredits] = useState(0);
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !enabled) {
       return;
     }
     let cancelled = false;
@@ -92,9 +110,9 @@ function useClarityCreditBalance(userId: string | null | undefined) {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [enabled, userId]);
 
-  return userId ? credits : 0;
+  return userId && enabled ? credits : 0;
 }
 
 function formatBalanceRub(balanceKopecks: number) {
@@ -384,8 +402,13 @@ export function Header() {
   const pathname = mounted ? livePathname : "/";
   const cabinetPathname = toCabinetPathname(pathname);
   const isAuthenticated = mounted && status === "authenticated" && !!session;
-  const balanceKopecks = useBalance(session?.user?.id ?? null);
-  const clarityCredits = useClarityCreditBalance(session?.user?.id ?? null);
+  const role: string = session?.user?.role ?? "CLIENT";
+  const isStaff = role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR";
+  const isPractitioner = role === "PRACTITIONER";
+  const balanceUserId = session?.user?.id ?? null;
+  const balanceKopecks = useBalance(balanceUserId, !isStaff && !isPractitioner);
+  const practitionerBalanceKopecks = usePractitionerBalance(balanceUserId, isPractitioner);
+  const clarityCredits = useClarityCreditBalance(balanceUserId, !isStaff && !isPractitioner);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -420,7 +443,6 @@ export function Header() {
   // Keep the soft-paper styling on every surface — including admin —
   // so the visual baseline is identical across all logged-in areas.
   const softPublicHeader = true;
-  const role: string = session?.user?.role ?? "CLIENT";
   const cabinetHref = role === "PRACTITIONER"
     ? appUrl("/practitioner")
     : role === "ADMIN" || role === "SUPERADMIN"
@@ -432,8 +454,6 @@ export function Header() {
   //   PRACTITIONER — money-only balance, help, bell, dropdown (no clarity-credits,
   //     no «Новый разбор» — practitioners run sessions, they don't start client dialogues)
   //   ADMIN / SUPERADMIN / MODERATOR — bell + dropdown only (no balance, no help, no Новый разбор)
-  const isStaff = role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR";
-  const isPractitioner = role === "PRACTITIONER";
   const showBalanceSummary = isAuthenticated && !isStaff && !isPractitioner;
   const showPractitionerMoneyBalance = isAuthenticated && isPractitioner;
   const showHelpIcon = isAuthenticated && !isStaff;
@@ -493,9 +513,9 @@ export function Header() {
               )}
               {showPractitionerMoneyBalance && (
                 <MoneyBalanceLink
-                  balanceKopecks={balanceKopecks}
+                  balanceKopecks={practitionerBalanceKopecks}
                   href={appUrl("/practitioner/earnings")}
-                  label="Баланс кабинета практика"
+                  label="Баланс практика"
                   className="sm:flex"
                 />
               )}
@@ -579,7 +599,7 @@ export function Header() {
                   <Link href={appUrl("/practitioner/earnings")} prefetch={false} onClick={() => setMobileOpen(false)}
                     className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
                     <CreditCard className="size-4" aria-hidden="true" />
-                    {formatBalanceRub(balanceKopecks)} ₽
+                    {formatBalanceRub(practitionerBalanceKopecks)} ₽
                   </Link>
                 ) : (
                   <Link href={appUrl("/credits")} prefetch={false} onClick={() => setMobileOpen(false)}

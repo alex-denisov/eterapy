@@ -20,4 +20,11 @@ describe("Practitioner earnings balance UX", () => {
     expect(table).toContain("practitioner-earnings-sort");
     expect(table).toContain("practitioner-earnings-filter-");
   });
+
+  it("exposes the same available practitioner balance to the cabinet header", () => {
+    const route = source("src/app/api/practitioner/balance/route.ts");
+    expect(route).toContain("computePractitionerBalance");
+    expect(route).toContain("currentBalanceKopecks");
+    expect(route).toContain('session.user?.role !== "PRACTITIONER"');
+  });
 });

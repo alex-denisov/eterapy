@@ -16,6 +16,8 @@ describe("G16 — practitioner header hides «Новый разбор»", () => 
     expect(header).toContain("const showPractitionerMoneyBalance = isAuthenticated && isPractitioner;");
     expect(header).toContain("header-money-balance");
     expect(header).toContain('href={appUrl("/practitioner/earnings")}');
+    expect(header).toContain('fetch("/api/practitioner/balance")');
+    expect(header).toContain("practitionerBalanceKopecks");
   });
 });
 
