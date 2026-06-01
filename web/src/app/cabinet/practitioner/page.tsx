@@ -312,6 +312,11 @@ export default async function PractitionerCabinetPage() {
               <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
                 {practitioner.verified ? "Подтверждена" : "Нужна проверка"}
               </p>
+              {practitioner.verified && practitioner.verifiedAt && (
+                <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
+                  с {new Date(practitioner.verifiedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                </p>
+              )}
               {!practitioner.verified && (
                 <VerificationRequestCard pendingStatus={verificationRequest?.status ?? null} />
               )}

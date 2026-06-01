@@ -93,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     await db.$transaction(async (tx) => {
       await tx.practitioner.update({
         where: { id: practitioner.id },
-        data: { verified: true },
+        data: { verified: true, verifiedAt: new Date() },
       });
       await tx.practitionerApplication.update({
         where: { id: application.id },

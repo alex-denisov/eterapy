@@ -24,6 +24,21 @@ describe("Practitioner verification flow", () => {
     expect(manager).toContain("verificationCompleted");
     expect(manager).toContain("Верификация");
     expect(route).toContain("PRACTITIONER_VERIFIED");
-    expect(route).toContain("data: { verified: true }");
+    // V9: approval now stamps a verification timestamp.
+    expect(route).toContain("verified: true, verifiedAt: new Date()");
+  });
+
+  it("V9 — records and surfaces the verification timestamp", () => {
+    const schema = source("prisma/schema.prisma");
+    const card = source("src/app/cabinet/practitioner/page.tsx");
+    const modal = source("src/app/admin/users/user-edit-modal.tsx");
+    // schema + migration add the verifiedAt column
+    expect(schema).toContain("verifiedAt      DateTime?");
+    expect(fs.existsSync(path.join(process.cwd(), "prisma/migrations/20260601120000_add_practitioner_verified_at/migration.sql"))).toBe(true);
+    // practitioner compliance card shows the timestamp when verified
+    expect(card).toContain("practitioner.verified && practitioner.verifiedAt");
+    // admin user modal surfaces verification status (sync)
+    expect(modal).toContain("Верификация:");
+    expect(modal).toContain("pr.verifiedAt");
   });
 });

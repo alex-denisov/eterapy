@@ -34,6 +34,8 @@ export interface AdminUserRow {
     status: string;
     title: string;
     commissionPercent: number;
+    verified: boolean;
+    verifiedAt: string | null;
     specialties: Specialty[];
     tags: string[];
     pricePerSession: number;

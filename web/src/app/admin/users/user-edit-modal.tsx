@@ -322,6 +322,19 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
           {canEditPractitioner && pr && (
             <section>
               <h3 className={`mb-2 ${LABEL}`}>Практик · профиль и тарифы</h3>
+              {/* V9: verification status (managed in admin/applications) is shown
+                  read-only here so user management stays in sync. */}
+              <p className="mb-3 text-xs">
+                <span className="text-[var(--soft-ink-faint)]">Верификация: </span>
+                {pr.verified ? (
+                  <span className="font-medium text-emerald-600">
+                    подтверждена{pr.verifiedAt ? ` · ${new Date(pr.verifiedAt).toLocaleDateString("ru-RU")}` : ""}
+                  </span>
+                ) : (
+                  <span className="font-medium text-amber-600">не подтверждена</span>
+                )}
+                <span className="text-[var(--soft-ink-faint)]"> — заявки в разделе «Заявки»</span>
+              </p>
               <label className="block max-w-[12rem]">
                 <span className={LABEL}>Комиссия платформы, % {!permissions.canManageRoles && "(суперадмин)"}</span>
                 <Input className={FIELD} inputMode="numeric" value={commission} disabled={!permissions.canManageRoles} onChange={(e) => setCommission(e.target.value)} />

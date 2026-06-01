@@ -107,6 +107,7 @@ model Practitioner {
   commissionPercent Int                 @default(25) // % комиссии платформы
   languages         String[]            @default(["Русский"])
   verified        Boolean             @default(false)
+  verifiedAt      DateTime?           // V9: timestamp when verification was approved
   founding        Boolean             @default(false)
   riskScore       Int                 @default(0) @map("risk_score")
   riskFlags       String[]            @default([]) @map("risk_flags")
