@@ -102,6 +102,7 @@ type CredentialRow = {
   enabled: boolean;
   priority: number;
   baseUrlOverride: string | null;
+  effectiveBaseUrl: string | null;
   modelOverride: string | null;
   consecutiveFailures: number;
   cooldownUntil: string | null;
@@ -309,6 +310,7 @@ function statusTone(status: string) {
 // replacement (INVALID_KEY) or just a billing top-up (INSUFFICIENT_CREDITS).
 const ERROR_CODE_LABELS: Record<string, string> = {
   INSUFFICIENT_CREDITS: "нет средств на балансе провайдера — пополните счёт",
+  PROVIDER_RESTRICTED: "аккаунт провайдера ограничен — нужен новый ключ",
   QUOTA_EXCEEDED: "превышена квота / лимит запросов",
   INVALID_KEY: "неверный ключ — требуется замена",
   MISSING_CONFIG: "ключ не настроен",
@@ -938,7 +940,7 @@ function CredentialTableRow({
       <td className={COMPACT_CELL_CLASS}>
         <SoftBadge className={state.tone}>{state.label}</SoftBadge>
         {credential.lastErrorCode && (
-          <div className={`mt-1 text-xs ${credential.lastErrorCode === "INSUFFICIENT_CREDITS" ? "text-amber-700" : "text-red-700"}`}>
+          <div className={`mt-1 text-xs ${credential.lastErrorCode === "INSUFFICIENT_CREDITS" || credential.lastErrorCode === "PROVIDER_RESTRICTED" ? "text-amber-700" : "text-red-700"}`}>
             {errorCodeLabel(credential.lastErrorCode)}
           </div>
         )}
@@ -956,6 +958,15 @@ function CredentialTableRow({
       </td>
       <td className={COMPACT_CELL_CLASS}>
         <input value={draft.baseUrlOverride} onChange={(event) => setDraft({ ...draft, baseUrlOverride: event.target.value })} placeholder="Base URL ключа" className={`${COMPACT_INPUT_CLASS} min-w-[20rem] font-mono`} />
+        {/* The override is often blank even when requests route through the
+            provider config / Cloudflare AI Gateway — show the resolved URL so
+            "Use CF Gateway" is visibly reflected here. */}
+        {credential.effectiveBaseUrl && credential.effectiveBaseUrl !== (draft.baseUrlOverride || credential.baseUrlOverride) && (
+          <div className="mt-1 max-w-[24rem] break-all font-mono text-[10px] text-[var(--soft-ink-faint)]">
+            эффективный: {credential.effectiveBaseUrl}
+            {credential.effectiveBaseUrl.includes("gateway.ai.cloudflare.com") ? " · CF Gateway" : ""}
+          </div>
+        )}
       </td>
       <td className={`${COMPACT_CELL_CLASS} text-xs text-[var(--soft-ink-soft)]`}>
         <div>успех: {formatDate(credential.lastSuccessAt)}</div>

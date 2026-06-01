@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
+import { resolvedProviderBaseUrl } from "@/lib/ai-gateway/provider-runtime";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
 import { AIControlCenter, type AIProvider } from "./ai-control-center";
@@ -168,7 +169,20 @@ export default async function AdminAIPage() {
     dailyTokenBudget: policy.dailyTokenBudget,
     perUserDailyTokenBudget: policy.perUserDailyTokenBudget,
   }));
-  const credentials = rawCredentials.map((credential) => ({
+  const providerByKey = new Map(providers.map((p) => [p.provider, p]));
+  const credentials = rawCredentials.map((credential) => {
+    const cfg = providerByKey.get(credential.provider);
+    // The EFFECTIVE base URL the gateway will actually call: the credential
+    // override wins, otherwise the provider config / CF Gateway URL. This is
+    // what the admin needs to see (the raw override is often empty even when
+    // the request routes through the Cloudflare AI Gateway).
+    const effectiveBaseUrl = resolvedProviderBaseUrl({
+      credential: { baseUrlOverride: credential.baseUrlOverride },
+      providerConfig: cfg
+        ? { provider: cfg.provider, baseUrl: cfg.baseUrl, cloudflareGatewayEnabled: cfg.cloudflareGatewayEnabled }
+        : null,
+    }) ?? null;
+    return {
     id: credential.id,
     provider: credential.provider,
     label: credential.label,
@@ -177,6 +191,7 @@ export default async function AdminAIPage() {
     enabled: credential.enabled,
     priority: credential.priority,
     baseUrlOverride: credential.baseUrlOverride,
+    effectiveBaseUrl,
     modelOverride: credential.modelOverride,
     consecutiveFailures: credential.consecutiveFailures,
     cooldownUntil: credential.cooldownUntil ? credential.cooldownUntil.toISOString() : null,
@@ -186,7 +201,8 @@ export default async function AdminAIPage() {
     lastErrorAt: credential.lastErrorAt ? credential.lastErrorAt.toISOString() : null,
     lastErrorCode: credential.lastErrorCode,
     lastErrorMessage: credential.lastErrorMessage,
-  }));
+    };
+  });
 
   const models = Object.fromEntries(
     Object.entries(rawModels).map(([provider, list]) => [

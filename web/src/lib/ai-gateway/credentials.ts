@@ -230,6 +230,12 @@ export async function deleteCredential(actorId: string, id: string): Promise<voi
 export function classifyHealthFailureCode(message: string | undefined, fallback: string): string {
   if (!message) return fallback;
   const text = message.toLowerCase();
+  // Provider-account block (e.g. Groq "organization_restricted", suspended/banned
+  // accounts). The key is valid but the provider refuses it — needs a NEW key
+  // from an unrestricted account, not a billing top-up.
+  if (/organization_restricted|organization has been restricted|account (is )?(restricted|suspended|banned|disabled)|\brestricted\b|suspended|banned|access denied|forbidden|\b403\b/.test(text)) {
+    return "PROVIDER_RESTRICTED";
+  }
   if (/credit balance|insufficient|out of (credits|quota)|too low|billing|payment required|\b402\b/.test(text)) {
     return "INSUFFICIENT_CREDITS";
   }
