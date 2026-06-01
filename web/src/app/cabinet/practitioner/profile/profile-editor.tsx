@@ -103,7 +103,7 @@ export function PractitionerProfileEditor({
                 {displayAvatar ? (
                   <Image src={displayAvatar} alt="Аватар" width={80} height={80} className="h-full w-full object-cover" />
                 ) : (
-                  <div className="h-full w-full bg-primary/20 flex items-center justify-center font-heading text-3xl font-bold text-primary">
+                  <div className="soft-avatar-fallback h-full w-full flex items-center justify-center font-heading text-3xl font-bold">
                     {initial}
                   </div>
                 )}
@@ -162,7 +162,7 @@ export function PractitionerProfileEditor({
               <button key={s.value} type="button" onClick={() => toggleSpecialty(s.value)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   specialties.includes(s.value)
-                    ? "border-primary/50 bg-primary/10 text-primary"
+                    ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
                     : "border-border/30 text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {s.label}

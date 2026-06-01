@@ -297,10 +297,10 @@ export function WeekCalendar({ practitionerId }: Props) {
                 const rule = getRuleForDay(dow);
                 return (
                   <th key={dow} className={`border-r border-border/20 p-2 font-medium min-w-[80px] ${
-                    isToday ? "bg-primary/15 text-primary" : "text-muted-foreground"
+                    isToday ? "soft-select-pill" : "text-muted-foreground"
                   }`}>
                     <div className="font-semibold">{DAY_LABELS[dow]}</div>
-                    <div className={`text-[11px] mt-0.5 ${isToday ? "text-primary/80" : "text-muted-foreground/70"}`}>
+                    <div className={`text-[11px] mt-0.5 ${isToday ? "text-[var(--soft-bordeaux)]/75" : "text-muted-foreground/70"}`}>
                       {date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
                     </div>
                     {rule?.enabled ? (

@@ -149,7 +149,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                     {displayAvatar ? (
                       <Image src={displayAvatar} alt="Аватар" width={64} height={64} className="h-full w-full object-cover" />
                     ) : (
-                      <div className="h-full w-full bg-primary/20 flex items-center justify-center font-heading text-2xl font-bold text-primary">
+                      <div className="soft-avatar-fallback h-full w-full flex items-center justify-center font-heading text-2xl font-bold">
                         {initial}
                       </div>
                     )}
@@ -492,7 +492,7 @@ function ExtendedProfileTab() {
               <button key={opt.value} type="button" onClick={() => setMaritalStatus(maritalStatus === opt.value ? "" : opt.value)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   maritalStatus === opt.value
-                    ? "border-primary/50 bg-primary/10 text-primary"
+                    ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
                     : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {opt.label}
@@ -517,7 +517,7 @@ function ExtendedProfileTab() {
               <button key={g.value} type="button" onClick={() => toggleGoal(g.value)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   aiGoals.includes(g.value)
-                    ? "border-primary/50 bg-primary/10 text-primary"
+                    ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
                     : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {g.label}

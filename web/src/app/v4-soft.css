@@ -1626,6 +1626,22 @@
     color: var(--soft-bordeaux);
   }
 
+  /* V7: elegant, readable avatar fallback used across every role cabinet —
+     a soft warm gradient with a deep bordeaux initial (replaces the harsh
+     terracotta-on-terracotta `bg-primary/20 text-primary` fallback). */
+  .soft-avatar-fallback {
+    background: linear-gradient(140deg, var(--soft-rose), var(--soft-apricot));
+    color: var(--soft-bordeaux);
+  }
+
+  /* V7: high-contrast "selected" pill for tabs, calendar day headers, stat
+     tiles and toggle cards. Deep bordeaux text on a faint bordeaux wash reads
+     cleanly, unlike low-contrast terracotta text on a terracotta tint. */
+  .soft-select-pill {
+    background: color-mix(in srgb, var(--soft-bordeaux) 9%, transparent);
+    color: var(--soft-bordeaux);
+  }
+
   .soft-app-nav-link,
   .soft-admin-nav-link {
     color: var(--soft-ink-soft);

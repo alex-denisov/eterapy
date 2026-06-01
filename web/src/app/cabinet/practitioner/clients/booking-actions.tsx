@@ -59,7 +59,7 @@ export function BookingActions({
   }
 
   if (done === "CONFIRMED" && !compact) return <span className="text-xs text-green-400">✓ Подтверждено</span>;
-  if (done === "COMPLETED") return <span className="text-xs text-primary">✓ Завершено</span>;
+  if (done === "COMPLETED") return <span className="text-xs text-[var(--soft-bordeaux)]">✓ Завершено</span>;
   if (done === "CANCELLED") return <span className="text-xs text-[var(--soft-ink-soft)]">Отменено</span>;
 
   if (compact) {
@@ -67,7 +67,7 @@ export function BookingActions({
       <div className="flex gap-2 items-center">
         {(status === "CONFIRMED" || status === "IN_PROGRESS") && (
           <a href={`/session/${bookingId}`}
-            className="text-xs text-primary hover:underline">
+            className="text-xs text-[var(--soft-bordeaux)] hover:underline">
             {status === "IN_PROGRESS" ? "В сессию →" : "Начать →"}
           </a>
         )}
@@ -75,7 +75,7 @@ export function BookingActions({
           onClick={() => updateStatus("COMPLETED")}
           disabled={loading || !canComplete}
           title={!canComplete ? "Сессию можно завершить после 75% времени" : undefined}
-          className="text-xs text-[var(--soft-ink-soft)] hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="text-xs text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Завершить
         </button>

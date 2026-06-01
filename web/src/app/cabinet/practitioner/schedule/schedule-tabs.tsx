@@ -33,7 +33,7 @@ export function SchedulePageTabs({ practitionerId, initialRules, initialRates }:
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              tab === t.id ? "bg-primary/10 text-primary" : "text-[var(--soft-ink-soft)] hover:text-foreground"
+              tab === t.id ? "soft-select-pill" : "text-[var(--soft-ink-soft)] hover:text-foreground"
             }`}>
             {t.label}
           </button>

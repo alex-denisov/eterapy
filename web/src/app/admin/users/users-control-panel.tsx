@@ -156,7 +156,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 p-4">
       <div className="w-full max-w-2xl rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>

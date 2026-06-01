@@ -144,12 +144,12 @@ export default async function PractitionerEarningsPage() {
         <div className="soft-card">
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg soft-select-pill">
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-[var(--soft-ink-soft)]">Баланс кабинета</p>
-                <p className="font-heading text-2xl font-bold text-primary tabular-nums">
+                <p className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] tabular-nums">
                   {cabinetBalanceRub.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
@@ -163,12 +163,12 @@ export default async function PractitionerEarningsPage() {
         <div className="soft-card">
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg soft-select-pill">
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-[var(--soft-ink-soft)]">К выплате</p>
-                <p className="font-heading text-2xl font-bold text-primary tabular-nums">
+                <p className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] tabular-nums">
                   {currentBalance.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
