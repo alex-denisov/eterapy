@@ -7,9 +7,10 @@ describe("Admin owner finance overview", () => {
   it("surfaces owner-grade financial liabilities and revenue splits", () => {
     const overview = source("src/app/admin/page.tsx");
     expect(overview).toContain("Финансовый контур владельца");
-    expect(overview).toContain("Hold / escrow практиков");
-    expect(overview).toContain("Ожидает выплаты практикам");
-    expect(overview).toContain("Потенциальные возвраты по спорам");
+    // V5: rendered as grouped metric cards — labels shortened, metrics retained.
+    expect(overview).toContain("Hold / escrow");
+    expect(overview).toContain("Ожидает выплаты");
+    expect(overview).toContain("Потенциальные возвраты");
     expect(overview).toContain("Пополнения через эквайер");
     expect(overview).toContain("Ручные начисления");
     expect(overview).toContain("practitionerSubscriptionRevenueRub");

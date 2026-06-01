@@ -415,41 +415,72 @@ export default async function AdminPage() {
             </div>
           </section>
 
-          <div className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
-              <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Финансовый контур владельца</h2>
-              <div className="overflow-x-auto">
-                <table className="soft-admin-data-table">
-                  <thead>
-                    <tr>
-                      <th>Метрика</th>
-                      <th>Значение</th>
-                      <th>Пояснение</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr><td>Новых клиентов сегодня</td><td>{formatNumber(business.newClientsToday)}</td><td>CLIENT за текущие сутки</td></tr>
-                    <tr><td>Новых клиентов в месяце</td><td>{formatNumber(business.newClientsMonth)}</td><td>CLIENT с начала месяца</td></tr>
-                    <tr><td>Оборот сессий 30 дней</td><td>{formatRub(business.sessionGross30dRub)}</td><td>COMPLETED бронирования практиков</td></tr>
-                    <tr><td>Комиссия платформы 30 дней</td><td>{formatRub(business.sessionPlatformFee30dRub)}</td><td>доля ETerapy в сессиях</td></tr>
-                    <tr><td>Оборот сессий за всё время</td><td>{formatRub(business.sessionGrossAllRub)}</td><td>деньги, принесённые практиками</td></tr>
-                    <tr><td>Начислено практикам</td><td>{formatRub(business.practitionerNetAccruedRub)}</td><td>после комиссии платформы</td></tr>
-                    <tr><td>Hold / escrow практиков</td><td>{formatRub(business.heldPayoutAmountRub)}</td><td>HELD выплаты из-за жалоб и risk-сигналов</td></tr>
-                    <tr><td>Ожидает выплаты практикам</td><td>{formatRub(business.pendingPayoutAmountRub)}</td><td>PENDING + PROCESSING</td></tr>
-                    <tr><td>Уже выплачено практикам</td><td>{formatRub(business.paidPayoutAmountRub)}</td><td>DONE выплаты</td></tr>
-                    <tr><td>Потенциальные возвраты по спорам</td><td>{formatRub(business.disputedPotentialRefundsRub)}</td><td>OPEN/REVIEWING жалобы, сумма бронирований</td></tr>
-                    <tr><td>Фактические возвраты по сессиям</td><td>{formatRub(business.refundedBookingsRub)}</td><td>REFUNDED бронирования</td></tr>
-                    <tr><td>Цифровые продукты</td><td>{formatRub(business.digitalProductRevenueRub || business.transactionProductRevenueRub || business.estimatedProductRevenueRub)}</td><td>услуги и углубления</td></tr>
-                    <tr><td>Клиентские подписки</td><td>{formatRub(business.clientSubscriptionRevenueRub)}</td><td>Plus / Premium</td></tr>
-                    <tr><td>Подписки практиков</td><td>{formatRub(business.practitionerSubscriptionRevenueRub)}</td><td>Practitioner Pro / Pro+</td></tr>
-                    <tr><td>Пополнения через эквайер</td><td>{formatRub(business.acquirerBalanceCreditsRub)}</td><td>YooKassa balance top-up</td></tr>
-                    <tr><td>Ручные начисления</td><td>{formatRub(business.manualBalanceCreditsRub)}</td><td>superadmin/moderator/internal adjustments</td></tr>
-                    <tr><td>Баланс пользователей</td><td>{formatRub(business.totalBalanceRub)}</td><td>денежное обязательство в кабинетах</td></tr>
-                    <tr><td>Баланс кредитов ясности</td><td>{formatNumber(business.clarityCreditBalance)}</td><td>confirmed ledger net</td></tr>
-                    <tr><td>Активные подписки</td><td>{formatNumber(business.activeSubscriptions)}</td><td>TRIALING + ACTIVE</td></tr>
-                  </tbody>
-                </table>
-              </div>
+          <div className="mb-6 grid gap-4">
+            {/* V5: the owner financial loop rendered as grouped metric cards
+                (revenue / payouts / refunds / balances / clients) instead of a
+                dense 19-row table, so the full picture is scannable at a glance. */}
+            <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]" data-testid="admin-owner-finance">
+              <h2 className="mb-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Финансовый контур владельца</h2>
+              <p className="mb-4 text-xs text-[var(--soft-ink-faint)]">Полная финансовая картина платформы — выручка, выплаты практикам, возвраты и обязательства.</p>
+              {[
+                {
+                  title: "Выручка",
+                  items: [
+                    { label: "Оборот сессий · 30 дней", value: formatRub(business.sessionGross30dRub), hint: "COMPLETED бронирования" },
+                    { label: "Комиссия платформы · 30 дней", value: formatRub(business.sessionPlatformFee30dRub), hint: "доля ETerapy в сессиях" },
+                    { label: "Оборот сессий · всё время", value: formatRub(business.sessionGrossAllRub), hint: "принесено практиками" },
+                    { label: "Цифровые продукты", value: formatRub(business.digitalProductRevenueRub || business.transactionProductRevenueRub || business.estimatedProductRevenueRub), hint: "услуги и углубления" },
+                    { label: "Клиентские подписки", value: formatRub(business.clientSubscriptionRevenueRub), hint: "Plus / Premium" },
+                    { label: "Подписки практиков", value: formatRub(business.practitionerSubscriptionRevenueRub), hint: "Practitioner Pro / Pro+" },
+                  ],
+                },
+                {
+                  title: "Выплаты практикам",
+                  items: [
+                    { label: "Начислено практикам", value: formatRub(business.practitionerNetAccruedRub), hint: "после комиссии платформы" },
+                    { label: "Hold / escrow", value: formatRub(business.heldPayoutAmountRub), hint: "HELD из-за жалоб и risk-сигналов" },
+                    { label: "Ожидает выплаты", value: formatRub(business.pendingPayoutAmountRub), hint: "PENDING + PROCESSING" },
+                    { label: "Уже выплачено", value: formatRub(business.paidPayoutAmountRub), hint: "DONE выплаты" },
+                  ],
+                },
+                {
+                  title: "Возвраты и риски",
+                  items: [
+                    { label: "Потенциальные возвраты", value: formatRub(business.disputedPotentialRefundsRub), hint: "OPEN/REVIEWING жалобы" },
+                    { label: "Фактические возвраты", value: formatRub(business.refundedBookingsRub), hint: "REFUNDED бронирования" },
+                  ],
+                },
+                {
+                  title: "Балансы и обязательства",
+                  items: [
+                    { label: "Баланс пользователей", value: formatRub(business.totalBalanceRub), hint: "обязательство в кабинетах" },
+                    { label: "Кредиты ясности", value: formatNumber(business.clarityCreditBalance), hint: "confirmed ledger net" },
+                    { label: "Пополнения через эквайер", value: formatRub(business.acquirerBalanceCreditsRub), hint: "YooKassa top-up" },
+                    { label: "Ручные начисления", value: formatRub(business.manualBalanceCreditsRub), hint: "superadmin / moderator" },
+                  ],
+                },
+                {
+                  title: "Клиенты и подписки",
+                  items: [
+                    { label: "Новых клиентов сегодня", value: formatNumber(business.newClientsToday), hint: "CLIENT за сутки" },
+                    { label: "Новых клиентов в месяце", value: formatNumber(business.newClientsMonth), hint: "CLIENT с начала месяца" },
+                    { label: "Активные подписки", value: formatNumber(business.activeSubscriptions), hint: "TRIALING + ACTIVE" },
+                  ],
+                },
+              ].map((group) => (
+                <div key={group.title} className="mb-4 last:mb-0">
+                  <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{group.title}</p>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {group.items.map((item) => (
+                      <div key={item.label} className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3">
+                        <p className="text-[0.66rem] font-semibold uppercase tracking-wide text-[var(--soft-ink-faint)]">{item.label}</p>
+                        <p className="mt-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)] tabular-nums">{item.value}</p>
+                        <p className="mt-0.5 text-[11px] text-[var(--soft-ink-faint)]">{item.hint}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </section>
 
             <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
