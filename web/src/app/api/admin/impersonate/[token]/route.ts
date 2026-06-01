@@ -56,7 +56,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
   }
 
   const cabinet = target.role === "PRACTITIONER" ? "/cabinet/practitioner" : "/cabinet";
-  const impToken = await encodeImpersonationToken({ targetUserId: target.id, impersonatorId });
+  const impToken = await encodeImpersonationToken({ targetUserId: target.id, impersonatorId, targetRole: target.role });
 
   const response = NextResponse.redirect(new URL(appUrl(cabinet), req.url));
   setImpersonationCookie(response, impToken);

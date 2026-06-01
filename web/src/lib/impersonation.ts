@@ -15,7 +15,7 @@
  */
 import { cookies } from "next/headers";
 import { encode, decode } from "next-auth/jwt";
-import type { NextResponse } from "next/server";
+import type { NextRequest, NextResponse } from "next/server";
 import { SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 
 export const IMPERSONATION_COOKIE = "eterapy-imp";
@@ -24,6 +24,10 @@ const TTL_SECONDS = 60 * 60 * 2; // 2 hours
 export interface ImpersonationToken {
   targetUserId: string;
   impersonatorId: string;
+  // U3: the impersonated user's role is carried in the token so the edge proxy
+  // can route the app host correctly (otherwise it reads the superadmin's real
+  // session role and bounces the impersonator back to admin.eterapy.com).
+  targetRole?: string | null;
 }
 
 function cookieOptions() {
@@ -42,12 +46,42 @@ export async function encodeImpersonationToken(payload: ImpersonationToken): Pro
     token: {
       sub: payload.targetUserId,
       impersonatorId: payload.impersonatorId,
+      targetRole: payload.targetRole ?? null,
       iat: now,
       exp: now + TTL_SECONDS,
     },
     secret: process.env.AUTH_SECRET!,
     salt: IMPERSONATION_COOKIE,
   });
+}
+
+function tokenToImpersonation(decoded: Record<string, unknown> | null): ImpersonationToken | null {
+  if (!decoded || typeof decoded.sub !== "string") return null;
+  if (typeof decoded.impersonatorId !== "string") return null;
+  return {
+    targetUserId: decoded.sub,
+    impersonatorId: decoded.impersonatorId,
+    targetRole: typeof decoded.targetRole === "string" ? decoded.targetRole : null,
+  };
+}
+
+/**
+ * Edge-safe variant of readImpersonation: decode the impersonation cookie from a
+ * NextRequest (the `cookies()` helper is not available inside the proxy).
+ */
+export async function getImpersonationFromRequest(
+  request: Pick<NextRequest, "cookies">,
+): Promise<ImpersonationToken | null> {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return null;
+  const raw = request.cookies.get(IMPERSONATION_COOKIE)?.value;
+  if (!raw) return null;
+  try {
+    const decoded = await decode({ token: raw, secret, salt: IMPERSONATION_COOKIE });
+    return tokenToImpersonation(decoded as Record<string, unknown> | null);
+  } catch {
+    return null;
+  }
 }
 
 export function setImpersonationCookie(res: NextResponse, token: string): void {
@@ -65,10 +99,7 @@ export async function readImpersonation(): Promise<ImpersonationToken | null> {
   if (!raw) return null;
   try {
     const decoded = await decode({ token: raw, secret: process.env.AUTH_SECRET!, salt: IMPERSONATION_COOKIE });
-    if (!decoded?.sub) return null;
-    const impersonatorId = (decoded as Record<string, unknown>).impersonatorId;
-    if (typeof impersonatorId !== "string") return null;
-    return { targetUserId: decoded.sub, impersonatorId };
+    return tokenToImpersonation(decoded as Record<string, unknown> | null);
   } catch {
     return null;
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionFromCookie } from "@/lib/session-from-cookie";
+import { getImpersonationFromRequest } from "@/lib/impersonation";
 import { applyRequestContextHeaders, requestContextFromHeaders } from "@/lib/request-context";
 import { shouldNoIndex } from "@/lib/seo";
 import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
@@ -134,7 +135,18 @@ export default async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
-  const { role } = await getSessionFromCookie(request);
+  const realSession = await getSessionFromCookie(request);
+  const role = realSession.role;
+  // U3: respect impersonation on the app host. When an admin/superadmin has an
+  // active impersonation cookie they must be routed as the TARGET user (e.g. a
+  // superadmin impersonating a client stays in the client cabinet instead of
+  // being bounced to admin.eterapy.com by the staff-role check below). The admin
+  // host always keeps the real (admin) role.
+  const impersonation = await getImpersonationFromRequest(request);
+  const impersonating = Boolean(
+    impersonation && impersonation.impersonatorId === realSession.id && isAdminRole(role),
+  );
+  const appRole = impersonating ? (impersonation?.targetRole ?? role) : role;
   const legacyTarget = legacyPublicRedirect(pathname);
 
   if (ALWAYS_ALLOW.some(p => pathname.startsWith(p))) {
@@ -178,7 +190,7 @@ export default async function proxy(request: NextRequest) {
       );
     }
 
-    if (!role) {
+    if (!appRole) {
       const nextPath = pathname.startsWith("/cabinet")
         ? pathname
         : pathname === "/"
@@ -186,10 +198,10 @@ export default async function proxy(request: NextRequest) {
           : `/cabinet${pathname}`;
       return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodedNext(nextPath, request.nextUrl.search)}`, context), host, pathname);
     }
-    if (isAdminRole(role)) {
+    if (isAdminRole(appRole)) {
       return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, "/admin", context), host, pathname);
     }
-    // CLIENT or PRACTITIONER
+    // CLIENT or PRACTITIONER (or an admin/superadmin impersonating one)
     // Strip /cabinet segment: incoming /cabinet/X → 308 redirect to /X; /cabinet alone → /
     if (pathname === "/cabinet") {
       return applyRobotsPolicy(withRequestContext(NextResponse.redirect(new URL("/", request.url), 308), context), host, pathname);
