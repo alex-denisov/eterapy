@@ -412,6 +412,8 @@ export default function BillingPage() {
   const CLIENT_PLAN_KEYS: Array<"plus" | "premium"> = ["plus", "premium"];
   const balanceKopecks = Math.round(Number(balanceRub) * 100);
   const topUpValid = Number.isFinite(topUpAmount) && topUpAmount >= MIN_TOPUP_RUB && topUpAmount <= MAX_TOPUP_RUB;
+  // W12: the default card drives the single top-up CTA in the unified wallet.
+  const defaultCard = linkedCards.find((c) => c.isDefault) ?? linkedCards[0] ?? null;
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -524,128 +526,29 @@ export default function BillingPage() {
         })}
       </div>
 
-      {/* Balance card */}
-      <div className="soft-card p-6">
-        <div className="soft-eyebrow mb-3">баланс</div>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div style={{ fontFamily: "var(--font-heading)", fontSize: 36, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-            {Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽
+      {/* W12: unified «Кошелёк» — balance, a single top-up flow and saved cards
+          live in ONE coherent block. The previous design split these into three
+          cards with three different «Пополнить» buttons + an always-on «Привязать
+          карту» that read as «no card linked» even after a card was added. */}
+      <div className="soft-card p-6" data-testid="client-wallet">
+        {/* Header: purpose on the left, balance figure on the right */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="soft-eyebrow">кошелёк</div>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+              Баланс для оплаты разборов, услуг и подписки
+            </p>
           </div>
-          <button
-            onClick={handleTopUp}
-            disabled={creatingPayment}
-            className="soft-button soft-button-primary"
-            style={{ minHeight: "2.25rem", padding: "0.5rem 1.25rem", fontSize: "0.875rem" }}
-          >
-            {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            {creatingPayment ? "Создание платежа..." : "Пополнить"}
-          </button>
-        </div>
-      </div>
-
-      {/* Payment methods — saved cards rendered as visual card faces */}
-      <div className="soft-card p-6" data-testid="client-saved-cards">
-        <div data-testid="client-checkout-panel">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="soft-eyebrow">мои карты</div>
-            <button
-              onClick={handleLinkCard}
-              disabled={savingCard}
-              className="soft-button soft-button-ghost"
-              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
-            >
-              {savingCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Привязать карту
-            </button>
+          <div className="text-right" data-testid="client-wallet-balance">
+            <div className="text-xs text-[var(--soft-ink-faint)]">на балансе</div>
+            <div style={{ fontFamily: "var(--font-heading)", fontSize: 30, color: "var(--soft-bordeaux)", fontWeight: 600, lineHeight: 1.1 }}>
+              {Number(balanceRub).toLocaleString("ru", { minimumFractionDigits: 2 })} ₽
+            </div>
           </div>
-
-          {loadingCards ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--soft-ink-faint)" }} />
-            </div>
-          ) : linkedCards.length === 0 ? (
-            <div className="py-8 text-center text-sm" style={{ color: "var(--soft-ink-faint)" }}>
-              <p>Карт пока нет</p>
-              <p className="text-xs mt-1">Привяжите карту, чтобы пополнять баланс в один тап</p>
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {linkedCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="relative flex flex-col justify-between overflow-hidden rounded-[1.25rem] p-5 text-white shadow-md"
-                  style={{
-                    minHeight: 168,
-                    // G15: darker gradients so the card number stays legible
-                    // (white-on-dark) end-to-end — the previous mid-tone fills
-                    // dropped the «•••• last4» contrast to near-invisible.
-                    background: card.isDefault
-                      ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)"
-                      : "linear-gradient(135deg, #2f2b29 0%, #4a423d 100%)",
-                  }}
-                  data-testid="client-saved-card"
-                >
-                  <div className="flex items-start justify-between">
-                    <span className="text-sm font-bold uppercase tracking-wider text-white/95">{getBrandLabel(card.brand)}</span>
-                    {card.isDefault && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">
-                        <Check className="h-3 w-3" /> основная
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <div
-                      className="font-heading text-xl font-semibold tracking-[0.22em] text-white"
-                      style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
-                    >
-                      •••• •••• •••• {card.last4}
-                    </div>
-                    <div className="mt-2 flex items-center justify-between text-xs text-white/85">
-                      <span className="truncate pr-2">{card.cardholderName || "—"}</span>
-                      <span className="shrink-0 tabular-nums">{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex items-center gap-2">
-                    <button
-                      onClick={() => handlePayWithSavedCard(card.id)}
-                      disabled={payingWithSaved}
-                      className="rounded-full bg-white/90 px-3 py-1 text-xs font-medium text-[var(--soft-bordeaux)] transition-opacity hover:opacity-80 disabled:opacity-50"
-                    >
-                      {payingWithSaved ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Пополнить"}
-                    </button>
-                    {!card.isDefault && (
-                      <button
-                        onClick={() => handleSetDefaultCard(card.id)}
-                        disabled={settingDefaultCardId === card.id}
-                        className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-                        data-testid="client-set-default-card"
-                      >
-                        {settingDefaultCardId === card.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Сделать основной"}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleRemoveCard(card.id)}
-                      className="ml-auto rounded-full bg-white/15 p-1.5 transition-opacity hover:opacity-80"
-                      title="Удалить карту"
-                      aria-label="Удалить карту"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* Top-up — free-text custom amount (G15: borderless big-number field
-          inside a soft panel so the amount never merges with an input border;
-          quick-amount chips live under the number for one-tap presets). */}
-      <div className="soft-card p-6">
-        <div className="soft-eyebrow mb-4">пополнить баланс</div>
-
-        <div className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
+        {/* Top-up amount — borderless big number inside a soft panel */}
+        <div className="mt-5 rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
           <label htmlFor="client-topup-amount" className="block text-xs font-medium text-[var(--soft-ink-faint)]">
             Сумма пополнения
           </label>
@@ -658,7 +561,6 @@ export default function BillingPage() {
               placeholder="0"
               value={topUpRaw}
               onChange={(e) => {
-                // digits only; strip a leading zero so "0" never gets stuck
                 const cleaned = e.target.value.replace(/[^\d]/g, "").replace(/^0+(?=\d)/, "");
                 setTopUpRaw(cleaned);
               }}
@@ -686,20 +588,19 @@ export default function BillingPage() {
           )}
         </div>
 
-        <div className="mt-4">
-          {linkedCards.length > 0 ? (
+        {/* Single top-up action — pays with the default card when one exists */}
+        <div className="mt-4" data-testid="client-checkout-panel">
+          {defaultCard ? (
             <div className="space-y-2">
               <button
-                onClick={() => {
-                  const defaultCard = linkedCards.find(c => c.isDefault) ?? linkedCards[0];
-                  handlePayWithSavedCard(defaultCard.id);
-                }}
+                onClick={() => handlePayWithSavedCard(defaultCard.id)}
                 disabled={payingWithSaved || !topUpValid}
                 className="soft-button soft-button-primary w-full"
+                data-testid="client-topup-submit"
               >
                 {payingWithSaved
                   ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <>Пополнить на {topUpAmount.toLocaleString("ru-RU")} ₽ с •••• {linkedCards.find(c => c.isDefault)?.last4 ?? linkedCards[0].last4}<ArrowUpRight className="h-4 w-4" /></>
+                  : <>Пополнить на {topUpAmount.toLocaleString("ru-RU")} ₽ · •••• {defaultCard.last4}<ArrowUpRight className="h-4 w-4" /></>
                 }
               </button>
               <button
@@ -708,7 +609,7 @@ export default function BillingPage() {
                 className="soft-button soft-button-ghost w-full"
               >
                 {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> : null}
-                Другой способ оплаты
+                Оплатить другой картой
               </button>
             </div>
           ) : (
@@ -716,6 +617,7 @@ export default function BillingPage() {
               onClick={handleTopUp}
               disabled={creatingPayment || !topUpValid}
               className="soft-button soft-button-primary w-full"
+              data-testid="client-topup-submit"
             >
               {creatingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Пополнить на {topUpAmount.toLocaleString("ru-RU")} ₽<ArrowUpRight className="h-4 w-4" /></>}
             </button>
@@ -725,6 +627,104 @@ export default function BillingPage() {
         <div className="flex items-center gap-2 mt-3 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
           <Shield className="h-3 w-3" />
           Платёж защищён через ЮKassa · мы не храним данные карты
+        </div>
+
+        {/* Saved cards — a subsection, not a competing card. «Привязать» is the
+            primary affordance only when there are no cards; once a card exists it
+            becomes a quiet «+ ещё карта». */}
+        <div className="mt-6 border-t border-[var(--soft-paper-edge)] pt-5" data-testid="client-saved-cards">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="soft-eyebrow">мои карты</div>
+            {linkedCards.length > 0 && (
+              <button
+                onClick={handleLinkCard}
+                disabled={savingCard}
+                className="soft-chip"
+                data-testid="client-link-card"
+              >
+                {savingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                Ещё карта
+              </button>
+            )}
+          </div>
+
+          {loadingCards ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--soft-ink-faint)" }} />
+            </div>
+          ) : linkedCards.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--soft-paper-edge)] py-6 px-4 text-center">
+              <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Карта не привязана</p>
+              <p className="text-xs mt-1" style={{ color: "var(--soft-ink-faint)" }}>Привяжите карту, чтобы пополнять баланс в один тап</p>
+              <button
+                onClick={handleLinkCard}
+                disabled={savingCard}
+                className="soft-button soft-button-primary mt-3"
+                style={{ minHeight: "2.25rem", padding: "0.5rem 1.1rem", fontSize: "0.875rem" }}
+                data-testid="client-link-card"
+              >
+                {savingCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Привязать карту
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {linkedCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="relative flex flex-col justify-between overflow-hidden rounded-[1.25rem] p-5 text-white shadow-md"
+                  style={{
+                    minHeight: 152,
+                    background: card.isDefault
+                      ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)"
+                      : "linear-gradient(135deg, #2f2b29 0%, #4a423d 100%)",
+                  }}
+                  data-testid="client-saved-card"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="text-sm font-bold uppercase tracking-wider text-white/95">{getBrandLabel(card.brand)}</span>
+                    {card.isDefault && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">
+                        <Check className="h-3 w-3" /> основная
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-4">
+                    <div
+                      className="font-heading text-xl font-semibold tracking-[0.22em] text-white"
+                      style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
+                    >
+                      •••• •••• •••• {card.last4}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-white/85">
+                      <span className="truncate pr-2">{card.cardholderName || "—"}</span>
+                      <span className="shrink-0 tabular-nums">{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center gap-2">
+                    {!card.isDefault && (
+                      <button
+                        onClick={() => handleSetDefaultCard(card.id)}
+                        disabled={settingDefaultCardId === card.id}
+                        className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                        data-testid="client-set-default-card"
+                      >
+                        {settingDefaultCardId === card.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Сделать основной"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleRemoveCard(card.id)}
+                      className="ml-auto rounded-full bg-white/15 p-1.5 transition-opacity hover:opacity-80"
+                      title="Удалить карту"
+                      aria-label="Удалить карту"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
