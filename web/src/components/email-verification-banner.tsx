@@ -39,33 +39,33 @@ export function EmailVerificationBanner() {
     }
   }
 
+  // W2: full-width banner pinned to the very top (like the impersonation
+  // banner), not a constrained centered strip. z-[90] keeps it just below the
+  // amber impersonation banner (z-[100]) when both are visible.
   return (
-    <div className="soft-email-banner px-4 py-2.5">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm">
-          <span>⚠</span>
-          <span>
-            Подтвердите email <strong>{session.user?.email}</strong> —
-            проверьте входящие письма.
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <button
-            onClick={resend}
-            disabled={sending}
-            className="text-xs underline disabled:opacity-60"
-          >
-            {sending ? "Отправляем..." : "Отправить повторно"}
-          </button>
-          <button
-            onClick={() => setDismissed(true)}
-            className="text-sm opacity-60 hover:opacity-100"
-            aria-label="Закрыть"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+    <div className="soft-email-banner sticky top-0 z-[90] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center text-sm">
+      <span className="flex items-center gap-2">
+        <span aria-hidden="true">⚠</span>
+        <span>
+          Подтвердите email <strong>{session.user?.email}</strong> — проверьте входящие письма.
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-3">
+        <button
+          onClick={resend}
+          disabled={sending}
+          className="text-xs underline disabled:opacity-60"
+        >
+          {sending ? "Отправляем..." : "Отправить повторно"}
+        </button>
+        <button
+          onClick={() => setDismissed(true)}
+          className="opacity-60 hover:opacity-100"
+          aria-label="Закрыть"
+        >
+          ✕
+        </button>
+      </span>
     </div>
   );
 }

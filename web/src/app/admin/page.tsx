@@ -252,7 +252,13 @@ async function getStats(canViewBusiness: boolean) {
       if (tx.provider === "yookassa") acc.acquirerBalanceCreditsRub += rub;
       if (tx.provider === "manual" || tx.provider === "internal") acc.manualBalanceCreditsRub += rub;
     }
-    if (tx.amount > 0 && metadata.purchaseKind === "product") {
+    // W4: a product paid FROM BALANCE records a NEGATIVE transaction (a debit
+    // from the user's RUB balance), while a card purchase records a positive
+    // one. Both are real product revenue, so count every SUCCEEDED product
+    // transaction by magnitude (`rub` is already Math.abs) — the old
+    // `tx.amount > 0` filter silently dropped all balance-paid purchases,
+    // showing «Цифровые продукты» = 0 despite real test orders.
+    if (metadata.purchaseKind === "product") {
       acc.digitalProductRevenueRub += rub;
     }
     if (tx.amount > 0 && metadata.purchaseKind === "subscription") {
@@ -420,7 +426,7 @@ export default async function AdminPage() {
                 (revenue / payouts / refunds / balances / clients) instead of a
                 dense 19-row table, so the full picture is scannable at a glance. */}
             <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]" data-testid="admin-owner-finance">
-              <h2 className="mb-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Финансовый контур владельца</h2>
+              <h2 className="mb-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Финансовые метрики</h2>
               <p className="mb-4 text-xs text-[var(--soft-ink-faint)]">Полная финансовая картина платформы — выручка, выплаты практикам, возвраты и обязательства.</p>
               {[
                 {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Ban, KeyRound, LogIn, RotateCcw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -72,6 +73,12 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   });
 
   const [busy, setBusy] = useState(false);
+  // W1: render the modal in a portal at document.body so it escapes the admin
+  // shell's stacking context (the sticky sidebar + the backdrop-blur header both
+  // create one) — otherwise z-[100] still loses to the header's z-50.
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- portal mount guard
+  useEffect(() => { setMounted(true); }, []);
   const status = statusOf(row);
 
   // Role/balance/rights are SUPERADMIN-only; SUPERADMIN targets are read-only.
@@ -188,7 +195,9 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
     }
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" data-testid="user-edit-modal">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
         {/* Header */}
@@ -453,6 +462,7 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

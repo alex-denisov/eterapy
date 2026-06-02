@@ -123,7 +123,7 @@ export function ClientsSessionsTable({ rows }: { rows: SessionRow[] }) {
             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
               category === tab.key
                 ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-[#fff8f1]"
-                : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink-soft)] hover:text-[var(--soft-ink)]"
+                : "border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] text-[var(--soft-ink)] hover:border-[var(--soft-bordeaux)]/40"
             }`}
           >
             {tab.label}

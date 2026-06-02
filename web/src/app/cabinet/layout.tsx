@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
@@ -43,15 +42,12 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   });
   const subLabel = activeSub ? subscriptionLabel(activeSub.planKey, activeSub.currentPeriodEnd) : "Бесплатный";
 
-  // B1: impersonation is now carried by a separate cookie and surfaced via
-  // session.user.impersonatedBy (resolved in the auth() wrapper). Keep the
-  // legacy cookie checks as a fallback for in-flight old sessions.
-  const cookieStore = await cookies();
-  const isImpersonating =
-    Boolean(session.user?.impersonatedBy) ||
-    cookieStore.has("eterapy-imp") ||
-    cookieStore.has("admin-impersonating") ||
-    cookieStore.has("admin-session-backup");
+  // W5: impersonation is surfaced ONLY via session.user.impersonatedBy, which
+  // the auth() wrapper sets only when the REAL session is an admin/superadmin
+  // actively impersonating. Relying on raw cookie presence was wrong — a stale
+  // eterapy-imp cookie left after logout made the banner appear for a freshly
+  // logged-in practitioner who was never being impersonated.
+  const isImpersonating = Boolean(session.user?.impersonatedBy);
 
   return (
     <>

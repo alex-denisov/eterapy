@@ -36,6 +36,9 @@ export async function GET(request: Request) {
     "admin-impersonating",
     "admin-session-backup",
     "__Host-admin-session-backup",
+    // W5: the active impersonation cookie must die on logout too, otherwise a
+    // later (non-admin) login still trips the impersonation banner.
+    "eterapy-imp",
   ];
 
   for (const name of names) {

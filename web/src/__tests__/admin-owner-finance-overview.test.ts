@@ -6,7 +6,7 @@ const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "
 describe("Admin owner finance overview", () => {
   it("surfaces owner-grade financial liabilities and revenue splits", () => {
     const overview = source("src/app/admin/page.tsx");
-    expect(overview).toContain("Финансовый контур владельца");
+    expect(overview).toContain("Финансовые метрики");
     // V5: rendered as grouped metric cards — labels shortened, metrics retained.
     expect(overview).toContain("Hold / escrow");
     expect(overview).toContain("Ожидает выплаты");
