@@ -7,8 +7,9 @@ describe("Practitioner earnings balance UX", () => {
   it("renames earnings to a balance page and separates cabinet balance from payouts", () => {
     const page = source("src/app/cabinet/practitioner/earnings/page.tsx");
     expect(page).toContain("Баланс и доходы");
-    expect(page).toContain("Баланс кабинета");
-    expect(page).toContain("К выплате");
+    // W8: relabeled to disambiguate the internal wallet from earnings.
+    expect(page).toContain("Кошелёк кабинета");
+    expect(page).toContain("Заработано — к выплате");
     expect(page).not.toContain("Баланс, движение средств и предстоящие выплаты. Комиссия платформы");
   });
 

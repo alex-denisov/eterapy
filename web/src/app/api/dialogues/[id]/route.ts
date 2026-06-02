@@ -8,7 +8,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { claimGuestDialoguesForUser } from "@/lib/claim-guest-dialogues";
 import { readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
+import { generateAnswerChips, generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
 
 const respondDialogueSchema = z.object({
   message: z.string().trim().min(1).max(4000).optional(),
@@ -190,12 +190,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     if (turn.type === "question" && turn.question) {
-      // B317: guarantee chips on every turn. LLM occasionally omits the
-      // chips array even though the system prompt asks for one — when
-      // that happens we fall back to a neutral set so the user can still
-      // tap-respond without typing.
+      // B317/W18: guarantee RELEVANT chips on every turn. The per-turn LLM
+      // occasionally omits its chip array (more often as the dialogue grows).
+      // When that happens, derive 3 chips for this specific question with a
+      // small dedicated call instead of showing the same generic static set
+      // (Скорее да / Скорее нет / …) from the third question onward. Only when
+      // that also fails do we land on the neutral fallback.
       const FALLBACK_CHIPS = ["Скорее да", "Скорее нет", "Сложно сказать", "Расскажу подробнее"];
-      const chips = (turn.chips && turn.chips.length > 0) ? turn.chips : FALLBACK_CHIPS;
+      let chips = (turn.chips && turn.chips.length > 0) ? turn.chips : [];
+      if (chips.length === 0) {
+        chips = await generateAnswerChips({
+          question: turn.question,
+          previousPairs,
+          topic: dialogue.topic,
+          userId,
+          requestId: context.requestId,
+        });
+      }
+      if (chips.length === 0) chips = FALLBACK_CHIPS;
 
       await db.dialogue.update({
         where: { id: dialogue.id },

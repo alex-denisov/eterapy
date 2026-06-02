@@ -148,12 +148,12 @@ export default async function PractitionerEarningsPage() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--soft-ink-soft)]">Баланс кабинета</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Кошелёк кабинета</p>
                 <p className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] tabular-nums">
                   {cabinetBalanceRub.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  Для подписки Practitioner Pro и внутренних покупок
+                  Для подписки Practitioner Pro и внутренних покупок. Пополняется отдельно от заработка.
                 </p>
               </div>
             </div>
@@ -167,12 +167,12 @@ export default async function PractitionerEarningsPage() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--soft-ink-soft)]">К выплате</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Заработано — к выплате</p>
                 <p className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] tabular-nums">
                   {currentBalance.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  После комиссии, hold и уже запрошенных выплат
+                  Чистыми после комиссии. Это ваш заработок — он выплачивается по расписанию, а не лежит в кошельке кабинета.
                 </p>
               </div>
             </div>
@@ -182,7 +182,7 @@ export default async function PractitionerEarningsPage() {
         <div className="soft-card">
           <div className="p-4">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/15 text-green-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
                 <CalendarClock className="h-5 w-5" />
               </div>
               <div className="min-w-0">

@@ -404,6 +404,63 @@ export async function generateDialogueConversationalTurn(input: {
   }
 }
 
+/**
+ * W18: when a per-turn LLM response omits its `c` (chip) array — which happens
+ * more often on later turns as the context grows — derive 3 relevant answer
+ * chips for the question with a tiny dedicated call, instead of falling back to
+ * the same generic static chips (Скорее да / Скорее нет / …) on every turn.
+ */
+export async function generateAnswerChips(input: {
+  question: string;
+  previousPairs?: Array<{ question: string; answer: string }>;
+  topic?: string | null;
+  userId?: string | null;
+  requestId?: string;
+}): Promise<string[]> {
+  const question = input.question?.trim();
+  if (!question) return [];
+  try {
+    const ctx = (input.previousPairs ?? [])
+      .slice(-2)
+      .map((pair) => `В: ${pair.question}\nО: ${pair.answer}`)
+      .join("\n");
+    const response = await aiComplete({
+      feature: "dialogue-clarifier",
+      userId: input.userId,
+      requestId: input.requestId,
+      maxTokens: 100,
+      temperature: 0.5,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "Ты помогаешь пользователю быстро ответить на вопрос в диалоге ясности.",
+            "Верни СТРОГО JSON-массив из 3 коротких (1–6 слов) конкретных вариантов ответа на русском,",
+            "релевантных ИМЕННО этому вопросу и контексту — это реальные опции, а не общие категории.",
+            'Пример: ["Реакция шефа","Давнее","Привычка молчать"]. Только массив, без markdown и пояснений.',
+          ].join(" "),
+        },
+        { role: "user", content: `${ctx ? `${ctx}\n\n` : ""}Вопрос: ${question}` },
+      ],
+    });
+    const cleaned = response.text.trim().replace(/^```json\s*|^```\s*|```$/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) {
+      const chips = parsed
+        .filter((chip): chip is string => typeof chip === "string" && chip.trim().length > 0)
+        .map((chip) => chip.trim().slice(0, 40))
+        .slice(0, 3);
+      if (chips.length >= 2) return chips;
+    }
+  } catch (error) {
+    log.warn("dialogue-clarifier-chip-derivation-failed", {
+      requestId: input.requestId,
+      error: serializeError(error),
+    });
+  }
+  return [];
+}
+
 export async function generateDialogueClarifyingQuestions(input: {
   question: string;
   topic?: string | null;
