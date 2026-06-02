@@ -5,6 +5,7 @@
 import db from "../src/lib/db";
 import { PractitionerStatus, Specialty, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { detectCategoriesFromLegacy, directionsForSpecialties } from "../src/lib/practitioner-taxonomy";
 
 const practitioners = [
   {
@@ -152,10 +153,16 @@ async function main() {
       update: { name: userData.name, password },
     });
 
+    // W3: derive the three-level taxonomy from legacy specialties/title.
+    const taxonomy = {
+      categories: detectCategoriesFromLegacy({ specialties: pData.specialties, title: pData.title }),
+      directions: directionsForSpecialties(pData.specialties),
+    };
+
     await db.practitioner.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, ...pData },
-      update: { ...pData },
+      create: { userId: user.id, ...pData, ...taxonomy },
+      update: { ...pData, ...taxonomy },
     });
 
     console.log(`  ✓ ${userData.name}`);

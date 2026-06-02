@@ -5,11 +5,8 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { SPECIALTY_OPTIONS } from "@/lib/types";
-
-// V8: categories come from the single canonical taxonomy (lib/types), shared
-// with the admin user modal and the public service cards.
-const SPECIALTIES = SPECIALTY_OPTIONS;
+import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
+import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
 
 interface InitialData {
   name: string;
@@ -18,6 +15,8 @@ interface InitialData {
   title: string;
   bio: string;
   experience: string;
+  categories: string[];
+  directions: string[];
   specialties: string[];
   tags: string[];
   languages: string[];
@@ -38,8 +37,9 @@ export function PractitionerProfileEditor({
   const [title, setTitle] = useState(initialData.title);
   const [bio, setBio] = useState(initialData.bio);
   const [experience, setExperience] = useState(initialData.experience);
-  const [specialties, setSpecialties] = useState<string[]>(initialData.specialties);
-  const [tagsStr, setTagsStr] = useState(initialData.tags.join(", "));
+  const [categories, setCategories] = useState<string[]>(initialData.categories);
+  const [directions, setDirections] = useState<string[]>(initialData.directions);
+  const [tasks, setTasks] = useState<string[]>(initialData.tags);
   const [languages] = useState<string[]>(initialData.languages.length ? initialData.languages : ["Русский"]);
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -52,10 +52,6 @@ export function PractitionerProfileEditor({
     reader.readAsDataURL(file);
   }
 
-  function toggleSpecialty(v: string) {
-    setSpecialties(prev => prev.includes(v) ? prev.filter(s => s !== v) : [...prev, v]);
-  }
-
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!title || !bio) { toast.error("Заголовок и биография обязательны"); return; }
@@ -65,8 +61,11 @@ export function PractitionerProfileEditor({
       formData.append("title", title);
       formData.append("bio", bio);
       formData.append("experience", experience);
-      formData.append("specialties", JSON.stringify(specialties));
-      formData.append("tags", JSON.stringify(tagsStr.split(",").map(t => t.trim()).filter(Boolean)));
+      formData.append("categories", JSON.stringify(categories));
+      formData.append("directions", JSON.stringify(directions));
+      // esoteric directions stay mirrored onto the Specialty enum for legacy surfaces
+      formData.append("specialties", JSON.stringify(specialtiesForDirections(directions)));
+      formData.append("tags", JSON.stringify(tasks));
       formData.append("languages", JSON.stringify(languages));
       if (avatarFile) formData.append("avatar", avatarFile);
 
@@ -149,38 +148,18 @@ export function PractitionerProfileEditor({
         </div>
       </div>
 
-      {/* Категории (специализации) */}
+      {/* Таксономия: специализация → направление → задачи (W3) */}
       <div className="soft-card">
         <div className="p-5">
-          <h2 className="font-semibold mb-1">Категории</h2>
-          <p className="text-xs text-[var(--soft-ink-soft)]/60 mb-3">
-            Основная классификация. Влияет на фильтры каталога и показ в карточке услуги. Те же категории видит администратор.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {SPECIALTIES.map(s => (
-              <button key={s.value} type="button" onClick={() => toggleSpecialty(s.value)}
-                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                  specialties.includes(s.value)
-                    ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
-                    : "border-border/30 text-[var(--soft-ink-soft)] hover:border-border/60"
-                }`}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Теги */}
-      <div className="soft-card">
-        <div className="p-5">
-          <h2 className="font-semibold mb-1">Теги <span className="text-xs font-normal text-[var(--soft-ink-soft)]/60">(необязательно)</span></h2>
-          <Input value={tagsStr} onChange={e => setTagsStr(e.target.value)}
-            placeholder="отношения, карьера, самопознание, нумерология имени"
-            className="bg-[rgba(255,255,255,0.035)]" />
-          <p className="text-xs text-[var(--soft-ink-soft)]/60 mt-1">
-            Через запятую. Дополнительные ключевые слова для поиска — основную классификацию задают категории выше.
-          </p>
+          <h2 className="font-semibold mb-3">Специализация и задачи</h2>
+          <PractitionerTaxonomyFields
+            value={{ categories, directions, tasks }}
+            onChange={(next) => {
+              setCategories(next.categories);
+              setDirections(next.directions);
+              setTasks(next.tasks);
+            }}
+          />
         </div>
       </div>
 

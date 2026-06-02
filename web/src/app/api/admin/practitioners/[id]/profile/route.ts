@@ -3,6 +3,14 @@ import { Specialty } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { CATEGORY_LABELS, DIRECTIONS_BY_CATEGORY, type CategoryId } from "@/lib/practitioner-taxonomy";
+
+const VALID_CATEGORY_IDS = new Set(Object.keys(CATEGORY_LABELS));
+const VALID_DIRECTION_IDS = new Set(
+  (Object.keys(DIRECTIONS_BY_CATEGORY) as CategoryId[]).flatMap((c) =>
+    DIRECTIONS_BY_CATEGORY[c].map((d) => d.id),
+  ),
+);
 
 // U6: session-duration options offered in the admin user modal (minutes).
 const SESSION_DURATIONS = [15, 30, 45, 60, 90, 120];
@@ -16,12 +24,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { name, title, bio, experience, commissionPercent, specialties, tags, pricePerSession, sessionDuration } = body as {
+  const { name, title, bio, experience, commissionPercent, categories, directions, specialties, tags, pricePerSession, sessionDuration } = body as {
     name?: string;
     title?: string;
     bio?: string;
     experience?: string;
     commissionPercent?: number;
+    categories?: unknown;
+    directions?: unknown;
     specialties?: unknown;
     tags?: unknown;
     pricePerSession?: unknown;
@@ -49,6 +59,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     normalizedSpecialties = [...new Set(specialties.filter(
       (value): value is Specialty => typeof value === "string" && allowed.has(value),
     ))];
+  }
+
+  // W3: three-level taxonomy — category ids + direction ids.
+  let normalizedCategories: string[] | undefined;
+  if (categories !== undefined) {
+    if (!Array.isArray(categories)) {
+      return NextResponse.json({ error: "categories должен быть списком" }, { status: 400 });
+    }
+    normalizedCategories = [...new Set(
+      categories.filter((v): v is string => typeof v === "string" && VALID_CATEGORY_IDS.has(v)),
+    )];
+  }
+
+  let normalizedDirections: string[] | undefined;
+  if (directions !== undefined) {
+    if (!Array.isArray(directions)) {
+      return NextResponse.json({ error: "directions должен быть списком" }, { status: 400 });
+    }
+    normalizedDirections = [...new Set(
+      directions.filter((v): v is string => typeof v === "string" && VALID_DIRECTION_IDS.has(v)),
+    )];
   }
 
   let normalizedTags: string[] | undefined;
@@ -88,6 +119,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       bio?: string;
       experience?: string;
       commissionPercent?: number;
+      categories?: string[];
+      directions?: string[];
       specialties?: Specialty[];
       tags?: string[];
       pricePerSession?: number;
@@ -97,6 +130,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (bio !== undefined) updateData.bio = bio;
     if (experience !== undefined) updateData.experience = experience;
     if (commissionPercent !== undefined) updateData.commissionPercent = commissionPercent;
+    if (normalizedCategories !== undefined) updateData.categories = normalizedCategories;
+    if (normalizedDirections !== undefined) updateData.directions = normalizedDirections;
     if (normalizedSpecialties !== undefined) updateData.specialties = normalizedSpecialties;
     if (normalizedTags !== undefined) updateData.tags = normalizedTags;
     if (normalizedPrice !== undefined) updateData.pricePerSession = normalizedPrice;
@@ -119,8 +154,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (commissionPercent !== undefined) changed.push(`комиссия=${commissionPercent}%`);
     if (normalizedPrice !== undefined) changed.push(`цена=${normalizedPrice}₽`);
     if (normalizedDuration !== undefined) changed.push(`длит.=${normalizedDuration}мин`);
-    if (normalizedSpecialties !== undefined) changed.push(`категории=[${normalizedSpecialties.join(",")}]`);
-    if (normalizedTags !== undefined) changed.push(`теги=[${normalizedTags.join(",")}]`);
+    if (normalizedCategories !== undefined) changed.push(`специализации=[${normalizedCategories.join(",")}]`);
+    if (normalizedDirections !== undefined) changed.push(`направления=[${normalizedDirections.join(",")}]`);
+    if (normalizedSpecialties !== undefined) changed.push(`эзо-категории=[${normalizedSpecialties.join(",")}]`);
+    if (normalizedTags !== undefined) changed.push(`задачи=[${normalizedTags.join(",")}]`);
     const note = changed.length > 0
       ? `Профиль обновлён администратором (${changed.join(", ")})`
       : `Профиль обновлён администратором`;

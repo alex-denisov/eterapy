@@ -10,17 +10,16 @@ import {
   type AdminUserRow,
   type UserPermissions,
   type UserRole,
-  type Specialty,
   ROLE_LABELS,
   roleColor,
   channelLabel,
   channelColor,
   statusOf,
-  SPECIALTY_LABELS,
-  SPECIALTY_ORDER,
   SESSION_DURATIONS,
   PERMISSION_GROUPS,
 } from "./user-display";
+import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
+import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
 
 interface UserEditModalProps {
   row: AdminUserRow;
@@ -60,8 +59,10 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   // U6 — practitioner management
   const pr = row.practitioner;
   const [commission, setCommission] = useState(pr ? String(pr.commissionPercent) : "");
-  const [specialties, setSpecialties] = useState<Specialty[]>(pr ? pr.specialties : []);
-  const [tags, setTags] = useState(pr ? pr.tags.join(", ") : "");
+  // W3: three-level taxonomy (specialization → direction → tasks)
+  const [categories, setCategories] = useState<string[]>(pr ? pr.categories : []);
+  const [directions, setDirections] = useState<string[]>(pr ? pr.directions : []);
+  const [tasks, setTasks] = useState<string[]>(pr ? pr.tags : []);
   // V3: session pricing as toggleable presets (PriceRate) — one row per standard
   // duration, each with an enable checkbox + price, instead of a single value.
   const [rates, setRates] = useState(() => {
@@ -90,9 +91,6 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
 
   function togglePerm(key: string) {
     setPerms((current) => current.includes(key) ? current.filter((p) => p !== key) : [...current, key]);
-  }
-  function toggleSpecialty(key: Specialty) {
-    setSpecialties((current) => current.includes(key) ? current.filter((s) => s !== key) : [...current, key]);
   }
   function toggleRate(i: number) {
     setRates((rs) => rs.map((r, idx) => idx === i ? { ...r, enabled: !r.enabled } : r));
@@ -151,9 +149,12 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       if (canEditPractitioner && pr) {
         const ppatch: Record<string, unknown> = {};
         if (permissions.canManageRoles && commission !== String(pr.commissionPercent)) ppatch.commissionPercent = Number(commission);
-        if (JSON.stringify([...specialties].sort()) !== JSON.stringify([...pr.specialties].sort())) ppatch.specialties = specialties;
-        const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
-        if (JSON.stringify(tagList) !== JSON.stringify(pr.tags)) ppatch.tags = tagList;
+        if (JSON.stringify([...categories].sort()) !== JSON.stringify([...pr.categories].sort())) ppatch.categories = categories;
+        if (JSON.stringify([...directions].sort()) !== JSON.stringify([...pr.directions].sort())) ppatch.directions = directions;
+        // esoteric directions stay mirrored onto the Specialty enum for legacy surfaces
+        const derivedSpecialties = specialtiesForDirections(directions);
+        if (JSON.stringify([...derivedSpecialties].sort()) !== JSON.stringify([...pr.specialties].sort())) ppatch.specialties = derivedSpecialties;
+        if (JSON.stringify(tasks) !== JSON.stringify(pr.tags)) ppatch.tags = tasks;
         if (Object.keys(ppatch).length > 0) {
           await patchJson(`/api/admin/practitioners/${pr.id}/profile`, ppatch);
         }
@@ -369,27 +370,16 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                 </div>
               )}
               <div className="mt-3">
-                <span className={LABEL}>Категории</span>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {SPECIALTY_ORDER.map((s) => {
-                    const active = specialties.includes(s);
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => toggleSpecialty(s)}
-                        className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${active ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)]/10 text-[var(--soft-bordeaux)]" : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-ink-faint)]"}`}
-                      >
-                        {SPECIALTY_LABELS[s]}
-                      </button>
-                    );
-                  })}
-                </div>
+                <PractitionerTaxonomyFields
+                  dense
+                  value={{ categories, directions, tasks }}
+                  onChange={(next) => {
+                    setCategories(next.categories);
+                    setDirections(next.directions);
+                    setTasks(next.tasks);
+                  }}
+                />
               </div>
-              <label className="mt-3 block">
-                <span className={LABEL}>Теги (через запятую)</span>
-                <Input className={FIELD} value={tags} placeholder="любовь, карьера, отношения" onChange={(e) => setTags(e.target.value)} />
-              </label>
             </section>
           )}
 

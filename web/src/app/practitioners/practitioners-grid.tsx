@@ -5,25 +5,28 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BadgeCheck, ArrowRight } from "lucide-react";
 import { SPECIALTY_LABELS as CANONICAL_SPECIALTY_LABELS } from "@/lib/types";
+import { CATEGORIES, effectiveCategories, directionLabel } from "@/lib/practitioner-taxonomy";
 
-// Map of deep-link `?format=` query values to the internal category id
-// used by CATEGORY_FILTERS. Keeps the practitioner CTA on product pages
+// Map of deep-link `?format=` query values to the W3 level-1 category id used by
+// CATEGORY_FILTERS. Keeps the practitioner CTA on product pages
 // (e.g. /products/joint-session → /practitioners?format=joint-session)
-// connected to the filtered grid view.
+// connected to the filtered grid view. Esoteric sub-types collapse into the
+// single "esoteric" specialization (their granularity now lives in directions).
 const FORMAT_TO_CATEGORY: Record<string, string> = {
   "joint-session": "joint",
   joint: "joint",
-  psychology: "psy",
-  psy: "psy",
-  coaching: "coach",
-  coach: "coach",
+  psychology: "psychology",
+  psy: "psychology",
+  coaching: "coaching",
+  coach: "coaching",
   legal: "legal",
   finance: "finance",
-  tarot: "tarot",
-  astrology: "astro",
-  astro: "astro",
-  numerology: "numero",
-  numero: "numero",
+  tarot: "esoteric",
+  astrology: "esoteric",
+  astro: "esoteric",
+  numerology: "esoteric",
+  numero: "esoteric",
+  esoteric: "esoteric",
 };
 
 const AVATAR_GRADIENTS = [
@@ -35,16 +38,10 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #DBD3EA, #F4D5C8)",
 ];
 
-const CATEGORY_FILTERS: Array<{ id: string; label: string; live: boolean; note?: string }> = [
-  { id: "all", label: "Все специалисты", live: true },
-  { id: "psy", label: "Психология", live: true },
-  { id: "coach", label: "Коучинг", live: true },
-  { id: "legal", label: "Юристы", live: true },
-  { id: "finance", label: "Финансы", live: true },
-  { id: "tarot", label: "Таро", live: true },
-  { id: "astro", label: "Астрология", live: true },
-  { id: "numero", label: "Нумерология", live: true },
-  { id: "joint", label: "Совместные сессии", live: true },
+// W3: the public filters are the six canonical specializations (level 1).
+const CATEGORY_FILTERS: Array<{ id: string; label: string }> = [
+  { id: "all", label: "Все специалисты" },
+  ...CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
 ];
 
 // V8: the six enum categories use the canonical labels (lib/types) so cards
@@ -66,6 +63,8 @@ type Practitioner = {
   name: string | null;
   title: string | null;
   bio: string | null;
+  categories?: string[];
+  directions?: string[];
   specialties: string[];
   pricePerSession: number;
   minDuration: number;
@@ -75,21 +74,14 @@ type Practitioner = {
   sessionCount: number;
 };
 
-function detectCategory(p: Practitioner): string {
-  const title = (p.title ?? "").toLowerCase();
-  const specialties = p.specialties.map((s) => s.toLowerCase());
-  if (specialties.includes("tarot") || title.includes("таролог") || title.includes("таро")) return "tarot";
-  if (specialties.includes("astrology") || title.includes("астролог")) return "astro";
-  if (specialties.includes("numerology") || title.includes("нумеролог")) return "numero";
-  if (title.includes("психолог") || title.includes("терапевт") || title.includes("психиатр")) return "psy";
-  if (title.includes("коуч")) return "coach";
-  if (title.includes("юрист") || title.includes("адвокат") || title.includes("правов")) return "legal";
-  if (title.includes("финанс") || title.includes("бухгалтер") || title.includes("эконом")) return "finance";
-  return "psy";
-}
-
 function normalizeSpecialty(s: string) {
   return SPECIALTY_LABELS[s] ?? s.toLocaleLowerCase("ru-RU");
+}
+
+/** Chips shown on a card: prefer the W3 directions, fall back to legacy specialties. */
+function cardChips(p: Practitioner): string[] {
+  if (p.directions && p.directions.length > 0) return p.directions.map(directionLabel);
+  return p.specialties.map(normalizeSpecialty);
 }
 
 export function PractitionersGrid({ practitioners }: { practitioners: Practitioner[] }) {
@@ -110,9 +102,13 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
     // We intentionally re-evaluate when the URL search param changes.
   }, [formatParam, cat]);
 
-  const withCat = practitioners.map((p, i) => ({ ...p, cat: detectCategory(p), gradIdx: i % AVATAR_GRADIENTS.length }));
+  const withCat = practitioners.map((p, i) => ({
+    ...p,
+    cats: effectiveCategories({ categories: p.categories, specialties: p.specialties, title: p.title }) as string[],
+    gradIdx: i % AVATAR_GRADIENTS.length,
+  }));
 
-  const filtered = cat === "all" ? withCat : withCat.filter((p) => p.cat === cat);
+  const filtered = cat === "all" ? withCat : withCat.filter((p) => p.cats.includes(cat));
   const sorted = [...filtered].sort((a, b) =>
     sort === "price" ? a.pricePerSession - b.pricePerSession :
     sort === "rating" ? b.rating - a.rating : 0,
@@ -126,14 +122,11 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
           {CATEGORY_FILTERS.map((c) => (
             <button
               key={c.id}
-              disabled={!c.live}
               className={["soft-chip transition-colors", cat === c.id ? "soft-chip-warm" : ""].join(" ")}
-              onClick={() => c.live && setCat(c.id)}
+              onClick={() => setCat(c.id)}
               aria-pressed={cat === c.id}
-              style={{ opacity: c.live ? 1 : 0.4, cursor: c.live ? "pointer" : "not-allowed" }}
             >
               {c.label}
-              {!c.live && <span style={{ fontSize: 11, opacity: 0.7, marginLeft: 4 }}>· {c.note}</span>}
             </button>
           ))}
         </div>
@@ -232,11 +225,11 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                     «{p.bio}»
                   </p>
                 )}
-                {p.specialties.length > 0 && (
+                {cardChips(p).length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {p.specialties.slice(0, 3).map((s) => (
+                    {cardChips(p).slice(0, 3).map((s) => (
                       <span key={s} className="soft-chip soft-chip-warm px-2 py-1 text-[11.5px]">
-                        {normalizeSpecialty(s)}
+                        {s}
                       </span>
                     ))}
                   </div>

@@ -64,7 +64,8 @@ describe("U2/U4/U6 — user edit modal", () => {
   });
 
   it("U6/V3 — manages practitioner categories, tags, commission and session tariff presets", () => {
-    expect(modal).toContain("toggleSpecialty");
+    // W3: the flat specialty toggle is replaced by the shared 3-level picker
+    expect(modal).toContain("PractitionerTaxonomyFields");
     // V3: pricing moved to per-duration PriceRate presets (rates API).
     expect(modal).toContain("toggleRate");
     expect(modal).toContain("/rates");

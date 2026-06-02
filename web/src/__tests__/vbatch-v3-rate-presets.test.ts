@@ -22,8 +22,8 @@ describe("V3 — practitioner session pricing as toggleable presets in the admin
     expect(modal).toContain("permissions.canManageRoles");
   });
 
-  it("keeps the full category (specialty) taxonomy", () => {
-    expect(modal).toContain("SPECIALTY_ORDER.map");
+  it("keeps the W3 three-level taxonomy picker in the modal", () => {
+    expect(modal).toContain("PractitionerTaxonomyFields");
   });
 
   it("the page loads priceRates for the modal", () => {

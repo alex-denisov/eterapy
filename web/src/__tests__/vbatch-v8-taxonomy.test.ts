@@ -21,13 +21,12 @@ describe("V8 — practitioner category taxonomy is a single canonical source", (
     expect(display).not.toContain('DREAMS: "Сны"');
   });
 
-  it("the practitioner profile editor uses the canonical options + clarifies the fields", () => {
+  it("the practitioner profile editor uses the W3 three-level taxonomy picker", () => {
     const editor = read("src/app/cabinet/practitioner/profile/profile-editor.tsx");
-    expect(editor).toContain("SPECIALTY_OPTIONS");
-    expect(editor).toContain("const SPECIALTIES = SPECIALTY_OPTIONS");
-    expect(editor).toContain("Категории");
-    expect(editor).toContain("Влияет на фильтры каталога");
-    expect(editor).toContain("необязательно"); // tags are secondary
+    // V8's flat specialty picker is superseded by the W3 shared picker
+    expect(editor).toContain("PractitionerTaxonomyFields");
+    expect(editor).toContain("specialtiesForDirections");
+    expect(editor).toContain("Специализация и задачи");
   });
 
   it("the public cards merge the canonical labels over legacy free-text labels", () => {

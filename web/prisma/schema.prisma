@@ -113,7 +113,9 @@ model Practitioner {
   riskFlags       String[]            @default([]) @map("risk_flags")
   riskReviewedAt  DateTime?           @map("risk_reviewed_at")
   specialties     Specialty[]
-  tags            String[]            @default([])
+  categories      String[]            @default([]) // W3: level-1 taxonomy ids (psychology, coaching, legal, finance, esoteric, joint)
+  directions      String[]            @default([]) // W3: level-2 taxonomy ids (cbt, gestalt, family-law, tarot…)
+  tags            String[]            @default([]) // W3: level-3 задачи (тревога, развод, инвестиции…)
 
   // Рейтинг (денормализован для скорости)
   ratingSum       Float               @default(0)

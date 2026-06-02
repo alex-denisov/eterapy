@@ -38,6 +38,8 @@ export default async function PractitionerProfilePage() {
             title: practitioner.title,
             bio: practitioner.bio,
             experience: practitioner.experience,
+            categories: practitioner.categories,
+            directions: practitioner.directions,
             specialties: practitioner.specialties as string[],
             tags: practitioner.tags,
             languages: practitioner.languages,

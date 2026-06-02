@@ -7,6 +7,7 @@ import { ShieldCheck } from "lucide-react";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
+import { effectiveCategories, categoryLabel, directionLabel } from "@/lib/practitioner-taxonomy";
 import { SlotPicker } from "./slot-picker";
 import { APP_URL } from "@/lib/env";
 
@@ -262,7 +263,16 @@ export default async function PractitionerPage({
   // Derive gradient from name length for variety
   const gradientIdx = p.user.name.length % AVATAR_GRADIENTS.length;
   const avatarGradient = AVATAR_GRADIENTS[gradientIdx];
-  const specialties = (p.specialties as string[]).map((s) => SPECIALTY_LABELS[s] ?? s);
+  // W3: three-level taxonomy — specialization badges, direction chips, task chips.
+  const categoryNames = effectiveCategories({
+    categories: p.categories,
+    specialties: p.specialties as string[],
+    title: p.title,
+  }).map(categoryLabel);
+  const directionNames = (p.directions ?? []).map(directionLabel);
+  const helpChips = directionNames.length > 0
+    ? directionNames
+    : (p.specialties as string[]).map((s) => SPECIALTY_LABELS[s] ?? s);
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
@@ -306,6 +316,9 @@ export default async function PractitionerPage({
                   {p.verified && <span className="soft-badge">Проверен ETerapy</span>}
                   {p.founding && <span className="soft-badge soft-badge-lilac">Основатель</span>}
                   {p.experience && <span className="soft-badge">{p.experience}</span>}
+                  {categoryNames.map((c) => (
+                    <span key={c} className="soft-badge soft-badge-lilac">{c}</span>
+                  ))}
                 </div>
                 <div
                   style={{
@@ -351,12 +364,12 @@ export default async function PractitionerPage({
               </p>
             </div>
 
-            {/* v4: "с чем помогаю" chips card */}
-            {specialties.length > 0 && (
+            {/* v4 + W3: "с чем помогаю" — направления (warm) + задачи (plain) */}
+            {(helpChips.length > 0 || p.tags.length > 0) && (
               <div className="soft-card mt-4 p-5">
                 <p className="soft-eyebrow mb-3">с чем помогаю</p>
                 <div className="flex flex-wrap gap-2">
-                  {specialties.map((s) => (
+                  {helpChips.map((s) => (
                     <span key={s} className="soft-chip soft-chip-warm">{s}</span>
                   ))}
                   {p.tags.map((tag) => (

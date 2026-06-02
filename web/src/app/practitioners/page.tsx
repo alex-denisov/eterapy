@@ -153,6 +153,8 @@ async function getPractitioners() {
       name: p.user.name,
       title: p.title,
       bio: p.bio,
+      categories: p.categories,
+      directions: p.directions,
       specialties: p.specialties as string[],
       pricePerSession: minRate?.priceRub ?? p.pricePerSession,
       minDuration: minRate?.durationMin ?? 50,
@@ -163,11 +165,19 @@ async function getPractitioners() {
     };
   });
 
-  if (mapped.length === 0) return FALLBACK_PRACTITIONERS;
+  // Reference/fallback profiles pre-date the explicit taxonomy → the grid infers
+  // their category from title + specialties (effectiveCategories).
+  const withEmptyTaxonomy = (item: (typeof FALLBACK_PRACTITIONERS)[number]) => ({
+    ...item,
+    categories: [] as string[],
+    directions: [] as string[],
+  });
+
+  if (mapped.length === 0) return FALLBACK_PRACTITIONERS.map(withEmptyTaxonomy);
 
   const realSlugs = new Set(mapped.map((item) => item.slug));
   const missingReferenceProfiles = FALLBACK_PRACTITIONERS.filter((item) => !realSlugs.has(item.slug));
-  return [...mapped, ...missingReferenceProfiles];
+  return [...mapped, ...missingReferenceProfiles.map(withEmptyTaxonomy)];
 }
 
 export const metadata = createPublicPageMetadata("/practitioners");
