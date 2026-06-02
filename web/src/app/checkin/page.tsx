@@ -685,33 +685,30 @@ export default function CheckinPage() {
                 </div>
               </article>
 
+              {/* W16: a clear, calm action hierarchy instead of five equal
+                  buttons. The ONE primary step is keeping the result; sharing
+                  and a fresh question are quiet secondary actions. The deepening
+                  upsells (Второй взгляд / Вдвоём) live in the triage rail on the
+                  right, so they are no longer duplicated here. */}
               <div className="mt-5 flex flex-wrap items-center gap-2" data-testid="dialogue-free-continuation-actions">
-                <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} inline />
                 {status === "authenticated" ? (
                   <Button
                     onClick={handleSaveToAccount}
                     disabled={saveState === "saving" || saveState === "saved"}
-                    className="soft-button soft-button-soft"
+                    className="soft-button soft-button-primary"
                     data-testid="save-result-authenticated"
                   >
                     <Bookmark className="size-4" aria-hidden="true" />
                     {saveState === "saved" ? "Сохранено в кабинете" : saveState === "saving" ? "Сохраняем..." : "Сохранить в карту"}
                   </Button>
                 ) : (
-                  <Link href="/register?intent=save-result" className="soft-button soft-button-soft" data-testid="save-result-register">
+                  <Link href="/register?intent=save-result" className="soft-button soft-button-primary" data-testid="save-result-register">
                     <Bookmark className="size-4" aria-hidden="true" />
                     Сохранить в карту
                   </Link>
                 )}
-                <Link href="/products/circle" className="soft-button soft-button-soft" data-testid="dialogue-free-circle">
-                  <Users className="size-4" aria-hidden="true" />
-                  Второй взгляд
-                </Link>
-                <Link href="/products/pair" className="soft-button soft-button-soft" data-testid="dialogue-free-pair">
-                  <Heart className="size-4" aria-hidden="true" />
-                  Вдвоём
-                </Link>
-                <Button onClick={reset} className="soft-button soft-button-soft" data-testid="dialogue-reset">
+                <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} inline />
+                <Button onClick={reset} className="soft-button soft-button-ghost" data-testid="dialogue-reset">
                   <RotateCcw className="size-4" aria-hidden="true" />
                   Новый вопрос
                 </Button>

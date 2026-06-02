@@ -198,11 +198,11 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label="Поделиться обезличенным инсайтом"
+        aria-label="Поделиться обезличенной карточкой разбора"
         className="soft-button soft-button-primary"
       >
         <Share2 className="h-4 w-4" />
-        Поделиться инсайтом
+        Поделиться
       </button>
     </>
   );
@@ -219,9 +219,9 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
         >
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <p className="soft-eyebrow">поделиться инсайтом</p>
+              <p className="soft-eyebrow">поделиться разбором</p>
               <h2 className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">
-                Поделиться <em className="not-italic italic">инсайтом</em>
+                Поделиться <em className="italic">карточкой</em>
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 По умолчанию карточка обезличена — без имени, без вопроса.
@@ -248,7 +248,7 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
                     <span className="font-heading text-lg font-semibold">ETerapy</span>
                   </div>
                   <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: template.muted }}>
-                    инсайт дня
+                    ясность дня
                   </p>
                 </div>
 
@@ -351,11 +351,11 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-haspopup="dialog"
-          aria-label="Поделиться обезличенным инсайтом"
+          aria-label="Поделиться обезличенной карточкой разбора"
           className="soft-button soft-button-primary"
         >
           <Share2 className="h-4 w-4" />
-          Поделиться инсайтом
+          Поделиться
         </button>
       </div>
 
