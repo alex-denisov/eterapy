@@ -39,8 +39,13 @@ describe("v5 pricing page", () => {
     expect(combined).not.toContain('id: "practitioner"');
     expect(source("app/practitioners/apply/page.tsx")).toContain("Pro+");
     expect(source("app/practitioners/apply/page.tsx")).toContain("комиссия");
-    expect(combined).toContain("от 4 500 ₽");
-    expect(combined).toContain("от 6 000 ₽");
+    // W19: session prices are now derived from the real PriceRate floor (passed
+    // from the server) instead of hardcoded fictions; specialties without a
+    // published rate show "по записи".
+    expect(combined).toContain("minSessionPriceRub");
+    expect(combined).toContain("buildSessionRows");
+    expect(combined).toContain("по записи");
+    expect(page).toContain("getMinSessionPriceRub");
     expect(combined).toContain("Углублённые отчёты открываются");
   });
 

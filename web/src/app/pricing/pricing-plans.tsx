@@ -29,9 +29,12 @@ const plans = [
     tagline: "Для регулярной практики ясности",
     monthPrice: 490,
     yearPrice: 4900,
+    // W19: honest perks — Plus only bundles `perspectives` + `my-map`
+    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts); the old line over-promised
+    // отчёт/переписку/совместимость, which are Premium-only.
     perks: [
       "+10 кредитов ясности каждый месяц",
-      "4 ракурса · отчёт · переписка · совместимость",
+      "4 ракурса и расширенная карта — без доплат",
       "Моя карта ETerapy с историей и темами",
       "Мягкие напоминания и Telegram-карта дня",
       "Без скидок на встречи со специалистами",
@@ -48,13 +51,15 @@ const plans = [
     tagline: "Для глубокой регулярной работы",
     monthPrice: 1290,
     yearPrice: 12900,
+    // W19: the previous four perks were vaporware (no feature backed them).
+    // Replaced with honest perks mapped to V5_SUBSCRIPTION_PLANS.premium —
+    // 9 included digital products + 30 credits + the annual map portrait.
     perks: [
       "Всё из Plus",
       "+30 кредитов ясности каждый месяц",
-      "Приоритетная поддержка по цифровым продуктам",
-      "Приоритетная запись к специалистам по полной ставке",
-      "Личный куратор в чате",
-      "Расширенная аналитика личной карты",
+      "9 цифровых форматов включены без доплат",
+      "Глубокий отчёт и разбор переписки — без доплат",
+      "Годовой портрет паттернов в Моей карте",
     ],
     cta: "Подключить Premium",
     href: "/cabinet/billing?plan=premium",
@@ -64,36 +69,52 @@ const plans = [
   },
 ];
 
+// W19: prices reconciled with the canonical catalog (lib/v5-products.ts) —
+// deep-report 690 (was 590), compatibility 790 (was 590–990), the phantom
+// "Разбор переписки Deep/Pro 890–1490" row removed (that tier no longer
+// exists), natal-chart synastry note added. Session rows moved to a separate
+// DB-priced block (see sessionRows) so they reflect the real PriceRate floor.
 const oneOff = [
   { cat: "Бесплатный вход", t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно", href: "/checkin", cta: "Начать" },
   { cat: "Цифровые углубления", t: "4 ракурса ответа", d: "Разум · Чувства · Символ · Действие", price: "299 ₽", href: "/products/perspectives", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Глубокий отчёт", d: "Документ-разбор · 10–15 страниц", price: "590 ₽", href: "/products/deep-report", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Разбор переписки Start", d: "Быстрое наблюдение по переписке", price: "390 ₽", href: "/products/chat-analysis", cta: "Разобрать" },
-  { cat: "Цифровые углубления", t: "Разбор переписки Deep / Pro", d: "Тон, динамика, варианты ответа", price: "890–1 490 ₽", href: "/products/chat-analysis", cta: "Сравнить" },
-  { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению", price: "590–990 ₽", href: "/products/compatibility", cta: "Создать" },
+  { cat: "Цифровые углубления", t: "Глубокий отчёт", d: "Документ-разбор · 10–15 страниц", price: "690 ₽", href: "/products/deep-report", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Разбор переписки", d: "Тон, динамика, варианты ответа", price: "390 ₽", href: "/products/chat-analysis", cta: "Разобрать" },
+  { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению, начало бесплатно", price: "790 ₽", href: "/products/compatibility", cta: "Создать" },
   { cat: "Для двоих и круга", t: "Круг ясности", d: "2–5 участников и общий итог", price: "790 ₽", href: "/products/circle", cta: "Создать" },
   { cat: "Для двоих и круга", t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽", href: "/products/pair", cta: "Пригласить" },
   { cat: "Маршруты и карта", t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0–199 ₽", href: "/products/clarity-practice", cta: "Открыть" },
-  { cat: "Маршруты и карта", t: "7 дней к ясности", d: "Один шаг в день, 5–10 мин", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
-  { cat: "Маршруты и карта", t: "Моя карта ETerapy", d: "История, темы и расширенная карта", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
+  { cat: "Маршруты и карта", t: "7 дней к ясности", d: "Один шаг в день, 5–10 мин · день 1 бесплатно", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
+  { cat: "Маршруты и карта", t: "Расширенная карта", d: "Годовой портрет паттернов · история и темы", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
   { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: "390 ₽", href: "/products/tarot", cta: "Купить" },
-  { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор по вопросу", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
+  { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор · синастрия с партнёром 990 ₽", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
   { cat: "Эзотерика", t: "Числовой портрет", d: "Имя, дата и цикл года", price: "390 ₽", href: "/products/numerology", cta: "Купить" },
-  { cat: "Встречи", t: "Встреча с психологом", d: "60 минут онлайн", price: "от 4 500 ₽", href: "/practitioners", cta: "Записаться" },
-  { cat: "Встречи", t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "от 3 200 ₽", href: "/practitioners", cta: "Записаться" },
-  { cat: "Встречи", t: "Юрист", d: "Семейное право, развод, опека", price: "от 6 000 ₽", href: "/practitioners", cta: "Записаться" },
-  { cat: "Встречи", t: "Эзотерик + психотерапевт", d: "Совместная сессия двух специалистов", price: "от 4 500 ₽", href: "/products/joint-session", cta: "Посмотреть" },
 ];
 
 const oneOffCats = ["Бесплатный вход", "Цифровые углубления", "Для двоих и круга", "Маршруты и карта", "Эзотерика", "Встречи"];
+
+// W19: session prices come from the real PriceRate floor (passed from the
+// server), never a hardcoded fiction. Specialties without a published rate show
+// "по записи" — the exact price is always visible in the specialist's profile.
+function buildSessionRows(minSessionPriceRub: number | null) {
+  const floor = minSessionPriceRub ? `от ${minSessionPriceRub.toLocaleString("ru-RU")} ₽` : "по записи";
+  return [
+    { cat: "Встречи", t: "Встреча с психологом", d: "60 минут онлайн", price: floor, href: "/practitioners?format=psychology", cta: "Записаться" },
+    { cat: "Встречи", t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "по записи", href: "/practitioners?format=coaching", cta: "Записаться" },
+    { cat: "Встречи", t: "Юрист", d: "Семейное право, развод, опека", price: "по записи", href: "/practitioners?format=legal", cta: "Записаться" },
+    { cat: "Встречи", t: "Финансовый консультант", d: "Бюджет, долги, инвестиции", price: "по записи", href: "/practitioners?format=finance", cta: "Записаться" },
+    { cat: "Встречи", t: "Эзотерик + психотерапевт", d: "Совместная сессия двух специалистов", price: "по записи", href: "/products/joint-session", cta: "Посмотреть" },
+  ];
+}
 
 function formatPrice(n: number): string {
   if (n === 0) return "Бесплатно";
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
-export function PricingPlans() {
+export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub?: number | null }) {
   const [period, setPeriod] = useState<"month" | "year">("month");
+  const sessionRows = buildSessionRows(minSessionPriceRub);
+  const itemsForCat = (cat: string) => (cat === "Встречи" ? sessionRows : oneOff.filter((item) => item.cat === cat));
 
   return (
     <>
@@ -278,10 +299,10 @@ export function PricingPlans() {
               <div key={cat} className="overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
                 <div className="flex items-center justify-between gap-3 bg-[var(--soft-paper-deep)] px-5 py-3">
                   <p className="soft-eyebrow text-[var(--soft-bordeaux)]">{cat}</p>
-                  <span className="text-xs text-[var(--soft-ink-faint)]">{oneOff.filter((item) => item.cat === cat).length} формата</span>
+                  <span className="text-xs text-[var(--soft-ink-faint)]">{itemsForCat(cat).length} формата</span>
                 </div>
                 <div className="divide-y divide-[var(--soft-paper-edge)]">
-                  {oneOff.filter((item) => item.cat === cat).map((item) => (
+                  {itemsForCat(cat).map((item) => (
                     <div key={`${cat}-${item.t}`} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
                       <div>
                         <p className="text-sm font-semibold text-[var(--soft-ink)]">{item.t}</p>
