@@ -22,6 +22,9 @@ export type MyMapItem = {
   status: string;
   exportText: string;
   shareTopic: string;
+  // W13: whether this item is hidden from the map (surfaced only when the
+  // viewer asked to see hidden items, so they can un-hide it).
+  hidden: boolean;
 };
 
 const PRODUCT_LABELS: Record<string, string> = {
@@ -112,7 +115,11 @@ function readableProductBody(
   };
 }
 
-export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
+export async function listMyMapItems(
+  userId: string,
+  options: { includeHidden?: boolean } = {},
+): Promise<MyMapItem[]> {
+  const includeHidden = options.includeHidden === true;
   const [dialogues, products, routes] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
@@ -172,7 +179,7 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
 
   const items: MyMapItem[] = [
     ...dialogues
-      .filter((dialogue) => !isHiddenFromMap(dialogue.metadata))
+      .filter((dialogue) => includeHidden || !isHiddenFromMap(dialogue.metadata))
       .map((dialogue) => ({
         kind: "dialogue" as const,
         id: dialogue.id,
@@ -186,9 +193,10 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
         status: dialogue.status,
         exportText: `Вопрос: ${dialogue.title}\nСтатус: ${dialogue.status}\n${dialogue.messages[0]?.content ?? ""}`,
         shareTopic: dialogue.topic ?? "dialogue",
+        hidden: isHiddenFromMap(dialogue.metadata),
       })),
     ...products
-      .filter((product) => !isHiddenFromMap(product.metadata))
+      .filter((product) => includeHidden || !isHiddenFromMap(product.metadata))
       .map((product) => {
         const { description, bodyMarkdown } = readableProductBody(
           product.productKey,
@@ -208,10 +216,11 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
           // Export keeps the readable prose too (never the raw JSON blob).
           exportText: `${PRODUCT_LABELS[product.productKey] ?? "Результат"}: ${product.title}\n${bodyMarkdown}`,
           shareTopic: product.productKey,
+          hidden: isHiddenFromMap(product.metadata),
         };
       }),
     ...routes
-      .filter((route) => !isHiddenFromMap(route.metadata))
+      .filter((route) => includeHidden || !isHiddenFromMap(route.metadata))
       .map((route) => ({
         kind: "route" as const,
         id: route.id,
@@ -224,6 +233,7 @@ export async function listMyMapItems(userId: string): Promise<MyMapItem[]> {
         status: route.status,
         exportText: `Маршрут: ${route.title}\nДень: ${route.currentDay}\nСтатус: ${route.status}`,
         shareTopic: "seven-days",
+        hidden: isHiddenFromMap(route.metadata),
       })),
   ];
 

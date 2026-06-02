@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { Download, EyeOff, Share2, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -57,6 +57,32 @@ async function hideMapItem(formData: FormData) {
   revalidatePath("/cabinet");
 }
 
+// W13: the inverse of hideMapItem — un-hide an item so it returns to the map.
+async function unhideMapItem(formData: FormData) {
+  "use server";
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+  const kind = String(formData.get("kind") ?? "") as MyMapItemKind;
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  if (kind === "dialogue") {
+    const item = await db.dialogue.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
+    if (item) await db.dialogue.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
+  }
+  if (kind === "product") {
+    const item = await db.productResult.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
+    if (item) await db.productResult.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
+  }
+  if (kind === "route") {
+    const item = await db.clarityRoute.findFirst({ where: { id, userId: session.user.id, status: { not: "CANCELLED" } }, select: { id: true, metadata: true } });
+    if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
+  }
+
+  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet");
+}
+
 async function deleteMapItem(formData: FormData) {
   "use server";
   const session = await auth();
@@ -104,11 +130,17 @@ async function saveMapItem(formData: FormData) {
   revalidatePath("/cabinet");
 }
 
-export default async function MyMapPage() {
+export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
 
-  const items = await listMyMapItems(session.user.id);
+  const { showHidden } = await searchParams;
+  const wantHidden = showHidden === "1";
+  // W13: fetch everything (incl. hidden) so we know the hidden count, then show
+  // hidden items only when the user asked to ("показать скрытые").
+  const allItems = await listMyMapItems(session.user.id, { includeHidden: true });
+  const hiddenCount = allItems.filter((item) => item.hidden).length;
+  const items = wantHidden ? allItems : allItems.filter((item) => !item.hidden);
   const productCount = items.filter((item) => item.kind === "product").length;
   const routeCount = items.filter((item) => item.kind === "route").length;
   const dialogueCount = items.filter((item) => item.kind === "dialogue").length;
@@ -273,25 +305,32 @@ export default async function MyMapPage() {
               <div style={{ fontFamily: "var(--font-heading)", fontStyle: "italic", fontSize: 20, color: "var(--soft-ink-soft)" }}>
                 Карта обновляется автоматически после каждого разбора. Видите только вы.
               </div>
+              {/* W15: the export action already lives once in the page header —
+                  no need to repeat it mid-screen. */}
               <div className="flex gap-3 justify-center mt-4">
                 <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary"
                   style={{ minHeight: "2.25rem", padding: "0.5rem 1.25rem", fontSize: "0.875rem" }}>
                   Новый разбор
                 </Link>
-                <a href={appUrl("/api/cabinet/map/export")} className="soft-button soft-button-ghost"
-                  style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
-                  data-analytics-event="my_map_export_clicked"
-                  data-analytics-surface="my_map"
-                  data-analytics-target="export">
-                  <Download className="size-4" />
-                  Экспорт
-                </a>
               </div>
             </div>
           </div>
 
           {/* Items list */}
-          <div className="soft-eyebrow mb-3">все элементы карты</div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="soft-eyebrow">{wantHidden ? "скрытые элементы" : "все элементы карты"}</div>
+            {/* W13: "Скрыть" persists a hidden flag; this toggle reveals them and
+                lets the user un-hide. Shown only when something is hidden. */}
+            {hiddenCount > 0 && (
+              <a
+                href={wantHidden ? appUrl("/action-history") : appUrl("/action-history?showHidden=1")}
+                className="soft-button soft-button-ghost"
+                style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
+              >
+                {wantHidden ? "← Показать активные" : `Показать скрытые (${hiddenCount})`}
+              </a>
+            )}
+          </div>
           {/* T12: single-column cards — meta chips → title → full-width body →
               actions footer. The previous two-column flex squeezed the prose
               into a narrow track, so long unbroken tokens (chat-analysis
@@ -342,16 +381,16 @@ export default async function MyMapPage() {
                       <Share2 className="size-4" />
                       Поделиться
                     </a>
-                    <form action={hideMapItem}>
+                    <form action={item.hidden ? unhideMapItem : hideMapItem}>
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="id" value={item.id} />
                       <button type="submit" className="soft-button soft-button-ghost"
                         style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
-                        data-analytics-event="my_map_hide_clicked"
+                        data-analytics-event={item.hidden ? "my_map_unhide_clicked" : "my_map_hide_clicked"}
                         data-analytics-surface="my_map"
                         data-analytics-target={item.kind}>
-                        <EyeOff className="size-4" />
-                        Скрыть
+                        {item.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        {item.hidden ? "Показать" : "Скрыть"}
                       </button>
                     </form>
                     <form action={deleteMapItem} className="ml-auto">
