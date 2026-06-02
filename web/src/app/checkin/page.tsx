@@ -34,6 +34,22 @@ import { track } from "@/lib/analytics";
 // at -50 from the cap.
 const DIALOGUE_INPUT_MAX_CHARS = 1200;
 
+// W17: icon per product slug for the dynamic "другие форматы" list.
+const PRODUCT_ICONS: Record<string, typeof Compass> = {
+  perspectives: Compass,
+  "deep-report": FileText,
+  "chat-analysis": MessageSquareText,
+  compatibility: Users,
+  pair: Users,
+  circle: Users,
+  "seven-days": CalendarDays,
+  "clarity-practice": Sparkles,
+  "my-map": Compass,
+  tarot: Moon,
+  "natal-chart": Moon,
+  numerology: Sparkles,
+};
+
 type DialogueMessage = {
   id: string;
   role: "USER" | "ASSISTANT" | "SYSTEM";
@@ -58,6 +74,23 @@ type ProductRecommendation = {
   slug: string;
   name: string;
   href: string;
+  reason: string;
+  price?: string;
+  creditCost?: number | null;
+};
+
+// W17: dynamic "другие форматы" + subscription nudge, both topic-driven by the API.
+type SecondaryProduct = {
+  slug: string;
+  name: string;
+  href: string;
+  price: string;
+  creditCost: number | null;
+};
+type SubscriptionRecommendation = {
+  tier: "plus" | "premium";
+  name: string;
+  priceRub: number;
   reason: string;
 };
 
@@ -108,6 +141,8 @@ export default function CheckinPage() {
   const [retrying, setRetrying] = useState(false);
   const [recommendations, setRecommendations] = useState<PractitionerRecommendation[]>([]);
   const [productRecommendation, setProductRecommendation] = useState<ProductRecommendation | null>(null);
+  const [secondaryProducts, setSecondaryProducts] = useState<SecondaryProduct[]>([]);
+  const [subscriptionRec, setSubscriptionRec] = useState<SubscriptionRecommendation | null>(null);
   const [restoring, setRestoring] = useState(() => {
     if (typeof window === "undefined") return false;
     return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
@@ -151,7 +186,12 @@ export default function CheckinPage() {
     let cancelled = false;
     fetch(`/api/dialogues/${dialogue.id}/recommendations`)
       .then((res) => res.ok ? res.json() : Promise.reject())
-      .then((data: { recommendations: PractitionerRecommendation[]; productRecommendation?: ProductRecommendation }) => {
+      .then((data: {
+        recommendations: PractitionerRecommendation[];
+        productRecommendation?: ProductRecommendation;
+        secondaryProducts?: SecondaryProduct[];
+        subscription?: SubscriptionRecommendation | null;
+      }) => {
         if (cancelled) return;
         if (Array.isArray(data.recommendations)) {
           setRecommendations(data.recommendations);
@@ -163,6 +203,8 @@ export default function CheckinPage() {
           setProductRecommendation(data.productRecommendation);
           track({ event: "product_recommended", surface: "checkin", dialogueId: dialogue.id, properties: { product: data.productRecommendation.slug } });
         }
+        if (Array.isArray(data.secondaryProducts)) setSecondaryProducts(data.secondaryProducts);
+        setSubscriptionRec(data.subscription ?? null);
       })
       .catch(() => { /* silent — recommendations are best-effort */ });
     return () => { cancelled = true; };
@@ -784,8 +826,10 @@ export default function CheckinPage() {
                   </div>
                   <div className="mt-5 flex items-end justify-between gap-4">
                     <div>
-                      <div className="font-heading text-3xl font-semibold leading-none text-[var(--soft-bordeaux)]">299 ₽</div>
-                      <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">или −2 кредита</div>
+                      <div className="font-heading text-3xl font-semibold leading-none text-[var(--soft-bordeaux)]">{productRecommendation?.price ?? "299 ₽"}</div>
+                      <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
+                        {productRecommendation?.creditCost != null ? `или −${productRecommendation.creditCost} кредита` : "или −1 кредит"}
+                      </div>
                     </div>
                     <span className="soft-button soft-button-primary text-sm">
                       Открыть
@@ -797,34 +841,33 @@ export default function CheckinPage() {
 
               <p className="soft-eyebrow mt-6">другие форматы</p>
               <div className="mt-2 grid gap-2" data-testid="triage-secondary-options">
-                {[
-                  { href: `/products/deep-report?dialogueId=${dialogue.id}`, title: "Глубокий отчёт", price: "590 ₽", credits: "−4 кредита", priceRub: "590", creditCost: "4", icon: FileText, product: "deep_report", reason: "needs_full_synthesis" },
-                  { href: `/products/chat-analysis?dialogueId=${dialogue.id}`, title: "Разбор переписки", price: "от 390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: MessageSquareText, product: "chat_analysis", reason: "message_context_available" },
-                  { href: `/products/compatibility?dialogueId=${dialogue.id}`, title: "Совместимость", price: "590 ₽", credits: "−4 кредита", priceRub: "590", creditCost: "4", icon: Users, product: "compatibility", reason: "relationship_context" },
-                  { href: "/products/seven-days", title: "7 дней к ясности", price: "990 ₽", credits: "−8 кредитов", priceRub: "990", creditCost: "8", icon: CalendarDays, product: "seven_days", reason: "ongoing_practice" },
-                  { href: "/products/tarot", title: "Расклад Таро", price: "390 ₽", credits: "−2 кредита", priceRub: "390", creditCost: "2", icon: Moon, product: "tarot", reason: "symbolic_view" },
-                ].map((item) => {
-                  const Icon = item.icon;
+                {/* W17: topic-adjacent products from the recommendation API,
+                    deduped against the primary recommendation — no longer a
+                    static 5-item list identical for every dialogue. */}
+                {secondaryProducts.map((item) => {
+                  const Icon = PRODUCT_ICONS[item.slug] ?? Sparkles;
+                  const href = `${item.href}?dialogueId=${dialogue.id}`;
                   return (
                     <Link
-                      key={item.title}
-                      href={item.href}
+                      key={item.slug}
+                      href={href}
                       className="soft-triage-option"
+                      data-testid="triage-secondary-option"
                       data-analytics-surface="checkin_triage"
                       data-analytics-event="triage_secondary_clicked"
-                      data-analytics-target={item.href}
-                      data-analytics-product={item.product}
+                      data-analytics-target={href}
+                      data-analytics-product={item.slug}
                       data-analytics-dialogue-id={dialogue.id}
                       data-analytics-cta-role="secondary"
-                      data-analytics-offer-id={`${item.product}_secondary`}
-                      data-analytics-offer-reason={item.reason}
-                      data-analytics-price-rub={item.priceRub}
-                      data-analytics-credit-cost={item.creditCost}
+                      data-analytics-offer-id={`${item.slug}_secondary`}
+                      data-analytics-offer-reason={`topic_${dialogue.topic ?? "other"}`}
                     >
                       <Icon className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-[var(--soft-ink)]">{item.title}</span>
-                        <span className="block text-[11px] text-[var(--soft-ink-faint)]">или {item.credits}</span>
+                        <span className="block truncate font-medium text-[var(--soft-ink)]">{item.name}</span>
+                        {item.creditCost != null && (
+                          <span className="block text-[11px] text-[var(--soft-ink-faint)]">или −{item.creditCost} кредита</span>
+                        )}
                       </span>
                       <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">{item.price}</span>
                     </Link>
@@ -879,34 +922,43 @@ export default function CheckinPage() {
                 )}
               </div>
 
-              <div className="soft-card mt-4 p-4" style={{ background: "var(--soft-paper-deep)" }} data-testid="triage-subscription-option">
-                <div className="flex gap-3">
-                  <Sparkles className="mt-1 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                  <div>
-                    <p className="soft-eyebrow text-[10px]">если планируете возвращаться</p>
-                    <h3 className="mt-1 font-heading text-base font-semibold text-[var(--soft-bordeaux)]">В Plus цифровые форматы включены</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">Моя карта · история · 10 кредитов / мес</p>
+              {/* W17: the subscription nudge is now chosen by the API — Plus when
+                  the recommended format is bundled in Plus, Premium when it is a
+                  Premium-only format, and hidden entirely for free products,
+                  sessions, or users who already subscribe (no more always-Plus). */}
+              {subscriptionRec && (
+                <div className="soft-card mt-4 p-4" style={{ background: "var(--soft-paper-deep)" }} data-testid="triage-subscription-option">
+                  <div className="flex gap-3">
+                    <Sparkles className="mt-1 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    <div>
+                      <p className="soft-eyebrow text-[10px]">если планируете возвращаться</p>
+                      <h3 className="mt-1 font-heading text-base font-semibold text-[var(--soft-bordeaux)]">
+                        {subscriptionRec.reason}
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <span className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">
+                      {subscriptionRec.priceRub.toLocaleString("ru-RU")} ₽ / мес
+                    </span>
+                    <Link
+                      href="/pricing"
+                      className="soft-chip"
+                      data-analytics-surface="checkin_triage"
+                      data-analytics-event="triage_subscription_clicked"
+                      data-analytics-target="/pricing"
+                      data-analytics-product={subscriptionRec.tier}
+                      data-analytics-dialogue-id={dialogue.id}
+                      data-analytics-cta-role="bundle"
+                      data-analytics-offer-id={`${subscriptionRec.tier}_bundle_after_triage`}
+                      data-analytics-offer-reason="returning_usage_bundle"
+                      data-analytics-price-rub={subscriptionRec.priceRub}
+                    >
+                      Сравнить тарифы →
+                    </Link>
                   </div>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3">
-                  <span className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">490 ₽ / мес</span>
-                  <Link
-                    href="/pricing"
-                    className="soft-chip"
-                    data-analytics-surface="checkin_triage"
-                    data-analytics-event="triage_subscription_clicked"
-                    data-analytics-target="/pricing"
-                    data-analytics-product="plus"
-                    data-analytics-dialogue-id={dialogue.id}
-                    data-analytics-cta-role="bundle"
-                    data-analytics-offer-id="plus_bundle_after_triage"
-                    data-analytics-offer-reason="returning_usage_bundle"
-                    data-analytics-price-rub="490"
-                  >
-                    Сравнить тарифы →
-                  </Link>
-                </div>
-              </div>
+              )}
             </aside>
           </div>
 

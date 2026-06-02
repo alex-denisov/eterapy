@@ -70,6 +70,9 @@ describe("B085 deep report product", () => {
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain('checkoutSource="deep-report-generate"');
     expect(actions).toContain("Сохранить в Мою карту");
-    expect(dialoguePage).toContain("/products/deep-report?dialogueId=${dialogue.id}");
+    // W17: dialogue-result deepening links (incl. deep-report) are now rendered
+    // dynamically from the topic-driven recommendation API, not a static array.
+    expect(dialoguePage).toContain("secondaryProducts.map(");
+    expect(dialoguePage).toContain("${item.href}?dialogueId=${dialogue.id}");
   });
 });

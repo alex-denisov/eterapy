@@ -5,75 +5,15 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { readGuestSessionId } from "@/lib/guest-session";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { PractitionerStatus } from "@prisma/client";
-
-type ProductRecommendation = {
-  slug: string;
-  name: string;
-  href: string;
-  reason: string;
-};
-
-/**
- * Map a classified dialogue topic into the v4.2 deepening product that
- * best matches the user's question. The "reason" copy is shown to the
- * user on the primary-answer triage rail to explain why we picked it.
- * Topics not in the table fall back to "perspectives" (the lowest-tier
- * deepening) so we always have something to recommend.
- */
-function recommendProductForTopic(topic: string | null | undefined): ProductRecommendation {
-  switch (topic) {
-    case "relationships":
-      return {
-        slug: "compatibility",
-        name: "Совместимость",
-        href: "/products/compatibility",
-        reason: "Вы можете отдельно сравнить взгляды друг друга — общий итог откроется по согласию.",
-      };
-    case "family":
-      return {
-        slug: "circle",
-        name: "Круг ясности",
-        href: "/products/circle",
-        reason: "Бережный групповой формат, чтобы услышать близких без давления и спора.",
-      };
-    case "career":
-      return {
-        slug: "perspectives",
-        name: "4 ракурса ответа",
-        href: "/products/perspectives",
-        reason: "Разложим ваше решение на разум, чувства, символ и действие — где ответ уже виден.",
-      };
-    case "money":
-      return {
-        slug: "deep-report",
-        name: "Глубокий отчёт",
-        href: "/products/deep-report",
-        reason: "Структурируем варианты, риски и безопасные шаги в подробный документ-разбор.",
-      };
-    case "anxiety":
-      return {
-        slug: "seven-days",
-        name: "7 дней к ясности",
-        href: "/products/seven-days",
-        reason: "Короткие ежедневные шаги, чтобы тревога не управляла днём.",
-      };
-    case "self":
-      return {
-        slug: "clarity-practice",
-        name: "Практика ясности",
-        href: "/products/clarity-practice",
-        reason: "Регулярный ритм возвращения к себе — без давления и без срочности.",
-      };
-    case "other":
-    default:
-      return {
-        slug: "perspectives",
-        name: "4 ракурса ответа",
-        href: "/products/perspectives",
-        reason: "Универсальное углубление: посмотрим на ситуацию с четырёх сторон сразу.",
-      };
-  }
-}
+import { effectiveCategories } from "@/lib/practitioner-taxonomy";
+import {
+  normalizeTopic,
+  recommendPrimaryProduct,
+  recommendSecondaryProducts,
+  recommendSubscription,
+  TOPIC_CATEGORIES,
+  hashString,
+} from "@/lib/dialogue-recommendations";
 
 function ownerWhere(userId: string | null, guestSessionId: string | null) {
   if (userId) return { userId };
@@ -126,7 +66,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return errorWithRequestContext("BAD_REQUEST", "Dialogue is not answered yet", 400, context);
   }
 
+  const topic = normalizeTopic(dialogue.topic);
   const keywords = extractKeywords(dialogue.topic ?? dialogue.title);
+  const topicCategories = TOPIC_CATEGORIES[topic];
 
   const allPractitioners = await db.practitioner.findMany({
     where: { status: PractitionerStatus.ACTIVE },
@@ -135,6 +77,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       slug: true,
       title: true,
       bio: true,
+      categories: true,
+      directions: true,
+      specialties: true,
       tags: true,
       pricePerSession: true,
       ratingSum: true,
@@ -148,7 +93,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   type PractitionerRow = (typeof allPractitioners)[number];
 
-  function scoreMatch(p: PractitionerRow): { score: number; matchedTags: string[] } {
+  // W17: relevance is driven by the W3 taxonomy (the practitioner's
+  // specialization matching the dialogue topic) + task-tag keyword overlap.
+  // Quality (rating/reviews) is capped so it can break ties but never
+  // dominates — that is what made the same top-reviewed person win every time.
+  function scoreMatch(p: PractitionerRow): { score: number; matchedTags: string[]; categoryMatch: boolean } {
     const matchedTags: string[] = [];
     for (const tag of p.tags) {
       const tagLower = tag.toLowerCase();
@@ -156,19 +105,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         matchedTags.push(tag);
       }
     }
+    const effCats = effectiveCategories({
+      categories: p.categories,
+      specialties: p.specialties as string[],
+      title: p.title,
+    });
+    const categoryHits = effCats.filter((c) => topicCategories.includes(c)).length;
     const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;
-    const score = matchedTags.length * 10 + rating + p.reviewCount * 0.1;
-    return { score, matchedTags };
+    const quality = rating * 0.8 + Math.min(p.reviewCount, 50) * 0.05;
+    const score = categoryHits * 20 + matchedTags.length * 8 + quality;
+    return { score, matchedTags, categoryMatch: categoryHits > 0 };
   }
 
   const scored = allPractitioners.map((p) => {
-    const { score, matchedTags } = scoreMatch(p);
+    const { score, matchedTags, categoryMatch } = scoreMatch(p);
     const rating = p.reviewCount > 0 ? p.ratingSum / p.reviewCount : 0;
-    return { p, score, matchedTags, rating };
+    return { p, score, matchedTags, rating, categoryMatch };
   });
 
   scored.sort((a, b) => b.score - a.score);
-  const top3 = scored.slice(0, 3);
+
+  // Variety: rotate within the relevant top-N by a stable per-dialogue hash so
+  // the same topic surfaces different specialists across dialogues (but stays
+  // stable on refresh of the same dialogue). Prefer category-matched people; if
+  // none match, fall back to the overall top so we always show someone.
+  const relevant = scored.filter((s) => s.categoryMatch);
+  const pool = (relevant.length > 0 ? relevant : scored).slice(0, 5);
+  const seed = hashString(dialogue.id);
+  const rotated = pool.length > 0
+    ? pool.map((_, i) => pool[(i + (seed % pool.length)) % pool.length])
+    : [];
+  const top3 = rotated.slice(0, 3);
 
   const recommendations = top3.map(({ p, matchedTags, rating }) => ({
     id: p.id,
@@ -184,10 +151,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     matchedTags,
   }));
 
-  const productRecommendation = recommendProductForTopic(dialogue.topic);
+  const productRecommendation = recommendPrimaryProduct(dialogue.topic);
+  const secondaryProducts = recommendSecondaryProducts(dialogue.topic, productRecommendation.slug);
+
+  // Suppress the subscription nudge for users who already have one.
+  const hasActiveSubscription = userId
+    ? (await db.userSubscription.count({
+        where: { userId, status: { in: ["ACTIVE", "TRIALING"] } },
+      })) > 0
+    : false;
+  const subscription = recommendSubscription(productRecommendation.slug, hasActiveSubscription);
 
   return jsonWithRequestContext(
-    { recommendations, productRecommendation, dialogueId: dialogue.id },
+    { recommendations, productRecommendation, secondaryProducts, subscription, dialogueId: dialogue.id },
     undefined,
     context,
   );

@@ -38,7 +38,9 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('data-testid="triage-secondary-options"');
     expect(page).toContain('data-testid="triage-subscription-option"');
     expect(page).toContain('data-testid="dialogue-free-continuation-actions"');
-    expect(page).toContain("/products/deep-report?dialogueId=${dialogue.id}");
+    // W17: "другие форматы" is now topic-driven from the API, not a static array
+    expect(page).toContain("secondaryProducts.map(");
+    expect(page).toContain("${item.href}?dialogueId=${dialogue.id}");
     expect(page).toContain('href={`/products/perspectives?dialogueId=${dialogue.id}`}');
     expect(page).toContain('data-analytics-event="triage_primary_clicked"');
     expect(page).toContain('data-analytics-event="triage_secondary_clicked"');
