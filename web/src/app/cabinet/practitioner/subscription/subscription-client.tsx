@@ -35,28 +35,9 @@ async function readError(res: Response) {
 export function PractitionerSubscriptionClient({
   plans,
   activePlanKey,
-  cabinetBalanceKopecks,
   earningsBalanceRub,
 }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
-
-  async function startFromCabinetBalance(planKey: string) {
-    setBusy(`wallet:${planKey}`);
-    try {
-      const res = await fetch("/api/billing/subscriptions/start-from-balance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planKey, checkoutSource: "practitioner_cabinet_balance" }),
-      });
-      if (!res.ok) throw new Error(await readError(res));
-      toast.success("Подписка активирована");
-      window.location.reload();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось активировать подписку");
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function startFromEarnings(planKey: string) {
     setBusy(`earnings:${planKey}`);
@@ -103,7 +84,6 @@ export function PractitionerSubscriptionClient({
       {plans.map((plan) => {
         const isCurrent = activePlanKey === plan.key;
         const priceRub = formatRubFromKopecks(plan.amountKopecks);
-        const canUseCabinetBalance = cabinetBalanceKopecks >= plan.amountKopecks;
         const canUseEarnings = earningsBalanceRub * 100 >= plan.amountKopecks;
         return (
           <section key={plan.key} className="soft-card p-5">
@@ -134,36 +114,30 @@ export function PractitionerSubscriptionClient({
               ))}
             </ul>
 
-            <div className="mt-5 grid gap-2">
+            {/* W6: exactly two ways to pay — from the practitioner balance
+                (with an explicit insufficient-funds error on click) or by card. */}
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 className="soft-button soft-button-primary justify-center"
-                disabled={isCurrent || !canUseEarnings || busy !== null}
-                onClick={() => startFromEarnings(plan.key)}
-                data-testid="practitioner-subscribe-from-earnings"
+                disabled={isCurrent || busy !== null}
+                onClick={() => canUseEarnings
+                  ? startFromEarnings(plan.key)
+                  : toast.error("Недостаточно средств на балансе для оплаты подписки")}
+                data-testid="practitioner-subscribe-from-balance"
               >
                 <Wallet className="size-4" aria-hidden="true" />
-                {canUseEarnings ? "Оплатить из дохода практика" : "Недостаточно дохода"}
+                Оплатить с баланса
               </button>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  className="soft-chip justify-center"
-                  disabled={isCurrent || !canUseCabinetBalance || busy !== null}
-                  onClick={() => startFromCabinetBalance(plan.key)}
-                >
-                  Баланс кабинета
-                </button>
-                <button
-                  type="button"
-                  className="soft-chip justify-center"
-                  disabled={isCurrent || busy !== null}
-                  onClick={() => startByCard(plan.key)}
-                >
-                  <CreditCard className="size-4" aria-hidden="true" />
-                  Картой
-                </button>
-              </div>
+              <button
+                type="button"
+                className="soft-button soft-button-ghost justify-center"
+                disabled={isCurrent || busy !== null}
+                onClick={() => startByCard(plan.key)}
+              >
+                <CreditCard className="size-4" aria-hidden="true" />
+                Картой
+              </button>
             </div>
           </section>
         );

@@ -10,7 +10,8 @@ describe("Practitioner subscription balance flow", () => {
     expect(page).toContain("Подписка практика");
     expect(page).toContain("PractitionerSubscriptionClient");
     expect(client).toContain("/api/practitioner/subscriptions/start-from-earnings");
-    expect(client).toContain("practitioner-subscribe-from-earnings");
+    // W6: consolidated to «Оплатить с баланса» + «Картой».
+    expect(client).toContain("practitioner-subscribe-from-balance");
     expect(client).toContain("checkoutSource: \"practitioner_subscription_card\"");
   });
 
