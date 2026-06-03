@@ -428,6 +428,31 @@ export default async function AdminPage() {
             <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]" data-testid="admin-owner-finance">
               <h2 className="mb-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Финансовые метрики</h2>
               <p className="mb-4 text-xs text-[var(--soft-ink-faint)]">Полная финансовая картина платформы — выручка, выплаты практикам, возвраты и обязательства.</p>
+
+              {/* X3: «Итог» — чистая прибыль и долг практикам одним взглядом,
+                  выведены из уже посчитанных показателей. */}
+              <div className="mb-4 grid gap-3 sm:grid-cols-2" data-testid="admin-finance-headline">
+                <div className="rounded-lg bg-[var(--soft-surface)] p-3">
+                  <p className="text-xs text-[var(--soft-ink-faint)]">Чистая прибыль (оценка)</p>
+                  <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)] tabular-nums">
+                    {formatRub(
+                      business.sessionPlatformFeeAllRub
+                      + (business.digitalProductRevenueRub || 0)
+                      + business.clientSubscriptionRevenueRub
+                      + business.practitionerSubscriptionRevenueRub
+                      - business.refundedBookingsRub,
+                    )}
+                  </p>
+                  <p className="text-[11px] text-[var(--soft-ink-faint)]">комиссия + продукты + подписки − возвраты (до расходов на AI и эквайринг)</p>
+                </div>
+                <div className="rounded-lg bg-[var(--soft-surface)] p-3">
+                  <p className="text-xs text-[var(--soft-ink-faint)]">Должны практикам (нетто)</p>
+                  <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)] tabular-nums">
+                    {formatRub(business.practitionerNetAccruedRub - business.paidPayoutAmountRub)}
+                  </p>
+                  <p className="text-[11px] text-[var(--soft-ink-faint)]">начислено − уже выплачено (вкл. hold и ожидающие)</p>
+                </div>
+              </div>
               {[
                 {
                   title: "Выручка",
@@ -461,8 +486,8 @@ export default async function AdminPage() {
                   items: [
                     { label: "Баланс пользователей", value: formatRub(business.totalBalanceRub), hint: "обязательство в кабинетах" },
                     { label: "Кредиты ясности", value: formatNumber(business.clarityCreditBalance), hint: "confirmed ledger net" },
-                    { label: "Пополнения через эквайер", value: formatRub(business.acquirerBalanceCreditsRub), hint: "YooKassa top-up" },
-                    { label: "Ручные начисления", value: formatRub(business.manualBalanceCreditsRub), hint: "superadmin / moderator" },
+                    { label: "Пополнения через эквайер", value: formatRub(business.acquirerBalanceCreditsRub), hint: "YooKassa top-up · реальные деньги" },
+                    { label: "Ручные начисления", value: formatRub(business.manualBalanceCreditsRub), hint: "superadmin / moderator · служебные, не реальные деньги" },
                   ],
                 },
                 {
