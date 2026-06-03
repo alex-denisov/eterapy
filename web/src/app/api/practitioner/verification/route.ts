@@ -18,6 +18,16 @@ export async function POST(request: NextRequest) {
   const note = typeof payload.note === "string" ? payload.note.trim().slice(0, 2000) : "";
   const portfolio = typeof payload.portfolio === "string" ? payload.portfolio.trim().slice(0, 500) : "";
 
+  // X8: a verification request must describe what to verify — no empty requests.
+  if (note.length < 20) {
+    return errorWithRequestContext(
+      "BAD_REQUEST",
+      "Опишите, что нужно подтвердить: образование, опыт, ссылки на документы (от 20 символов).",
+      400,
+      context,
+    );
+  }
+
   const practitioner = await db.practitioner.findUnique({
     where: { userId },
     include: { user: { select: { name: true, email: true, telegramUsername: true } } },

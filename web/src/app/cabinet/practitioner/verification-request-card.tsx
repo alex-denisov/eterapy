@@ -11,7 +11,20 @@ export function VerificationRequestCard({ pendingStatus }: { pendingStatus: stri
   const [status, setStatus] = useState(pendingStatus);
   const [busy, setBusy] = useState(false);
 
+  // X8: Russian, human status labels (no raw enum, no «уже в очереди»).
+  const STATUS_LABELS: Record<string, string> = {
+    PENDING: "На проверке",
+    REVIEWING: "Проверяем документы",
+    APPROVED: "Подтверждён",
+    REJECTED: "Отклонена",
+  };
+
   async function submit() {
+    // X8: a verification request must actually describe what to verify.
+    if (note.trim().length < 20) {
+      toast.error("Опишите, что нужно подтвердить: образование, опыт, ссылки на документы (от 20 символов).");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/practitioner/verification", {
@@ -32,9 +45,20 @@ export function VerificationRequestCard({ pendingStatus }: { pendingStatus: stri
   }
 
   if (status) {
+    const isRejected = status === "REJECTED";
     return (
-      <div className="mt-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3 text-xs text-[var(--soft-ink-soft)]">
-        Запрос на верификацию уже в очереди: <span className="font-semibold text-[var(--soft-bordeaux)]">{status}</span>.
+      <div className="mt-3 flex items-center gap-2 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3 text-sm text-[var(--soft-ink-soft)]">
+        <ShieldCheck className="size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+        <span>
+          Статус верификации: <span className="font-semibold text-[var(--soft-bordeaux)]">{STATUS_LABELS[status] ?? status}</span>.
+          {status === "PENDING" || status === "REVIEWING" ? " Ответ в течение 1–2 дней." : ""}
+          {isRejected ? " Можно подать повторно." : ""}
+        </span>
+        {isRejected && (
+          <button type="button" className="soft-chip ml-auto" onClick={() => setStatus(null)}>
+            Подать снова
+          </button>
+        )}
       </div>
     );
   }
@@ -42,9 +66,15 @@ export function VerificationRequestCard({ pendingStatus }: { pendingStatus: stri
   return (
     <div className="mt-3">
       {!open ? (
-        <button type="button" className="soft-chip" onClick={() => setOpen(true)} data-testid="practitioner-verification-open">
+        <button
+          type="button"
+          className="soft-button soft-button-primary"
+          style={{ minHeight: "2rem", padding: "0.4rem 0.9rem", fontSize: "0.8125rem" }}
+          onClick={() => setOpen(true)}
+          data-testid="practitioner-verification-open"
+        >
           <ShieldCheck className="size-3.5" aria-hidden="true" />
-          Запросить верификацию
+          Пройти верификацию
         </button>
       ) : (
         <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
@@ -69,7 +99,7 @@ export function VerificationRequestCard({ pendingStatus }: { pendingStatus: stri
             placeholder="https://..."
           />
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className="soft-button soft-button-primary" disabled={busy} onClick={submit}>
+            <button type="button" className="soft-button soft-button-primary" disabled={busy || note.trim().length < 20} onClick={submit}>
               {busy ? "Отправляем..." : "Отправить на проверку"}
             </button>
             <button type="button" className="soft-button soft-button-ghost" disabled={busy} onClick={() => setOpen(false)}>
