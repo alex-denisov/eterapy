@@ -24,6 +24,11 @@
     --soft-ink: #2a2422;
     --soft-ink-soft: #5b514c;
     --soft-ink-faint: #8a7e76;
+    /* X6: these two tokens were referenced across the cabinet + admin surfaces
+       (filter tabs, table rows, status tints) but never defined — so those
+       backgrounds rendered transparent ("white on white"). Define them once. */
+    --soft-ink-strong: #1f1a18;
+    --soft-surface: #f6efe1;
     --soft-terracotta: #d67558;
     --soft-terracotta-dark: #b85b40;
     --soft-bordeaux: #5c2a2c;

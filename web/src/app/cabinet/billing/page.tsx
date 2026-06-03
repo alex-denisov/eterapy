@@ -672,9 +672,11 @@ export default function BillingPage() {
               {linkedCards.map((card) => (
                 <div
                   key={card.id}
-                  className="relative flex flex-col justify-between overflow-hidden rounded-[1.25rem] p-5 text-white shadow-md"
+                  // X12: a real bank-card aspect ratio (≈1.6:1) capped at a sane
+                  // width — no longer a wide squat block that stretched to fill
+                  // half the row.
+                  className="relative flex aspect-[1.6/1] w-full max-w-[22rem] flex-col justify-between overflow-hidden rounded-[1.25rem] p-5 text-white shadow-md"
                   style={{
-                    minHeight: 152,
                     background: card.isDefault
                       ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)"
                       : "linear-gradient(135deg, #2f2b29 0%, #4a423d 100%)",
