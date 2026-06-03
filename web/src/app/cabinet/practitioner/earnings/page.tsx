@@ -7,6 +7,7 @@ import { CalendarClock, Wallet } from "lucide-react";
 import { PAYOUT_TZ, formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedule";
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
 import { EarningsMovementsTable, type EarningsMovementRow } from "./earnings-movements-table";
+import { PayoutDetailsForm } from "./payout-details-form";
 
 interface Movement {
   id: string;
@@ -25,7 +26,11 @@ export default async function PractitionerEarningsPage() {
 
   const practitioner = await db.practitioner.findUnique({
     where: { userId: session.user!.id },
-    select: { id: true, commissionPercent: true },
+    select: {
+      id: true,
+      commissionPercent: true,
+      payoutDetails: { select: { type: true, accountNumber: true, bankName: true } },
+    },
   });
   if (!practitioner) redirect("/cabinet/practitioner");
 
@@ -208,6 +213,12 @@ export default async function PractitionerEarningsPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* X13: payout requisites mechanic (была отсылка «реквизиты в настройках»,
+          но самой механики не было). */}
+      <div className="mb-6">
+        <PayoutDetailsForm initial={practitioner.payoutDetails ?? null} />
       </div>
 
       {/* Итоги */}
