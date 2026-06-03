@@ -7,9 +7,12 @@ describe("Practitioner earnings balance UX", () => {
   it("renames earnings to a balance page and separates cabinet balance from payouts", () => {
     const page = source("src/app/cabinet/practitioner/earnings/page.tsx");
     expect(page).toContain("Баланс и доходы");
-    // W8: relabeled to disambiguate the internal wallet from earnings.
+    // W8/X5: relabeled to disambiguate the internal wallet from earnings.
     expect(page).toContain("Кошелёк кабинета");
-    expect(page).toContain("Заработано — к выплате");
+    expect(page).toContain("Доступно к выплате");
+    // X5: the page must use the CANONICAL balance (incl. internalCharges) so its
+    // «к выплате» matches the header/admin — not the local accruedNet formula.
+    expect(page).toContain("computePractitionerBalances");
     expect(page).not.toContain("Баланс, движение средств и предстоящие выплаты. Комиссия платформы");
   });
 

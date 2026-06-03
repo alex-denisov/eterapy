@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { CalendarClock, Wallet } from "lucide-react";
 import { PAYOUT_TZ, formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedule";
+import { computePractitionerBalances } from "@/lib/practitioner-balance";
 import { EarningsMovementsTable, type EarningsMovementRow } from "./earnings-movements-table";
 
 interface Movement {
@@ -63,7 +64,13 @@ export default async function PractitionerEarningsPage() {
     .reduce((s, p) => s + p.amountKopecks, 0);
   const pendingPayout = Math.round(pendingPayoutKopecks / 100);
 
-  const currentBalance = accruedNet - paidOut - pendingPayout;
+  // X5: use the CANONICAL balance (shared with the header + admin) so the
+  // «к выплате» figure matches the public-shell-header. The local formula above
+  // omitted `internalCharges`, which is why the page showed 33 750 while the
+  // header showed the canonical 32 360.
+  const canonicalBalance = (await computePractitionerBalances([practitioner.id])).get(practitioner.id);
+  const internalCharges = canonicalBalance?.internalCharges ?? 0;
+  const currentBalance = canonicalBalance?.currentBalance ?? (accruedNet - paidOut - pendingPayout);
   const cabinetBalanceRub = Math.round((userBalance?.balance ?? 0) / 100);
 
   const now = new Date();
@@ -167,12 +174,16 @@ export default async function PractitionerEarningsPage() {
                 <Wallet className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--soft-ink-soft)]">Заработано — к выплате</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Доступно к выплате</p>
                 <p className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] tabular-nums">
                   {currentBalance.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  Чистыми после комиссии. Это ваш заработок — он выплачивается по расписанию, а не лежит в кошельке кабинета.
+                  Оборот {totalRevenue.toLocaleString("ru")} ₽ − комиссия {totalFee.toLocaleString("ru")} ₽ ({commissionPercent}%) = {accruedNet.toLocaleString("ru")} ₽ чистыми.
+                  {paidOut > 0 && ` Выплачено ${paidOut.toLocaleString("ru")} ₽.`}
+                  {pendingPayout > 0 && ` В обработке ${pendingPayout.toLocaleString("ru")} ₽.`}
+                  {internalCharges > 0 && ` Списано на подписку практика ${internalCharges.toLocaleString("ru")} ₽.`}
+                  {" "}Та же цифра — в шапке кабинета.
                 </p>
               </div>
             </div>

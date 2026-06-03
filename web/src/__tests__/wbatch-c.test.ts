@@ -7,7 +7,7 @@ describe("W8 — practitioner earnings labels disambiguate wallet vs earnings", 
   const page = read("src/app/cabinet/practitioner/earnings/page.tsx");
   it("renames the internal wallet and clarifies that earnings are paid out, not in the wallet", () => {
     expect(page).toContain("Кошелёк кабинета");
-    expect(page).toContain("Заработано — к выплате");
+    expect(page).toContain("Доступно к выплате");
     expect(page).toContain("Пополняется отдельно от заработка");
     expect(page).not.toContain("bg-green-500/15 text-green-400");
   });
