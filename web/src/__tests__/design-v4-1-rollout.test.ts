@@ -47,7 +47,7 @@ describe("design v4.2 rollout", () => {
     expect(catalog).toContain("soft-service-card");
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("490");
-    expect(pricing).toContain("Без скидок на встречи со специалистами");
+    expect(pricing).toContain("Без скидок на встречи");
     // T9: chat-analysis is a single 390 ₽ price (tiers removed until they ship);
     // natal 590, joint от 4 500.
     expect(catalog).toContain("590 ₽");

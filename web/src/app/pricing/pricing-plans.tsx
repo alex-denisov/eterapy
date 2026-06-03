@@ -29,15 +29,16 @@ const plans = [
     tagline: "Для регулярной практики ясности",
     monthPrice: 490,
     yearPrice: 4900,
-    // W19: honest perks — Plus only bundles `perspectives` + `my-map`
-    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts); the old line over-promised
-    // отчёт/переписку/совместимость, which are Premium-only.
+    // X18: honest perks — Plus bundles only `perspectives`
+    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. Dropped the
+    // «расширенная карта» claim (my-map moved to Premium) and the «напоминания
+    // /Telegram» line (those are available to every user, not a Plus exclusive).
     perks: [
       "+10 кредитов ясности каждый месяц",
-      "4 ракурса и расширенная карта — без доплат",
-      "Моя карта ETerapy с историей и темами",
-      "Мягкие напоминания и Telegram-карта дня",
-      "Без скидок на встречи со специалистами",
+      "4 ракурса ответа включены — без доплат",
+      "Кредитами оплачивайте любой цифровой формат",
+      "Моя карта: история разборов и темы",
+      "Без скидок на встречи — полная ставка специалиста",
     ],
     cta: "Подключить Plus",
     href: "/cabinet/billing?plan=plus",

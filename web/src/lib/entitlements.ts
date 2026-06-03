@@ -17,7 +17,9 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
-  "perspectives": 2,
+  // X18: was 2 here but advertised as «1 кредит» (B322 / v5-products.ts) — a user
+  // was charged 2 for a product priced at 1. Aligned to the advertised cost.
+  "perspectives": 1,
   "deep-report": 4,
   "chat-analysis": 2,
   "compatibility": 4,
@@ -41,7 +43,11 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
     name: "Plus",
     amountKopecks: 49000,
     trialDays: 7,
-    includedProducts: ["perspectives", "my-map"],
+    // X18: «my-map» (990 ₽) bundled into a 490 ₽ tier meant one included service
+    // cost more than the subscription — the founder's exact unit-economics
+    // complaint. Plus now bundles only «perspectives» (299 ₽ < 490 ₽) plus the
+    // monthly credits; «my-map» stays a Premium / credit purchase.
+    includedProducts: ["perspectives"],
     creditsPerPeriod: 10,
   },
   premium: {

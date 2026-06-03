@@ -29,7 +29,7 @@ describe("v5 pricing page", () => {
     // Plus: 490 per month / 4900 per year in v4.2
     expect(combined).toContain("490");
     expect(combined).toContain("4900");
-    expect(combined).toContain("Без скидок на встречи со специалистами");
+    expect(combined).toContain("Без скидок на встречи");
     expect(combined).toContain("Подробное сравнение");
     expect(publicSeoRoutes).toContain("/pricing/compare");
     // Premium: 1290 per month / 12900 per year
