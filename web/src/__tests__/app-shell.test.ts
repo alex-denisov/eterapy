@@ -32,7 +32,9 @@ describe("v5 app shell", () => {
 
   it("keeps product actions inside the app cabinet instead of sending clients to the landing", () => {
     expect(clientCabinet).toContain('mainUrl("/checkin")');
-    expect(clientCabinet).toContain('appUrl("/products")');
+    // X11: product actions point to the single in-cabinet funnel (/credits),
+    // not the removed duplicate /products and not the landing.
+    expect(clientCabinet).toContain('appUrl("/credits")');
     expect(shell).toContain('appUrl("/practice")');
     expect(shell).toContain('appUrl("/credits")');
     expect(clientCabinet).toContain('appUrl("/action-history")');

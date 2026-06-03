@@ -113,22 +113,21 @@ describe("v5 product pages", () => {
     expect(source("app/api/billing/pay-from-balance/route.ts")).toContain("purchaseProductWithBalance");
   });
 
-  it("adds cabinet-native product and credit catalogues", () => {
+  it("X11: the single cabinet funnel lives on /credits; /products redirects to it", () => {
     const cabinetProducts = source("app/cabinet/products/page.tsx");
     const credits = source("app/cabinet/credits/page.tsx");
     const shell = source("components/cabinet/cabinet-shell.tsx");
 
-    expect(cabinetProducts).toContain('data-testid="cabinet-products-page"');
-    expect(cabinetProducts).toContain("<ProductPurchaseControls");
-    expect(cabinetProducts).toContain('variant="catalog"');
-    expect(cabinetProducts).toContain("Купить услугу");
-    expect(cabinetProducts).toContain("Ритм и живые встречи");
-    expect(cabinetProducts).toContain('appUrl("/billing")');
-    expect(cabinetProducts).not.toContain("Открыть механику");
-    expect(source("components/products/product-purchase-controls.tsx")).toContain('variant?: "default" | "catalog"');
+    // /cabinet/products is now a redirect to /cabinet/credits (no duplicate catalog)
+    expect(cabinetProducts).toContain('redirect("/cabinet/credits")');
+    expect(cabinetProducts).not.toContain("<ProductPurchaseControls");
+    // the product catalog + purchase funnel lives on /credits
     expect(credits).toContain('data-testid="cabinet-credits-page"');
     expect(credits).toContain("getClarityCreditBalance");
-    expect(shell).toContain('appUrl("/practice")');
+    expect(credits).toContain("<ProductPurchaseControls");
+    expect(credits).toContain('id="credits-products"');
+    expect(source("components/products/product-purchase-controls.tsx")).toContain('variant?: "default" | "catalog"');
+    // nav points to the single funnel page
     expect(shell).toContain('appUrl("/credits")');
   });
 

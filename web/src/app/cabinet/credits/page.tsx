@@ -120,10 +120,10 @@ export default async function CabinetCreditsPage() {
               </p>
             ))}
           </div>
-          <Link href={appUrl("/products")} className="soft-button soft-button-primary mt-5">
+          <a href="#credits-products" className="soft-button soft-button-primary mt-5">
             Все продукты
             <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+          </a>
         </div>
         <div className="soft-card p-5">
           <p className="soft-eyebrow">последние операции</p>
