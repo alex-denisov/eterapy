@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Search, Trash2 } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 
 export type QuestionItem = {
   id: string;
@@ -34,7 +34,9 @@ export function QuestionsList({
   const [statusFilter, setStatusFilter] = useState("all");
   const [topicFilter, setTopicFilter] = useState("all");
   const [sort, setSort] = useState<SortKey>("newest");
-  const [page, setPage] = useState(1);
+  // X14: cumulative reveal — «Ещё» appends the next PAGE_SIZE in place instead
+  // of replacing the visible page.
+  const [shown, setShown] = useState(PAGE_SIZE);
 
   // Distinct status/topic options derived from the data (label + raw value).
   const statusOptions = useMemo(() => {
@@ -63,13 +65,12 @@ export function QuestionsList({
     return result;
   }, [items, query, statusFilter, topicFilter, sort]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * PAGE_SIZE;
-  const visible = filtered.slice(start, start + PAGE_SIZE);
+  const visibleCount = Math.min(shown, filtered.length);
+  const visible = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
 
-  // Any control change resets to page 1.
-  const resetPage = () => setPage(1);
+  // Any control change collapses back to the first PAGE_SIZE.
+  const resetPage = () => setShown(PAGE_SIZE);
 
   return (
     <div data-testid="questions-list">
@@ -124,33 +125,8 @@ export function QuestionsList({
           <span>
             {filtered.length === 0
               ? "Ничего не найдено"
-              : `Показаны ${start + 1}–${start + visible.length} из ${filtered.length}`}
+              : `Показано ${visibleCount} из ${filtered.length}`}
           </span>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={safePage <= 1}
-                className="soft-button soft-button-ghost disabled:opacity-40"
-                style={{ minHeight: "2rem", padding: "0.25rem 0.6rem" }}
-                aria-label="Предыдущая страница"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-              <span className="tabular-nums">{safePage} / {totalPages}</span>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={safePage >= totalPages}
-                className="soft-button soft-button-ghost disabled:opacity-40"
-                style={{ minHeight: "2rem", padding: "0.25rem 0.6rem" }}
-                aria-label="Следующая страница"
-              >
-                <ChevronRight className="size-4" />
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -190,15 +166,15 @@ export function QuestionsList({
         ))}
       </div>
 
-      {/* "Ещё" load-more — advances to the next page */}
-      {safePage < totalPages && (
+      {/* X14: "Ещё" appends the next PAGE_SIZE in place (cumulative reveal). */}
+      {hasMore && (
         <div className="mt-5 flex justify-center">
           <button
             type="button"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setShown((s) => s + PAGE_SIZE)}
             className="soft-button soft-button-ghost"
           >
-            Ещё
+            Ещё {Math.min(PAGE_SIZE, filtered.length - visibleCount)}
           </button>
         </div>
       )}

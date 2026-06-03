@@ -43,7 +43,6 @@ const CLIENT_NAV: NavItem[] = [
 
 const PRACTITIONER_NAV: NavItem[] = [
   { href: appUrl("/practitioner"), icon: LayoutDashboard, label: "Сводка" },
-  { href: appUrl("/practitioner/profile"), icon: UserPen, label: "Настройки" },
   { href: appUrl("/practitioner/services"), icon: Bookmark, label: "Услуги и цены" },
   { href: appUrl("/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
   { href: appUrl("/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
@@ -52,6 +51,8 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: appUrl("/practitioner/subscription"), icon: Crown, label: "Подписка" },
   { href: appUrl("/practitioner/reviews"), icon: Star, label: "Отзывы" },
   { href: appUrl("/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },
+  // X7: «Настройки» sits at the bottom of the nav, matching the client cabinet.
+  { href: appUrl("/practitioner/profile"), icon: UserPen, label: "Настройки" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

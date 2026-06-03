@@ -13,19 +13,31 @@ describe("W1 — admin user modal renders in a body portal (escapes header stack
   });
 });
 
-describe("W2 — email-verification banner is full-width + sticky at the very top", () => {
+describe("W2/X2 — email-verification banner is full-width and static at the very top", () => {
   const banner = read("src/components/email-verification-banner.tsx");
-  it("pins to the top and drops the constrained max-w-6xl strip", () => {
-    expect(banner).toContain("sticky top-0 z-[90]");
+  it("is a static full-width banner (no sticky), above the header", () => {
+    // X2: both top banners are static so the sticky header never slides under them.
+    expect(banner).not.toContain("sticky");
     expect(banner).not.toContain("max-w-6xl");
+    expect(banner).toContain("soft-email-banner");
+  });
+});
+
+describe("X2 — impersonation banner is a global component above the header", () => {
+  const layout = read("src/app/layout.tsx");
+  const cabinetLayout = read("src/app/cabinet/layout.tsx");
+  it("renders globally and no longer inside the cabinet layout", () => {
+    expect(layout).toContain("<ImpersonationBanner />");
+    expect(cabinetLayout).not.toContain("Режим имперсонации");
   });
 });
 
 describe("W5 — impersonation banner only shows when actually impersonating + cookie cleared on logout", () => {
-  it("cabinet layout keys the banner off session.user.impersonatedBy, not raw cookies", () => {
-    const layout = read("src/app/cabinet/layout.tsx");
-    expect(layout).toContain("const isImpersonating = Boolean(session.user?.impersonatedBy)");
-    expect(layout).not.toContain('cookieStore.has("eterapy-imp")');
+  it("the global impersonation banner keys off session.user.impersonatedBy, not raw cookies", () => {
+    // X2: the banner moved to a global server component (above the header).
+    const banner = read("src/components/impersonation-banner.tsx");
+    expect(banner).toContain("session?.user?.impersonatedBy");
+    expect(banner).not.toContain('cookieStore.has("eterapy-imp")');
   });
   it("logout clears the eterapy-imp cookie", () => {
     expect(read("src/app/api/auth/logout/route.ts")).toContain('"eterapy-imp"');

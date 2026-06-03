@@ -201,8 +201,10 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   return createPortal(
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" data-testid="user-edit-modal">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
-        {/* Header */}
-        <div className="mb-4 flex items-start justify-between gap-4">
+        {/* Header — sticky so the «Закрыть» (X) is always reachable while the
+            modal body scrolls (X1). Negative margins + padding let the sticky
+            bar span the full card width over the scrolling content. */}
+        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex items-start justify-between gap-4 border-b border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-5 pb-3 pt-5">
           <div className="min-w-0">
             <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{row.name || "Без имени"}</h2>
             <p className="truncate text-xs text-[var(--soft-ink-faint)]">{row.email}</p>

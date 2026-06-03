@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { Download, Eye, EyeOff, Share2, Trash2 } from "lucide-react";
+import { Download, Eye, EyeOff, Lock, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -158,15 +158,19 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
             Личное пространство ваших разборов, инсайтов и маршрутов. Видите только вы.
           </p>
         </div>
-        <div className="flex gap-2">
-          <span className="soft-badge">🔒 приватный режим</span>
-          <a href={appUrl("/api/cabinet/map/export")} className="soft-button soft-button-ghost"
-            style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+        <div className="flex items-center gap-2">
+          {/* X15: «Приватно» (lock) — no implication of a non-existent public mode */}
+          <span className="soft-badge inline-flex items-center gap-1"><Lock className="size-3" aria-hidden="true" /> Приватно</span>
+          {/* X16: export demoted to a subtle icon-only control — it's a rare action,
+              no longer a prominent ghost button competing in the header. */}
+          <a href={appUrl("/api/cabinet/map/export")}
+            className="inline-flex size-9 items-center justify-center rounded-md text-[var(--soft-ink-faint)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-ink)]"
+            title="Экспортировать карту"
+            aria-label="Экспортировать карту"
             data-analytics-event="my_map_export_clicked"
             data-analytics-surface="my_map"
             data-analytics-target="export">
             <Download className="size-4" />
-            Экспорт
           </a>
           <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary"
             style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>

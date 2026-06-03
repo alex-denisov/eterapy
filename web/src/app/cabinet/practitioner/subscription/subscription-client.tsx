@@ -117,9 +117,11 @@ export function PractitionerSubscriptionClient({
             {/* W6: exactly two ways to pay — from the practitioner balance
                 (with an explicit insufficient-funds error on click) or by card. */}
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              {/* X4: compact sizing matching the client billing buttons. */}
               <button
                 type="button"
                 className="soft-button soft-button-primary justify-center"
+                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
                 disabled={isCurrent || busy !== null}
                 onClick={() => canUseEarnings
                   ? startFromEarnings(plan.key)
@@ -132,6 +134,7 @@ export function PractitionerSubscriptionClient({
               <button
                 type="button"
                 className="soft-button soft-button-ghost justify-center"
+                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
                 disabled={isCurrent || busy !== null}
                 onClick={() => startByCard(plan.key)}
               >

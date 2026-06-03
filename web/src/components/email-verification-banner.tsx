@@ -39,11 +39,12 @@ export function EmailVerificationBanner() {
     }
   }
 
-  // W2: full-width banner pinned to the very top (like the impersonation
-  // banner), not a constrained centered strip. z-[90] keeps it just below the
-  // amber impersonation banner (z-[100]) when both are visible.
+  // X2: static full-width banner at the very top of the document (normal flow,
+  // scrolls away). The impersonation banner renders directly under it; the
+  // public-shell-header pins below both — so the header never slides underneath
+  // either banner.
   return (
-    <div className="soft-email-banner sticky top-0 z-[90] flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center text-sm">
+    <div className="soft-email-banner flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-center text-sm">
       <span className="flex items-center gap-2">
         <span aria-hidden="true">⚠</span>
         <span>

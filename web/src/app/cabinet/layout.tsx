@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CabinetShell } from "@/components/cabinet/cabinet-shell";
-import { loginUrl, logoutUrl, mainUrl } from "@/lib/subdomain";
+import { loginUrl, logoutUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
 import { getSessionAccountAccessState, inactiveAccountReason } from "@/lib/account-state";
 import { getSubscriptionPlan } from "@/lib/entitlements";
@@ -47,22 +47,9 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   // actively impersonating. Relying on raw cookie presence was wrong — a stale
   // eterapy-imp cookie left after logout made the banner appear for a freshly
   // logged-in practitioner who was never being impersonated.
-  const isImpersonating = Boolean(session.user?.impersonatedBy);
-
+  // X2: the impersonation banner is now rendered globally in the root layout
+  // (above the header), so the cabinet layout no longer renders its own.
   return (
-    <>
-      {isImpersonating && (
-        <div className="sticky top-0 z-[100] bg-amber-500 text-black text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-3">
-          <span>👁️ Режим имперсонации — вы видите кабинет от имени другого пользователя</span>
-          <a
-            href={mainUrl("/api/admin/stop-impersonate")}
-            className="underline font-bold hover:no-underline"
-          >
-            ← Вернуться
-          </a>
-        </div>
-      )}
-      <CabinetShell role={role} user={session.user} subscriptionLabel={subLabel}>{children}</CabinetShell>
-    </>
+    <CabinetShell role={role} user={session.user} subscriptionLabel={subLabel}>{children}</CabinetShell>
   );
 }

@@ -5,6 +5,14 @@
  */
 
 @layer components {
+  /* X1: expose the Soft Clarity design tokens on :root as a fallback so that
+     content portaled to document.body (modals via createPortal — the admin
+     user-edit modal, the verification modal, etc.) resolves the variables and
+     does not render transparent/unstyled. Scoped selectors below still win for
+     in-page elements; :root only fills the gap outside any soft surface. This
+     rule is ONLY custom-property definitions — no layout/background — so making
+     it global is purely additive. */
+  :root,
   .soft-clarity-page,
   .soft-header,
   .soft-footer,
