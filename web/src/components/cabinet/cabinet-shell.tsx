@@ -61,15 +61,25 @@ const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Администратор",
 };
 
+// X10: section key for the practitioner sidebar «непрочитанные» badge.
+function navCountKey(href: string): string | null {
+  if (href.endsWith("/practitioner/requests")) return "requests";
+  if (href.endsWith("/practitioner/clients")) return "clients";
+  if (href.endsWith("/practitioner/reviews")) return "reviews";
+  return null;
+}
+
 export function CabinetShell({
   role,
   user,
   subscriptionLabel,
+  counts,
   children,
 }: {
   role: string;
   user: { name?: string | null; email?: string | null; image?: string | null } | undefined;
   subscriptionLabel?: string;
+  counts?: Record<string, number>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -165,6 +175,8 @@ export function CabinetShell({
           <nav className="flex-1 space-y-1">
             {nav.map((item) => {
               const Icon = item.icon;
+              const countKey = navCountKey(item.href);
+              const count = countKey ? (counts?.[countKey] ?? 0) : 0;
               return (
                 <Link key={item.href} href={item.href}
                   data-testid="app-shell-nav-item"
@@ -175,6 +187,15 @@ export function CabinetShell({
                   }`}>
                   <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
+                  {count > 0 && (
+                    <span
+                      className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
+                      data-testid="app-nav-counter"
+                      aria-label={`${count} новых`}
+                    >
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  )}
                 </Link>
               );
             })}

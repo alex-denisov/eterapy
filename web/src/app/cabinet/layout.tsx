@@ -42,6 +42,28 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   });
   const subLabel = activeSub ? subscriptionLabel(activeSub.planKey, activeSub.currentPeriodEnd) : "Бесплатный";
 
+  // X10: practitioner sidebar «непрочитанные» counters — new requests, upcoming
+  // confirmed bookings, and recent reviews.
+  let counts: Record<string, number> | undefined;
+  if (role === "PRACTITIONER") {
+    const practitioner = await db.practitioner
+      .findUnique({ where: { userId: session.user.id }, select: { id: true } })
+      .catch(() => null);
+    if (practitioner) {
+      const since = new Date();
+      since.setDate(since.getDate() - 14);
+      const [requests, clients, reviews] = await Promise.all([
+        // Заявки — booking requests awaiting the practitioner's confirmation.
+        db.booking.count({ where: { practitionerId: practitioner.id, status: "PENDING" } }).catch(() => 0),
+        // Клиенты — confirmed upcoming sessions to attend.
+        db.booking.count({ where: { practitionerId: practitioner.id, status: "CONFIRMED" } }).catch(() => 0),
+        // Отзывы — reviews received in the last 14 days.
+        db.review.count({ where: { practitionerId: practitioner.id, createdAt: { gte: since } } }).catch(() => 0),
+      ]);
+      counts = { requests, clients, reviews };
+    }
+  }
+
   // W5: impersonation is surfaced ONLY via session.user.impersonatedBy, which
   // the auth() wrapper sets only when the REAL session is an admin/superadmin
   // actively impersonating. Relying on raw cookie presence was wrong — a stale
@@ -50,6 +72,6 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   // X2: the impersonation banner is now rendered globally in the root layout
   // (above the header), so the cabinet layout no longer renders its own.
   return (
-    <CabinetShell role={role} user={session.user} subscriptionLabel={subLabel}>{children}</CabinetShell>
+    <CabinetShell role={role} user={session.user} subscriptionLabel={subLabel} counts={counts}>{children}</CabinetShell>
   );
 }

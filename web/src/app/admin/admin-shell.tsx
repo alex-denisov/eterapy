@@ -72,15 +72,26 @@ const ROLE_LABELS: Record<string, string> = {
   SUPERADMIN: "Суперадминистратор",
 };
 
+// X9: section key for the sidebar unread badge, derived from the nav href.
+function navCountKey(href: string): string | null {
+  if (href.endsWith("/admin/applications")) return "applications";
+  if (href.endsWith("/admin/bookings")) return "bookings";
+  if (href.endsWith("/admin/complaints")) return "complaints";
+  if (href.endsWith("/admin/reviews")) return "reviews";
+  return null;
+}
+
 export function AdminShell({
   user,
   role,
   permissions,
+  counts,
   children,
 }: {
   user: { name?: string | null; email?: string | null } | undefined;
   role: string;
   permissions: Permission[];
+  counts?: Record<string, number>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -147,6 +158,8 @@ export function AdminShell({
         <nav className="flex-1 space-y-0.5">
           {nav.map((item) => {
             const Icon = item.icon;
+            const countKey = navCountKey(item.href);
+            const count = countKey ? (counts?.[countKey] ?? 0) : 0;
             return (
             <Link key={item.href} href={item.href}
               data-testid="admin-shell-nav-item"
@@ -157,6 +170,15 @@ export function AdminShell({
               }`}>
               <Icon className="h-4 w-4 shrink-0" />
               {item.label}
+              {count > 0 && (
+                <span
+                  className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
+                  data-testid="admin-nav-counter"
+                  aria-label={`${count} новых`}
+                >
+                  {count > 99 ? "99+" : count}
+                </span>
+              )}
             </Link>
           )})}
         </nav>
