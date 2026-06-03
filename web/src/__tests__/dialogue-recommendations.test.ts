@@ -44,10 +44,10 @@ describe("W17 dialogue recommendation engine", () => {
     expect(recommendSubscription("perspectives", false)?.tier).toBe("plus");
     // deep-report is Premium-only
     expect(recommendSubscription("deep-report", false)?.tier).toBe("premium");
-    // free product → no subscription nudge
-    expect(recommendSubscription("clarity-practice", false)).toBeNull();
-    // a session is never a subscription upsell
-    expect(recommendSubscription("joint-session", false)).toBeNull();
+    // X17: free/unmatched products surface Plus as the calm entry tier (the
+    // nudge no longer disappears entirely), framed as «возвращаться».
+    expect(recommendSubscription("clarity-practice", false)?.tier).toBe("plus");
+    expect(recommendSubscription("joint-session", false)?.tier).toBe("plus");
     // already-subscribed users are never nudged
     expect(recommendSubscription("deep-report", true)).toBeNull();
   });

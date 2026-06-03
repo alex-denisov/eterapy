@@ -174,8 +174,15 @@ export function recommendSubscription(
       reason: `В ${premium.name} входит этот формат и ещё ${premium.includedProducts.length - 1} + ${premium.creditsPerPeriod} кредитов`,
     };
   }
-  // free product / group format / session → no subscription pressure
-  return null;
+  // X17: for free/unmatched products the nudge no longer disappears entirely —
+  // we surface Plus as the calm entry tier (still suppressed for subscribers
+  // above). The product itself isn't bundled, so we frame it as «возвращаться».
+  return {
+    tier: "plus",
+    name: plus.name,
+    priceRub: Math.round(plus.amountKopecks / 100),
+    reason: `Если планируете возвращаться — в ${plus.name} +${plus.creditsPerPeriod} кредитов ясности каждый месяц и доступ к маршрутам`,
+  };
 }
 
 /** Stable 32-bit hash (FNV-1a) for deterministic per-dialogue rotation. */
