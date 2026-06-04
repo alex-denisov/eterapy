@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { loginUrl, mainUrl } from "@/lib/subdomain";
+import { guardClientCabinet } from "@/lib/cabinet-access";
 import { QuestionsList, type QuestionItem } from "./questions-list";
 
 async function deleteQuestion(formData: FormData) {
@@ -33,6 +34,7 @@ async function deleteQuestion(formData: FormData) {
 export default async function CabinetQuestionsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
+  guardClientCabinet(session.user.role); // Y6: client-only surface
 
   const dialogues = await db.dialogue.findMany({
     where: {

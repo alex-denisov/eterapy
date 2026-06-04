@@ -29,7 +29,7 @@ export default async function PractitionerEarningsPage() {
     select: {
       id: true,
       commissionPercent: true,
-      payoutDetails: { select: { type: true, accountNumber: true, bankName: true } },
+      payoutDetails: { select: { type: true, accountNumber: true, bankName: true, legalName: true, inn: true, kpp: true, bik: true, corrAccount: true } },
     },
   });
   if (!practitioner) redirect("/cabinet/practitioner");

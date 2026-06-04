@@ -200,11 +200,22 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
 
   return createPortal(
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" data-testid="user-edit-modal">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
-        {/* Header — sticky so the «Закрыть» (X) is always reachable while the
-            modal body scrolls (X1). Negative margins + padding let the sticky
-            bar span the full card width over the scrolling content. */}
-        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-4 flex items-start justify-between gap-4 border-b border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-5 pb-3 pt-5">
+      <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
+        {/* Y1: pin ONLY the close (×) button, not the whole header. A full sticky
+            header left an empty strip at the top while scrolling. A zero-height
+            sticky wrapper keeps the × reachable without reserving vertical space;
+            the title scrolls normally underneath. */}
+        <div className="pointer-events-none sticky top-0 z-20 flex h-0 justify-end">
+          <button
+            type="button"
+            className="pointer-events-auto -mr-1 -mt-1 inline-flex size-8 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink-soft)] shadow-[var(--soft-shadow-sm)] transition-colors hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="mb-4 flex items-start justify-between gap-4 border-b border-[var(--soft-paper-edge)] pb-3 pr-10">
           <div className="min-w-0">
             <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{row.name || "Без имени"}</h2>
             <p className="truncate text-xs text-[var(--soft-ink-faint)]">{row.email}</p>
@@ -214,9 +225,6 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
               <span className={status.className}>{status.label}</span>
             </p>
           </div>
-          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={onClose} aria-label="Закрыть">
-            <X className="size-3.5" aria-hidden="true" />
-          </button>
         </div>
 
         {isSuper && (

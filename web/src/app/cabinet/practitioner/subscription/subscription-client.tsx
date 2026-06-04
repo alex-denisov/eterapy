@@ -115,30 +115,31 @@ export function PractitionerSubscriptionClient({
             </ul>
 
             {/* W6: exactly two ways to pay — from the practitioner balance
-                (with an explicit insufficient-funds error on click) or by card. */}
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {/* X4: compact sizing matching the client billing buttons. */}
+                (with an explicit insufficient-funds error on click) or by card.
+                Y2: compact, auto-width buttons (flex, not a full-width grid) so
+                they read as small actions, not banner CTAs. */}
+            <div className="mt-5 flex flex-wrap gap-2">
               <button
                 type="button"
-                className="soft-button soft-button-primary justify-center"
-                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                className="soft-button soft-button-primary"
+                style={{ minHeight: "2rem", padding: "0.4rem 0.85rem", fontSize: "0.8125rem" }}
                 disabled={isCurrent || busy !== null}
                 onClick={() => canUseEarnings
                   ? startFromEarnings(plan.key)
                   : toast.error("Недостаточно средств на балансе для оплаты подписки")}
                 data-testid="practitioner-subscribe-from-balance"
               >
-                <Wallet className="size-4" aria-hidden="true" />
+                <Wallet className="size-3.5" aria-hidden="true" />
                 Оплатить с баланса
               </button>
               <button
                 type="button"
-                className="soft-button soft-button-ghost justify-center"
-                style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                className="soft-button soft-button-ghost"
+                style={{ minHeight: "2rem", padding: "0.4rem 0.85rem", fontSize: "0.8125rem" }}
                 disabled={isCurrent || busy !== null}
                 onClick={() => startByCard(plan.key)}
               >
-                <CreditCard className="size-4" aria-hidden="true" />
+                <CreditCard className="size-3.5" aria-hidden="true" />
                 Картой
               </button>
             </div>

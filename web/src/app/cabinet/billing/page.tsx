@@ -95,8 +95,6 @@ export default function BillingPage() {
   const [linkedCards, setLinkedCards] = useState<SavedCard[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
   const [settingDefaultCardId, setSettingDefaultCardId] = useState<string | null>(null);
-  const selectedPlan = searchParams?.get("plan");
-  const selectedPlanKey = selectedPlan === "plus" || selectedPlan === "premium" ? selectedPlan : "premium";
 
   const loadData = useCallback(() => {
     if (!session) return;
@@ -396,6 +394,11 @@ export default function BillingPage() {
 
   if (status === "loading") return null;
   if (!session) { router.push("/login"); return null; }
+  // Y6: client-only surface — a practitioner/admin reaching /cabinet/billing by
+  // direct link is routed back to /cabinet, which sends them to the home their
+  // role is entitled to.
+  const sessionRole = (session.user as { role?: string } | undefined)?.role;
+  if (sessionRole && sessionRole !== "CLIENT") { router.replace("/cabinet"); return null; }
 
   const activeSub = subscriptions.find(s => s.active);
   const currentPlanLabel = getSubscriptionPlanLabel(activeSub?.planKey);
@@ -404,7 +407,6 @@ export default function BillingPage() {
       ? "Отменяется в конце периода"
       : getSubscriptionStatusLabel(activeSub.status)
     : "Базовый доступ";
-  const selectedPlanLabel = getSubscriptionPlanLabel(selectedPlanKey);
 
   // Show every consumer-facing plan (Plus + Premium) so the user can pick.
   // Pricing/credits/included products are sourced from the canonical
@@ -672,10 +674,10 @@ export default function BillingPage() {
               {linkedCards.map((card) => (
                 <div
                   key={card.id}
-                  // X12: a real bank-card aspect ratio (≈1.6:1) capped at a sane
-                  // width — no longer a wide squat block that stretched to fill
-                  // half the row.
-                  className="relative flex aspect-[1.6/1] w-full max-w-[22rem] flex-col justify-between overflow-hidden rounded-[1.25rem] p-5 text-white shadow-md"
+                  // X12/Y8: a real bank-card aspect ratio (≈1.6:1) capped at a
+                  // compact width — smaller than before so it reads as a wallet
+                  // chip, not a hero card.
+                  className="relative flex aspect-[1.6/1] w-full max-w-[16.5rem] flex-col justify-between overflow-hidden rounded-[1.1rem] p-4 text-white shadow-md"
                   style={{
                     background: card.isDefault
                       ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)"
@@ -691,9 +693,9 @@ export default function BillingPage() {
                       </span>
                     )}
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <div
-                      className="font-heading text-xl font-semibold tracking-[0.22em] text-white"
+                      className="font-heading text-base font-semibold tracking-[0.18em] text-white"
                       style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
                     >
                       •••• •••• •••• {card.last4}

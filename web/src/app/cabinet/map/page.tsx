@@ -1,7 +1,11 @@
 import { ArrowRight, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { auth } from "@/lib/auth";
+import { guardClientCabinet } from "@/lib/cabinet-access";
 
-export default function MyMap() {
+export default async function MyMap() {
+  const session = await auth();
+  guardClientCabinet(session?.user?.role); // Y6: client-only surface
   return (
     <div className="fade-in px-4 py-8 md:px-8" data-testid="app-shell-main">
       <div className="mx-auto max-w-6xl">

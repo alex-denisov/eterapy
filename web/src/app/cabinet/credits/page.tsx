@@ -9,6 +9,7 @@ import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import db from "@/lib/db";
 import { getProductCreditCost, getProductPriceKopecks, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
+import { guardClientCabinet } from "@/lib/cabinet-access";
 import { v5Products } from "@/lib/v5-products";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -45,6 +46,7 @@ function creditsWord(n: number): string {
 export default async function CabinetCreditsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
+  guardClientCabinet(session.user.role); // Y6: client-only surface
   const userId = session.user.id;
 
   const [balance, ledger, access, userRow] = await Promise.all([

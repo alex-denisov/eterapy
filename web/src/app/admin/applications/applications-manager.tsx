@@ -18,6 +18,7 @@ interface Application {
   about: string;
   why: string | null;
   portfolio: string | null;
+  attachments?: string[];
   status: string;
   createdAt: string;
 }
@@ -165,6 +166,26 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                             <p className="text-sm text-muted-foreground">{a.formats.join(", ")}</p>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Y5: verification documents uploaded by the practitioner. */}
+                    {a.attachments && a.attachments.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Документы ({a.attachments.length})</p>
+                        <div className="flex flex-wrap gap-2">
+                          {a.attachments.map((url, i) => (
+                            <a
+                              key={url}
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-sm text-primary hover:underline"
+                            >
+                              Документ {i + 1}
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
 

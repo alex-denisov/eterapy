@@ -9,6 +9,7 @@ import { listMyMapItems, mergeMapMetadata, type MyMapItemKind } from "@/lib/my-m
 import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
+import { guardClientCabinet } from "@/lib/cabinet-access";
 
 function shareHref(title: string, topic: string) {
   return mainUrl(`/share?from=my-map&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
@@ -133,6 +134,7 @@ async function saveMapItem(formData: FormData) {
 export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
+  guardClientCabinet(session.user.role); // Y6: client-only surface
 
   const { showHidden } = await searchParams;
   const wantHidden = showHidden === "1";

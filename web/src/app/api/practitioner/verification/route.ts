@@ -14,15 +14,23 @@ export async function POST(request: NextRequest) {
     return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   }
 
-  const payload = await request.json().catch(() => ({})) as { note?: unknown; portfolio?: unknown };
+  const payload = await request.json().catch(() => ({})) as { note?: unknown; portfolio?: unknown; attachments?: unknown };
   const note = typeof payload.note === "string" ? payload.note.trim().slice(0, 2000) : "";
   const portfolio = typeof payload.portfolio === "string" ? payload.portfolio.trim().slice(0, 500) : "";
+  // Y5: uploaded document URLs (from /api/files, kind=DOCUMENT). Keep only
+  // same-origin /uploads/* paths so the field can't store arbitrary links.
+  const attachments = Array.isArray(payload.attachments)
+    ? payload.attachments
+        .filter((a): a is string => typeof a === "string" && a.startsWith("/uploads/"))
+        .slice(0, 10)
+    : [];
 
-  // X8: a verification request must describe what to verify — no empty requests.
-  if (note.length < 20) {
+  // X8/Y5: a verification request must describe what to verify OR attach
+  // documents — no empty requests.
+  if (note.length < 20 && attachments.length === 0) {
     return errorWithRequestContext(
       "BAD_REQUEST",
-      "Опишите, что нужно подтвердить: образование, опыт, ссылки на документы (от 20 символов).",
+      "Опишите, что нужно подтвердить (от 20 символов), или приложите документы.",
       400,
       context,
     );
@@ -62,6 +70,7 @@ export async function POST(request: NextRequest) {
       about: note || `Запрос на верификацию профиля: ${practitioner.title}`,
       why: makePractitionerVerificationMarker(practitioner.id),
       portfolio: portfolio || null,
+      attachments,
       status: "PENDING",
     },
     select: { id: true, status: true },

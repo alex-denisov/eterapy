@@ -8,17 +8,29 @@ import { PricingPlans } from "./pricing-plans";
 
 export const metadata = createPublicPageMetadata("/pricing");
 
-// W19: the "Встречи" prices must reflect the real session cost (the minimum
-// enabled 60-min PriceRate of an active practitioner), not a hardcoded fiction.
+// W19/Y9: the "Встречи" price ("от …") must reflect the BASE 60-minute session
+// tariff — the minimum enabled 60-min PriceRate of an active practitioner — not
+// a shorter slot or a hardcoded fiction. Fall back to any enabled rate only if
+// no 60-min tariff is published yet.
 async function getMinSessionPriceRub(): Promise<number | null> {
-  const rate = await db.priceRate
+  const base = { enabled: true, practitioner: { status: PractitionerStatus.ACTIVE } } as const;
+  const sixty = await db.priceRate
     .findFirst({
-      where: { enabled: true, practitioner: { status: PractitionerStatus.ACTIVE } },
+      where: { ...base, durationMin: 60 },
       orderBy: { priceRub: "asc" },
       select: { priceRub: true },
     })
     .catch(() => null);
-  return rate?.priceRub ?? null;
+  if (sixty?.priceRub) return sixty.priceRub;
+
+  const anyRate = await db.priceRate
+    .findFirst({
+      where: base,
+      orderBy: { priceRub: "asc" },
+      select: { priceRub: true },
+    })
+    .catch(() => null);
+  return anyRate?.priceRub ?? null;
 }
 
 export default async function PricingPage() {

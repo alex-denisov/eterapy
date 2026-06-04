@@ -113,14 +113,13 @@ describe("v5 product pages", () => {
     expect(source("app/api/billing/pay-from-balance/route.ts")).toContain("purchaseProductWithBalance");
   });
 
-  it("X11: the single cabinet funnel lives on /credits; /products redirects to it", () => {
-    const cabinetProducts = source("app/cabinet/products/page.tsx");
+  it("X11/Y7: the single cabinet funnel lives on /credits; legacy /products is removed (no redirect stub)", () => {
     const credits = source("app/cabinet/credits/page.tsx");
     const shell = source("components/cabinet/cabinet-shell.tsx");
 
-    // /cabinet/products is now a redirect to /cabinet/credits (no duplicate catalog)
-    expect(cabinetProducts).toContain('redirect("/cabinet/credits")');
-    expect(cabinetProducts).not.toContain("<ProductPurchaseControls");
+    // Y7: the duplicate /cabinet/products page is fully removed — not even a
+    // redirect stub remains. Old links must point straight at /cabinet/credits.
+    expect(fs.existsSync(path.join(srcDir, "app/cabinet/products/page.tsx"))).toBe(false);
     // the product catalog + purchase funnel lives on /credits
     expect(credits).toContain('data-testid="cabinet-credits-page"');
     expect(credits).toContain("getClarityCreditBalance");

@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/ui/page-container";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { getOrCreateDailyCard, dailyCardDate, dailyCardBeats } from "@/lib/daily-card";
 import { mainUrl } from "@/lib/subdomain";
+import { guardClientCabinet } from "@/lib/cabinet-access";
 
 // Monday-based weekday labels for the «эта неделя» calendar.
 const WEEKDAY_RU_SHORT = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
@@ -89,6 +90,7 @@ export default async function ClarityPracticePage() {
     // CabinetShell already handles unauthenticated → /login.
     return null;
   }
+  guardClientCabinet(session.user.role); // Y6: client-only surface
 
   const { card } = await getOrCreateDailyCard(userId);
   const [strip, streak, activeRoute] = await Promise.all([

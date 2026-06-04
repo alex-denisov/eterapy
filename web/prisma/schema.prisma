@@ -731,6 +731,10 @@ model PractitionerApplication {
   about       String
   why         String?
   portfolio   String?
+  // Y5: uploaded verification documents (StoredFile URLs) + admin review meta.
+  attachments     String[]  @default([])
+  rejectionReason String?
+  reviewedAt      DateTime?
   status      String   @default("PENDING") // PENDING | REVIEWING | APPROVED | REJECTED
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -799,9 +803,15 @@ model PayoutDetails {
   id             String       @id @default(cuid())
   practitionerId String       @unique
   practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
-  type           String       // CARD / SBP
-  accountNumber  String       // номер карты или телефон
+  type           String       // CARD | SBP | ENTITY
+  accountNumber  String       // карта / телефон СБП / расчётный счёт (ENTITY)
   bankName       String?
+  // Y3: реквизиты юридического лица (ИП / ООО) — null для CARD/SBP (самозанятые).
+  legalName      String?      // наименование организации или ИП
+  inn            String?
+  kpp            String?
+  bik            String?
+  corrAccount    String?      // корреспондентский счёт банка
   updatedAt      DateTime     @updatedAt
 
   @@map("payout_details")
