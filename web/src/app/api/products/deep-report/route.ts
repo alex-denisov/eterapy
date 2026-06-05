@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
-import { buildDeepReportPreview, buildDeepReportTitle, generateDeepReport } from "@/lib/deep-report";
+import { buildDeepReportPreview, buildDeepReportTeaser, buildDeepReportTitle, generateDeepReport } from "@/lib/deep-report";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -134,13 +134,22 @@ export async function POST(request: NextRequest) {
   });
 
   if (parsed.data.action === "preview") {
+    const generated = await generateDeepReport({
+      dialogue,
+      userId,
+      requestId: context.requestId,
+    });
+    const teaserText = buildDeepReportTeaser(dialogue, generated.text);
     const result = existing
       ? await db.productResult.update({
         where: { id: existing.id },
         data: {
           title,
-          previewText,
+          previewText: teaserText,
           status: existing.status === "READY" ? "READY" : "PREVIEW",
+          metadata: existing.status === "READY"
+            ? existing.metadata as Prisma.InputJsonValue
+            : { source: "preview", previewGenerationMetadata: generated.metadata },
         },
       })
       : await db.productResult.create({
@@ -150,8 +159,8 @@ export async function POST(request: NextRequest) {
           productKey: PRODUCT_KEY,
           status: "PREVIEW",
           title,
-          previewText,
-          metadata: { source: "preview" },
+          previewText: teaserText,
+          metadata: { source: "preview", previewGenerationMetadata: generated.metadata },
         },
       });
 

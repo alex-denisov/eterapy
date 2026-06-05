@@ -244,10 +244,34 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     return () => { cancelled = true; };
   }, [authStatus, dialogueId]);
 
+  async function createPreview() {
+    if (!dialogueId) return;
+    if (!isAuthenticated) {
+      setMessage("Войдите, чтобы получить бесплатный ракурс и сохранить его в кабинете.");
+      setStatus("error");
+      return;
+    }
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const payload = await jsonRequest<ApiPayload>("/api/products/perspectives", {
+        method: "POST",
+        body: JSON.stringify({ dialogueId, action: "preview" }),
+      });
+      setHasEntitlement(Boolean(payload.hasEntitlement));
+      setResult(payload.result ?? null);
+      setActiveAngle(0);
+      setStatus("idle");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Не удалось получить бесплатный ракурс");
+      setStatus("error");
+    }
+  }
+
   async function generateReport() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы открыть 4 ракурса с баланса, кредитами ясности или картой.");
+      setMessage("Войдите, чтобы открыть 4 ракурса кредитами ясности или картой.");
       setStatus("error");
       return;
     }
@@ -265,7 +289,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к 4 ракурсам с баланса, кредитами ясности или картой — после этого результат появится здесь же.");
+        setMessage("Откройте доступ к 4 ракурсам кредитами ясности или картой — после этого результат появится здесь же.");
         setStatus("error");
         return;
       }
@@ -336,7 +360,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "доступ открыт" : "нужна оплата"}
+          {hasEntitlement ? "доступ открыт" : "1 ракурс бесплатно"}
         </span>
       </div>
 
@@ -384,6 +408,16 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
       {/* actions */}
       <div className="mt-6 flex flex-wrap gap-3">
+        {!result?.previewText && angles.length === 0 && (
+          <Button
+            onClick={createPreview}
+            disabled={status === "loading"}
+            className="soft-button soft-button-ghost"
+          >
+            Бесплатный ракурс
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>
+        )}
         <Button
           onClick={generateReport}
           disabled={!hasEntitlement || status === "loading" || status === "paying"}
@@ -395,9 +429,9 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
         {!hasEntitlement && (
           <ProductPurchaseControls
             productKey="perspectives"
-            label="Открыть с баланса"
+            label="Открыть все ракурсы"
             checkoutSource="perspectives-generate"
-            creditCost={2}
+            creditCost={1}
             onUnlocked={() => {
               setHasEntitlement(true);
               void generateReport();

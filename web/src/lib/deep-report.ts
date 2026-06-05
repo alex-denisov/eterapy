@@ -33,6 +33,25 @@ export function buildDeepReportPreview(dialogue: DialogueForDeepReport) {
   ].join("\n");
 }
 
+export function buildDeepReportTeaser(dialogue: DialogueForDeepReport, generatedText: string) {
+  const report = normalizeReport(generatedText || heuristicDeepReport(dialogue));
+  const visibleBlocks = report
+    .split(/\n(?=3[.)]\s|\n3\.\s)/)[0]
+    .replace(/^Глубокий отчет\s*/i, "")
+    .trim();
+  const firstUserMessage = dialogue.messages.find((message) => message.role === "USER")?.content ?? dialogue.title;
+
+  return [
+    "Персональное оглавление",
+    `Запрос: ${firstUserMessage.slice(0, 180)}`,
+    "- Что я слышу в вашем вопросе",
+    "- Главная развилка",
+    "- Сценарии и маршрут — в полном отчете",
+    "",
+    visibleBlocks || buildDeepReportPreview(dialogue),
+  ].join("\n");
+}
+
 function compactDialogue(dialogue: DialogueForDeepReport) {
   return dialogue.messages
     .map((message) => `${message.role === "USER" ? "User" : "Assistant"}: ${message.content}`)

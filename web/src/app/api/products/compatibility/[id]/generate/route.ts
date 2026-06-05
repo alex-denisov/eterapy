@@ -76,8 +76,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: { teaserText },
     });
     return jsonWithRequestContext(
-      { error: teaserText, code: "PAYMENT_REQUIRED", hasEntitlement, result: updated, teaserText },
-      { status: 402 },
+      { hasEntitlement, result: updated, teaserText, generated: false, paywalled: true },
+      { status: 200 },
       context
     );
   }

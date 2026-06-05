@@ -31,12 +31,17 @@ export function buildPairTeaser(input: {
   const balance = Math.abs(creatorLength - partnerLength) < 280
     ? "Обе стороны дали сопоставимый по объему контекст."
     : "Один ответ заметно подробнее другого, поэтому итог стоит читать как приглашение к уточнению, а не как вердикт.";
+  const creatorWords = meaningfulWords(input.creatorText);
+  const partnerWords = meaningfulWords(input.partnerText);
+  const shared = creatorWords.find((word) => partnerWords.includes(word)) ?? "спокойствие";
 
   return [
-    "Предварительный итог готов: в ответах уже видны общие темы, точки напряжения и места, где разговор можно сделать спокойнее.",
-    balance,
+    "Бесплатный фрагмент совместимости",
+    `Совпадение: в обоих ответах звучит тема «${shared}».`,
+    `Различие: ${balance}`,
+    "Теплый вопрос: что каждый из вас готов сделать, чтобы разговор стал безопаснее на один маленький шаг?",
     `Тип связи: ${relationLabel(input.relationType)}.`,
-  ].join(" ");
+  ].join("\n");
 }
 
 export function buildCircleTeaser(input: {
@@ -57,9 +62,11 @@ export function buildCircleTeaser(input: {
   return [
     `Круг собрал ${input.participantCount} ${participantWord(input.participantCount)} вокруг вопроса: «${shortQuestion}».`,
     recurring.length
-      ? `Повторяющиеся темы: ${recurring.join(", ")}.`
+      ? `Тема: чаще всего повторяется ${recurring.join(", ")}.`
       : "Ответы различаются, поэтому итог стоит использовать как карту взглядов, а не голосование.",
-  ].join(" ");
+    "Слепая зона: участники могут говорить о разном уровне риска, даже если используют похожие слова.",
+    "Следующий шаг: выберите одну тему пересечения и обсудите её коротко, без требования немедленного решения.",
+  ].join("\n");
 }
 
 export function buildCircleReport(input: {
@@ -107,4 +114,13 @@ function participantWord(count: number) {
   if (count === 1) return "ответ";
   if (count > 1 && count < 5) return "ответа";
   return "ответов";
+}
+
+function meaningfulWords(text: string) {
+  const stopWords = new Set(["хочу", "больше", "меньше", "постоянных", "кажется", "важно", "очень"]);
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 5 && !stopWords.has(word));
 }

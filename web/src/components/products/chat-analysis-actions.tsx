@@ -382,7 +382,7 @@ export function ChatAnalysisActions() {
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к разбору переписки с баланса, кредитами ясности или картой — распознанный текст останется здесь.");
+        setMessage("Откройте доступ к разбору переписки кредитами ясности или картой — распознанный текст останется здесь.");
         setStatus("error");
         return;
       }
@@ -601,6 +601,12 @@ export function ChatAnalysisActions() {
           <p className="whitespace-pre-wrap">{result.metadata.recognizedText}</p>
         </div>
       )}
+      {result?.previewText && !result.resultText && (
+        <div className="soft-card-flat mb-4 p-4 text-sm leading-relaxed text-[var(--soft-ink)]">
+          <p className="soft-eyebrow mb-2 text-[var(--soft-bordeaux)]">Бесплатный фрагмент</p>
+          <p className="whitespace-pre-wrap">{result.previewText}</p>
+        </div>
+      )}
       <p className="soft-eyebrow mb-4">короткий контекст</p>
           <div className="flex flex-col gap-5">
             <div>
@@ -659,14 +665,14 @@ export function ChatAnalysisActions() {
             className="soft-button soft-button-primary mt-6"
           >
             <LockKeyhole className="size-4" aria-hidden="true" />
-            Получить разбор
+            {hasEntitlement ? "Получить полный разбор" : "Открыть полный разбор"}
             <ArrowRight className="size-4" aria-hidden="true" />
           </Button>
           {!hasEntitlement && (
             <div className="mt-3">
               <ProductPurchaseControls
                 productKey="chat-analysis"
-                label="Открыть с баланса"
+                label="Открыть полный разбор"
                 checkoutSource="chat-analysis-generate"
                 creditCost={2}
                 onUnlocked={() => {

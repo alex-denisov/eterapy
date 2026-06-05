@@ -45,6 +45,27 @@ export function buildPerspectivesPreview(dialogue: DialogueForPerspectives) {
   ].join("\n");
 }
 
+export function buildPerspectivesTeaser(dialogue: DialogueForPerspectives, generatedText: string) {
+  const parsed = tryParsePerspectives(generatedText) ?? tryParsePerspectives(heuristicPerspectives(dialogue).text);
+  const first = parsed?.angles[0];
+  if (!first) return buildPerspectivesPreview(dialogue);
+
+  const lockedTitles = parsed.angles.slice(1).map((angle) => `- ${angle.title}: ${angle.subtitle || "ракурс будет открыт после оплаты"}`);
+  return [
+    `Бесплатный ракурс: ${first.title}`,
+    first.subtitle ? `Фокус: ${first.subtitle}` : "",
+    "",
+    "Что уже видно",
+    ...(first.facts.length ? first.facts.map((fact) => `- ${fact}`) : ["- Вопрос уже достаточно конкретный, чтобы смотреть на него не только одним способом."]),
+    "",
+    first.ask ? `Вопрос к себе: ${first.ask}` : "",
+    first.step ? `Следующий шаг: ${first.step}` : "",
+    "",
+    "Еще внутри полного результата",
+    ...lockedTitles,
+  ].filter(Boolean).join("\n");
+}
+
 function compactDialogue(dialogue: DialogueForPerspectives) {
   return dialogue.messages
     .map((message) => `${message.role === "USER" ? "User" : "Assistant"}: ${message.content}`)
@@ -64,6 +85,7 @@ export function tryParsePerspectives(text: string): PerspectivesStructured | nul
 }
 
 export function heuristicPerspectives(dialogue: DialogueForPerspectives): { text: string; metadata: Prisma.InputJsonObject } {
+  void dialogue;
   const structured: PerspectivesStructured = {
     angles: [
       {

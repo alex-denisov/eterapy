@@ -39,8 +39,76 @@ export function getSymbolicProductDefinition(productKey: string) {
   return SYMBOLIC_PRODUCT_DEFINITIONS.find((definition) => definition.productKey === productKey) ?? null;
 }
 
+export function buildSymbolicProductTeaser(input: {
+  productKey: SymbolicProductKey;
+  userInput: string;
+  generatedText: string;
+}) {
+  const generatedLines = input.generatedText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const firstMeaningfulLine = generatedLines.find((line) => !/^расклад|натальная карта|числовой портрет|расширенная карта/i.test(line))
+    ?? generatedLines[0]
+    ?? "В вашем запросе уже видна одна тема, которую можно рассмотреть бережно и без фатальных обещаний.";
+
+  if (input.productKey === "tarot") {
+    return [
+      "Первая карта",
+      firstMeaningfulLine,
+      "",
+      "Полный расклад откроет остальные карты и общий синтез.",
+    ].join("\n");
+  }
+
+  if (input.productKey === "natal-chart") {
+    return [
+      "Один акцент натальной карты",
+      firstMeaningfulLine,
+      "",
+      "Полный разбор раскроет дополнительные темы и практический маршрут.",
+    ].join("\n");
+  }
+
+  if (input.productKey === "numerology") {
+    const yearLine = generatedLines.find((line) => /число года/i.test(line)) ?? firstMeaningfulLine;
+    const strengthLine = generatedLines.find((line) => /сильная сторона/i.test(line)) ?? "Сильная сторона: замечать повторяющийся ритм и выбирать следующий шаг спокойнее.";
+    return [
+      yearLine,
+      strengthLine,
+      "",
+      "Полный портрет откроет остальные числа и рекомендации.",
+    ].join("\n");
+  }
+
+  const repeatedTheme = extractRepeatedTheme(input.userInput);
+  return [
+    "Повторяющаяся тема",
+    repeatedTheme
+      ? `В вашей истории чаще всего звучит тема: ${repeatedTheme}.`
+      : firstMeaningfulLine,
+    "",
+    "Полная карта соберет годовую динамику, ослабшие темы и следующий шаг.",
+  ].join("\n");
+}
+
 function normalize(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000);
+}
+
+function extractRepeatedTheme(text: string) {
+  const stopWords = new Set(["хочу", "темы", "года", "отношения", "работа", "сейчас", "этой", "этот", "если", "мне", "что"]);
+  const counts = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 4 && !stopWords.has(word))
+    .reduce<Map<string, number>>((acc, word) => {
+      acc.set(word, (acc.get(word) ?? 0) + 1);
+      return acc;
+    }, new Map());
+
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
 function heuristicSymbolicResult(input: { productKey: SymbolicProductKey; userInput: string }) {

@@ -53,7 +53,23 @@ export function buildChatAnalysisTitle(sourceText: string) {
 }
 
 export function buildChatAnalysisPreview(sourceText: string) {
-  const anonymized = sourceText
+  const anonymized = anonymizeChatPreview(sourceText);
+
+  return [
+    anonymized,
+    sourceText.split("\n").length > 5 ? "..." : "",
+    "",
+    "Полный разбор покажет:",
+    "- 1. Обзор ситуации и контекст",
+    "- 2. Вероятные сценарии (без фатальности)",
+    "- 3. Риски в коммуникации",
+    "- 4. Рекомендации по ответам",
+    "- 5. План действий",
+  ].filter(Boolean).join("\n");
+}
+
+function anonymizeChatPreview(sourceText: string) {
+  return sourceText
     .split("\n")
     .slice(0, 5)
     .map(line => {
@@ -68,17 +84,20 @@ export function buildChatAnalysisPreview(sourceText: string) {
       return line;
     })
     .join("\n");
+}
 
+export function buildChatAnalysisTeaser(sourceText: string, generatedText: string) {
+  const parsed = tryParseChatAnalysis(generatedText) ?? tryParseChatAnalysis(heuristicChatAnalysis(sourceText).text);
+  const topTone = parsed?.tonesThem?.[0];
   return [
-    anonymized,
+    "Распознанный фрагмент",
+    anonymizeChatPreview(sourceText),
     sourceText.split("\n").length > 5 ? "..." : "",
     "",
-    "Полный разбор покажет:",
-    "- 1. Обзор ситуации и контекст",
-    "- 2. Вероятные сценарии (без фатальности)",
-    "- 3. Риски в коммуникации",
-    "- 4. Рекомендации по ответам",
-    "- 5. План действий",
+    `один инсайт: ${parsed?.insight ?? "в переписке уже виден повторяющийся сценарий контакта и защиты."}`,
+    topTone ? `тон собеседника: ${topTone.label}${typeof topTone.pct === "number" ? ` (${topTone.pct}%)` : ""}.` : "",
+    "",
+    "В полном разборе откроются ваш тон, варианты ответа и безопасный следующий шаг.",
   ].filter(Boolean).join("\n");
 }
 

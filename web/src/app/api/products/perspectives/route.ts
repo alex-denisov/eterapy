@@ -6,7 +6,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
-import { buildPerspectivesPreview, buildPerspectivesTitle, generatePerspectives } from "@/lib/perspectives";
+import { buildPerspectivesPreview, buildPerspectivesTeaser, buildPerspectivesTitle, generatePerspectives } from "@/lib/perspectives";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 const PRODUCT_KEY = "perspectives";
@@ -119,10 +119,19 @@ export async function POST(request: NextRequest) {
   });
 
   if (parsed.data.action === "preview") {
+    const generated = await generatePerspectives({ dialogue, userId, requestId: context.requestId });
+    const teaserText = buildPerspectivesTeaser(dialogue, generated.text);
     const result = existing
       ? await db.productResult.update({
         where: { id: existing.id },
-        data: { title, previewText, status: existing.status === "READY" ? "READY" : "PREVIEW" },
+        data: {
+          title,
+          previewText: teaserText,
+          status: existing.status === "READY" ? "READY" : "PREVIEW",
+          metadata: existing.status === "READY"
+            ? existing.metadata as Prisma.InputJsonValue
+            : { source: "preview", previewGenerationMetadata: generated.metadata },
+        },
       })
       : await db.productResult.create({
         data: {
@@ -131,8 +140,8 @@ export async function POST(request: NextRequest) {
           productKey: PRODUCT_KEY,
           status: "PREVIEW",
           title,
-          previewText,
-          metadata: { source: "preview" },
+          previewText: teaserText,
+          metadata: { source: "preview", previewGenerationMetadata: generated.metadata },
         },
       });
     return jsonWithRequestContext({

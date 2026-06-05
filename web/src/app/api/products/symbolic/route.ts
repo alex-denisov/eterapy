@@ -3,11 +3,13 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import {
   SYMBOLIC_PRODUCT_DEFINITIONS,
+  buildSymbolicProductTeaser,
   generateSymbolicProductResult,
   getSymbolicProductDefinition,
   isSymbolicProductKey,
@@ -80,6 +82,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
+  const ipLimit = checkRequestAuthRateLimit(request, "product:symbolic", 20, 5 * 60_000);
+  if (!ipLimit.allowed) {
+    return jsonWithRequestContext(
+      { error: "Too many symbolic product requests", code: "RATE_LIMITED" },
+      { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSeconds) } },
+      context,
+    );
+  }
+
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
@@ -90,8 +101,6 @@ export async function POST(request: NextRequest) {
   const { productKey } = parsed.data;
   const definition = getSymbolicProductDefinition(productKey);
   const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
-  if (!hasEntitlement) return errorWithRequestContext("PAYMENT_REQUIRED", "Нужна оплата", 402, context);
-
   const userInput = parsed.data.userInput?.trim() || definition?.promptLabel || productKey;
   const generated = await generateSymbolicProductResult({
     productKey,
@@ -99,6 +108,46 @@ export async function POST(request: NextRequest) {
     userId,
     requestId: context.requestId,
   });
+  const previewText = buildSymbolicProductTeaser({ productKey, userInput, generatedText: generated.text });
+
+  if (!hasEntitlement) {
+    const existingPreview = await db.productResult.findFirst({
+      where: { userId, productKey, status: "PREVIEW", deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const result = existingPreview
+      ? await db.productResult.update({
+        where: { id: existingPreview.id },
+        data: {
+          title: definition?.resultTitle ?? productKey,
+          previewText,
+          metadata: {
+            userInput,
+            previewGenerationMetadata: generated.metadata,
+          } as Prisma.InputJsonObject,
+        },
+      })
+      : await db.productResult.create({
+        data: {
+          userId,
+          productKey,
+          title: definition?.resultTitle ?? productKey,
+          status: "PREVIEW",
+          previewText,
+          metadata: {
+            userInput,
+            previewGenerationMetadata: generated.metadata,
+          } as Prisma.InputJsonObject,
+        },
+      });
+
+    return jsonWithRequestContext(
+      { hasEntitlement, result: serializeResult(result), generated: false, paywalled: true },
+      { status: 200 },
+      context,
+    );
+  }
 
   const result = await db.productResult.create({
     data: {
@@ -106,7 +155,7 @@ export async function POST(request: NextRequest) {
       productKey,
       title: definition?.resultTitle ?? productKey,
       status: "READY",
-      previewText: userInput.slice(0, 600),
+      previewText,
       resultText: generated.text,
       metadata: {
         userInput,

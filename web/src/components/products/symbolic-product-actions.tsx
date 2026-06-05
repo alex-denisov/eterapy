@@ -19,6 +19,7 @@ type ApiPayload = {
   hasEntitlement?: boolean;
   result?: SymbolicResult;
   results?: SymbolicResult[];
+  paywalled?: boolean;
   error?: string;
 };
 
@@ -84,11 +85,14 @@ export function SymbolicProductActions({
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
+      if (payload.paywalled) {
+        setMessage("Бесплатный фрагмент готов. Полный разбор можно открыть кредитами ясности или картой.");
+      }
       setStatus("idle");
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 402) {
-        setMessage("Откройте доступ с баланса, кредитами ясности или картой — результат появится здесь же.");
+        setMessage("Откройте доступ кредитами ясности или картой — полный результат появится здесь же.");
       } else {
         setMessage(typed.message || "Не удалось создать результат");
       }
@@ -123,11 +127,11 @@ export function SymbolicProductActions({
           <p className="soft-eyebrow">получить продукт</p>
           <h2 className="soft-h3 mt-2">{title}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Можно купить напрямую: балансом, кредитами ясности или картой. Бесплатный диалог не обязателен для этого формата.
+            Сначала можно получить бесплатный фрагмент по вашему вводу. Полный разбор открывается кредитами ясности или картой.
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "доступ открыт" : "нужна оплата"}
+          {hasEntitlement ? "доступ открыт" : "фрагмент бесплатно"}
         </span>
       </div>
 
@@ -153,17 +157,17 @@ export function SymbolicProductActions({
             <Button
               type="button"
               onClick={generateResult}
-              disabled={!hasEntitlement || status === "loading"}
+              disabled={status === "loading"}
               className="soft-button soft-button-primary"
             >
-              <LockKeyhole className="size-4" aria-hidden="true" />
-              {status === "loading" ? "Собираем результат" : "Получить результат"}
+              {hasEntitlement && <LockKeyhole className="size-4" aria-hidden="true" />}
+              {status === "loading" ? "Собираем результат" : hasEntitlement ? "Получить полный результат" : "Бесплатный фрагмент"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
             {!hasEntitlement && (
               <ProductPurchaseControls
                 productKey={productKey}
-                label="Открыть с баланса"
+                label="Открыть полностью"
                 checkoutSource={`${productKey}-direct`}
                 creditCost={creditCost}
                 onUnlocked={() => {
@@ -197,9 +201,18 @@ export function SymbolicProductActions({
                 {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем…" : "Сохранить в Мою карту"}
               </Button>
             </>
+          ) : result?.previewText ? (
+            <>
+              <article className="mt-3 whitespace-pre-wrap font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
+                {result.previewText}
+              </article>
+              <p className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                Это бесплатный фрагмент. Полный разбор откроет остальные блоки и сохранение в Мою карту.
+              </p>
+            </>
           ) : (
             <p className="mt-3 font-heading text-xl italic leading-relaxed text-[var(--soft-ink-soft)]">
-              После оплаты здесь появится готовый разбор. Он останется в истории кабинета и будет доступен для сохранения в Мою карту.
+              Введите вопрос или данные — здесь появится первый настоящий фрагмент до оплаты.
             </p>
           )}
         </div>

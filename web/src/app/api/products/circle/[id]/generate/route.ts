@@ -49,8 +49,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       include: { participants: { where: { status: "SUBMITTED" }, orderBy: { createdAt: "asc" } } },
     });
     return jsonWithRequestContext(
-      { error: teaserText, code: "PAYMENT_REQUIRED", result: updated, teaserText },
-      { status: 402 },
+      { result: updated, teaserText, generated: false, paywalled: true },
+      { status: 200 },
       context
     );
   }

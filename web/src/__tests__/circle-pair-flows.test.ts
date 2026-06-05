@@ -45,7 +45,8 @@ describe("B201/B202 Circle and Pair flows", () => {
     expect(reportRoute).toContain("circle_participant_reported");
     expect(generateRoute).toContain("buildCircleReport");
     expect(generateRoute).toContain("eligibleParticipants");
-    expect(generateRoute).toContain("PAYMENT_REQUIRED");
+    // M24 Z6: first real teaser block is free; payment gates only the full result.
+    expect(generateRoute).toContain("paywalled: true");
   });
 
   it("keeps Pair invites on the v4.1 route and uses real dialogue text for generation", () => {

@@ -24,6 +24,8 @@ type ApiPayload = {
   result?: CompatibilityResult;
   results?: CompatibilityResult[];
   checkout?: { productKey: string; checkoutSource: string };
+  teaserText?: string;
+  paywalled?: boolean;
   error?: string;
 };
 
@@ -90,7 +92,7 @@ export function CompatibilityActions({
   async function createInvite() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы создать приглашение и открыть совместимость через баланс, кредиты или карту.");
+      setMessage("Войдите, чтобы создать приглашение и открыть совместимость через кредиты или карту.");
       setStatus("error");
       return;
     }
@@ -103,6 +105,9 @@ export function CompatibilityActions({
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
+      if (payload.paywalled) {
+        setMessage(payload.teaserText ?? "Бесплатный фрагмент готов. Полная карта откроется после оплаты.");
+      }
       setStatus("idle");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось создать приглашение");
@@ -164,7 +169,7 @@ export function CompatibilityActions({
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к совместимости с баланса, кредитами ясности или картой — ответы партнеров останутся на месте.");
+        setMessage("Откройте доступ к совместимости кредитами ясности или картой — ответы партнеров останутся на месте.");
         setStatus("error");
         return;
       }
@@ -338,19 +343,19 @@ export function CompatibilityActions({
             <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Партнер заполнил свою часть и дал согласие. Теперь вы можете получить разбор.</p>
             <Button
               onClick={generateReport}
-              disabled={!hasEntitlement || status === "loading" || status === "paying"}
+              disabled={status === "loading" || status === "paying"}
               className="soft-button soft-button-primary mt-4 w-full justify-center"
             >
               <LockKeyhole className="size-4" aria-hidden="true" />
-              Получить разбор (требуется согласие)
+              {hasEntitlement ? "Получить полный разбор" : "Показать бесплатный фрагмент"}
             </Button>
             {!hasEntitlement && (
               <div className="mt-3">
                 <ProductPurchaseControls
                   productKey={productKey}
-                  label="Открыть с баланса"
+                  label="Открыть полную карту"
                   checkoutSource="compatibility-generate"
-                  creditCost={productKey === "pair" ? 3 : 4}
+                  creditCost={4}
                   onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
                 />
               </div>

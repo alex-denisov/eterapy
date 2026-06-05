@@ -32,6 +32,7 @@ type ApiPayload = {
   result?: CircleResult;
   results?: CircleResult[];
   teaserText?: string;
+  paywalled?: boolean;
   error?: string;
 };
 
@@ -87,7 +88,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
 
   async function createCircle() {
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы создать круг и управлять доступом через баланс, кредиты или карту.");
+      setMessage("Войдите, чтобы создать круг и управлять доступом через кредиты или карту.");
       setStatus("error");
       return;
     }
@@ -138,6 +139,9 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setCircle(payload.result ?? null);
+      if (payload.paywalled) {
+        setMessage(payload.teaserText ?? "Бесплатный фрагмент готов. Полный итог откроется после оплаты.");
+      }
       setStatus("idle");
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
@@ -280,8 +284,8 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={generateCircle} disabled={!hasEntitlement || status === "loading" || circle.participants.length < 2} className="soft-button soft-button-primary">
-              Собрать итог
+            <Button onClick={generateCircle} disabled={status === "loading" || circle.participants.length < 2} className="soft-button soft-button-primary">
+              {hasEntitlement ? "Собрать полный итог" : "Показать бесплатный фрагмент"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
             <Button onClick={() => window.location.reload()} className="soft-button soft-button-ghost">
@@ -297,9 +301,9 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
             <div className="mt-3">
               <ProductPurchaseControls
                 productKey="circle"
-                label="Открыть итог с баланса"
+                label="Открыть полный итог"
                 checkoutSource="circle-generate"
-                creditCost={3}
+                creditCost={4}
                 onUnlocked={() => {
                   setHasEntitlement(true);
                   setMessage("Доступ открыт. Теперь можно собрать итог круга.");

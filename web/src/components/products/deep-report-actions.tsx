@@ -96,7 +96,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
   async function generateReport() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы открыть глубокий отчет с баланса, кредитами ясности или картой.");
+      setMessage("Войдите, чтобы открыть глубокий отчет кредитами ясности или картой.");
       setStatus("error");
       return;
     }
@@ -113,7 +113,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к глубокому отчету с баланса, кредитами ясности или картой — после этого полный текст появится на этой странице.");
+        setMessage("Откройте доступ к глубокому отчету кредитами ясности или картой — после этого полный текст появится на этой странице.");
         setStatus("error");
         return;
       }
@@ -298,7 +298,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
             {!hasEntitlement && (
               <ProductPurchaseControls
                 productKey="deep-report"
-                label="Открыть с баланса"
+                label="Открыть полный отчет"
                 checkoutSource="deep-report-generate"
                 creditCost={4}
                 onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}

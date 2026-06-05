@@ -3,12 +3,14 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
 import {
   ChatAnalysisInputError,
   buildChatAnalysisPreview,
+  buildChatAnalysisTeaser,
   buildChatAnalysisTitle,
   extractChatTextFromScreenshot,
   generateChatAnalysis,
@@ -95,6 +97,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
+  const ipLimit = checkRequestAuthRateLimit(request, "product:chat-analysis", 15, 5 * 60_000);
+  if (!ipLimit.allowed) {
+    return jsonWithRequestContext(
+      { error: "Too many chat analysis requests", code: "RATE_LIMITED" },
+      { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSeconds) } },
+      context,
+    );
+  }
+
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
@@ -107,7 +118,12 @@ export async function POST(request: NextRequest) {
 
   if (input.action === "upload_preview") {
     const maskedSourceText = maskChatAnalysisPii(input.sourceText);
-    const previewText = buildChatAnalysisPreview(maskedSourceText);
+    const generated = await generateChatAnalysis({
+      sourceText: maskedSourceText,
+      userId,
+      requestId: context.requestId,
+    });
+    const previewText = buildChatAnalysisTeaser(maskedSourceText, generated.text) || buildChatAnalysisPreview(maskedSourceText);
     
     // Check if we already have a preview in progress to overwrite or create a new one
     const existing = await db.productResult.findFirst({
@@ -127,6 +143,7 @@ export async function POST(request: NextRequest) {
               piiMasked: true,
               sourceRawStored: false,
               uploadPreviewedAt: new Date().toISOString(),
+              previewGenerationMetadata: generated.metadata,
             },
           },
         })
@@ -143,6 +160,7 @@ export async function POST(request: NextRequest) {
               piiMasked: true,
               sourceRawStored: false,
               uploadPreviewedAt: new Date().toISOString(),
+              previewGenerationMetadata: generated.metadata,
             },
           },
         });
@@ -158,7 +176,12 @@ export async function POST(request: NextRequest) {
         requestId: context.requestId,
       });
       const maskedSourceText = maskChatAnalysisPii(extraction.recognizedText);
-      const previewText = buildChatAnalysisPreview(maskedSourceText);
+      const generated = await generateChatAnalysis({
+        sourceText: maskedSourceText,
+        userId,
+        requestId: context.requestId,
+      });
+      const previewText = buildChatAnalysisTeaser(maskedSourceText, generated.text) || buildChatAnalysisPreview(maskedSourceText);
 
       const existing = await db.productResult.findFirst({
         where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
@@ -175,6 +198,7 @@ export async function POST(request: NextRequest) {
         fileName: input.fileName ?? null,
         uploadPreviewedAt: new Date().toISOString(),
         ocr: extraction.metadata,
+        previewGenerationMetadata: generated.metadata,
       };
 
       const result = existing
