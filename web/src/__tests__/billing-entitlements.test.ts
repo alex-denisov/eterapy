@@ -81,11 +81,11 @@ describe("v5 billing entitlements", () => {
     }));
   });
 
-  it("resolves checkout intent server-side for balance, products, and subscriptions", () => {
-    expect(resolveBillingPurchase({ amountKopecks: 50_000 }).metadata).toEqual({
-      purchaseKind: "balance",
-      checkoutSource: undefined,
-    });
+  it("resolves checkout intent server-side for products and subscriptions (no ₽ balance)", () => {
+    // Z1-Ф1: a bare amount (the old ₽ top-up) is no longer a valid purchase.
+    expect(() => resolveBillingPurchase({ amountKopecks: 50_000 })).toThrow(
+      "Укажите продукт или тариф"
+    );
     expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
       kind: "subscription",

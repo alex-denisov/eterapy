@@ -1,15 +1,17 @@
 /**
- * Shared credit logic for YooKassa top-ups.
+ * Shared settlement logic for YooKassa card payments.
  *
- * Two entry points flow into the same credit path:
+ * Two entry points flow into the same settlement path:
  *   1. `POST /api/billing/yookassa-webhook` — YooKassa notifies us when a payment succeeds/cancels.
  *   2. `POST /api/billing/reconcile` — user returns to /cabinet/billing?payment=success and we
  *      actively poll YooKassa for the final status of each PENDING transaction, in case the
  *      webhook is delayed or was lost.
  *
- * Both paths are idempotent: we only credit the balance + save the card when the transaction
+ * Both paths are idempotent: we only grant the entitlement + save the card when the transaction
  * row is still `PENDING`. The status transition is the guard — once flipped to SUCCEEDED we
- * never credit again, even if the webhook arrives after the reconcile-driven crediting.
+ * never grant again, even if the webhook arrives after the reconcile-driven settlement.
+ * Z1-Ф1: there is no client ₽ balance — a card payment pays directly for a product or
+ * subscription, never a top-up.
  */
 import db from "./db";
 import { notify } from "./notifications";
@@ -18,7 +20,6 @@ import type { Prisma } from "@prisma/client";
 import {
   getBillingTransactionMetadata,
   grantEntitlementForTransaction,
-  recordCreditLedgerEntry,
   revokeEntitlementsForTransaction,
 } from "./entitlements";
 import { clawbackReferralRewardsForUser } from "./share-referral";
@@ -52,9 +53,11 @@ function normalizeBrand(cardType: string): string {
 }
 
 /**
- * Credits a PENDING transaction: flips to SUCCEEDED, adds amount to user.balance,
- * saves the card if present. Returns `true` if we applied the credit, `false` if the
- * transaction had already been settled by a concurrent run (idempotent no-op).
+ * Settles a PENDING transaction: flips to SUCCEEDED and grants the product or
+ * subscription entitlement. Z1-Ф1: there is no client ₽ balance — a card payment
+ * pays directly for a product/subscription, never a top-up. Saves the payment
+ * card if YooKassa returned a saved method. Returns `true` if applied, `false`
+ * if the transaction had already been settled by a concurrent run (idempotent).
  */
 export async function creditSucceededPayment(
   providerPaymentId: string,
@@ -72,55 +75,7 @@ export async function creditSucceededPayment(
     });
 
     const entitlementGrant = await grantEntitlementForTransaction(tx, transaction);
-    if (entitlementGrant.kind !== "balance") {
-      return {
-        userId: transaction.userId,
-        amount: transaction.amount,
-        newCard: null,
-        entitlementGrant,
-      };
-    }
-
-    const updatedUser = await tx.user.update({
-      where: { id: transaction.userId },
-      data: { balance: { increment: transaction.amount } },
-      select: { balance: true },
-    });
-    await recordCreditLedgerEntry(tx, {
-      userId: transaction.userId,
-      amountKopecks: transaction.amount,
-      balanceAfterKopecks: updatedUser.balance,
-      type: "TOPUP",
-      transactionId: transaction.id,
-      description: transaction.description,
-      metadata: transaction.metadata ?? undefined,
-    });
-
-    let newCard: { last4: string; brand: string } | null = null;
-    const pm = paymentMethod;
-    if (pm?.saved && pm.card) {
-      const existing = await tx.savedCard.findUnique({
-        where: { paymentMethodId: pm.id },
-      });
-      if (!existing) {
-        const existingCardsCount = await tx.savedCard.count({
-          where: { userId: transaction.userId },
-        });
-        const brand = normalizeBrand(pm.card.card_type);
-        await tx.savedCard.create({
-          data: {
-            userId: transaction.userId,
-            paymentMethodId: pm.id,
-            last4: pm.card.last4,
-            brand,
-            expiryMonth: pm.card.expiry_month,
-            expiryYear: pm.card.expiry_year,
-            isDefault: existingCardsCount === 0,
-          },
-        });
-        newCard = { last4: pm.card.last4, brand };
-      }
-    }
+    const newCard = await saveCardFromPaymentMethod(tx, transaction.userId, paymentMethod);
     return { userId: transaction.userId, amount: transaction.amount, newCard, entitlementGrant };
   });
 
@@ -130,10 +85,10 @@ export async function creditSucceededPayment(
 
   // Track payment_success for funnel analytics (best-effort)
   const productType = result.entitlementGrant.kind === "product"
-    ? (result.entitlementGrant as { productKey: string }).productKey
+    ? result.entitlementGrant.productKey
     : result.entitlementGrant.kind === "subscription"
       ? "subscription"
-      : "balance";
+      : "other";
   trackServerEvent(db, {
     event: "payment_success",
     userId: result.userId,
@@ -146,12 +101,6 @@ export async function creditSucceededPayment(
   });
 
   // Fire notifications outside the DB transaction — best-effort, no blocking.
-  notify({
-    userId: result.userId,
-    event: "BALANCE_TOPUP",
-    data: { amountRub },
-  }).catch((e) => log.error("billing.balance_topup_notify_failed", { err: e }));
-
   if (result.newCard) {
     notify({
       userId: result.userId,
@@ -198,7 +147,6 @@ export async function refundSucceededTransaction(input: {
 }): Promise<{ refunded: boolean; providerRefundId?: string | null }> {
   const transaction = await db.transaction.findUnique({
     where: { id: input.transactionId },
-    include: { user: { select: { balance: true } } },
   });
 
   if (!transaction || transaction.status === "REFUNDED") {
@@ -206,11 +154,6 @@ export async function refundSucceededTransaction(input: {
   }
   if (transaction.status !== "SUCCEEDED") {
     throw new Error("Возврат доступен только для успешной транзакции");
-  }
-
-  const metadata = getBillingTransactionMetadata(transaction);
-  if (metadata.purchaseKind === "balance" && transaction.user.balance < transaction.amount) {
-    throw new Error("Недостаточно баланса для безопасного возврата пополнения");
   }
 
   const providerRefund = transaction.provider === "yookassa" && transaction.providerPaymentId
@@ -223,37 +166,13 @@ export async function refundSucceededTransaction(input: {
   await db.$transaction(async (tx) => {
     const fresh = await tx.transaction.findUnique({
       where: { id: transaction.id },
-      include: { user: { select: { balance: true } } },
     });
     if (!fresh || fresh.status !== "SUCCEEDED") return;
 
     const freshMetadata = getBillingTransactionMetadata(fresh);
-    if (freshMetadata.purchaseKind === "balance") {
-      if (fresh.user.balance < fresh.amount) {
-        throw new Error("Недостаточно баланса для безопасного возврата пополнения");
-      }
-      const updatedUser = await tx.user.update({
-        where: { id: fresh.userId },
-        data: { balance: { decrement: fresh.amount } },
-        select: { balance: true },
-      });
-      await recordCreditLedgerEntry(tx, {
-        userId: fresh.userId,
-        amountKopecks: -Math.abs(fresh.amount),
-        balanceAfterKopecks: updatedUser.balance,
-        type: "BALANCE_REFUND",
-        source: "yookassa_refund",
-        transactionId: fresh.id,
-        description: input.reason || fresh.description,
-        metadata: {
-          ...freshMetadata,
-          refundReason: input.reason,
-          providerRefundId: providerRefund?.id,
-        },
-      });
-    } else {
-      await revokeEntitlementsForTransaction(tx, fresh, input.reason);
-    }
+    // Z1-Ф1: no client ₽ balance — a refund just revokes the product/subscription
+    // entitlement (digital → credits ledger reversal) and refunds the card.
+    await revokeEntitlementsForTransaction(tx, fresh, input.reason);
 
     await tx.transaction.update({
       where: { id: fresh.id },
@@ -281,7 +200,7 @@ export async function refundSucceededTransaction(input: {
 /**
  * Marks a SUCCEEDED transaction as REFUNDED in response to a YooKassa-initiated chargeback
  * or refund notification. Does NOT call createRefund — the reversal already happened at
- * the provider level. Reverts balance/entitlements and clawbacks referral rewards.
+ * the provider level. Revokes entitlements and clawbacks referral rewards.
  */
 export async function chargebackSucceededTransaction(input: {
   providerPaymentId: string;
@@ -290,7 +209,6 @@ export async function chargebackSucceededTransaction(input: {
 }): Promise<{ applied: boolean }> {
   const transaction = await db.transaction.findUnique({
     where: { providerPaymentId: input.providerPaymentId },
-    include: { user: { select: { balance: true } } },
   });
 
   if (!transaction) return { applied: false };
@@ -300,35 +218,12 @@ export async function chargebackSucceededTransaction(input: {
   await db.$transaction(async (tx) => {
     const fresh = await tx.transaction.findUnique({
       where: { id: transaction.id },
-      include: { user: { select: { balance: true } } },
     });
     if (!fresh || fresh.status !== "SUCCEEDED") return;
 
     const freshMetadata = getBillingTransactionMetadata(fresh);
-    if (freshMetadata.purchaseKind === "balance") {
-      const deduct = Math.min(fresh.amount, fresh.user.balance);
-      const updatedUser = await tx.user.update({
-        where: { id: fresh.userId },
-        data: { balance: { decrement: deduct } },
-        select: { balance: true },
-      });
-      await recordCreditLedgerEntry(tx, {
-        userId: fresh.userId,
-        amountKopecks: -deduct,
-        balanceAfterKopecks: updatedUser.balance,
-        type: "BALANCE_REFUND",
-        source: "yookassa_chargeback",
-        transactionId: fresh.id,
-        description: input.reason || "Chargeback",
-        metadata: {
-          ...freshMetadata,
-          refundReason: input.reason,
-          providerRefundId: input.providerRefundId,
-        },
-      });
-    } else {
-      await revokeEntitlementsForTransaction(tx, fresh, input.reason);
-    }
+    // Z1-Ф1: no client ₽ balance — a chargeback just revokes the entitlement.
+    await revokeEntitlementsForTransaction(tx, fresh, input.reason);
 
     await tx.transaction.update({
       where: { id: fresh.id },

@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       properties: {
         amount_rub: (purchase.amountKopecks / 100).toFixed(2),
         currency: "RUB",
-        product_type: purchase.metadata.productKey ?? purchase.metadata.planKey ?? "balance",
+        product_type: purchase.metadata.productKey ?? purchase.metadata.planKey ?? "other",
       },
     });
 

@@ -102,7 +102,9 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
   },
 };
 
-export type BillingPurchaseKind = "balance" | "product" | "subscription";
+// Z1-Ф1: the client ₽ balance rail is removed — a paid purchase is always a
+// product (digital) or a subscription. "balance" top-ups no longer exist.
+export type BillingPurchaseKind = "product" | "subscription";
 
 export type BillingTransactionMetadata = {
   purchaseKind?: BillingPurchaseKind;
@@ -113,12 +115,6 @@ export type BillingTransactionMetadata = {
 };
 
 export type ResolvedBillingPurchase =
-  | {
-    kind: "balance";
-    amountKopecks: number;
-    description: string;
-    metadata: BillingTransactionMetadata & { purchaseKind: "balance" };
-  }
   | {
     kind: "product";
     amountKopecks: number;
@@ -209,21 +205,8 @@ export function resolveBillingPurchase(input: {
     };
   }
 
-  const amountKopecks = Number(input.amountKopecks);
-  const description = typeof input.description === "string" && input.description.trim()
-    ? input.description.trim()
-    : "Пополнение баланса на сайте ETerapy";
-
-  if (!amountKopecks || amountKopecks < 100) {
-    throw new Error("Минимальная сумма 100 копеек (1 ₽)");
-  }
-
-  return {
-    kind: "balance",
-    amountKopecks,
-    description,
-    metadata: { purchaseKind: "balance", checkoutSource, returnPath },
-  };
+  // Z1-Ф1: no client ₽ balance — a payment must name a product or a plan.
+  throw new Error("Укажите продукт или тариф для оплаты");
 }
 
 export async function userHasActiveEntitlement(userId: string, productKey: string): Promise<boolean> {
@@ -441,7 +424,9 @@ export async function grantEntitlementForTransaction(
     return { kind: "subscription" as const, planKey: metadata.planKey };
   }
 
-  return { kind: "balance" as const };
+  // Z1-Ф1: nothing to grant (no product/subscription metadata) — there is no
+  // ₽ balance to top up, so this is a defensive no-op sentinel.
+  return { kind: "none" as const };
 }
 
 export async function revokeEntitlementsForTransaction(
