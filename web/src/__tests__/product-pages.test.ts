@@ -35,7 +35,9 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain("<ProductPurchaseControls");
     expect(detailPage).toContain('href={product.directHref}');
     expect(detailPage).toContain("creditCost={product.creditCost}");
-    expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/pay-from-balance");
+    // Z1-Ф1: the ₽ balance rail is gone — products open with credits or card.
+    expect(source("components/products/product-purchase-controls.tsx")).not.toContain("/api/billing/pay-from-balance");
+    expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/create-payment");
     expect(source("lib/v5-products.ts")).toContain('route: "/products/tarot"');
     expect(source("lib/v5-products.ts")).toContain('directHref: "/practitioners?format=joint-session"');
   });
@@ -110,7 +112,6 @@ describe("v5 product pages", () => {
     expect(products).toContain("или −4 кредита ясности");
     expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");
     expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/spend-credits");
-    expect(source("app/api/billing/pay-from-balance/route.ts")).toContain("purchaseProductWithBalance");
   });
 
   it("X11/Y7: the single cabinet funnel lives on /credits; legacy /products is removed (no redirect stub)", () => {

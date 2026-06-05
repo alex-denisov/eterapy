@@ -23,12 +23,12 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
   it("keeps checkout/billing payment controls on a v4.1 secure-pay surface", () => {
     const billing = source("src/app/cabinet/billing/page.tsx");
 
-    expect(billing).toContain('data-testid="client-checkout-panel"');
     // T21: the dead "1. Проверка / 2. Оплата / 3. Готово" stepper chips were removed.
     expect(billing).not.toContain("1. Проверка");
     expect(billing).toContain("Платёж защищён");
+    // Z1-Ф1: subscriptions are paid by card; the ₽ top-up via saved card is gone.
     expect(billing).toContain("/api/billing/create-payment");
-    expect(billing).toContain("/api/billing/pay-with-saved-card");
+    expect(billing).not.toContain("/api/billing/pay-with-saved-card");
   });
 
   it("surfaces complaint/support and safety interrupt extensions without paid CTAs", () => {

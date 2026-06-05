@@ -4,24 +4,19 @@ import path from "node:path";
 const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const page = read("src/app/cabinet/billing/page.tsx");
 
-describe("W12 — unified billing wallet", () => {
-  it("consolidates balance + top-up + cards into one «Кошелёк» block", () => {
-    expect(page).toContain('data-testid="client-wallet"');
-    expect(page).toContain("кошелёк");
-    expect(page).toContain('data-testid="client-wallet-balance"');
+describe("W12/Z1-Ф1 — billing saved-card wallet (no ₽ balance rail)", () => {
+  it("removes the ₽ balance + top-up wallet block", () => {
+    // Z1-Ф1: the client ₽ balance rail is gone — no balance figure, no top-up.
+    expect(page).not.toContain('data-testid="client-wallet-balance"');
+    expect(page).not.toContain('data-testid="client-topup-submit"');
+    expect(page).not.toContain("Оплатить другой картой");
+    expect(page).not.toContain("handlePayWithSavedCard");
   });
 
-  it("exposes a single top-up CTA driven by the default card", () => {
-    expect(page).toContain("const defaultCard =");
-    expect(page).toContain('data-testid="client-topup-submit"');
-    expect(page).toContain("Оплатить другой картой");
-    // the old separate balance-card «Пополнить» button is gone
-    expect(page).not.toContain('"Создание платежа..." : "Пополнить"');
-  });
-
-  it("drops the redundant per-card «Пополнить» (the default card drives top-up)", () => {
-    // the per-card face no longer renders its own top-up button
-    expect(page).not.toContain('{payingWithSaved ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Пополнить"}');
+  it("keeps the saved-card management block (the card rail for sessions/subscriptions)", () => {
+    expect(page).toContain('data-testid="client-saved-cards"');
+    expect(page).toContain('data-testid="client-saved-card"');
+    expect(page).toContain("handleSetDefaultCard");
   });
 
   it("only promotes «Привязать карту» when no card exists; «Ещё карта» otherwise", () => {

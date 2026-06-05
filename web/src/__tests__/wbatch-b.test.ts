@@ -5,11 +5,13 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "ut
 
 describe("W10 — /credits title, products anchor, balance-aware CTA", () => {
   const page = read("src/app/cabinet/credits/page.tsx");
-  it("uses a consistent title and reframes the irrelevant top-up CTA", () => {
+  it("uses a consistent title and a subscription upsell instead of a ₽ top-up CTA", () => {
     expect(page).toContain("Кредиты ясности");
     expect(page).not.toContain("Баллы для углублений");
-    expect(page).toContain("rubBalance");
-    expect(page).toContain("rubBalance > 0");
+    // Z1-Ф1: the client ₽ balance rail is removed — no rubBalance, the second
+    // recommendation card is a subscription upsell.
+    expect(page).not.toContain("rubBalance");
+    expect(page).toContain("Выбрать подписку");
     expect(page).toContain('id="credits-products"');
   });
 });

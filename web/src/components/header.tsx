@@ -53,24 +53,6 @@ function useHostname() {
   return hostname;
 }
 
-function useBalance(userId: string | null | undefined, enabled = true) {
-  const [balanceKopecks, setBalanceKopecks] = useState(0);
-
-  useEffect(() => {
-    if (!userId || !enabled) {
-      return;
-    }
-    let cancelled = false;
-    fetch("/api/billing/balance")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && !cancelled) setBalanceKopecks(d.balanceKopecks ?? 0); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [enabled, userId]);
-
-  return userId && enabled ? balanceKopecks : 0;
-}
-
 function usePractitionerBalance(userId: string | null | undefined, enabled: boolean) {
   const [practitionerBalanceKopecks, setPractitionerBalanceKopecks] = useState(0);
 
@@ -123,45 +105,33 @@ function formatBalanceRub(balanceKopecks: number) {
 }
 
 function BalanceSummaryLink({
-  balanceKopecks,
   clarityCredits,
   className,
 }: {
-  balanceKopecks: number;
   clarityCredits: number;
   className?: string;
 }) {
-  const rub = formatBalanceRub(balanceKopecks);
-  // "Recessed twin" split pill from the visual brainstorm (B298):
-  // single h-9 paper-card pill, two halves separated by a hairline
-  // divider so it reads as ONE component (one tap target to /credits)
-  // but clearly conveys two balances.
+  // Z1-Ф1: the client ₽ balance rail is gone — this pill now shows only the
+  // clarity-credit balance and routes to /credits (one tap target).
   return (
     <Link
       href={appUrl("/credits")}
       prefetch={false}
-      aria-label={`Кредиты ясности: ${clarityCredits}. Баланс: ${rub} ₽`}
+      aria-label={`Кредиты ясности: ${clarityCredits}`}
       className={cn(
-        "hidden h-7 items-stretch overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[12px] font-semibold tabular-nums shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
+        "hidden h-7 items-center gap-1 overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 text-[12px] font-semibold tabular-nums text-[var(--soft-terracotta-dark)] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
         className,
       )}
       data-testid="header-balance-summary"
     >
-      <span className="flex items-center gap-1 pl-2.5 pr-2 text-[var(--soft-terracotta-dark)]" aria-label="Кредиты ясности">
-        <Sparkles className="size-3" aria-hidden="true" />
-        {/* N8 quick win: at zero credits the half turns into a top-up cue
-            instead of a dead "0" — the pill already routes to /credits. */}
-        {clarityCredits > 0 ? (
-          <span className="min-w-[1rem] text-center">{clarityCredits}</span>
-        ) : (
-          <span className="text-[11px]" data-testid="header-credits-topup">Пополнить</span>
-        )}
-      </span>
-      <span aria-hidden="true" className="my-1 w-px bg-[var(--soft-paper-edge)]" />
-      <span className="hidden items-center gap-0.5 pl-2 pr-2.5 text-[var(--soft-bordeaux)] sm:flex" aria-label="Денежный баланс">
-        <span className="min-w-[2.25rem] text-right">{rub}</span>
-        <span className="opacity-70">₽</span>
-      </span>
+      <Sparkles className="size-3" aria-hidden="true" />
+      {/* N8 quick win: at zero credits the pill turns into a top-up cue
+          instead of a dead "0" — it already routes to /credits. */}
+      {clarityCredits > 0 ? (
+        <span className="min-w-[1rem] text-center">{clarityCredits}</span>
+      ) : (
+        <span className="text-[11px]" data-testid="header-credits-topup">Пополнить</span>
+      )}
     </Link>
   );
 }
@@ -406,7 +376,6 @@ export function Header() {
   const isStaff = role === "ADMIN" || role === "SUPERADMIN" || role === "MODERATOR";
   const isPractitioner = role === "PRACTITIONER";
   const balanceUserId = session?.user?.id ?? null;
-  const balanceKopecks = useBalance(balanceUserId, !isStaff && !isPractitioner);
   const practitionerBalanceKopecks = usePractitionerBalance(balanceUserId, isPractitioner);
   const clarityCredits = useClarityCreditBalance(balanceUserId, !isStaff && !isPractitioner);
 
@@ -509,7 +478,7 @@ export function Header() {
                   balance also hidden for PRACTITIONER (they don't buy via credits).
                   bell + dropdown remain on every authenticated surface. */}
               {showBalanceSummary && (
-                <BalanceSummaryLink balanceKopecks={balanceKopecks} clarityCredits={clarityCredits} className="sm:flex" />
+                <BalanceSummaryLink clarityCredits={clarityCredits} className="sm:flex" />
               )}
               {showPractitionerMoneyBalance && (
                 <MoneyBalanceLink
@@ -604,8 +573,6 @@ export function Header() {
                 ) : (
                   <Link href={appUrl("/credits")} prefetch={false} onClick={() => setMobileOpen(false)}
                     className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
-                    <CreditCard className="size-4" aria-hidden="true" />
-                    {formatBalanceRub(balanceKopecks)} ₽
                     <Sparkles className="size-4" aria-hidden="true" />
                     {clarityCredits} кредитов
                   </Link>

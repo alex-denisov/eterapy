@@ -71,7 +71,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, userData, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits, topicGroups, recommendedPractitioner] = await Promise.all([
+  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits, topicGroups, recommendedPractitioner] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -94,7 +94,6 @@ export default async function ClientCabinetPage() {
         slot: { select: { startAt: true } },
       },
     }),
-    db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
     db.userSubscription.findFirst({
       where: {
         userId,
@@ -126,7 +125,6 @@ export default async function ClientCabinetPage() {
     loadRecommendedPractitioner(),
   ]);
 
-  const balanceRub = Math.floor((userData?.balance ?? 0) / 100);
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
   const subscriptionLabel = getSubscriptionPlanLabel(activeSubscription?.planKey);
   const subscriptionStatus = activeSubscription
@@ -227,11 +225,6 @@ export default async function ClientCabinetPage() {
               ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
               : ""}
           </p>
-          {balanceRub > 0 && (
-            <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-              Баланс: {balanceRub.toLocaleString("ru")} ₽
-            </p>
-          )}
           <Link href={appUrl("/billing")} className="soft-chip mt-4 inline-block">
             Управлять →
           </Link>

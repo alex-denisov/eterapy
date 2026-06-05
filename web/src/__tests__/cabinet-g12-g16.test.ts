@@ -50,12 +50,14 @@ describe("G15 — billing card faces, top-up, and history", () => {
     expect(page).toContain("textShadow");
   });
 
-  it("uses a borderless big-number top-up field with a clearable string draft", () => {
+  it("Z1-Ф1: drops the ₽ top-up field — billing manages cards + subscription only", () => {
     const page = source("src/app/cabinet/billing/page.tsx");
-    expect(page).toContain("text-4xl font-semibold text-[var(--soft-bordeaux)]");
-    // B11: raw string state so the field can be fully cleared (no trapped "0")
-    expect(page).toContain("topUpRaw");
-    expect(page).toContain('inputMode="numeric"');
+    // The client ₽ balance rail is removed: no top-up input, no balance state.
+    expect(page).not.toContain("topUpRaw");
+    expect(page).not.toContain('data-testid="client-topup-amount"');
+    // Saved-card management stays — it's the card rail for sessions/subscriptions.
+    expect(page).toContain('data-testid="client-saved-cards"');
+    expect(page).toContain("handleSetDefaultCard");
   });
 
   it("drops the confusing up/down arrows from history for a colored dot", () => {

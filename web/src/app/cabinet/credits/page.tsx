@@ -49,7 +49,7 @@ export default async function CabinetCreditsPage() {
   guardClientCabinet(session.user.role); // Y6: client-only surface
   const userId = session.user.id;
 
-  const [balance, ledger, access, userRow] = await Promise.all([
+  const [balance, ledger, access] = await Promise.all([
     getClarityCreditBalance(userId),
     db.clarityCreditLedgerEntry.findMany({
       where: { userId },
@@ -58,12 +58,8 @@ export default async function CabinetCreditsPage() {
       select: { id: true, amount: true, balanceAfter: true, type: true, source: true, status: true, createdAt: true },
     }),
     listUserEntitlements(userId),
-    db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
   ]);
   const activeProducts = new Set(access.entitlements.filter((item) => item.active).map((item) => item.productKey));
-  // W10: a funded RUB balance makes the "пополнить баланс" CTA irrelevant — show
-  // a "spend it now" prompt instead, and only surface top-up when it's low.
-  const rubBalance = Math.round((userRow?.balance ?? 0) / 100);
 
   // Premium/Plus subscribers get a set of mechanics opened by their plan (docs
   // 13_Prices_Breakdown.md / 15_Financial_Model). Fold those into a single set
@@ -98,7 +94,7 @@ export default async function CabinetCreditsPage() {
           <h1 className="soft-h1 mt-2">Кредиты ясности</h1>
           <p className="soft-lede mt-3 max-w-3xl">
             Быстрый способ открыть цифровые продукты — 4 ракурса, отчёты, маршруты и
-            символические разборы. Можно списать кредитами или оплатить с рублёвого баланса.
+            символические разборы. Спишите кредиты ясности или оплатите картой.
           </p>
         </div>
         <div className="soft-card p-5 text-center">
@@ -113,7 +109,7 @@ export default async function CabinetCreditsPage() {
           <div className="mt-4 grid gap-3">
             {[
               "Откройте продукт за кредиты на этой странице или в карточке услуги.",
-              "Если кредитов не хватает, можно оплатить с рублевого баланса или картой.",
+              "Если кредитов не хватает, продукт можно оплатить картой.",
               "История начислений и списаний остается в личном кабинете.",
             ].map((item) => (
               <p key={item} className="flex items-start gap-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
@@ -173,41 +169,23 @@ export default async function CabinetCreditsPage() {
             Выбрать специалиста
           </Link>
         </article>
-        {rubBalance > 0 ? (
-          <article className="soft-card flex flex-col p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="soft-eyebrow">баланс</p>
-                <h3 className="soft-h3 mt-2">На балансе {rubBalance.toLocaleString("ru-RU")} ₽</h3>
-              </div>
-              <span className="soft-badge shrink-0 whitespace-nowrap">готово к оплате</span>
+        <article className="soft-card flex flex-col p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="soft-eyebrow">подписка</p>
+              <h3 className="soft-h3 mt-2">Больше кредитов каждый месяц</h3>
             </div>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Этих средств хватит, чтобы открыть продукты и записаться на сессии без ожидания. Выбирайте формат ниже.
-            </p>
-            <Link href="#credits-products" className="soft-button soft-button-ghost mt-5 self-start">
-              <ArrowRight className="size-4" aria-hidden="true" />
-              Открыть продукт
-            </Link>
-          </article>
-        ) : (
-          <article className="soft-card flex flex-col p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="soft-eyebrow">баланс</p>
-                <h3 className="soft-h3 mt-2">Пополнить и открыть больше</h3>
-              </div>
-              <span className="soft-badge shrink-0 whitespace-nowrap">картой или с баланса</span>
-            </div>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Пополните рублёвый баланс, чтобы оплачивать любые продукты и сессии сразу, без ожидания начисления кредитов.
-            </p>
-            <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5 self-start">
-              <Wallet className="size-4" aria-hidden="true" />
-              Пополнить баланс
-            </Link>
-          </article>
-        )}
+            <span className="soft-badge shrink-0 whitespace-nowrap">от 12 кредитов/мес</span>
+          </div>
+          <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+            Подписка Plus и Premium пополняет баланс кредитов ясности каждый месяц и открывает
+            включённые цифровые продукты. Подбор тарифа — на странице подписки.
+          </p>
+          <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5 self-start">
+            <Wallet className="size-4" aria-hidden="true" />
+            Выбрать подписку
+          </Link>
+        </article>
       </section>
 
       {/* G13: sell digital products to subscribers — every card shows its real
@@ -220,7 +198,7 @@ export default async function CabinetCreditsPage() {
           <h2 className="soft-h2 mt-1">Откройте больше ясности</h2>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
-          Списывайте кредиты или оплачивайте с баланса. Продукты из вашего тарифа открыты сразу.
+          Спишите кредиты или оплатите картой. Продукты из вашего тарифа открыты сразу.
         </p>
       </div>
       <section className="grid gap-4 lg:grid-cols-2">
@@ -259,7 +237,7 @@ export default async function CabinetCreditsPage() {
                   <>
                     <ProductPurchaseControls
                       productKey={productKey}
-                      label="Открыть с баланса"
+                      label="Открыть за кредиты"
                       checkoutSource={`cabinet-credits-${product.slug}`}
                       creditCost={creditCost}
                     />

@@ -9,10 +9,10 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
     expect(page).toContain("•••• •••• •••• {card.last4}");
   });
 
-  it("B11/D9: top-up field is a clearable string draft (no trapped 0)", () => {
+  it("Z1-Ф1: the ₽ top-up field is removed from billing (no client balance rail)", () => {
     const page = source("src/app/cabinet/billing/page.tsx");
-    expect(page).toContain("const [topUpRaw, setTopUpRaw] = useState");
-    expect(page).toContain("const topUpAmount = topUpRaw.trim() === \"\"");
+    expect(page).not.toContain("const [topUpRaw, setTopUpRaw] = useState");
+    expect(page).not.toContain("client-topup-amount");
     expect(page).not.toContain('type="number"');
   });
 

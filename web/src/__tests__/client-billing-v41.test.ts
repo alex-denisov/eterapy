@@ -20,7 +20,8 @@ describe("B206 client billing v4.1 cabinet", () => {
     expect(page).toContain("fetch(\"/api/billing/entitlements\")");
     expect(page).toContain("fetch(\"/api/billing/transactions\")");
     expect(page).toContain("fetch(\"/api/billing/cards\")");
-    expect(page).toContain("fetch(\"/api/billing/balance\")");
+    // Z1-Ф1: the client ₽ balance rail is removed — no balance fetch/display.
+    expect(page).not.toContain("fetch(\"/api/billing/balance\")");
     // T21: "открытые продукты" entitlements block was removed from billing.
     expect(page).not.toContain('data-testid="client-open-entitlements"');
     // Credits live on their own page (B235: credits moved out of billing)
@@ -30,14 +31,16 @@ describe("B206 client billing v4.1 cabinet", () => {
     expect(entitlementsRoute).toContain("listUserEntitlements");
   });
 
-  it("T21: redesigns billing — custom top-up input, set-default card, unified history table", () => {
+  it("T21/Z1-Ф1: billing manages cards + subscription, no ₽ top-up, unified history table", () => {
     const page = source("src/app/cabinet/billing/page.tsx");
     const table = source("src/components/cabinet/billing-history-table.tsx");
     const cardsRoute = source("src/app/api/billing/cards/route.ts");
 
-    // Free-text custom top-up amount (no longer a fixed 500₽).
-    expect(page).toContain('data-testid="client-topup-amount"');
-    expect(page).toContain('inputMode="numeric"');
+    // Z1-Ф1: the client ₽ balance rail (top-up input + pay-with-saved top-up)
+    // is removed — billing is subscription + saved-card management only.
+    expect(page).not.toContain('data-testid="client-topup-amount"');
+    expect(page).not.toContain('data-testid="client-wallet-balance"');
+    expect(page).not.toContain("/api/billing/pay-with-saved-card");
     // Saved cards rendered as visual faces with set-primary action.
     expect(page).toContain("async function handleSetDefaultCard");
     expect(page).toContain('data-testid="client-set-default-card"');
