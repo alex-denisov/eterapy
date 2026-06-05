@@ -61,7 +61,6 @@ model User {
   aiGatewayRequests   AIRequest[]
   dialogues           Dialogue[]
   productResults      ProductResult[]
-  balance             Int                   @default(0)  // in kopecks (100 = 1 ₽)
   transactions        Transaction[]
   savedCards          SavedCard[]
   entitlements        ProductEntitlement[]

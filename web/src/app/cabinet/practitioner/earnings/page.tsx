@@ -37,7 +37,7 @@ export default async function PractitionerEarningsPage() {
   const commissionPercent = practitioner.commissionPercent ?? 25;
   const commission = commissionPercent / 100;
 
-  const [completedBookings, payouts, userBalance] = await Promise.all([
+  const [completedBookings, payouts] = await Promise.all([
     db.booking.findMany({
       where: { practitionerId: practitioner.id, status: "COMPLETED" },
       orderBy: { createdAt: "desc" },
@@ -46,10 +46,6 @@ export default async function PractitionerEarningsPage() {
     db.payout.findMany({
       where: { practitionerId: practitioner.id },
       orderBy: { createdAt: "desc" },
-    }),
-    db.user.findUnique({
-      where: { id: session.user!.id },
-      select: { balance: true },
     }),
   ]);
 
@@ -76,7 +72,6 @@ export default async function PractitionerEarningsPage() {
   const canonicalBalance = (await computePractitionerBalances([practitioner.id])).get(practitioner.id);
   const internalCharges = canonicalBalance?.internalCharges ?? 0;
   const currentBalance = canonicalBalance?.currentBalance ?? (accruedNet - paidOut - pendingPayout);
-  const cabinetBalanceRub = Math.round((userBalance?.balance ?? 0) / 100);
 
   const now = new Date();
   const nextPayoutOn = nextPayoutDate(now);
@@ -152,26 +147,7 @@ export default async function PractitionerEarningsPage() {
       </p>
 
       {/* Баланс + следующая выплата */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-        <div className="soft-card">
-          <div className="p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg soft-select-pill">
-                <Wallet className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-[var(--soft-ink-soft)]">Кошелёк кабинета</p>
-                <p className="font-heading text-2xl font-bold text-[var(--soft-bordeaux)] tabular-nums">
-                  {cabinetBalanceRub.toLocaleString("ru")} ₽
-                </p>
-                <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  Для подписки Practitioner Pro и внутренних покупок. Пополняется отдельно от заработка.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <div className="grid gap-3 sm:grid-cols-2 mb-6">
         <div className="soft-card">
           <div className="p-4">
             <div className="flex items-start gap-3">

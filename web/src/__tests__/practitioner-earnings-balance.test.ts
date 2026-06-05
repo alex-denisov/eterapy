@@ -4,11 +4,12 @@ import path from "node:path";
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 describe("Practitioner earnings balance UX", () => {
-  it("renames earnings to a balance page and separates cabinet balance from payouts", () => {
+  it("renames earnings to a balance page; the client ₽ cabinet wallet is gone (Z1-Ф2)", () => {
     const page = source("src/app/cabinet/practitioner/earnings/page.tsx");
     expect(page).toContain("Баланс и доходы");
-    // W8/X5: relabeled to disambiguate the internal wallet from earnings.
-    expect(page).toContain("Кошелёк кабинета");
+    // Z1-Ф1/Ф2: the client ₽ balance rail is removed — only the practitioner
+    // payout balance («Доступно к выплате») remains; the «Кошелёк кабинета» is gone.
+    expect(page).not.toContain("Кошелёк кабинета");
     expect(page).toContain("Доступно к выплате");
     // X5: the page must use the CANONICAL balance (incl. internalCharges) so its
     // «к выплате» matches the header/admin — not the local accruedNet formula.

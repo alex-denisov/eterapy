@@ -5,10 +5,12 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "ut
 
 describe("W8 — practitioner earnings labels disambiguate wallet vs earnings", () => {
   const page = read("src/app/cabinet/practitioner/earnings/page.tsx");
-  it("renames the internal wallet and clarifies that earnings are paid out, not in the wallet", () => {
-    expect(page).toContain("Кошелёк кабинета");
+  it("shows the payout balance; the client ₽ cabinet wallet is gone (Z1-Ф2)", () => {
+    // Z1-Ф1/Ф2: the client ₽ balance rail is removed — the «Кошелёк кабинета»
+    // card no longer exists. Practitioner earnings («Доступно к выплате») stays.
+    expect(page).not.toContain("Кошелёк кабинета");
+    expect(page).not.toContain("cabinetBalanceRub");
     expect(page).toContain("Доступно к выплате");
-    expect(page).toContain("Пополняется отдельно от заработка");
     expect(page).not.toContain("bg-green-500/15 text-green-400");
   });
 });

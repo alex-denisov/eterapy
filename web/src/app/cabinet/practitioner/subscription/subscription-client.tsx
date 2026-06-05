@@ -16,7 +16,6 @@ interface Plan {
 interface Props {
   plans: Plan[];
   activePlanKey: string | null;
-  cabinetBalanceKopecks: number;
   earningsBalanceRub: number;
 }
 

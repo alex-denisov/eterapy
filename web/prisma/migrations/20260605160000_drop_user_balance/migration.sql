@@ -1,0 +1,11 @@
+-- Z1-Ф2: drop the client ₽-wallet column.
+--
+-- The credit-centric model has no client ₽ balance: digital products are opened
+-- with clarity credits, sessions/subscriptions are paid by card. Z1-Ф1 removed
+-- every runtime read/write of `users.balance` (UX, superadmin, settlement
+-- logic). This migration drops the now-unused column.
+--
+-- KEPT: practitioner earnings balance (computed) + per-booking escrow.
+-- The `CreditLedgerEntry` table (legacy ₽ money-ledger) is left in place but is
+-- effectively deprecated — nothing writes ₽ TOPUP/BALANCE_REFUND rows anymore.
+ALTER TABLE "users" DROP COLUMN "balance";

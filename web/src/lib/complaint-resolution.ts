@@ -14,10 +14,10 @@
  * is a no-op on the money side, but the complaint is still resolved.
  *
  * Refund semantics (withhold):
- *   - The client's session-start charge is reversed by writing a positive
- *     Transaction row and incrementing User.balance by the full session
- *     price (kopecks). The platform absorbs the loss in addition to giving
- *     up the practitioner's net.
+ *   - The client's session-start charge is reversed back to the card via
+ *     `refundSessionForBooking` (YooKassa refund) for the full session price.
+ *     The platform absorbs the loss in addition to giving up the practitioner's
+ *     net. (Z1-Ф1: there is no client ₽ balance — refunds go to the card.)
  *
  * Idempotency:
  *   - The HELD→PENDING / HELD→FAILED flip uses a conditional updateMany

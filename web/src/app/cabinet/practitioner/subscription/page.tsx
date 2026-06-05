@@ -35,8 +35,7 @@ export default async function PractitionerSubscriptionPage() {
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const userId = session.user!.id!;
-  const [user, practitioner, activeSubscription] = await Promise.all([
-    db.user.findUnique({ where: { id: userId }, select: { balance: true } }),
+  const [practitioner, activeSubscription] = await Promise.all([
     db.practitioner.findUnique({ where: { userId }, select: { id: true } }),
     db.userSubscription.findFirst({
       where: {
@@ -54,7 +53,6 @@ export default async function PractitionerSubscriptionPage() {
 
   const practitionerBalance = await computePractitionerBalance(practitioner.id);
   const earningsBalanceRub = Math.max(0, practitionerBalance?.currentBalance ?? 0);
-  const cabinetBalanceKopecks = Math.max(0, user?.balance ?? 0);
   const activeLabel = getSubscriptionPlanLabel(activeSubscription?.planKey);
   const activeStatus = activeSubscription
     ? activeSubscription.cancelAtPeriodEnd
@@ -80,7 +78,7 @@ export default async function PractitionerSubscriptionPage() {
           <p className="soft-eyebrow">Practitioner Pro</p>
           <h1 className="soft-h1 mt-2">Подписка практика</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Подписка практика управляется отдельно от клиентского биллинга. Её можно оплатить картой, балансом кабинета
+            Подписка практика управляется отдельно от клиентского биллинга. Её можно оплатить картой
             или доступным доходом от завершённых сессий.
           </p>
         </div>
@@ -90,18 +88,11 @@ export default async function PractitionerSubscriptionPage() {
       </div>
 
       <section className="soft-card mb-5 p-5">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <div>
             <p className="text-xs text-[var(--soft-ink-faint)]">Текущий статус</p>
             <p className="mt-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{activeLabel}</p>
             <p className="text-xs text-[var(--soft-ink-soft)]">{activeStatus}</p>
-          </div>
-          <div>
-            <p className="text-xs text-[var(--soft-ink-faint)]">Баланс кабинета</p>
-            <p className="mt-1 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">
-              {(cabinetBalanceKopecks / 100).toLocaleString("ru-RU")} ₽
-            </p>
-            <p className="text-xs text-[var(--soft-ink-soft)]">Обычный денежный баланс</p>
           </div>
           <div>
             <p className="text-xs text-[var(--soft-ink-faint)]">Доступно из дохода</p>
@@ -122,7 +113,6 @@ export default async function PractitionerSubscriptionPage() {
       <PractitionerSubscriptionClient
         plans={plans}
         activePlanKey={activeSubscription?.planKey ?? null}
-        cabinetBalanceKopecks={cabinetBalanceKopecks}
         earningsBalanceRub={earningsBalanceRub}
       />
     </div>
