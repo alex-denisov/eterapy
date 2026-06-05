@@ -45,7 +45,9 @@ export async function POST(req: NextRequest) {
           return_url: returnUrl,
         },
         notification_url: notificationUrl,
-        capture: true,
+        // Z1-Ф1: верификация карты БЕЗ списания — холдируем 1 ₽ (`capture:false`),
+        // сохраняем карту и сразу отпускаем холд (см. verifyCardHold в billing-credit).
+        capture: false,
         save_payment_method: true,
         customer_id: session.user.id,
         description,

@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     take: 10,
   });
 
-  const results: Array<{ providerPaymentId: string; outcome: "credited" | "cancelled" | "noop" | "error" }> = [];
+  const results: Array<{ providerPaymentId: string; outcome: "credited" | "cancelled" | "card_verified" | "noop" | "error" }> = [];
 
   for (const t of pending) {
     if (!t.providerPaymentId) continue;

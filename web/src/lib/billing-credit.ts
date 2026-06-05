@@ -13,7 +13,8 @@
  */
 import db from "./db";
 import { notify } from "./notifications";
-import { createRefund } from "./yukassa";
+import { createRefund, cancelPayment } from "./yukassa";
+import type { Prisma } from "@prisma/client";
 import {
   getBillingTransactionMetadata,
   grantEntitlementForTransaction,
@@ -370,9 +371,83 @@ export async function chargebackSucceededTransaction(input: {
   return { applied: true };
 }
 
+/**
+ * Z1-Ф1: saves a card from a YooKassa payment_method (idempotent by paymentMethodId).
+ * Returns the saved-card summary, or null if nothing was saved.
+ */
+async function saveCardFromPaymentMethod(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  pm: YookassaCardSnapshot | undefined,
+): Promise<{ last4: string; brand: string } | null> {
+  if (!pm?.saved || !pm.card) return null;
+  const existing = await tx.savedCard.findUnique({ where: { paymentMethodId: pm.id } });
+  if (existing) return null;
+  const count = await tx.savedCard.count({ where: { userId } });
+  const brand = normalizeBrand(pm.card.card_type);
+  await tx.savedCard.create({
+    data: {
+      userId,
+      paymentMethodId: pm.id,
+      last4: pm.card.last4,
+      brand,
+      expiryMonth: pm.card.expiry_month,
+      expiryYear: pm.card.expiry_year,
+      isDefault: count === 0,
+    },
+  });
+  return { last4: pm.card.last4, brand };
+}
+
+/**
+ * Z1-Ф1: card verification via a 1 ₽ two-stage hold. Saves the card method and
+ * RELEASES the hold (cancel) — the client is never charged. Idempotent on the
+ * PENDING verification transaction. Used for `save-card` (capture:false) payments
+ * that reach `waiting_for_capture`.
+ */
+export async function verifyCardHold(
+  providerPaymentId: string,
+  paymentMethod?: YookassaCardSnapshot,
+): Promise<boolean> {
+  const result = await db.$transaction(async (tx) => {
+    const transaction = await tx.transaction.findUnique({ where: { providerPaymentId } });
+    if (!transaction || transaction.status !== "PENDING") return null;
+    const newCard = await saveCardFromPaymentMethod(tx, transaction.userId, paymentMethod);
+    await tx.transaction.update({ where: { id: transaction.id }, data: { status: "CANCELLED" } });
+    return { userId: transaction.userId, newCard };
+  });
+  if (!result) return false;
+
+  // Release the 1 ₽ hold — best-effort, outside the DB transaction.
+  await cancelPayment(providerPaymentId).catch((e) =>
+    log.error("billing.card_hold_cancel_failed", { providerPaymentId, err: e }),
+  );
+
+  if (result.newCard) {
+    notify({
+      userId: result.userId,
+      event: "CARD_LINKED",
+      data: { last4: result.newCard.last4, brand: result.newCard.brand },
+    }).catch((e) => log.error("billing.card_linked_notify_failed", { err: e }));
+  }
+  return true;
+}
+
 /** Thin alias used by callers who have the full YooKassa payment object. */
-export async function applyPaymentResult(payment: YookassaPaymentLike): Promise<"credited" | "cancelled" | "noop"> {
+export async function applyPaymentResult(
+  payment: YookassaPaymentLike,
+): Promise<"credited" | "cancelled" | "card_verified" | "noop"> {
   const s = payment.status?.toLowerCase();
+  if (s === "waiting_for_capture") {
+    // Card-verification hold (save_payment_method) → save card + release the hold.
+    // Session holds (no saved method) are captured server-side at session start,
+    // so they are ignored here.
+    if (payment.payment_method?.saved) {
+      const applied = await verifyCardHold(payment.id, payment.payment_method);
+      return applied ? "card_verified" : "noop";
+    }
+    return "noop";
+  }
   if (s === "succeeded" || payment.paid === true) {
     const applied = await creditSucceededPayment(payment.id, payment.payment_method);
     return applied ? "credited" : "noop";
