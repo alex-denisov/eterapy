@@ -28,6 +28,7 @@ import db from "./db";
 import { logAudit } from "./audit";
 import { notify } from "./notifications";
 import { PAYOUT_STATUS_HELD, PAYOUT_STATUS_PENDING, PAYOUT_STATUS_FAILED } from "./session-complete";
+import { refundSessionForBooking } from "./session-payment";
 import { log } from "./logger";
 
 export type PayoutDecision = "release" | "withhold";
@@ -123,20 +124,9 @@ export async function resolveComplaint(
       });
       if (flip.count === 0) return { payoutAction: "none" as const };
 
-      // Refund client: increment balance + write a positive Transaction.
-      await tx.user.update({
-        where: { id: complaint.booking.clientId },
-        data: { balance: { increment: refundKopecks } },
-      });
-      await tx.transaction.create({
-        data: {
-          userId: complaint.booking.clientId,
-          amount: refundKopecks,
-          status: "SUCCEEDED",
-          provider: "internal",
-          description: `Возврат по жалобе ${complaint.id}`,
-        },
-      });
+      // Z1a: возврат клиенту идёт НА КАРТУ через YooKassa уже после коммита
+      // транзакции (refundSessionForBooking) — внешний API-вызов нельзя делать
+      // внутри db.$transaction. Здесь только переводим бронь в REFUNDED.
       await tx.booking.update({
         where: { id: complaint.booking.id },
         data: { status: "REFUNDED" },
@@ -169,6 +159,10 @@ export async function resolveComplaint(
   );
 
   if (result.payoutAction === "withheld") {
+    // Z1a: возврат на карту через YooKassa (после коммита транзакции).
+    await refundSessionForBooking(complaint.booking.id, refundKopecks).catch((e) =>
+      log.error("complaint_resolution.card_refund_failed", { complaintId: complaint.id, err: e }),
+    );
     notify({
       userId: complaint.booking.clientId,
       event: "BALANCE_TOPUP",

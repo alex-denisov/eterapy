@@ -13,7 +13,7 @@ import {
 } from "@/lib/email";
 import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
-import { chargeClientForSession } from "@/lib/session-charge";
+import { holdSessionForBooking, captureSessionForBooking, cancelSessionHold } from "@/lib/session-payment";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
@@ -292,7 +292,22 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    return NextResponse.json({ booking: formatBooking(booking), ok: true });
+    // Z1a: двухстадийный hold оплаты сессии — деньги резервируются на карте при
+    // брони и списываются при старте сессии (captureSessionForBooking). Бесплатная
+    // сессия (test mode / priceRub=0) → hold "free", confirmationUrl не нужен.
+    let confirmationUrl: string | null = null;
+    try {
+      const hold = await holdSessionForBooking({
+        bookingId: booking.id,
+        priceRub,
+        description: `Сессия с ${practitioner.user.name ?? "специалистом"}`,
+      });
+      if (hold.status === "held") confirmationUrl = hold.confirmationUrl;
+    } catch (e) {
+      log.error("bookings.post.hold_failed", { bookingId: booking.id, err: e });
+    }
+
+    return NextResponse.json({ booking: formatBooking(booking), confirmationUrl, ok: true });
   } catch (err) {
     log.error("api.bookings.post", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
@@ -339,14 +354,12 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Клиент может только отменить запись" }, { status: 403 });
     }
 
-    // При переходе в IN_PROGRESS — списываем баланс клиента
+    // При переходе в IN_PROGRESS — захватываем карт-холд клиента (Z1a)
     if (status === "IN_PROGRESS" && booking.status === "CONFIRMED") {
-      const outcome = await chargeClientForSession(bookingId);
-      if (outcome.status === "insufficient_balance") {
-        const needRub = Math.ceil(outcome.priceKopecks / 100);
-        const haveRub = (outcome.balanceKopecks / 100).toFixed(2);
+      const outcome = await captureSessionForBooking(bookingId);
+      if (outcome.status === "hold_missing") {
         return NextResponse.json(
-          { error: `Недостаточно средств на балансе: ${haveRub} ₽ из ${needRub} ₽` },
+          { error: "Оплата сессии не подтверждена — авторизуйте платёж по карте." },
           { status: 402 },
         );
       }
@@ -421,6 +434,10 @@ export async function PATCH(req: NextRequest) {
     // Освобождаем слот если бронирование отменено
     if (status === "CANCELLED" && booking.slotId) {
       await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
+    }
+    // Z1a: отменяем карт-холд при отмене брони (если ещё не захвачен).
+    if (status === "CANCELLED") {
+      await cancelSessionHold(bookingId).catch((e) => log.error("bookings.patch.cancel_hold_failed", { bookingId, err: e }));
     }
 
     const appUrl = APP_URL;

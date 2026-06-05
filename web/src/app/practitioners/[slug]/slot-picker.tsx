@@ -155,6 +155,13 @@ export function SlotPicker({
       });
       const data = await res.json();
       if (data.ok) {
+        // Z1a: если для сессии создан карт-холд — ведём клиента на ЮKassa для
+        // авторизации платежа (средства резервируются, спишутся при старте сессии).
+        if (data.confirmationUrl) {
+          toast.success("Запись создана — подтвердите оплату картой");
+          window.location.href = data.confirmationUrl;
+          return;
+        }
         setBooked(true);
         toast.success("Запись оформлена!");
       } else {

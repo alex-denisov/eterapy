@@ -22,8 +22,14 @@ jest.mock("@/lib/notifications", () => ({
   notify: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock("@/lib/session-payment", () => ({
+  __esModule: true,
+  refundSessionForBooking: jest.fn().mockResolvedValue({ status: "refunded" }),
+}));
+
 import db from "@/lib/db";
 import { resolveComplaint } from "@/lib/complaint-resolution";
+import { refundSessionForBooking } from "@/lib/session-payment";
 
 type MockedPrisma = {
   complaint: { findUnique: jest.Mock; update: jest.Mock };
@@ -136,18 +142,10 @@ describe("resolveComplaint", () => {
       where: { id: "po1", status: "HELD" },
       data: expect.objectContaining({ status: "FAILED", processedAt: expect.any(Date) }),
     });
-    expect(mockDb.user.update).toHaveBeenCalledWith({
-      where: { id: "uClient" },
-      data: { balance: { increment: 300_000 } }, // 3000 ₽ * 100
-    });
-    expect(mockDb.transaction.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        userId: "uClient",
-        amount: 300_000,
-        status: "SUCCEEDED",
-        provider: "internal",
-      }),
-    });
+    // Z1a: возврат идёт на карту через YooKassa (refundSessionForBooking),
+    // а не на ₽-баланс — баланс клиента удалён.
+    expect(refundSessionForBooking).toHaveBeenCalledWith("b1", 300_000); // 3000 ₽ * 100
+    expect(mockDb.user.update).not.toHaveBeenCalled();
     expect(mockDb.booking.update).toHaveBeenCalledWith({
       where: { id: "b1" },
       data: { status: "REFUNDED" },

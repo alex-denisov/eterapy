@@ -89,8 +89,9 @@ function getAuthHeaderLazy() {
   return _authHeader;
 }
 
-// For backward compatibility - will be set on first use
-const authHeader = getAuthHeaderLazy();
+// NB: auth header is resolved lazily inside yukassaFetch (NOT at import time),
+// so importing this module — or anything that transitively imports it, e.g. the
+// bookings route via session-payment — does not require YUKASSA_* env to be set.
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ export async function yukassaFetch<T>(
 ): Promise<T> {
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    Authorization: authHeader,
+    Authorization: getAuthHeaderLazy(),
     "Idempotence-Key": idempotenceKey || crypto.randomUUID(),
   };
 

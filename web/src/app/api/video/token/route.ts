@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { generateToken, makeRoomName } from "@/lib/livekit";
-import { chargeClientForSession } from "@/lib/session-charge";
+import { captureSessionForBooking } from "@/lib/session-payment";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -38,12 +38,10 @@ export async function GET(req: NextRequest) {
   // Первый вход: переводим бронирование в IN_PROGRESS и списываем баланс клиента.
   // Повторные вызовы идемпотентны (status === "already_charged").
   if (booking.status === "CONFIRMED") {
-    const outcome = await chargeClientForSession(bookingId);
-    if (outcome.status === "insufficient_balance") {
-      const needRub = Math.ceil(outcome.priceKopecks / 100);
-      const haveRub = (outcome.balanceKopecks / 100).toFixed(2);
+    const outcome = await captureSessionForBooking(bookingId);
+    if (outcome.status === "hold_missing") {
       return NextResponse.json(
-        { error: `Недостаточно средств на балансе: ${haveRub} ₽ из ${needRub} ₽` },
+        { error: "Оплата сессии не подтверждена — авторизуйте платёж по карте." },
         { status: 402 },
       );
     }

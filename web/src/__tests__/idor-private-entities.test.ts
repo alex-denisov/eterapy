@@ -70,9 +70,11 @@ jest.mock("@/lib/platform-settings", () => ({
   getSetting: jest.fn(),
 }));
 
-jest.mock("@/lib/session-charge", () => ({
+jest.mock("@/lib/session-payment", () => ({
   __esModule: true,
-  chargeClientForSession: jest.fn(),
+  holdSessionForBooking: jest.fn().mockResolvedValue({ status: "free" }),
+  captureSessionForBooking: jest.fn().mockResolvedValue({ status: "charged", priceKopecks: 0 }),
+  cancelSessionHold: jest.fn().mockResolvedValue({ status: "noop" }),
 }));
 
 jest.mock("@/lib/session-complete", () => ({
