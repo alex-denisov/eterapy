@@ -183,6 +183,110 @@ export async function getPayment({ externalId }: GetPaymentOptions): Promise<Yuk
   return yukassaFetch<YukassaPayment>(`/payments/${externalId}`);
 }
 
+// ─── Two-stage (hold / capture / cancel) — Z1a card-session payment ──────────────
+//
+// Sessions use a two-stage YooKassa payment: at booking the funds are AUTHORIZED
+// (capture: false → status `waiting_for_capture`, "hold"), and only CAPTURED when
+// the session is delivered, or CANCELLED (hold released) on cancellation/no-show.
+//
+// NB: a YooKassa card hold lives ~7 days. The orchestration (session-payment.ts)
+// must capture or cancel within that window — i.e. hold close to the session, not
+// weeks ahead. Booking lead-time policy is enforced by the caller.
+
+export interface CreateTwoStagePaymentOptions {
+  amountKopecks: number;
+  bookingId: string;
+  returnUrl: string;
+  description: string;
+}
+
+export interface CreateTwoStageFromSavedMethodOptions {
+  amountKopecks: number;
+  bookingId: string;
+  paymentMethodId: string;
+  customerId: string;
+  description: string;
+}
+
+/**
+ * Create a two-stage (hold) payment with a NEW card via redirect.
+ * Funds are authorized (status `waiting_for_capture`) but NOT captured until
+ * {@link capturePayment}. Idempotent per booking (`hold-{bookingId}`).
+ */
+export async function createTwoStagePayment({
+  amountKopecks,
+  bookingId,
+  returnUrl,
+  description,
+}: CreateTwoStagePaymentOptions): Promise<YukassaPayment> {
+  return yukassaFetch<YukassaPayment>("/payments", {
+    method: "POST",
+    idempotenceKey: `hold-${bookingId}`,
+    body: {
+      amount: { value: kopecksToRUB(amountKopecks), currency: "RUB" },
+      confirmation: { type: "redirect", return_url: returnUrl },
+      capture: false,
+      description,
+      metadata: { bookingId, kind: "session_hold" },
+    },
+  });
+}
+
+/**
+ * Create a two-stage (hold) payment with a previously SAVED card (no redirect).
+ * Funds are authorized but not captured. Idempotent per booking.
+ */
+export async function createTwoStagePaymentFromSavedMethod({
+  amountKopecks,
+  bookingId,
+  paymentMethodId,
+  customerId,
+  description,
+}: CreateTwoStageFromSavedMethodOptions): Promise<YukassaPayment> {
+  return yukassaFetch<YukassaPayment>("/payments", {
+    method: "POST",
+    idempotenceKey: `hold-${bookingId}`,
+    body: {
+      amount: { value: kopecksToRUB(amountKopecks), currency: "RUB" },
+      capture: false,
+      payment_method_id: paymentMethodId,
+      customer_id: customerId,
+      description,
+      metadata: { bookingId, kind: "session_hold" },
+    },
+  });
+}
+
+/**
+ * Capture a held (`waiting_for_capture`) payment → money is charged.
+ * Optional `amountKopecks` performs a partial capture (defaults to the full
+ * authorized amount). Idempotent per payment (`capture-{paymentId}`).
+ */
+export async function capturePayment(
+  paymentId: string,
+  amountKopecks?: number,
+): Promise<YukassaPayment> {
+  const body = amountKopecks != null
+    ? { amount: { value: kopecksToRUB(amountKopecks), currency: "RUB" } }
+    : {};
+  return yukassaFetch<YukassaPayment>(`/payments/${paymentId}/capture`, {
+    method: "POST",
+    idempotenceKey: `capture-${paymentId}`,
+    body,
+  });
+}
+
+/**
+ * Cancel a held (`waiting_for_capture`) payment → releases the hold, no charge.
+ * Idempotent per payment (`cancel-{paymentId}`).
+ */
+export async function cancelPayment(paymentId: string): Promise<YukassaPayment> {
+  return yukassaFetch<YukassaPayment>(`/payments/${paymentId}/cancel`, {
+    method: "POST",
+    idempotenceKey: `cancel-${paymentId}`,
+  });
+}
+
 /**
  * Create a refund for a payment.
  *
