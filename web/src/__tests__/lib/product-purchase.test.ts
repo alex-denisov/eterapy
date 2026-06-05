@@ -124,7 +124,7 @@ describe("purchaseProductWithBalance", () => {
     })).resolves.toEqual({
       status: "insufficient_balance",
       productKey: "deep-report",
-      priceKopecks: 59_000,
+      priceKopecks: 69_000,
       balanceKopecks: 10_000,
     });
 

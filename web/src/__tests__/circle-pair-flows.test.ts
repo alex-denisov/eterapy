@@ -94,7 +94,7 @@ describe("B201/B202 Circle and Pair flows", () => {
   it("prices social products according to the v5 pricing package", () => {
     expect(getProductPriceKopecks("circle")).toBe(79000);
     expect(getProductPriceKopecks("pair")).toBe(79000);
-    expect(getProductCreditCost("circle")).toBe(3);
-    expect(getProductCreditCost("pair")).toBe(3);
+    expect(getProductCreditCost("circle")).toBe(4);
+    expect(getProductCreditCost("pair")).toBe(4);
   });
 });

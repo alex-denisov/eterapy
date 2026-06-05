@@ -64,20 +64,20 @@ describe("v5 billing entitlements", () => {
 
   it("keeps product prices server-side", () => {
     expect(getProductPriceKopecks("perspectives")).toBe(29900);
-    expect(getProductPriceKopecks("deep-report")).toBe(59000);
+    expect(getProductPriceKopecks("deep-report")).toBe(69000);
     expect(getProductPriceKopecks("chat-analysis")).toBe(39000);
-    expect(getProductPriceKopecks("compatibility")).toBe(59000);
+    expect(getProductPriceKopecks("compatibility")).toBe(79000);
     expect(getProductPriceKopecks("seven-days")).toBe(99000);
     // primary-answer was retired in B293; the free dialogue is now /checkin only.
     expect(getProductPriceKopecks("unknown-slug")).toBeNull();
     expect(getProductCreditCost("deep-report")).toBe(4);
     expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
       amountKopecks: 49_000,
-      creditsPerPeriod: 10,
+      creditsPerPeriod: 12,
     }));
     expect(getSubscriptionPlan("premium")).toEqual(expect.objectContaining({
       amountKopecks: 129_000,
-      creditsPerPeriod: 30,
+      creditsPerPeriod: 35,
     }));
   });
 
@@ -86,7 +86,7 @@ describe("v5 billing entitlements", () => {
       purchaseKind: "balance",
       checkoutSource: undefined,
     });
-    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(59_000);
+    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
       kind: "subscription",
       amountKopecks: 49_000,
@@ -133,7 +133,7 @@ describe("v5 billing entitlements", () => {
     expect(mockDb.clarityCreditLedgerEntry.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: "user-1",
-        amount: 10,
+        amount: 12,
         type: "grant",
         source: "subscription",
         sourceEventId: "tx-sub",
@@ -146,7 +146,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 59000,
+      amount: 69000,
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -189,7 +189,7 @@ describe("v5 billing entitlements", () => {
     const transaction = {
       id: "tx-1",
       userId: "user-1",
-      amount: 59000,
+      amount: 69000,
       description: "ETerapy: deep-report",
       metadata: { purchaseKind: "product", productKey: "deep-report" },
     };
@@ -210,7 +210,7 @@ describe("v5 billing entitlements", () => {
     }));
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: 59000,
+        amountKopecks: 69000,
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-1",

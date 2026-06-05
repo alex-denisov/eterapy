@@ -4,9 +4,11 @@ import { type V5ProductSlug } from "@/lib/v5-products";
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "perspectives": 29900,
-  "deep-report": 59000,
+  // Z3: align code ₽ with advertised copy (v5-products.ts / pricing): deep-report
+  // was 590 in code but 690 everywhere else; compatibility was 590 but 790.
+  "deep-report": 69000,
   "chat-analysis": 39000,
-  "compatibility": 59000,
+  "compatibility": 79000,
   "circle": 79000,
   "pair": 79000,
   "seven-days": 99000,
@@ -23,8 +25,9 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "deep-report": 4,
   "chat-analysis": 2,
   "compatibility": 4,
-  "circle": 3,
-  "pair": 3,
+  // Z3: founder-accepted — circle/«Вы двое» = 4 credits (code had 3, copy said 4).
+  "circle": 4,
+  "pair": 4,
   "seven-days": 8,
   "my-map": 6,
   "tarot": 2,
@@ -48,14 +51,17 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, {
     // complaint. Plus now bundles only «perspectives» (299 ₽ < 490 ₽) plus the
     // monthly credits; «my-map» stays a Premium / credit purchase.
     includedProducts: ["perspectives"],
-    creditsPerPeriod: 10,
+    creditsPerPeriod: 12,
   },
   premium: {
     name: "Premium",
     amountKopecks: 129000,
     trialDays: 7,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
-    creditsPerPeriod: 30,
+    // Z2 (credit-centric): Premium no longer "includes everything" (that made the
+    // 30 credits pointless). It includes only the two daily anchors; the rest of
+    // the premium catalog is paid from the generous monthly credit wallet.
+    includedProducts: ["perspectives", "deep-report"],
+    creditsPerPeriod: 35,
   },
   // Deprecated legacy aliases are kept readable so older subscriptions do not
   // lose access abruptly, but new checkout should use plus/premium only.
@@ -242,12 +248,12 @@ export async function userHasActiveEntitlement(userId: string, productKey: strin
     select: { planKey: true },
   });
 
+  // Z2 (credit-centric): a subscription grants access only to its explicit
+  // includedProducts anchors; everything else (circle, pair, esoteric, seven-days,
+  // my-map, …) is paid from the credit wallet — so credits always have a use.
   return (subscriptions ?? []).some((subscription) => {
     const plan = getSubscriptionPlan(subscription.planKey);
-    return Boolean(
-      plan?.includedProducts.includes(productKey as V5ProductSlug)
-      || (subscription.planKey === "premium" && ["circle", "pair"].includes(productKey))
-    );
+    return Boolean(plan?.includedProducts.includes(productKey as V5ProductSlug));
   });
 }
 
