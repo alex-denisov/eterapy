@@ -35,6 +35,9 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run Playwright tests
         working-directory: web
+        env:
+          AUTH_SECRET: playwright-local-secret-minimum-32-characters
+          NEXTAUTH_SECRET: playwright-local-secret-minimum-32-characters
         run: npm run test:e2e -- --project=chromium
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
