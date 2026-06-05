@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { usersDb } from "@/lib/users-db";
 import { logAudit } from "@/lib/audit";
 import { log } from "@/lib/logger";
+import { grantWelcomeCredits } from "@/lib/welcome-credits";
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +21,11 @@ export async function POST(req: NextRequest) {
       verificationExpires: null,
     });
 
-    await logAudit(user.id, "EMAIL_VERIFY", undefined, `Email подтверждён: ${user.email}`);
+    void grantWelcomeCredits({ request: req, userId: user.id }).catch((error) => {
+      log.warn("welcome_credits.grant_failed", { userId: user.id, errorName: error instanceof Error ? error.name : "unknown" });
+    });
+
+    await logAudit(user.id, "EMAIL_VERIFY", undefined, "Email подтверждён");
     return NextResponse.json({ ok: true, email: user.email });
   } catch (err) {
     log.error("verify_email.unhandled", { err });

@@ -45,19 +45,35 @@ function creditsWord(n: number): string {
   return "кредитов";
 }
 
+function daysUntil(date: Date, now: Date): number {
+  return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+}
+
 export default async function CabinetCreditsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
   guardClientCabinet(session.user.role); // Y6: client-only surface
   const userId = session.user.id;
+  const now = new Date();
 
-  const [balance, ledger, access] = await Promise.all([
+  const [balance, ledger, welcomeGrant, access] = await Promise.all([
     getClarityCreditBalance(userId),
     db.clarityCreditLedgerEntry.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: 10,
       select: { id: true, amount: true, balanceAfter: true, type: true, source: true, status: true, createdAt: true },
+    }),
+    db.clarityCreditLedgerEntry.findFirst({
+      where: {
+        userId,
+        source: "welcome",
+        type: "grant",
+        status: "confirmed",
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { expiresAt: true },
     }),
     listUserEntitlements(userId),
   ]);
@@ -99,6 +115,35 @@ export default async function CabinetCreditsPage() {
           <p className="mt-2 font-heading text-5xl font-semibold text-[var(--soft-bordeaux)]">{balance}</p>
         </div>
       </div>
+
+      {welcomeGrant?.expiresAt && (
+        <section
+          className="mb-5 soft-card border-[var(--soft-terracotta)]/30 bg-[var(--soft-surface)] p-5"
+          data-testid="welcome-credits-card"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="soft-eyebrow">стартовый подарок</p>
+              <h2 className="soft-h3 mt-2">3 приветственных кредита на первые разборы</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                Они действуют ещё {daysUntil(welcomeGrant.expiresAt, now)} дн. Этого хватит,
+                чтобы открыть «4 ракурса» и попробовать один следующий формат за кредиты.
+              </p>
+            </div>
+            <Link
+              href={appUrl("/products/perspectives")}
+              className="soft-button soft-button-primary shrink-0 self-start sm:self-center"
+              data-analytics-event="welcome_credits_open_perspectives_clicked"
+              data-analytics-surface="cabinet_credits"
+              data-analytics-target="/products/perspectives"
+              data-analytics-product="perspectives"
+            >
+              Открыть 4 ракурса
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          </div>
+        </section>
+      )}
 
       <section className="mb-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="soft-card p-5">
