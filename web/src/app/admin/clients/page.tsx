@@ -20,7 +20,7 @@ export default async function AdminClientsPage() {
     select: {
       id: true, name: true, email: true, emailVerified: true,
       createdAt: true, blockedAt: true, deletedAt: true, freeToolsLimit: true, avatarUrl: true, provider: true,
-      registrationChannel: true, balance: true,
+      registrationChannel: true,
       birthDate: true, birthTime: true, birthPlace: true, timezone: true, telegramUsername: true,
     },
     orderBy: { createdAt: "desc" } as const,

@@ -25,7 +25,6 @@ export interface AdminUserRow {
   deletedAt: string | null;
   blockedAt: string | null;
   freeToolsLimit: number | null;
-  balance: number; // kopecks
   clarityCredits: number;
   provider: string | null;
   telegramUsername: string | null;

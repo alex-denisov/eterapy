@@ -73,7 +73,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         orderBy: { createdAt: "desc" },
         skip,
         take: PAGE_SIZE,
-        select: { id: true, email: true, name: true, role: true, balance: true, blockedAt: true, deletedAt: true, createdAt: true },
+        select: { id: true, email: true, name: true, role: true, blockedAt: true, deletedAt: true, createdAt: true },
       }),
       db.user.count({ where }),
     ]);

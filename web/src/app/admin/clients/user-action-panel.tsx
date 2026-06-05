@@ -15,7 +15,6 @@ interface User {
   freeToolsLimit: number | null;
   provider?: string | null;
   registrationChannel?: string | null;
-  balance?: number | null; // kopecks
   birthDate?: string | Date | null;
   birthTime?: string | null;
   birthPlace?: string | null;
@@ -56,10 +55,6 @@ export function UserActionPanel({
   const [birthPlace, setBirthPlace] = useState(user.birthPlace ?? "");
   const [timezone, setTimezone] = useState(user.timezone ?? "");
   const [telegramUsername, setTelegramUsername] = useState(user.telegramUsername ?? "");
-  const [balanceRub, setBalanceRub] = useState(
-    user.balance != null ? String(Math.round(user.balance / 100)) : "0",
-  );
-  const [balanceReason, setBalanceReason] = useState("");
   const [freeLimitInput, setFreeLimitInput] = useState(
     user.freeToolsLimit == null ? "" : String(user.freeToolsLimit),
   );
@@ -272,31 +267,6 @@ export function UserActionPanel({
           </div>
         )}
 
-        {/* Баланс — только superadmin */}
-        {adminRole === "SUPERADMIN" && (
-          <div className="mt-6 space-y-3 border-t border-border/20 pt-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Баланс (ручная корректировка)</p>
-            <div className="flex flex-wrap items-end gap-2">
-              <div>
-                <label className="block text-[11px] text-muted-foreground mb-1">Баланс, ₽</label>
-                <Input type="number" value={balanceRub} onChange={e => setBalanceRub(e.target.value)}
-                  className="bg-card/50 text-sm h-8 w-32" />
-              </div>
-              <div className="flex-1 min-w-[160px]">
-                <label className="block text-[11px] text-muted-foreground mb-1">Причина (в аудит)</label>
-                <Input value={balanceReason} onChange={e => setBalanceReason(e.target.value)}
-                  placeholder="Возврат / корректировка" className="bg-card/50 text-sm h-8" />
-              </div>
-              <button onClick={async () => {
-                const ok = await callAction("update_balance", { balanceRub, reason: balanceReason });
-                if (ok) { setBalanceReason(""); onUpdate({ balance: Math.round(Number(balanceRub) * 100) }); }
-              }}
-                className="rounded-lg bg-primary/20 px-3 h-8 text-xs text-primary hover:bg-primary/30 shrink-0">
-                Применить
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Лимит бесплатных AI-инструментов — только superadmin */}
         {adminRole === "SUPERADMIN" && (

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
@@ -21,7 +20,6 @@ const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
   reset_password:   "clients.reset_password",
   block:            "clients.block",
   unblock:          "clients.block",
-  update_balance:   "SUPERADMIN_ONLY",
   update_clarity_credits: "SUPERADMIN_ONLY",
   set_free_limit:   "SUPERADMIN_ONLY",
   soft_delete:      "clients.delete",
@@ -43,7 +41,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       avatarUrl: true, deletedAt: true, blockedAt: true, freeToolsLimit: true,
       createdAt: true, updatedAt: true,
       birthDate: true, birthTime: true, birthPlace: true, timezone: true,
-      telegramUsername: true, balance: true,
+      telegramUsername: true,
     },
   });
   if (!user) return NextResponse.json({ error: "Не найден" }, { status: 404 });
@@ -162,35 +160,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
       await db.user.update({ where: { id }, data });
       await logAudit(adminId, "PROFILE_UPDATE", id, Object.keys(data).join(","));
-      return NextResponse.json({ ok: true });
-    }
-    case "update_balance": {
-      const rub = Number(body.balanceRub);
-      if (!Number.isFinite(rub)) return NextResponse.json({ error: "Некорректный баланс" }, { status: 400 });
-      const kopecks = Math.round(rub * 100);
-      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
-      const delta = kopecks - targetUser.balance;
-      await db.$transaction(async (tx) => {
-        await tx.user.update({ where: { id }, data: { balance: kopecks } });
-        if (delta !== 0) {
-          await tx.transaction.create({
-            data: {
-              userId: id,
-              amount: delta,
-              status: "SUCCEEDED",
-              provider: "manual",
-              description: reason || "Ручная корректировка баланса",
-              metadata: {
-                purchaseKind: "balance",
-                checkoutSource: "admin_manual_adjustment",
-                by: adminId,
-                reason: reason || "admin manual adjustment",
-              } as Prisma.InputJsonObject,
-            },
-          });
-        }
-      });
-      await logAudit(adminId, "PROFILE_UPDATE", id, `balance=${kopecks}${reason ? ` (${reason})` : ""}`);
       return NextResponse.json({ ok: true });
     }
     case "update_clarity_credits": {

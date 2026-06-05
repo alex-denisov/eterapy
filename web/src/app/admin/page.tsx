@@ -135,7 +135,6 @@ async function getStats(canViewBusiness: boolean) {
     payoutStatusSums,
     disputedComplaints,
     refundedBookings,
-    totalBalance,
     clarityCreditBalance,
     activeSubscriptions,
     productEntitlements30d,
@@ -181,7 +180,6 @@ async function getStats(canViewBusiness: boolean) {
       _sum: { priceRub: true },
       where: { status: BookingStatus.REFUNDED, priceRub: { gt: 0 } },
     }),
-    db.user.aggregate({ _sum: { balance: true } }),
     db.clarityCreditLedgerEntry.aggregate({
       _sum: { amount: true },
       where: { status: "confirmed" },
@@ -248,16 +246,8 @@ async function getStats(canViewBusiness: boolean) {
   const finance = financeTransactions.reduce((acc, tx) => {
     const metadata = getBillingTransactionMetadata(tx);
     const rub = Math.round(Math.abs(tx.amount) / 100);
-    if (tx.amount > 0 && metadata.purchaseKind === "balance") {
-      if (tx.provider === "yookassa") acc.acquirerBalanceCreditsRub += rub;
-      if (tx.provider === "manual" || tx.provider === "internal") acc.manualBalanceCreditsRub += rub;
-    }
-    // W4: a product paid FROM BALANCE records a NEGATIVE transaction (a debit
-    // from the user's RUB balance), while a card purchase records a positive
-    // one. Both are real product revenue, so count every SUCCEEDED product
-    // transaction by magnitude (`rub` is already Math.abs) — the old
-    // `tx.amount > 0` filter silently dropped all balance-paid purchases,
-    // showing «Цифровые продукты» = 0 despite real test orders.
+    // Z1-Ф1: the client ₽ balance rail is removed — digital products are paid
+    // by credits or card. Count every product transaction by magnitude.
     if (metadata.purchaseKind === "product") {
       acc.digitalProductRevenueRub += rub;
     }
@@ -270,8 +260,6 @@ async function getStats(canViewBusiness: boolean) {
     }
     return acc;
   }, {
-    acquirerBalanceCreditsRub: 0,
-    manualBalanceCreditsRub: 0,
     digitalProductRevenueRub: 0,
     clientSubscriptionRevenueRub: 0,
     practitionerSubscriptionRevenueRub: 0,
@@ -309,7 +297,6 @@ async function getStats(canViewBusiness: boolean) {
       disputedPotentialRefundsRub: disputedComplaints.reduce((sum, complaint) => sum + complaint.booking.priceRub, 0),
       refundedBookingsRub: refundedBookings._sum.priceRub ?? 0,
       ...finance,
-      totalBalanceRub: Math.round((totalBalance._sum.balance ?? 0) / 100),
       clarityCreditBalance: clarityCreditBalance._sum.amount ?? 0,
       activeSubscriptions,
       productEntitlementsAll,
@@ -482,12 +469,9 @@ export default async function AdminPage() {
                   ],
                 },
                 {
-                  title: "Балансы и обязательства",
+                  title: "Кредиты ясности",
                   items: [
-                    { label: "Баланс пользователей", value: formatRub(business.totalBalanceRub), hint: "обязательство в кабинетах" },
                     { label: "Кредиты ясности", value: formatNumber(business.clarityCreditBalance), hint: "confirmed ledger net" },
-                    { label: "Пополнения через эквайер", value: formatRub(business.acquirerBalanceCreditsRub), hint: "YooKassa top-up · реальные деньги" },
-                    { label: "Ручные начисления", value: formatRub(business.manualBalanceCreditsRub), hint: "superadmin / moderator · служебные, не реальные деньги" },
                   ],
                 },
                 {

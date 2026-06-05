@@ -14,8 +14,8 @@ describe("U1 — compact read-only users table (colored text, no badges)", () =>
     expect(panel).toContain("status.className");
   });
 
-  it("splits balance and credits into separate columns (no combined values)", () => {
-    expect(panel).toContain("Баланс, ₽");
+  it("Z1-Ф1: shows a credits column; the ₽ balance column is removed", () => {
+    expect(panel).not.toContain("Баланс, ₽");
     expect(panel).toContain('label="Кредиты"');
     // the old combined header must be gone
     expect(panel).not.toContain("Баланс · кредиты");
@@ -50,9 +50,9 @@ describe("U2/U4/U6 — user edit modal", () => {
     expect(modal).toContain('"reset_password"');
   });
 
-  it("edits name, role, money balance and clarity credits", () => {
+  it("edits name, role and clarity credits (₽ balance editing removed in Z1-Ф1)", () => {
     expect(modal).toContain('action: "update_name"');
-    expect(modal).toContain('action: "update_balance"');
+    expect(modal).not.toContain('action: "update_balance"');
     expect(modal).toContain('action: "update_clarity_credits"');
     expect(modal).toContain("usersPatch.role");
   });

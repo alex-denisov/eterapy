@@ -19,12 +19,12 @@ describe("T4 admin users — full editable table + channel tracking", () => {
     expect(display).toContain('default: return "manual"');
   });
 
-  it("exposes money-balance and clarity-credit editing (in the modal) gated by user class", () => {
+  it("exposes clarity-credit editing (in the modal) gated by user class; ₽ balance removed (Z1-Ф1)", () => {
     // U2: editing moved from inline table cells into the per-user modal.
     const modal = source("src/app/admin/users/user-edit-modal.tsx");
 
     expect(modal).toContain("canManageBalance");
-    expect(modal).toContain('action: "update_balance"');
+    expect(modal).not.toContain('action: "update_balance"');
     expect(modal).toContain('action: "update_clarity_credits"');
     // Clarity credits stay inert for non-clients.
     expect(modal).toContain('row.role !== "CLIENT"');

@@ -36,7 +36,6 @@ const SORT_FIELDS = {
   email: "email",
   role: "role",
   createdAt: "createdAt",
-  balance: "balance",
 } as const;
 
 function allowedRoles(role: string, permissions: Permission[]) {
@@ -126,7 +125,6 @@ export default async function AdminUsersPage(props: {
         blockedAt: true,
         emailVerified: true,
         freeToolsLimit: true,
-        balance: true,
         provider: true,
         registrationChannel: true,
         telegramUsername: true,
@@ -226,7 +224,6 @@ export default async function AdminUsersPage(props: {
     blockedAt: user.blockedAt?.toISOString() ?? null,
     emailVerified: user.emailVerified,
     freeToolsLimit: user.freeToolsLimit,
-    balance: user.balance,
     clarityCredits: creditByUser.get(user.id) ?? 0,
     provider: user.provider,
     telegramUsername: user.telegramUsername,

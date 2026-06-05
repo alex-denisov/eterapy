@@ -11,17 +11,20 @@ describe("Admin owner finance overview", () => {
     expect(overview).toContain("Hold / escrow");
     expect(overview).toContain("Ожидает выплаты");
     expect(overview).toContain("Потенциальные возвраты");
-    expect(overview).toContain("Пополнения через эквайер");
-    expect(overview).toContain("Ручные начисления");
     expect(overview).toContain("practitionerSubscriptionRevenueRub");
     expect(overview).toContain("clientSubscriptionRevenueRub");
+    // Z1-Ф1: the client ₽ balance rail is removed — no ₽ top-up / manual-credit
+    // liability lines, no user-balance liability metric.
+    expect(overview).not.toContain("Пополнения через эквайер");
+    expect(overview).not.toContain("Ручные начисления");
+    expect(overview).not.toContain("totalBalanceRub");
   });
 
-  it("records manual balance adjustments as auditable manual transactions", () => {
+  it("Z1-Ф1: drops the manual ₽-balance adjustment action from the user API", () => {
     const route = source("src/app/api/admin/users/[id]/route.ts");
-    expect(route).toContain('provider: "manual"');
-    expect(route).toContain('checkoutSource: "admin_manual_adjustment"');
-    expect(route).toContain("const delta = kopecks - targetUser.balance");
-    expect(route).toContain("tx.transaction.create");
+    expect(route).not.toContain('case "update_balance"');
+    expect(route).not.toContain("const delta = kopecks - targetUser.balance");
+    // the client credit-grant action remains (the credit-centric currency)
+    expect(route).toContain('case "update_clarity_credits"');
   });
 });

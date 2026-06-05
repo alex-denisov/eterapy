@@ -50,7 +50,6 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [email, setEmail] = useState(row.email);
   const [role, setRole] = useState<UserRole>(row.role);
   const [freeLimit, setFreeLimit] = useState(row.freeToolsLimit == null ? "" : String(row.freeToolsLimit));
-  const [balanceRub, setBalanceRub] = useState(String(Math.round(row.balance / 100)));
   const [clarityCredits, setClarityCredits] = useState(String(row.clarityCredits));
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -123,18 +122,11 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       if (Object.keys(usersPatch).length > 1) {
         await patchJson("/api/admin/users", usersPatch);
       }
-      // 4. Money balance
-      if (canEditBalance) {
-        const nextRub = Number(balanceRub);
-        if (Number.isFinite(nextRub) && nextRub !== Math.round(row.balance / 100)) {
-          await patchJson(`/api/admin/users/${row.id}`, { action: "update_balance", balanceRub: nextRub, reason: "admin user modal" });
-        }
-        // 5. Clarity credits (clients only)
-        if (row.role === "CLIENT") {
-          const nextCredits = Number(clarityCredits);
-          if (Number.isInteger(nextCredits) && nextCredits !== row.clarityCredits) {
-            await patchJson(`/api/admin/users/${row.id}`, { action: "update_clarity_credits", clarityCredits: nextCredits, reason: "admin user modal" });
-          }
+      // 4. Clarity credits (clients only) — the ₽ balance rail is removed (Z1-Ф1).
+      if (canEditBalance && row.role === "CLIENT") {
+        const nextCredits = Number(clarityCredits);
+        if (Number.isInteger(nextCredits) && nextCredits !== row.clarityCredits) {
+          await patchJson(`/api/admin/users/${row.id}`, { action: "update_clarity_credits", clarityCredits: nextCredits, reason: "admin user modal" });
         }
       }
       // 6. Manual password
@@ -298,15 +290,11 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
             </section>
           )}
 
-          {/* Finance */}
+          {/* Finance — Z1-Ф1: clients hold only a clarity-credit balance now. */}
           {permissions.canManageBalance && (
             <section>
               <h3 className={`mb-2 ${LABEL}`}>Финансы</h3>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className={LABEL}>Денежный баланс, ₽</span>
-                  <Input className={FIELD} inputMode="numeric" value={balanceRub} disabled={!canEditBalance} onChange={(e) => setBalanceRub(e.target.value)} />
-                </label>
                 <label className="block">
                   <span className={LABEL}>Кредиты ясности {row.role !== "CLIENT" && "(только клиенты)"}</span>
                   <Input className={FIELD} inputMode="numeric" value={row.role === "CLIENT" ? clarityCredits : "—"} disabled={!canEditBalance || row.role !== "CLIENT"} onChange={(e) => setClarityCredits(e.target.value)} />
