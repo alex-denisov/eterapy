@@ -25,6 +25,8 @@ const TYPE_LABELS: Record<string, string> = {
 // straight into the operations feed.
 const SOURCE_LABELS: Record<string, string> = {
   daily_practice: "Практика ясности",
+  welcome: "Приветственные кредиты",
+  streak: "Стрик практики",
   subscription: "Подписка",
   referral: "Реферальная программа",
   circle_invite: "Круг ясности",
@@ -61,18 +63,13 @@ export default async function CabinetCreditsPage() {
   ]);
   const activeProducts = new Set(access.entitlements.filter((item) => item.active).map((item) => item.productKey));
 
-  // Premium/Plus subscribers get a set of mechanics opened by their plan (docs
-  // 13_Prices_Breakdown.md / 15_Financial_Model). Fold those into a single set
-  // so a subscribed user sees the same "open" state credits would grant.
+  // Plus/Premium open only the explicit anchors from their plan. Everything
+  // else stays payable from the credit wallet so credits keep their value.
   const activeSubscriptions = access.subscriptions.filter((item) => item.active);
   const subscriptionProducts = new Set<string>();
   for (const subscription of activeSubscriptions) {
     const plan = getSubscriptionPlan(subscription.planKey);
     plan?.includedProducts.forEach((key) => subscriptionProducts.add(key));
-    if (subscription.planKey === "premium") {
-      subscriptionProducts.add("circle");
-      subscriptionProducts.add("pair");
-    }
   }
 
   // G13: each digital product carries both a кредит cost and a ₽ price so the
@@ -146,7 +143,7 @@ export default async function CabinetCreditsPage() {
       </section>
 
       {/* V10: paid recommendations — CTAs that a subscription never covers
-          (a live practitioner session + balance top-up), so even subscribers
+          (a live practitioner session + subscription/card rail), so subscribers
           always see a clear paid next step, not only "входит в подписку". */}
       <div className="mb-3 mt-2">
         <p className="soft-eyebrow">рекомендуем</p>

@@ -41,6 +41,14 @@ describe("G13 — credits sells paid products with prices", () => {
     // purchasable products surface the price as the badge headline
     expect(page).toContain("${priceRub} ₽");
   });
+
+  it("Z4 dependency: does not reopen circle or pair through a Premium special case", () => {
+    const page = source("src/app/cabinet/credits/page.tsx");
+
+    expect(page).toContain("plan?.includedProducts.forEach");
+    expect(page).not.toContain('subscriptionProducts.add("circle")');
+    expect(page).not.toContain('subscriptionProducts.add("pair")');
+  });
 });
 
 describe("G15 — billing card faces, top-up, and history", () => {

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { creditExpiryFor } from "@/lib/credit-expiry";
 import { getProductCreditCost } from "@/lib/entitlements";
 
 const root = process.cwd();
@@ -46,5 +47,34 @@ describe("M21 clarity credits", () => {
     expect(share).toContain('status: "pending"');
     expect(share).toContain('source: "referral"');
     expect(share).toContain("meaningful_action_pending_review");
+  });
+});
+
+describe("Y10 Z4 credit expiry windows", () => {
+  const now = new Date("2026-06-05T09:00:00.000Z");
+
+  function daysFromNow(date: Date | null) {
+    if (!date) return null;
+    return Math.round((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+  }
+
+  it("centralizes every credit source expiry window", () => {
+    const periodEnd = new Date("2026-07-01T09:00:00.000Z");
+
+    expect(daysFromNow(creditExpiryFor("daily_practice", now))).toBe(30);
+    expect(daysFromNow(creditExpiryFor("welcome", now))).toBe(14);
+    expect(daysFromNow(creditExpiryFor("mission", now))).toBe(30);
+    expect(daysFromNow(creditExpiryFor("streak", now))).toBe(30);
+    expect(daysFromNow(creditExpiryFor("referral", now))).toBe(60);
+    expect(creditExpiryFor("subscription", now, periodEnd)).toEqual(periodEnd);
+    expect(creditExpiryFor("purchase", now)).toBeNull();
+    expect(creditExpiryFor("admin", now)).toBeNull();
+  });
+
+  it("uses the shared expiry helper for daily-practice credits", () => {
+    const route = source("src/app/api/cabinet/daily-card/route.ts");
+
+    expect(route).toContain("creditExpiryFor");
+    expect(route).not.toContain("setDate(expiresAt.getDate() + 90)");
   });
 });

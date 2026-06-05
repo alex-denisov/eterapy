@@ -4,10 +4,12 @@ import type { Prisma } from "@prisma/client";
 
 import db from "@/lib/db";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
+import { creditExpiryFor } from "@/lib/credit-expiry";
 import { mainUrl } from "@/lib/subdomain";
 import { assessReferralRisk, logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 
 export const REFERRAL_COOKIE = "eterapy_ref";
+export const REFERRAL_REWARD_CREDITS = 5;
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export function createShareToken() {
@@ -256,7 +258,7 @@ export async function markReferralMeaningfulAction(input: {
         riskFlags: risk.riskFlags,
         meaningfulActionAt: now,
         rewardGrantedAt: blockedReason ? null : now,
-        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "pending_credit", credits: blockedReason ? 0 : 1 },
+        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "pending_credit", credits: blockedReason ? 0 : REFERRAL_REWARD_CREDITS },
       },
       update: {
         referredUserId: input.userId,
@@ -269,7 +271,7 @@ export async function markReferralMeaningfulAction(input: {
         deviceHash: fingerprint.deviceHash,
         meaningfulActionAt: now,
         rewardGrantedAt: blockedReason ? existing?.rewardGrantedAt ?? null : existing?.rewardGrantedAt ?? now,
-        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "pending_credit", credits: blockedReason ? 0 : 1 },
+        metadata: { action: input.action, entityId: input.entityId, reward: blockedReason ? "blocked" : "pending_credit", credits: blockedReason ? 0 : REFERRAL_REWARD_CREDITS },
       },
     });
 
@@ -290,13 +292,29 @@ export async function markReferralMeaningfulAction(input: {
     }
 
     if (!blockedReason && !existing?.rewardGrantedAt) {
-      const expiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000);
+      const expiresAt = creditExpiryFor("referral", now);
       await recordClarityCreditEntry(tx, {
-        userId: ownerUserId,
-        amount: 1,
+        userId: input.userId,
+        amount: REFERRAL_REWARD_CREDITS,
         type: "grant",
         source: "referral",
-        sourceEventId: attribution.id,
+        sourceEventId: `referee:${attribution.id}`,
+        status: "confirmed",
+        expiresAt,
+        metadata: {
+          action: input.action,
+          entityId: input.entityId,
+          referrerUserId: ownerUserId,
+          attributionId: attribution.id,
+          reward: "referee_activation",
+        } as Prisma.InputJsonObject,
+      });
+      await recordClarityCreditEntry(tx, {
+        userId: ownerUserId,
+        amount: REFERRAL_REWARD_CREDITS,
+        type: "grant",
+        source: "referral",
+        sourceEventId: `referrer:${attribution.id}`,
         status: "pending",
         expiresAt,
         metadata: {
@@ -336,7 +354,7 @@ export async function clawbackReferralRewardsForUser(input: {
       status: { in: ["REWARD_PENDING", "REWARDED", "REWARD_CONFIRMED"] },
       referrerUserId: { not: null },
     },
-    select: { id: true, referrerUserId: true, riskScore: true, riskFlags: true },
+    select: { id: true, referrerUserId: true, referredUserId: true, riskScore: true, riskFlags: true },
   });
 
   for (const attribution of attributions) {
@@ -351,14 +369,27 @@ export async function clawbackReferralRewardsForUser(input: {
       });
       await recordClarityCreditEntry(tx, {
         userId: attribution.referrerUserId!,
-        amount: -1,
+        amount: -REFERRAL_REWARD_CREDITS,
         type: "clawback",
         source: "referral",
-        sourceEventId: input.sourceEventId ?? attribution.id,
+        sourceEventId: input.sourceEventId ?? `referrer:${attribution.id}`,
         status: "confirmed",
         metadata: {
           reason: input.reason,
           referredUserId: input.referredUserId,
+          attributionId: attribution.id,
+        } as Prisma.InputJsonObject,
+      });
+      await recordClarityCreditEntry(tx, {
+        userId: attribution.referredUserId!,
+        amount: -REFERRAL_REWARD_CREDITS,
+        type: "clawback",
+        source: "referral",
+        sourceEventId: input.sourceEventId ?? `referee:${attribution.id}`,
+        status: "confirmed",
+        metadata: {
+          reason: input.reason,
+          referrerUserId: attribution.referrerUserId,
           attributionId: attribution.id,
         } as Prisma.InputJsonObject,
       });

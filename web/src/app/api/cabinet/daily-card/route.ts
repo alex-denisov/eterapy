@@ -5,6 +5,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { getOrCreateDailyCard, dailyCardBeats, generatePracticeResponseForQuestion } from "@/lib/daily-card";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
+import { creditExpiryFor } from "@/lib/credit-expiry";
 import { notify } from "@/lib/notifications";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { mainUrl } from "@/lib/subdomain";
@@ -111,8 +112,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!existingReward) {
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 90);
+        const expiresAt = creditExpiryFor("daily_practice");
         await recordClarityCreditEntry(tx, {
           userId,
           amount: 1,
@@ -167,8 +167,7 @@ export async function POST(request: NextRequest) {
       });
 
       if (!existingReward) {
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 90);
+        const expiresAt = creditExpiryFor("daily_practice");
         await recordClarityCreditEntry(tx, {
           userId,
           amount: 1,

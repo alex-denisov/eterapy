@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { REFERRAL_REWARD_CREDITS } from "@/lib/share-referral";
 
 const root = process.cwd();
 
@@ -62,5 +63,18 @@ describe("B217 referral and credit anti-fraud", () => {
     expect(referral).toContain('type: "clawback"');
     expect(spendRoute).toContain("getSpendableClarityCreditBalance");
     expect(spendRoute).not.toContain("getClarityCreditBalance");
+  });
+});
+
+describe("Y10 Z4 referral rewards", () => {
+  it("uses a 5/5 credit reward contract for referral grants and clawbacks", () => {
+    const referral = source("src/lib/share-referral.ts");
+
+    expect(REFERRAL_REWARD_CREDITS).toBe(5);
+    expect(referral).toContain("REFERRAL_REWARD_CREDITS");
+    expect(referral).toContain("creditExpiryFor");
+    expect(referral).not.toContain("amount: 1");
+    expect(referral).not.toContain("amount: -1");
+    expect(referral).not.toContain("credits: blockedReason ? 0 : 1");
   });
 });

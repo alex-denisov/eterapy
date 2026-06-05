@@ -4,7 +4,7 @@ import { getProductCreditCost } from "@/lib/entitlements";
 
 export type ClarityCreditStatus = "pending" | "confirmed" | "revoked" | "expired";
 export type ClarityCreditType = "grant" | "spend" | "expire" | "clawback" | "adjustment";
-export type ClarityCreditSource = "referral" | "mission" | "daily_practice" | "purchase" | "subscription" | "admin" | "product";
+export type ClarityCreditSource = "referral" | "mission" | "daily_practice" | "welcome" | "streak" | "purchase" | "subscription" | "admin" | "product";
 
 const ACTIVE_STATUSES: ClarityCreditStatus[] = ["pending", "confirmed"];
 const SPENDABLE_STATUSES: ClarityCreditStatus[] = ["confirmed"];
