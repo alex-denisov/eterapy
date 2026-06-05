@@ -12,6 +12,10 @@ function source(relativePath: string) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
+function repoSource(relativePath: string) {
+  return fs.readFileSync(path.join(root, "..", relativePath), "utf8");
+}
+
 describe("B087/B088 chat analysis product", () => {
   it("wires the ChatAnalysisActions component into the product detail page", () => {
     const page = source("src/app/products/[slug]/page.tsx");
@@ -95,5 +99,32 @@ describe("B087/B088 chat analysis product", () => {
     expect(masked).toContain("[email скрыт]");
     expect(masked).toContain("[ссылка скрыта]");
     expect(masked).toContain("[ник скрыт]");
+  });
+
+  it("Z7 replaces old consent requirements with a stronger privacy notice and PRD wording", () => {
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+    const prd = repoSource("docs/v5-release/spec/05_Functional_PRD.md");
+    const backlogPlan = repoSource("docs/v5-release/spec/09_Backlog_Implementation_Plan.md");
+    const apiContracts = repoSource("docs/v5-release/spec/10_Data_Model_and_API_Contracts.md");
+    const analytics = repoSource("docs/v5-release/spec/07_Analytics_Events_and_KPI.md");
+
+    expect(actions).not.toContain("checkbox");
+    expect(actions).not.toContain("переписка — моя");
+    expect(actions).toContain("Имена заменяются на «Я» и «Собеседник»");
+    expect(actions).toContain("Переписка не хранится дольше 30 дней");
+    expect(actions).toContain("исходник можно удалить");
+    expect(actions).toContain("не приговор другому человеку");
+
+    expect(prd).not.toContain("подтверждает, что имеет право использовать переписку");
+    expect(prd).toContain("имена заменяются на «Я» и «Собеседник»");
+    expect(prd).toContain("исходник можно удалить");
+    expect(prd).toContain("не приговор другому человеку");
+
+    expect(backlogPlan).not.toContain("Приватность / consent");
+    expect(backlogPlan).toContain("Приватность / удаление исходника");
+    expect(apiContracts).not.toContain('"privacyConfirmed": true');
+    expect(apiContracts).toContain('"sourceDeletedAt": "datetime|null"');
+    expect(analytics).not.toContain("chat_analysis_privacy_confirmed");
+    expect(analytics).toContain("chat_analysis_source_deleted");
   });
 });

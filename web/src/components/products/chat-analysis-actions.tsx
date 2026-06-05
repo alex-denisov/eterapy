@@ -194,9 +194,8 @@ export function ChatAnalysisActions() {
   const [tab, setTab] = useState<"input" | "context" | "result">("input");
   const [sourceText, setSourceText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
-  // B330: removed the "Я подтверждаю, что переписка — моя" checkbox. A chat
-  // is by definition between two people, so the original copy was misleading.
-  // Privacy is now conveyed via a soft inline notice + the delete-source
+  // B330/Z7: the old ownership gate was removed because chats are multi-party
+  // by nature. Privacy is conveyed through the inline notice and delete-source
   // affordance after generation.
   const [contact, setContact] = useState<string | null>(null);
   const [emotion, setEmotion] = useState<string | null>(null);
@@ -492,10 +491,7 @@ export function ChatAnalysisActions() {
       {/* tab 1: input — v4.2 design: three affordances + soft privacy notice */}
       {tab === "input" && (
         <div className="soft-card mt-4 p-5" data-testid="chat-analysis-input">
-          {/* B330: replaced the "Я подтверждаю что переписка — моя" checkbox
-              with a soft inline privacy notice. The original copy was
-              misleading (chats are by definition multi-party) and blocked
-              the upload flow. */}
+          {/* B330/Z7: privacy notice replaces the old ownership gate. */}
           <p className="soft-eyebrow mb-3">переписка</p>
           <textarea
             value={sourceText}
@@ -577,9 +573,13 @@ export function ChatAnalysisActions() {
             </ul>
           )}
 
-          <p className="mt-4 flex items-center gap-1.5 text-xs text-[var(--soft-ink-faint)]">
+          <p className="mt-4 flex items-start gap-1.5 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
             <LockKeyhole className="size-3" aria-hidden="true" />
-            Имена автоматически заменяются. Переписка не хранится дольше 30 дней.
+            <span>
+              Имена заменяются на «Я» и «Собеседник». Переписка не хранится дольше 30 дней,
+              исходник можно удалить после разбора. Разбор — про ваши чувства и варианты ответа,
+              не приговор другому человеку.
+            </span>
           </p>
           <Button
             onClick={proceedToContext}
