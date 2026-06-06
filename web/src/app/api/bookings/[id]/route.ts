@@ -11,6 +11,7 @@ import {
 import { notify } from "@/lib/notifications";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { log } from "@/lib/logger";
+import { promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
 
 function fmtSlot(slot: { startAt: Date; endAt: Date } | null) {
   if (!slot) return "время уточняется";
@@ -82,6 +83,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Освобождаем слот при отмене
   if (status === "CANCELLED" && booking.slotId) {
     await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
+    await promoteWaitlistForReleasedSlot({ slotId: booking.slotId, actorUserId: session.user!.id })
+      .catch((e: unknown) => log.error("booking.waitlist_promotion_failed", { bookingId: id, slotId: booking.slotId, err: e }));
   }
 
   const emailData = {

@@ -14,8 +14,10 @@ interface PriceRate {
 }
 
 interface AvailableSlot {
+  slotId?: string;
   startAt: string;
   endAt: string;
+  earlyAccess?: boolean;
 }
 
 const DURATION_LABELS: Record<number, string> = {
@@ -147,6 +149,7 @@ export function SlotPicker({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           practitionerId,
+          slotId: selectedSlot.slotId,
           slotStartAt: selectedSlot.startAt,
           slotEndAt: selectedSlot.endAt,
           durationMin: selectedDuration,
@@ -352,7 +355,10 @@ export function SlotPicker({
                           ? "border-amber-400/40 text-foreground hover:border-amber-400"
                           : "border-border/30 text-foreground hover:border-primary/40"
                       }`}>
-                      {formatTime(slot.startAt)}
+                      <span>{formatTime(slot.startAt)}</span>
+                      {slot.earlyAccess && (
+                        <span className="ml-1 align-middle text-[10px] font-sans text-primary">Premium</span>
+                      )}
                       {isSoon && <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400" />}
                     </button>
                   );
@@ -373,6 +379,7 @@ export function SlotPicker({
                 {formatTime(selectedSlot.startAt)}
                 {" · "}
                 {DURATION_LABELS[selectedRate.durationMin]}
+                {selectedSlot.earlyAccess ? " · ранний доступ Premium" : ""}
               </p>
             </div>
             <p className="text-lg font-bold text-primary">{selectedRate.priceRub.toLocaleString("ru")} ₽</p>

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { getUserActivePlan } from "@/lib/entitlements";
+import { canAccessPrioritySlot, isEarlyAccessSlot } from "@/lib/priority-booking";
+import { trackServerEvent } from "@/lib/analytics";
 
 /**
  * GET /api/slots/available?practitionerId=xxx&date=2026-04-07&durationMin=60
@@ -16,6 +20,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "practitionerId и date обязательны" }, { status: 400 });
   }
 
+  const session = await auth().catch(() => null);
+  const activePlan = session?.user?.id ? await getUserActivePlan(session.user.id).catch(() => null) : null;
   const date = new Date(dateStr + "T00:00:00");
   const dayOfWeek = date.getDay(); // 0=вс, 1=пн...
 
@@ -57,7 +63,7 @@ export async function GET(req: NextRequest) {
   const dayStartFull = new Date(dateStr + "T00:00:00");
   const dayEndFull   = new Date(dateStr + "T23:59:59");
 
-  const [blocked, bookedSlots, unavailableSlots] = await Promise.all([
+  const [blocked, bookedSlots, unavailableSlots, persistedAvailableSlots] = await Promise.all([
     db.blockedSlot.findMany({
       where: { practitionerId, startAt: { lte: dayEndFull }, endAt: { gte: dayStartFull } },
     }),
@@ -78,6 +84,13 @@ export async function GET(req: NextRequest) {
         startAt: { gte: dayStartFull, lte: dayEndFull },
       },
     }),
+    db.timeSlot.findMany({
+      where: {
+        practitionerId,
+        available: true,
+        startAt: { gte: dayStartFull, lte: dayEndFull },
+      },
+    }),
   ]);
 
   const isOverlapping = (s: Date, e: Date, blockS: Date, blockE: Date) =>
@@ -94,13 +107,36 @@ export async function GET(req: NextRequest) {
     if (bookedSlots.some(b => b.slot && isOverlapping(slot.startAt, slot.endAt, b.slot.startAt, b.slot.endAt))) return false;
     // Помечен как unavailable ( TimeSlot.available === false )
     if (unavailableSlots.some(u => isOverlapping(slot.startAt, slot.endAt, u.startAt, u.endAt))) return false;
+    // Persisted slots with early-access gates must not leak through generated availability.
+    const persistedSlot = persistedAvailableSlots.find(u => isOverlapping(slot.startAt, slot.endAt, u.startAt, u.endAt));
+    if (persistedSlot && !canAccessPrioritySlot(persistedSlot, activePlan, now)) return false;
     return true;
   });
 
-  return NextResponse.json({
-    slots: available.map(s => ({
+  const responseSlots = available.map(s => {
+    const persistedSlot = persistedAvailableSlots.find(u => isOverlapping(s.startAt, s.endAt, u.startAt, u.endAt));
+    return {
+      slotId: persistedSlot?.id,
       startAt: s.startAt.toISOString(),
-      endAt:   s.endAt.toISOString(),
-    })),
+      endAt: s.endAt.toISOString(),
+      earlyAccess: persistedSlot ? isEarlyAccessSlot(persistedSlot, activePlan, now) : false,
+    };
+  });
+
+  if (session?.user?.id && responseSlots.some((slot) => slot.earlyAccess)) {
+    trackServerEvent(db, {
+      event: "early_access_slot_viewed",
+      userId: session.user.id,
+      surface: "booking",
+      properties: {
+        practitioner_id: practitionerId,
+        date: dateStr,
+        plan: activePlan?.key ?? "free",
+      },
+    });
+  }
+
+  return NextResponse.json({
+    slots: responseSlots,
   });
 }

@@ -22,6 +22,8 @@ import { finalizeByocBookingAttribution, resolveByocBookingCommission } from "@/
 import { trackServerEvent } from "@/lib/analytics";
 import { log } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
+import { getUserActivePlan } from "@/lib/entitlements";
+import { bookingPriorityForPlan, canAccessPrioritySlot, promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -138,6 +140,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Профиль практика ещё не прошёл проверку" }, { status: 409 });
     }
 
+    const activePlan = await getUserActivePlan(session.user.id).catch(() => null);
+    const bookingPriority = bookingPriorityForPlan(activePlan);
+
     const fingerprint = requestFingerprint(req);
     const bookingRisk = await db.$transaction((tx) => assessBookingRisk({
       tx,
@@ -177,48 +182,75 @@ export async function POST(req: NextRequest) {
       if (!slot || !slot.available) {
         return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
       }
+      if (!canAccessPrioritySlot(slot, activePlan)) {
+        return NextResponse.json({ error: "Этот слот раннего доступа доступен только Premium" }, { status: 403 });
+      }
       await db.timeSlot.update({ where: { id: slotId }, data: { available: false } });
       resolvedSlotId = slotId;
     }
     // Вариант 2: клиент выбрал сгенерированный слот — создаём TimeSlot на сервере
     else if (slotStartAt && slotEndAt) {
-      // Проверяем, нет ли уже активного бронирования на это время
-      const existingBooking = await db.booking.findFirst({
+      const requestedStartAt = new Date(slotStartAt);
+      const requestedEndAt = new Date(slotEndAt);
+      const overlappingAvailableSlot = await db.timeSlot.findFirst({
         where: {
           practitionerId,
-          status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
-          slot: {
-            startAt: { lte: new Date(slotEndAt) },
-            endAt: { gte: new Date(slotStartAt) },
+          available: true,
+          startAt: { lt: requestedEndAt },
+          endAt: { gt: requestedStartAt },
+        },
+      });
+      if (overlappingAvailableSlot) {
+        if (!canAccessPrioritySlot(overlappingAvailableSlot, activePlan)) {
+          return NextResponse.json({ error: "Этот слот раннего доступа доступен только Premium" }, { status: 403 });
+        }
+        if (
+          overlappingAvailableSlot.startAt.getTime() !== requestedStartAt.getTime()
+          || overlappingAvailableSlot.endAt.getTime() !== requestedEndAt.getTime()
+        ) {
+          return NextResponse.json({ error: "Слот пересекается с другим окном — выберите другое время" }, { status: 409 });
+        }
+        await db.timeSlot.update({ where: { id: overlappingAvailableSlot.id }, data: { available: false } });
+        resolvedSlotId = overlappingAvailableSlot.id;
+      } else {
+        // Проверяем, нет ли уже активного бронирования на это время
+        const existingBooking = await db.booking.findFirst({
+          where: {
+            practitionerId,
+            status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
+            slot: {
+              startAt: { lte: requestedEndAt },
+              endAt: { gte: requestedStartAt },
+            },
           },
-        },
-      });
-      if (existingBooking) {
-        return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
-      }
+        });
+        if (existingBooking) {
+          return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
+        }
 
-      // Также проверяем, нет ли уже занятого TimeSlot на это время
-      const existingSlot = await db.timeSlot.findFirst({
-        where: {
-          practitionerId,
-          available: false,
-          startAt: { lte: new Date(slotEndAt) },
-          endAt: { gte: new Date(slotStartAt) },
-        },
-      });
-      if (existingSlot) {
-        return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
-      }
+        // Также проверяем, нет ли уже занятого TimeSlot на это время
+        const existingSlot = await db.timeSlot.findFirst({
+          where: {
+            practitionerId,
+            available: false,
+            startAt: { lte: requestedEndAt },
+            endAt: { gte: requestedStartAt },
+          },
+        });
+        if (existingSlot) {
+          return NextResponse.json({ error: "Слот уже занят — выберите другое время" }, { status: 409 });
+        }
 
-      const createdSlot = await db.timeSlot.create({
-        data: {
-          practitionerId,
-          startAt: new Date(slotStartAt),
-          endAt: new Date(slotEndAt),
-          available: false, // сразу резервируем
-        },
-      });
-      resolvedSlotId = createdSlot.id;
+        const createdSlot = await db.timeSlot.create({
+          data: {
+            practitionerId,
+            startAt: requestedStartAt,
+            endAt: requestedEndAt,
+            available: false, // сразу резервируем
+          },
+        });
+        resolvedSlotId = createdSlot.id;
+      }
     }
 
     // Цена: priceOverride (из тарифной сетки) или базовая цена практика
@@ -237,6 +269,7 @@ export async function POST(req: NextRequest) {
           source: byocCommission.source,
           referrerPractitionerId: byocCommission.referrerPractitionerId,
           commissionPercentApplied: byocCommission.commissionPercentApplied,
+          priority: bookingPriority,
           ...fingerprint,
           riskScore: bookingRisk.riskScore,
           riskFlags: Array.from(new Set([...bookingRisk.riskFlags, ...byocCommission.riskFlags])),
@@ -277,6 +310,8 @@ export async function POST(req: NextRequest) {
       properties: {
         practitioner_id: practitionerId,
         price_rub: String(priceRub),
+        priority: String(bookingPriority),
+        plan: activePlan?.key ?? "free",
       },
     });
 
@@ -457,6 +492,8 @@ export async function PATCH(req: NextRequest) {
     // Освобождаем слот если бронирование отменено
     if (status === "CANCELLED" && booking.slotId) {
       await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
+      await promoteWaitlistForReleasedSlot({ slotId: booking.slotId, actorUserId: session.user.id })
+        .catch((e: unknown) => log.error("bookings.patch.waitlist_promotion_failed", { bookingId, slotId: booking.slotId, err: e }));
     }
     // Z1a: отменяем карт-холд при отмене брони (если ещё не захвачен).
     if (status === "CANCELLED") {

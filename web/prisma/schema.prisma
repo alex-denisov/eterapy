@@ -85,6 +85,7 @@ model User {
   byocInviteVisits       PractitionerInviteVisit[]
   channelAttributions    ChannelAttribution[]
   supportConversations   SupportConversation[]
+  bookingWaitlistEntries BookingWaitlistEntry[]
 
   @@map("users")
 }
@@ -151,6 +152,7 @@ model Practitioner {
   byocClientLinks ClientPractitionerLink[]
   clientAttributions ClientAttribution[] @relation("ClientAttributionPractitioner")
   referredBookings Booking[]            @relation("BookingReferrerPractitioner")
+  bookingWaitlistEntries BookingWaitlistEntry[]
 
   @@map("practitioners")
 }
@@ -228,10 +230,14 @@ model TimeSlot {
   startAt        DateTime
   endAt          DateTime
   available      Boolean      @default(true)
+  visibleFrom    DateTime?    @map("visible_from")
+  earlyAccessFrom DateTime?   @map("early_access_from")
 
   booking        Booking?
+  waitlistEntries BookingWaitlistEntry[]
 
   @@index([practitionerId, startAt])
+  @@index([available, visibleFrom, earlyAccessFrom])
   @@map("time_slots")
 }
 
@@ -252,6 +258,7 @@ model Booking {
   referrerPractitionerId String?
   referrerPractitioner   Practitioner? @relation("BookingReferrerPractitioner", fields: [referrerPractitionerId], references: [id])
   commissionPercentApplied Int?
+  priority       Int           @default(0)
   paymentId      String?       @unique  // ЮKassa / Stripe payment ID
   paymentMethod  String?       // "yukassa" | "stripe"
   ipHash         String?       @map("ip_hash")
@@ -278,6 +285,7 @@ model Booking {
   complaints     Complaint[]
   payment        Payment?
   payouts        Payout[]
+  promotedWaitlistEntries BookingWaitlistEntry[] @relation("WaitlistPromotedBooking")
 
   @@index([clientId])
   @@index([practitionerId])
@@ -286,6 +294,7 @@ model Booking {
   @@index([ipHash, createdAt])
   @@index([deviceHash, createdAt])
   @@index([riskScore, createdAt])
+  @@index([priority, createdAt])
   @@map("bookings")
 }
 
@@ -303,6 +312,40 @@ enum BookingStatus {
   DISPUTED     // Жалоба подана
   REFUNDED     // Возврат
   EXPIRED      // Пропущена (не явился)
+}
+
+enum WaitlistStatus {
+  ACTIVE
+  PROMOTED
+  CANCELLED
+  EXPIRED
+}
+
+model BookingWaitlistEntry {
+  id             String         @id @default(cuid())
+  clientId       String
+  client         User           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  practitionerId String
+  practitioner   Practitioner   @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  slotId         String?
+  slot           TimeSlot?      @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  startAt        DateTime       @map("start_at")
+  endAt          DateTime       @map("end_at")
+  status         WaitlistStatus @default(ACTIVE)
+  priority       Int            @default(0)
+  planKey        String?        @map("plan_key")
+  promotedBookingId String?     @map("promoted_booking_id")
+  promotedBooking Booking?      @relation("WaitlistPromotedBooking", fields: [promotedBookingId], references: [id], onDelete: SetNull)
+  promotedAt     DateTime?      @map("promoted_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@unique([clientId, practitionerId, startAt, endAt, status], map: "booking_waitlist_client_window_status_key")
+  @@index([clientId, status, startAt])
+  @@index([practitionerId, status, startAt, priority, createdAt])
+  @@index([slotId, status, priority, createdAt])
+  @@index([promotedBookingId])
+  @@map("booking_waitlist_entries")
 }
 
 // ─── Reviews ──────────────────────────────────────────────────────────────────
