@@ -4,6 +4,7 @@ import { notify } from "@/lib/notifications";
 import type { JobHandlers, JobHandler } from "@/lib/job-worker";
 import type { JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
+import { syncPractitionerCommissions } from "@/lib/practitioner-commission";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 const CLEANUP_GRACE_DAYS = 10;
@@ -256,7 +257,18 @@ export async function runBookingRemindersJob(job: Job): Promise<JobResult> {
   return result;
 }
 
+export async function runPractitionerCommissionSyncJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const result = await syncPractitionerCommissions(db, now);
+  log.info("cron-practitioner-commission-sync-complete", {
+    jobId: job.id,
+    synced: result.synced,
+  });
+  return { ok: true, synced: result.synced };
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
   "cron.booking-reminders": runBookingRemindersJob as JobHandler,
+  "cron.practitioner-sync": runPractitionerCommissionSyncJob as JobHandler,
 };

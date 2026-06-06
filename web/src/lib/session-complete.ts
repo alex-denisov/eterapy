@@ -69,6 +69,7 @@ export async function completeBookingAtSessionEnd(
       id: true,
       status: true,
       priceRub: true,
+      commissionPercentApplied: true,
       riskScore: true,
       riskFlags: true,
       startedAt: true,
@@ -100,7 +101,7 @@ export async function completeBookingAtSessionEnd(
     }
   }
 
-  const commissionPercent = booking.practitioner.commissionPercent ?? 25;
+  const commissionPercent = booking.commissionPercentApplied ?? booking.practitioner.commissionPercent ?? 35;
   const grossKopecks = booking.priceRub * 100;
   const amountKopecks = Math.round(grossKopecks * (1 - commissionPercent / 100));
 
@@ -117,7 +118,7 @@ export async function completeBookingAtSessionEnd(
   const payoutRow = await db.$transaction(async (tx) => {
     const flip = await tx.booking.updateMany({
       where: { id: bookingId, status: "IN_PROGRESS" },
-      data: { status: "COMPLETED", endedAt: new Date() },
+      data: { status: "COMPLETED", endedAt: new Date(), commissionPercentApplied: commissionPercent },
     });
     if (flip.count === 0) {
       return null;

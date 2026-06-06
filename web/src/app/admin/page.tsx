@@ -161,6 +161,7 @@ async function getStats(canViewBusiness: boolean) {
       select: {
         priceRub: true,
         updatedAt: true,
+        commissionPercentApplied: true,
         practitioner: { select: { commissionPercent: true } },
       },
     }),
@@ -228,7 +229,7 @@ async function getStats(canViewBusiness: boolean) {
   const estimatedProductRevenueRub = productRevenue.reduce((sum, row) => sum + row.estimateRub, 0);
   const sessionGrossAllRub = financeBookings.reduce((sum, booking) => sum + booking.priceRub, 0);
   const sessionPlatformFeeAllRub = financeBookings.reduce((sum, booking) => {
-    const commissionPercent = booking.practitioner.commissionPercent ?? 25;
+    const commissionPercent = booking.commissionPercentApplied ?? booking.practitioner.commissionPercent ?? 35;
     return sum + Math.round((booking.priceRub * commissionPercent) / 100);
   }, 0);
   const sessionGross30dRub = financeBookings
@@ -237,7 +238,7 @@ async function getStats(canViewBusiness: boolean) {
   const sessionPlatformFee30dRub = financeBookings
     .filter((booking) => booking.updatedAt >= thirtyDaysAgo)
     .reduce((sum, booking) => {
-      const commissionPercent = booking.practitioner.commissionPercent ?? 25;
+      const commissionPercent = booking.commissionPercentApplied ?? booking.practitioner.commissionPercent ?? 35;
       return sum + Math.round((booking.priceRub * commissionPercent) / 100);
     }, 0);
   const payoutAmountByStatus = new Map(

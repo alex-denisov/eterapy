@@ -478,7 +478,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                             type="number"
                             min={0}
                             max={100}
-                            value={commissionDraft[practitioner.id] ?? String(practitioner.commissionPercent ?? 25)}
+	                            value={commissionDraft[practitioner.id] ?? String(practitioner.commissionPercent ?? 35)}
                             onChange={(event) => setCommissionDraft((current) => ({ ...current, [practitioner.id]: event.target.value }))}
                             className="soft-admin-table-filter mt-0 h-8 w-16 min-w-16"
                             aria-label={`Комиссия ${practitioner.user.email}`}

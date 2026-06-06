@@ -14,6 +14,11 @@ export const PRODUCT_CRONS = [
     purpose: "Удаление soft-deleted клиентов после 10 дней grace + истёкших телеграм-токенов",
     cadence: "1 раз в сутки (00:00)",
   },
+  {
+    path: "/api/cron/practitioner-sync",
+    purpose: "Синхронизация комиссии практиков при смене или истечении Pro/Pro+",
+    cadence: "1 раз в сутки",
+  },
 ];
 
 export interface SystemStats {

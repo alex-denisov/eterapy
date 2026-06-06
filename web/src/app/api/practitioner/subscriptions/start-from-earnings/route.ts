@@ -6,6 +6,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { getSubscriptionPlan } from "@/lib/entitlements";
 import { log, serializeError } from "@/lib/logger";
 import { computePractitionerBalance } from "@/lib/practitioner-balance";
+import { syncPractitionerCommission } from "@/lib/practitioner-commission";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 /**
@@ -118,6 +119,8 @@ export async function POST(request: NextRequest) {
             },
             select: { id: true, planKey: true, currentPeriodEnd: true, status: true },
           });
+
+      await syncPractitionerCommission(practitioner.id, tx);
 
       return { ok: true as const, transactionId: transaction.id, subscription };
     });

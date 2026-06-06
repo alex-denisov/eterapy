@@ -34,6 +34,6 @@ export async function GET() {
     currentBalanceRub: currentBalanceRub.toFixed(2),
     pendingPayoutKopecks: Math.max(0, balance?.pendingPayout ?? 0) * 100,
     accruedNetKopecks: Math.max(0, balance?.accruedNet ?? 0) * 100,
-    commissionPercent: balance?.commissionPercent ?? 25,
-  });
-}
+	    commissionPercent: balance?.commissionPercent ?? 35,
+	  });
+	}

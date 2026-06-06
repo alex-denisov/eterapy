@@ -14,7 +14,7 @@
  * complaint exists on the booking — see backlog 11.C.2/3) reserve money
  * against the practitioner balance until the moderator resolves the dispute.
  *
- * `commissionPercent` defaults to 25% when not set (see Practitioner schema).
+ * `commissionPercent` defaults to 35% when not set (see Practitioner schema).
  */
 
 import db from "@/lib/db";
@@ -48,7 +48,7 @@ export async function computePractitionerBalances(
     }),
     db.booking.findMany({
       where: { practitionerId: { in: practitionerIds }, status: "COMPLETED" },
-      select: { practitionerId: true, priceRub: true },
+      select: { practitionerId: true, priceRub: true, commissionPercentApplied: true },
     }),
     db.payout.findMany({
       where: { practitionerId: { in: practitionerIds } },
@@ -64,17 +64,49 @@ export async function computePractitionerBalances(
     : [];
 
   const result = new Map<string, PractitionerBalance>();
+  const bookingsByPractitioner = new Map<string, typeof bookings>();
+  const payoutsByPractitioner = new Map<string, typeof payouts>();
+  const internalChargesByUser = new Map<string, number>();
+
+  for (const booking of bookings) {
+    const list = bookingsByPractitioner.get(booking.practitionerId) ?? [];
+    list.push(booking);
+    bookingsByPractitioner.set(booking.practitionerId, list);
+  }
+
+  for (const payout of payouts) {
+    const list = payoutsByPractitioner.get(payout.practitionerId) ?? [];
+    list.push(payout);
+    payoutsByPractitioner.set(payout.practitionerId, list);
+  }
+
+  for (const transaction of internalChargeTransactions) {
+    const metadata = getBillingTransactionMetadata(transaction);
+    if (
+      metadata.purchaseKind === "subscription"
+      && typeof metadata.planKey === "string"
+      && metadata.planKey.startsWith("practitioner_pro")
+      && metadata.checkoutSource === "practitioner_earnings_balance"
+    ) {
+      internalChargesByUser.set(
+        transaction.userId,
+        (internalChargesByUser.get(transaction.userId) ?? 0) + Math.abs(transaction.amount),
+      );
+    }
+  }
 
   for (const p of practitioners) {
-    const commissionPercent = p.commissionPercent ?? 25;
-    const commission = commissionPercent / 100;
+    const commissionPercent = p.commissionPercent ?? 35;
 
-    const myBookings = bookings.filter(b => b.practitionerId === p.id);
+    const myBookings = bookingsByPractitioner.get(p.id) ?? [];
     const totalRevenue = myBookings.reduce((s, b) => s + b.priceRub, 0);
-    const totalFee = Math.round(totalRevenue * commission);
+    const totalFee = myBookings.reduce((sum, booking) => {
+      const applied = booking.commissionPercentApplied ?? commissionPercent;
+      return sum + Math.round(booking.priceRub * (applied / 100));
+    }, 0);
     const accruedNet = totalRevenue - totalFee;
 
-    const myPayouts = payouts.filter(x => x.practitionerId === p.id);
+    const myPayouts = payoutsByPractitioner.get(p.id) ?? [];
     const paidKopecks = myPayouts
       .filter(x => x.status === "DONE")
       .reduce((s, x) => s + x.amountKopecks, 0);
@@ -84,18 +116,7 @@ export async function computePractitionerBalances(
 
     const paidOut = Math.round(paidKopecks / 100);
     const pendingPayout = Math.round(pendingKopecks / 100);
-    const internalCharges = Math.round(
-      internalChargeTransactions
-        .filter((transaction) => {
-          if (transaction.userId !== p.userId) return false;
-          const metadata = getBillingTransactionMetadata(transaction);
-          return metadata.purchaseKind === "subscription"
-            && typeof metadata.planKey === "string"
-            && metadata.planKey.startsWith("practitioner_pro")
-            && metadata.checkoutSource === "practitioner_earnings_balance";
-        })
-        .reduce((sum, transaction) => sum + Math.abs(transaction.amount), 0) / 100,
-    );
+    const internalCharges = Math.round((internalChargesByUser.get(p.userId) ?? 0) / 100);
     const currentBalance = accruedNet - paidOut - pendingPayout - internalCharges;
 
     result.set(p.id, {

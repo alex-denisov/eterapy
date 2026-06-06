@@ -1,5 +1,6 @@
 import type { Prisma, Transaction } from "@prisma/client";
 import db from "@/lib/db";
+import { syncPractitionerCommissionForUser } from "@/lib/practitioner-commission";
 import { type V5ProductSlug } from "@/lib/v5-products";
 
 export type BundleProductKey = "full-question";
@@ -692,6 +693,9 @@ export async function grantEntitlementForTransaction(
       planKey: metadata.planKey,
       expiresAt: currentPeriodEnd,
     });
+    if (metadata.planKey.startsWith("practitioner_pro")) {
+      await syncPractitionerCommissionForUser(transaction.userId, tx, now);
+    }
     return { kind: "subscription" as const, planKey: metadata.planKey };
   }
 
@@ -790,6 +794,9 @@ export async function revokeEntitlementsForTransaction(
         } as Prisma.InputJsonObject,
       },
     });
+    if (metadata.planKey.startsWith("practitioner_pro")) {
+      await syncPractitionerCommissionForUser(transaction.userId, tx);
+    }
   }
 
   let shouldRecordRefund = metadata.purchaseKind === "product" || metadata.purchaseKind === "subscription";

@@ -34,8 +34,7 @@ export default async function PractitionerEarningsPage() {
   });
   if (!practitioner) redirect("/cabinet/practitioner");
 
-  const commissionPercent = practitioner.commissionPercent ?? 25;
-  const commission = commissionPercent / 100;
+  const commissionPercent = practitioner.commissionPercent ?? 35;
 
   const [completedBookings, payouts] = await Promise.all([
     db.booking.findMany({
@@ -49,10 +48,15 @@ export default async function PractitionerEarningsPage() {
     }),
   ]);
 
-  const netOf = (rub: number) => rub - Math.round(rub * commission);
+  const bookingCommission = (booking: { commissionPercentApplied: number | null }) =>
+    booking.commissionPercentApplied ?? commissionPercent;
+  const netOf = (rub: number, appliedCommissionPercent = commissionPercent) =>
+    rub - Math.round(rub * (appliedCommissionPercent / 100));
 
   const totalRevenue = completedBookings.reduce((s, b) => s + b.priceRub, 0);
-  const totalFee = Math.round(totalRevenue * commission);
+  const totalFee = completedBookings.reduce((sum, booking) => (
+    sum + Math.round(booking.priceRub * (bookingCommission(booking) / 100))
+  ), 0);
   const accruedNet = totalRevenue - totalFee;
 
   const paidOutKopecks = payouts
@@ -85,8 +89,9 @@ export default async function PractitionerEarningsPage() {
   const monthKey = monthFormatter.format(now);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthBookings = completedBookings.filter((b) => new Date(b.createdAt) >= startOfMonth);
-  const monthRevenue = monthBookings.reduce((s, b) => s + b.priceRub, 0);
-  const monthNet = monthRevenue - Math.round(monthRevenue * commission);
+  const monthNet = monthBookings.reduce((sum, booking) => (
+    sum + netOf(booking.priceRub, bookingCommission(booking))
+  ), 0);
 
   // Группировка по месяцам
   const byMonth: Record<string, { revenue: number; count: number; net: number }> = {};
@@ -95,7 +100,7 @@ export default async function PractitionerEarningsPage() {
     if (!byMonth[key]) byMonth[key] = { revenue: 0, count: 0, net: 0 };
     byMonth[key].revenue += b.priceRub;
     byMonth[key].count += 1;
-    byMonth[key].net += netOf(b.priceRub);
+    byMonth[key].net += netOf(b.priceRub, bookingCommission(b));
   }
 
   // Движение средств: зачисления (сессии) + списания (выплаты)
@@ -104,9 +109,9 @@ export default async function PractitionerEarningsPage() {
       id: `b-${b.id}`,
       kind: "earning",
       date: new Date(b.createdAt),
-      amountRub: netOf(b.priceRub),
+      amountRub: netOf(b.priceRub, bookingCommission(b)),
       label: `Сессия · ${b.client.name}`,
-      sublabel: `${b.priceRub.toLocaleString("ru")} ₽ − ${commissionPercent}% комиссия`,
+      sublabel: `${b.priceRub.toLocaleString("ru")} ₽ − ${bookingCommission(b)}% комиссия`,
       status: "COMPLETED",
     })),
     ...payouts.map<Movement>((p) => {
@@ -119,6 +124,7 @@ export default async function PractitionerEarningsPage() {
       };
       const netRub = Math.round(p.amountKopecks / 100);
       // Восстанавливаем gross (priceRub до вычета комиссии): net = price * (1 - c/100) ⇒ price = net / (1 - c/100)
+      const commission = commissionPercent / 100;
       const grossRub = commission < 1 ? Math.round(netRub / (1 - commission)) : netRub;
       const feeRub = grossRub - netRub;
       return {
@@ -160,7 +166,7 @@ export default async function PractitionerEarningsPage() {
                   {currentBalance.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  Оборот {totalRevenue.toLocaleString("ru")} ₽ − комиссия {totalFee.toLocaleString("ru")} ₽ ({commissionPercent}%) = {accruedNet.toLocaleString("ru")} ₽ чистыми.
+                  Оборот {totalRevenue.toLocaleString("ru")} ₽ − комиссия {totalFee.toLocaleString("ru")} ₽ по ставкам завершённых сессий = {accruedNet.toLocaleString("ru")} ₽ чистыми.
                   {paidOut > 0 && ` Выплачено ${paidOut.toLocaleString("ru")} ₽.`}
                   {pendingPayout > 0 && ` В обработке ${pendingPayout.toLocaleString("ru")} ₽.`}
                   {internalCharges > 0 && ` Списано на подписку практика ${internalCharges.toLocaleString("ru")} ₽.`}
@@ -203,7 +209,7 @@ export default async function PractitionerEarningsPage() {
           { label: monthKey, value: `${monthNet.toLocaleString("ru")} ₽`, sub: `${monthBookings.length} сессий`, color: "text-foreground" },
           { label: "Всего заработано", value: `${accruedNet.toLocaleString("ru")} ₽`, sub: `${completedBookings.length} сессий`, color: "text-foreground" },
           { label: "Уже выплачено", value: `${paidOut.toLocaleString("ru")} ₽`, sub: `${payouts.filter((p) => p.status === "DONE").length} выплат`, color: "text-[var(--soft-ink-soft)]" },
-          { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: `${commissionPercent}% от оборота`, color: "text-[var(--soft-ink-soft)]" },
+          { label: "Комиссия платформы", value: `${totalFee.toLocaleString("ru")} ₽`, sub: "по ставкам сессий", color: "text-[var(--soft-ink-soft)]" },
         ].map((s) => (
           <div key={s.label} className="soft-card">
             <div className="p-4">

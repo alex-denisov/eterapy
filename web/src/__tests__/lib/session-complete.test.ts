@@ -59,6 +59,7 @@ function bookingFixture(overrides: Partial<{
   startedAt: Date | null;
   slot: { startAt: Date; endAt: Date } | null;
   commissionPercent: number;
+  commissionPercentApplied: number | null;
   complaints: { id: string; status: string }[];
   practitionerUserId: string;
   riskScore: number;
@@ -74,8 +75,9 @@ function bookingFixture(overrides: Partial<{
     practitioner: {
       id: "p1",
       userId: overrides.practitionerUserId ?? "uPrac",
-      commissionPercent: overrides.commissionPercent ?? 25,
+      commissionPercent: overrides.commissionPercent ?? 35,
     },
+    commissionPercentApplied: overrides.commissionPercentApplied ?? null,
     slot:
       overrides.slot === undefined
         ? { startAt: new Date(NOW - 60 * 60 * 1000), endAt: new Date(NOW) }
@@ -102,7 +104,7 @@ describe("completeBookingAtSessionEnd", () => {
     mockDb.practitioner.update.mockResolvedValueOnce({});
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po1",
-      amountKopecks: 225_000,
+      amountKopecks: 195_000,
       status: "PENDING",
     });
 
@@ -113,14 +115,14 @@ describe("completeBookingAtSessionEnd", () => {
 
     expect(out).toEqual({
       status: "completed",
-      payout: { id: "po1", amountKopecks: 225_000, status: PAYOUT_STATUS_PENDING },
+      payout: { id: "po1", amountKopecks: 195_000, status: PAYOUT_STATUS_PENDING },
     });
-    // priceRub 3000 * 100 = 300_000 kopecks; minus 25% commission = 225_000.
+    // priceRub 3000 * 100 = 300_000 kopecks; minus 35% commission = 195_000.
     expect(mockDb.payout.create).toHaveBeenCalledWith({
       data: {
         practitionerId: "p1",
         bookingId: "b1",
-        amountKopecks: 225_000,
+        amountKopecks: 195_000,
         status: PAYOUT_STATUS_PENDING,
         initiatedBy: "uAdmin",
         availableAt: expect.any(Date),
@@ -146,7 +148,7 @@ describe("completeBookingAtSessionEnd", () => {
     mockDb.practitioner.update.mockResolvedValueOnce({});
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po1",
-      amountKopecks: 225_000,
+      amountKopecks: 195_000,
       status: PAYOUT_STATUS_HELD,
     });
 
@@ -159,7 +161,7 @@ describe("completeBookingAtSessionEnd", () => {
       status: "completed",
       payout: {
         id: "po1",
-        amountKopecks: 225_000,
+        amountKopecks: 195_000,
         status: PAYOUT_STATUS_HELD,
         holdReason: "open_complaint",
       },
@@ -178,7 +180,7 @@ describe("completeBookingAtSessionEnd", () => {
     mockDb.practitioner.update.mockResolvedValueOnce({});
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po2",
-      amountKopecks: 225_000,
+      amountKopecks: 195_000,
       status: PAYOUT_STATUS_HELD,
     });
 
@@ -203,7 +205,7 @@ describe("completeBookingAtSessionEnd", () => {
     mockDb.practitioner.update.mockResolvedValueOnce({});
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po3",
-      amountKopecks: 225_000,
+      amountKopecks: 195_000,
       status: PAYOUT_STATUS_PENDING,
     });
 
@@ -254,7 +256,7 @@ describe("completeBookingAtSessionEnd", () => {
     mockDb.practitioner.update.mockResolvedValueOnce({});
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po4",
-      amountKopecks: 225_000,
+      amountKopecks: 195_000,
       status: PAYOUT_STATUS_PENDING,
     });
 
@@ -307,6 +309,26 @@ describe("completeBookingAtSessionEnd", () => {
     // 1234 * 100 = 123_400 kopecks; * (1 - 0.17) = 102_422 kopecks.
     expect(mockDb.payout.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ amountKopecks: 102_422 }),
+      select: expect.any(Object),
+    });
+  });
+
+  it("uses the booking commission snapshot over the live practitioner rate", async () => {
+    mockDb.booking.findUnique.mockResolvedValueOnce(
+      bookingFixture({ priceRub: 10_000, commissionPercent: 35, commissionPercentApplied: 30 }),
+    );
+    mockDb.booking.updateMany.mockResolvedValueOnce({ count: 1 });
+    mockDb.practitioner.update.mockResolvedValueOnce({});
+    mockDb.payout.create.mockResolvedValueOnce({
+      id: "po6",
+      amountKopecks: 700_000,
+      status: PAYOUT_STATUS_PENDING,
+    });
+
+    await completeBookingAtSessionEnd("b1", { userId: "u", isPractitioner: false });
+
+    expect(mockDb.payout.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ amountKopecks: 700_000 }),
       select: expect.any(Object),
     });
   });

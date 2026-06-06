@@ -119,6 +119,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       bio?: string;
       experience?: string;
       commissionPercent?: number;
+      commissionOverride?: number;
+      commissionSource?: string;
+      commissionSyncedAt?: Date;
       categories?: string[];
       directions?: string[];
       specialties?: Specialty[];
@@ -129,7 +132,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (title !== undefined) updateData.title = title;
     if (bio !== undefined) updateData.bio = bio;
     if (experience !== undefined) updateData.experience = experience;
-    if (commissionPercent !== undefined) updateData.commissionPercent = commissionPercent;
+    if (commissionPercent !== undefined) {
+      updateData.commissionPercent = commissionPercent;
+      updateData.commissionOverride = commissionPercent;
+      updateData.commissionSource = "override";
+      updateData.commissionSyncedAt = new Date();
+    }
     if (normalizedCategories !== undefined) updateData.categories = normalizedCategories;
     if (normalizedDirections !== undefined) updateData.directions = normalizedDirections;
     if (normalizedSpecialties !== undefined) updateData.specialties = normalizedSpecialties;

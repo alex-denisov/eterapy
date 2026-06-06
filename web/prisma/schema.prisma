@@ -103,7 +103,11 @@ model Practitioner {
   experience      String              // "5 лет"
   pricePerSession   Int                 // RUB
   sessionDuration   Int                 @default(60) // минут: 30, 45, 60, 90
-  commissionPercent Int                 @default(25) // % комиссии платформы
+  commissionPercent Int                 @default(35) // effective % комиссии платформы
+  baseCommissionPercent Int             @default(35)
+  commissionOverride Int?
+  commissionSource String               @default("base") // base | subscription_pro | subscription_pro_plus | override
+  commissionSyncedAt DateTime?
   languages         String[]            @default(["Русский"])
   verified        Boolean             @default(false)
   verifiedAt      DateTime?           // V9: timestamp when verification was approved
@@ -230,6 +234,7 @@ model Booking {
 
   status         BookingStatus @default(PENDING)
   priceRub       Int
+  commissionPercentApplied Int?
   paymentId      String?       @unique  // ЮKassa / Stripe payment ID
   paymentMethod  String?       // "yukassa" | "stripe"
   ipHash         String?       @map("ip_hash")

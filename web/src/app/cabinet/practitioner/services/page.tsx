@@ -35,7 +35,7 @@ export default async function PractitionerServicesPage() {
         priceRub: practitioner.pricePerSession,
         enabled: true,
       }];
-  const commissionPercent = practitioner.commissionPercent ?? 25;
+	  const commissionPercent = practitioner.commissionPercent ?? 35;
   const precheckUrl = practitionerPrecheckUrl(practitioner.slug, {
     source: "practitioner",
     channel: "profile-link",

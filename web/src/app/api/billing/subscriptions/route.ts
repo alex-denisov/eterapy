@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { getSubscriptionPlan, V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 import { notify } from "@/lib/notifications";
+import { syncPractitionerCommissionForUser } from "@/lib/practitioner-commission";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 export async function GET(req: NextRequest) {
@@ -57,6 +58,9 @@ export async function PATCH(req: NextRequest) {
       cancelledAt: new Date(),
     },
   });
+  if (updated.planKey.startsWith("practitioner_pro")) {
+    await syncPractitionerCommissionForUser(session.user.id);
+  }
 
   notify({
     userId: session.user.id,

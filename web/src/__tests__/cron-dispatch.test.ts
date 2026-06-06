@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { JobStatus } from "@prisma/client";
 import { enqueueJob } from "@/lib/job-queue";
 import { GET as dispatchCleanup } from "@/app/api/cron/cleanup/route";
+import { GET as dispatchPractitionerSync } from "@/app/api/cron/practitioner-sync/route";
 import { GET as dispatchReminders } from "@/app/api/cron/reminders/route";
 import { REQUEST_ID_HEADER } from "@/lib/request-context";
 
@@ -91,6 +92,22 @@ describe("cron dispatchers", () => {
       queue: "cron",
       type: "cron.cleanup-users",
       idempotencyKey: "cleanup-users:2026-04-28",
+    }));
+  });
+
+  it("enqueues practitioner commission sync jobs with a daily idempotency key", async () => {
+    mockEnqueueJob.mockResolvedValueOnce(job({ type: "cron.practitioner-sync" }));
+
+    const response = await dispatchPractitionerSync(request("/api/cron/practitioner-sync"));
+    jest.useRealTimers();
+    const body = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(body.enqueued).toBe(true);
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      queue: "cron",
+      type: "cron.practitioner-sync",
+      idempotencyKey: "practitioner-sync:2026-04-28",
     }));
   });
 

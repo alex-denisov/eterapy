@@ -16,7 +16,7 @@ export default async function AdminPaymentsPage() {
       user: { select: { name: true, email: true } },
       bookings: {
         where: { status: "COMPLETED" },
-        select: { id: true, priceRub: true, createdAt: true },
+        select: { id: true, priceRub: true, createdAt: true, commissionPercentApplied: true },
       },
       payouts: {
         where: { status: "DONE" },
@@ -37,9 +37,12 @@ export default async function AdminPaymentsPage() {
   });
 
   const list = practitioners.map(p => {
-    const commission = (p.commissionPercent ?? 25) / 100;
+    const commissionPercent = p.commissionPercent ?? 35;
     const totalRevenue = p.bookings.reduce((s, b) => s + b.priceRub, 0);
-    const platformFee = Math.round(totalRevenue * commission);
+    const platformFee = p.bookings.reduce((sum, booking) => {
+      const applied = booking.commissionPercentApplied ?? commissionPercent;
+      return sum + Math.round(booking.priceRub * (applied / 100));
+    }, 0);
     const practitionerEarnings = totalRevenue - platformFee;
     const lastPayout = p.payouts[0]?.processedAt?.toISOString() ?? null;
     return {
@@ -49,7 +52,7 @@ export default async function AdminPaymentsPage() {
       email: p.user.email,
       sessionCount: p.bookings.length,
       totalRevenue,
-      commissionPercent: p.commissionPercent ?? 25,
+      commissionPercent,
       platformFee,
       practitionerEarnings,
       lastPayout,
