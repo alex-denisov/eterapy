@@ -106,14 +106,45 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
   },
 };
 
+export type CreditPackDefinition = {
+  credits: number;
+  amountKopecks: number;
+  label: string;
+  badge?: string;
+};
+
+export type CreditPack = CreditPackDefinition & { key: string };
+
+export const CREDIT_PACKS: Record<string, CreditPackDefinition> = {
+  "pack-5": {
+    credits: 5,
+    amountKopecks: 24900,
+    label: "5 кредитов",
+  },
+  "pack-10": {
+    credits: 10,
+    amountKopecks: 44900,
+    label: "10 кредитов",
+  },
+  "pack-25": {
+    credits: 25,
+    amountKopecks: 99000,
+    label: "25 кредитов",
+    badge: "выгодно",
+  },
+};
+
 // Z1-Ф1: the client ₽ balance rail is removed — a paid purchase is always a
-// product (digital) or a subscription. "balance" top-ups no longer exist.
-export type BillingPurchaseKind = "product" | "subscription";
+// product (digital), a subscription, or a clarity-credit pack. "balance" top-ups
+// no longer exist.
+export type BillingPurchaseKind = "product" | "subscription" | "credits";
 
 export type BillingTransactionMetadata = {
   purchaseKind?: BillingPurchaseKind;
   productKey?: string;
   planKey?: string;
+  creditPackKey?: string;
+  creditsAmount?: number;
   checkoutSource?: string;
   returnPath?: string;
 };
@@ -130,6 +161,12 @@ export type ResolvedBillingPurchase =
     amountKopecks: number;
     description: string;
     metadata: BillingTransactionMetadata & { purchaseKind: "subscription"; planKey: string };
+  }
+  | {
+    kind: "credits";
+    amountKopecks: number;
+    description: string;
+    metadata: BillingTransactionMetadata & { purchaseKind: "credits"; creditPackKey: string; creditsAmount: number };
   };
 
 export function getBillingTransactionMetadata(transaction: Pick<Transaction, "metadata">): BillingTransactionMetadata {
@@ -150,6 +187,11 @@ export function getProductCreditCost(productKey: string): number | null {
 export function getSubscriptionPlan(planKey: string) {
   const plan = V5_SUBSCRIPTION_PLANS[planKey];
   return plan ? { key: planKey, ...plan } : null;
+}
+
+export function getCreditPack(creditPackKey: string) {
+  const pack = CREDIT_PACKS[creditPackKey];
+  return pack ? { key: creditPackKey, ...pack } : null;
 }
 
 export async function getUserActivePlans(userId: string, now = new Date()) {
@@ -188,6 +230,7 @@ export function resolveBillingPurchase(input: {
   description?: unknown;
   productKey?: unknown;
   planKey?: unknown;
+  creditPackKey?: unknown;
   checkoutSource?: unknown;
   returnPath?: unknown;
 }): ResolvedBillingPurchase {
@@ -197,6 +240,9 @@ export function resolveBillingPurchase(input: {
   const planKey = typeof input.planKey === "string" && input.planKey.trim()
     ? input.planKey.trim()
     : null;
+  const creditPackKey = typeof input.creditPackKey === "string" && input.creditPackKey.trim()
+    ? input.creditPackKey.trim()
+    : null;
   const checkoutSource = typeof input.checkoutSource === "string" && input.checkoutSource.trim()
     ? input.checkoutSource.trim()
     : undefined;
@@ -204,8 +250,9 @@ export function resolveBillingPurchase(input: {
     ? input.returnPath.slice(0, 500)
     : undefined;
 
-  if (productKey && planKey) {
-    throw new Error("Нельзя одновременно оплатить продукт и подписку одним платежом");
+  const selectedKinds = [productKey, planKey, creditPackKey].filter(Boolean).length;
+  if (selectedKinds > 1) {
+    throw new Error("Нельзя одновременно оплатить несколько типов покупки");
   }
 
   if (productKey) {
@@ -237,8 +284,28 @@ export function resolveBillingPurchase(input: {
     };
   }
 
-  // Z1-Ф1: no client ₽ balance — a payment must name a product or a plan.
-  throw new Error("Укажите продукт или тариф для оплаты");
+  if (creditPackKey) {
+    const pack = getCreditPack(creditPackKey);
+    if (!pack) {
+      throw new Error("Неизвестный пакет кредитов");
+    }
+    return {
+      kind: "credits",
+      amountKopecks: pack.amountKopecks,
+      description: `Кредиты ясности, ${pack.credits} шт.`,
+      metadata: {
+        purchaseKind: "credits",
+        creditPackKey,
+        creditsAmount: pack.credits,
+        checkoutSource,
+        returnPath,
+      },
+    };
+  }
+
+  // Z1-Ф1: no client ₽ balance — a payment must name a product, a plan, or a
+  // fixed credit pack.
+  throw new Error("Укажите продукт, тариф или пакет кредитов для оплаты");
 }
 
 export async function userHasActiveEntitlement(userId: string, productKey: string): Promise<boolean> {
@@ -364,6 +431,105 @@ export async function recordSubscriptionClarityCreditGrant(
   });
 }
 
+async function getActiveClarityCreditBalance(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  now = new Date(),
+) {
+  const entries = await tx.clarityCreditLedgerEntry.findMany({
+    where: { userId, status: { in: ["pending", "confirmed"] } },
+    select: { amount: true, expiresAt: true },
+  });
+
+  return entries.reduce((sum, entry) => (
+    !entry.expiresAt || entry.expiresAt > now ? sum + entry.amount : sum
+  ), 0);
+}
+
+async function recordPurchasedClarityCreditGrant(
+  tx: Prisma.TransactionClient,
+  input: {
+    userId: string;
+    transactionId: string;
+    pack: CreditPack;
+    metadata: BillingTransactionMetadata;
+  },
+) {
+  const existing = await tx.clarityCreditLedgerEntry.findFirst({
+    where: {
+      userId: input.userId,
+      type: "grant",
+      source: "purchase",
+      sourceEventId: input.transactionId,
+    },
+    select: { id: true },
+  });
+  if (existing) return null;
+
+  const balanceBefore = await getActiveClarityCreditBalance(tx, input.userId);
+  return tx.clarityCreditLedgerEntry.create({
+    data: {
+      userId: input.userId,
+      amount: input.pack.credits,
+      balanceAfter: balanceBefore + input.pack.credits,
+      type: "grant",
+      source: "purchase",
+      sourceEventId: input.transactionId,
+      status: "confirmed",
+      expiresAt: null,
+      metadata: {
+        ...input.metadata,
+        creditPackKey: input.pack.key,
+        creditsAmount: input.pack.credits,
+        transactionId: input.transactionId,
+      } as Prisma.InputJsonObject,
+    },
+  });
+}
+
+async function recordPurchasedClarityCreditClawback(
+  tx: Prisma.TransactionClient,
+  input: {
+    userId: string;
+    transactionId: string;
+    pack: CreditPack;
+    reason: string;
+    metadata: BillingTransactionMetadata;
+  },
+) {
+  const existing = await tx.clarityCreditLedgerEntry.findFirst({
+    where: {
+      userId: input.userId,
+      type: "clawback",
+      source: "purchase",
+      sourceEventId: input.transactionId,
+    },
+    select: { id: true },
+  });
+  if (existing) return null;
+
+  const balanceBefore = await getActiveClarityCreditBalance(tx, input.userId);
+  return tx.clarityCreditLedgerEntry.create({
+    data: {
+      userId: input.userId,
+      amount: -input.pack.credits,
+      balanceAfter: balanceBefore - input.pack.credits,
+      type: "clawback",
+      source: "purchase",
+      sourceEventId: input.transactionId,
+      status: "confirmed",
+      expiresAt: null,
+      metadata: {
+        ...input.metadata,
+        creditPackKey: input.pack.key,
+        creditsAmount: input.pack.credits,
+        transactionId: input.transactionId,
+        refundReason: input.reason,
+      } as Prisma.InputJsonObject,
+    },
+  });
+}
+
 export async function grantEntitlementForTransaction(
   tx: Prisma.TransactionClient,
   transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata">,
@@ -445,6 +611,31 @@ export async function grantEntitlementForTransaction(
     return { kind: "subscription" as const, planKey: metadata.planKey };
   }
 
+  if (metadata.purchaseKind === "credits" && metadata.creditPackKey && getCreditPack(metadata.creditPackKey)) {
+    const pack = getCreditPack(metadata.creditPackKey)!;
+    const grant = await recordPurchasedClarityCreditGrant(tx, {
+      userId: transaction.userId,
+      transactionId: transaction.id,
+      pack,
+      metadata,
+    });
+
+    if (grant) {
+      await recordCreditLedgerEntry(tx, {
+        userId: transaction.userId,
+        amountKopecks: -Math.abs(transaction.amount),
+        type: "CREDIT_PACK_PURCHASE",
+        transactionId: transaction.id,
+        description: transaction.description,
+        metadata: {
+          ...metadata,
+          creditsAmount: pack.credits,
+        } as Prisma.InputJsonObject,
+      });
+    }
+    return { kind: "credits" as const, creditPackKey: pack.key, credits: pack.credits };
+  }
+
   // Z1-Ф1: nothing to grant (no product/subscription metadata) — there is no
   // ₽ balance to top up, so this is a defensive no-op sentinel.
   return { kind: "none" as const };
@@ -495,7 +686,20 @@ export async function revokeEntitlementsForTransaction(
     });
   }
 
-  if (metadata.purchaseKind === "product" || metadata.purchaseKind === "subscription") {
+  let shouldRecordRefund = metadata.purchaseKind === "product" || metadata.purchaseKind === "subscription";
+  if (metadata.purchaseKind === "credits" && metadata.creditPackKey && getCreditPack(metadata.creditPackKey)) {
+    const pack = getCreditPack(metadata.creditPackKey)!;
+    const clawback = await recordPurchasedClarityCreditClawback(tx, {
+      userId: transaction.userId,
+      transactionId: transaction.id,
+      pack,
+      reason,
+      metadata,
+    });
+    shouldRecordRefund = Boolean(clawback);
+  }
+
+  if (shouldRecordRefund) {
     await recordCreditLedgerEntry(tx, {
       userId: transaction.userId,
       amountKopecks: Math.abs(transaction.amount),

@@ -2,9 +2,9 @@
  * POST /api/billing/create-payment
  * Создаёт платёж в ЮKassa и возвращает confirmation URL для редиректа.
  * Body:
- * - balance top-up: { amountKopecks: number, description?: string }
  * - product unlock: { productKey: string }
  * - subscription start: { planKey: string }
+ * - clarity-credit pack: { creditPackKey: "pack-5" | "pack-10" | "pack-25" }
  */
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
@@ -30,6 +30,9 @@ function buildBillingReturnUrl(baseUrl: string, purchase: ResolvedBillingPurchas
   }
   if (purchase.kind === "subscription") {
     url.searchParams.set("planKey", purchase.metadata.planKey);
+  }
+  if (purchase.kind === "credits") {
+    url.searchParams.set("creditPackKey", purchase.metadata.creditPackKey);
   }
   return url.toString();
 }
@@ -103,6 +106,8 @@ export async function POST(req: NextRequest) {
           purchaseKind: purchase.metadata.purchaseKind,
           productKey: purchase.metadata.productKey,
           planKey: purchase.metadata.planKey,
+          creditPackKey: purchase.metadata.creditPackKey,
+          creditsAmount: purchase.metadata.creditsAmount ? String(purchase.metadata.creditsAmount) : undefined,
           checkoutSource: purchase.metadata.checkoutSource,
           returnPath: purchase.metadata.returnPath,
         },
@@ -142,7 +147,7 @@ export async function POST(req: NextRequest) {
       properties: {
         amount_rub: (purchase.amountKopecks / 100).toFixed(2),
         currency: "RUB",
-        product_type: purchase.metadata.productKey ?? purchase.metadata.planKey ?? "other",
+        product_type: purchase.metadata.productKey ?? purchase.metadata.planKey ?? purchase.metadata.creditPackKey ?? "other",
       },
     });
 

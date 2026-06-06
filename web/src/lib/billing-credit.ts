@@ -88,6 +88,8 @@ export async function creditSucceededPayment(
     ? result.entitlementGrant.productKey
     : result.entitlementGrant.kind === "subscription"
       ? "subscription"
+      : result.entitlementGrant.kind === "credits"
+        ? result.entitlementGrant.creditPackKey
       : "other";
   trackServerEvent(db, {
     event: "payment_success",

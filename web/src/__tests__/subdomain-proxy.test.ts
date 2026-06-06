@@ -53,4 +53,8 @@ describe("subdomain proxy rewrites", () => {
     // /products/clarity-practice (public daily-practice product) stays on main
     expect(shouldRedirectAppPublicPathToMain("/products/clarity-practice")).toBe(true);
   });
+
+  it("allows the stripped wallet path on app subdomain so it rewrites to /cabinet/wallet", () => {
+    expect(shouldRedirectAppPublicPathToMain("/wallet")).toBe(false);
+  });
 });

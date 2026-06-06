@@ -1,7 +1,7 @@
 /**
  * POST /api/billing/pay-with-saved-card
  * Быстрая оплата с использованием привязанной карты.
- * Body: { cardId: string, amountKopecks?: number, productKey?: string, planKey?: string }
+ * Body: { cardId: string, productKey?: string, planKey?: string, creditPackKey?: string }
  */
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
           purchaseKind: purchase.metadata.purchaseKind,
           productKey: purchase.metadata.productKey,
           planKey: purchase.metadata.planKey,
+          creditPackKey: purchase.metadata.creditPackKey,
+          creditsAmount: purchase.metadata.creditsAmount ? String(purchase.metadata.creditsAmount) : undefined,
           checkoutSource: purchase.metadata.checkoutSource,
         },
       },

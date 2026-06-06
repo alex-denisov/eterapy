@@ -15,6 +15,7 @@ jest.mock("@/lib/db", () => ({
       create: jest.fn(),
     },
     clarityCreditLedgerEntry: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
     },
@@ -25,6 +26,7 @@ import fs from "node:fs";
 import path from "node:path";
 import db from "@/lib/db";
 import {
+  CREDIT_PACKS,
   getProductPriceKopecks,
   getProductCreditCost,
   getSubscriptionPlan,
@@ -46,7 +48,7 @@ const mockDb = db as unknown as {
     updateMany: jest.Mock;
   };
   creditLedgerEntry: { create: jest.Mock };
-  clarityCreditLedgerEntry: { findMany: jest.Mock; create: jest.Mock };
+  clarityCreditLedgerEntry: { findFirst: jest.Mock; findMany: jest.Mock; create: jest.Mock };
 };
 
 function tx() {
@@ -54,6 +56,7 @@ function tx() {
     productEntitlement: mockDb.productEntitlement,
     userSubscription: mockDb.userSubscription,
     creditLedgerEntry: { create: jest.fn() },
+    clarityCreditLedgerEntry: mockDb.clarityCreditLedgerEntry,
   } as never;
 }
 
@@ -79,12 +82,15 @@ describe("v5 billing entitlements", () => {
       amountKopecks: 129_000,
       creditsPerPeriod: 35,
     }));
+    expect(CREDIT_PACKS["pack-5"]).toEqual(expect.objectContaining({ amountKopecks: 24_900, credits: 5 }));
+    expect(CREDIT_PACKS["pack-10"]).toEqual(expect.objectContaining({ amountKopecks: 44_900, credits: 10 }));
+    expect(CREDIT_PACKS["pack-25"]).toEqual(expect.objectContaining({ amountKopecks: 99_000, credits: 25 }));
   });
 
-  it("resolves checkout intent server-side for products and subscriptions (no ₽ balance)", () => {
+  it("resolves checkout intent server-side for products, subscriptions, and credit packs (no ₽ balance)", () => {
     // Z1-Ф1: a bare amount (the old ₽ top-up) is no longer a valid purchase.
     expect(() => resolveBillingPurchase({ amountKopecks: 50_000 })).toThrow(
-      "Укажите продукт или тариф"
+      "Укажите продукт, тариф или пакет кредитов"
     );
     expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
@@ -96,8 +102,22 @@ describe("v5 billing entitlements", () => {
       amountKopecks: 129_000,
     }));
     expect(() => resolveBillingPurchase({ productKey: "deep-report", planKey: "plus" })).toThrow(
-      "Нельзя одновременно оплатить продукт и подписку"
+      "Нельзя одновременно оплатить несколько типов покупки"
     );
+    expect(() => resolveBillingPurchase({ productKey: "deep-report", creditPackKey: "pack-10" })).toThrow(
+      "Нельзя одновременно оплатить несколько типов покупки"
+    );
+    expect(resolveBillingPurchase({ creditPackKey: "pack-10", returnPath: "/cabinet/wallet" })).toEqual(expect.objectContaining({
+      kind: "credits",
+      amountKopecks: 44_900,
+      description: "Кредиты ясности, 10 шт.",
+      metadata: expect.objectContaining({
+        purchaseKind: "credits",
+        creditPackKey: "pack-10",
+        creditsAmount: 10,
+        returnPath: "/cabinet/wallet",
+      }),
+    }));
   });
 
   it("keeps product card checkout return URL tied to the originating product flow", () => {
@@ -117,6 +137,7 @@ describe("v5 billing entitlements", () => {
     mockDb.userSubscription.create.mockResolvedValueOnce({ id: "sub-1" });
     mockDb.creditLedgerEntry.create.mockResolvedValueOnce({ id: "ledger-charge" });
     mockDb.clarityCreditLedgerEntry = {
+      findFirst: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({ id: "clarity-grant", balanceAfter: 10 }),
     };
@@ -137,6 +158,55 @@ describe("v5 billing entitlements", () => {
         type: "grant",
         source: "subscription",
         sourceEventId: "tx-sub",
+      }),
+    }));
+  });
+
+  it("grants a purchased credit pack idempotently into clarity credits", async () => {
+    mockDb.clarityCreditLedgerEntry.findFirst.mockResolvedValueOnce(null);
+    mockDb.clarityCreditLedgerEntry.findMany.mockResolvedValueOnce([]);
+    mockDb.clarityCreditLedgerEntry.create.mockResolvedValueOnce({ id: "pack-grant", balanceAfter: 10 });
+    const ledgerCreate = jest.fn();
+    const testTx = {
+      productEntitlement: mockDb.productEntitlement,
+      userSubscription: mockDb.userSubscription,
+      creditLedgerEntry: { create: ledgerCreate },
+      clarityCreditLedgerEntry: mockDb.clarityCreditLedgerEntry,
+    } as never;
+
+    const result = await grantEntitlementForTransaction(testTx, {
+      id: "tx-pack",
+      userId: "user-1",
+      amount: 44900,
+      description: "Кредиты ясности, 10 шт.",
+      metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
+    });
+
+    expect(result).toEqual({ kind: "credits", creditPackKey: "pack-10", credits: 10 });
+    expect(mockDb.clarityCreditLedgerEntry.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        userId: "user-1",
+        type: "grant",
+        source: "purchase",
+        sourceEventId: "tx-pack",
+      }),
+    }));
+    expect(mockDb.clarityCreditLedgerEntry.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-1",
+        amount: 10,
+        type: "grant",
+        source: "purchase",
+        sourceEventId: "tx-pack",
+        status: "confirmed",
+        expiresAt: null,
+      }),
+    }));
+    expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        amountKopecks: -44900,
+        type: "CREDIT_PACK_PURCHASE",
+        transactionId: "tx-pack",
       }),
     }));
   });
@@ -218,6 +288,54 @@ describe("v5 billing entitlements", () => {
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-1",
+      }),
+    }));
+  });
+
+  it("revokes purchased credit packs with an idempotent clawback", async () => {
+    mockDb.clarityCreditLedgerEntry.findFirst.mockResolvedValueOnce(null);
+    mockDb.clarityCreditLedgerEntry.findMany.mockResolvedValueOnce([{ amount: 10, expiresAt: null }]);
+    mockDb.clarityCreditLedgerEntry.create.mockResolvedValueOnce({ id: "pack-clawback", balanceAfter: 0 });
+    const ledgerCreate = jest.fn();
+    const testTx = {
+      productEntitlement: mockDb.productEntitlement,
+      userSubscription: mockDb.userSubscription,
+      creditLedgerEntry: { create: ledgerCreate },
+      clarityCreditLedgerEntry: mockDb.clarityCreditLedgerEntry,
+    } as never;
+
+    await revokeEntitlementsForTransaction(testTx, {
+      id: "tx-pack",
+      userId: "user-1",
+      amount: 44900,
+      description: "Кредиты ясности, 10 шт.",
+      metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
+    } as never, "Возврат по обращению клиента");
+
+    expect(mockDb.clarityCreditLedgerEntry.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        userId: "user-1",
+        type: "clawback",
+        source: "purchase",
+        sourceEventId: "tx-pack",
+      }),
+    }));
+    expect(mockDb.clarityCreditLedgerEntry.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-1",
+        amount: -10,
+        type: "clawback",
+        source: "purchase",
+        sourceEventId: "tx-pack",
+        status: "confirmed",
+      }),
+    }));
+    expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        amountKopecks: 44900,
+        type: "REFUND",
+        source: "yookassa_refund",
+        transactionId: "tx-pack",
       }),
     }));
   });
