@@ -64,15 +64,16 @@ describe("B086 perspectives product", () => {
   it("wires the product detail page and dialogue result into the perspectives flow", () => {
     const detailPage = source("src/app/products/[slug]/page.tsx");
     const actions = source("src/components/products/perspectives-actions.tsx");
-    const dialoguePage = source("src/app/checkin/page.tsx");
 
     expect(detailPage).toContain("<PerspectivesActions");
     expect(actions).toContain('data-testid="perspectives-actions"');
+    expect(actions).toContain("<ProductIntake");
+    expect(actions).toContain('productKey="perspectives"');
+    expect(actions).toContain('mode="full"');
     expect(actions).toContain("/api/products/perspectives");
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain('checkoutSource="perspectives-generate"');
     expect(actions).toContain("Сохранить в Мою карту");
-    expect(dialoguePage).toContain("/products/perspectives?dialogueId=${dialogue.id}");
   });
 
   it("shows dialogue-first CTA (not a purchase button) on standalone product page access without dialogueId", () => {

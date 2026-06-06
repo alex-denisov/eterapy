@@ -35,13 +35,17 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "numerology": 2,
 };
 
-export const V5_SUBSCRIPTION_PLANS: Record<string, {
+type SubscriptionPlanDefinition = {
   name: string;
   amountKopecks: number;
   trialDays: number;
   includedProducts: V5ProductSlug[];
   creditsPerPeriod: number;
-}> = {
+};
+
+export type SubscriptionPlan = SubscriptionPlanDefinition & { key: string };
+
+export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> = {
   plus: {
     name: "Plus",
     amountKopecks: 49000,
@@ -144,7 +148,35 @@ export function getProductCreditCost(productKey: string): number | null {
 }
 
 export function getSubscriptionPlan(planKey: string) {
-  return V5_SUBSCRIPTION_PLANS[planKey] ?? null;
+  const plan = V5_SUBSCRIPTION_PLANS[planKey];
+  return plan ? { key: planKey, ...plan } : null;
+}
+
+export async function getUserActivePlans(userId: string, now = new Date()) {
+  const subscriptions = await db.userSubscription.findMany({
+    where: {
+      userId,
+      status: { in: ["TRIALING", "ACTIVE"] },
+      OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+    },
+    select: { planKey: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const activePlans = (subscriptions ?? [])
+    .map((subscription) => getSubscriptionPlan(subscription.planKey))
+    .filter((plan): plan is SubscriptionPlan => Boolean(plan));
+
+  return activePlans;
+}
+
+export async function getUserActivePlan(userId: string, now = new Date()) {
+  const activePlans = await getUserActivePlans(userId, now);
+
+  return activePlans.find((plan) => plan.key === "premium")
+    ?? activePlans.find((plan) => plan.key === "plus")
+    ?? activePlans[0]
+    ?? null;
 }
 
 export function isKnownPaidProduct(productKey: string): productKey is V5ProductSlug {
@@ -222,22 +254,11 @@ export async function userHasActiveEntitlement(userId: string, productKey: strin
   });
   if (direct) return true;
 
-  const subscriptions = await db.userSubscription.findMany({
-    where: {
-      userId,
-      status: { in: ["TRIALING", "ACTIVE"] },
-      OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
-    },
-    select: { planKey: true },
-  });
-
   // Z2 (credit-centric): a subscription grants access only to its explicit
   // includedProducts anchors; everything else (circle, pair, esoteric, seven-days,
   // my-map, …) is paid from the credit wallet — so credits always have a use.
-  return (subscriptions ?? []).some((subscription) => {
-    const plan = getSubscriptionPlan(subscription.planKey);
-    return Boolean(plan?.includedProducts.includes(productKey as V5ProductSlug));
-  });
+  const activePlans = await getUserActivePlans(userId, now);
+  return activePlans.some((plan) => plan.includedProducts.includes(productKey as V5ProductSlug));
 }
 
 export async function listUserEntitlements(userId: string) {

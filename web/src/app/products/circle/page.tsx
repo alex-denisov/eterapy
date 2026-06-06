@@ -34,7 +34,7 @@ export default async function CirclePage({
               отдельные ответы и итог, который помогает начать разговор спокойно.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/checkin?entry=circle" className="soft-button soft-button-primary">
+              <Link href="#circle-actions" className="soft-button soft-button-primary">
                 Создать круг
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
@@ -74,7 +74,7 @@ export default async function CirclePage({
           </aside>
         </div>
       </section>
-      <section className="soft-shell pb-16">
+      <section id="circle-actions" className="soft-shell pb-16">
         <CircleActions inviteToken={search?.invite ?? null} />
       </section>
     </main>

@@ -66,6 +66,9 @@ describe("B085 deep report product", () => {
 
     expect(detailPage).toContain("<DeepReportActions");
     expect(actions).toContain('data-testid="deep-report-actions"');
+    expect(actions).toContain("<ProductIntake");
+    expect(actions).toContain('productKey="deep-report"');
+    expect(actions).toContain('mode="full"');
     expect(actions).toContain("/api/products/deep-report");
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain('checkoutSource="deep-report-generate"');

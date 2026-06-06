@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ArrowRight, CheckCircle2, LockKeyhole, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { appUrl } from "@/lib/subdomain";
 
@@ -199,16 +200,15 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
 
   if (!dialogueId && !result) {
     return (
-      <div className="soft-card soft-form-panel mt-8" data-testid="seven-days-no-dialogue">
-        <h2 className="soft-h3 mt-3">Маршрут строится на вашей ситуации</h2>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          Сначала ответьте на пару вопросов в диалоге, чтобы мы могли подобрать 7 шагов для вас.
-        </p>
-        <Link href="/checkin?nextProduct=seven-days" className="soft-button soft-button-primary mt-5">
-          Начать с вопроса
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
+      <ProductIntake
+        productKey="seven-days"
+        mode="full"
+        title="Маршрут строится на вашей ситуации"
+        description="Соберём вопрос и несколько уточнений внутри маршрута, чтобы день 1 был связан с вашей реальной развилкой."
+        submitLabel="Начать с вопроса"
+        readyLabel="Контекст готов. Возвращаем вас к маршруту."
+        testId="seven-days-no-dialogue"
+      />
     );
   }
 
@@ -257,16 +257,20 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             )}
-            <Link
-              href="/checkin?nextProduct=seven-days"
-              className="soft-button soft-button-ghost inline-flex"
-              data-testid="seven-days-new-cycle"
-            >
-              Новый цикл с другим вопросом
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
           </div>
         </div>
+      )}
+
+      {completedRoute && !dialogueId && (
+        <ProductIntake
+          productKey="seven-days"
+          mode="full"
+          title="Новый цикл с другим вопросом"
+          description="Соберём новый контекст здесь же и откроем старт маршрута для свежей ситуации."
+          submitLabel="Начать новый цикл"
+          readyLabel="Новый контекст готов. Возвращаем вас к маршруту."
+          testId="seven-days-new-cycle"
+        />
       )}
 
       {/* start a (new) route — shown whenever no cycle is active. Day 1 is

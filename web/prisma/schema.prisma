@@ -830,6 +830,8 @@ model Dialogue {
   topic          String?
   difficulty     String?
   safetyLevel    String?          @map("safety_level")
+  intakeProductKey String?         @map("intake_product_key")
+  intakeMode     String?           @map("intake_mode")
   metadata       Json?
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
@@ -841,7 +843,9 @@ model Dialogue {
   clarityRoutes  ClarityRoute[]
 
   @@index([userId, updatedAt])
+  @@index([userId, intakeProductKey, createdAt])
   @@index([guestSessionId, updatedAt])
+  @@index([guestSessionId, intakeProductKey, createdAt])
   @@index([status, updatedAt])
   @@map("dialogues")
 }

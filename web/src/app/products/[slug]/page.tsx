@@ -62,14 +62,14 @@ function ProductHero({
                 <ArrowRight className="size-4" aria-hidden="true" />
               </a>
             ) : (
-              <Link
-                href="/checkin?nextProduct=perspectives"
+              <a
+                href="#product-intake-perspectives"
                 className="soft-button soft-button-primary"
                 data-testid="product-dialogue-cta"
               >
                 Начать бесплатный диалог
                 <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
+              </a>
             )
           ) : (
             <ProductPrimaryAction product={product} />
@@ -657,10 +657,10 @@ function ProductPrimaryAction({ product }: { product: V5Product }) {
 
   return (
     <Link
-      href="/checkin"
+      href="/products"
       className="soft-button soft-button-primary"
-      data-analytics-event="dialogue_cta_clicked"
-      data-analytics-target="/checkin"
+      data-analytics-event="products_catalog_clicked"
+      data-analytics-target="/products"
       data-testid="product-dialogue-cta"
     >
       {product.cta}
@@ -680,12 +680,6 @@ function ProductFooter() {
         <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
           Результат носит информационно-рефлексивный характер. Не является медицинской или юридической консультацией. Если вопрос связан с риском для здоровья или безопасности — мы направим к специалисту.
         </p>
-      </div>
-      <div className="mt-8 text-center">
-        <Link href="/checkin" className="soft-button soft-button-primary" data-testid="product-dialogue-cta">
-          Начать с диалога ясности
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
       </div>
     </section>
   );

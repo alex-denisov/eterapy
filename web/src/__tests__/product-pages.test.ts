@@ -31,7 +31,8 @@ describe("v5 product pages", () => {
     expect(indexPage).toContain("открыть нужную услугу напрямую");
     expect(detailPage).toContain('data-testid="product-dialogue-cta"');
     expect(detailPage).toContain('data-testid="product-my-map-preview"');
-    expect(detailPage).toContain('href="/checkin"');
+    expect(detailPage).toContain('href="#product-intake-perspectives"');
+    expect(detailPage).not.toContain("nextProduct=");
     expect(detailPage).toContain("<ProductPurchaseControls");
     expect(detailPage).toContain('href={product.directHref}');
     expect(detailPage).toContain("creditCost={product.creditCost}");

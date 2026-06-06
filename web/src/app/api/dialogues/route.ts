@@ -15,12 +15,15 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 import { markReferralMeaningfulAction } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { trackServerEvent } from "@/lib/analytics";
+import { checkStandaloneDialogueDailyLimit } from "@/lib/dialogue-limits";
 
 const MAX_DIALOGUES_LIMIT = 50;
 
 const createDialogueSchema = z.object({
   question: z.string().trim().min(3).max(4000),
   topic: z.enum(DIALOGUE_TOPICS).optional(),
+  intakeProductKey: z.string().trim().regex(/^[a-z0-9-]+$/).max(80).optional(),
+  intakeMode: z.enum(["full", "light"]).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -160,6 +163,39 @@ export async function POST(request: NextRequest) {
     if (guest) response.headers.set("X-Guest-Session", guest.created ? "created" : "existing");
     return response;
   }
+  const intakeProductKey = parsed.data.intakeProductKey ?? null;
+  const intakeMode = intakeProductKey ? (parsed.data.intakeMode ?? "full") : null;
+  const isProductIntake = Boolean(intakeProductKey);
+  if (!isProductIntake) {
+    const dailyLimit = await checkStandaloneDialogueDailyLimit({
+      request,
+      userId,
+      guestSessionId: guest?.id ?? null,
+    });
+    if (!dailyLimit.allowed) {
+      const response = jsonWithRequestContext(
+        {
+          error: dailyLimit.code === "DIALOGUE_DAILY_LIMIT"
+            ? "Дневной лимит новых разборов исчерпан."
+            : "Слишком много новых разборов за сутки.",
+          code: dailyLimit.code,
+          audience: dailyLimit.audience,
+          limit: dailyLimit.limit,
+          used: dailyLimit.used,
+          ...(dailyLimit.cta ? { cta: dailyLimit.cta } : {}),
+        },
+        {
+          status: 429,
+          headers: dailyLimit.retryAfterSeconds ? { "Retry-After": String(dailyLimit.retryAfterSeconds) } : undefined,
+        },
+        context,
+      );
+      const cookie = cookieCarrier.headers.get("set-cookie");
+      if (cookie) response.headers.set("set-cookie", cookie);
+      if (guest) response.headers.set("X-Guest-Session", guest.created ? "created" : "existing");
+      return response;
+    }
+  }
   const title = titleFromQuestion(parsed.data.question);
   const [routing, safety] = await Promise.all([
     classifyDialogueQuestion({
@@ -174,15 +210,18 @@ export async function POST(request: NextRequest) {
     }),
   ]);
   const interrupted = shouldInterruptDialogue(safety.level);
-  const firstTurn = interrupted ? null : await generateDialogueConversationalTurn({
-    originalQuestion: parsed.data.question,
-    previousPairs: [],
-    topic: parsed.data.topic ?? routing.topic,
-    difficulty: routing.difficulty,
-    safetyLevel: safety.level,
-    userId,
-    requestId: context.requestId,
-  });
+  const shouldAskFirstQuestion = !interrupted && intakeMode !== "light";
+  const firstTurn = shouldAskFirstQuestion
+    ? await generateDialogueConversationalTurn({
+      originalQuestion: parsed.data.question,
+      previousPairs: [],
+      topic: parsed.data.topic ?? routing.topic,
+      difficulty: routing.difficulty,
+      safetyLevel: safety.level,
+      userId,
+      requestId: context.requestId,
+    })
+    : null;
   const hasFirstQuestion = firstTurn?.type === "question" && firstTurn.question;
   const metadata = {
     ...parsed.data.metadata,
@@ -215,8 +254,10 @@ export async function POST(request: NextRequest) {
     data: {
       userId,
       guestSessionId: guest?.id ?? null,
+      intakeProductKey,
+      intakeMode,
       title,
-      status: interrupted ? "SAFETY_INTERRUPTED" : "AWAITING_USER",
+      status: interrupted ? "SAFETY_INTERRUPTED" : intakeMode === "light" ? "PROCESSING" : "AWAITING_USER",
       topic: parsed.data.topic ?? routing.topic,
       difficulty: routing.difficulty,
       safetyLevel: safety.level,
@@ -248,6 +289,8 @@ export async function POST(request: NextRequest) {
       topic: true,
       difficulty: true,
       safetyLevel: true,
+      intakeProductKey: true,
+      intakeMode: true,
       createdAt: true,
       updatedAt: true,
       messages: {
@@ -265,6 +308,8 @@ export async function POST(request: NextRequest) {
       topic: dialogue.topic,
       difficulty: dialogue.difficulty,
       safetyLevel: dialogue.safetyLevel,
+      intakeProductKey: dialogue.intakeProductKey,
+      intakeMode: dialogue.intakeMode,
       safety: {
         level: safety.level,
         reason: safety.reason,

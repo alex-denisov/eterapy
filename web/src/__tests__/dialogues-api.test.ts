@@ -18,10 +18,14 @@ jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: {
     dialogue: {
+      count: jest.fn(),
       create: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       update: jest.fn(),
+    },
+    userSubscription: {
+      findMany: jest.fn(),
     },
     analyticsEvent: {
       create: jest.fn().mockResolvedValue({}),
@@ -119,6 +123,8 @@ describe("v5 dialogue API", () => {
       type: "ready",
       source: "heuristic",
     });
+    (mockDb.dialogue.count as jest.Mock).mockResolvedValue(0);
+    (mockDb.userSubscription.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   it("creates a guest-owned dialogue and first clarification message", async () => {
@@ -229,6 +235,93 @@ describe("v5 dialogue API", () => {
       userId: null,
       requestId: expect.any(String),
     });
+  });
+
+  it("blocks a Free user after three standalone dialogues in a UTC day", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-free", role: "CLIENT" },
+      expires: "2026-04-29T12:00:00.000Z",
+    } as never);
+    (mockDb.dialogue.count as jest.Mock).mockResolvedValueOnce(3);
+
+    const response = await createDialogue(request("https://app.eterapy.com/api/dialogues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ question: "Как понять, куда двигаться дальше?" }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body).toEqual(expect.objectContaining({
+      code: "DIALOGUE_DAILY_LIMIT",
+      audience: "free",
+      limit: 3,
+      used: 3,
+      cta: "upgrade",
+    }));
+    expect(mockDb.dialogue.create).not.toHaveBeenCalled();
+    expect(mockGenerateDialogueConversationalTurn).not.toHaveBeenCalled();
+  });
+
+  it("creates a light product intake dialogue without consuming the standalone daily limit", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "user-free", role: "CLIENT" },
+      expires: "2026-04-29T12:00:00.000Z",
+    } as never);
+    (mockDb.dialogue.create as jest.Mock).mockResolvedValue({
+      id: "dlg_tarot",
+      title: "Стоит ли мне сейчас менять работу?",
+      status: "PROCESSING",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      intakeProductKey: "tarot",
+      intakeMode: "light",
+      createdAt: now,
+      updatedAt: now,
+      messages: [{
+        id: "msg_tarot",
+        role: "USER",
+        content: "Стоит ли мне сейчас менять работу?",
+        createdAt: now,
+      }],
+    });
+
+    const response = await createDialogue(request("https://app.eterapy.com/api/dialogues", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        question: "Стоит ли мне сейчас менять работу?",
+        intakeProductKey: "tarot",
+        intakeMode: "light",
+      }),
+    }));
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.dialogue).toEqual(expect.objectContaining({
+      id: "dlg_tarot",
+      status: "PROCESSING",
+      intakeProductKey: "tarot",
+      intakeMode: "light",
+      clarifyingQuestions: [],
+    }));
+    expect(mockDb.dialogue.count).not.toHaveBeenCalled();
+    expect(mockGenerateDialogueConversationalTurn).not.toHaveBeenCalled();
+    expect(mockDb.dialogue.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-free",
+        guestSessionId: null,
+        intakeProductKey: "tarot",
+        intakeMode: "light",
+        status: "PROCESSING",
+        messages: {
+          create: [
+            { role: "USER", content: "Стоит ли мне сейчас менять работу?" },
+          ],
+        },
+      }),
+    }));
   });
 
   it("marks crisis dialogues as safety interrupted at creation", async () => {

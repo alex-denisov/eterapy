@@ -177,6 +177,10 @@ describe("v5 billing entitlements", () => {
     mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
     mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "premium" }]);
     await expect(userHasActiveEntitlement("user-1", "deep-report")).resolves.toBe(true);
+
+    mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
+    mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "plus" }, { planKey: "deep" }]);
+    await expect(userHasActiveEntitlement("user-1", "chat-analysis")).resolves.toBe(true);
   });
 
   it("revokes product entitlements and records a refund ledger entry", async () => {

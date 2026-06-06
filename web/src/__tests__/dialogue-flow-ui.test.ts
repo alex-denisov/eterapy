@@ -70,4 +70,19 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(safetySection).not.toContain("triage_subscription_clicked");
     expect(safetySection).not.toContain("/products/");
   });
+
+  it("shows a soft daily-limit paywall for standalone checkin creation", () => {
+    const page = source("src/app/checkin/page.tsx");
+
+    expect(page).toContain("DIALOGUE_DAILY_LIMIT");
+    expect(page).toContain('data-testid="dialogue-limit-paywall"');
+    expect(page).toContain('data-testid="register-to-continue"');
+    expect(page).toContain('href="/register?intent=continue-dialogue"');
+    expect(page).toContain('data-testid="upgrade-to-plus"');
+    expect(page).toContain('href="/pricing#plus"');
+    expect(page).toContain("dialogue_limit_hit");
+    expect(page).toContain("dialogue_limit_paywall_shown");
+    expect(page).toContain("dialogue_limit_register_clicked");
+    expect(page).toContain("dialogue_limit_upgrade_clicked");
+  });
 });

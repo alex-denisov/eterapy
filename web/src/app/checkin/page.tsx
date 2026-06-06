@@ -117,6 +117,22 @@ type DialoguePayload = {
   updatedAt: string;
 };
 
+type DialogueLimitPaywall = {
+  audience?: string;
+  limit?: number;
+  used?: number;
+  cta?: "register" | "upgrade";
+};
+
+type ApiErrorPayload = {
+  error?: string;
+  code?: string;
+  audience?: string;
+  limit?: number;
+  used?: number;
+  cta?: "register" | "upgrade";
+};
+
 function cleanAnswer(text: string) {
   return text.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1").trim();
 }
@@ -137,6 +153,7 @@ export default function CheckinPage() {
   const [dialogue, setDialogue] = useState<DialoguePayload | null>(null);
   const [phase, setPhase] = useState<"question" | "clarifying" | "processing" | "result" | "safety">("question");
   const [error, setError] = useState("");
+  const [limitPaywall, setLimitPaywall] = useState<DialogueLimitPaywall | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [retrying, setRetrying] = useState(false);
   const [recommendations, setRecommendations] = useState<PractitionerRecommendation[]>([]);
@@ -168,20 +185,6 @@ export default function CheckinPage() {
   useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
     track({ event: "primary_answer_viewed", surface: "checkin", dialogueId: dialogue.id });
-
-    // If the user originally clicked a product CTA that required dialogue
-    // context (e.g. /products/perspectives → "Начать с вопроса"), the URL
-    // carries ?nextProduct=<slug>. After we have a primary answer we
-    // forward them straight into that product's delivery surface with
-    // the freshly minted dialogueId so they don't have to re-enter the
-    // funnel manually.
-    const nextProduct = new URLSearchParams(window.location.search).get("nextProduct");
-    if (nextProduct && /^[a-z0-9-]+$/.test(nextProduct)) {
-      const target = `/products/${nextProduct}?dialogueId=${encodeURIComponent(dialogue.id)}`;
-      track({ event: "dialogue_handoff_to_product", surface: "checkin", dialogueId: dialogue.id, properties: { product: nextProduct } });
-      window.location.assign(target);
-      return;
-    }
 
     let cancelled = false;
     fetch(`/api/dialogues/${dialogue.id}/recommendations`)
@@ -267,9 +270,11 @@ export default function CheckinPage() {
 
   async function requestJson<T>(url: string, init: RequestInit): Promise<T> {
     const response = await fetch(url, init);
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({})) as ApiErrorPayload;
     if (!response.ok) {
-      throw new Error(typeof data.error === "string" ? data.error : "Не удалось выполнить запрос");
+      const error = new Error(typeof data.error === "string" ? data.error : "Не удалось выполнить запрос");
+      (error as Error & { payload?: ApiErrorPayload }).payload = data;
+      throw error;
     }
     return data as T;
   }
@@ -277,6 +282,7 @@ export default function CheckinPage() {
   async function startDialogue() {
     if (!question.trim()) return;
     setError("");
+    setLimitPaywall(null);
     setPhase("processing");
     setDialogue(null);
     setClarification("");
@@ -304,6 +310,22 @@ export default function CheckinPage() {
       }
       setPhase("clarifying");
     } catch (err) {
+      const payload = (err as Error & { payload?: ApiErrorPayload }).payload;
+      if (payload?.code === "DIALOGUE_DAILY_LIMIT") {
+        const paywall = {
+          audience: payload.audience,
+          limit: payload.limit,
+          used: payload.used,
+          cta: payload.cta,
+        };
+        setLimitPaywall(paywall);
+        track({ event: "dialogue_limit_hit", surface: "checkin", properties: paywall });
+        track({ event: "paywall_hit", surface: "checkin", properties: { ...paywall, surface: "dialogue_daily_limit" } });
+        track({ event: "dialogue_limit_paywall_shown", surface: "checkin", properties: paywall });
+        setError("");
+        setPhase("question");
+        return;
+      }
       setPhase("question");
       setError(err instanceof Error ? err.message : "Не удалось начать диалог");
     }
@@ -426,6 +448,7 @@ export default function CheckinPage() {
     setDialogue(null);
     setPhase("question");
     setError("");
+    setLimitPaywall(null);
     setSaveState("idle");
     setRetrying(false);
     setRecommendations([]);
@@ -482,6 +505,53 @@ export default function CheckinPage() {
                 maxLength={DIALOGUE_INPUT_MAX_CHARS}
                 data-testid="dialogue-question-input"
               />
+              {limitPaywall && (
+                <div className="mt-4 rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-deep)] p-4" data-testid="dialogue-limit-paywall">
+                  <p className="soft-eyebrow">дневной ритм</p>
+                  {limitPaywall.cta === "register" ? (
+                    <>
+                      <h2 className="mt-2 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">
+                        На сегодня бесплатный разбор использован
+                      </h2>
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                        Зарегистрируйтесь, чтобы продолжить прямо сейчас: это бесплатно, откроет 3 разбора в день и welcome-кредиты.
+                      </p>
+                      <Link
+                        href="/register?intent=continue-dialogue"
+                        className="soft-button soft-button-primary mt-4 inline-flex"
+                        data-testid="register-to-continue"
+                        onClick={() => track({ event: "dialogue_limit_register_clicked", surface: "checkin", properties: limitPaywall })}
+                      >
+                        Зарегистрироваться
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="mt-2 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">
+                        Сегодня вы прошли {limitPaywall.limit ?? 3} разбора
+                      </h2>
+                      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                        Это ваш дневной ритм на бесплатном тарифе. Можно вернуться завтра или оформить Plus, чтобы продолжать без дневного ограничения.
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <Link
+                          href="/pricing#plus"
+                          className="soft-button soft-button-primary"
+                          data-testid="upgrade-to-plus"
+                          onClick={() => track({ event: "dialogue_limit_upgrade_clicked", surface: "checkin", properties: limitPaywall })}
+                        >
+                          Оформить Plus
+                          <ArrowRight className="size-4" aria-hidden="true" />
+                        </Link>
+                        <button type="button" className="soft-button soft-button-ghost" onClick={() => setLimitPaywall(null)}>
+                          Вернуться завтра
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="soft-ask-foot">
                 <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
                   {restoring ? "Восстанавливаю сохраненный диалог..." : "Регистрация понадобится только если вы захотите сохранить результат."}

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Download, LockKeyhole, Save, Trash2 } from "lucide-react";
+import { Download, LockKeyhole, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type DeepReportResult = {
@@ -153,17 +153,15 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
 
   if (!dialogueId) {
     return (
-      <div className="soft-card soft-form-panel mt-8" data-testid="deep-report-no-dialogue">
-        <p className="soft-eyebrow">углубление · документ-разбор</p>
-        <h2 className="soft-h3 mt-3">Отчет строится от вашего первичного ответа</h2>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          Сначала пройдите диалог ясности, чтобы отчет не был абстрактным и не терял контекст.
-        </p>
-        <Link href="/checkin?nextProduct=deep-report" className="soft-button soft-button-primary mt-5 inline-flex">
-          Начать с вопроса
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
+      <ProductIntake
+        productKey="deep-report"
+        mode="full"
+        title="Сначала соберём контекст для отчёта"
+        description="Отчёт строится прямо здесь: короткий intake сохранит вопрос и уточнения, а затем откроет генерацию документа на этой же странице."
+        submitLabel="Начать отчёт"
+        readyLabel="Контекст готов. Возвращаем вас к отчёту."
+        testId="deep-report-no-dialogue"
+      />
     );
   }
 

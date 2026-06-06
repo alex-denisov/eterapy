@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, ArrowRight, Bookmark, Compass, Download, LockKeyhole, Save, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bookmark, Download, LockKeyhole, Save, Share2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type PerspectiveAngle = {
@@ -329,17 +329,15 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
   if (!dialogueId) {
     return (
-      <div className="soft-card soft-form-panel mt-8" data-testid="perspectives-no-dialogue">
-        <Compass className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-        <h2 className="soft-h3 mt-3">Ракурсы строятся на основе вашего первичного ответа</h2>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          Сначала пройдите диалог ясности, чтобы мы могли взглянуть на ваш конкретный вопрос с разных сторон.
-        </p>
-        <Link href="/checkin?nextProduct=perspectives" className="soft-button soft-button-primary mt-5">
-          Начать с вопроса
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
+      <ProductIntake
+        productKey="perspectives"
+        mode="full"
+        title="Соберём контекст для 4 ракурсов"
+        description="Короткий intake останется внутри услуги и откроет ракурсы на этой же странице, без перехода в общий первичный разбор."
+        submitLabel="Начать с вопроса"
+        readyLabel="Контекст готов. Возвращаем вас к ракурсам."
+        testId="perspectives-no-dialogue"
+      />
     );
   }
 

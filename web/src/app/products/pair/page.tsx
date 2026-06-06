@@ -28,12 +28,12 @@ export default async function PairPage({
               чтобы не превращать разбор в контроль или спор.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/products/compatibility" className="soft-button soft-button-primary">
+              <Link href="#product-intake-pair" className="soft-button soft-button-primary">
                 Начать парный формат
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
-              <Link href="/checkin?entry=pair" className="soft-button soft-button-ghost">
-                Сначала задать вопрос
+              <Link href="/products/compatibility" className="soft-button soft-button-ghost">
+                Посмотреть совместимость
               </Link>
             </div>
           </div>
@@ -56,7 +56,7 @@ export default async function PairPage({
           </div>
         </div>
       </section>
-      <section className="soft-shell pb-16">
+      <section id="product-intake-pair" className="soft-shell pb-16">
         <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} productKey="pair" />
       </section>
     </main>

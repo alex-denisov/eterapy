@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { ArrowRight, CheckCircle2, Copy, Flag, RefreshCcw, LockKeyhole, Share2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type CompatibilityResult = {
@@ -208,10 +209,17 @@ export function CompatibilityActions({
         )}
 
         {!partnerDialogueId ? (
-          <Link href={`/checkin?nextProduct=compatibility&invite=${inviteToken}`} className="soft-button soft-button-primary mt-5 inline-flex">
-            Ответить на свою часть
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+          <ProductIntake
+            productKey={productKey}
+            mode="light"
+            title="Ответьте на свою часть"
+            description="Один ввод останется привязан к этому приглашению. Партнёр не увидит ваш текст, только итоговый совместный отчёт после согласия."
+            promptLabel="Ваш взгляд"
+            placeholder="Что для вас важно в этой связи? Где тепло, где напряжение, какой вопрос хочется прояснить?"
+            submitLabel="Сохранить свою часть"
+            readyLabel="Ваша часть готова. Возвращаем вас к приглашению."
+            testId="compatibility-partner-intake"
+          />
         ) : (
           <div className="mt-5 flex flex-wrap gap-3">
             <Button onClick={submitPartnerPart} disabled={status === "loading"} className="soft-button soft-button-primary">
@@ -235,17 +243,17 @@ export function CompatibilityActions({
   // No dialogue yet — CTA to start
   if (!dialogueId && !result) {
     return (
-      <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-no-dialogue">
-        <p className="soft-eyebrow">совместимость</p>
-        <h2 className="soft-h3 mt-3">Разбор строится на ответах обоих партнеров</h2>
-        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          Сначала ответьте на вопросы со своей стороны, а затем отправьте ссылку партнеру.
-        </p>
-        <Link href="/checkin?nextProduct=compatibility" className="soft-button soft-button-primary mt-5 inline-flex">
-          Начать со своей стороны
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </div>
+      <ProductIntake
+        productKey={productKey}
+        mode="light"
+        title={productKey === "pair" ? "Сначала ваша сторона общего вопроса" : "Сначала ваша сторона совместимости"}
+        description="Один ввод создаст контекст услуги прямо здесь. Затем вы сможете отправить партнёру ссылку без перехода в общий первичный разбор."
+        promptLabel={productKey === "pair" ? "Ваш взгляд на общий вопрос" : "Ваш взгляд на связь"}
+        placeholder="Опишите ситуацию, ожидания и то, что хочется аккуратно прояснить вместе."
+        submitLabel={productKey === "pair" ? "Сохранить свою сторону" : "Начать со своей стороны"}
+        readyLabel="Контекст готов. Возвращаем вас к приглашению."
+        testId="compatibility-no-dialogue"
+      />
     );
   }
 
