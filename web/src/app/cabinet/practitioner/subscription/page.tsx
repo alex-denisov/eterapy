@@ -16,7 +16,7 @@ const PRACTITIONER_PLAN_COPY: Record<string, { description: string; perks: strin
     perks: [
       "Расшифровки и конспекты сессий в кабинете практика",
       "Рабочие ссылки, widget-запись и аккуратная карточка специалиста",
-      "Комплаенс-подсказки и история клиентских встреч",
+      "История клиентских встреч и черновики follow-up после сессии",
     ],
   },
   practitioner_pro_plus: {
@@ -79,7 +79,7 @@ export default async function PractitionerSubscriptionPage() {
           <h1 className="soft-h1 mt-2">Подписка практика</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Подписка практика управляется отдельно от клиентского биллинга. Её можно оплатить картой
-            или доступным доходом от завершённых сессий.
+            или доступным доходом от завершённых сессий; безопасность сессий работает для всех практиков.
           </p>
         </div>
         <Link href={appUrl("/practitioner")} className="soft-chip">

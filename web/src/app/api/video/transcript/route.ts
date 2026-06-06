@@ -15,6 +15,7 @@ import {
   holdPractitionerPayoutsForBooking,
   PRACTITIONER_HIGH_RISK_SCORE,
 } from "@/lib/practitioner-antifraud";
+import { practitionerHasFeature } from "@/lib/practitioner-entitlements";
 
 const segmentSchema = z.object({
   speakerRole: z.enum(["client", "practitioner", "unknown"]).optional(),
@@ -99,6 +100,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, violation: quickWarning, requestId: context.requestId });
   }
 
+  const practitionerUserId = videoSession.booking.practitioner.userId;
+  const transcriptAllowed = await practitionerHasFeature(practitionerUserId, "browser_stt");
+  const summaryAllowed = transcriptAllowed
+    ? await practitionerHasFeature(practitionerUserId, "session_summary")
+    : false;
+
   const compliance = await reviewSessionCompliance({
     transcriptText,
     userId,
@@ -117,24 +124,44 @@ export async function POST(req: NextRequest) {
     requestId: context.requestId,
   };
 
+  const complianceData = {
+    complianceStatus: compliance.status,
+    complianceRiskScore: compliance.riskScore,
+    complianceEvidence: {
+      status: compliance.status,
+      riskScore: compliance.riskScore,
+      riskFlags: compliance.riskFlags,
+      severity: compliance.severity,
+      summary: compliance.summary,
+      evidenceQuotes: compliance.evidenceQuotes,
+      moderatorRecommendation: compliance.moderatorRecommendation,
+      metadata: compliance.metadata,
+    },
+    complianceReviewedAt: new Date(),
+  };
+
+  let summaryResult: Awaited<ReturnType<typeof generateSessionSummary>> | null = null;
+  if (summaryAllowed && !videoSession.summaryText) {
+    summaryResult = await generateSessionSummary({
+      transcriptText,
+      userId: practitionerUserId,
+      requestId: context.requestId,
+    });
+  }
+
   await db.videoSession.update({
     where: { id: videoSession.id },
     data: {
-      transcriptText,
-      transcriptMetadata,
-      complianceStatus: compliance.status,
-      complianceRiskScore: compliance.riskScore,
-      complianceEvidence: {
-        status: compliance.status,
-        riskScore: compliance.riskScore,
-        riskFlags: compliance.riskFlags,
-        severity: compliance.severity,
-        summary: compliance.summary,
-        evidenceQuotes: compliance.evidenceQuotes,
-        moderatorRecommendation: compliance.moderatorRecommendation,
-        metadata: compliance.metadata,
-      },
-      complianceReviewedAt: new Date(),
+      ...(transcriptAllowed ? { transcriptText, transcriptMetadata } : {}),
+      ...complianceData,
+      ...(summaryResult
+        ? {
+            summaryText: summaryResult.summaryText,
+            practitionerNotesText: summaryResult.practitionerNotesText,
+            clientFollowupDraft: summaryResult.clientFollowupDraft,
+            summaryMetadata: summaryResult.metadata,
+          }
+        : {}),
     },
   });
 
@@ -183,9 +210,27 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  if (!transcriptAllowed) {
+    return NextResponse.json({
+      error: "Расшифровки доступны в Practitioner Pro",
+      violation: quickWarning,
+      compliance: {
+        status: compliance.status,
+        riskScore: compliance.riskScore,
+        severity: compliance.severity,
+        riskFlags: compliance.riskFlags,
+        evidenceQuotes: compliance.evidenceQuotes,
+      },
+      requestId: context.requestId,
+    }, { status: 403 });
+  }
+
   return NextResponse.json({
     ok: true,
     violation: quickWarning,
+    summary: summaryResult?.summaryText,
+    practitionerNotes: summaryResult?.practitionerNotesText,
+    clientFollowupDraft: summaryResult?.clientFollowupDraft,
     compliance: {
       status: compliance.status,
       riskScore: compliance.riskScore,
@@ -209,6 +254,11 @@ export async function PUT(req: NextRequest) {
 
   const parsed = putSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Данные неполны", requestId: context.requestId }, { status: 400 });
+
+  const summaryAllowed = await practitionerHasFeature(userId, "session_summary");
+  if (!summaryAllowed) {
+    return NextResponse.json({ error: "AI резюме доступно в Practitioner Pro", requestId: context.requestId }, { status: 403 });
+  }
 
   const videoSession = await db.videoSession.findFirst({
     where: {

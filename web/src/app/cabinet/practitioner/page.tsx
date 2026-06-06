@@ -288,11 +288,10 @@ export default async function PractitionerCabinetPage() {
               </Link>
             )}
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             {[
               ["STT", transcriptCount, "транскриптов"],
               ["Summary", summaryCount, "конспектов"],
-              ["Compliance", complianceReviewCount, "проверок"],
             ].map(([label, value, hint]) => (
               <div key={label} className="soft-card-flat p-3">
                 <p className="text-xs text-[var(--soft-ink-faint)]">{label}</p>
@@ -326,6 +325,10 @@ export default async function PractitionerCabinetPage() {
               <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
                 {practitioner.riskScore > 0 ? `${practitioner.riskScore}/100` : "без сигналов"}
               </p>
+            </div>
+            <div className="soft-card-flat p-3">
+              <p className="text-xs text-[var(--soft-ink-faint)]">Проверено сессий</p>
+              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">{complianceReviewCount}</p>
             </div>
             <div className="soft-card-flat p-3">
               <p className="text-xs text-[var(--soft-ink-faint)]">Сессии на проверке</p>
