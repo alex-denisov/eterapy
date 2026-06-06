@@ -4,7 +4,13 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { computePractitionerBalance } from "@/lib/practitioner-balance";
-import { assertPractitionerPayoutAllowed, payoutAvailableAt } from "@/lib/practitioner-antifraud";
+import { assertPractitionerPayoutAllowed } from "@/lib/practitioner-antifraud";
+import {
+  PAYOUT_HOLD_DAYS_BY_PLAN,
+  payoutAvailableAt,
+  payoutReserveKopecks,
+  resolvePractitionerPayoutPlanKey,
+} from "@/lib/payout-runs";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -42,6 +48,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const amountKopecks = balance.currentBalance * 100;
+  const now = new Date();
+  const planKeyAtPayout = await resolvePractitionerPayoutPlanKey(practitioner.userId, db, now);
+  const holdDays = PAYOUT_HOLD_DAYS_BY_PLAN[planKeyAtPayout];
+  const reserveKopecks = payoutReserveKopecks(planKeyAtPayout, amountKopecks);
 
   const payout = await db.payout.create({
     data: {
@@ -49,8 +59,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       amountKopecks,
       status: "PENDING",
       initiatedBy: adminId,
-      availableAt: payoutAvailableAt(),
+      availableAt: payoutAvailableAt(planKeyAtPayout, now),
       holdReason: "payout_delay",
+      holdDays,
+      planKeyAtPayout,
+      reserveKopecks,
     },
     select: { id: true, amountKopecks: true, status: true, createdAt: true },
   });

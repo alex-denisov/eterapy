@@ -19,6 +19,11 @@ export const PRODUCT_CRONS = [
     purpose: "Синхронизация комиссии практиков при смене или истечении Pro/Pro+",
     cadence: "1 раз в сутки",
   },
+  {
+    path: "/api/cron/payouts",
+    purpose: "Идемпотентный PayoutRun для выплат практикам 1-го и 15-го числа",
+    cadence: "1-го и 15-го числа, Europe/Moscow",
+  },
 ];
 
 export interface SystemStats {

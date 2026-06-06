@@ -61,7 +61,8 @@ describe("B219 practitioner anti-fraud and payout holds", () => {
     expect(complaintsRoute).toContain("holdPractitionerPayoutsForBooking");
     expect(transcriptRoute).toContain("practitioner_external_payment_detected");
     expect(transcriptRoute).toContain("session_compliance_signal");
-    expect(sessionComplete).toContain("payoutAvailableAt()");
+    expect(sessionComplete).toContain("payoutAvailableAt(planKeyAtPayout");
+    expect(sessionComplete).toContain("resolvePractitionerPayoutPlanKey");
     expect(sessionComplete).toContain("payoutHoldMetadata");
     expect(complaintResolution).toContain('status: "REFUNDED"');
     expect(complaintResolution).toContain('status: "COMPLETED"');

@@ -14,6 +14,7 @@ jest.mock("@/lib/db", () => ({
     booking: { findUnique: jest.fn(), updateMany: jest.fn() },
     practitioner: { update: jest.fn() },
     payout: { create: jest.fn() },
+    userSubscription: { findMany: jest.fn() },
     $transaction: jest.fn(),
   },
 }));
@@ -29,6 +30,7 @@ type MockedPrisma = {
   booking: { findUnique: jest.Mock; updateMany: jest.Mock };
   practitioner: { update: jest.Mock };
   payout: { create: jest.Mock };
+  userSubscription: { findMany: jest.Mock };
   $transaction: jest.Mock;
 };
 const mockDb = db as unknown as MockedPrisma;
@@ -38,6 +40,7 @@ function resetAll() {
   mockDb.booking.updateMany.mockReset();
   mockDb.practitioner.update.mockReset();
   mockDb.payout.create.mockReset();
+  mockDb.userSubscription.findMany.mockReset();
   mockDb.$transaction.mockReset();
 }
 
@@ -91,6 +94,7 @@ describe("completeBookingAtSessionEnd", () => {
   beforeEach(() => {
     resetAll();
     wireTx();
+    mockDb.userSubscription.findMany.mockResolvedValue([]);
     realDateNow = Date.now;
     Date.now = () => NOW;
   });
@@ -125,8 +129,11 @@ describe("completeBookingAtSessionEnd", () => {
         amountKopecks: 195_000,
         status: PAYOUT_STATUS_PENDING,
         initiatedBy: "uAdmin",
-        availableAt: expect.any(Date),
+        availableAt: new Date("2026-05-08T12:00:00.000Z"),
         holdReason: "payout_delay",
+        holdDays: 14,
+        planKeyAtPayout: "base",
+        reserveKopecks: 0,
         riskScore: 0,
         riskFlags: [],
       },

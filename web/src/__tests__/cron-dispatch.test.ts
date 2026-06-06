@@ -1,7 +1,9 @@
 import type { NextRequest } from "next/server";
 import { JobStatus } from "@prisma/client";
 import { enqueueJob } from "@/lib/job-queue";
+import db from "@/lib/db";
 import { GET as dispatchCleanup } from "@/app/api/cron/cleanup/route";
+import { GET as dispatchPayouts } from "@/app/api/cron/payouts/route";
 import { GET as dispatchPractitionerSync } from "@/app/api/cron/practitioner-sync/route";
 import { GET as dispatchReminders } from "@/app/api/cron/reminders/route";
 import { REQUEST_ID_HEADER } from "@/lib/request-context";
@@ -11,7 +13,17 @@ jest.mock("@/lib/job-queue", () => ({
   enqueueJob: jest.fn(),
 }));
 
+jest.mock("@/lib/db", () => ({
+  __esModule: true,
+  default: {
+    payoutRun: { upsert: jest.fn() },
+  },
+}));
+
 const mockEnqueueJob = enqueueJob as jest.MockedFunction<typeof enqueueJob>;
+const mockDb = db as unknown as {
+  payoutRun: { upsert: jest.Mock };
+};
 
 function request(path: string, token = "cron-secret") {
   return new Request(`https://eterapy.com${path}`, {
@@ -54,6 +66,11 @@ describe("cron dispatchers", () => {
     jest.useFakeTimers().setSystemTime(new Date("2026-04-28T01:07:30.000Z").getTime());
     process.env.CRON_SECRET = "cron-secret";
     mockEnqueueJob.mockResolvedValue(job());
+    mockDb.payoutRun.upsert.mockResolvedValue({
+      id: "run-1",
+      scheduledFor: new Date("2026-04-15T00:00:00.000Z"),
+      status: "PENDING",
+    });
   });
 
   afterEach(() => {
@@ -108,6 +125,25 @@ describe("cron dispatchers", () => {
       queue: "cron",
       type: "cron.practitioner-sync",
       idempotencyKey: "practitioner-sync:2026-04-28",
+    }));
+  });
+
+  it("enqueues payout runs with a per-scheduled-date idempotency key", async () => {
+    mockEnqueueJob.mockResolvedValueOnce(job({ type: "cron.payout-run" }));
+
+    const response = await dispatchPayouts(request("/api/cron/payouts"));
+    jest.useRealTimers();
+    const body = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(body.payoutRunId).toBe("run-1");
+    expect(mockDb.payoutRun.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { scheduledFor: new Date("2026-04-15T00:00:00.000Z") },
+    }));
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      queue: "cron",
+      type: "cron.payout-run",
+      idempotencyKey: "payout-run:2026-04-15",
     }));
   });
 

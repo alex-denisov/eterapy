@@ -2,11 +2,8 @@
  * PAYOUT_SCHEDULED emission (backlog item 4.5).
  *
  * Sends the superadmin payout notification through the durable notification
- * delivery pipeline. Should be invoked from the 1st/15th payout cron.
- *
- * Call site does not exist yet — the cron is still stubbed. This helper
- * is the single entry point so that when the cron lands it only needs to
- * invoke `emitPayoutScheduled(...)` without re-deriving preference logic.
+ * delivery pipeline. Invoked from the Z17 payout-run worker after a due run
+ * classifies payouts into PROCESSING/HELD.
  */
 import db from "@/lib/db";
 import { notify } from "@/lib/notifications";

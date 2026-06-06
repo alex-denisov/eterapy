@@ -795,6 +795,11 @@ model Payout {
   externalId     String?      // ЮKassa payout ID
   availableAt    DateTime?    @map("available_at")
   holdReason     String?      @map("hold_reason")
+  holdDays       Int?         @map("hold_days")
+  planKeyAtPayout String?     @map("plan_key_at_payout")
+  reserveKopecks Int          @default(0) @map("reserve_kopecks")
+  payoutRunId    String?      @map("payout_run_id")
+  payoutRun      PayoutRun?   @relation(fields: [payoutRunId], references: [id])
   riskScore      Int          @default(0) @map("risk_score")
   riskFlags      String[]     @default([]) @map("risk_flags")
   createdAt      DateTime     @default(now())
@@ -802,9 +807,34 @@ model Payout {
 
   @@index([practitionerId])
   @@index([bookingId])
+  @@index([payoutRunId])
   @@index([status, availableAt])
   @@index([riskScore, createdAt])
   @@map("payouts")
+}
+
+model PayoutRun {
+  id                    String    @id @default(cuid())
+  scheduledFor          DateTime  @map("scheduled_for")
+  status                String    @default("PENDING") // PENDING / RUNNING / COMPLETED / FAILED
+  initiatedBy           String?   @map("initiated_by")
+  candidateCount        Int       @default(0) @map("candidate_count")
+  processingCount       Int       @default(0) @map("processing_count")
+  heldCount             Int       @default(0) @map("held_count")
+  totalAmountKopecks    Int       @default(0) @map("total_amount_kopecks")
+  totalDisbursedKopecks Int       @default(0) @map("total_disbursed_kopecks")
+  totalReserveKopecks   Int       @default(0) @map("total_reserve_kopecks")
+  metadata              Json?
+  startedAt             DateTime? @map("started_at")
+  completedAt           DateTime? @map("completed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  payouts               Payout[]
+
+  @@unique([scheduledFor])
+  @@index([status, scheduledFor])
+  @@map("payout_runs")
 }
 
 model PayoutDetails {
@@ -820,6 +850,8 @@ model PayoutDetails {
   kpp            String?
   bik            String?
   corrAccount    String?      // корреспондентский счёт банка
+  kycStatus      String       @default("NOT_REQUIRED") @map("kyc_status") // NOT_REQUIRED | PENDING | VERIFIED
+  kycVerifiedAt  DateTime?    @map("kyc_verified_at")
   updatedAt      DateTime     @updatedAt
 
   @@map("payout_details")

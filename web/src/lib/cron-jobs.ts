@@ -4,6 +4,7 @@ import { notify } from "@/lib/notifications";
 import type { JobHandlers, JobHandler } from "@/lib/job-worker";
 import type { JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
+import { runPayoutRun } from "@/lib/payout-runs";
 import { syncPractitionerCommissions } from "@/lib/practitioner-commission";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
@@ -267,8 +268,39 @@ export async function runPractitionerCommissionSyncJob(job: Job): Promise<JobRes
   return { ok: true, synced: result.synced };
 }
 
+export async function runPayoutRunJob(job: Job): Promise<JobResult> {
+  const payload = job.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Invalid payout-run payload");
+  }
+
+  const scheduledForRaw = "scheduledFor" in payload ? payload.scheduledFor : null;
+  const payoutRunIdRaw = "payoutRunId" in payload ? payload.payoutRunId : null;
+  if (typeof scheduledForRaw !== "string" || typeof payoutRunIdRaw !== "string") {
+    throw new Error("Invalid payout-run scheduledFor/payoutRunId");
+  }
+
+  const result = await runPayoutRun({
+    payoutRunId: payoutRunIdRaw,
+    scheduledFor: new Date(scheduledForRaw),
+    now: jobNow(job),
+    initiatedBy: "cron",
+  });
+
+  log.info("cron-payout-run-completed", {
+    jobId: job.id,
+    payoutRunId: result.payoutRunId,
+    candidateCount: result.candidateCount,
+    processingCount: result.processingCount,
+    heldCount: result.heldCount,
+  });
+
+  return result;
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
   "cron.booking-reminders": runBookingRemindersJob as JobHandler,
   "cron.practitioner-sync": runPractitionerCommissionSyncJob as JobHandler,
+  "cron.payout-run": runPayoutRunJob as JobHandler,
 };

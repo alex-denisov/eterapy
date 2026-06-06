@@ -12,6 +12,8 @@ interface PayoutDetailsInitial {
   kpp: string | null;
   bik: string | null;
   corrAccount: string | null;
+  kycStatus: string;
+  kycVerifiedAt?: string | Date | null;
 }
 
 type PayoutType = "CARD" | "SBP" | "ENTITY";
@@ -24,6 +26,12 @@ function savedSummary(saved: PayoutDetailsInitial): string {
     return `${saved.legalName ?? "Юр. лицо"} · ИНН ${saved.inn ?? "—"} · сч. ${MASK(saved.accountNumber)}`;
   }
   return `${saved.type === "CARD" ? "Карта" : "СБП"} ${MASK(saved.accountNumber)}${saved.bankName ? ` · ${saved.bankName}` : ""}`;
+}
+
+function kycLabel(saved: PayoutDetailsInitial): string {
+  if (saved.type !== "ENTITY") return "KYC не требуется";
+  if (saved.kycStatus === "VERIFIED") return "KYC подтверждён";
+  return "KYC юр.лица ожидает проверки";
 }
 
 export function PayoutDetailsForm({ initial }: { initial: PayoutDetailsInitial | null }) {
@@ -63,6 +71,8 @@ export function PayoutDetailsForm({ initial }: { initial: PayoutDetailsInitial |
           kpp: type === "ENTITY" ? kpp || null : null,
           bik: type === "ENTITY" ? bik || null : null,
           corrAccount: type === "ENTITY" ? corrAccount || null : null,
+          kycStatus: type === "ENTITY" ? "PENDING" : "NOT_REQUIRED",
+          kycVerifiedAt: null,
         });
         setAccount("");
       } else {
@@ -92,7 +102,9 @@ export function PayoutDetailsForm({ initial }: { initial: PayoutDetailsInitial |
           <p className="soft-eyebrow">реквизиты для выплат</p>
           <h2 className="soft-h3 mt-1">Куда переводить заработок</h2>
           {saved && (
-            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">Текущие: {savedSummary(saved)}</p>
+            <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+              Текущие: {savedSummary(saved)} · {kycLabel(saved)}
+            </p>
           )}
         </div>
 

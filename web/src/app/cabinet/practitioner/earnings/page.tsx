@@ -29,7 +29,20 @@ export default async function PractitionerEarningsPage() {
     select: {
       id: true,
       commissionPercent: true,
-      payoutDetails: { select: { type: true, accountNumber: true, bankName: true, legalName: true, inn: true, kpp: true, bik: true, corrAccount: true } },
+      payoutDetails: {
+        select: {
+          type: true,
+          accountNumber: true,
+          bankName: true,
+          legalName: true,
+          inn: true,
+          kpp: true,
+          bik: true,
+          corrAccount: true,
+          kycStatus: true,
+          kycVerifiedAt: true,
+        },
+      },
     },
   });
   if (!practitioner) redirect("/cabinet/practitioner");
@@ -75,7 +88,13 @@ export default async function PractitionerEarningsPage() {
   // header showed the canonical 32 360.
   const canonicalBalance = (await computePractitionerBalances([practitioner.id])).get(practitioner.id);
   const internalCharges = canonicalBalance?.internalCharges ?? 0;
-  const currentBalance = canonicalBalance?.currentBalance ?? (accruedNet - paidOut - pendingPayout);
+  const currentBalance = Math.max(
+    0,
+    (canonicalBalance?.currentBalance ?? (accruedNet - paidOut - pendingPayout)) +
+      (canonicalBalance?.availablePayout ?? 0),
+  );
+  const heldPayout = Math.max(0, canonicalBalance?.heldPayout ?? 0);
+  const reservePayout = Math.max(0, canonicalBalance?.reservePayout ?? 0);
 
   const now = new Date();
   const nextPayoutOn = nextPayoutDate(now);
@@ -127,13 +146,17 @@ export default async function PractitionerEarningsPage() {
       const commission = commissionPercent / 100;
       const grossRub = commission < 1 ? Math.round(netRub / (1 - commission)) : netRub;
       const feeRub = grossRub - netRub;
+      const holdDetails = p.holdDays ? ` · hold ${p.holdDays} дн` : "";
+      const reserveDetails = p.reserveKopecks > 0
+        ? ` · резерв ${Math.round(p.reserveKopecks / 100).toLocaleString("ru")} ₽`
+        : "";
       return {
         id: `p-${p.id}`,
         kind: "payout",
         date: p.processedAt ?? p.createdAt,
         amountRub: netRub,
         label: labels[p.status] ?? "Выплата",
-        sublabel: `Сессия · ${grossRub.toLocaleString("ru")} ₽ − комиссия ${feeRub.toLocaleString("ru")} ₽ (${commissionPercent}%)`,
+        sublabel: `Сессия · ${grossRub.toLocaleString("ru")} ₽ − комиссия ${feeRub.toLocaleString("ru")} ₽ (${commissionPercent}%)${holdDetails}${reserveDetails}`,
         status: p.status,
       };
     }),
@@ -152,7 +175,7 @@ export default async function PractitionerEarningsPage() {
         Денежный баланс кабинета, движение средств и предстоящие выплаты.
       </p>
 
-      {/* Баланс + следующая выплата */}
+      {/* Баланс + удержания */}
       <div className="grid gap-3 sm:grid-cols-2 mb-6">
         <div className="soft-card">
           <div className="p-4">
@@ -184,12 +207,13 @@ export default async function PractitionerEarningsPage() {
                 <CalendarClock className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-[var(--soft-ink-soft)]">Следующая выплата</p>
+                <p className="text-xs text-[var(--soft-ink-soft)]">Удержано</p>
                 <p className="font-heading text-2xl font-bold text-foreground">
-                  {formatPayoutDate(nextPayoutOn)}
+                  {heldPayout.toLocaleString("ru")} ₽
                 </p>
                 <p className="text-xs text-[var(--soft-ink-soft)] mt-0.5">
-                  Запланировано · {currentBalance.toLocaleString("ru")} ₽
+                  Hold по тарифу, риск/KYC и резерв chargeback.
+                  {reservePayout > 0 && ` Резерв: ${reservePayout.toLocaleString("ru")} ₽.`}
                 </p>
               </div>
             </div>
@@ -225,8 +249,9 @@ export default async function PractitionerEarningsPage() {
       <div className="soft-card mb-6 p-4 text-sm text-[var(--soft-ink-soft)]">
         <p className="font-medium text-foreground mb-1">График выплат</p>
         Выплаты начисляются дважды в месяц — <span className="text-foreground">1-го и 15-го числа</span>{" "}
-        по московскому времени. Новые сессии проходят стандартный hold-период 7 дней; жалобы, возвраты и риск-сигналы
-        удерживают выплату до ручной проверки. Реквизиты можно настроить в разделе «Настройки».
+        по московскому времени. Hold зависит от тарифа: Free 14 дней, Pro 5 дней, Pro+ 2 дня. Жалобы,
+        KYC юр.лица, резерв chargeback и риск-сигналы удерживают сумму до проверки. Следующая дата:{" "}
+        <span className="text-foreground">{formatPayoutDate(nextPayoutOn)}</span>.
       </div>
 
       {/* Движение средств */}

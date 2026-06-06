@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { computePractitionerBalances } from "@/lib/practitioner-balance";
 import { PaymentsPanel } from "./payments-panel";
 
 export default async function AdminPaymentsPage() {
@@ -24,17 +25,27 @@ export default async function AdminPaymentsPage() {
         orderBy: { processedAt: "desc" },
         take: 1,
       },
+      payoutDetails: {
+        select: { type: true, kycStatus: true },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const clarityCreditEntries = await db.clarityCreditLedgerEntry.findMany({
-    include: {
-      user: { select: { name: true, email: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  const [clarityCreditEntries, balances, payoutRuns] = await Promise.all([
+    db.clarityCreditLedgerEntry.findMany({
+      include: {
+        user: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    computePractitionerBalances(practitioners.map((p) => p.id)),
+    db.payoutRun.findMany({
+      orderBy: { scheduledFor: "desc" },
+      take: 10,
+    }),
+  ]);
 
   const list = practitioners.map(p => {
     const commissionPercent = p.commissionPercent ?? 35;
@@ -43,7 +54,9 @@ export default async function AdminPaymentsPage() {
       const applied = booking.commissionPercentApplied ?? commissionPercent;
       return sum + Math.round(booking.priceRub * (applied / 100));
     }, 0);
-    const practitionerEarnings = totalRevenue - platformFee;
+    const balance = balances.get(p.id);
+    const availablePayout = Math.max(0, (balance?.currentBalance ?? 0) + (balance?.availablePayout ?? 0));
+    const heldPayout = Math.max(0, balance?.heldPayout ?? 0);
     const lastPayout = p.payouts[0]?.processedAt?.toISOString() ?? null;
     return {
       id: p.id,
@@ -54,7 +67,11 @@ export default async function AdminPaymentsPage() {
       totalRevenue,
       commissionPercent,
       platformFee,
-      practitionerEarnings,
+      practitionerEarnings: availablePayout,
+      heldPayout,
+      reservePayout: Math.max(0, balance?.reservePayout ?? 0),
+      payoutDetailsType: p.payoutDetails?.type ?? null,
+      kycStatus: p.payoutDetails?.kycStatus ?? null,
       lastPayout,
     };
   });
@@ -108,7 +125,21 @@ export default async function AdminPaymentsPage() {
         ))}
       </div>
 
-      <PaymentsPanel practitioners={list} clarityCredits={clarityCredits} />
+      <PaymentsPanel
+        practitioners={list}
+        clarityCredits={clarityCredits}
+        payoutRuns={payoutRuns.map((run) => ({
+          id: run.id,
+          scheduledFor: run.scheduledFor.toISOString(),
+          status: run.status,
+          candidateCount: run.candidateCount,
+          processingCount: run.processingCount,
+          heldCount: run.heldCount,
+          totalDisbursedKopecks: run.totalDisbursedKopecks,
+          totalReserveKopecks: run.totalReserveKopecks,
+          completedAt: run.completedAt?.toISOString() ?? null,
+        }))}
+      />
     </div>
   );
 }

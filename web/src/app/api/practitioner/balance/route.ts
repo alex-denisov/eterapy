@@ -26,14 +26,16 @@ export async function GET() {
   }
 
   const balance = await computePractitionerBalance(practitioner.id);
-  const currentBalanceRub = Math.max(0, balance?.currentBalance ?? 0);
+  const currentBalanceRub = Math.max(0, (balance?.currentBalance ?? 0) + (balance?.availablePayout ?? 0));
   const currentBalanceKopecks = currentBalanceRub * 100;
 
   return NextResponse.json({
     currentBalanceKopecks,
     currentBalanceRub: currentBalanceRub.toFixed(2),
     pendingPayoutKopecks: Math.max(0, balance?.pendingPayout ?? 0) * 100,
+    heldPayoutKopecks: Math.max(0, balance?.heldPayout ?? 0) * 100,
+    reservePayoutKopecks: Math.max(0, balance?.reservePayout ?? 0) * 100,
     accruedNetKopecks: Math.max(0, balance?.accruedNet ?? 0) * 100,
-	    commissionPercent: balance?.commissionPercent ?? 35,
-	  });
-	}
+    commissionPercent: balance?.commissionPercent ?? 35,
+  });
+}

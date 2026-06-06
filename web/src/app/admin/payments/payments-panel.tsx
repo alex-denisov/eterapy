@@ -15,6 +15,10 @@ interface Practitioner {
   commissionPercent: number;
   platformFee: number;
   practitionerEarnings: number;
+  heldPayout: number;
+  reservePayout: number;
+  payoutDetailsType: string | null;
+  kycStatus: string | null;
   lastPayout: string | null;
 }
 
@@ -31,17 +35,32 @@ interface ClarityCreditAuditEntry {
   createdAt: string;
 }
 
+interface PayoutRun {
+  id: string;
+  scheduledFor: string;
+  status: string;
+  candidateCount: number;
+  processingCount: number;
+  heldCount: number;
+  totalDisbursedKopecks: number;
+  totalReserveKopecks: number;
+  completedAt: string | null;
+}
+
 export function PaymentsPanel({
   practitioners,
   clarityCredits,
+  payoutRuns,
 }: {
   practitioners: Practitioner[];
   clarityCredits: ClarityCreditAuditEntry[];
+  payoutRuns: PayoutRun[];
 }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comment, setComment] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<string | null>(null);
+  const [runProcessing, setRunProcessing] = useState(false);
   const [sortKey, setSortKey] = useState<"earnings" | "revenue">("earnings");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
@@ -101,6 +120,38 @@ export function PaymentsPanel({
     setProcessing(null);
   }
 
+  async function verifyKyc(practitionerId: string) {
+    setProcessing(practitionerId);
+    try {
+      const res = await fetch(`/api/admin/practitioners/${practitionerId}/payout-details/kyc`, { method: "PATCH" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof json.error === "string" ? json.error : "Не удалось подтвердить KYC");
+      }
+      toast.success("KYC реквизитов подтверждён");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось подтвердить KYC");
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  async function startPayoutRun() {
+    setRunProcessing(true);
+    try {
+      const res = await fetch("/api/admin/payout-runs", { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof json.error === "string" ? json.error : "Не удалось запустить payout-run");
+      }
+      toast.success("PayoutRun поставлен в очередь");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось запустить payout-run");
+    } finally {
+      setRunProcessing(false);
+    }
+  }
+
   const totalSelected = [...selected].reduce((sum, id) => {
     const p = practitioners.find(x => x.id === id);
     return sum + (p?.practitionerEarnings ?? 0);
@@ -108,6 +159,55 @@ export function PaymentsPanel({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-border/30 bg-card/20 p-4" data-testid="admin-payout-runs">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">PayoutRun</h2>
+            <p className="text-xs text-muted-foreground">Идемпотентные запуски выплат 1-го и 15-го числа</p>
+          </div>
+          <button
+            type="button"
+            onClick={startPayoutRun}
+            disabled={runProcessing}
+            className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-40"
+            data-testid="admin-payout-run-start"
+          >
+            {runProcessing ? "Запуск..." : "Запустить run"}
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-card/30 border-b border-border/20">
+              <tr>
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground">Дата</th>
+                <th className="p-3 text-left text-xs font-medium text-muted-foreground">Статус</th>
+                <th className="p-3 text-right text-xs font-medium text-muted-foreground">Кандидаты</th>
+                <th className="p-3 text-right text-xs font-medium text-muted-foreground">В обработке</th>
+                <th className="p-3 text-right text-xs font-medium text-muted-foreground">Held</th>
+                <th className="p-3 text-right text-xs font-medium text-muted-foreground">К выплате</th>
+                <th className="p-3 text-right text-xs font-medium text-muted-foreground">Резерв</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/10">
+              {payoutRuns.map((run) => (
+                <tr key={run.id}>
+                  <td className="p-3">{new Date(run.scheduledFor).toLocaleDateString("ru-RU")}</td>
+                  <td className="p-3"><Badge variant="outline">{run.status}</Badge></td>
+                  <td className="p-3 text-right">{run.candidateCount}</td>
+                  <td className="p-3 text-right">{run.processingCount}</td>
+                  <td className="p-3 text-right">{run.heldCount}</td>
+                  <td className="p-3 text-right font-semibold">{Math.round(run.totalDisbursedKopecks / 100).toLocaleString("ru")} ₽</td>
+                  <td className="p-3 text-right text-muted-foreground">{Math.round(run.totalReserveKopecks / 100).toLocaleString("ru")} ₽</td>
+                </tr>
+              ))}
+              {payoutRuns.length === 0 && (
+                <tr><td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">PayoutRun ещё не запускался</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="flex gap-3 items-center">
         <Input placeholder="Поиск практика..."
           value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
@@ -145,9 +245,10 @@ export function PaymentsPanel({
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">Комиссия</th>
               <th className="text-right p-3 text-xs text-muted-foreground font-medium">
                 <button type="button" className="cursor-pointer bg-transparent" onClick={() => toggleSort("earnings")}>
-                  К выплате{mark("earnings")}
+                  Доступно{mark("earnings")}
                 </button>
               </th>
+              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Удержано</th>
               <th className="p-3"></th>
             </tr>
           </thead>
@@ -167,6 +268,12 @@ export function PaymentsPanel({
                 <td className="p-3 text-right text-primary">{p.platformFee.toLocaleString("ru")} ₽ <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
                 <td className="p-3 text-right font-semibold text-green-400">
                   {p.practitionerEarnings.toLocaleString("ru")} ₽
+                </td>
+                <td className="p-3 text-right text-yellow-400">
+                  {p.heldPayout.toLocaleString("ru")} ₽
+                  {p.reservePayout > 0 && (
+                    <span className="block text-[10px] text-muted-foreground">резерв {p.reservePayout.toLocaleString("ru")} ₽</span>
+                  )}
                 </td>
                 <td className="p-3">
                   <div className="flex gap-1 items-center justify-end">
@@ -193,12 +300,22 @@ export function PaymentsPanel({
                         </button>
                       </div>
                     </div>
+                    {p.payoutDetailsType === "ENTITY" && p.kycStatus !== "VERIFIED" && (
+                      <button
+                        type="button"
+                        onClick={() => verifyKyc(p.id)}
+                        disabled={processing === p.id}
+                        className="rounded-lg border border-border/30 px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                      >
+                        KYC
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={7} className="py-10 text-center text-sm text-muted-foreground">Нет практиков</td></tr>
+              <tr><td colSpan={8} className="py-10 text-center text-sm text-muted-foreground">Нет практиков</td></tr>
             )}
           </tbody>
         </table>

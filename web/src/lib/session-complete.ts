@@ -24,7 +24,13 @@
  *   - booking.endedAt is now set at completion time.
  */
 import db from "./db";
-import { payoutAvailableAt, payoutHoldMetadata } from "./practitioner-antifraud";
+import { payoutHoldMetadata } from "./practitioner-antifraud";
+import {
+  PAYOUT_HOLD_DAYS_BY_PLAN,
+  payoutAvailableAt,
+  payoutReserveKopecks,
+  resolvePractitionerPayoutPlanKey,
+} from "./payout-runs";
 
 export const PAYOUT_STATUS_PENDING = "PENDING";
 export const PAYOUT_STATUS_HELD = "HELD";
@@ -104,6 +110,10 @@ export async function completeBookingAtSessionEnd(
   const commissionPercent = booking.commissionPercentApplied ?? booking.practitioner.commissionPercent ?? 35;
   const grossKopecks = booking.priceRub * 100;
   const amountKopecks = Math.round(grossKopecks * (1 - commissionPercent / 100));
+  const completionNow = new Date(Date.now());
+  const planKeyAtPayout = await resolvePractitionerPayoutPlanKey(booking.practitioner.userId, db, completionNow);
+  const holdDays = PAYOUT_HOLD_DAYS_BY_PLAN[planKeyAtPayout];
+  const reserveKopecks = payoutReserveKopecks(planKeyAtPayout, amountKopecks);
 
   const hasUnresolvedComplaint = booking.complaints.some(
     (c) => c.status === "OPEN" || c.status === "REVIEWING",
@@ -118,7 +128,7 @@ export async function completeBookingAtSessionEnd(
   const payoutRow = await db.$transaction(async (tx) => {
     const flip = await tx.booking.updateMany({
       where: { id: bookingId, status: "IN_PROGRESS" },
-      data: { status: "COMPLETED", endedAt: new Date(), commissionPercentApplied: commissionPercent },
+      data: { status: "COMPLETED", endedAt: completionNow, commissionPercentApplied: commissionPercent },
     });
     if (flip.count === 0) {
       return null;
@@ -136,8 +146,11 @@ export async function completeBookingAtSessionEnd(
         amountKopecks,
         status: payoutStatus,
         initiatedBy: actor.userId,
-        availableAt: payoutAvailableAt(),
+        availableAt: payoutAvailableAt(planKeyAtPayout, completionNow),
         holdReason: payoutHold.holdReason,
+        holdDays,
+        planKeyAtPayout,
+        reserveKopecks,
         riskScore: booking.riskScore,
         riskFlags: booking.riskFlags,
       },

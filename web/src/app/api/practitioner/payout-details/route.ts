@@ -22,6 +22,8 @@ const ENTITY_FIELDS = {
   kpp: true,
   bik: true,
   corrAccount: true,
+  kycStatus: true,
+  kycVerifiedAt: true,
   updatedAt: true,
 } as const;
 
@@ -75,6 +77,8 @@ export async function PATCH(req: NextRequest) {
       kpp: null,
       bik: null,
       corrAccount: null,
+      kycStatus: "NOT_REQUIRED",
+      kycVerifiedAt: null,
     });
   }
 
@@ -114,6 +118,8 @@ export async function PATCH(req: NextRequest) {
     kpp: kpp || null,
     bik,
     corrAccount: corrAccount || null,
+    kycStatus: "PENDING",
+    kycVerifiedAt: null,
   });
 }
 
@@ -128,6 +134,8 @@ async function upsert(
     kpp: string | null;
     bik: string | null;
     corrAccount: string | null;
+    kycStatus: string;
+    kycVerifiedAt: Date | null;
   },
 ) {
   const practitioner = await db.practitioner.findUnique({ where: { userId }, select: { id: true } });
