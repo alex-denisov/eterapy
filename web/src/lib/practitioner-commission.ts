@@ -6,8 +6,24 @@ export const COMMISSION_BY_PLAN = {
   practitioner_pro_plus: 25,
 } as const;
 
+export const PLATFORM_COMMISSION_BY_TIER = {
+  base: 35,
+  practitioner_pro: 30,
+  practitioner_pro_plus: 25,
+} as const;
+
+export const BYOC_LADDER = {
+  base: 20,
+  practitioner_pro: 17,
+  practitioner_pro_plus: 14,
+} as const;
+
+export const FOUNDING_FLAT_COMMISSION = 12;
+
 export type PractitionerCommissionPlanKey = keyof typeof COMMISSION_BY_PLAN;
+export type PractitionerCommissionTier = keyof typeof PLATFORM_COMMISSION_BY_TIER;
 export type PractitionerCommissionSource = "base" | "subscription_pro" | "subscription_pro_plus" | "override";
+export type BookingClientSource = "PLATFORM" | "BYOC";
 
 type CommissionTx = Pick<Prisma.TransactionClient, "practitioner" | "userSubscription">;
 
@@ -31,6 +47,26 @@ function normalizePercent(value: number | null | undefined, fallback: number) {
 
 function isCommissionPlanKey(planKey: string | null | undefined): planKey is PractitionerCommissionPlanKey {
   return Boolean(planKey && Object.prototype.hasOwnProperty.call(COMMISSION_BY_PLAN, planKey));
+}
+
+export function tierForPlanKey(planKey: string | null | undefined): PractitionerCommissionTier {
+  return isCommissionPlanKey(planKey) ? planKey : "base";
+}
+
+export function isFoundingActive(
+  practitioner: { isFoundingCohort?: boolean | null; foundingUntil?: Date | null },
+  now = new Date(),
+) {
+  return Boolean(practitioner.isFoundingCohort && practitioner.foundingUntil && practitioner.foundingUntil > now);
+}
+
+export function commissionForSource(
+  source: BookingClientSource,
+  tier: PractitionerCommissionTier,
+  foundingActive: boolean,
+) {
+  if (source === "BYOC") return foundingActive ? FOUNDING_FLAT_COMMISSION : BYOC_LADDER[tier];
+  return PLATFORM_COMMISSION_BY_TIER[tier];
 }
 
 function sourceForPlan(planKey: PractitionerCommissionPlanKey): PractitionerCommissionSource {

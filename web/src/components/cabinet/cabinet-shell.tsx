@@ -21,6 +21,7 @@ import {
   LogOut,
   Leaf,
   Crown,
+  Handshake,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 
@@ -49,6 +50,7 @@ const PRACTITIONER_NAV: NavItem[] = [
   { href: appUrl("/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
   { href: appUrl("/practitioner/clients"), icon: Users, label: "Клиенты" },
   { href: appUrl("/practitioner/earnings"), icon: Banknote, label: "Баланс" },
+  { href: appUrl("/practitioner/invite"), icon: Handshake, label: "Приведите клиента" },
   { href: appUrl("/practitioner/subscription"), icon: Crown, label: "Подписка" },
   { href: appUrl("/practitioner/reviews"), icon: Star, label: "Отзывы" },
   { href: appUrl("/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },

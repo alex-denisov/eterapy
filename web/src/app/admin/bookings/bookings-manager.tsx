@@ -8,6 +8,9 @@ import { getBookingStatus } from "@/lib/booking-status";
 export interface AdminBookingRow {
   id: string;
   status: string;
+  source: string;
+  commissionPercentApplied: number | null;
+  referrerPractitionerId: string | null;
   priceRub: number;
   durationMin: number;
   slotStartAt: string | null;
@@ -114,6 +117,10 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                   minute: "2-digit",
                 })
               : "Слот не выбран";
+            const sourceLabel = b.source === "BYOC" ? "BYOC" : "Платформа";
+            const commissionLabel = b.commissionPercentApplied === null
+              ? "ставка не зафиксирована"
+              : `${b.commissionPercentApplied}% комиссия`;
             return (
               <div key={b.id} className="rounded-xl border border-border/20 bg-card/20 overflow-hidden">
                 <button
@@ -126,7 +133,7 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                       {b.client.name} → {b.practitioner.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {b.priceRub.toLocaleString("ru-RU")} ₽ · {b.durationMin} мин · {slot} · создано{" "}
+                      {sourceLabel} · {commissionLabel} · {b.priceRub.toLocaleString("ru-RU")} ₽ · {b.durationMin} мин · {slot} · создано{" "}
                       {new Date(b.createdAt).toLocaleDateString("ru-RU")}
                     </p>
                   </div>
@@ -147,6 +154,9 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                       <div>
                         <p className="text-muted-foreground">Практик</p>
                         <p>{b.practitioner.name}</p>
+                        {b.referrerPractitionerId && (
+                          <p className="text-muted-foreground">BYOC referrer: {b.referrerPractitionerId}</p>
+                        )}
                       </div>
                     </div>
 

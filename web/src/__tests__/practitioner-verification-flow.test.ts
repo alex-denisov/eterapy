@@ -25,7 +25,9 @@ describe("Practitioner verification flow", () => {
     expect(manager).toContain("Верификация");
     expect(route).toContain("PRACTITIONER_VERIFIED");
     // V9: approval now stamps a verification timestamp.
-    expect(route).toContain("verified: true, verifiedAt: new Date()");
+    expect(route).toContain("const verifiedAt = new Date()");
+    expect(route).toContain("verified: true, verifiedAt");
+    expect(route).toContain("assignFoundingCohortIfEligible");
   });
 
   it("V9 — records and surfaces the verification timestamp", () => {

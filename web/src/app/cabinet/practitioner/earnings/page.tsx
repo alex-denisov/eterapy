@@ -124,15 +124,18 @@ export default async function PractitionerEarningsPage() {
 
   // Движение средств: зачисления (сессии) + списания (выплаты)
   const movements: Movement[] = [
-    ...completedBookings.map<Movement>((b) => ({
-      id: `b-${b.id}`,
-      kind: "earning",
-      date: new Date(b.createdAt),
-      amountRub: netOf(b.priceRub, bookingCommission(b)),
-      label: `Сессия · ${b.client.name}`,
-      sublabel: `${b.priceRub.toLocaleString("ru")} ₽ − ${bookingCommission(b)}% комиссия`,
-      status: "COMPLETED",
-    })),
+    ...completedBookings.map<Movement>((b) => {
+      const sourceLabel = b.source === "BYOC" ? "BYOC" : "Платформа";
+      return {
+        id: `b-${b.id}`,
+        kind: "earning",
+        date: new Date(b.createdAt),
+        amountRub: netOf(b.priceRub, bookingCommission(b)),
+        label: `Сессия · ${b.client.name}`,
+        sublabel: `${sourceLabel} · ${b.priceRub.toLocaleString("ru")} ₽ − ${bookingCommission(b)}% комиссия`,
+        status: "COMPLETED",
+      };
+    }),
     ...payouts.map<Movement>((p) => {
       const labels: Record<string, string> = {
         PENDING: "Ожидает выплаты",

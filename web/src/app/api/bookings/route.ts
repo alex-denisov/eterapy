@@ -18,6 +18,7 @@ import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { assessBookingRisk } from "@/lib/practitioner-antifraud";
+import { finalizeByocBookingAttribution, resolveByocBookingCommission } from "@/lib/byoc";
 import { trackServerEvent } from "@/lib/analytics";
 import { log } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
@@ -158,6 +159,15 @@ export async function POST(req: NextRequest) {
       }));
       return NextResponse.json({ error: "Запись требует проверки поддержки" }, { status: 409 });
     }
+    const byocCommission = await db.$transaction((tx) => resolveByocBookingCommission({
+      tx,
+      request: req,
+      clientId: session.user.id,
+      practitionerId,
+    }));
+    if (byocCommission.shouldBlock) {
+      return NextResponse.json({ error: "BYOC-запись требует проверки поддержки" }, { status: 409 });
+    }
 
     let resolvedSlotId: string | null = null;
 
@@ -216,21 +226,34 @@ export async function POST(req: NextRequest) {
     let priceRub = priceOverride ?? practitioner.pricePerSession;
     if (testMode) priceRub = 0;
 
-    const booking = await db.booking.create({
-      data: {
+    const booking = await db.$transaction(async (tx) => {
+      const created = await tx.booking.create({
+        data: {
+          clientId: session.user.id,
+          practitionerId,
+          slotId: resolvedSlotId,
+          status: BookingStatus.PENDING,
+          priceRub,
+          source: byocCommission.source,
+          referrerPractitionerId: byocCommission.referrerPractitionerId,
+          commissionPercentApplied: byocCommission.commissionPercentApplied,
+          ...fingerprint,
+          riskScore: bookingRisk.riskScore,
+          riskFlags: Array.from(new Set([...bookingRisk.riskFlags, ...byocCommission.riskFlags])),
+        },
+        include: {
+          client: { select: { name: true, email: true } },
+          slot: true,
+        },
+      });
+      await finalizeByocBookingAttribution({
+        tx,
         clientId: session.user.id,
         practitionerId,
-        slotId: resolvedSlotId,
-        status: BookingStatus.PENDING,
-        priceRub,
-        ...fingerprint,
-        riskScore: bookingRisk.riskScore,
-        riskFlags: bookingRisk.riskFlags,
-      },
-      include: {
-        client: { select: { name: true, email: true } },
-        slot: true,
-      },
+        source: byocCommission.source,
+        firstTouchInviteId: byocCommission.firstTouchInviteId,
+      });
+      return created;
     });
 
     if (bookingRisk.shouldReview) {

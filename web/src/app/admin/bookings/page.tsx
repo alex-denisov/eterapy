@@ -55,6 +55,9 @@ export default async function AdminBookingsPage(props: {
   const rows: AdminBookingRow[] = bookings.map((b) => ({
     id: b.id,
     status: b.status,
+    source: b.source,
+    commissionPercentApplied: b.commissionPercentApplied,
+    referrerPractitionerId: b.referrerPractitionerId,
     priceRub: b.priceRub,
     durationMin: b.slot
       ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)

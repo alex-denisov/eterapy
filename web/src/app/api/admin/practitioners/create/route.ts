@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAudit } from "@/lib/audit";
 import { generateUniqueSlug } from "@/lib/slug";
+import { assignFoundingCohortIfEligible } from "@/lib/byoc";
 import { log } from "@/lib/logger";
 
 const DURATIONS = [15, 30, 45, 60, 90, 120];
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
 
     // Transaction: User + Practitioner + PriceRates
     const result = await db.$transaction(async (tx) => {
+      const verifiedAt = verified ? new Date() : null;
       const user = await tx.user.create({
         data: {
           email: email.toLowerCase(),
@@ -75,6 +77,7 @@ export async function POST(req: NextRequest) {
           specialties,
           tags,
           verified,
+          verifiedAt,
           founding,
           pricePerSession: minRate,
           sessionDuration: defaultDuration,
@@ -93,6 +96,10 @@ export async function POST(req: NextRequest) {
           })),
           skipDuplicates: true,
         });
+      }
+
+      if (verified) {
+        await assignFoundingCohortIfEligible(practitioner.id, tx, verifiedAt ?? new Date());
       }
 
       return { user, practitioner };

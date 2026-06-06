@@ -7,6 +7,7 @@ import { validateName, validateEmail } from "@/lib/validation";
 import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import { attachReferralToRegisteredUser } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
+import { attachByocAtRegistration } from "@/lib/byoc";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
     const user = await usersDb.create({ email, name, password });
     await attachReferralToRegisteredUser({ request: req, userId: user.id }).catch((referralErr) => {
       log.error("register.referral_attach_failed", { err: referralErr });
+    });
+    await attachByocAtRegistration({ request: req, userId: user.id }).catch((byocErr) => {
+      log.error("register.byoc_attach_failed", { err: byocErr });
     });
     await markChannelConversion({
       request: req,

@@ -30,6 +30,7 @@ import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { generateUniqueSlug } from "@/lib/slug";
 import { parsePractitionerVerificationMarker } from "@/lib/practitioner-verification";
+import { assignFoundingCohortIfEligible } from "@/lib/byoc";
 import type { Specialty } from "@prisma/client";
 import { log } from "@/lib/logger";
 
@@ -91,10 +92,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     await db.$transaction(async (tx) => {
+      const verifiedAt = new Date();
       await tx.practitioner.update({
         where: { id: practitioner.id },
-        data: { verified: true, verifiedAt: new Date() },
+        data: { verified: true, verifiedAt },
       });
+      await assignFoundingCohortIfEligible(practitioner.id, tx, verifiedAt);
       await tx.practitionerApplication.update({
         where: { id: application.id },
         data: { status: "APPROVED" },
