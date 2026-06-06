@@ -2,11 +2,16 @@ import type { Prisma, Transaction } from "@prisma/client";
 import db from "@/lib/db";
 import { type V5ProductSlug } from "@/lib/v5-products";
 
+export type BundleProductKey = "full-question";
+export type PaidProductKey = V5ProductSlug | BundleProductKey;
+
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "perspectives": 29900,
   // Z3: align code ₽ with advertised copy (v5-products.ts / pricing): deep-report
   // was 590 in code but 690 everywhere else; compatibility was 590 but 790.
   "deep-report": 69000,
+  // Z11: packaging SKU = perspectives + deep-report. Not a public product page.
+  "full-question": 89000,
   "chat-analysis": 39000,
   "compatibility": 79000,
   "circle": 79000,
@@ -23,6 +28,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   // was charged 2 for a product priced at 1. Aligned to the advertised cost.
   "perspectives": 1,
   "deep-report": 4,
+  "full-question": 5,
   "chat-analysis": 2,
   "compatibility": 4,
   // Z3: founder-accepted — circle/«Вы двое» = 4 credits (code had 3, copy said 4).
@@ -33,6 +39,10 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "tarot": 2,
   "natal-chart": 4,
   "numerology": 2,
+};
+
+export const V5_BUNDLE_CONTENTS: Record<BundleProductKey, V5ProductSlug[]> = {
+  "full-question": ["perspectives", "deep-report"],
 };
 
 type SubscriptionPlanDefinition = {
@@ -221,7 +231,11 @@ export async function getUserActivePlan(userId: string, now = new Date()) {
     ?? null;
 }
 
-export function isKnownPaidProduct(productKey: string): productKey is V5ProductSlug {
+export function isKnownBundleProduct(productKey: string): productKey is BundleProductKey {
+  return Object.prototype.hasOwnProperty.call(V5_BUNDLE_CONTENTS, productKey);
+}
+
+export function isKnownPaidProduct(productKey: string): productKey is PaidProductKey {
   return Object.prototype.hasOwnProperty.call(V5_PRODUCT_PRICES_KOPECKS, productKey);
 }
 
@@ -310,6 +324,14 @@ export function resolveBillingPurchase(input: {
 
 export async function userHasActiveEntitlement(userId: string, productKey: string): Promise<boolean> {
   const now = new Date();
+  if (isKnownBundleProduct(productKey)) {
+    const bundleProductKeys = V5_BUNDLE_CONTENTS[productKey];
+    const activeStates = await Promise.all(
+      bundleProductKeys.map((bundleProductKey) => userHasActiveEntitlement(userId, bundleProductKey)),
+    );
+    return bundleProductKeys.every((_, index) => activeStates[index]);
+  }
+
   const direct = await db.productEntitlement.findFirst({
     where: {
       userId,
@@ -530,11 +552,73 @@ async function recordPurchasedClarityCreditClawback(
   });
 }
 
+async function grantBundleEntitlements(
+  tx: Prisma.TransactionClient,
+  input: {
+    userId: string;
+    transactionId: string;
+    bundleKey: BundleProductKey;
+    metadata: BillingTransactionMetadata;
+  },
+) {
+  const bundleProductKeys = V5_BUNDLE_CONTENTS[input.bundleKey];
+
+  for (const productKey of bundleProductKeys) {
+    const existing = await tx.productEntitlement.findFirst({
+      where: {
+        userId: input.userId,
+        productKey,
+        transactionId: input.transactionId,
+      },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      await tx.productEntitlement.create({
+        data: {
+          userId: input.userId,
+          productKey,
+          source: "bundle",
+          status: "ACTIVE",
+          transactionId: input.transactionId,
+          metadata: {
+            ...input.metadata,
+            bundleKey: input.bundleKey,
+            bundledProductKey: productKey,
+          } as Prisma.InputJsonObject,
+        },
+      });
+    }
+  }
+
+  return bundleProductKeys;
+}
+
 export async function grantEntitlementForTransaction(
   tx: Prisma.TransactionClient,
   transaction: Pick<Transaction, "id" | "userId" | "amount" | "description" | "metadata">,
 ) {
   const metadata = getBillingTransactionMetadata(transaction);
+  if (metadata.purchaseKind === "product" && metadata.productKey && isKnownBundleProduct(metadata.productKey)) {
+    const bundleProductKeys = await grantBundleEntitlements(tx, {
+      userId: transaction.userId,
+      transactionId: transaction.id,
+      bundleKey: metadata.productKey,
+      metadata,
+    });
+
+    await recordCreditLedgerEntry(tx, {
+      userId: transaction.userId,
+      amountKopecks: -Math.abs(transaction.amount),
+      type: "PRODUCT_PURCHASE",
+      transactionId: transaction.id,
+      description: transaction.description,
+      metadata: metadata as Prisma.InputJsonObject,
+    });
+
+    return { kind: "bundle" as const, bundleKey: metadata.productKey, productKeys: bundleProductKeys };
+  }
+
   if (metadata.purchaseKind === "product" && metadata.productKey && isKnownPaidProduct(metadata.productKey)) {
     const existing = await tx.productEntitlement.findFirst({
       where: {
@@ -648,7 +732,29 @@ export async function revokeEntitlementsForTransaction(
 ) {
   const metadata = getBillingTransactionMetadata(transaction);
 
-  if (metadata.purchaseKind === "product" && metadata.productKey) {
+  if (metadata.purchaseKind === "product" && metadata.productKey && isKnownBundleProduct(metadata.productKey)) {
+    const bundleProductKeys = V5_BUNDLE_CONTENTS[metadata.productKey];
+    for (const productKey of bundleProductKeys) {
+      await tx.productEntitlement.updateMany({
+        where: {
+          userId: transaction.userId,
+          productKey,
+          transactionId: transaction.id,
+          status: "ACTIVE",
+        },
+        data: {
+          status: "REFUNDED",
+          revokedAt: new Date(),
+          metadata: {
+            ...metadata,
+            bundleKey: metadata.productKey,
+            bundledProductKey: productKey,
+            refundReason: reason,
+          } as Prisma.InputJsonObject,
+        },
+      });
+    }
+  } else if (metadata.purchaseKind === "product" && metadata.productKey) {
     await tx.productEntitlement.updateMany({
       where: {
         userId: transaction.userId,

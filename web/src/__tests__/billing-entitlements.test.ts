@@ -27,6 +27,7 @@ import path from "node:path";
 import db from "@/lib/db";
 import {
   CREDIT_PACKS,
+  V5_BUNDLE_CONTENTS,
   getProductPriceKopecks,
   getProductCreditCost,
   getSubscriptionPlan,
@@ -68,12 +69,15 @@ describe("v5 billing entitlements", () => {
   it("keeps product prices server-side", () => {
     expect(getProductPriceKopecks("perspectives")).toBe(29900);
     expect(getProductPriceKopecks("deep-report")).toBe(69000);
+    expect(getProductPriceKopecks("full-question")).toBe(89000);
     expect(getProductPriceKopecks("chat-analysis")).toBe(39000);
     expect(getProductPriceKopecks("compatibility")).toBe(79000);
     expect(getProductPriceKopecks("seven-days")).toBe(99000);
     // primary-answer was retired in B293; the free dialogue is now /checkin only.
     expect(getProductPriceKopecks("unknown-slug")).toBeNull();
     expect(getProductCreditCost("deep-report")).toBe(4);
+    expect(getProductCreditCost("full-question")).toBe(5);
+    expect(V5_BUNDLE_CONTENTS["full-question"]).toEqual(["perspectives", "deep-report"]);
     expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
       amountKopecks: 49_000,
       creditsPerPeriod: 12,
@@ -93,6 +97,12 @@ describe("v5 billing entitlements", () => {
       "Укажите продукт, тариф или пакет кредитов"
     );
     expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
+    expect(resolveBillingPurchase({ productKey: "full-question" })).toEqual(expect.objectContaining({
+      kind: "product",
+      amountKopecks: 89_000,
+      description: "ETerapy: full-question",
+      metadata: expect.objectContaining({ purchaseKind: "product", productKey: "full-question" }),
+    }));
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
       kind: "subscription",
       amountKopecks: 49_000,
@@ -234,6 +244,55 @@ describe("v5 billing entitlements", () => {
     }));
   });
 
+  it("expands the full-question bundle into perspectives and deep-report entitlements", async () => {
+    mockDb.productEntitlement.findFirst.mockResolvedValue(null);
+    const ledgerCreate = jest.fn();
+    const testTx = {
+      productEntitlement: mockDb.productEntitlement,
+      userSubscription: mockDb.userSubscription,
+      creditLedgerEntry: { create: ledgerCreate },
+      clarityCreditLedgerEntry: mockDb.clarityCreditLedgerEntry,
+    } as never;
+
+    const result = await grantEntitlementForTransaction(testTx, {
+      id: "tx-bundle",
+      userId: "user-1",
+      amount: 89000,
+      description: "ETerapy: full-question",
+      metadata: { purchaseKind: "product", productKey: "full-question" },
+    });
+
+    expect(result).toEqual({
+      kind: "bundle",
+      bundleKey: "full-question",
+      productKeys: ["perspectives", "deep-report"],
+    });
+    expect(mockDb.productEntitlement.create).toHaveBeenCalledTimes(2);
+    expect(mockDb.productEntitlement.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-1",
+        productKey: "perspectives",
+        source: "bundle",
+        transactionId: "tx-bundle",
+      }),
+    }));
+    expect(mockDb.productEntitlement.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        userId: "user-1",
+        productKey: "deep-report",
+        source: "bundle",
+        transactionId: "tx-bundle",
+      }),
+    }));
+    expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        amountKopecks: -89000,
+        type: "PRODUCT_PURCHASE",
+        transactionId: "tx-bundle",
+      }),
+    }));
+  });
+
   it("uses active subscription inclusions when checking access", async () => {
     mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
     mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "plus" }]);
@@ -288,6 +347,50 @@ describe("v5 billing entitlements", () => {
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-1",
+      }),
+    }));
+  });
+
+  it("revokes both full-question bundle entitlements on refund", async () => {
+    const ledgerCreate = jest.fn();
+    const testTx = {
+      productEntitlement: mockDb.productEntitlement,
+      userSubscription: mockDb.userSubscription,
+      creditLedgerEntry: { create: ledgerCreate },
+      clarityCreditLedgerEntry: mockDb.clarityCreditLedgerEntry,
+    } as never;
+
+    await revokeEntitlementsForTransaction(testTx, {
+      id: "tx-bundle",
+      userId: "user-1",
+      amount: 89000,
+      description: "ETerapy: full-question",
+      metadata: { purchaseKind: "product", productKey: "full-question" },
+    } as never, "Возврат бандла");
+
+    expect(mockDb.productEntitlement.updateMany).toHaveBeenCalledTimes(2);
+    expect(mockDb.productEntitlement.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        userId: "user-1",
+        productKey: "perspectives",
+        transactionId: "tx-bundle",
+        status: "ACTIVE",
+      }),
+    }));
+    expect(mockDb.productEntitlement.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        userId: "user-1",
+        productKey: "deep-report",
+        transactionId: "tx-bundle",
+        status: "ACTIVE",
+      }),
+    }));
+    expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        amountKopecks: 89000,
+        type: "REFUND",
+        source: "yookassa_refund",
+        transactionId: "tx-bundle",
       }),
     }));
   });

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { getSpendableClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
-import { getProductCreditCost, isKnownPaidProduct } from "@/lib/entitlements";
+import { V5_BUNDLE_CONTENTS, getProductCreditCost, isKnownBundleProduct, isKnownPaidProduct } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 function parseProductKey(value: unknown) {
@@ -28,20 +28,22 @@ export async function POST(req: NextRequest) {
   if (!creditCost) {
     return errorWithRequestContext("CREDITS_NOT_SUPPORTED", "Для продукта не настроена оплата кредитами", 400, context);
   }
+  const bundleProductKeys = isKnownBundleProduct(productKey) ? V5_BUNDLE_CONTENTS[productKey] : [productKey];
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const existing = await tx.productEntitlement.findFirst({
+      const existing = await tx.productEntitlement.findMany({
         where: {
           userId: session.user.id,
-          productKey,
+          productKey: { in: bundleProductKeys },
           status: "ACTIVE",
           OR: [{ validUntil: null }, { validUntil: { gt: new Date() } }],
         },
-        select: { id: true },
+        select: { id: true, productKey: true },
       });
+      const existingKeys = new Set(existing.map((entitlement) => entitlement.productKey));
 
-      if (existing) {
+      if (bundleProductKeys.every((bundleProductKey) => existingKeys.has(bundleProductKey))) {
         return { alreadyUnlocked: true, creditCost, balanceAfter: await getSpendableClarityCreditBalance(session.user.id, tx) };
       }
 
@@ -57,23 +59,33 @@ export async function POST(req: NextRequest) {
         source: "product",
         sourceEventId: productKey,
         status: "confirmed",
-        metadata: { productKey, checkoutSource: "credits" } as Prisma.InputJsonObject,
-      });
-
-      const entitlement = await tx.productEntitlement.create({
-        data: {
-          userId: session.user.id,
+        metadata: {
           productKey,
-          source: "credits",
-          status: "ACTIVE",
-          metadata: {
-            creditLedgerEntryId: spend.id,
-            creditCost,
-          } as Prisma.InputJsonObject,
-        },
+          checkoutSource: "credits",
+          ...(isKnownBundleProduct(productKey) ? { bundleKey: productKey, bundleProductKeys } : {}),
+        } as Prisma.InputJsonObject,
       });
 
-      return { alreadyUnlocked: false, entitlementId: entitlement.id, creditCost, balanceAfter: spend.balanceAfter };
+      const createdEntitlementIds: string[] = [];
+      for (const bundleProductKey of bundleProductKeys) {
+        if (existingKeys.has(bundleProductKey)) continue;
+        const entitlement = await tx.productEntitlement.create({
+          data: {
+            userId: session.user.id,
+            productKey: bundleProductKey,
+            source: productKey === "full-question" ? "bundle" : "credits",
+            status: "ACTIVE",
+            metadata: {
+              creditLedgerEntryId: spend.id,
+              creditCost,
+              ...(isKnownBundleProduct(productKey) ? { bundleKey: productKey, bundledProductKey: bundleProductKey } : {}),
+            } as Prisma.InputJsonObject,
+          },
+        });
+        createdEntitlementIds.push(entitlement.id);
+      }
+
+      return { alreadyUnlocked: false, entitlementIds: createdEntitlementIds, creditCost, balanceAfter: spend.balanceAfter };
     });
 
     return jsonWithRequestContext({ ok: true, productKey, ...result }, undefined, context);

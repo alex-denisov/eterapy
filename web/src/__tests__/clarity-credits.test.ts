@@ -36,7 +36,7 @@ describe("M21 clarity credits", () => {
     expect(route).toContain("await auth()");
     expect(route).toContain("getSpendableClarityCreditBalance");
     expect(route).toContain("recordClarityCreditEntry");
-    expect(route).toContain('source: "credits"');
+    expect(route).toContain('productKey === "full-question" ? "bundle" : "credits"');
     expect(route).toContain("INSUFFICIENT_CREDITS");
   });
 

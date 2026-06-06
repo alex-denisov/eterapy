@@ -84,13 +84,16 @@ export async function creditSucceededPayment(
   const amountRub = (result.amount / 100).toFixed(2);
 
   // Track payment_success for funnel analytics (best-effort)
-  const productType = result.entitlementGrant.kind === "product"
-    ? result.entitlementGrant.productKey
-    : result.entitlementGrant.kind === "subscription"
-      ? "subscription"
-      : result.entitlementGrant.kind === "credits"
-        ? result.entitlementGrant.creditPackKey
-      : "other";
+  let productType = "other";
+  if (result.entitlementGrant.kind === "product") {
+    productType = result.entitlementGrant.productKey;
+  } else if (result.entitlementGrant.kind === "subscription") {
+    productType = "subscription";
+  } else if (result.entitlementGrant.kind === "credits") {
+    productType = result.entitlementGrant.creditPackKey;
+  } else if (result.entitlementGrant.kind === "bundle") {
+    productType = result.entitlementGrant.bundleKey;
+  }
   trackServerEvent(db, {
     event: "payment_success",
     userId: result.userId,
@@ -117,6 +120,14 @@ export async function creditSucceededPayment(
       event: "PRODUCT_UNLOCKED",
       data: { productKey: result.entitlementGrant.productKey },
     }).catch((e) => log.error("billing.product_unlocked_notify_failed", { err: e }));
+  }
+
+  if (result.entitlementGrant.kind === "bundle") {
+    notify({
+      userId: result.userId,
+      event: "PRODUCT_UNLOCKED",
+      data: { productKey: result.entitlementGrant.bundleKey },
+    }).catch((e) => log.error("billing.bundle_unlocked_notify_failed", { err: e }));
   }
 
   if (result.entitlementGrant.kind === "subscription") {

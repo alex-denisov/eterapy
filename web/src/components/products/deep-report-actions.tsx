@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Download, LockKeyhole, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FullQuestionBundleOffer } from "@/components/products/full-question-bundle-offer";
 import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
@@ -276,6 +277,13 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
             <div className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)] whitespace-pre-wrap">
               {result.previewText}
             </div>
+          )}
+
+          {!hasEntitlement && (
+            <FullQuestionBundleOffer
+              dialogueId={dialogueId}
+              onUnlocked={() => { setHasEntitlement(true); }}
+            />
           )}
 
           {/* CTAs */}
