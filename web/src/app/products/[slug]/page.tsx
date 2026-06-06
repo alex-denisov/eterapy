@@ -102,8 +102,8 @@ function DeepReportSide() {
 
 function ExtendedMapSide() {
   return (
-    <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#DBD3EA,#F4D9C1)] p-10" data-testid="product-my-map-preview">
-      <div className="relative w-80 max-w-full">
+    <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#DBD3EA,#F4D9C1)] p-6 sm:p-10" data-testid="product-my-map-preview">
+      <div className="relative w-full max-w-80">
         <div className="grid grid-cols-4 gap-1.5">
           {["Отношения", "Семья", "Работа", "Тело", "Деньги", "Подруги", "Мама", "Партнёр"].map((topic, index) => (
             <div key={topic} className="rounded-lg p-2 text-center text-[0.56rem] text-[var(--soft-bordeaux)]" style={{ background: ["#F4D9C1", "#E8C4B8", "#DBD3EA", "#D6DECC"][index % 4] }}>
@@ -111,7 +111,7 @@ function ExtendedMapSide() {
             </div>
           ))}
         </div>
-        <div className="absolute inset-[-0.75rem] w-44 translate-x-[48%] translate-y-[62%] rotate-[-3deg] rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 font-heading text-xs italic text-[var(--soft-bordeaux)] shadow-[0_8px_20px_-8px_rgba(60,30,20,.2)]">
+        <div className="absolute bottom-[-0.5rem] right-0 w-40 rotate-[-3deg] rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 font-heading text-xs italic text-[var(--soft-bordeaux)] shadow-[0_8px_20px_-8px_rgba(60,30,20,.2)] sm:inset-[-0.75rem] sm:w-44 sm:translate-x-[48%] sm:translate-y-[62%]">
           «3 темы стали тише за год, 1 — окрепла»
         </div>
       </div>
@@ -683,7 +683,7 @@ function ProductActionSurface({
     return <SymbolicProductActions productKey="numerology" title="Числовой портрет" promptLabel="Имя и дата рождения" placeholder="Анна, 12.04.1992. Хочу понять повторяющийся сценарий в отношениях." creditCost={2} />;
   }
   if (product.slug === "my-map") {
-    return <SymbolicProductActions productKey="my-map" title="Расширенная карта" promptLabel="Что собрать в карту" placeholder="Хочу собрать темы года: отношения, работа, голос, границы. Что повторялось и что стало тише?" creditCost={6} />;
+    return <SymbolicProductActions productKey="my-map" title="Расширенная карта" promptLabel="История Моей карты" placeholder="История собирается автоматически из сохранённых вопросов, маршрутов и результатов." creditCost={6} />;
   }
   if (product.slug === "joint-session") return <JointSessionActions />;
   return null;

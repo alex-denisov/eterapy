@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, LockKeyhole, Save } from "lucide-react";
+import { ArrowRight, Compass, LockKeyhole, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
@@ -20,6 +20,14 @@ type ApiPayload = {
   result?: SymbolicResult;
   results?: SymbolicResult[];
   paywalled?: boolean;
+  insufficientHistory?: boolean;
+  itemCount?: number;
+  minItems?: number;
+  mapItemCount?: number;
+  minMapItems?: number;
+  canGenerateMap?: boolean;
+  mapEmptyState?: string;
+  emptyState?: string;
   error?: string;
 };
 
@@ -56,6 +64,15 @@ export function SymbolicProductActions({
   const [userInput, setUserInput] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [mapItemCount, setMapItemCount] = useState<number | null>(null);
+  const [minMapItems, setMinMapItems] = useState(3);
+  const historyDriven = productKey === "my-map";
+  const hasEnoughMapHistory = !historyDriven || (mapItemCount !== null && mapItemCount >= minMapItems);
+  const canAttemptGeneration = !historyDriven || authStatus !== "authenticated" || hasEnoughMapHistory;
+  const canShowPurchaseControls = !historyDriven
+    || authStatus !== "authenticated"
+    || mapItemCount === null
+    || hasEnoughMapHistory;
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -65,14 +82,24 @@ export function SymbolicProductActions({
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
         setResult(payload.results?.[0] ?? null);
+        if (historyDriven) {
+          setMapItemCount(payload.mapItemCount ?? 0);
+          setMinMapItems(payload.minMapItems ?? 3);
+          setMessage(payload.mapEmptyState ?? null);
+        }
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, [authStatus, productKey]);
+  }, [authStatus, historyDriven, productKey]);
 
   async function generateResult() {
     if (authStatus !== "authenticated") {
       setMessage("Войдите, чтобы открыть продукт и сохранить результат в кабинете.");
+      setStatus("error");
+      return;
+    }
+    if (!hasEnoughMapHistory) {
+      setMessage(`Чтобы собрать расширенную карту, нужно ${minMapItems} сохранённых элемента. Сейчас есть ${mapItemCount ?? 0}.`);
       setStatus("error");
       return;
     }
@@ -81,12 +108,24 @@ export function SymbolicProductActions({
     try {
       const payload = await jsonRequest<ApiPayload>("/api/products/symbolic", {
         method: "POST",
-        body: JSON.stringify({ productKey, userInput }),
+        body: JSON.stringify(historyDriven ? { productKey } : { productKey, userInput }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
+      if (historyDriven) {
+        setMapItemCount(payload.itemCount ?? payload.mapItemCount ?? mapItemCount);
+        setMinMapItems(payload.minItems ?? payload.minMapItems ?? minMapItems);
+      }
+      if (payload.insufficientHistory) {
+        setResult(null);
+        setMessage(payload.emptyState ?? "Сохраните ещё несколько элементов в Моей карте, чтобы собрать расширенную карту.");
+        setStatus("idle");
+        return;
+      }
       setResult(payload.result ?? null);
       if (payload.paywalled) {
-        setMessage("Бесплатный фрагмент готов. Полный разбор можно открыть кредитами ясности или картой.");
+        setMessage(historyDriven
+          ? "Бесплатный фрагмент из вашей истории готов. Полную карту можно открыть кредитами ясности или картой."
+          : "Бесплатный фрагмент готов. Полный разбор можно открыть кредитами ясности или картой.");
       }
       setStatus("idle");
     } catch (error) {
@@ -127,7 +166,9 @@ export function SymbolicProductActions({
           <p className="soft-eyebrow">получить продукт</p>
           <h2 className="soft-h3 mt-2">{title}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Сначала можно получить бесплатный фрагмент по вашему вводу. Полный разбор открывается кредитами ясности или картой.
+            {historyDriven
+              ? "Карта собирается из сохранённых вопросов, маршрутов и результатов. Бесплатно откроется 1 тема; полный разбор доступен кредитами ясности или картой."
+              : "Сначала можно получить бесплатный фрагмент по вашему вводу. Полный разбор открывается кредитами ясности или картой."}
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
@@ -143,28 +184,57 @@ export function SymbolicProductActions({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
         <div className="soft-card-flat p-5">
-          <label className="soft-eyebrow" htmlFor={`symbolic-input-${productKey}`}>{promptLabel}</label>
-          <textarea
-            id={`symbolic-input-${productKey}`}
-            value={userInput}
-            onChange={(event) => setUserInput(event.target.value)}
-            placeholder={placeholder}
-            rows={6}
-            className="soft-question-input mt-3"
-            disabled={status === "loading"}
-          />
+          {!historyDriven && (
+            <>
+              <label className="soft-eyebrow" htmlFor={`symbolic-input-${productKey}`}>{promptLabel}</label>
+              <textarea
+                id={`symbolic-input-${productKey}`}
+                value={userInput}
+                onChange={(event) => setUserInput(event.target.value)}
+                placeholder={placeholder}
+                rows={6}
+                className="soft-question-input mt-3"
+                disabled={status === "loading"}
+              />
+            </>
+          )}
+          {historyDriven && (
+            <div
+              className="rounded-[18px] border border-[var(--soft-border)] bg-[var(--soft-paper)] p-4"
+              data-testid="extended-map-history-state"
+            >
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--soft-lilac)] text-[var(--soft-bordeaux)]">
+                  <Compass className="size-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="soft-eyebrow">{promptLabel}</p>
+                  <p className="mt-1 font-heading text-xl text-[var(--soft-ink)]">
+                    {authStatus === "authenticated" ? `${mapItemCount ?? 0} из ${minMapItems} элементов` : `нужно ${minMapItems} элемента`}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                {authStatus !== "authenticated"
+                  ? "Войдите, чтобы мы проверили сохранённые вопросы, маршруты и результаты."
+                  : hasEnoughMapHistory
+                    ? "Истории достаточно: можно собрать бесплатный фрагмент и затем открыть полную карту."
+                    : "Пока недостаточно истории. Сохраните вопросы, маршруты или результаты разборов в Моей карте."}
+              </p>
+            </div>
+          )}
           <div className="mt-4 flex flex-wrap gap-3">
             <Button
               type="button"
               onClick={generateResult}
-              disabled={status === "loading"}
+              disabled={status === "loading" || !canAttemptGeneration}
               className="soft-button soft-button-primary"
             >
               {hasEntitlement && <LockKeyhole className="size-4" aria-hidden="true" />}
               {status === "loading" ? "Собираем результат" : hasEntitlement ? "Получить полный результат" : "Бесплатный фрагмент"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
-            {!hasEntitlement && (
+            {!hasEntitlement && canShowPurchaseControls && (
               <ProductPurchaseControls
                 productKey={productKey}
                 label="Открыть полностью"
@@ -172,7 +242,9 @@ export function SymbolicProductActions({
                 creditCost={creditCost}
                 onUnlocked={() => {
                   setHasEntitlement(true);
-                  if (userInput.trim()) {
+                  if (historyDriven) {
+                    void generateResult();
+                  } else if (userInput.trim()) {
                     void generateResult();
                   } else {
                     setMessage("Доступ открыт. Добавьте данные или вопрос — и получите результат здесь же.");
@@ -212,7 +284,9 @@ export function SymbolicProductActions({
             </>
           ) : (
             <p className="mt-3 font-heading text-xl italic leading-relaxed text-[var(--soft-ink-soft)]">
-              Введите вопрос или данные — здесь появится первый настоящий фрагмент до оплаты.
+              {historyDriven
+                ? "Здесь появится 1 тема из ваших сохранённых вопросов, маршрутов и результатов."
+                : "Введите вопрос или данные — здесь появится первый настоящий фрагмент до оплаты."}
             </p>
           )}
         </div>
