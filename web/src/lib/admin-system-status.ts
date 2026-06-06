@@ -24,6 +24,21 @@ export const PRODUCT_CRONS = [
     purpose: "Идемпотентный PayoutRun для выплат практикам 1-го и 15-го числа",
     cadence: "1-го и 15-го числа, Europe/Moscow",
   },
+  {
+    path: "/api/cron/credits-expiring",
+    purpose: "Реактивация клиентов: кредиты сгорают через 2-3 дня",
+    cadence: "1 раз в сутки",
+  },
+  {
+    path: "/api/cron/streak-at-risk",
+    purpose: "Реактивация клиентов: мягкое сохранение practice streak",
+    cadence: "ежедневно вечером",
+  },
+  {
+    path: "/api/cron/moment-of-need",
+    purpose: "Реактивация клиентов после 14 дней паузы по сохраненной теме",
+    cadence: "1 раз в сутки",
+  },
 ];
 
 export interface SystemStats {

@@ -57,6 +57,11 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   WEEKLY_DIGEST: Sparkles,
   PRACTITIONER_DIGEST: Calendar,
   COMPLIANCE_ALERT: Info,
+  CREDITS_EXPIRING: Wallet,
+  STREAK_AT_RISK: Clock,
+  MOMENT_OF_NEED: Sparkles,
+  WELCOME_CREDITS: Wallet,
+  WELCOME_CREDITS_REMINDER: Wallet,
 };
 
 // B331: short relative time per v4.2 ("12 мин" / "2 ч" / "сегодня" /

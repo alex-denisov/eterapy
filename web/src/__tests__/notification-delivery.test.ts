@@ -244,6 +244,35 @@ describe("notification delivery jobs", () => {
     }));
   });
 
+  it("passes notification dedupe keys through to durable delivery jobs per channel", async () => {
+    (db.user.findUnique as jest.Mock).mockResolvedValue({
+      email: "user@example.com",
+      name: "User",
+      telegramId: null,
+      timezone: "Europe/Moscow",
+    });
+    (db.notificationPreference.findUnique as jest.Mock).mockImplementation(({ where }) => {
+      const channel = where.userId_event_channel.channel;
+      return Promise.resolve({ enabled: channel !== "TELEGRAM" });
+    });
+
+    await notify({
+      userId: "user-1",
+      event: "CREDITS_EXPIRING",
+      data: { credits: "3", days: "2" },
+      dedupeKey: "reactivation:CREDITS_EXPIRING:user-1:2026-06-06",
+    });
+
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      idempotencyKey: "reactivation:CREDITS_EXPIRING:user-1:2026-06-06:EMAIL",
+      payload: expect.objectContaining({ channel: "EMAIL" }),
+    }));
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      idempotencyKey: "reactivation:CREDITS_EXPIRING:user-1:2026-06-06:WEB",
+      payload: expect.objectContaining({ channel: "WEB" }),
+    }));
+  });
+
   it("delays email and Telegram jobs during quiet hours while keeping web immediate", async () => {
     jest.useFakeTimers().setSystemTime(new Date("2026-04-28T20:30:00.000Z").getTime());
     const { getSetting } = await import("@/lib/platform-settings");

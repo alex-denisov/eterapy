@@ -19,6 +19,7 @@ export interface NotifPayload {
   event: NotifEvent;
   /** Переменные для шаблона */
   data: Record<string, string>;
+  dedupeKey?: string;
   requestId?: string;
 }
 
@@ -74,6 +75,7 @@ export async function notify(payload: NotifPayload) {
         telegramId: user.telegramId,
       },
       runAfter: channel === "WEB" ? undefined : runAfter,
+      idempotencyKey: payload.dedupeKey ? `${payload.dedupeKey}:${channel}` : undefined,
       requestId: payload.requestId,
     };
 

@@ -75,6 +75,11 @@ const SUBJECTS: Record<NotifEvent, string> = {
   WEEKLY_DIGEST:      "Ваш недельный дайджест — ETerapy",
   PRACTITIONER_DIGEST: "Дайджест специалиста — ETerapy",
   COMPLIANCE_ALERT:   "Комплаенс-сигнал — ETerapy",
+  CREDITS_EXPIRING:   "Кредиты скоро сгорят — ETerapy",
+  STREAK_AT_RISK:     "Можно сохранить ритм — ETerapy",
+  MOMENT_OF_NEED:     "Можно вернуться к своей теме — ETerapy",
+  WELCOME_CREDITS:    "Приветственные кредиты начислены — ETerapy",
+  WELCOME_CREDITS_REMINDER: "Приветственные кредиты ждут — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
@@ -273,6 +278,16 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Дайджест кабинета</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Заявки, встречи, выплаты и отзывы за период."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet/practitioner`, "Открыть кабинет")}`;
     case "COMPLIANCE_ALERT":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Комплаенс-сигнал</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Нужна проверка модератором."}</p>${btn(data.reviewUrl ?? `${BASE_URL}/admin/complaints`, "Открыть проверку")}`;
+    case "CREDITS_EXPIRING":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Кредиты скоро сгорят</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">У вас есть ${data.credits ?? "несколько"} кредитов, которые закончатся примерно через ${data.days ?? "пару"} дн. Можно потратить их на один небольшой разбор без спешки.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кредиты")}`;
+    case "STREAK_AT_RISK":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Один короткий шаг сохранит ритм</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Вчера у вас был ритм практики ${data.streak ?? "несколько"} дн. Если сегодня есть силы, можно сделать только один маленький шаг.</p>${btn(data.practiceUrl ?? `${BASE_URL}/cabinet/practice`, "Открыть практику")}`;
+    case "MOMENT_OF_NEED":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к своей теме</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.topic ? `Тема "${data.topic}"` : "Ваша сохраненная тема"} все еще доступна в карте. Можно продолжить с одного вопроса.</p>${btn(data.mapUrl ?? `${BASE_URL}/cabinet/action-history`, "Открыть карту")}`;
+    case "WELCOME_CREDITS":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные кредиты начислены</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.credits ?? "3"} кредита уже в кошельке. Они помогут попробовать первый небольшой формат.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кредиты")}`;
+    case "WELCOME_CREDITS_REMINDER":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные кредиты ждут</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Если хотите попробовать первый разбор, приветственные кредиты еще доступны.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кредиты")}`;
     default:
       return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;
   }

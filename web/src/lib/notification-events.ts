@@ -29,7 +29,12 @@ export type NotifEvent =
   | "ROUTE_REMINDER"
   | "WEEKLY_DIGEST"
   | "PRACTITIONER_DIGEST"
-  | "COMPLIANCE_ALERT";
+  | "COMPLIANCE_ALERT"
+  | "CREDITS_EXPIRING"
+  | "STREAK_AT_RISK"
+  | "MOMENT_OF_NEED"
+  | "WELCOME_CREDITS"
+  | "WELCOME_CREDITS_REMINDER";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
 export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "retention" | "system";
@@ -250,6 +255,41 @@ export const ALL_EVENTS: Array<{
     description: "Риск-флаг по сессии или жалобе для проверки человеком",
     roles: ["ADMIN", "SUPERADMIN", "MODERATOR"],
   },
+  {
+    event: "CREDITS_EXPIRING",
+    category: "retention",
+    label: "Кредиты скоро сгорят",
+    description: "Бережное напоминание за 2-3 дня до сгорания кредитов",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "STREAK_AT_RISK",
+    category: "retention",
+    label: "Ритм практики",
+    description: "Мягкое возвращение к практике, когда вчера был стрик",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "MOMENT_OF_NEED",
+    category: "retention",
+    label: "Момент нужды",
+    description: "Редкое возвращение к сохраненной теме после паузы",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "WELCOME_CREDITS",
+    category: "retention",
+    label: "Приветственные кредиты",
+    description: "Когда приветственные кредиты начислены",
+    roles: ["CLIENT"],
+  },
+  {
+    event: "WELCOME_CREDITS_REMINDER",
+    category: "retention",
+    label: "Приветственные кредиты ждут",
+    description: "Напоминание о неиспользованных приветственных кредитах",
+    roles: ["CLIENT"],
+  },
 ];
 
 /** Фильтрация событий по роли пользователя */
@@ -273,4 +313,9 @@ export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
   "WEEKLY_DIGEST",
   "PRACTITIONER_DIGEST",
   "COMPLIANCE_ALERT",
+  "CREDITS_EXPIRING",
+  "STREAK_AT_RISK",
+  "MOMENT_OF_NEED",
+  "WELCOME_CREDITS",
+  "WELCOME_CREDITS_REMINDER",
 ];

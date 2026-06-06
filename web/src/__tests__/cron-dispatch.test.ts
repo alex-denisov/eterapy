@@ -5,7 +5,10 @@ import db from "@/lib/db";
 import { GET as dispatchCleanup } from "@/app/api/cron/cleanup/route";
 import { GET as dispatchPayouts } from "@/app/api/cron/payouts/route";
 import { GET as dispatchPractitionerSync } from "@/app/api/cron/practitioner-sync/route";
+import { GET as dispatchCreditsExpiring } from "@/app/api/cron/credits-expiring/route";
+import { GET as dispatchMomentOfNeed } from "@/app/api/cron/moment-of-need/route";
 import { GET as dispatchReminders } from "@/app/api/cron/reminders/route";
+import { GET as dispatchStreakAtRisk } from "@/app/api/cron/streak-at-risk/route";
 import { REQUEST_ID_HEADER } from "@/lib/request-context";
 
 jest.mock("@/lib/job-queue", () => ({
@@ -144,6 +147,54 @@ describe("cron dispatchers", () => {
       queue: "cron",
       type: "cron.payout-run",
       idempotencyKey: "payout-run:2026-04-15",
+    }));
+  });
+
+  it("enqueues credits-expiring reactivation jobs with a daily idempotency key", async () => {
+    mockEnqueueJob.mockResolvedValueOnce(job({ type: "cron.credits-expiring" }));
+
+    const response = await dispatchCreditsExpiring(request("/api/cron/credits-expiring"));
+    jest.useRealTimers();
+    const body = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(body.enqueued).toBe(true);
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      queue: "cron",
+      type: "cron.credits-expiring",
+      idempotencyKey: "credits-expiring:2026-04-28",
+    }));
+  });
+
+  it("enqueues streak-at-risk reactivation jobs with a daily idempotency key", async () => {
+    mockEnqueueJob.mockResolvedValueOnce(job({ type: "cron.streak-at-risk" }));
+
+    const response = await dispatchStreakAtRisk(request("/api/cron/streak-at-risk"));
+    jest.useRealTimers();
+    const body = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(body.enqueued).toBe(true);
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      queue: "cron",
+      type: "cron.streak-at-risk",
+      idempotencyKey: "streak-at-risk:2026-04-28",
+    }));
+  });
+
+  it("enqueues moment-of-need reactivation jobs with a daily idempotency key", async () => {
+    mockEnqueueJob.mockResolvedValueOnce(job({ type: "cron.moment-of-need" }));
+
+    const response = await dispatchMomentOfNeed(request("/api/cron/moment-of-need"));
+    jest.useRealTimers();
+    const body = await response.json();
+
+    expect(response.status).toBe(202);
+    expect(body.enqueued).toBe(true);
+    expect(mockEnqueueJob).toHaveBeenCalledWith(expect.objectContaining({
+      queue: "cron",
+      type: "cron.moment-of-need",
+      idempotencyKey: "moment-of-need:2026-04-28",
     }));
   });
 

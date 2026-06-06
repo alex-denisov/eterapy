@@ -613,6 +613,11 @@ enum NotificationEvent {
   WEEKLY_DIGEST          // Недельный дайджест клиента
   PRACTITIONER_DIGEST    // Дайджест специалиста
   COMPLIANCE_ALERT       // Комплаенс-сигнал для админа/модератора
+  CREDITS_EXPIRING       // Кредиты скоро сгорят
+  STREAK_AT_RISK         // Практический стрик под риском
+  MOMENT_OF_NEED         // Мягкое возвращение в момент нужды
+  WELCOME_CREDITS        // Приветственные кредиты начислены
+  WELCOME_CREDITS_REMINDER // Напоминание о приветственных кредитах
 }
 
 enum NotificationChannel {

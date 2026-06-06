@@ -6,6 +6,11 @@ import type { JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
 import { runPayoutRun } from "@/lib/payout-runs";
 import { syncPractitionerCommissions } from "@/lib/practitioner-commission";
+import {
+  runCreditsExpiringJob,
+  runMomentOfNeedJob,
+  runStreakAtRiskJob,
+} from "@/lib/reactivation-cron";
 import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
@@ -307,4 +312,7 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.booking-reminders": runBookingRemindersJob as JobHandler,
   "cron.practitioner-sync": runPractitionerCommissionSyncJob as JobHandler,
   "cron.payout-run": runPayoutRunJob as JobHandler,
+  "cron.credits-expiring": runCreditsExpiringJob as JobHandler,
+  "cron.streak-at-risk": runStreakAtRiskJob as JobHandler,
+  "cron.moment-of-need": runMomentOfNeedJob as JobHandler,
 };
