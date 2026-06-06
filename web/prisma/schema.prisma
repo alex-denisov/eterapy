@@ -25,6 +25,9 @@ model User {
   resetExpires        DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
+  practiceStreakCount   Int       @default(0) @map("practice_streak_count")
+  practiceStreakLongest Int       @default(0) @map("practice_streak_longest")
+  practiceLastDoneDate  DateTime? @map("practice_last_done_date")
 
   // Identity
   provider            String?   @default("web") // "vk", "google", "web", "mobile_web", "ios", "android", "manual", "telegram", "max"
@@ -73,6 +76,7 @@ model User {
   clarityCircleParticipations ClarityCircleParticipant[]
   clarityRoutes          ClarityRoute[]
   dailyCards             DailyCard[]
+  missionProgresses      MissionProgress[]
   shareLinks             ShareLink[] @relation("ShareLinkOwner")
   referralsGiven         ReferralAttribution[] @relation("ReferralReferrer")
   referralsReceived      ReferralAttribution[] @relation("ReferralReferredUser")
@@ -1278,6 +1282,26 @@ model ClarityCreditLedgerEntry {
   @@index([source, sourceEventId])
   @@index([expiresAt])
   @@map("clarity_credit_ledger_entries")
+}
+
+model MissionProgress {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  missionKey      String
+  status          String    @default("ACTIVE") // ACTIVE | COMPLETED
+  progress        Int       @default(0)
+  target          Int       @default(1)
+  completedAt     DateTime?
+  rewardGrantedAt DateTime?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, missionKey])
+  @@index([userId, status])
+  @@index([completedAt])
+  @@map("mission_progress")
 }
 
 // ─── Compatibility ────────────────────────────────────────────────────────────

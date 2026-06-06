@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { completeMission } from "@/lib/missions";
 import { sanitizeName, sanitizeText } from "@/lib/validation";
 
 export async function GET() {
@@ -64,5 +65,12 @@ export async function PATCH(req: NextRequest) {
   });
 
   await logAudit(session.user.id, "PROFILE_UPDATE", undefined, "Расширенный профиль");
+  void completeMission({
+    userId: session.user.id,
+    missionKey: "complete_profile",
+    metadata: { surface: "extended_profile" },
+  }).catch(() => {
+    // Mission bookkeeping must not break profile updates.
+  });
   return NextResponse.json({ ok: true });
 }

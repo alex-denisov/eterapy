@@ -6,6 +6,8 @@ import db from "@/lib/db";
 import { getOrCreateDailyCard, dailyCardBeats, generatePracticeResponseForQuestion } from "@/lib/daily-card";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { creditExpiryFor } from "@/lib/credit-expiry";
+import { completeMission } from "@/lib/missions";
+import { bumpPracticeStreak } from "@/lib/streaks";
 import { notify } from "@/lib/notifications";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { mainUrl } from "@/lib/subdomain";
@@ -128,6 +130,9 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
+      await completeMission({ userId, missionKey: "first_practice", tx });
+
       return { card: updated, rewardGranted: !existingReward };
     });
 
@@ -182,6 +187,9 @@ export async function POST(request: NextRequest) {
           },
         });
       }
+
+      await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
+      await completeMission({ userId, missionKey: "first_practice", tx });
 
       return { card: updated, rewardGranted: !existingReward };
     });

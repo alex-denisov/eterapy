@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { getSpendableClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { V5_BUNDLE_CONTENTS, getProductCreditCost, isKnownBundleProduct, isKnownPaidProduct } from "@/lib/entitlements";
+import { completeMission } from "@/lib/missions";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 function parseProductKey(value: unknown) {
@@ -83,6 +84,18 @@ export async function POST(req: NextRequest) {
           },
         });
         createdEntitlementIds.push(entitlement.id);
+      }
+
+      if (createdEntitlementIds.length > 0) {
+        await completeMission({
+          userId: session.user.id,
+          missionKey: "first_product",
+          metadata: {
+            purchaseKind: isKnownBundleProduct(productKey) ? "bundle_credits" : "product_credits",
+            productKey,
+          },
+          tx,
+        }).catch(() => undefined);
       }
 
       return { alreadyUnlocked: false, entitlementIds: createdEntitlementIds, creditCost, balanceAfter: spend.balanceAfter };

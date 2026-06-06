@@ -16,6 +16,7 @@ import { markReferralMeaningfulAction } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { trackServerEvent } from "@/lib/analytics";
 import { checkStandaloneDialogueDailyLimit } from "@/lib/dialogue-limits";
+import { completeMission } from "@/lib/missions";
 
 const MAX_DIALOGUES_LIMIT = 50;
 
@@ -357,6 +358,16 @@ export async function POST(request: NextRequest) {
       conversionId: dialogue.id,
     }).catch(() => {
       // Attribution bookkeeping must not break the dialogue flow.
+    });
+    void completeMission({
+      userId,
+      missionKey: "first_dialogue",
+      metadata: {
+        dialogueId: dialogue.id,
+        intakeProductKey: dialogue.intakeProductKey,
+      },
+    }).catch(() => {
+      // Mission bookkeeping must not break dialogue creation.
     });
   }
 

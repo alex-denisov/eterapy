@@ -5,6 +5,7 @@ import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { getOrCreateDailyCard, dailyCardDate, dailyCardBeats } from "@/lib/daily-card";
+import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 
@@ -60,29 +61,6 @@ async function loadWeekStrip(userId: string): Promise<WeekDayCell[]> {
   return strip;
 }
 
-async function loadTotalStreak(userId: string): Promise<number> {
-  // Count consecutive days with completedAt ending today.
-  const cards = await db.dailyCard.findMany({
-    where: { userId, completedAt: { not: null } },
-    orderBy: { cardDate: "desc" },
-    take: 60,
-    select: { cardDate: true },
-  });
-  if (cards.length === 0) return 0;
-  let streak = 0;
-  let cursor = dailyCardDate(new Date());
-  for (const card of cards) {
-    if (card.cardDate.getTime() === cursor.getTime()) {
-      streak++;
-      cursor = new Date(cursor);
-      cursor.setUTCDate(cursor.getUTCDate() - 1);
-    } else if (card.cardDate.getTime() < cursor.getTime()) {
-      break;
-    }
-  }
-  return streak;
-}
-
 export default async function ClarityPracticePage() {
   const session = await auth();
   const userId = session?.user?.id;
@@ -93,9 +71,9 @@ export default async function ClarityPracticePage() {
   guardClientCabinet(session.user.role); // Y6: client-only surface
 
   const { card } = await getOrCreateDailyCard(userId);
-  const [strip, streak, activeRoute] = await Promise.all([
+  const [strip, practiceStreak, activeRoute] = await Promise.all([
     loadWeekStrip(userId),
-    loadTotalStreak(userId),
+    getPracticeStreakSnapshot(userId),
     // B329: surface the user's active 7-day route on the practice page so
     // the daily ritual and the structured route live on one screen
     // (per docs/Design/v4.2/screens/mission_detail.jsx layout).
@@ -139,7 +117,7 @@ export default async function ClarityPracticePage() {
               <p className="soft-eyebrow">эта неделя</p>
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-terracotta-dark)]" data-testid="practice-streak-total">
                 <Sparkles className="size-3" aria-hidden="true" />
-                {streak} {streak === 1 ? "день" : streak >= 2 && streak <= 4 ? "дня" : "дней"} подряд
+                {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
               </span>
             </div>
             {/* G14: real Mon→Sun week — done days fill terracotta with a check,
@@ -176,6 +154,18 @@ export default async function ClarityPracticePage() {
                 <span className="size-2.5 rounded-[4px] border border-dashed border-[var(--soft-paper-edge)]" aria-hidden="true" />
                 впереди
               </span>
+            </div>
+            <div
+              className="mt-4 flex items-center justify-between gap-3 rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-3"
+              data-testid="practice-streak-badge"
+            >
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-faint)]">мягкий ритм</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--soft-bordeaux)]">
+                  Лучший стрик: {practiceStreak.longest} {practiceStreak.longest === 1 ? "день" : practiceStreak.longest >= 2 && practiceStreak.longest <= 4 ? "дня" : "дней"}
+                </p>
+              </div>
+              <Leaf className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
             </div>
           </aside>
         </div>

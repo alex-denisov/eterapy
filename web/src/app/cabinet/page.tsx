@@ -2,11 +2,14 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { CheckCircle2, Leaf } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
+import { listMissionChecklist } from "@/lib/missions";
+import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
@@ -71,7 +74,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits, topicGroups, recommendedPractitioner] = await Promise.all([
+  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits, topicGroups, recommendedPractitioner, missionChecklist, practiceStreak] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -123,6 +126,8 @@ export default async function ClientCabinetPage() {
       _count: { _all: true },
     }),
     loadRecommendedPractitioner(),
+    listMissionChecklist(userId),
+    getPracticeStreakSnapshot(userId),
   ]);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
@@ -149,6 +154,9 @@ export default async function ClientCabinetPage() {
       : { href: mainUrl("/checkin"), label: "Задать первый вопрос", hint: "начните с бесплатного первичного ответа" };
 
   const dailyCard = dailyCardResult.card;
+  const missionHref = (href: string) => (
+    href.startsWith("/cabinet") ? appUrl(href.replace(/^\/cabinet/, "")) : mainUrl(href)
+  );
 
   return (
     <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
@@ -362,6 +370,58 @@ export default async function ClientCabinetPage() {
             </div>
             <DailyPracticeActions completed={Boolean(dailyCard.completedAt)} />
           </div>
+        </div>
+      </section>
+
+      <section className="soft-card mb-4 p-5" data-testid="client-first-steps">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="soft-eyebrow">первые шаги</p>
+            <h2 className="soft-h3 mt-2">
+              {missionChecklist.completedCount} из {missionChecklist.totalCount} миссий пройдено
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+              Награды начисляются только за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} кредитов,
+              которые можно потратить на цифровые форматы.
+            </p>
+          </div>
+          <div
+            className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--soft-paper-edge)] px-3 py-2 text-sm font-semibold"
+            data-testid="client-streak-badge"
+            style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)" }}
+          >
+            <Leaf className="size-4" aria-hidden="true" />
+            {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-5">
+          {missionChecklist.items.map((mission) => (
+            <Link
+              key={mission.key}
+              href={missionHref(mission.actionHref)}
+              className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
+              data-testid={`client-mission-${mission.key}`}
+              style={{
+                background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)",
+                color: "var(--soft-ink)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
+                  +{mission.rewardCredits} кр.
+                </span>
+                {mission.completed ? (
+                  <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
+                ) : (
+                  <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                )}
+              </div>
+              <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
+              <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                {mission.completed ? "получено" : mission.description}
+              </p>
+            </Link>
+          ))}
         </div>
       </section>
 

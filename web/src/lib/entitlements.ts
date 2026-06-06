@@ -1,5 +1,6 @@
 import type { Prisma, Transaction } from "@prisma/client";
 import db from "@/lib/db";
+import { completeMission } from "@/lib/missions";
 import { syncPractitionerCommissionForUser } from "@/lib/practitioner-commission";
 import { type V5ProductSlug } from "@/lib/v5-products";
 
@@ -619,6 +620,13 @@ export async function grantEntitlementForTransaction(
       metadata: metadata as Prisma.InputJsonObject,
     });
 
+    await completeMission({
+      userId: transaction.userId,
+      missionKey: "first_product",
+      metadata: { purchaseKind: "bundle", bundleKey: metadata.productKey },
+      tx,
+    }).catch(() => undefined);
+
     return { kind: "bundle" as const, bundleKey: metadata.productKey, productKeys: bundleProductKeys };
   }
 
@@ -653,6 +661,12 @@ export async function grantEntitlementForTransaction(
       description: transaction.description,
       metadata: metadata as Prisma.InputJsonObject,
     });
+    await completeMission({
+      userId: transaction.userId,
+      missionKey: "first_product",
+      metadata: { purchaseKind: "product", productKey: metadata.productKey },
+      tx,
+    }).catch(() => undefined);
     return { kind: "product" as const, productKey: metadata.productKey };
   }
 
