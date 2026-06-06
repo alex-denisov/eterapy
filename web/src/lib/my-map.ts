@@ -22,6 +22,8 @@ export type MyMapItem = {
   status: string;
   exportText: string;
   shareTopic: string;
+  topic?: string;
+  topicLabel?: string;
   // W13: whether this item is hidden from the map (surfaced only when the
   // viewer asked to see hidden items, so they can un-hide it).
   hidden: boolean;
@@ -184,8 +186,7 @@ export async function listMyMapItems(
         kind: "dialogue" as const,
         id: dialogue.id,
         title: dialogue.title,
-        // T17: render the topic as a Russian label, never the raw enum ("self").
-        eyebrow: `Вопрос · ${dialogueTopicLabelRu(dialogue.topic)}`,
+        eyebrow: "Вопрос",
         description: truncate(dialogue.messages[0]?.content, "Диалог сохранен в вашей карте."),
         bodyMarkdown: dialogue.messages[0]?.content ?? "",
         href: mainUrl(`/checkin?dialogueId=${dialogue.id}`),
@@ -193,6 +194,10 @@ export async function listMyMapItems(
         status: dialogue.status,
         exportText: `Вопрос: ${dialogue.title}\nСтатус: ${dialogue.status}\n${dialogue.messages[0]?.content ?? ""}`,
         shareTopic: dialogue.topic ?? "dialogue",
+        // Z9: the real map uses Dialogue.topic as a first-class user-facing
+        // theme source instead of the retired hard-coded /cabinet/map mock.
+        topic: dialogue.topic ?? "other",
+        topicLabel: dialogueTopicLabelRu(dialogue.topic),
         hidden: isHiddenFromMap(dialogue.metadata),
       })),
     ...products

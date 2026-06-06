@@ -148,6 +148,19 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
   const dialogueCount = items.filter((item) => item.kind === "dialogue").length;
   const recentItem = items[0];
   const activeRoutes = items.filter(i => i.kind === "route");
+  const dialogueTopicCounts = new Map<string, { value: string; label: string; count: number }>();
+  for (const item of items) {
+    if (item.kind !== "dialogue" || !item.topic || !item.topicLabel) continue;
+    const current = dialogueTopicCounts.get(item.topic);
+    dialogueTopicCounts.set(item.topic, {
+      value: item.topic,
+      label: item.topicLabel,
+      count: (current?.count ?? 0) + 1,
+    });
+  }
+  const dialogueTopics = Array.from(dialogueTopicCounts.values())
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "ru"))
+    .slice(0, 8);
 
   return (
     <div className="p-6 md:p-8" data-testid="my-map-page">
@@ -194,6 +207,27 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
         </div>
       ) : (
         <>
+          {dialogueTopics.length > 0 && (
+            <section className="soft-card mb-6 p-5 md:p-6" data-testid="my-map-dialogue-topics">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="soft-eyebrow">темы из ваших диалогов</div>
+                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                    Карта собирает темы из сохранённых вопросов, чтобы история была живой, а не моковой витриной.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 md:justify-end">
+                  {dialogueTopics.map((topic) => (
+                    <span key={topic.value} className="soft-chip" data-topic-key={topic.value}>
+                      {topic.label}
+                      <span className="text-xs opacity-60">{topic.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Bento map grid */}
           <div className="soft-map-grid mb-8">
             {/* Central insight — span 8 */}
@@ -351,6 +385,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                 <article key={`${item.kind}:${item.id}`} className="soft-card flex flex-col gap-4 p-5 md:p-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="soft-chip soft-chip-warm">{item.eyebrow}</span>
+                    {item.topicLabel && <span className="soft-chip" data-topic-key={item.topic}>{item.topicLabel}</span>}
                     <span className="soft-chip">{mapItemStatusRu(item.kind, item.status)}</span>
                     <span className="soft-chip">{item.updatedAt.toLocaleDateString("ru-RU")}</span>
                   </div>
