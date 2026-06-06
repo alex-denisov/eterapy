@@ -14,6 +14,7 @@ const PRODUCT_LABELS: Record<string, string> = {
   "compatibility": "Совместимость",
   "tarot": "Расклад Таро",
   "natal-chart": "Натальная карта",
+  "synastry": "Синастрия",
   "numerology": "Числовой портрет",
   "my-map": "Расширенная карта",
 };

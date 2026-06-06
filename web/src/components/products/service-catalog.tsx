@@ -72,6 +72,7 @@ const SERVICES: ServiceCard[] = [
   { id: "map", title: "Моя карта ETerapy", desc: "Личное пространство вопросов, выводов и повторяющихся тем.", price: "990 ₽", cat: "practice", kind: "Приватное", href: "/products/my-map", icon: Compass },
   { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "/products/tarot", icon: Moon },
   { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
+  { id: "synastry-d", title: "Синастрия", desc: "Сравнение двух натальных карт как карта ресурсов и разных ритмов пары.", price: "990 ₽", cat: "astro", kind: "Цифровое", href: "/products/synastry", icon: Compass },
   { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
   // Specialist live sessions
   { id: "psy-live", title: "Встреча с психологом", desc: "60 минут онлайн с проверенным специалистом — он заранее видит ваш разбор.", price: "от 4 500 ₽", cat: "psy", kind: "Встреча", href: "/practitioners", icon: Heart },

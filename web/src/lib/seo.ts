@@ -34,6 +34,7 @@ export const publicSeoRoutes = [
   "/products/my-map",
   "/products/tarot",
   "/products/natal-chart",
+  "/products/synastry",
   "/products/numerology",
   "/products/joint-session",
   "/all-modalities",

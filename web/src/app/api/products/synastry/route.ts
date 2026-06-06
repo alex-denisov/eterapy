@@ -1,0 +1,161 @@
+import type { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { auth } from "@/lib/auth";
+import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
+import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
+import db from "@/lib/db";
+import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { requestContextFromHeaders } from "@/lib/request-context";
+import { buildSynastryTeaser, generateSynastryResult } from "@/lib/synastry";
+
+const PRODUCT_KEY = "synastry";
+
+const postSchema = z.object({
+  userBirthData: z.string().min(4).max(1200),
+  partnerBirthData: z.string().min(4).max(1200),
+  question: z.string().max(2000).optional(),
+});
+
+function serializeResult(result: {
+  id: string;
+  productKey: string;
+  status: string;
+  title: string;
+  previewText: string | null;
+  resultText: string | null;
+  savedAt: Date | null;
+  metadata: Prisma.JsonValue;
+}) {
+  return {
+    id: result.id,
+    productKey: result.productKey,
+    status: result.status,
+    title: result.title,
+    previewText: result.previewText,
+    resultText: result.resultText,
+    saved: Boolean(result.savedAt),
+    metadata: result.metadata,
+  };
+}
+
+export async function GET(request: NextRequest) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
+
+  const [hasEntitlement, results] = await Promise.all([
+    userHasActiveEntitlement(userId, PRODUCT_KEY),
+    db.productResult.findMany({
+      where: { userId, productKey: PRODUCT_KEY, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+    }),
+  ]);
+
+  return jsonWithRequestContext(
+    { productKey: PRODUCT_KEY, hasEntitlement, results: results.map(serializeResult) },
+    { status: 200 },
+    context,
+  );
+}
+
+export async function POST(request: NextRequest) {
+  const context = requestContextFromHeaders(request.headers);
+  const ipLimit = checkRequestAuthRateLimit(request, "product:synastry", 15, 5 * 60_000);
+  if (!ipLimit.allowed) {
+    return jsonWithRequestContext(
+      { error: "Too many synastry product requests", code: "RATE_LIMITED" },
+      { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSeconds) } },
+      context,
+    );
+  }
+
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Не авторизован", 401, context);
+
+  const parsed = postSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Данные рождения неполны", 400, context);
+
+  const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  const generated = await generateSynastryResult({
+    userBirthData: parsed.data.userBirthData,
+    partnerBirthData: parsed.data.partnerBirthData,
+    question: parsed.data.question,
+    userId,
+    requestId: context.requestId,
+  });
+  const previewText = buildSynastryTeaser({
+    userBirthData: parsed.data.userBirthData,
+    partnerBirthData: parsed.data.partnerBirthData,
+    generatedText: generated.text,
+  });
+
+  if (!hasEntitlement) {
+    const existingPreview = await db.productResult.findFirst({
+      where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const result = existingPreview
+      ? await db.productResult.update({
+          where: { id: existingPreview.id },
+          data: {
+            title: "Синастрия как карта пары",
+            previewText,
+            metadata: {
+              userBirthData: parsed.data.userBirthData,
+              partnerBirthData: parsed.data.partnerBirthData,
+              question: parsed.data.question ?? null,
+              previewGenerationMetadata: generated.metadata,
+            } as Prisma.InputJsonObject,
+          },
+        })
+      : await db.productResult.create({
+          data: {
+            userId,
+            productKey: PRODUCT_KEY,
+            title: "Синастрия как карта пары",
+            status: "PREVIEW",
+            previewText,
+            metadata: {
+              userBirthData: parsed.data.userBirthData,
+              partnerBirthData: parsed.data.partnerBirthData,
+              question: parsed.data.question ?? null,
+              previewGenerationMetadata: generated.metadata,
+            } as Prisma.InputJsonObject,
+          },
+        });
+
+    return jsonWithRequestContext(
+      { hasEntitlement, result: serializeResult(result), generated: false, paywalled: true },
+      { status: 200 },
+      context,
+    );
+  }
+
+  const result = await db.productResult.create({
+    data: {
+      userId,
+      productKey: PRODUCT_KEY,
+      title: "Синастрия как карта пары",
+      status: "READY",
+      previewText,
+      resultText: generated.text,
+      metadata: {
+        userBirthData: parsed.data.userBirthData,
+        partnerBirthData: parsed.data.partnerBirthData,
+        question: parsed.data.question ?? null,
+        generationMetadata: generated.metadata,
+      } as Prisma.InputJsonObject,
+    },
+  });
+
+  return jsonWithRequestContext(
+    { hasEntitlement, result: serializeResult(result), generated: true },
+    { status: 200 },
+    context,
+  );
+}

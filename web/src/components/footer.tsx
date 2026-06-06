@@ -47,6 +47,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       links: [
         [mainUrl("/products/tarot"), "Таро"],
         [mainUrl("/products/natal-chart"), "Натальная карта"],
+        [mainUrl("/products/synastry"), "Синастрия"],
         [mainUrl("/products/numerology"), "Нумерология"],
         [mainUrl("/products/joint-session"), "Эзотерик + психотерапевт"],
         [mainUrl("/practitioners"), "Специалисты"],

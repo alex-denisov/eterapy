@@ -114,6 +114,7 @@ const APP_PUBLIC_MAIN_PATHS = [
   "/products/joint-session",
   "/products/my-map",
   "/products/natal-chart",
+  "/products/synastry",
   "/products/numerology",
   "/products/perspectives",
   "/products/seven-days",

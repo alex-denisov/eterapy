@@ -27,6 +27,7 @@ export const PRODUCT_LABELS: Record<string, string> = {
   "my-map": "Моя карта",
   tarot: "Расклад Таро",
   "natal-chart": "Натальная карта",
+  synastry: "Синастрия",
   numerology: "Числовой портрет",
 };
 

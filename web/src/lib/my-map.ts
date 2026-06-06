@@ -35,6 +35,7 @@ const PRODUCT_LABELS: Record<string, string> = {
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
   "seven-days": "7 дней к ясности",
+  synastry: "Синастрия",
 };
 
 function asJsonObject(value: Prisma.JsonValue | null | undefined): Prisma.JsonObject {

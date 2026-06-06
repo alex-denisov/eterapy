@@ -21,6 +21,7 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "my-map": 99000,
   "tarot": 39000,
   "natal-chart": 59000,
+  "synastry": 99000,
   "numerology": 39000,
 };
 
@@ -39,6 +40,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "my-map": 6,
   "tarot": 2,
   "natal-chart": 4,
+  "synastry": 5,
   "numerology": 2,
 };
 
@@ -91,14 +93,14 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   practitioner_pro: {

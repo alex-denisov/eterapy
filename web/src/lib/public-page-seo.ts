@@ -117,6 +117,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Астрологический разбор как символический портрет тем и фокусов, не предсказание и не приговор.",
     schemaKind: "Product",
   },
+  "/products/synastry": {
+    title: "Синастрия — продукт ETerapy",
+    description: "Сравнение двух натальных карт как символический язык динамики пары: ресурсы, разные ритмы и вопросы для бережного разговора.",
+    schemaKind: "Product",
+  },
   "/products/numerology": {
     title: "Числовой портрет — продукт ETerapy",
     description: "Нумерологический разбор имени и даты как карта вопросов, циклов и повторяющихся тем.",

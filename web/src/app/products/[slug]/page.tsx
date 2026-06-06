@@ -10,6 +10,7 @@ import { JointSessionActions } from "@/components/products/joint-session-actions
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
+import { SynastryActions } from "@/components/products/synastry-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
@@ -151,6 +152,32 @@ function NatalSide() {
         })}
         <text x="130" y="135" textAnchor="middle" fontFamily="var(--font-heading)" fontSize="14" fontStyle="italic" fill="#3A4A36">портрет</text>
       </svg>
+    </div>
+  );
+}
+
+function SynastrySide() {
+  return (
+    <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#D6DECC,#DBD3EA)] p-10">
+      <div className="relative h-64 w-72 max-w-full">
+        <svg viewBox="0 0 288 256" className="h-full w-full" aria-hidden="true">
+          <circle cx="94" cy="118" r="62" fill="none" stroke="#3A4A36" strokeWidth="2" opacity=".55" />
+          <circle cx="188" cy="118" r="62" fill="none" stroke="#4A3E5E" strokeWidth="2" opacity=".55" />
+          <path d="M104 96 C132 70 158 70 178 96" fill="none" stroke="#B85B40" strokeWidth="2" opacity=".65" />
+          <path d="M102 140 C132 164 158 164 180 140" fill="none" stroke="#B85B40" strokeWidth="2" opacity=".45" />
+          {[0, 1, 2, 3, 4, 5].map((item) => {
+            const angle = (item * 60 - 90) * Math.PI / 180;
+            return <circle key={`a-${item}`} cx={94 + Math.cos(angle) * 50} cy={118 + Math.sin(angle) * 50} r="4" fill="#3A4A36" />;
+          })}
+          {[0, 1, 2, 3, 4, 5].map((item) => {
+            const angle = (item * 60 - 90) * Math.PI / 180;
+            return <circle key={`b-${item}`} cx={188 + Math.cos(angle) * 50} cy={118 + Math.sin(angle) * 50} r="4" fill="#4A3E5E" />;
+          })}
+        </svg>
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-[var(--soft-paper-card)] px-4 py-1.5 font-heading text-sm italic text-[var(--soft-bordeaux)] shadow-[0_8px_18px_-10px_rgba(60,30,20,.25)]">
+          карта пары
+        </div>
+      </div>
     </div>
   );
 }
@@ -300,6 +327,7 @@ function productSide(product: V5Product) {
   if (product.slug === "my-map") return <ExtendedMapSide />;
   if (product.slug === "tarot") return <TarotSide />;
   if (product.slug === "natal-chart") return <NatalSide />;
+  if (product.slug === "synastry") return <SynastrySide />;
   if (product.slug === "numerology") return <NumerologySide />;
   if (product.slug === "joint-session") return <JointSide />;
   if (product.slug === "perspectives") return <PerspectivesSide />;
@@ -510,6 +538,36 @@ function NatalSections() {
   );
 }
 
+function SynastrySections() {
+  return (
+    <section className="soft-shell mt-12" data-testid="synastry-relationship-map">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
+        <div className="soft-card bg-[linear-gradient(140deg,#D6DECC,#E5EBDC)] p-7">
+          <p className="soft-eyebrow text-[#3A4A36]">пример · карта пары</p>
+          <p className="mt-4 font-heading text-2xl italic leading-snug text-[#3A4A36]">
+            Один человек быстрее успокаивается через разговор, другой — через паузу и сбор мыслей. Конфликт начинается не из-за несовместимости, а из-за разного темпа возвращения к контакту.
+          </p>
+        </div>
+        <div className="soft-card p-7">
+          <p className="soft-eyebrow">что откроется</p>
+          <div className="mt-4 grid gap-3">
+            {[
+              ["общий ресурс", "где вам легче поддерживать друг друга"],
+              ["разные ритмы", "что один воспринимает как близость, а другой — как давление"],
+              ["вопросы для разговора", "формулировки без verdict и обвинений"],
+            ].map(([title, text]) => (
+              <div key={title} className="soft-card-flat p-4">
+                <p className="text-sm font-semibold text-[var(--soft-bordeaux)]">{title}</p>
+                <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function NumerologySections() {
   return (
     <section className="soft-shell mt-12" data-testid="numerology-number-cards">
@@ -596,6 +654,7 @@ function ProductSpecificSections({ product }: { product: V5Product }) {
   if (product.slug === "my-map") return <ExtendedMapSections />;
   if (product.slug === "tarot") return <TarotSections />;
   if (product.slug === "natal-chart") return <NatalSections />;
+  if (product.slug === "synastry") return <SynastrySections />;
   if (product.slug === "numerology") return <NumerologySections />;
   if (product.slug === "joint-session") return <JointSessionSections />;
   return null;
@@ -619,6 +678,7 @@ function ProductActionSurface({
   if (product.slug === "natal-chart") {
     return <SymbolicProductActions productKey="natal-chart" title="Натальная карта" promptLabel="Дата, время и место рождения" placeholder="12.04.1992, 14:35, Москва. Вопрос: что сейчас важно понять про работу?" creditCost={4} />;
   }
+  if (product.slug === "synastry") return <SynastryActions />;
   if (product.slug === "numerology") {
     return <SymbolicProductActions productKey="numerology" title="Числовой портрет" promptLabel="Имя и дата рождения" placeholder="Анна, 12.04.1992. Хочу понять повторяющийся сценарий в отношениях." creditCost={2} />;
   }

@@ -344,6 +344,18 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Если время рождения неизвестно, модель не утверждает дома/ASC как факт.",
   },
   {
+    feature: "product-synastry",
+    enabled: true,
+    tier: "premium",
+    title: "Синастрия",
+    purpose: "Сравнение двух натальных карт как символического языка динамики пары.",
+    providerOrder: [...directPremiumOrder],
+    maxTokens: 1900,
+    temperature: 0.45,
+    timeoutMs: 45_000,
+    fallbackNotes: "Не выносит verdict по отношениям; показывает ресурсы, различия и вопросы для разговора.",
+  },
+  {
     feature: "product-numerology",
     enabled: true,
     tier: "premium",
