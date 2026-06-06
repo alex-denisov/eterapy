@@ -6,6 +6,7 @@ import type { JobResult } from "@/lib/job-queue";
 import { log, serializeError } from "@/lib/logger";
 import { runPayoutRun } from "@/lib/payout-runs";
 import { syncPractitionerCommissions } from "@/lib/practitioner-commission";
+import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 const CLEANUP_GRACE_DAYS = 10;
@@ -47,16 +48,19 @@ export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
     await db.user.delete({ where: { id: user.id } });
     deletedCount++;
   }
+  const sessionAiCleanup = await cleanupExpiredSessionAiData({ now });
 
   log.info("cron-cleanup-users-completed", {
     jobId: job.id,
     deletedCount,
+    sessionAiCleanup,
     cutoffDate: cutoffDate.toISOString(),
   });
 
   return {
     ok: true,
     deletedCount,
+    sessionAiCleanup,
     cutoffDate: cutoffDate.toISOString(),
     timestamp: now.toISOString(),
   };

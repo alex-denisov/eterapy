@@ -7,6 +7,7 @@ import {
   handleNotificationDeliveryJob,
   NOTIFICATION_DELIVERY_JOB_TYPE,
 } from "@/lib/notification-delivery";
+import { handleServerSttJob, SERVER_STT_JOB_TYPE } from "@/lib/server-stt";
 
 const DEFAULT_POLL_MS = 2_000;
 const DEFAULT_STALE_AFTER_MS = 10 * 60_000;
@@ -38,6 +39,7 @@ export const JOB_HANDLERS: JobHandlers = {
     jobId: job.id,
   }),
   [NOTIFICATION_DELIVERY_JOB_TYPE]: handleNotificationDeliveryJob,
+  [SERVER_STT_JOB_TYPE]: handleServerSttJob,
   ...CRON_JOB_HANDLERS,
 };
 

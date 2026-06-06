@@ -20,6 +20,7 @@ const EGRESS_URL = LIVEKIT_URL.replace(/^wss?/, "http");
 
 const RECORDINGS_DIR = "/uploads/recordings";
 const TTL_HOURS = 24;
+const AUDIO_TTL_HOURS = 1;
 
 let _egress: EgressClient | null = null;
 function getEgress(): EgressClient {
@@ -60,6 +61,51 @@ export async function startRoomRecording(roomName: string, bookingId: string): P
   } catch (e) {
     log.error("egress.start_recording_failed", { err: e });
     return null;
+  }
+}
+
+/**
+ * Начинает audio-only egress комнаты для серверного STT.
+ * Файл временный: воркер обязан удалить его сразу после транскрипции,
+ * а serverSttAudioExpiresAt страхует хвосты максимум на 1 час.
+ */
+export async function startRoomAudioEgress(roomName: string, bookingId: string): Promise<RecordingInfo | null> {
+  try {
+    const egress = getEgress();
+    const filename = `stt_${bookingId}_${Date.now()}.mp4`;
+    const filepath = path.join(RECORDINGS_DIR, filename);
+
+    const info = await egress.startRoomCompositeEgress(
+      roomName,
+      { file: { filepath, disableManifest: true } } as never,
+      { audioOnly: true } as never,
+    );
+
+    const expiresAt = new Date(Date.now() + AUDIO_TTL_HOURS * 60 * 60 * 1000);
+    const url = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/uploads/recordings/${filename}`;
+
+    return {
+      egressId: info.egressId,
+      filename,
+      url,
+      expiresAt,
+    };
+  } catch (e) {
+    log.error("egress.start_audio_failed", { err: e });
+    return null;
+  }
+}
+
+export async function deleteLocalRecording(urlOrPath: string): Promise<boolean> {
+  try {
+    const { unlink } = await import("fs/promises");
+    const filename = path.basename(urlOrPath);
+    const filepath = path.join(process.cwd(), "public", "uploads", "recordings", filename);
+    await unlink(filepath).catch(() => undefined);
+    return true;
+  } catch (e) {
+    log.error("egress.delete_recording_failed", { urlOrPath, err: e });
+    return false;
   }
 }
 

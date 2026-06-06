@@ -403,6 +403,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     timeoutMs: 45_000,
     fallbackNotes: "Audio stays outside OpenRouter; summary follows direct provider policy.",
   },
+  {
+    feature: "session-stt",
+    enabled: true,
+    tier: "speech",
+    title: "Server STT",
+    purpose: "Practitioner Pro+ server-side session transcription from temporary LiveKit audio egress.",
+    providerOrder: [...directSensitiveOrder],
+    maxTokens: 1200,
+    temperature: 0,
+    timeoutMs: 60_000,
+    perUserDailyTokenBudget: 4000,
+    fallbackNotes: "One queued job per video session; audio is temporary and deleted after transcription.",
+  },
 ];
 
 export const DEFAULT_AI_TASK_POLICIES: AITaskPolicyDefinition[] = DEFAULT_AI_TASK_POLICY_DEFINITIONS.map((policy) => ({

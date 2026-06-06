@@ -20,6 +20,9 @@ jest.mock("@/lib/db", () => ({
       findFirst: jest.fn(),
       update: jest.fn(),
     },
+    userSubscription: {
+      findMany: jest.fn(),
+    },
     booking: {
       update: jest.fn(),
     },
@@ -31,6 +34,7 @@ jest.mock("@/lib/db", () => ({
 }));
 
 jest.mock("@/lib/practitioner-entitlements", () => ({
+  getPractitionerSessionRetentionDays: jest.fn().mockResolvedValue(30),
   practitionerHasFeature: jest.fn(),
 }));
 
@@ -59,6 +63,9 @@ const mockDb = db as unknown as {
   videoSession: {
     findFirst: jest.Mock;
     update: jest.Mock;
+  };
+  userSubscription: {
+    findMany: jest.Mock;
   };
   $transaction: jest.Mock;
 };
@@ -113,6 +120,7 @@ describe("Z13 video transcript route gates", () => {
     });
     mockDb.videoSession.findFirst.mockResolvedValue(videoSession());
     mockDb.videoSession.update.mockResolvedValue({});
+    mockDb.userSubscription.findMany.mockResolvedValue([{ planKey: "practitioner_pro" }]);
     mockDb.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(mockDb));
   });
 

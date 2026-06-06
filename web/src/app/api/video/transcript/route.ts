@@ -10,6 +10,7 @@ import {
   generateSessionSummary,
   reviewSessionCompliance,
 } from "@/lib/session-ai-pipeline";
+import { resolveSessionAiRetentionDates } from "@/lib/server-stt";
 import {
   detectPractitionerTextRisk,
   holdPractitionerPayoutsForBooking,
@@ -111,6 +112,10 @@ export async function POST(req: NextRequest) {
     userId,
     requestId: context.requestId,
   });
+  const retention = await resolveSessionAiRetentionDates({
+    practitionerUserId,
+    now: new Date(),
+  });
 
   const transcriptMetadata: Prisma.InputJsonObject = {
     stt: {
@@ -137,6 +142,7 @@ export async function POST(req: NextRequest) {
       moderatorRecommendation: compliance.moderatorRecommendation,
       metadata: compliance.metadata,
     },
+    complianceEvidenceExpiresAt: retention.complianceEvidenceExpiresAt,
     complianceReviewedAt: new Date(),
   };
 
@@ -153,6 +159,7 @@ export async function POST(req: NextRequest) {
     where: { id: videoSession.id },
     data: {
       ...(transcriptAllowed ? { transcriptText, transcriptMetadata } : {}),
+      ...(transcriptAllowed ? { transcriptExpiresAt: retention.transcriptExpiresAt } : {}),
       ...complianceData,
       ...(summaryResult
         ? {
@@ -160,6 +167,7 @@ export async function POST(req: NextRequest) {
             practitionerNotesText: summaryResult.practitionerNotesText,
             clientFollowupDraft: summaryResult.clientFollowupDraft,
             summaryMetadata: summaryResult.metadata,
+            summaryExpiresAt: retention.summaryExpiresAt,
           }
         : {}),
     },
@@ -275,6 +283,10 @@ export async function PUT(req: NextRequest) {
     userId,
     requestId: context.requestId,
   });
+  const retention = await resolveSessionAiRetentionDates({
+    practitionerUserId: userId,
+    now: new Date(),
+  });
 
   await db.videoSession.update({
     where: { id: videoSession.id },
@@ -283,6 +295,7 @@ export async function PUT(req: NextRequest) {
       practitionerNotesText: result.practitionerNotesText,
       clientFollowupDraft: result.clientFollowupDraft,
       summaryMetadata: result.metadata,
+      summaryExpiresAt: retention.summaryExpiresAt,
     },
   });
 

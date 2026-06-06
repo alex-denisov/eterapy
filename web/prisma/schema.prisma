@@ -342,22 +342,39 @@ model VideoSession {
   endedAt         DateTime?
   recordingUrl    String?       // path to recording file
   recordingExpiry DateTime?     // 24h TTL
+  recordingEgressId String?      @map("recording_egress_id")
+  recordingConsentClientAt DateTime? @map("recording_consent_client_at")
+  recordingConsentPractitionerAt DateTime? @map("recording_consent_practitioner_at")
+  serverSttStatus String        @default("not_requested") @map("server_stt_status")
+  serverSttJobId  String?       @map("server_stt_job_id")
+  serverSttEgressId String?     @map("server_stt_egress_id")
+  serverSttAudioUrl String?     @map("server_stt_audio_url")
+  serverSttAudioExpiresAt DateTime? @map("server_stt_audio_expires_at")
   transcriptText  String?       // full transcript after session
   summaryText     String?       // AI summary for practitioner
   clientFollowupDraft String?   @map("client_followup_draft")
   practitionerNotesText String? @map("practitioner_notes_text")
   transcriptMetadata Json?      @map("transcript_metadata")
   summaryMetadata Json?         @map("summary_metadata")
+  transcriptExpiresAt DateTime? @map("transcript_expires_at")
+  summaryExpiresAt DateTime?    @map("summary_expires_at")
   complianceStatus String       @default("not_reviewed") @map("compliance_status")
   complianceRiskScore Int       @default(0) @map("compliance_risk_score")
   complianceEvidence Json?      @map("compliance_evidence")
+  complianceEvidenceExpiresAt DateTime? @map("compliance_evidence_expires_at")
   complianceReviewedAt DateTime? @map("compliance_reviewed_at")
   createdAt       DateTime      @default(now())
 
   messages        ChatMessage[]
 
   @@index([bookingId])
+  @@index([recordingEgressId])
   @@index([complianceStatus, complianceRiskScore])
+  @@index([serverSttStatus])
+  @@index([transcriptExpiresAt])
+  @@index([summaryExpiresAt])
+  @@index([complianceEvidenceExpiresAt])
+  @@index([serverSttAudioExpiresAt])
   @@map("video_sessions")
 }
 

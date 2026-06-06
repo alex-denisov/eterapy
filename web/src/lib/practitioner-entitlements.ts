@@ -34,3 +34,34 @@ export async function practitionerHasFeature(
 
   return Boolean(subscription);
 }
+
+export async function getActivePractitionerPlanKey(
+  userId: string,
+  tx: PractitionerEntitlementTx = db,
+  now = new Date(),
+): Promise<PractitionerFeaturePlanKey | null> {
+  const subscriptions = await tx.userSubscription.findMany({
+    where: {
+      userId,
+      planKey: { in: ["practitioner_pro", "practitioner_pro_plus"] },
+      status: { in: ["TRIALING", "ACTIVE"] },
+      OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+    },
+    select: { planKey: true },
+  });
+  const planKeys = subscriptions.map((subscription) => subscription.planKey);
+  if (planKeys.includes("practitioner_pro_plus")) return "practitioner_pro_plus";
+  if (planKeys.includes("practitioner_pro")) return "practitioner_pro";
+  return null;
+}
+
+export async function getPractitionerSessionRetentionDays(
+  userId: string,
+  tx: PractitionerEntitlementTx = db,
+  now = new Date(),
+) {
+  const planKey = await getActivePractitionerPlanKey(userId, tx, now);
+  if (planKey === "practitioner_pro_plus") return 90;
+  if (planKey === "practitioner_pro") return 30;
+  return null;
+}

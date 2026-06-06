@@ -178,7 +178,7 @@ export function VideoControls({
               await fetch("/api/video/recording", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ egressId }),
+                body: JSON.stringify({ egressId, bookingId }),
               });
               setRecording(false);
               setEgressId(null);

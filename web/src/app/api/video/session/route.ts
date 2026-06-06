@@ -73,6 +73,10 @@ export async function PATCH(req: NextRequest) {
 
   // Если сессия завершена — завершаем booking единым путём (75% гейт, holds, payout)
   if (status === "ENDED") {
+    if (videoSession.serverSttEgressId) {
+      const { stopRecording } = await import("@/lib/livekit-egress");
+      await stopRecording(videoSession.serverSttEgressId);
+    }
     const isPractitioner = videoSession.booking.practitioner.userId === session.user.id;
     const outcome = await completeBookingAtSessionEnd(bookingId, {
       userId: session.user.id,
