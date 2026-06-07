@@ -107,8 +107,12 @@ export async function POST(request: NextRequest) {
   if (dialogue.status === "SAFETY_INTERRUPTED" || dialogue.safetyLevel === "crisis" || dialogue.safetyLevel === "blocked") {
     return errorWithRequestContext("SAFETY_BLOCKED", "Экстренная поддержка останавливает платные сценарии", 409, context);
   }
-  if (dialogue.status !== "ANSWERED") {
-    return errorWithRequestContext("CONFLICT", "4 ракурса доступны после первичного ответа", 409, context);
+  // Allow generation once the intake is complete: ANSWERED (the /checkin flow
+  // produced a primary answer) OR PROCESSING (the product-intake flow finished
+  // clarifications — it never calls /answer, so it stops at PROCESSING). Block
+  // only genuinely-incomplete dialogues (OPEN / AWAITING_USER mid-intake).
+  if (dialogue.status !== "ANSWERED" && dialogue.status !== "PROCESSING") {
+    return errorWithRequestContext("CONFLICT", "Сначала завершите короткий разбор вопроса", 409, context);
   }
 
   const title = buildPerspectivesTitle(dialogue);

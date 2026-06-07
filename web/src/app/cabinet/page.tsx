@@ -289,6 +289,62 @@ export default async function ClientCabinetPage() {
         </div>
       ) : null}
 
+      {/* #5: onboarding «первые шаги» lives high on the first screen, and
+          disappears once every mission reward has been granted. */}
+      {missionChecklist.completedCount < missionChecklist.totalCount && (
+        <section className="soft-card mb-4 p-5" data-testid="client-first-steps">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="soft-eyebrow">первые шаги</p>
+              <h2 className="soft-h3 mt-2">
+                {missionChecklist.completedCount} из {missionChecklist.totalCount} миссий пройдено
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                Награды начисляются только за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} кредитов,
+                которые можно потратить на цифровые форматы.
+              </p>
+            </div>
+            <div
+              className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--soft-paper-edge)] px-3 py-2 text-sm font-semibold"
+              data-testid="client-streak-badge"
+              style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)" }}
+            >
+              <Leaf className="size-4" aria-hidden="true" />
+              {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-5">
+            {missionChecklist.items.map((mission) => (
+              <Link
+                key={mission.key}
+                href={missionHref(mission.actionHref)}
+                className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
+                data-testid={`client-mission-${mission.key}`}
+                style={{
+                  background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)",
+                  color: "var(--soft-ink)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
+                    +{mission.rewardCredits} кр.
+                  </span>
+                  {mission.completed ? (
+                    <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
+                  ) : (
+                    <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                  )}
+                </div>
+                <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
+                <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                  {mission.completed ? "получено" : mission.description}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* v4: recent dialogues card — directly below stat grid. T16: показываем
           последние 4 разбора с русскими ярлыками темы и статуса, плюс кнопка
           «Все разборы» → история. Дублирующий блок со старым заголовком убран. */}
@@ -370,58 +426,6 @@ export default async function ClientCabinetPage() {
             </div>
             <DailyPracticeActions completed={Boolean(dailyCard.completedAt)} />
           </div>
-        </div>
-      </section>
-
-      <section className="soft-card mb-4 p-5" data-testid="client-first-steps">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="soft-eyebrow">первые шаги</p>
-            <h2 className="soft-h3 mt-2">
-              {missionChecklist.completedCount} из {missionChecklist.totalCount} миссий пройдено
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-              Награды начисляются только за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} кредитов,
-              которые можно потратить на цифровые форматы.
-            </p>
-          </div>
-          <div
-            className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--soft-paper-edge)] px-3 py-2 text-sm font-semibold"
-            data-testid="client-streak-badge"
-            style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)" }}
-          >
-            <Leaf className="size-4" aria-hidden="true" />
-            {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
-          </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-5">
-          {missionChecklist.items.map((mission) => (
-            <Link
-              key={mission.key}
-              href={missionHref(mission.actionHref)}
-              className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
-              data-testid={`client-mission-${mission.key}`}
-              style={{
-                background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)",
-                color: "var(--soft-ink)",
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
-                  +{mission.rewardCredits} кр.
-                </span>
-                {mission.completed ? (
-                  <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
-                ) : (
-                  <span className="size-2 rounded-full bg-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                )}
-              </div>
-              <p className="mt-2 text-sm font-semibold leading-snug">{mission.title}</p>
-              <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                {mission.completed ? "получено" : mission.description}
-              </p>
-            </Link>
-          ))}
         </div>
       </section>
 

@@ -117,8 +117,11 @@ export async function POST(request: NextRequest) {
   if (dialogue.status === "SAFETY_INTERRUPTED" || dialogue.safetyLevel === "crisis" || dialogue.safetyLevel === "blocked") {
     return errorWithRequestContext("SAFETY_BLOCKED", "Экстренная поддержка останавливает платные сценарии", 409, context);
   }
-  if (dialogue.status !== "ANSWERED") {
-    return errorWithRequestContext("CONFLICT", "Глубокий отчет доступен после первичного ответа", 409, context);
+  // Allow once the intake is complete: ANSWERED (/checkin produced a primary
+  // answer) OR PROCESSING (the product-intake flow finished clarifications and
+  // stops at PROCESSING). Block only genuinely-incomplete dialogues.
+  if (dialogue.status !== "ANSWERED" && dialogue.status !== "PROCESSING") {
+    return errorWithRequestContext("CONFLICT", "Сначала завершите короткий разбор вопроса", 409, context);
   }
 
   const title = buildDeepReportTitle(dialogue);
