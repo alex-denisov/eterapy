@@ -28,7 +28,6 @@ export function LibraryEntryCta({
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (cancelled || !data || typeof data.total !== "number") return;
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCount(data.total);
       })
       .catch(() => {});

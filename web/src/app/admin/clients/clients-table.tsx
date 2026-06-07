@@ -187,6 +187,9 @@ export function ClientsTable({
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       {u.avatarUrl ? (
+                        // Admin table avatar from arbitrary storage URLs — next/image
+                        // would need per-host remotePatterns config for a 28px image.
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={u.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
                       ) : (
                         <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">

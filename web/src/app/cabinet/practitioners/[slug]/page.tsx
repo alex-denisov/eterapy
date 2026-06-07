@@ -57,6 +57,9 @@ export default async function CabinetPractitionerPage({ params }: { params: Prom
       {/* Header */}
       <div className="mb-8 flex items-start gap-5">
         {p.user.avatarUrl ? (
+          // User-set avatar from arbitrary storage URLs — next/image would need
+          // per-host remotePatterns config for a 64px image.
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={p.user.avatarUrl} alt={p.user.name} className="h-16 w-16 rounded-full object-cover" />
         ) : (
           <div className="h-16 w-16 rounded-full bg-[rgba(255,255,255,0.035)] flex items-center justify-center text-xl font-bold text-[var(--soft-bordeaux)]">

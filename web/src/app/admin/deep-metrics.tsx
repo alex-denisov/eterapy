@@ -45,7 +45,6 @@ function Bar({ pct }: { pct: number }) {
 export async function DeepMetrics() {
   const now = new Date();
   const monthStr = now.toISOString().slice(0, 7);
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

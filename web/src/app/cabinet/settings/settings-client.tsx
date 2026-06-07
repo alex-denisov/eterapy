@@ -303,8 +303,6 @@ function ExtendedProfileTab() {
   const [loaded, setLoaded] = useState(false);
   const [dateError, setDateError] = useState("");
 
-  const currentYear = new Date().getFullYear();
-
   // Auto-detect timezone on mount
   const detectedTimezone = useMemo(() => {
     try {

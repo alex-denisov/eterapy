@@ -74,7 +74,10 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain("структура встречи");
 
     expect(products).toContain("Глубокий отчёт");
-    expect(products).toContain("или −4 кредита ясности · в Plus входит");
+    // Z2 credit-centric: deep-report is a PREMIUM anchor (Plus includes only
+    // perspectives), so the copy must say Premium, not Plus.
+    expect(products).toContain("или −4 кредита ясности · в Premium входит");
+    expect(products).not.toContain("в Plus входит");
     expect(products).toContain("один отчёт на двоих");
   });
 

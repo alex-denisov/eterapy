@@ -59,7 +59,7 @@ export function mainUrl(pathname: string): string {
   return hrefForDomain(MAIN_DOMAIN, pathname);
 }
 
-export function subdomainUrl(pathname: string, role?: string): string {
+export function subdomainUrl(pathname: string): string {
   const domain = domainForPath(pathname);
   return hrefForDomain(domain, pathname);
 }
@@ -71,7 +71,7 @@ export function homePathForRole(role?: string | null): string {
 }
 
 export function homeUrlForRole(role?: string | null): string {
-  return subdomainUrl(homePathForRole(role ?? undefined), role ?? undefined);
+  return subdomainUrl(homePathForRole(role ?? undefined));
 }
 
 export function loginUrl(): string {

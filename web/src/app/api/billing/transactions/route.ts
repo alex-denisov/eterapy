@@ -6,22 +6,36 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 
+// Z1-Ф2: the client ₽ balance rail is removed. Legacy top-up artifacts (real
+// pre-Z1 `Transaction` rows with `purchaseKind: "balance"` and the money-ledger
+// TOPUP / BALANCE_REFUND entries) must not surface in billing history — they
+// reference a concept that no longer exists. Card payments for products /
+// subscriptions / credit packs and the clarity-credit ledger remain.
+const LEGACY_BALANCE_LEDGER_TYPES = new Set(["TOPUP", "BALANCE_REFUND"]);
+
+function isLegacyBalanceTopup(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return false;
+  return (metadata as Record<string, unknown>).purchaseKind === "balance";
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
   }
 
-  const transactions = await db.transaction.findMany({
+  const transactionsRaw = await db.transaction.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
-  const ledger = await db.creditLedgerEntry.findMany({
+  const transactions = transactionsRaw.filter((t) => !isLegacyBalanceTopup(t.metadata));
+  const ledgerRaw = await db.creditLedgerEntry.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+  const ledger = ledgerRaw.filter((entry) => !LEGACY_BALANCE_LEDGER_TYPES.has(entry.type));
   const clarityCredits = await db.clarityCreditLedgerEntry.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },

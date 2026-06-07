@@ -6,12 +6,12 @@
  * TELEGRAM_SUPPORT_BOT_TOKEN is set in the runtime env (B7). The webhook
  * secret is read server-side from env and never returned.
  */
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { mainUrl } from "@/lib/subdomain";
 import { setSupportTelegramWebhook, hasSupportBot } from "@/lib/telegram";
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") {
     return NextResponse.json({ error: "Только суперадмин" }, { status: 403 });

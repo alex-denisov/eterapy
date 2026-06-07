@@ -28,6 +28,12 @@ export async function GET(request: NextRequest) {
   const search = url.searchParams.get("q") ?? "";
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setInterval> | null = null;
+  // Guard the start()/cancel() race: the initial `await sendSnapshot()` is async,
+  // so a client (or test) can call cancel() BEFORE the interval is created. Without
+  // this flag, cancel() sees `timer === null`, does nothing, and start() then
+  // schedules an interval that is never cleared — a leaked timer on early
+  // disconnect (and a "worker failed to exit gracefully" notice under jest).
+  let cancelled = false;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -44,11 +50,13 @@ export async function GET(request: NextRequest) {
       };
 
       await sendSnapshot();
+      if (cancelled) return;
       timer = setInterval(() => {
         void sendSnapshot();
       }, intervalMs);
     },
     cancel() {
+      cancelled = true;
       if (timer) clearInterval(timer);
     },
   });

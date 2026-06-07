@@ -61,7 +61,7 @@ const SERVICES: ServiceCard[] = [
   // Free entries
   { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации.", price: "0 ₽", cat: "digital", kind: "Бесплатно", href: "/checkin", icon: Heart },
   { id: "practice", title: "Практика ясности", desc: "Ежедневные короткие вопросы, задания и мягкий ритм.", price: "0 ₽", cat: "practice", kind: "Бесплатно", href: "/products/clarity-practice", icon: Leaf },
-  { id: "compat", title: "Совместимость", desc: "Парный разбор: сильные стороны взаимодействия и зоны различий — по приглашению и согласию партнёра.", price: "от 590 ₽", cat: "social", kind: "Для двоих", href: "/products/compatibility", icon: Users },
+  { id: "compat", title: "Совместимость", desc: "Парный разбор: сильные стороны взаимодействия и зоны различий — по приглашению и согласию партнёра.", price: "790 ₽", cat: "social", kind: "Для двоих", href: "/products/compatibility", icon: Users },
   { id: "circle", title: "Круг ясности", desc: "Бережный групповой формат: 2–5 участников и один общий вопрос.", price: "790 ₽", cat: "social", kind: "Для круга", href: "/products/circle", icon: Users },
   { id: "pair", title: "Разобраться вдвоём", desc: "Общий вопрос на двоих: где совпали ожидания, где напряжение и что стоит обсудить.", price: "790 ₽", cat: "social", kind: "Для двоих", href: "/products/pair", icon: Heart },
   { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5–10 минут в день — первый день бесплатно.", price: "990 ₽", cat: "practice", kind: "Маршрут", href: "/products/seven-days", icon: Calendar },

@@ -236,6 +236,9 @@ export function PractitionersPanel({
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       {p.avatarUrl ? (
+                        // Admin table avatar from arbitrary storage URLs — next/image
+                        // would need per-host remotePatterns config for a 28px image.
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={p.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover shrink-0" />
                       ) : (
                         <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">

@@ -27,7 +27,7 @@ interface VideoChatProps {
   role: "client" | "practitioner";
 }
 
-export function VideoChat({ videoSessionId, participantName, role }: VideoChatProps) {
+export function VideoChat({ videoSessionId, participantName }: VideoChatProps) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -123,6 +123,9 @@ export function VideoChat({ videoSessionId, participantName, role }: VideoChatPr
                 {m.text && <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.text}</p>}
                 {m.fileUrl && isImage(m.fileMime) && (
                   <a href={m.fileUrl} target="_blank" rel="noopener noreferrer">
+                    {/* User-uploaded chat attachment from arbitrary storage URLs —
+                        next/image would require per-host remotePatterns config. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={m.fileUrl} alt={m.fileName ?? "img"} className="rounded-lg max-w-full max-h-48 object-cover mt-1" />
                   </a>
                 )}

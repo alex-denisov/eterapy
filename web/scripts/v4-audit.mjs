@@ -26,22 +26,19 @@ async function run() {
         const violations = [];
         const elements = document.querySelectorAll('*');
         
-        let hasV5 = false;
         let v5Classes = [];
-        
+
         elements.forEach(el => {
           const className = el.className;
           if (typeof className === 'string') {
             if (className.includes('brand-') || className.includes('navy') || className.includes('surface-') || className.includes('halo-stage')) {
-              hasV5 = true;
               const matches = className.match(/\b(brand-[a-z-]+|navy[^ ]*|surface-[a-z-]+|halo-stage)\b/g);
               if (matches) v5Classes.push(...matches);
             }
           }
-          
+
           // Check for proper h1
           if (el.tagName === 'H1') {
-            const style = window.getComputedStyle(el);
             // v4 requires font-heading (serif) and bordeaux color
             if (!className.includes('soft-h1') && !className.includes('h-display')) {
               violations.push(`H1 missing v4 typography classes (soft-h1). Found classes: ${className}`);

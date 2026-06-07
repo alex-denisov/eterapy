@@ -170,20 +170,6 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
     toast.success("Обезличенный текст скопирован");
   }
 
-  async function downloadSafeText() {
-    await saveToHistory();
-    const shareUrl = await ensureShareUrl();
-    const blob = new Blob([publicText(shareUrl)], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `eterapy-insight-${new Date().toISOString().slice(0, 10)}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setOpen(false);
-    toast.success("Обезличенный файл сохранен");
-  }
-
   const template = TEMPLATES[templateIndex] ?? TEMPLATES[0];
 
   const trigger = (

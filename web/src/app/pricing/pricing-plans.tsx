@@ -29,10 +29,10 @@ const plans = [
     tagline: "Для регулярной практики ясности",
     monthPrice: 490,
     yearPrice: 4900,
-    // X18: honest perks — Plus bundles only `perspectives`
-    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. Dropped the
-    // «расширенная карта» claim (my-map moved to Premium) and the «напоминания
-    // /Telegram» line (those are available to every user, not a Plus exclusive).
+    // X18/Z2: honest perks — Plus bundles only `perspectives`
+    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. «my-map» is NOT
+    // bundled on any tier — it is a credit/card purchase everywhere. Reminders
+    // /Telegram are available to every user, not a Plus exclusive.
     perks: [
       "+12 кредитов ясности каждый месяц",
       "4 ракурса ответа включены — без кредитов, без лимита",
@@ -52,16 +52,16 @@ const plans = [
     tagline: "Для глубокой регулярной работы",
     monthPrice: 1290,
     yearPrice: 12900,
-    // W19: the previous four perks were vaporware (no feature backed them).
-    // Replaced with honest perks mapped to V5_SUBSCRIPTION_PLANS.premium —
-    // 9 included digital products + 30 credits + the annual map portrait.
+    // Z2 credit-centric (docs/v5-release/MONETIZATION-STRATEGY-Y10 §3): Premium
+    // includes only two anchors (perspectives + deep-report) + 35 monthly credits;
+    // the rest of the catalog (chat-analysis, my-map, 7 дней, «Вы двое», круг,
+    // синастрия, …) is paid from the wallet — NOT bundled free. Perks must not
+    // claim otherwise.
     perks: [
       "Всё из Plus",
       "+35 кредитов ясности каждый месяц",
       "4 ракурса + Глубокий отчёт включены без кредитов",
       "Весь премиальный каталог — из щедрого кошелька кредитов",
-      "Глубокий отчёт и разбор переписки — без доплат",
-      "Годовой портрет паттернов в Моей карте",
     ],
     cta: "Подключить Premium",
     href: "/cabinet/billing?plan=premium",
@@ -84,7 +84,7 @@ const oneOff = [
   { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению, начало бесплатно", price: "790 ₽", href: "/products/compatibility", cta: "Создать" },
   { cat: "Для двоих и круга", t: "Круг ясности", d: "2–5 участников и общий итог", price: "790 ₽", href: "/products/circle", cta: "Создать" },
   { cat: "Для двоих и круга", t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽", href: "/products/pair", cta: "Пригласить" },
-  { cat: "Маршруты и карта", t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0–199 ₽", href: "/products/clarity-practice", cta: "Открыть" },
+  { cat: "Маршруты и карта", t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0 ₽", href: "/products/clarity-practice", cta: "Открыть" },
   { cat: "Маршруты и карта", t: "7 дней к ясности", d: "Один шаг в день, 5–10 мин · день 1 бесплатно", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
   { cat: "Маршруты и карта", t: "Расширенная карта", d: "Годовой портрет паттернов · история и темы", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
   { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: "390 ₽", href: "/products/tarot", cta: "Купить" },
