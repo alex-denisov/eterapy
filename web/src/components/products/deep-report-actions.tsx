@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Download, LockKeyhole, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { FullQuestionBundleOffer } from "@/components/products/full-question-bundle-offer";
 import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -210,11 +211,11 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
           {/* Report content */}
           <div>
             <article
-              className="soft-card rounded-[16px] p-6 font-heading text-[1.05rem] leading-relaxed text-[var(--soft-ink)] whitespace-pre-wrap"
+              className="soft-card rounded-[16px] p-6 font-heading text-[1.05rem] leading-relaxed text-[var(--soft-ink)]"
               style={{ background: "linear-gradient(160deg, #FFFCF5, #F4D9C1 200%)" }}
             >
               <p className="soft-eyebrow mb-2">{result.title}</p>
-              {result.resultText}
+              <SoftMarkdown content={result.resultText} />
             </article>
 
             {/* Actions row */}
@@ -274,9 +275,10 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
 
           {/* Preview text if available */}
           {result?.previewText && (
-            <div className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)] whitespace-pre-wrap">
-              {result.previewText}
-            </div>
+            <SoftMarkdown
+              content={result.previewText}
+              className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]"
+            />
           )}
 
           {!hasEntitlement && (

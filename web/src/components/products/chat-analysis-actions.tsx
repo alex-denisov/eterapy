@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowRight, ClipboardPaste, Download, EyeOff, FileText, ImageIcon, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 
 type ToneEntry = { label: string; pct: number };
@@ -604,7 +605,7 @@ export function ChatAnalysisActions() {
       {result?.previewText && !result.resultText && (
         <div className="soft-card-flat mb-4 p-4 text-sm leading-relaxed text-[var(--soft-ink)]">
           <p className="soft-eyebrow mb-2 text-[var(--soft-bordeaux)]">Бесплатный фрагмент</p>
-          <p className="whitespace-pre-wrap">{result.previewText}</p>
+          <SoftMarkdown content={result.previewText} />
         </div>
       )}
       <p className="soft-eyebrow mb-4">короткий контекст</p>
@@ -699,9 +700,10 @@ export function ChatAnalysisActions() {
               loading={status === "loading"}
             />
           ) : (
-            <article className="soft-card mt-4 whitespace-pre-wrap p-5 font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
-              {result.resultText}
-            </article>
+            <SoftMarkdown
+              content={result.resultText}
+              className="soft-card mt-4 p-5 font-heading text-[1.08rem] text-[var(--soft-ink)]"
+            />
           )}
         </>
       )}

@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Bookmark, Download, LockKeyhole, Save, Share2, T
 import { Button } from "@/components/ui/button";
 import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 
 type PerspectiveAngle = {
   id: string;
@@ -370,9 +371,10 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
       {/* preview text */}
       {result?.previewText && !angles.length && (
-        <div className="soft-card-flat mt-5 whitespace-pre-wrap p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-          {result.previewText}
-        </div>
+        <SoftMarkdown
+          content={result.previewText}
+          className="soft-card-flat mt-5 p-4 text-sm text-[var(--soft-ink-soft)]"
+        />
       )}
 
       {/* angles grid */}

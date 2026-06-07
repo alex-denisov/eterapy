@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 
 type SynastryResult = {
   id: string;
@@ -204,9 +205,10 @@ export function SynastryActions() {
           <p className="soft-eyebrow">результат</p>
           {result?.resultText ? (
             <>
-              <article className="mt-3 whitespace-pre-wrap font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
-                {result.resultText}
-              </article>
+              <SoftMarkdown
+                content={result.resultText}
+                className="mt-3 font-heading text-[1.08rem] text-[var(--soft-ink)]"
+              />
               <Button
                 type="button"
                 onClick={saveToMap}
@@ -220,9 +222,10 @@ export function SynastryActions() {
             </>
           ) : result?.previewText ? (
             <>
-              <article className="mt-3 whitespace-pre-wrap font-heading text-[1.08rem] leading-relaxed text-[var(--soft-ink)]">
-                {result.previewText}
-              </article>
+              <SoftMarkdown
+                content={result.previewText}
+                className="mt-3 font-heading text-[1.08rem] text-[var(--soft-ink)]"
+              />
               <p className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 Это бесплатный фрагмент. Полная синастрия откроет карту ресурсов, различий и вопросов для разговора.
               </p>

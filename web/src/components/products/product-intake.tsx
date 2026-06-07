@@ -46,7 +46,9 @@ function defaultReadyRedirect(dialogueId: string, router: ReturnType<typeof useR
   const url = new URL(window.location.href);
   url.searchParams.set("dialogueId", dialogueId);
   url.searchParams.delete("question");
-  router.replace(`${url.pathname}${url.search}`);
+  // #10b: keep the user's scroll position — the result renders in place on the
+  // same screen instead of jumping to the top of the page.
+  router.replace(`${url.pathname}${url.search}`, { scroll: false });
   router.refresh();
 }
 
