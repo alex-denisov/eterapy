@@ -94,7 +94,9 @@ describe("v5 product pages", () => {
 
     expect(actions).toContain("/api/products/symbolic");
     expect(actions).toContain("<ProductPurchaseControls");
-    expect(actions).toContain("if (userInput.trim())");
+    // #7: paid purchase auto-generates the full result once unlocked (history-
+    // driven or once the user has typed their context).
+    expect(actions).toContain("if (historyDriven || userInput.trim())");
     expect(route).toContain('productKey: "tarot"');
     expect(route).toContain('productKey: "my-map"');
     expect(route).toContain("userHasActiveEntitlement");

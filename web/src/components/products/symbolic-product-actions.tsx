@@ -168,8 +168,8 @@ export function SymbolicProductActions({
           <h2 className="soft-h3 mt-2">{title}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             {historyDriven
-              ? "Карта собирается из сохранённых вопросов, маршрутов и результатов. Бесплатно откроется 1 тема; полный разбор доступен кредитами ясности или картой."
-              : "Сначала можно получить бесплатный фрагмент по вашему вводу. Полный разбор открывается кредитами ясности или картой."}
+              ? "Карта собирается из сохранённых вопросов, маршрутов и результатов. Полную карту открывают кредитами ясности или картой — результат появится здесь же. Можно начать с бесплатной темы."
+              : "Полный разбор открывается кредитами ясности или картой — результат появится здесь же. Можно начать с бесплатного фрагмента."}
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
@@ -224,34 +224,49 @@ export function SymbolicProductActions({
               </p>
             </div>
           )}
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button
-              type="button"
-              onClick={generateResult}
-              disabled={status === "loading" || !canAttemptGeneration}
-              className="soft-button soft-button-primary"
-            >
-              {hasEntitlement && <LockKeyhole className="size-4" aria-hidden="true" />}
-              {status === "loading" ? "Собираем результат" : hasEntitlement ? "Получить полный результат" : "Бесплатный фрагмент"}
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Button>
-            {!hasEntitlement && canShowPurchaseControls && (
-              <ProductPurchaseControls
-                productKey={productKey}
-                label="Открыть полностью"
-                checkoutSource={`${productKey}-direct`}
-                creditCost={creditCost}
-                onUnlocked={() => {
-                  setHasEntitlement(true);
-                  if (historyDriven) {
-                    void generateResult();
-                  } else if (userInput.trim()) {
-                    void generateResult();
-                  } else {
-                    setMessage("Доступ открыт. Добавьте данные или вопрос — и получите результат здесь же.");
-                  }
-                }}
-              />
+          {/* #7: one clear order action. The PAID CTA (credits → full result in
+              one click) is primary; the free fragment is a quiet secondary link
+              so users no longer mistake the teaser for the order and pay twice. */}
+          <div className="mt-4 flex flex-col gap-3">
+            {hasEntitlement ? (
+              <Button
+                type="button"
+                onClick={generateResult}
+                disabled={status === "loading" || !canAttemptGeneration}
+                className="soft-button soft-button-primary"
+              >
+                <LockKeyhole className="size-4" aria-hidden="true" />
+                {status === "loading" ? "Собираем результат" : "Получить полный результат"}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>
+            ) : (
+              <>
+                {canShowPurchaseControls && (
+                  <ProductPurchaseControls
+                    productKey={productKey}
+                    label={`Открыть ${title}`}
+                    checkoutSource={`${productKey}-direct`}
+                    creditCost={creditCost}
+                    onUnlocked={() => {
+                      setHasEntitlement(true);
+                      if (historyDriven || userInput.trim()) {
+                        void generateResult();
+                      } else {
+                        setMessage("Доступ открыт. Добавьте данные или вопрос — и получите результат здесь же.");
+                      }
+                    }}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={generateResult}
+                  disabled={status === "loading" || !canAttemptGeneration}
+                  className="self-start text-sm font-medium text-[var(--soft-bordeaux)] underline underline-offset-4 disabled:opacity-50"
+                  data-testid={`symbolic-free-fragment-${productKey}`}
+                >
+                  {status === "loading" ? "Собираем фрагмент…" : "Сначала бесплатный фрагмент"}
+                </button>
+              </>
             )}
           </div>
         </div>

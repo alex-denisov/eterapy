@@ -288,29 +288,39 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
             />
           )}
 
-          {/* CTAs */}
+          {/* #7: paid order is the single primary action (credits → full отчёт
+              in one click); free предпросмотр is a quiet secondary link. */}
           <div className="mt-5 flex flex-wrap gap-3">
-            {!result?.previewText && (
-              <Button onClick={createPreview} disabled={status === "loading"} className="soft-button soft-button-ghost">
-                Создать предпросмотр
+            {hasEntitlement ? (
+              <Button
+                onClick={() => void generateReport()}
+                disabled={status === "loading" || status === "paying"}
+                className="soft-button soft-button-primary"
+              >
+                <LockKeyhole className="size-4" aria-hidden="true" />
+                {result?.previewText ? "Получить полный отчёт" : "Сформировать отчёт"}
               </Button>
-            )}
-            <Button
-              onClick={() => void generateReport()}
-              disabled={!hasEntitlement || status === "loading" || status === "paying"}
-              className="soft-button soft-button-primary"
-            >
-              <LockKeyhole className="size-4" aria-hidden="true" />
-              {result?.previewText ? "Получить полный отчет" : "Сформировать отчёт"}
-            </Button>
-            {!hasEntitlement && (
-              <ProductPurchaseControls
-                productKey="deep-report"
-                label="Открыть полный отчет"
-                checkoutSource="deep-report-generate"
-                creditCost={4}
-                onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
-              />
+            ) : (
+              <>
+                <ProductPurchaseControls
+                  productKey="deep-report"
+                  label="Открыть полный отчёт"
+                  checkoutSource="deep-report-generate"
+                  creditCost={4}
+                  onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
+                />
+                {!result?.previewText && (
+                  <button
+                    type="button"
+                    onClick={createPreview}
+                    disabled={status === "loading"}
+                    className="self-start text-sm font-medium text-[var(--soft-bordeaux)] underline underline-offset-4 disabled:opacity-50"
+                    data-testid="deep-report-free-preview"
+                  >
+                    Сначала бесплатный предпросмотр
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

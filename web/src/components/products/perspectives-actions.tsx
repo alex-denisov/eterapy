@@ -408,35 +408,42 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
       {/* actions */}
       <div className="mt-6 flex flex-wrap gap-3">
-        {!result?.previewText && angles.length === 0 && (
+        {/* #7: paid order is the single primary action (credits → 4 ракурса in
+            one click); the free first ракурс is a quiet secondary link. The old
+            always-disabled «Получить 4 ракурса» button is gone for non-buyers. */}
+        {hasEntitlement ? (
           <Button
-            onClick={createPreview}
-            disabled={status === "loading"}
-            className="soft-button soft-button-ghost"
+            onClick={generateReport}
+            disabled={status === "loading" || status === "paying"}
+            className="soft-button soft-button-primary"
           >
-            Бесплатный ракурс
-            <ArrowRight className="size-4" aria-hidden="true" />
+            <LockKeyhole className="size-4" aria-hidden="true" />
+            {angles.length ? "Обновить ракурсы" : "Получить 4 ракурса"}
           </Button>
-        )}
-        <Button
-          onClick={generateReport}
-          disabled={!hasEntitlement || status === "loading" || status === "paying"}
-          className="soft-button soft-button-primary"
-        >
-          <LockKeyhole className="size-4" aria-hidden="true" />
-          {angles.length ? "Обновить ракурсы" : "Получить 4 ракурса"}
-        </Button>
-        {!hasEntitlement && (
-          <ProductPurchaseControls
-            productKey="perspectives"
-            label="Открыть все ракурсы"
-            checkoutSource="perspectives-generate"
-            creditCost={1}
-            onUnlocked={() => {
-              setHasEntitlement(true);
-              void generateReport();
-            }}
-          />
+        ) : (
+          <>
+            <ProductPurchaseControls
+              productKey="perspectives"
+              label="Открыть 4 ракурса"
+              checkoutSource="perspectives-generate"
+              creditCost={1}
+              onUnlocked={() => {
+                setHasEntitlement(true);
+                void generateReport();
+              }}
+            />
+            {!result?.previewText && angles.length === 0 && (
+              <button
+                type="button"
+                onClick={createPreview}
+                disabled={status === "loading"}
+                className="self-start text-sm font-medium text-[var(--soft-bordeaux)] underline underline-offset-4 disabled:opacity-50"
+                data-testid="perspectives-free-fragment"
+              >
+                Сначала бесплатный ракурс
+              </button>
+            )}
+          </>
         )}
         {angles.length > 0 && (
           <>

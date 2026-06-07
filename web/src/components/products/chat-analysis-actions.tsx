@@ -660,20 +660,24 @@ export function ChatAnalysisActions() {
             </div>
           </div>
 
-          <Button
-            onClick={generateReport}
-            disabled={!hasEntitlement || status === "loading" || status === "paying"}
-            className="soft-button soft-button-primary mt-6"
-          >
-            <LockKeyhole className="size-4" aria-hidden="true" />
-            {hasEntitlement ? "Получить полный разбор" : "Открыть полный разбор"}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
-          {!hasEntitlement && (
-            <div className="mt-3">
+          {/* #7: the paid order is the single primary action (credits → full
+              разбор in one click). No more always-disabled «Открыть полный
+              разбор» button shown to users who haven't paid. */}
+          {hasEntitlement ? (
+            <Button
+              onClick={generateReport}
+              disabled={status === "loading" || status === "paying"}
+              className="soft-button soft-button-primary mt-6"
+            >
+              <LockKeyhole className="size-4" aria-hidden="true" />
+              Получить полный разбор
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+          ) : (
+            <div className="mt-6">
               <ProductPurchaseControls
                 productKey="chat-analysis"
-                label="Открыть полный разбор"
+                label="Разобрать переписку"
                 checkoutSource="chat-analysis-generate"
                 creditCost={2}
                 onUnlocked={() => {
