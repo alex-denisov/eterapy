@@ -16,19 +16,28 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
   EXPIRED: "Истекла",
 };
 
+// Russian display names, aligned with the public catalog (lib/v5-products.ts).
 export const PRODUCT_LABELS: Record<string, string> = {
-  perspectives: "Перспективы",
+  perspectives: "4 ракурса ответа",
   "deep-report": "Глубокий отчёт",
+  "full-question": "Полный разбор вопроса",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
-  circle: "Круг отношений",
-  pair: "Парный разбор",
+  circle: "Круг ясности",
+  pair: "Разобраться вдвоём",
   "seven-days": "7 дней к ясности",
-  "my-map": "Моя карта",
+  "my-map": "Расширенная карта",
   tarot: "Расклад Таро",
   "natal-chart": "Натальная карта",
   synastry: "Синастрия",
   numerology: "Числовой портрет",
+};
+
+// Credit-pack purchase descriptions, keyed by pack key (see lib/entitlements CREDIT_PACKS).
+export const CREDIT_PACK_LABELS: Record<string, string> = {
+  "pack-5": "Пакет 5 кредитов",
+  "pack-10": "Пакет 10 кредитов",
+  "pack-25": "Пакет 25 кредитов",
 };
 
 export const LEDGER_TYPE_LABELS: Record<string, string> = {
@@ -56,4 +65,33 @@ export function getProductLabel(productKey: string): string {
 
 export function getLedgerTypeLabel(type: string): string {
   return LEDGER_TYPE_LABELS[type] ?? type;
+}
+
+/**
+ * Turn a raw billing description into a human-readable Russian service name.
+ * Handles the machine descriptions produced at checkout, e.g. "ETerapy: tarot"
+ * -> "Расклад Таро", credit packs and subscription periods. Falls back to the
+ * original text for anything already human-written.
+ */
+export function humanizeBillingDescription(description: string | null | undefined): string {
+  if (!description || !description.trim()) return "Операция";
+  const text = description.trim();
+
+  // "ETerapy: <productKey|packKey>" — the machine description from checkout.
+  const keyed = text.match(/^ETerapy:\s*([a-z0-9-]+)$/i);
+  if (keyed) {
+    const key = keyed[1].toLowerCase();
+    if (PRODUCT_LABELS[key]) return PRODUCT_LABELS[key];
+    if (CREDIT_PACK_LABELS[key]) return CREDIT_PACK_LABELS[key];
+  }
+
+  // "ETerapy <Plan>: первый период" — subscription first charge.
+  const plan = text.match(/^ETerapy\s+(.+?):/i);
+  if (plan) return `Подписка ${plan[1].trim()}`;
+
+  // Bare productKey (some older rows stored just the key).
+  if (PRODUCT_LABELS[text]) return PRODUCT_LABELS[text];
+  if (CREDIT_PACK_LABELS[text]) return CREDIT_PACK_LABELS[text];
+
+  return text;
 }

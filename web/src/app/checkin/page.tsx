@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AIShareButton } from "@/components/ai-share-button";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
+import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
@@ -554,7 +555,7 @@ export default function CheckinPage() {
               )}
               <div className="soft-ask-foot">
                 <p className="text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                  {restoring ? "Восстанавливаю сохраненный диалог..." : "Регистрация понадобится только если вы захотите сохранить результат."}
+                  {restoring ? "Восстанавливаю сохраненный диалог..." : "Первый разбор — бесплатно."}
                 </p>
                 <span
                   className={`text-xs tabular-nums ${
@@ -790,10 +791,23 @@ export default function CheckinPage() {
 
           <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.85fr)] lg:items-start" data-testid="dialogue-answer-triage-layout">
             <div>
-              <article className="soft-card p-5 md:p-7">
-                <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
-                <div className="mt-3 whitespace-pre-wrap font-heading text-[19px] leading-relaxed text-[var(--soft-ink)]" data-testid="dialogue-primary-answer">
-                  {safeAnswer}
+              <article
+                className="relative overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] p-5 md:p-7"
+                style={{ background: "linear-gradient(160deg, #FFFCF5 0%, #F8E6D1 100%)" }}
+              >
+                {/* #1b: an accent rail + heading-serif markdown rendering so the
+                    primary answer reads as a styled reflection, not a flat wall
+                    of text. */}
+                <span aria-hidden="true" className="absolute left-0 top-0 h-full w-1.5" style={{ background: "var(--soft-terracotta-dark)" }} />
+                <div className="flex items-center gap-2">
+                  <span aria-hidden="true" className="font-heading text-2xl leading-none text-[var(--soft-terracotta-dark)]">“</span>
+                  <p className="soft-eyebrow">что я слышу в вашем вопросе</p>
+                </div>
+                <div data-testid="dialogue-primary-answer">
+                  <SoftMarkdown
+                    content={primaryAnswer}
+                    className="mt-3 font-heading text-[19px] text-[var(--soft-ink)] [&_p]:leading-relaxed"
+                  />
                 </div>
               </article>
 

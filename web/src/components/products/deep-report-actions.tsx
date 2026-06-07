@@ -158,7 +158,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
         productKey="deep-report"
         mode="full"
         title="Сначала соберём контекст для отчёта"
-        description="Отчёт строится прямо здесь: короткий intake сохранит вопрос и уточнения, а затем откроет генерацию документа на этой же странице."
+        description="Отчёт строится прямо здесь: короткий сбор контекста сохранит вопрос и уточнения, а затем откроет генерацию документа на этой же странице."
         submitLabel="Начать отчёт"
         readyLabel="Контекст готов. Возвращаем вас к отчёту."
         testId="deep-report-no-dialogue"

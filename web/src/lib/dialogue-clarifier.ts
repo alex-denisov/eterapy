@@ -184,7 +184,7 @@ function buildContextualFallback(input: {
   return { type: "ready", source: "heuristic" };
 }
 
-function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
+export function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
   // Try JSON first — that's our preferred contract.
   const json = extractJson(text);
   if (json) {
@@ -206,7 +206,26 @@ function parseConversationalTurnResponse(text: string): ConversationalTurnResult
         return { type: "question", question, chips: normalizeChips(rawChips), source: "ai" };
       }
     } catch {
-      // fall through to plain-text rescue
+      // Malformed JSON (e.g. a missing bracket — a real model output we saw in
+      // prod). Salvage the q/c fields with a regex instead of leaking the raw
+      // JSON envelope into the chat as if it were the assistant's reply.
+      const qMatch = json.match(/"q"\s*:\s*"((?:\\.|[^"\\])*)"/);
+      if (qMatch) {
+        if (qMatch[1].trim() === "") return { type: "ready", source: "ai" };
+        const salvagedQ = normalizeAssistantTurn(
+          qMatch[1].replace(/\\"/g, '"').replace(/\\n/g, "\n").replace(/\\\\/g, "\\"),
+        );
+        if (salvagedQ) {
+          const cMatch = json.match(/"c"\s*:\s*\[([\s\S]*?)(?:\]|\}|$)/);
+          const rawChips = cMatch
+            ? (cMatch[1].match(/"((?:\\.|[^"\\])*)"/g) ?? []).map((s) => s.slice(1, -1))
+            : [];
+          return { type: "question", question: salvagedQ, chips: normalizeChips(rawChips), source: "ai" };
+        }
+      }
+      // Unsalvageable JSON → return null so the caller retries / goes ready.
+      // Never fall through to the plain-text rescue with a JSON envelope.
+      return null;
     }
   }
 
@@ -214,8 +233,10 @@ function parseConversationalTurnResponse(text: string): ConversationalTurnResult
   // model returned a non-empty natural-language reply that looks like a
   // question, treat that as the turn and synthesize empty chips. Keeps
   // the dialogue LLM-driven instead of dropping to the heuristic pool.
+  // Guard: never treat a JSON-looking envelope as a natural-language reply.
+  const looksLikeJsonEnvelope = /^\s*[{[]/.test(text) || /"q"\s*:/.test(text) || /"c"\s*:/.test(text);
   const cleaned = normalizeAssistantTurn(text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim());
-  if (cleaned && /[?!.]/.test(cleaned)) {
+  if (!looksLikeJsonEnvelope && cleaned && /[?!.]/.test(cleaned)) {
     return { type: "question", question: cleaned, chips: [], source: "ai" };
   }
   return null;

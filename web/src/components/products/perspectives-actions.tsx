@@ -333,7 +333,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
         productKey="perspectives"
         mode="full"
         title="Соберём контекст для 4 ракурсов"
-        description="Короткий intake останется внутри услуги и откроет ракурсы на этой же странице, без перехода в общий первичный разбор."
+        description="Короткий сбор контекста останется внутри услуги и откроет ракурсы на этой же странице, без перехода в общий первичный разбор."
         submitLabel="Начать с вопроса"
         readyLabel="Контекст готов. Возвращаем вас к ракурсам."
         testId="perspectives-no-dialogue"

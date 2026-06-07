@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
-import { getLedgerTypeLabel } from "@/lib/billing-labels";
+import { getLedgerTypeLabel, humanizeBillingDescription } from "@/lib/billing-labels";
 
 const PAGE_SIZE = 25;
 
@@ -75,7 +75,7 @@ export function BillingHistoryTable({
       const amount = Number(entry.amountRub);
       return {
         id: `ledger-${entry.id}`,
-        label: entry.description || getLedgerTypeLabel(entry.type),
+        label: entry.description ? humanizeBillingDescription(entry.description) : getLedgerTypeLabel(entry.type),
         amountRub: amount,
         direction: amount >= 0 ? "deposit" : "spend",
         status: "settled",
@@ -88,7 +88,7 @@ export function BillingHistoryTable({
       .filter((t) => t.status !== "SUCCEEDED")
       .map((t) => ({
         id: `tx-${t.id}`,
-        label: t.description || "Пополнение баланса",
+        label: humanizeBillingDescription(t.description),
         amountRub: Math.abs(Number(t.amountRub)),
         direction: "deposit" as Direction,
         status: t.status,

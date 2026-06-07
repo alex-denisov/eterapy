@@ -54,7 +54,7 @@ export default async function ShareLandingPage({
           </div>
 
           <div className="soft-card soft-form-panel">
-            <p className="premium-eyebrow">безопасный share</p>
+            <p className="premium-eyebrow">безопасный обмен</p>
             <div className="mt-6 rounded-[28px] bg-[linear-gradient(160deg,#F4D9C1_0%,#E8C4B8_54%,#DBD3EA_100%)] p-8 text-[var(--soft-bordeaux)] shadow-[0_22px_70px_rgba(92,42,44,0.18)]">
               <div className="flex items-center gap-2">
                 <span className="h-4 w-4 rounded-full border-2 border-current" />

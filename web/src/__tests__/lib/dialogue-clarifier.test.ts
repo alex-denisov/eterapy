@@ -3,6 +3,7 @@ import {
   generateDialogueConversationalTurn,
   heuristicClarifyingQuestions,
   parseClarifyingQuestionsResponse,
+  parseConversationalTurnResponse,
 } from "@/lib/dialogue-clarifier";
 import { aiComplete } from "@/lib/ai";
 
@@ -257,5 +258,42 @@ describe("dialogue-clarifier", () => {
     });
     expect(result.chips.length).toBe(result.questions.length);
     result.chips.forEach((c) => expect(c.length).toBeGreaterThan(0));
+  });
+});
+
+describe("parseConversationalTurnResponse — never leak raw JSON to the user", () => {
+  it("salvages q/c from MALFORMED json (missing closing bracket — the prod bug)", () => {
+    const malformed = '{"q":"Молчание перед уходом — это про то, что он не хочет тебя расстраивать, или про то, что ему самому слишком тяжело?","c":["Не хочет расстраивать","Слишком тяжело","Нужно время"}';
+    const result = parseConversationalTurnResponse(malformed);
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("question");
+    expect(result!.question).toContain("Молчание перед уходом");
+    // the raw JSON envelope must never appear in the rendered question
+    expect(result!.question).not.toContain('"q"');
+    expect(result!.question).not.toContain('"c"');
+    expect(result!.question).not.toMatch(/^\s*\{/);
+    expect(result!.chips).toEqual(["Не хочет расстраивать", "Слишком тяжело", "Нужно время"]);
+  });
+
+  it("parses well-formed short json", () => {
+    const result = parseConversationalTurnResponse('{"q":"Что сейчас острее всего просит ясности в этой ситуации с работой?","c":["Решение","Спокойствие"]}');
+    expect(result!.type).toBe("question");
+    expect(result!.question).toContain("ясности");
+    expect(result!.chips).toEqual(["Решение", "Спокойствие"]);
+  });
+
+  it("treats empty q (well-formed or malformed) as ready, not a leaked envelope", () => {
+    expect(parseConversationalTurnResponse('{"q":"","c":[]}')!.type).toBe("ready");
+    expect(parseConversationalTurnResponse('{"q":"","c":[}')!.type).toBe("ready");
+  });
+
+  it("returns null for unsalvageable json instead of leaking it", () => {
+    expect(parseConversationalTurnResponse('{"foo":"bar","baz":[}')).toBeNull();
+  });
+
+  it("still accepts a plain natural-language question (no JSON envelope)", () => {
+    const result = parseConversationalTurnResponse("Что в этой ситуации сейчас сильнее всего требует ясности?");
+    expect(result!.type).toBe("question");
+    expect(result!.question).toContain("ясности");
   });
 });
