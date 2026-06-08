@@ -508,7 +508,7 @@ function ExtendedProfileTab() {
               <button key={opt.value} type="button" onClick={() => setMaritalStatus(maritalStatus === opt.value ? "" : opt.value)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   maritalStatus === opt.value
-                    ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
+                    ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)] font-medium"
                     : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {opt.label}
@@ -533,7 +533,7 @@ function ExtendedProfileTab() {
               <button key={g.value} type="button" onClick={() => toggleGoal(g.value)}
                 className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                   aiGoals.includes(g.value)
-                    ? "border-[var(--soft-bordeaux)]/45 soft-select-pill font-medium"
+                    ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)] font-medium"
                     : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-border/60"
                 }`}>
                 {g.label}

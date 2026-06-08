@@ -53,7 +53,7 @@ export default async function PractitionerInvitePage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <header className="space-y-2">
-        <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">BYOC</p>
+        <p className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">Свои клиенты</p>
         <h1 className="text-3xl font-semibold">Приведите своего клиента</h1>
         <p className="max-w-3xl text-muted-foreground">
           Личная ссылка закрепляет новых клиентов за вами: платите {byocRate}% вместо {platformRate}% комиссии платформенного потока.
@@ -62,7 +62,7 @@ export default async function PractitionerInvitePage() {
 
       <section className="grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-          <p className="text-sm text-muted-foreground">BYOC-ставка</p>
+          <p className="text-sm text-muted-foreground">Комиссия за своих клиентов</p>
           <p className="mt-2 text-3xl font-semibold">{byocRate}%</p>
         </div>
         <div className="rounded-lg border border-border/50 bg-white/80 p-4">
@@ -70,7 +70,7 @@ export default async function PractitionerInvitePage() {
           <p className="mt-2 text-3xl font-semibold">{platformRate}%</p>
         </div>
         <div className="rounded-lg border border-border/50 bg-white/80 p-4">
-          <p className="text-sm text-muted-foreground">Ставка founding</p>
+          <p className="text-sm text-muted-foreground">Ставка основателя</p>
           <p className="mt-2 text-base font-medium">
             {foundingActive && practitioner.foundingUntil
               ? `12% до ${practitioner.foundingUntil.toLocaleDateString("ru-RU")}, далее ${BYOC_LADDER[tier]}%`

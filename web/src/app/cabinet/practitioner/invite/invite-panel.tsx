@@ -66,7 +66,7 @@ export function PractitionerInvitePanel({ initialInvites }: { initialInvites: In
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span className="font-medium">AI-крючок</span>
+            <span className="font-medium">Текст-приглашение</span>
             <input
               value={freeAiHook}
               onChange={(event) => setFreeAiHook(event.target.value)}
@@ -147,7 +147,7 @@ export function PractitionerInvitePanel({ initialInvites }: { initialInvites: In
             ))}
             {invites.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-muted-foreground">Создайте первую ссылку, чтобы начать BYOC-воронку</td>
+                <td colSpan={6} className="py-8 text-center text-muted-foreground">Создайте первую ссылку, чтобы приводить своих клиентов</td>
               </tr>
             )}
           </tbody>

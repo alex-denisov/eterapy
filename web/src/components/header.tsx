@@ -291,7 +291,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
         aria-label="Меню пользователя"
         className="soft-user-pill"
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-xs font-bold text-[var(--soft-bordeaux)]">
+        <span className="-ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[11px] font-bold text-[var(--soft-bordeaux)]">
           {name.charAt(0).toUpperCase()}
         </span>
         <span className="hidden md:block">{name}</span>
