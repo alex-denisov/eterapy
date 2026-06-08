@@ -791,6 +791,38 @@ export default function CheckinPage() {
 
           <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.85fr)] lg:items-start" data-testid="dialogue-answer-triage-layout">
             <div>
+              {/* #2: keep the full clarifying exchange visible above the answer.
+                  clarifyingAnswers is cleared on result, but dialogue.messages
+                  persists — so the conversation no longer collapses to just the
+                  first question. */}
+              {(() => {
+                const thread = (dialogue.messages ?? []).filter(
+                  (m) => m.role !== "SYSTEM" && m.content.trim() && m.content !== primaryAnswer,
+                );
+                if (thread.length === 0) return null;
+                return (
+                  <div className="mb-4 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="dialogue-history">
+                    <p className="soft-eyebrow mb-3">ваш диалог</p>
+                    <div className="flex flex-col gap-2.5">
+                      {thread.map((m) => (
+                        <div key={m.id} className={m.role === "USER" ? "max-w-[88%] self-end" : "max-w-[88%] self-start"}>
+                          <p className="mb-0.5 text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">
+                            {m.role === "USER" ? "вы" : "ясность"}
+                          </p>
+                          <div
+                            className="whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed"
+                            style={m.role === "USER"
+                              ? { background: "var(--soft-bordeaux)", color: "#FBF0E1" }
+                              : { background: "var(--soft-paper-deep)", color: "var(--soft-ink)" }}
+                          >
+                            {m.content}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
               <article
                 className="relative overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] p-5 md:p-7"
                 style={{ background: "linear-gradient(160deg, #FFFCF5 0%, #F8E6D1 100%)" }}

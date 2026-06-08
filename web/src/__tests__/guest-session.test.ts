@@ -1,6 +1,5 @@
 import {
   createGuestSessionCookieValue,
-  GUEST_SESSION_COOKIE,
   readGuestSessionIdFromCookieValue,
 } from "@/lib/guest-session";
 
