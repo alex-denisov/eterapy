@@ -75,5 +75,16 @@ tmp/
 # Binary design assets (tracked separately)
 docs/**/*.zip
 docs/**/*.xlsx
-\n# Agent files and temporary artifacts\n.playwright-cli/\n.agents/\n.artifacts/\n.bg-shell/\n.claude/\n.qwen/\n.remember/\n.opencode/\n.playwright-mcp/\n*.png\ndata/
-\n# Exclude all docs from github\ndocs/
+# Agent files and temporary artifacts
+.playwright-cli/
+.agents/
+.artifacts/
+.bg-shell/
+.claude/
+.qwen/
+.remember/
+.opencode/
+.playwright-mcp/
+.jest-cache/
+*.png
+data/
