@@ -1574,15 +1574,22 @@
     text-transform: uppercase;
   }
 
+  /* Card-surface coercion. The broad `.border[class*="rounded"]` /
+     `.rounded-*.border` selectors must NOT swallow <button> elements: a
+     bordered+rounded button (filter pill, toggle, selected option) owns its
+     own bg/border via Tailwind, and forcing it to card-paper with !important
+     produced invisible selected states — white-on-white filter tabs
+     (Интерфейс 12) and unhighlighted toggle buttons (Интерфейс 3, 15). Links
+     and divs that look like cards are left coerced on purpose. */
   .soft-app-shell .premium-card,
   .soft-app-shell [data-slot="card"],
-  .soft-app-shell .rounded-xl.border,
-  .soft-app-shell .border[class*="rounded"],
+  .soft-app-shell .rounded-xl.border:not(button),
+  .soft-app-shell .border[class*="rounded"]:not(button),
   .soft-admin-shell .premium-card,
   .soft-admin-shell [data-slot="card"],
-  .soft-admin-shell .rounded-xl.border,
-  .soft-admin-shell .rounded-lg.border,
-  .soft-admin-shell .border[class*="rounded"] {
+  .soft-admin-shell .rounded-xl.border:not(button),
+  .soft-admin-shell .rounded-lg.border:not(button),
+  .soft-admin-shell .border[class*="rounded"]:not(button) {
     border-color: var(--soft-paper-edge) !important;
     background: color-mix(in srgb, var(--soft-paper-card) 94%, white) !important;
     box-shadow: var(--soft-shadow-sm) !important;
