@@ -386,24 +386,29 @@ function ExtendedProfileTab() {
       if (err) {
         setDateError(err);
         toast.error("Исправьте дату рождения");
-        setSaving(false);
         return;
       }
     }
+    // Механика 3: a fetch/parse error must never leave the button stuck on
+    // "Сохранение…". Reset the flag in finally and surface the failure.
     setSaving(true);
-    const res = await fetch("/api/auth/extended-profile", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ birthDate: formatDateForServer(birthDate), birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals }),
-    });
-    const d = await res.json();
-    if (d.ok) {
-      const { toast } = await import("sonner");
-      toast.success("Профиль обновлён — результаты станут точнее");
-    } else {
-      toast.error(d.error || "Ошибка");
+    try {
+      const res = await fetch("/api/auth/extended-profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ birthDate: formatDateForServer(birthDate), birthTime, birthPlace, timezone, maritalStatus, occupation, aiGoals }),
+      });
+      const d = await res.json().catch(() => ({ ok: false, error: "Не удалось сохранить" }));
+      if (res.ok && d.ok) {
+        toast.success("Профиль обновлён — результаты станут точнее");
+      } else {
+        toast.error(d.error || "Не удалось сохранить профиль");
+      }
+    } catch {
+      toast.error("Ошибка сети — попробуйте ещё раз");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   if (!loaded) return <div className="animate-pulse text-sm text-[var(--soft-ink-soft)]">Загружаем...</div>;

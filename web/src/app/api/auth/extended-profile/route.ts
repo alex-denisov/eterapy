@@ -44,25 +44,44 @@ export async function PATCH(req: NextRequest) {
   if (occupation !== undefined) occupation = sanitizeText(occupation, 100);
 
   // birthDate приходит как "ДД.ММ.ГГГГ". Конвертируем в Date, сохраняя как UTC-дату.
-  // Используем 23:59:59 UTC (конец дня) чтобы ни один часовой пояс не сдвинул дату назад.
+  // Механика 3: the client sends birthDate via formatDateForServer() →
+  // "YYYY-MM-DD" (NOT "ДД.ММ.ГГГГ"). The old split(".") produced NaN → an
+  // Invalid Date → Prisma threw, failing the WHOLE save ("изменения не
+  // сохраняются"). Parse both formats defensively and never persist Invalid Date.
+  // Stored at 23:59:59 UTC so no timezone shifts the calendar day backwards.
   let utcBirthDate: Date | null = null;
   if (birthDate) {
-    const [day, month, year] = birthDate.split(".").map(Number);
-    utcBirthDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
+    const raw = String(birthDate).trim();
+    let y: number | undefined, mo: number | undefined, d: number | undefined;
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const dotted = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (iso) { y = +iso[1]; mo = +iso[2]; d = +iso[3]; }
+    else if (dotted) { d = +dotted[1]; mo = +dotted[2]; y = +dotted[3]; }
+    if (y && mo && d) {
+      const parsed = new Date(Date.UTC(y, mo - 1, d, 23, 59, 59));
+      if (!Number.isNaN(parsed.getTime())) utcBirthDate = parsed;
+    }
+    if (!utcBirthDate) {
+      return NextResponse.json({ ok: false, error: "Некорректная дата рождения" }, { status: 400 });
+    }
   }
 
-  await db.user.update({
-    where: { id: session.user.id },
-    data: {
-      ...(birthDate !== undefined ? { birthDate: utcBirthDate } : {}),
-      ...(birthTime !== undefined ? { birthTime } : {}),
-      ...(birthPlace !== undefined ? { birthPlace } : {}),
-      ...(timezone !== undefined ? { timezone } : {}),
-      ...(maritalStatus !== undefined ? { maritalStatus } : {}),
-      ...(occupation !== undefined ? { occupation } : {}),
-      ...(aiGoals !== undefined ? { aiGoals } : {}),
-    },
-  });
+  try {
+    await db.user.update({
+      where: { id: session.user.id },
+      data: {
+        ...(birthDate !== undefined ? { birthDate: utcBirthDate } : {}),
+        ...(birthTime !== undefined ? { birthTime } : {}),
+        ...(birthPlace !== undefined ? { birthPlace } : {}),
+        ...(timezone !== undefined ? { timezone } : {}),
+        ...(maritalStatus !== undefined ? { maritalStatus } : {}),
+        ...(occupation !== undefined ? { occupation } : {}),
+        ...(aiGoals !== undefined ? { aiGoals } : {}),
+      },
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Не удалось сохранить профиль" }, { status: 500 });
+  }
 
   await logAudit(session.user.id, "PROFILE_UPDATE", undefined, "Расширенный профиль");
   void completeMission({
