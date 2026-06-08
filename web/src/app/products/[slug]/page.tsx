@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { ArrowRight, ChevronDown, LockKeyhole } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
@@ -650,14 +650,31 @@ function JointSessionSections() {
 }
 
 function ProductSpecificSections({ product }: { product: V5Product }) {
-  if (product.slug === "deep-report") return <DeepReportSections />;
-  if (product.slug === "my-map") return <ExtendedMapSections />;
-  if (product.slug === "tarot") return <TarotSections />;
-  if (product.slug === "natal-chart") return <NatalSections />;
-  if (product.slug === "synastry") return <SynastrySections />;
-  if (product.slug === "numerology") return <NumerologySections />;
-  if (product.slug === "joint-session") return <JointSessionSections />;
-  return null;
+  const sections =
+    product.slug === "deep-report" ? <DeepReportSections /> :
+    product.slug === "my-map" ? <ExtendedMapSections /> :
+    product.slug === "tarot" ? <TarotSections /> :
+    product.slug === "natal-chart" ? <NatalSections /> :
+    product.slug === "synastry" ? <SynastrySections /> :
+    product.slug === "numerology" ? <NumerologySections /> :
+    product.slug === "joint-session" ? <JointSessionSections /> :
+    null;
+  if (!sections) return null;
+
+  // #10: the order CTA now comes first; the bulky example blocks live behind a
+  // collapsed disclosure so they inform without walling off the purchase.
+  return (
+    <details className="group mt-10" data-testid="product-example-disclosure">
+      <summary className="soft-shell flex cursor-pointer list-none items-center justify-between gap-3 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-5 py-4 [&::-webkit-details-marker]:hidden">
+        <span>
+          <span className="soft-eyebrow">пример</span>
+          <span className="mt-1 block font-heading text-lg text-[var(--soft-bordeaux)]">Посмотреть пример полного разбора</span>
+        </span>
+        <ChevronDown className="size-5 shrink-0 text-[var(--soft-ink-soft)] transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      {sections}
+    </details>
+  );
 }
 
 function ProductActionSurface({
@@ -761,10 +778,12 @@ export default async function ProductPage({
     <main className="soft-clarity-page soft-product-detail-page" data-testid={`product-page-${product.slug}`}>
       <PublicJsonLd route={product.route as PublicSeoRoute} />
       <ProductHero product={product} search={search} side={productSide(product)} />
-      <ProductSpecificSections product={product} />
+      {/* #10: order CTA first, examples (collapsed) after — purchase isn't
+          buried under a wall of example fragments. */}
       <section id={product.slug === "perspectives" ? "perspectives-actions" : undefined} className="soft-shell mt-10">
         <ProductActionSurface product={product} search={search} />
       </section>
+      <ProductSpecificSections product={product} />
       <ProductFooter />
     </main>
   );
