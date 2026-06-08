@@ -298,11 +298,14 @@ export default function ClientBookingsPage() {
       </div>
 
       {bookings.length === 0 && (
-        <div className="soft-card-flat py-12 text-center">
-          <p style={{ color: "var(--soft-ink-faint)" }}>Нет записей к практикам</p>
+        <div className="soft-card py-12 text-center">
+          <p className="soft-h3" style={{ color: "var(--soft-bordeaux)" }}>Пока нет записей</p>
+          <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+            Живой разговор со специалистом помогает там, где одного разбора мало.
+          </p>
           <Link href={appUrl("/practitioners")}
-            className="soft-chip mt-4 inline-flex">
-            Найти практика
+            className="soft-button soft-button-primary mt-5 inline-flex">
+            Записаться к специалисту
           </Link>
         </div>
       )}
@@ -326,8 +329,12 @@ export default function ClientBookingsPage() {
           </div>
 
           {filter === "upcoming" && upcoming.length === 0 && (
-            <div className="soft-card-flat py-12 text-center">
-              <p style={{ color: "var(--soft-ink-faint)" }}>Нет предстоящих записей</p>
+            <div className="soft-card py-10 text-center">
+              <p style={{ color: "var(--soft-ink-soft)" }}>Нет ближайших записей</p>
+              <Link href={appUrl("/practitioners")}
+                className="soft-button soft-button-primary mt-4 inline-flex">
+                Записаться к специалисту
+              </Link>
             </div>
           )}
 

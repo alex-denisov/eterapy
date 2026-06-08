@@ -331,7 +331,9 @@ export default async function PractitionerPage({
               </div>
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {p.verified && <span className="soft-badge">Проверен ETerapy</span>}
+                  {p.verified
+                    ? <span className="soft-badge">Проверен ETerapy</span>
+                    : <span className="soft-badge" style={{ background: "var(--soft-apricot)", color: "var(--soft-bordeaux)" }} title="Профиль ещё не прошёл проверку ETerapy">Не верифицирован</span>}
                   {p.founding && <span className="soft-badge soft-badge-lilac">Основатель</span>}
                   {p.experience && <span className="soft-badge">{p.experience}</span>}
                   {categoryNames.map((c) => (

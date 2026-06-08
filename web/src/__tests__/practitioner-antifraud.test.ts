@@ -36,7 +36,7 @@ describe("B219 practitioner anti-fraud and payout holds", () => {
     expect(helper).toContain("assertPractitionerPayoutAllowed");
   });
 
-  it("enforces practitioner verification and booking fingerprints before booking creation", () => {
+  it("runs booking fingerprints/risk checks; allows unverified practitioners (Механика 10)", () => {
     const bookingsRoute = source("src/app/api/bookings/route.ts");
     const adminRoute = source("src/app/api/admin/practitioners/route.ts");
     const adminStatusRoute = source("src/app/api/admin/practitioners/[id]/status/route.ts");
@@ -45,7 +45,9 @@ describe("B219 practitioner anti-fraud and payout holds", () => {
     expect(bookingsRoute).toContain("assessBookingRisk");
     expect(bookingsRoute).toContain("practitioner_booking_blocked");
     expect(bookingsRoute).toContain("practitioner_booking_review");
-    expect(bookingsRoute).toContain("Профиль практика ещё не прошёл проверку");
+    // Механика 10: booking no longer hard-blocks unverified practitioners.
+    expect(bookingsRoute).not.toContain("Профиль практика ещё не прошёл проверку");
+    // Publishing a profile still requires verification — that gate stays.
     expect(adminRoute).toContain("Перед публикацией профиль должен пройти проверку");
     expect(adminStatusRoute).toContain("Перед публикацией профиль должен пройти проверку");
   });

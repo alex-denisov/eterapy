@@ -136,9 +136,8 @@ export async function POST(req: NextRequest) {
     if (practitioner.status !== "ACTIVE") {
       return NextResponse.json({ error: "Практик временно недоступен" }, { status: 409 });
     }
-    if (!practitioner.verified) {
-      return NextResponse.json({ error: "Профиль практика ещё не прошёл проверку" }, { status: 409 });
-    }
+    // Механика 10: an unverified (but ACTIVE) practitioner can still be booked;
+    // the profile page surfaces a "не верифицирован" badge so the client knows.
 
     const activePlan = await getUserActivePlan(session.user.id).catch(() => null);
     const bookingPriority = bookingPriorityForPlan(activePlan);
