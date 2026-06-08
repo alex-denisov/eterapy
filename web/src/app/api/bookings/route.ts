@@ -214,13 +214,16 @@ export async function POST(req: NextRequest) {
         resolvedSlotId = overlappingAvailableSlot.id;
       } else {
         // Проверяем, нет ли уже активного бронирования на это время
+        // Баг 15: strict bounds — touching intervals (a 14:00–15:00 booking and
+        // a 15:00–16:00 request) must NOT count as a conflict. Inclusive lte/gte
+        // wrongly blocked the adjacent slot.
         const existingBooking = await db.booking.findFirst({
           where: {
             practitionerId,
             status: { in: ["PENDING", "CONFIRMED", "IN_PROGRESS"] },
             slot: {
-              startAt: { lte: requestedEndAt },
-              endAt: { gte: requestedStartAt },
+              startAt: { lt: requestedEndAt },
+              endAt: { gt: requestedStartAt },
             },
           },
         });
@@ -233,8 +236,8 @@ export async function POST(req: NextRequest) {
           where: {
             practitionerId,
             available: false,
-            startAt: { lte: requestedEndAt },
-            endAt: { gte: requestedStartAt },
+            startAt: { lt: requestedEndAt },
+            endAt: { gt: requestedStartAt },
           },
         });
         if (existingSlot) {

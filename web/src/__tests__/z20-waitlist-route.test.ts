@@ -185,8 +185,9 @@ describe("Z20 waitlist route", () => {
       },
       slot: {
         id: "slot-1",
-        startAt: new Date("2026-06-08T12:00:00.000Z"),
-        endAt: new Date("2026-06-08T13:00:00.000Z"),
+        // far-future so the client cancel passes the 24h policy (Механика 11)
+        startAt: new Date("2027-06-08T12:00:00.000Z"),
+        endAt: new Date("2027-06-08T13:00:00.000Z"),
       },
     });
     (mockDb.booking.update as jest.Mock).mockResolvedValue({});

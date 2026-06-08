@@ -50,6 +50,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   } else if (isClient) {
     if (status !== "CANCELLED") return NextResponse.json({ error: "Клиент может только отменить" }, { status: 403 });
+    // Механика 11: once the practitioner has confirmed (or the session is under
+    // way / done) the client can no longer cancel; and even a pending booking can
+    // only be cancelled more than 24h before the session.
+    if (["CONFIRMED", "IN_PROGRESS", "COMPLETED"].includes(booking.status)) {
+      return NextResponse.json(
+        { error: "После подтверждения практиком запись нельзя отменить. Напишите в поддержку." },
+        { status: 409 },
+      );
+    }
+    const startMs = booking.slot ? new Date(booking.slot.startAt).getTime() : null;
+    if (startMs !== null && startMs - Date.now() < 24 * 60 * 60 * 1000) {
+      return NextResponse.json(
+        { error: "Отменить запись можно не позднее чем за 24 часа до сессии." },
+        { status: 409 },
+      );
+    }
   } else if (!isAdmin) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
@@ -82,9 +98,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Освобождаем слот при отмене
   if (status === "CANCELLED" && booking.slotId) {
-    await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch(() => {});
-    await promoteWaitlistForReleasedSlot({ slotId: booking.slotId, actorUserId: session.user!.id })
-      .catch((e: unknown) => log.error("booking.waitlist_promotion_failed", { bookingId: id, slotId: booking.slotId, err: e }));
+    const releasedSlotId = booking.slotId;
+    await db.timeSlot.update({ where: { id: releasedSlotId }, data: { available: true } }).catch(() => {});
+    await promoteWaitlistForReleasedSlot({ slotId: releasedSlotId, actorUserId: session.user!.id })
+      .catch((e: unknown) => log.error("booking.waitlist_promotion_failed", { bookingId: id, slotId: releasedSlotId, err: e }));
+    // Баг 14: detach the freed slot from this terminal booking. Booking.slotId
+    // is @unique, so a cancelled booking that keeps the slotId makes re-booking
+    // the same time fail with a unique-constraint 500. The time is preserved on
+    // the slot itself (and the booking keeps its own startedAt/endedAt history).
+    await db.booking.update({ where: { id }, data: { slotId: null } }).catch((e: unknown) =>
+      log.error("booking.slot_detach_failed", { bookingId: id, slotId: releasedSlotId, err: e }));
   }
 
   const emailData = {
