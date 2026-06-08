@@ -186,10 +186,6 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                         </button>
                       )}
                     </div>
-
-                    <p className="text-muted-foreground/60">
-                      Переназначение на другого практика — отдельным шагом (11.E.3).
-                    </p>
                   </div>
                 )}
               </div>

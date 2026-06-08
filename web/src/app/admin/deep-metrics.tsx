@@ -91,7 +91,31 @@ export async function DeepMetrics() {
     db.booking.count({ where: { status: "CANCELLED" } }),
     db.review.count(),
     db.review.aggregate({ _avg: { rating: true } }),
-    db.practitioner.findMany({ take: 5, orderBy: { sessionCount: "desc" }, include: { user: { select: { name: true } } } }),
+    // Баг 11: top practitioners by REAL conducted sessions (COMPLETED bookings
+    // from the DB), not the denormalized practitioner.sessionCount counter that
+    // drifted out of sync and summed higher than total bookings.
+    db.booking
+      .groupBy({
+        by: ["practitionerId"],
+        where: { status: "COMPLETED" },
+        _count: { _all: true },
+        orderBy: { _count: { practitionerId: "desc" } },
+        take: 5,
+      })
+      .then(async (groups) => {
+        if (groups.length === 0) return [];
+        const ids = groups.map((g) => g.practitionerId);
+        const pracs = await db.practitioner.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, user: { select: { name: true } } },
+        });
+        const byId = new Map(pracs.map((p) => [p.id, p]));
+        return groups.map((g) => ({
+          id: g.practitionerId,
+          user: { name: byId.get(g.practitionerId)?.user.name ?? "—" },
+          sessionCount: g._count._all,
+        }));
+      }),
     db.toolSession.groupBy({ by: ["tool"], _count: true, orderBy: { _count: { tool: "desc" } } }),
     db.toolSession.groupBy({ by: ["userId"] }).then((r) => r.length),
     db.booking.groupBy({ by: ["clientId"] }).then((r) => r.length),
