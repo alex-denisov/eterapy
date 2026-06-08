@@ -76,3 +76,4 @@ tmp/
 docs/**/*.zip
 docs/**/*.xlsx
 \n# Agent files and temporary artifacts\n.playwright-cli/\n.agents/\n.artifacts/\n.bg-shell/\n.claude/\n.qwen/\n.remember/\n.opencode/\n.playwright-mcp/\n*.png\ndata/
+\n# Exclude all docs from github\ndocs/
