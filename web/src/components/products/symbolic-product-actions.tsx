@@ -14,7 +14,42 @@ type SymbolicResult = {
   previewText: string | null;
   resultText: string | null;
   saved: boolean;
+  metadata?: unknown;
 };
+
+type TarotCardView = { position: string; name: string; meaning: string; reversed: boolean };
+
+// #12: pull the real drawn cards out of the stored generation metadata (the
+// route nests it under generationMetadata / previewGenerationMetadata).
+function extractTarotCards(result: SymbolicResult | null): TarotCardView[] | null {
+  const md = result?.metadata;
+  if (!md || typeof md !== "object") return null;
+  const meta = md as Record<string, unknown>;
+  const nested = (meta.generationMetadata ?? meta.previewGenerationMetadata) as Record<string, unknown> | undefined;
+  const raw = (nested?.cards ?? meta.cards) as unknown;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const cards = raw.filter(
+    (c): c is TarotCardView => !!c && typeof c === "object" && typeof (c as { name?: unknown }).name === "string",
+  );
+  return cards.length > 0 ? cards : null;
+}
+
+function TarotSpread({ cards }: { cards: TarotCardView[] }) {
+  return (
+    <div className="mt-3 rounded-[18px] bg-[linear-gradient(160deg,#4A3E5E,#2A2240)] p-4 text-[#DBD3EA]" data-testid="tarot-spread">
+      <p className="soft-eyebrow text-[#DBD3EA]/70">ваш расклад</p>
+      <div className="mt-3 grid grid-cols-3 gap-3">
+        {cards.map((card) => (
+          <div key={card.position} className="rounded-[14px] border border-[#FBF0E1]/20 bg-[#FBF0E1]/10 p-3 text-center">
+            <p className="text-[10px] uppercase tracking-widest text-[#DBD3EA]/70">{card.position}</p>
+            <p className="mt-2 font-heading text-base italic leading-tight">{card.name}</p>
+            {card.reversed && <p className="mt-1 text-[10px] text-[#DBD3EA]/60">перевёрнутая</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type ApiPayload = {
   hasEntitlement?: boolean;
@@ -160,6 +195,8 @@ export function SymbolicProductActions({
     }
   }
 
+  const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
+
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid={`symbolic-product-actions-${productKey}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -273,6 +310,7 @@ export function SymbolicProductActions({
 
         <div className="soft-card p-5">
           <p className="soft-eyebrow">результат</p>
+          {tarotCards && <TarotSpread cards={tarotCards} />}
           {result?.resultText ? (
             <>
               <SoftMarkdown

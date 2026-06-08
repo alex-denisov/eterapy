@@ -39,6 +39,84 @@ export function getSymbolicProductDefinition(productKey: string) {
   return SYMBOLIC_PRODUCT_DEFINITIONS.find((definition) => definition.productKey === productKey) ?? null;
 }
 
+// #12: a real Таро spread. The result (and its visual on the page) must reflect
+// actual drawn cards, not a hardcoded marketing example. We draw 3 Major Arcana
+// for Прошлое / Настоящее / Будущее deterministically from the question, so the
+// same reading is stable across re-renders and matches the interpretation.
+export type TarotCard = { position: string; name: string; meaning: string; reversed: boolean };
+
+const TAROT_MAJOR_ARCANA: Array<{ name: string; meaning: string }> = [
+  { name: "Шут", meaning: "новое начало, доверие пути" },
+  { name: "Маг", meaning: "воля и ресурсы уже под рукой" },
+  { name: "Верховная Жрица", meaning: "интуиция, тихое знание" },
+  { name: "Императрица", meaning: "забота, рост, плодородие" },
+  { name: "Император", meaning: "опора, структура, границы" },
+  { name: "Иерофант", meaning: "опыт, традиция, наставник" },
+  { name: "Влюблённые", meaning: "выбор сердца и ценностей" },
+  { name: "Колесница", meaning: "движение к цели, собранность" },
+  { name: "Сила", meaning: "мягкая стойкость" },
+  { name: "Отшельник", meaning: "пауза, поиск ответа внутри" },
+  { name: "Колесо Фортуны", meaning: "перемена, новый цикл" },
+  { name: "Справедливость", meaning: "честность и последствия" },
+  { name: "Повешенный", meaning: "смена угла зрения" },
+  { name: "Смерть", meaning: "завершение и переход" },
+  { name: "Умеренность", meaning: "баланс и мера" },
+  { name: "Дьявол", meaning: "привязанность, что держит" },
+  { name: "Башня", meaning: "слом иллюзии, освобождение" },
+  { name: "Звезда", meaning: "надежда и восстановление" },
+  { name: "Луна", meaning: "туман, тревога, образы" },
+  { name: "Солнце", meaning: "ясность, тепло, радость" },
+  { name: "Суд", meaning: "пробуждение, честный итог" },
+  { name: "Мир", meaning: "целостность, завершение круга" },
+];
+
+const TAROT_POSITIONS = ["Прошлое", "Настоящее", "Будущее"] as const;
+
+function seededHash(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+export function drawTarotSpread(seed: string): TarotCard[] {
+  let state = seededHash(seed) || 1;
+  const next = () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 0xffffffff;
+  };
+  const deck = TAROT_MAJOR_ARCANA.map((card) => ({ ...card }));
+  for (let i = deck.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(next() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return TAROT_POSITIONS.map((position, idx) => ({
+    position,
+    name: deck[idx].name,
+    meaning: deck[idx].meaning,
+    reversed: next() < 0.28,
+  }));
+}
+
+function tarotReadingFromCards(cards: TarotCard[], userInput: string): string {
+  const intro = userInput.trim()
+    ? `Расклад на ваш вопрос: «${userInput.trim().slice(0, 160)}».`
+    : "Расклад на вашу ситуацию.";
+  const lines = cards.map((card) => {
+    const orientation = card.reversed ? " (перевёрнутая)" : "";
+    return `## ${card.position}: ${card.name}${orientation}\n${card.reversed ? "Энергия карты приглушена или обращена внутрь: " : ""}${card.meaning}. Что из этого откликается в вашей ситуации прямо сейчас?`;
+  });
+  return [
+    intro,
+    ...lines,
+    "## Бережный следующий шаг\nВыберите одну карту, которая зацепила сильнее всего, и сделайте один маленький шаг в её сторону на этой неделе.",
+  ].join("\n\n");
+}
+
 export function buildSymbolicProductTeaser(input: {
   productKey: SymbolicProductKey;
   userInput: string;
@@ -156,8 +234,14 @@ export async function generateSymbolicProductResult(input: {
   userId: string;
   requestId?: string;
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
-  const fallback = heuristicSymbolicResult(input);
   const definition = getSymbolicProductDefinition(input.productKey);
+  // #12: tarot draws a real 3-card spread; cards are stored in metadata so the
+  // page can render the actual cards, and the AI interprets exactly these cards.
+  const cards = input.productKey === "tarot"
+    ? drawTarotSpread(`${input.userId}:${normalize(input.userInput)}`)
+    : null;
+  const cardsMeta: Prisma.InputJsonObject = cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {};
+  const fallback = cards ? tarotReadingFromCards(cards, input.userInput) : heuristicSymbolicResult(input);
 
   try {
     const response = await aiComplete({
@@ -173,22 +257,24 @@ export async function generateSymbolicProductResult(input: {
             "Write a paid ETerapy symbolic product result in Russian.",
             "Be warm, concrete, non-fatalistic and ethical.",
             "Do not predict the future as fact. Do not diagnose. Do not give medical, legal or financial instructions.",
-            "Use short sections and always end with one practical next step.",
-          ].join(" "),
+            "Use short Markdown sections (## headings) and always end with one practical next step.",
+            cards ? "This is a 3-card tarot spread (Прошлое/Настоящее/Будущее). Interpret EXACTLY the drawn cards given below, one section per card, in their context." : "",
+          ].filter(Boolean).join(" "),
         },
         {
           role: "user",
           content: [
             `Product: ${definition?.title ?? input.productKey}`,
+            cards ? `Выпавшие карты: ${cards.map((c) => `${c.position} — ${c.name}${c.reversed ? " (перевёрнутая)" : ""}`).join("; ")}.` : "",
             `User input: ${normalize(input.userInput) || "Пользователь хочет бережный символический разбор."}`,
-          ].join("\n"),
+          ].filter(Boolean).join("\n"),
         },
       ],
     });
 
     const text = normalize(response.text);
     if (text.length < 220) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response" } };
+      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response", ...cardsMeta } };
     }
 
     return {
@@ -200,6 +286,7 @@ export async function generateSymbolicProductResult(input: {
         tokensIn: response.tokensIn,
         tokensOut: response.tokensOut,
         latencyMs: response.latencyMs,
+        ...cardsMeta,
       },
     };
   } catch (error) {
@@ -208,6 +295,6 @@ export async function generateSymbolicProductResult(input: {
       productKey: input.productKey,
       error: serializeError(error),
     });
-    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error" } };
+    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error", ...cardsMeta } };
   }
 }
