@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
+import { enableAllTelegramNotifications } from "@/lib/notifications";
 import { sendTelegram } from "@/lib/telegram";
 import { formatTelegramGrowthMessage, resolveTelegramGrowthPayload } from "@/lib/telegram-growth";
 import { log, serializeError } from "@/lib/logger";
@@ -170,6 +171,10 @@ export async function POST(req: NextRequest) {
         }),
         db.telegramLinkToken.delete({ where: { token } }),
       ]);
+
+      // Механика 5: enable all Telegram notification toggles on link.
+      await enableAllTelegramNotifications(link.userId).catch((e: unknown) =>
+        log.error("telegram-webhook-enable-prefs-failed", { userId: link.userId, err: e }));
 
       const user = await db.user.findUnique({ where: { id: link.userId }, select: { name: true } });
       log.info("telegram-webhook-linked", { userId: link.userId });

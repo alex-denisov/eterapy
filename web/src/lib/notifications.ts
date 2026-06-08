@@ -9,10 +9,29 @@ import {
   queueNotificationDelivery,
   type NotificationDeliveryChannel,
 } from "@/lib/notification-delivery";
-import type { NotifEvent } from "@/lib/notification-events";
+import { ALL_EVENTS as ALL_EVENTS_LIST, type NotifEvent } from "@/lib/notification-events";
 import { getQuietHoursDelayMs, getUserQuietHours } from "@/lib/notification-preference-settings";
 
 export { ALL_EVENTS, DEFAULT_EMAIL_EVENTS, type NotifEvent } from "@/lib/notification-events";
+
+/**
+ * Механика 5: when a user links Telegram, turn ON every Telegram notification
+ * toggle. TELEGRAM defaults to OFF (isEnabled returns false when no pref row),
+ * so without this the bot's "вы будете получать уведомления" promise was empty.
+ */
+export async function enableAllTelegramNotifications(userId: string): Promise<void> {
+  await Promise.all(
+    ALL_EVENTS_LIST.map((e) =>
+      db.notificationPreference
+        .upsert({
+          where: { userId_event_channel: { userId, event: e.event, channel: "TELEGRAM" } },
+          create: { userId, event: e.event, channel: "TELEGRAM", enabled: true },
+          update: { enabled: true },
+        })
+        .catch(() => {}),
+    ),
+  );
+}
 
 export interface NotifPayload {
   userId: string;
