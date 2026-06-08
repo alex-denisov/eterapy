@@ -9,6 +9,7 @@ import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
 import { effectiveCategories, categoryLabel, directionLabel } from "@/lib/practitioner-taxonomy";
 import { SlotPicker } from "./slot-picker";
+import { PractitionerReviews } from "./practitioner-reviews";
 import { APP_URL } from "@/lib/env";
 
 const BASE_URL = APP_URL;
@@ -142,7 +143,7 @@ async function getPractitioner(slug: string) {
         where: { status: "PUBLISHED" },
         include: { author: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
-        take: 5,
+        take: 50,
       },
     },
   }).catch(() => null);
@@ -270,9 +271,26 @@ export default async function PractitionerPage({
     title: p.title,
   }).map(categoryLabel);
   const directionNames = (p.directions ?? []).map(directionLabel);
-  const helpChips = directionNames.length > 0
+  const rawHelpChips = directionNames.length > 0
     ? directionNames
     : (p.specialties as string[]).map((s) => SPECIALTY_LABELS[s] ?? s);
+  // Интерфейс 7: drop case-insensitive duplicate chips ("Астрология" vs
+  // "астрология") within help chips, and hide tags already shown as help chips
+  // or as category badges in the header.
+  const seenChips = new Set<string>();
+  const helpChips = rawHelpChips.filter((c) => {
+    const k = c.trim().toLowerCase();
+    if (!k || seenChips.has(k)) return false;
+    seenChips.add(k);
+    return true;
+  });
+  const badgeKeys = new Set(categoryNames.map((c) => c.trim().toLowerCase()));
+  const dedupedTags = p.tags.filter((tag) => {
+    const k = tag.trim().toLowerCase();
+    if (!k || seenChips.has(k) || badgeKeys.has(k)) return false;
+    seenChips.add(k);
+    return true;
+  });
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
@@ -364,15 +382,27 @@ export default async function PractitionerPage({
               </p>
             </div>
 
+            {/* Интерфейс 7: "образование и опыт" сразу после "обо мне" */}
+            <div className="soft-card-flat mt-4 p-5">
+              <p className="soft-eyebrow">образование и опыт</p>
+              <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--soft-ink-soft)]">
+                {p.experience && <div>Опыт: {p.experience}</div>}
+                {p.languages && p.languages.length > 0 && (
+                  <div>Языки: {p.languages.join(", ")}</div>
+                )}
+                <div>Верификация пройдена ETerapy</div>
+              </div>
+            </div>
+
             {/* v4 + W3: "с чем помогаю" — направления (warm) + задачи (plain) */}
-            {(helpChips.length > 0 || p.tags.length > 0) && (
+            {(helpChips.length > 0 || dedupedTags.length > 0) && (
               <div className="soft-card mt-4 p-5">
                 <p className="soft-eyebrow mb-3">с чем помогаю</p>
                 <div className="flex flex-wrap gap-2">
                   {helpChips.map((s) => (
                     <span key={s} className="soft-chip soft-chip-warm">{s}</span>
                   ))}
-                  {p.tags.map((tag) => (
+                  {dedupedTags.map((tag) => (
                     <span key={tag} className="soft-chip">{tag}</span>
                   ))}
                 </div>
@@ -417,60 +447,19 @@ export default async function PractitionerPage({
               </div>
             )}
 
-            {/* v4: reviews */}
+            {/* Интерфейс 7: reviews with date/rating sort + "показать ещё" */}
             {p.reviews.length > 0 && (
-              <div className="soft-card mt-4 p-5">
-                <p className="soft-eyebrow mb-3">отзывы ({p.reviewCount})</p>
-                <div className="flex flex-col gap-4">
-                  {p.reviews.map((review, i) => {
-                    const initial = review.author.name?.[0]?.toUpperCase() ?? "?";
-                    return (
-                      <div key={review.id} style={{ paddingTop: i > 0 ? 16 : 0, borderTop: i > 0 ? "1px solid var(--soft-paper-edge)" : "none" }}>
-                        <div className="mb-2 flex items-center gap-2">
-                          <div
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              background: "var(--soft-rose)",
-                              display: "grid",
-                              placeItems: "center",
-                              fontFamily: "var(--font-heading, serif)",
-                              color: "var(--soft-bordeaux)",
-                              fontWeight: 600,
-                              fontSize: 13,
-                            }}
-                          >
-                            {initial}
-                          </div>
-                          <span style={{ color: "var(--soft-bordeaux)", fontWeight: 600, fontSize: 13 }}>
-                            ★ {review.rating.toFixed(1)}
-                          </span>
-                          <span className="text-xs text-[var(--soft-ink-faint)]">
-                            · {new Date(review.createdAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
-                          </span>
-                        </div>
-                        {review.text && (
-                          <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">«{review.text}»</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <PractitionerReviews
+                total={p.reviewCount}
+                reviews={p.reviews.map((r) => ({
+                  id: r.id,
+                  rating: r.rating,
+                  text: r.text,
+                  createdAt: (r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt)).toISOString(),
+                  authorName: r.author.name,
+                }))}
+              />
             )}
-
-            {/* v4: образование card-flat */}
-            <div className="soft-card-flat mt-4 p-5">
-              <p className="soft-eyebrow">образование и опыт</p>
-              <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--soft-ink-soft)]">
-                {p.experience && <div>Опыт: {p.experience}</div>}
-                {p.languages && p.languages.length > 0 && (
-                  <div>Языки: {p.languages.join(", ")}</div>
-                )}
-                <div>Верификация пройдена ETerapy</div>
-              </div>
-            </div>
           </div>
 
           {/* ── Right column: sticky booking sidebar ── */}
