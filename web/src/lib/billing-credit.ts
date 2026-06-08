@@ -15,6 +15,7 @@
  */
 import db from "./db";
 import { notify } from "./notifications";
+import { logAudit, AUDIT_ACTIONS } from "./audit";
 import { createRefund, cancelPayment } from "./yukassa";
 import type { Prisma } from "@prisma/client";
 import {
@@ -337,6 +338,13 @@ export async function verifyCardHold(
       event: "CARD_LINKED",
       data: { last4: result.newCard.last4, brand: result.newCard.brand },
     }).catch((e) => log.error("billing.card_linked_notify_failed", { err: e }));
+    // Баг 5: card linking must appear in the audit log.
+    logAudit(
+      result.userId,
+      AUDIT_ACTIONS.CARD_LINKED,
+      undefined,
+      `Привязана карта ${result.newCard.brand} ····${result.newCard.last4}`,
+    ).catch((e) => log.error("billing.card_linked_audit_failed", { err: e }));
   }
   return true;
 }

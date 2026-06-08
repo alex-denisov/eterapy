@@ -255,6 +255,28 @@ export default function BillingPage() {
   async function handleStartSubscription(planKey: string) {
     setCreatingPayment(true);
     try {
+      // Баг 8: if a card is already linked, charge it in one tap via the saved
+      // card instead of forcing a fresh YooKassa checkout. Same grant path, so
+      // the subscription activates identically; the saved method also powers
+      // auto-renewal. 3-D Secure may still return a confirmation_url to finish.
+      const defaultCard = linkedCards.find((c) => c.isDefault) ?? linkedCards[0];
+      if (defaultCard) {
+        const res = await fetch("/api/billing/pay-with-saved-card", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId: defaultCard.id, planKey, checkoutSource: "client_billing" }),
+        });
+        const data = await res.json();
+        if (data.confirmationUrl) {
+          window.location.assign(data.confirmationUrl);
+        } else if (data.ok) {
+          toast.success("Подписка оформлена!");
+          loadData();
+        } else {
+          toast.error(data.error || "Не удалось оформить подписку");
+        }
+        return;
+      }
       const res = await fetch("/api/billing/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -420,44 +442,20 @@ export default function BillingPage() {
               Карты для оплаты сессий и подписки
             </p>
           </div>
-          {linkedCards.length > 0 && (
-            <button
-              onClick={handleLinkCard}
-              disabled={savingCard}
-              className="soft-chip"
-              data-testid="client-link-card"
-            >
-              {savingCard ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-              Ещё карта
-            </button>
-          )}
         </div>
 
         {loadingCards ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--soft-ink-faint)" }} />
           </div>
-        ) : linkedCards.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--soft-paper-edge)] py-6 px-4 text-center">
-            <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Карта не привязана</p>
-            <p className="text-xs mt-1" style={{ color: "var(--soft-ink-faint)" }}>Привяжите карту, чтобы оплачивать сессии и подписку в один тап</p>
-            <button
-              onClick={handleLinkCard}
-              disabled={savingCard}
-              className="soft-button soft-button-primary mt-3"
-              style={{ minHeight: "2.25rem", padding: "0.5rem 1.1rem", fontSize: "0.875rem" }}
-              data-testid="client-link-card"
-            >
-              {savingCard ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Привязать карту
-            </button>
-          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          // Баг 8: compact cards, 3 per row, with a trailing "+" placeholder tile
+          // as the single entry point to add a card (no separate "Ещё карта").
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {linkedCards.map((card) => (
               <div
                 key={card.id}
-                className="relative flex aspect-[1.6/1] w-full max-w-[16.5rem] flex-col justify-between overflow-hidden rounded-[1.1rem] p-4 text-white shadow-md"
+                className="relative flex aspect-[1.6/1] w-full flex-col justify-between overflow-hidden rounded-[0.9rem] p-3 text-white shadow-md"
                 style={{
                   background: card.isDefault
                     ? "linear-gradient(135deg, #4a2122 0%, #6d3328 55%, #9c4a37 100%)"
@@ -466,48 +464,63 @@ export default function BillingPage() {
                 data-testid="client-saved-card"
               >
                 <div className="flex items-start justify-between">
-                  <span className="text-sm font-bold uppercase tracking-wider text-white/95">{getBrandLabel(card.brand)}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white/95">{getBrandLabel(card.brand)}</span>
                   {card.isDefault && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/25 px-2 py-0.5 text-[11px] font-semibold text-white">
-                      <Check className="h-3 w-3" /> основная
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-white/25 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                      <Check className="h-2.5 w-2.5" /> основная
                     </span>
                   )}
                 </div>
-                <div className="mt-3">
+                <div>
                   <div
-                    className="font-heading text-base font-semibold tracking-[0.18em] text-white"
+                    className="font-heading text-sm font-semibold tracking-[0.12em] text-white"
                     style={{ textShadow: "0 1px 3px rgba(0,0,0,0.4)" }}
                   >
-                    •••• •••• •••• {card.last4}
+                    •••• {card.last4}
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-white/85">
+                  <div className="mt-1 flex items-center justify-between text-[10px] text-white/85">
                     <span className="truncate pr-2">{card.cardholderName || "—"}</span>
                     <span className="shrink-0 tabular-nums">{card.expiryMonth}/{card.expiryYear.slice(-2)}</span>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   {!card.isDefault && (
                     <button
                       onClick={() => handleSetDefaultCard(card.id)}
                       disabled={settingDefaultCardId === card.id}
-                      className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                      className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
                       data-testid="client-set-default-card"
                     >
-                      {settingDefaultCardId === card.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Сделать основной"}
+                      {settingDefaultCardId === card.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Основной"}
                     </button>
                   )}
                   <button
                     onClick={() => handleRemoveCard(card.id)}
-                    className="ml-auto rounded-full bg-white/15 p-1.5 transition-opacity hover:opacity-80"
+                    className="ml-auto rounded-full bg-white/15 p-1 transition-opacity hover:opacity-80"
                     title="Удалить карту"
                     aria-label="Удалить карту"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
             ))}
+            <button
+              onClick={handleLinkCard}
+              disabled={savingCard}
+              className="flex aspect-[1.6/1] w-full flex-col items-center justify-center gap-1.5 rounded-[0.9rem] border-2 border-dashed border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-bordeaux)]/50 hover:text-[var(--soft-bordeaux)] disabled:opacity-50"
+              data-testid="client-link-card"
+              title={linkedCards.length === 0 ? "Привязать карту" : "Добавить карту"}
+            >
+              {savingCard ? <Loader2 className="h-6 w-6 animate-spin" /> : <Plus className="h-7 w-7" />}
+              <span className="text-[11px] font-medium">{linkedCards.length === 0 ? "Привязать карту" : "Ещё карта"}</span>
+            </button>
           </div>
+        )}
+        {!loadingCards && linkedCards.length === 0 && (
+          <p className="mt-2 text-center text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+            Привяжите карту, чтобы оплачивать сессии и подписку в один тап
+          </p>
         )}
 
         <div className="flex items-center gap-2 mt-4 text-xs" style={{ color: "var(--soft-ink-faint)" }}>

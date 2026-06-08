@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { deleteSavedPaymentMethod } from "@/lib/yukassa";
 import { notify } from "@/lib/notifications";
+import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
@@ -107,6 +108,13 @@ export async function DELETE(req: NextRequest) {
       });
     }
   }
+
+  logAudit(
+    session.user.id,
+    AUDIT_ACTIONS.CARD_REMOVED,
+    undefined,
+    `Удалена карта ${card.brand} ····${card.last4}`,
+  ).catch(() => {});
 
   notify({
     userId: session.user.id,

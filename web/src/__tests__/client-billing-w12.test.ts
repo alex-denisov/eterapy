@@ -19,9 +19,9 @@ describe("W12/Z1-Ф1 — billing saved-card wallet (no ₽ balance rail)", () =>
     expect(page).toContain("handleSetDefaultCard");
   });
 
-  it("only promotes «Привязать карту» when no card exists; «Ещё карта» otherwise", () => {
+  it("the add-card tile says «Привязать карту» when empty, «Ещё карта» otherwise (Баг 8)", () => {
     expect(page).toContain("Ещё карта");
-    expect(page).toContain("Карта не привязана");
-    expect(page).toContain("linkedCards.length > 0 &&");
+    expect(page).toContain("Привязать карту");
+    expect(page).toContain('linkedCards.length === 0 ? "Привязать карту" : "Ещё карта"');
   });
 });

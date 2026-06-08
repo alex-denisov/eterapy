@@ -84,8 +84,12 @@ export function BillingHistoryTable({
     });
     // Only surface transactions that the ledger does NOT already represent —
     // i.e. pending or failed top-ups (succeeded ones become ledger deposits).
+    // Баг 5: the 1 ₽ card-verification hold is intentionally cancelled after the
+    // card is saved, so it must NOT appear in history as "Отменён" — the linked
+    // card itself is the confirmation (and it shows under "Мои карты").
     const pendingRows: HistoryRow[] = transactions
       .filter((t) => t.status !== "SUCCEEDED")
+      .filter((t) => !/привязка (банковской )?карт/i.test(t.description ?? ""))
       .map((t) => ({
         id: `tx-${t.id}`,
         label: humanizeBillingDescription(t.description),

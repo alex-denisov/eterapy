@@ -36,11 +36,12 @@ describe("B206 client billing v4.1 cabinet", () => {
     const table = source("src/components/cabinet/billing-history-table.tsx");
     const cardsRoute = source("src/app/api/billing/cards/route.ts");
 
-    // Z1-Ф1: the client ₽ balance rail (top-up input + pay-with-saved top-up)
-    // is removed — billing is subscription + saved-card management only.
+    // Z1-Ф1: the client ₽ balance rail (top-up input) is removed — billing is
+    // subscription + saved-card management only.
     expect(page).not.toContain('data-testid="client-topup-amount"');
     expect(page).not.toContain('data-testid="client-wallet-balance"');
-    expect(page).not.toContain("/api/billing/pay-with-saved-card");
+    // Баг 8: subscriptions ARE paid one-tap via the saved card.
+    expect(page).toContain("/api/billing/pay-with-saved-card");
     // Saved cards rendered as visual faces with set-primary action.
     expect(page).toContain("async function handleSetDefaultCard");
     expect(page).toContain('data-testid="client-set-default-card"');

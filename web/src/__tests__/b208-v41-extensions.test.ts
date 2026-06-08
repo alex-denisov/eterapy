@@ -26,9 +26,10 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     // T21: the dead "1. Проверка / 2. Оплата / 3. Готово" stepper chips were removed.
     expect(billing).not.toContain("1. Проверка");
     expect(billing).toContain("Платёж защищён");
-    // Z1-Ф1: subscriptions are paid by card; the ₽ top-up via saved card is gone.
+    // Баг 8: subscriptions are paid one-tap via the saved card, with the fresh
+    // YooKassa checkout (create-payment) as the no-card fallback.
     expect(billing).toContain("/api/billing/create-payment");
-    expect(billing).not.toContain("/api/billing/pay-with-saved-card");
+    expect(billing).toContain("/api/billing/pay-with-saved-card");
   });
 
   it("surfaces complaint/support and safety interrupt extensions without paid CTAs", () => {
