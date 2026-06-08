@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+const START_WINDOW_MS = 5 * 60 * 1000; // "Начать" opens 5 min before scheduled start
+
 function completionAvailable(sessionStartedAt?: string | null, durationMinutes?: number) {
   if (!sessionStartedAt || !durationMinutes) return true;
   const startedAt = new Date(sessionStartedAt).getTime();
@@ -11,17 +13,24 @@ function completionAvailable(sessionStartedAt?: string | null, durationMinutes?:
   return Date.now() - startedAt >= required;
 }
 
+function startWindowOpen(scheduledStartAt?: string | null) {
+  if (!scheduledStartAt) return true;
+  return Date.now() >= new Date(scheduledStartAt).getTime() - START_WINDOW_MS;
+}
+
 export function BookingActions({
   bookingId,
   compact = false,
   status,
   sessionStartedAt,
+  scheduledStartAt,
   durationMinutes,
 }: {
   bookingId: string;
   compact?: boolean;
   status?: string;
   sessionStartedAt?: string | null;
+  scheduledStartAt?: string | null;
   durationMinutes?: number;
 }) {
   const [loading, setLoading] = useState(false);
@@ -37,6 +46,7 @@ export function BookingActions({
   }, []);
 
   const canComplete = nowTick >= 0 && completionAvailable(sessionStartedAt, durationMinutes);
+  const canStart = nowTick >= 0 && startWindowOpen(scheduledStartAt);
 
   async function updateStatus(status: string) {
     setLoading(true);
@@ -63,22 +73,39 @@ export function BookingActions({
   if (done === "CANCELLED") return <span className="text-xs text-[var(--soft-ink-soft)]">Отменено</span>;
 
   if (compact) {
+    // Баг 13: a single session link (no Видеочат/Начать duplication); "Начать"
+    // only inside the 5-min pre-start window; "Завершить" only once the session
+    // is actually IN_PROGRESS (started at its scheduled time).
     return (
       <div className="flex gap-2 items-center">
-        {(status === "CONFIRMED" || status === "IN_PROGRESS") && (
-          <a href={`/session/${bookingId}`}
-            className="text-xs text-[var(--soft-bordeaux)] hover:underline">
-            {status === "IN_PROGRESS" ? "В сессию →" : "Начать →"}
-          </a>
+        {status === "IN_PROGRESS" && (
+          <>
+            <a href={`/session/${bookingId}`}
+              className="text-xs text-[var(--soft-bordeaux)] hover:underline">
+              В сессию →
+            </a>
+            <button
+              onClick={() => updateStatus("COMPLETED")}
+              disabled={loading || !canComplete}
+              title={!canComplete ? "Сессию можно завершить после 75% времени" : undefined}
+              className="text-xs text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Завершить
+            </button>
+          </>
         )}
-        <button
-          onClick={() => updateStatus("COMPLETED")}
-          disabled={loading || !canComplete}
-          title={!canComplete ? "Сессию можно завершить после 75% времени" : undefined}
-          className="text-xs text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Завершить
-        </button>
+        {status === "CONFIRMED" && (
+          canStart ? (
+            <a href={`/session/${bookingId}`}
+              className="text-xs text-[var(--soft-bordeaux)] hover:underline">
+              Начать →
+            </a>
+          ) : (
+            <span className="text-xs text-[var(--soft-ink-faint)]">
+              Старт за 5 мин до начала
+            </span>
+          )
+        )}
       </div>
     );
   }

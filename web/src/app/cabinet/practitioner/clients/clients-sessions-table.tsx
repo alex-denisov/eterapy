@@ -195,7 +195,6 @@ export function ClientsSessionsTable({ rows }: { rows: SessionRow[] }) {
             ) : (
               visible.map((row) => {
                 const st = getBookingStatus(row.status);
-                const isUpcoming = UPCOMING.has(row.status);
                 return (
                   <tr key={row.id} className="border-t border-[var(--soft-paper-edge)] hover:bg-[var(--soft-surface)]">
                     <td className="px-3 py-2.5">
@@ -210,16 +209,12 @@ export function ClientsSessionsTable({ rows }: { rows: SessionRow[] }) {
                     </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
-                        {isUpcoming && row.status !== "PENDING" && (
-                          <a href={`/session/${row.id}`} className="text-xs text-[var(--soft-bordeaux)] hover:underline">
-                            Видеочат →
-                          </a>
-                        )}
                         <BookingActions
                           bookingId={row.id}
                           compact
                           status={row.status}
-                          sessionStartedAt={row.startedAt ?? row.startAt ?? undefined}
+                          sessionStartedAt={row.startedAt ?? undefined}
+                          scheduledStartAt={row.startAt ?? undefined}
                           durationMinutes={row.durationMinutes}
                         />
                       </div>
