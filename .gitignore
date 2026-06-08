@@ -88,3 +88,22 @@ docs/**/*.xlsx
 .jest-cache/
 *.png
 data/
+
+# ── B340: public repo holds ONLY the product. Docs, AI-agent system files, and
+# local-only infra are kept on the owner's machine, never committed. ──
+docs/
+.gsd/
+nginx/
+certificates/
+certs/
+skills-lock.json
+# Agent contracts / planning (local-only)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QWEN.md
+PRODUCT.md
+DESIGN.md
+DESIGN.json
+BACKLOG.md
+DEPLOY.md
