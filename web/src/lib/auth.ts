@@ -135,7 +135,9 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
               avatarUrl: user.image ?? null,
             },
           });
-          await logAudit(dbUser.id, "REGISTER", undefined, `OAuth: ${account?.provider}`);
+          const meta = await getRequestMeta();
+          const details = JSON.stringify({ method: `OAuth: ${account?.provider}`, device: meta.device ?? null });
+          await logAudit(dbUser.id, "REGISTER", undefined, details, meta.ip ?? undefined);
         } else if (dbUser.blockedAt || dbUser.deletedAt) {
           return false; // Blocked user cannot login via OAuth
         }

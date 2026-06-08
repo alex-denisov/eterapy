@@ -8,11 +8,15 @@ import { authRateLimitKey, authRateLimitResponse, checkAuthRateLimit, checkReque
 import { attachReferralToRegisteredUser } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { attachByocAtRegistration } from "@/lib/byoc";
+import { getRequestMeta } from "@/lib/request-meta";
 
 export async function POST(req: NextRequest) {
   try {
     const ipLimit = checkRequestAuthRateLimit(req, "register", 10, 15 * 60_000);
     if (!ipLimit.allowed) return authRateLimitResponse(ipLimit);
+
+    const dailyIpLimit = checkRequestAuthRateLimit(req, "register:daily:ip", 3, 24 * 60 * 60_000);
+    if (!dailyIpLimit.allowed) return authRateLimitResponse(dailyIpLimit);
 
     const { email, password, name } = await req.json();
 
@@ -56,7 +60,10 @@ export async function POST(req: NextRequest) {
       log.error("register.email_send_failed", { err: emailErr });
     }
 
-    await logAudit(user.id, "REGISTER", undefined, `Регистрация: ${email}`);
+    const meta = await getRequestMeta();
+    const details = JSON.stringify({ email, device: meta.device ?? null });
+    await logAudit(user.id, "REGISTER", undefined, details, meta.ip ?? undefined);
+    
     return NextResponse.json({ ok: true, emailSent: true });
   } catch (err) {
     log.error("register.unhandled", { err });

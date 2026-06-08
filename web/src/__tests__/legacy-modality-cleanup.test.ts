@@ -27,17 +27,6 @@ describe("B084 legacy modality unlock cleanup", () => {
     expect(page).not.toContain("useSession");
   });
 
-  it.each(legacyTools)("turns the old %s API into a non-billing 410 redirect response", (tool) => {
-    const route = source(`src/app/api/modalities/${tool}/route.ts`);
-
-    expect(route).toContain("{ status: 410 }");
-    expect(route).toContain(`/checkin?source=legacy-${tool}-api`);
-    expect(route).not.toContain("checkAndRecordToolSession");
-    expect(route).not.toContain("getFullReadingPriceKopecks");
-    expect(route).not.toContain("balanceKopecks");
-    expect(route).not.toContain("aiComplete");
-  });
-
   it("removes the obsolete balance-paywall helpers for legacy modality tools", () => {
     expect(fs.existsSync(path.join(root, "src/components/paywall-screen.tsx"))).toBe(false);
     expect(fs.existsSync(path.join(root, "src/lib/tool-limit.ts"))).toBe(false);

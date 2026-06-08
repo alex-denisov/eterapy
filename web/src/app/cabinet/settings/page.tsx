@@ -13,11 +13,16 @@ export default async function SettingsPage() {
   const role = session.user?.role ?? "CLIENT";
   if (role === "ADMIN" || role === "SUPERADMIN") redirect(adminUrl("/admin/settings"));
 
-  // Get telegramId for current user
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { telegramId: true, telegramUsername: true },
+    select: { telegramId: true, telegramUsername: true, password: true },
   });
+
+  const hasPassword = !!user?.password && 
+    !user.password.startsWith("oauth:") && 
+    !user.password.startsWith("vk:") && 
+    !user.password.startsWith("tg:") && 
+    !user.password.startsWith("telegram:");
 
   return (
     <SettingsClient
@@ -25,6 +30,7 @@ export default async function SettingsPage() {
         linked: !!user?.telegramId,
         username: user?.telegramUsername ?? null,
       }}
+      hasPassword={hasPassword}
     />
   );
 }

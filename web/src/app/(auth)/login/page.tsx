@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { signIn, useSession } from "next-auth/react";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -41,6 +41,13 @@ export default function LoginPage() {
 
   // Редирект, если уже залогинен — ОДИН РАЗ при монтировании
   useEffect(() => {
+    if (accountState === "blocked" || accountState === "deleted") {
+      if (status === "authenticated") {
+        signOut({ redirect: false });
+      }
+      return;
+    }
+
     let cancelled = false;
     if (status === "authenticated") {
       window.location.replace(nextPath ?? homeUrlForRole(session?.user?.role));
@@ -61,7 +68,7 @@ export default function LoginPage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [nextPath, session?.user?.role, status]); // run once plus status change
+  }, [nextPath, session?.user?.role, status, accountState]); // run once plus status change
 
   async function doLogin(loginEmail: string, loginPassword: string, redirectTo: string) {
     setLoading(true);

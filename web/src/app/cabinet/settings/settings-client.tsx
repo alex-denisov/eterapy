@@ -18,7 +18,7 @@ interface TelegramStatus {
   username: string | null;
 }
 
-export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramStatus }) {
+export function SettingsClient({ telegramStatus, hasPassword }: { telegramStatus: TelegramStatus, hasPassword?: boolean }) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -37,6 +37,7 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
   const [savingPwd, setSavingPwd] = useState(false);
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleteConfirmError, setDeleteConfirmError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   if (status === "loading") return null;
@@ -98,7 +99,17 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
   }
 
   async function handleDeleteAccount() {
-    if (deleteConfirm !== email) { toast.error("Email не совпадает"); return; }
+    setDeleteConfirmError(null);
+    if (!deleteConfirm) {
+      setDeleteConfirmError("Введите email для подтверждения");
+      toast.error("Введите email для подтверждения");
+      return;
+    }
+    if (deleteConfirm !== email) {
+      setDeleteConfirmError("Email введен неверно");
+      toast.error("Email введен неверно");
+      return;
+    }
     setDeleting(true);
     try {
       const res = await fetch("/api/auth/deactivate", { method: "POST" });
@@ -202,23 +213,29 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
       {activeTab === "security" && (
         <div className="soft-card p-6">
             <h2 className="soft-h3 mb-5">Смена пароля</h2>
-            <form onSubmit={handleSavePassword} className="space-y-4">
-              <div>
-                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Текущий пароль</label>
-                <Input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="current-password" />
+            {hasPassword === false ? (
+              <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4 text-sm text-[var(--soft-ink-soft)]">
+                Вы вошли через внешний сервис (Google, VK, Telegram и т.д.). Смена пароля недоступна.
               </div>
-              <div>
-                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Новый пароль</label>
-                <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Повторите новый пароль</label>
-                <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" />
-              </div>
-              <button type="submit" disabled={savingPwd || !currentPwd || !newPwd} className="soft-button soft-button-primary">
-                {savingPwd ? "Сохранение..." : "Изменить пароль"}
-              </button>
-            </form>
+            ) : (
+              <form onSubmit={handleSavePassword} className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Текущий пароль</label>
+                  <Input type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} autoComplete="current-password" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Новый пароль</label>
+                  <Input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} autoComplete="new-password" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm" style={{ color: "var(--soft-ink-soft)" }}>Повторите новый пароль</label>
+                  <Input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} autoComplete="new-password" />
+                </div>
+                <button type="submit" disabled={savingPwd || !currentPwd || !newPwd} className="soft-button soft-button-primary">
+                  {savingPwd ? "Сохранение..." : "Изменить пароль"}
+                </button>
+              </form>
+            )}
         </div>
       )}
 
@@ -259,10 +276,11 @@ export function SettingsClient({ telegramStatus }: { telegramStatus: TelegramSta
                 <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">
                   Введите ваш email ({email}) для подтверждения
                 </label>
-                <Input value={deleteConfirm} onChange={e => setDeleteConfirm(e.target.value)}
-                  placeholder={email} className="bg-[rgba(255,255,255,0.035)] border-destructive/30 max-w-xs" />
+                <Input value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteConfirmError(null); }}
+                  placeholder={email} className={`bg-[rgba(255,255,255,0.035)] border-destructive/30 max-w-xs ${deleteConfirmError ? "border-destructive" : ""}`} />
+                {deleteConfirmError && <p className="mt-1 text-xs text-destructive">{deleteConfirmError}</p>}
               </div>
-              <button type="button" disabled={deleteConfirm !== email || deleting} onClick={handleDeleteAccount} className="soft-button" style={{ background: "#b02020", color: "#fff" }}>
+              <button type="button" disabled={deleting} onClick={handleDeleteAccount} className="soft-button" style={{ background: "#b02020", color: "#fff" }}>
                 {deleting ? "Деактивация..." : role === "PRACTITIONER" ? "Деактивировать аккаунт" : "Удалить аккаунт"}
               </button>
             </div>

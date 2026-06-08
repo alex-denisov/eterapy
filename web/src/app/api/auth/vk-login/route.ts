@@ -8,6 +8,7 @@ import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
 import { homePathForRole } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
+import { getRequestMeta } from "@/lib/request-meta";
 
 interface VKTokenData {
   access_token: string;
@@ -151,6 +152,7 @@ export async function POST(request: NextRequest) {
 
     // Находим или создаём пользователя
     let dbUser = await db.user.findUnique({ where: { email } });
+    const meta = await getRequestMeta();
 
     if (!dbUser) {
       const createData: any = {
@@ -175,7 +177,8 @@ export async function POST(request: NextRequest) {
         } catch { /* ignore */ }
       }
       dbUser = await db.user.create({ data: createData });
-      await logAudit(dbUser.id, "REGISTER", undefined, "OAuth: vk");
+      const details = JSON.stringify({ method: "OAuth: vk", device: meta.device ?? null });
+      await logAudit(dbUser.id, "REGISTER", undefined, details, meta.ip ?? undefined);
     } else if (dbUser.blockedAt) {
       return NextResponse.json({ error: "Account blocked" }, { status: 403 });
     } else {
@@ -198,7 +201,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await logAudit(dbUser.id, "LOGIN", undefined, "OAuth: vk");
+    const loginDetails = JSON.stringify({ method: "OAuth: vk", device: meta.device ?? null });
+    await logAudit(dbUser.id, "LOGIN", undefined, loginDetails, meta.ip ?? undefined);
 
     const token = await jwtEncode({
       token: {

@@ -14,6 +14,8 @@ import { APP_URL } from "@/lib/env";
  * URL has ?code=...&device_id=...
  * We read code_verifier from a cookie set by the VK button.
  */
+import { getRequestMeta } from "@/lib/request-meta";
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -151,7 +153,9 @@ export async function GET(request: NextRequest) {
         } catch { /* ignore */ }
       }
       dbUser = await db.user.create({ data: createData });
-      await logAudit(dbUser.id, "REGISTER", undefined, "OAuth: vk");
+      const meta = await getRequestMeta();
+      const details = JSON.stringify({ method: "OAuth: vk", device: meta.device ?? null });
+      await logAudit(dbUser.id, "REGISTER", undefined, details, meta.ip ?? undefined);
     } else if (dbUser.blockedAt) {
       return NextResponse.redirect(new URL(`${loginUrl()}?error=blocked`, request.url));
     } else {
