@@ -155,7 +155,7 @@ export function ProductPurchaseControls({
     <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
       {message}{" "}
       {message.includes("кредит") && (
-        <Link href={appUrl("/credits")} prefetch={false} className="font-semibold underline">
+        <Link href={appUrl("/wallet")} prefetch={false} className="font-semibold underline">
           Кредиты
         </Link>
       )}

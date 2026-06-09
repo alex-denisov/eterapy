@@ -112,10 +112,11 @@ function BalanceSummaryLink({
   className?: string;
 }) {
   // Z1-Ф1: the client ₽ balance rail is gone — this pill now shows only the
-  // clarity-credit balance and routes to /credits (one tap target).
+  // clarity-credit balance. B349/Механика 2: routes to /wallet (top-up page),
+  // so the "Пополнить" cue at zero credits lands on пополнение, not spending.
   return (
     <Link
-      href={appUrl("/credits")}
+      href={appUrl("/wallet")}
       prefetch={false}
       aria-label={`Кредиты ясности: ${clarityCredits}`}
       className={cn(
@@ -210,7 +211,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: appUrl("/action-history"), label: "Моя карта", icon: Compass },
     { href: appUrl("/questions"), label: "История разборов", icon: History },
     { href: appUrl("/bookings"), label: "Записи", icon: CalendarDays },
-    { href: appUrl("/credits"), label: "Кредиты ясности", icon: Sparkles },
+    { href: appUrl("/wallet"), label: "Кошелёк", icon: Sparkles },
     { href: appUrl("/practice"), label: "Практика ясности", icon: Leaf },
     { href: appUrl("/billing"), label: "Подписка и оплата", icon: Wallet },
     { href: appUrl("/settings"), label: "Настройки", icon: Settings },
@@ -571,7 +572,7 @@ export function Header() {
                     {formatBalanceRub(practitionerBalanceKopecks)} ₽
                   </Link>
                 ) : (
-                  <Link href={appUrl("/credits")} prefetch={false} onClick={() => setMobileOpen(false)}
+                  <Link href={appUrl("/wallet")} prefetch={false} onClick={() => setMobileOpen(false)}
                     className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
                     <Sparkles className="size-4" aria-hidden="true" />
                     {clarityCredits} кредитов

@@ -127,7 +127,7 @@ describe("Y10 Z5 welcome credits", () => {
   });
 
   it("surfaces a cabinet card that guides welcome credits to 4 perspectives", () => {
-    const page = fs.readFileSync(path.join(root, "src/app/cabinet/credits/page.tsx"), "utf8");
+    const page = fs.readFileSync(path.join(root, "src/app/cabinet/wallet/page.tsx"), "utf8");
 
     expect(page).toContain("welcome-credits-card");
     expect(page).toContain("welcome_credits_open_perspectives_clicked");

@@ -35,7 +35,7 @@ describe("V4 — admin/reviews compact paginated table with in-row actions + edi
 });
 
 describe("V10 — client /credits surfaces paid recommendations", () => {
-  const page = read("src/app/cabinet/credits/page.tsx");
+  const page = read("src/app/cabinet/wallet/page.tsx");
 
   it("adds an always-visible paid CTA block (specialist session + subscription upsell)", () => {
     expect(page).toContain('data-testid="credits-paid-recommendations"');

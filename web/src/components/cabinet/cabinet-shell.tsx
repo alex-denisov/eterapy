@@ -8,7 +8,6 @@ import {
   Users,
   CalendarDays,
   Compass,
-  Sparkles,
   MessageCircle,
   History,
   Wallet,
@@ -36,8 +35,8 @@ const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/action-history"), icon: Compass, label: "Моя карта" },
   { href: appUrl("/questions"), icon: History, label: "История разборов" },
   { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
+  // B349/Механика 2: /credits merged into /wallet — one «Кошелёк» nav item.
   { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
-  { href: appUrl("/credits"), icon: Sparkles, label: "Кредиты ясности" },
   { href: appUrl("/practice"), icon: Leaf, label: "Практика ясности" },
   { href: appUrl("/billing"), icon: Wallet, label: "Подписка и оплата" },
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },

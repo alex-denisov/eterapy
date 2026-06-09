@@ -10,7 +10,7 @@ function source(relativePath: string) {
 describe("B206 client billing v4.1 cabinet", () => {
   it("surfaces subscription status, balance, cards, and billing history from live APIs", () => {
     const page = source("src/app/cabinet/billing/page.tsx");
-    const creditsPage = source("src/app/cabinet/credits/page.tsx");
+    const creditsPage = source("src/app/cabinet/wallet/page.tsx");
     const transactionsRoute = source("src/app/api/billing/transactions/route.ts");
     const entitlementsRoute = source("src/app/api/billing/entitlements/route.ts");
 
@@ -25,8 +25,8 @@ describe("B206 client billing v4.1 cabinet", () => {
     // T21: "открытые продукты" entitlements block was removed from billing.
     expect(page).not.toContain('data-testid="client-open-entitlements"');
     // Credits live on their own page (B235: credits moved out of billing)
-    expect(creditsPage).toContain('data-testid="cabinet-credits-page"');
-    expect(creditsPage).toContain("getClarityCreditBalance");
+    expect(creditsPage).toContain('data-testid="cabinet-wallet-page"');
+    expect(creditsPage).toContain("getCreditWalletSnapshot");
     expect(transactionsRoute).toContain("clarityCredits");
     expect(entitlementsRoute).toContain("listUserEntitlements");
   });

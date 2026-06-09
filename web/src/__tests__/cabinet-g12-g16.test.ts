@@ -33,7 +33,7 @@ describe("G12 — action-history «все элементы карты» readable
 
 describe("G13 — credits sells paid products with prices", () => {
   it("uses the real ₽ price and keeps the badge on one line", () => {
-    const page = source("src/app/cabinet/credits/page.tsx");
+    const page = source("src/app/cabinet/wallet/page.tsx");
     expect(page).toContain("getProductPriceKopecks");
     expect(page).toContain("creditsWord");
     expect(page).toContain("priceKopecks");
@@ -43,7 +43,7 @@ describe("G13 — credits sells paid products with prices", () => {
   });
 
   it("Z4 dependency: does not reopen circle or pair through a Premium special case", () => {
-    const page = source("src/app/cabinet/credits/page.tsx");
+    const page = source("src/app/cabinet/wallet/page.tsx");
 
     expect(page).toContain("plan?.includedProducts.forEach");
     expect(page).not.toContain('subscriptionProducts.add("circle")');

@@ -34,9 +34,9 @@ describe("v5 app shell", () => {
     expect(clientCabinet).toContain('mainUrl("/checkin")');
     // X11: product actions point to the single in-cabinet funnel (/credits),
     // not the removed duplicate /products and not the landing.
-    expect(clientCabinet).toContain('appUrl("/credits")');
+    expect(clientCabinet).toContain('appUrl("/wallet")');
     expect(shell).toContain('appUrl("/practice")');
-    expect(shell).toContain('appUrl("/credits")');
+    expect(shell).toContain('appUrl("/wallet")');
     expect(clientCabinet).toContain('appUrl("/action-history")');
     expect(clientCabinet).toContain('data-testid="client-map-preview"');
     // Product CTAs on cabinet homepage must stay in-cabinet (not link to eterapy.com/products/...)

@@ -121,20 +121,20 @@ describe("v5 product pages", () => {
   });
 
   it("X11/Y7: the single cabinet funnel lives on /credits; legacy /products is removed (no redirect stub)", () => {
-    const credits = source("app/cabinet/credits/page.tsx");
+    const credits = source("app/cabinet/wallet/page.tsx");
     const shell = source("components/cabinet/cabinet-shell.tsx");
 
     // Y7: the duplicate /cabinet/products page is fully removed — not even a
     // redirect stub remains. Old links must point straight at /cabinet/credits.
     expect(fs.existsSync(path.join(srcDir, "app/cabinet/products/page.tsx"))).toBe(false);
     // the product catalog + purchase funnel lives on /credits
-    expect(credits).toContain('data-testid="cabinet-credits-page"');
-    expect(credits).toContain("getClarityCreditBalance");
+    expect(credits).toContain('data-testid="cabinet-wallet-page"');
+    expect(credits).toContain("getCreditWalletSnapshot");
     expect(credits).toContain("<ProductPurchaseControls");
     expect(credits).toContain('id="credits-products"');
     expect(source("components/products/product-purchase-controls.tsx")).toContain('variant?: "default" | "catalog"');
     // nav points to the single funnel page
-    expect(shell).toContain('appUrl("/credits")');
+    expect(shell).toContain('appUrl("/wallet")');
   });
 
   it("links public shell product navigation to durable product pages", () => {

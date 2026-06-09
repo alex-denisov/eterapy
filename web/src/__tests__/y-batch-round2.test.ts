@@ -14,7 +14,7 @@ describe("Y6 — role-based client cabinet access control", () => {
   });
 
   it.each([
-    "app/cabinet/credits/page.tsx",
+    "app/cabinet/wallet/page.tsx",
     "app/cabinet/questions/page.tsx",
     "app/cabinet/action-history/page.tsx",
     "app/cabinet/practice/page.tsx",
