@@ -313,6 +313,12 @@ export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
   "SESSION_COMPLETED",
   "REVIEW_REQUESTED",
   "SUBSCRIPTION_RENEWAL",
+  // B358 / Баг 9: payment confirmations email by default — card linked,
+  // subscription started, balance/credit top-up. Web (bell) is always on and
+  // Telegram follows prefs (all-on after linking), so these now reach all three.
+  "CARD_LINKED",
+  "SUBSCRIPTION_STARTED",
+  "BALANCE_TOPUP",
   "DAILY_CARD",
   "ABANDONED_CHECKOUT",
   "REPORT_READY",

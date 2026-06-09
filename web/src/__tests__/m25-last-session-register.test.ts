@@ -11,7 +11,7 @@ const source = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
 describe("last-session at registration", () => {
   it("registration captures IP + device into the audit log", () => {
     const register = source("src/app/api/auth/register/route.ts");
-    expect(register).toMatch(/logAudit\([^)]*"REGISTER"/s);
+    expect(register).toMatch(/logAudit\([^)]*"REGISTER"/);
     expect(register).toContain("device");
     expect(register).toMatch(/meta\.ip/);
   });

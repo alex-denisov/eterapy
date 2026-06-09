@@ -136,9 +136,13 @@ export function PractitionerProfileEditor({
           </div>
           <div>
             <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Биография</label>
+            {/* B344 / Интерфейс 15: align the bio textarea to the same field
+                family as «Заголовок» / «Опыт» (premium-input, px-4, text-base
+                md:text-sm) so the three fields share one look instead of the
+                textarea standing apart with a smaller font + different border. */}
             <textarea value={bio} onChange={e => setBio(e.target.value)}
               placeholder="Расскажите о вашем пути, методах работы и чём вы помогаете..."
-              className="w-full rounded-lg border border-border/40 bg-[rgba(255,255,255,0.035)] px-3 py-2 text-sm resize-none h-32 focus:outline-none focus:border-primary/50" />
+              className="premium-input w-full px-4 py-2 text-base md:text-sm bg-[rgba(255,255,255,0.035)] resize-none h-32 outline-none focus:border-primary/50" />
           </div>
           <div>
             <label className="text-sm text-[var(--soft-ink-soft)] mb-1.5 block">Опыт работы</label>

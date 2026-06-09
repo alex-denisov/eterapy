@@ -468,10 +468,16 @@ function ExtendedProfileTab() {
         {/* Часовой пояс */}
         <div>
           <label className="text-sm font-medium mb-1 block">Часовой пояс</label>
+          {/* B342 / Интерфейс 4-5: the timezone select was the only field with
+              bespoke styling (px-3, text-sm, plain border) — every other field on
+              this form is an <Input> (premium-input, h-11, px-4, text-base
+              md:text-sm). Align the select to the same family so «Дата/Время/
+              Место рождения», «Чем занимаетесь» и поле email-удаления visually
+              match it instead of standing apart. */}
           <select
             value={timezone}
             onChange={e => setTimezone(e.target.value)}
-            className="w-full rounded-lg border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.035)] px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
+            className="premium-input h-11 w-full px-4 py-2 text-base md:text-sm bg-[rgba(255,255,255,0.035)] text-foreground outline-none focus:border-primary"
           >
             <option value="">Не выбран</option>
             <option value="Europe/Kaliningrad">Калининград (UTC+2)</option>

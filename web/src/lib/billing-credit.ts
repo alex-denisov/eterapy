@@ -141,6 +141,17 @@ export async function creditSucceededPayment(
     }).catch((e) => log.error("billing.bundle_unlocked_notify_failed", { err: e }));
   }
 
+  // B358 / Баг 9: «начисление баллов» — a paid credit-pack purchase must also
+  // notify the buyer (email + web + Telegram per prefs). This branch was missing,
+  // so credit top-ups settled silently while card/product/subscription notified.
+  if (result.entitlementGrant.kind === "credits") {
+    notify({
+      userId: result.userId,
+      event: "BALANCE_TOPUP",
+      data: { amountRub, credits: String(result.entitlementGrant.credits) },
+    }).catch((e) => log.error("billing.balance_topup_notify_failed", { err: e }));
+  }
+
   if (result.entitlementGrant.kind === "subscription") {
     notify({
       userId: result.userId,
