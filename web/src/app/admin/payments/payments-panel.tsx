@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ export function PaymentsPanel({
   clarityCredits: ClarityCreditAuditEntry[];
   payoutRuns: PayoutRun[];
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [comment, setComment] = useState<Record<string, string>>({});
@@ -102,12 +104,39 @@ export function PaymentsPanel({
     });
   }
 
-  async function markPaid(practitionerId: string) {
+  // B352/Баг 12: реальная выплата практику через ЮKassa (по реквизитам).
+  // Возвращает true при успехе — массовая выплата по галочкам считает успешные.
+  async function markPaid(practitionerId: string): Promise<boolean> {
     setProcessing(practitionerId);
-    // Placeholder — реальная выплата через ЮKassa API или банковский перевод
-    await new Promise(r => setTimeout(r, 800));
-    toast.success("Помечено как выплачено");
-    setProcessing(null);
+    try {
+      const res = await fetch(`/api/admin/practitioners/${practitionerId}/payout`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        toast.error(typeof json.error === "string" ? json.error : "Выплата не прошла");
+        return false;
+      }
+      const status = json.payout?.status === "DONE" ? "выполнена" : "в обработке";
+      toast.success(`Выплата ${status}`);
+      return true;
+    } catch {
+      toast.error("Ошибка сети при выплате");
+      return false;
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  // Массовая выплата по выбранным практикам — последовательно, чтобы не ловить
+  // rate-limit и показать корректный итог.
+  async function markSelectedPaid() {
+    const ids = [...selected];
+    let done = 0;
+    for (const id of ids) {
+      if (await markPaid(id)) done++;
+    }
+    setSelected(new Set());
+    toast.success(`Выплачено: ${done} из ${ids.length}`);
+    router.refresh();
   }
 
   async function pausePayout(practitionerId: string) {
@@ -217,7 +246,7 @@ export function PaymentsPanel({
             <span className="text-sm text-muted-foreground">
               Выбрано: {selected.size} · {totalSelected.toLocaleString("ru")} ₽
             </span>
-            <button onClick={() => { [...selected].forEach(id => markPaid(id)); setSelected(new Set()); }}
+            <button onClick={markSelectedPaid}
               className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)]">
               Отметить оплаченными
             </button>
@@ -277,7 +306,7 @@ export function PaymentsPanel({
                 </td>
                 <td className="p-3">
                   <div className="flex gap-1 items-center justify-end">
-                    <button onClick={() => markPaid(p.id)}
+                    <button onClick={async () => { if (await markPaid(p.id)) router.refresh(); }}
                       disabled={processing === p.id || p.practitionerEarnings === 0}
                       className="rounded-lg bg-[var(--soft-terracotta)] px-2.5 py-1 text-xs font-medium text-[#fff8f1] hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-40 transition-colors">
                       {processing === p.id ? "..." : "Выплатить"}

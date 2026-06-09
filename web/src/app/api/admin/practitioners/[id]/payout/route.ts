@@ -11,6 +11,7 @@ import {
   payoutReserveKopecks,
   resolvePractitionerPayoutPlanKey,
 } from "@/lib/payout-runs";
+import { payoutDestinationFromDetails, sendPractitionerPayout } from "@/lib/practitioner-payout";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -47,6 +48,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
+  // B352/Баг 12: «Выплатить» теперь делает реальную выплату в ЮKassa по
+  // реквизитам практика. Без реквизитов / для неподдержанного типа — ошибка
+  // (деньги не двигаются, запись Payout не создаётся).
+  const details = await db.payoutDetails.findUnique({
+    where: { practitionerId: id },
+    select: { type: true, accountNumber: true },
+  });
+  if (!details) {
+    return NextResponse.json({ error: "У практика не указаны платёжные реквизиты" }, { status: 400 });
+  }
+  const destination = payoutDestinationFromDetails(details);
+  if (!destination) {
+    return NextResponse.json(
+      { error: "Авто-выплата поддерживает только банковскую карту. СБП/юр-лицо — вручную." },
+      { status: 400 },
+    );
+  }
+
   const amountKopecks = balance.currentBalance * 100;
   const now = new Date();
   const planKeyAtPayout = await resolvePractitionerPayoutPlanKey(practitioner.userId, db, now);
@@ -68,12 +87,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true, amountKopecks: true, status: true, createdAt: true },
   });
 
+  // Отправляем выплату в ЮKassa (тест-кабинет). Никогда не бросает — при ошибке
+  // помечает payout FAILED (баланс практика восстанавливается).
+  const sent = await sendPractitionerPayout(
+    payout.id,
+    destination,
+    amountKopecks,
+    `Выплата практику ${balance.currentBalance.toLocaleString("ru")} ₽`,
+  );
+
   await logAudit(
     adminId,
     "PRACTITIONER_PAYOUT",
     practitioner.userId,
-    `Ручная выплата ${balance.currentBalance.toLocaleString("ru")} ₽ (комиссия ${balance.commissionPercent}%)`,
+    `Выплата ${balance.currentBalance.toLocaleString("ru")} ₽ (комиссия ${balance.commissionPercent}%) → ${sent.status}${sent.externalId ? ` [${sent.externalId}]` : ""}`,
   );
 
-  return NextResponse.json({ ok: true, payout, balanceBefore: balance });
+  if (sent.status === "FAILED") {
+    return NextResponse.json({ error: sent.error ?? "Выплата не прошла" }, { status: 502 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    payout: { ...payout, status: sent.status, externalId: sent.externalId },
+    balanceBefore: balance,
+  });
 }

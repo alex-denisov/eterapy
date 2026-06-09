@@ -1,0 +1,55 @@
+/**
+ * B352 / Баг 12 — исполнение выплаты практику через ЮKassa Payouts API.
+ *
+ * Раньше «Выплатить» только создавал запись Payout(PENDING) — деньги не двигались.
+ * Теперь выплата реально отправляется в ЮKassa (тест-кабинет) по реквизитам
+ * практика. Идемпотентность — по `Payout.id` (см. createPayout).
+ *
+ * Поддержка реквизитов: CARD (банковская карта) — авто-выплата. СБП/юр-лицо
+ * требуют дополнительных данных (member-id СБП / b2b-договор) → пока вручную.
+ */
+import db from "./db";
+import { log } from "./logger";
+import { createPayout, type YukassaPayoutDestination } from "./yukassa";
+
+export function payoutDestinationFromDetails(d: {
+  type: string;
+  accountNumber: string;
+}): YukassaPayoutDestination | null {
+  if (d.type === "CARD") return { type: "bank_card", cardNumber: d.accountNumber };
+  // SBP requires a YooKassa member bank_id (not the stored BIK); ENTITY is a b2b
+  // contract flow — both are executed manually for now.
+  return null;
+}
+
+export type SendPayoutResult =
+  | { status: "DONE" | "PROCESSING"; externalId: string }
+  | { status: "FAILED"; externalId?: string; error: string };
+
+/** Sends a payout for an already-created Payout(PENDING) record and updates its
+ *  status from the provider response. Never throws — on any error the payout is
+ *  marked FAILED (so the practitioner's balance is restored, see balance lib). */
+export async function sendPractitionerPayout(
+  payoutId: string,
+  destination: YukassaPayoutDestination,
+  amountKopecks: number,
+  description?: string,
+): Promise<SendPayoutResult> {
+  try {
+    const payout = await createPayout({ amountKopecks, payoutId, destination, description });
+    if (payout.status === "canceled") {
+      await db.payout.update({ where: { id: payoutId }, data: { status: "FAILED", externalId: payout.id } }).catch(() => {});
+      return { status: "FAILED", externalId: payout.id, error: "ЮKassa отклонила выплату" };
+    }
+    const status = payout.status === "succeeded" ? "DONE" : "PROCESSING";
+    await db.payout.update({
+      where: { id: payoutId },
+      data: { status, externalId: payout.id, processedAt: new Date() },
+    });
+    return { status, externalId: payout.id };
+  } catch (e) {
+    log.error("practitioner-payout.send_failed", { payoutId, err: e });
+    await db.payout.update({ where: { id: payoutId }, data: { status: "FAILED" } }).catch(() => {});
+    return { status: "FAILED", error: e instanceof Error ? e.message : "Ошибка провайдера выплат" };
+  }
+}

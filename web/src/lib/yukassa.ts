@@ -312,6 +312,52 @@ export async function createRefund({
   });
 }
 
+// B352 / Баг 12 — выплаты практикам через ЮKassa Payouts API.
+export type YukassaPayoutDestination =
+  | { type: "bank_card"; cardNumber: string }
+  | { type: "sbp"; phone: string; bankId: string };
+
+export interface YukassaPayout {
+  id: string;
+  status: string; // pending | succeeded | canceled
+}
+
+/**
+ * Create a payout to a practitioner's destination (card or SBP).
+ *
+ * - Idempotence-Key is `payout-{payoutId}` (our internal Payout.id) so retrying
+ *   the same payout never sends money twice.
+ * - The YooKassa account must have the Payouts product enabled; if not, the API
+ *   rejects the call and the caller marks the payout FAILED (no money moves).
+ */
+export async function createPayout({
+  amountKopecks,
+  payoutId,
+  destination,
+  description,
+}: {
+  amountKopecks: number;
+  payoutId: string;
+  destination: YukassaPayoutDestination;
+  description?: string;
+}): Promise<YukassaPayout> {
+  const payout_destination_data =
+    destination.type === "bank_card"
+      ? { type: "bank_card", card: { number: destination.cardNumber } }
+      : { type: "sbp", phone: destination.phone, bank_id: destination.bankId };
+
+  return yukassaFetch<YukassaPayout>("/payouts", {
+    method: "POST",
+    idempotenceKey: `payout-${payoutId}`,
+    body: {
+      amount: { value: kopecksToRUB(amountKopecks), currency: "RUB" },
+      payout_destination_data,
+      description: description ?? `Выплата практику (${payoutId})`,
+      metadata: { payoutId },
+    },
+  });
+}
+
 /**
  * Create a payment with save_payment_method=true.
  * After successful payment, the payment method is saved and can be reused.
