@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 
@@ -10,7 +9,6 @@ const plans = [
     name: "Базовый",
     tagline: "Чтобы попробовать",
     monthPrice: 0,
-    yearPrice: 0,
     perks: [
       "Первый разбор бесплатно",
       "Доступ к библиотеке вопросов",
@@ -28,7 +26,6 @@ const plans = [
     name: "Plus",
     tagline: "Для регулярной практики ясности",
     monthPrice: 490,
-    yearPrice: 4900,
     // X18/Z2: honest perks — Plus bundles only `perspectives`
     // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. «my-map» is NOT
     // bundled on any tier — it is a credit/card purchase everywhere. Reminders
@@ -51,7 +48,6 @@ const plans = [
     name: "Premium",
     tagline: "Для глубокой регулярной работы",
     monthPrice: 1290,
-    yearPrice: 12900,
     // Z2 credit-centric (docs/v5-release/MONETIZATION-STRATEGY-Y10 §3): Premium
     // includes only two anchors (perspectives + deep-report) + 35 monthly credits;
     // the rest of the catalog (chat-analysis, my-map, 7 дней, «Вы двое», круг,
@@ -115,7 +111,6 @@ function formatPrice(n: number): string {
 }
 
 export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub?: number | null }) {
-  const [period, setPeriod] = useState<"month" | "year">("month");
   const sessionRows = buildSessionRows(minSessionPriceRub);
   const itemsForCat = (cat: string) => (cat === "Встречи" ? sessionRows : oneOff.filter((item) => item.cat === cat));
 
@@ -132,20 +127,6 @@ export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub
               Один разбор всегда бесплатный. Подписка — для практики и цифровых углублений.
               Встречи со специалистом оплачиваются отдельно по полной цене, без скидок в тарифах.
           </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-2">
-            <button
-              className={"soft-chip" + (period === "month" ? " soft-chip-warm" : "")}
-              onClick={() => setPeriod("month")}
-            >
-              Помесячно
-            </button>
-            <button
-              className={"soft-chip" + (period === "year" ? " soft-chip-warm" : "")}
-              onClick={() => setPeriod("year")}
-            >
-              На год <span style={{ opacity: 0.72, marginLeft: "0.25rem" }}>· 2 месяца в подарок</span>
-            </button>
-          </div>
         </div>
       </section>
 
@@ -153,8 +134,9 @@ export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub
       <section className="soft-shell soft-public-section">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           {plans.map((plan) => {
-            const price = period === "year" ? plan.yearPrice : plan.monthPrice;
-            const periodLabel = period === "year" ? "в год" : "в месяц";
+            // Механика 1: подписки только месячные — годовых планов нет.
+            const price = plan.monthPrice;
+            const periodLabel = "в месяц";
             return (
               <div
                 key={plan.id}

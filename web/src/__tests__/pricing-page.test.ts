@@ -26,15 +26,17 @@ describe("v5 pricing page", () => {
     expect(combined).toContain("Первичный");
     expect(combined).toContain("4 ракурса ответа");
     expect(combined).toContain("299 ₽");
-    // Plus: 490 per month / 4900 per year in v4.2
+    // B348/Механика 1: подписки только месячные — годовых планов и тумблера «на год» нет.
     expect(combined).toContain("490");
-    expect(combined).toContain("4900");
+    expect(combined).not.toContain("4900");
+    expect(combined).not.toContain("На год");
+    expect(combined).not.toContain("yearPrice");
     expect(combined).toContain("Без скидок на встречи");
     expect(combined).toContain("Подробное сравнение");
     expect(publicSeoRoutes).toContain("/pricing/compare");
-    // Premium: 1290 per month / 12900 per year
+    // Premium: 1290 per month (no yearly).
     expect(combined).toContain("1290");
-    expect(combined).toContain("12900");
+    expect(combined).not.toContain("12900");
     // Practitioner tiers live on /practitioners/apply, not in client pricing cards.
     expect(combined).not.toContain('id: "practitioner"');
     expect(source("app/practitioners/apply/page.tsx")).toContain("Pro+");
