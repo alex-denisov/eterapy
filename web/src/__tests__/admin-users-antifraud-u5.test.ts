@@ -47,9 +47,11 @@ describe("U5 — login events captured with IP + device + channel", () => {
 });
 
 describe("U5 — admin user card surfaces last-session provenance", () => {
-  it("page queries the latest LOGIN audit per user and derives registration source", () => {
+  it("page queries the latest session-establishing audit per user and derives registration source", () => {
     const page = read("src/app/admin/users/page.tsx");
-    expect(page).toContain('action: "LOGIN"');
+    // B359 / Баг 2: last-session lookup now considers LOGIN *and* REGISTER so a
+    // just-registered user (no separate LOGIN yet) still shows a session.
+    expect(page).toMatch(/action:\s*\{\s*in:\s*\[\s*"LOGIN",\s*"REGISTER"\s*\]\s*\}/);
     expect(page).toContain('distinct: ["userId"]');
     expect(page).toContain("lastLoginByUser");
     expect(page).toContain("registrationSource: user.registrationChannel ?? user.provider");
