@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { NOTIFICATION_DELIVERY_JOB_TYPE } from "@/lib/notification-delivery";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { maskEmail, roleLabelRu } from "@/lib/mask-email";
 import { PageContainer } from "@/components/ui/page-container";
 import { JobActions } from "../jobs/job-actions";
 
@@ -187,6 +188,20 @@ export default async function AdminNotificationsPage(props: {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const jobs = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // B359 / Баг 17: resolve «кому» for the visible page only — role + masked
+  // email so admins know the recipient without the table leaking full PII.
+  const recipientIds = Array.from(new Set(jobs.map((job) => job.payload.userId).filter((id): id is string => Boolean(id))));
+  const recipients = recipientIds.length
+    ? await db.user.findMany({ where: { id: { in: recipientIds } }, select: { id: true, name: true, email: true, role: true } })
+    : [];
+  const recipientById = new Map(recipients.map((u) => [u.id, u]));
+  function recipientLabel(userId: string | undefined): { who: string; role: string } {
+    if (!userId) return { who: "—", role: "—" };
+    const user = recipientById.get(userId);
+    if (!user) return { who: `id:${userId.slice(0, 8)}`, role: "—" };
+    return { who: user.name?.trim() || maskEmail(user.email), role: roleLabelRu(user.role) };
+  }
+
   const statCards = [
     { label: "Pending", value: stats.PENDING, icon: Clock3, tone: "warn" },
     { label: "Running", value: stats.RUNNING, icon: RotateCcw, tone: "warn" },
@@ -215,11 +230,12 @@ export default async function AdminNotificationsPage(props: {
       </div>
 
       <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[1180px]" data-testid="admin-notification-jobs-table">
+        <table className="soft-admin-data-table min-w-[1320px]" data-testid="admin-notification-jobs-table">
           <thead>
             <tr>
               <th><SortLink params={params} field="createdAt">Событие</SortLink><HeaderInput params={params} name="event" placeholder="event" /></th>
               <th>Канал<HeaderInput params={params} name="channel" placeholder="email/web/telegram" /></th>
+              <th>Кому</th>
               <th><SortLink params={params} field="status">Статус</SortLink><HeaderSelect params={params} name="status" options={[{ value: "", label: "Все" }, ...Object.values(JobStatus).map((item) => ({ value: item, label: item }))]} /></th>
               <th><SortLink params={params} field="attempts">Retry</SortLink></th>
               <th>Request</th>
@@ -231,11 +247,15 @@ export default async function AdminNotificationsPage(props: {
           </thead>
           <tbody>
             {jobs.length === 0 ? (
-              <tr><td colSpan={9} className="text-center">Delivery jobs пока нет</td></tr>
+              <tr><td colSpan={10} className="text-center">Delivery jobs пока нет</td></tr>
             ) : jobs.map((job) => (
               <tr key={job.id} data-testid="notification-diagnostic-row">
                 <td>{job.payload.event ?? "unknown"}</td>
                 <td>{job.payload.channel ?? "unknown"}</td>
+                <td className="max-w-44 truncate" title={recipientLabel(job.payload.userId).who}>
+                  {recipientLabel(job.payload.userId).who}
+                  <span className="ml-1 text-[var(--soft-ink-faint)]">· {recipientLabel(job.payload.userId).role}</span>
+                </td>
                 <td><span className="soft-admin-status-pill" data-tone={statusTone(job.status)}>{job.status}</span></td>
                 <td>{job.attempts}/{job.maxAttempts}</td>
                 <td className="max-w-44 truncate">{job.payload.requestId ?? job.id}</td>
