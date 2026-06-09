@@ -133,12 +133,21 @@ describe("v5 admin RBAC matrix", () => {
       user: { id: "superadmin-1", role: "SUPERADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
     } as never);
-    (mockDb.user.update as jest.Mock).mockResolvedValue({
+    // B347: role mutations now run inside a transaction that keeps the
+    // Practitioner profile in sync. Demotion to CLIENT checks for an existing
+    // profile to suspend (none here → no-op).
+    const txUserUpdate = jest.fn().mockResolvedValue({
       id: "client-1",
       name: "Client",
       role: "CLIENT",
       freeToolsLimit: 0,
     });
+    const txPractitionerFindUnique = jest.fn().mockResolvedValue(null);
+    const txPractitionerUpdate = jest.fn();
+    (mockDb.$transaction as jest.Mock).mockImplementation(async (callback) => callback({
+      user: { update: txUserUpdate },
+      practitioner: { findUnique: txPractitionerFindUnique, update: txPractitionerUpdate },
+    }));
 
     const response = await patchUsers(request("https://admin.eterapy.com/api/admin/users", "PATCH", {
       userId: "client-1",
@@ -147,11 +156,14 @@ describe("v5 admin RBAC matrix", () => {
     }));
 
     expect(response.status).toBe(200);
-    expect(mockDb.user.update).toHaveBeenCalledWith({
+    expect(txUserUpdate).toHaveBeenCalledWith({
       where: { id: "client-1" },
       data: { freeToolsLimit: 0, role: "CLIENT" },
       select: { id: true, name: true, freeToolsLimit: true, role: true },
     });
+    // Demotion path probes for a profile to suspend; finds none → never updates.
+    expect(txPractitionerFindUnique).toHaveBeenCalled();
+    expect(txPractitionerUpdate).not.toHaveBeenCalled();
     expect(mockLogAudit).toHaveBeenCalledWith("superadmin-1", "PROFILE_UPDATE", "client-1", "freeToolsLimit,role");
   });
 
@@ -216,11 +228,13 @@ describe("v5 admin RBAC matrix", () => {
         emailVerified: true,
       }),
     }));
+    // B347/Механика 9: admin-created practitioners go live immediately (ACTIVE)
+    // so they have a landing page and participate in search/recommendations.
     expect(txPractitionerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: "user-pr-1",
         slug: "anna-praktik",
-        status: "PENDING",
+        status: "ACTIVE",
         title: "Психолог",
       }),
     }));

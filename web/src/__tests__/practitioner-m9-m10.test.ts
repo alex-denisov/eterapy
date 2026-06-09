@@ -15,13 +15,16 @@ describe("M9 — practitioner subscription CTA on Сводка", () => {
 });
 
 describe("M10 — practitioner profile becomes Настройки with notifications", () => {
-  it("renames the nav item and adds NotificationSettings + Telegram", () => {
+  it("renames the nav item and the settings tabs render notifications + Telegram", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
     expect(shell).toContain('label: "Настройки"');
+    // B347/Интерфейс 14: page is now a thin server wrapper feeding a tabbed client.
     const page = source("src/app/cabinet/practitioner/profile/page.tsx");
-    expect(page).toContain("NotificationSettings");
-    expect(page).toContain('role="PRACTITIONER"');
+    expect(page).toContain("PractitionerSettingsClient");
     expect(page).toContain("telegramId");
-    expect(page).toContain('<h1 className="soft-h1 mt-2 mb-2">Настройки</h1>');
+    const client = source("src/app/cabinet/practitioner/profile/practitioner-settings-client.tsx");
+    expect(client).toContain("NotificationSettings");
+    expect(client).toContain('role="PRACTITIONER"');
+    expect(client).toContain('<h1 className="soft-h1 mt-2 mb-2">Настройки</h1>');
   });
 });

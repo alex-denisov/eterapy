@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { generateUniqueSlug } from "@/lib/slug";
+import { ensurePractitionerForUser, suspendPractitionerForUser } from "@/lib/practitioner-provisioning";
 
 const CREATABLE_ROLES: Role[] = [Role.CLIENT, Role.PRACTITIONER, Role.ADMIN];
 
@@ -146,7 +147,10 @@ export async function POST(req: NextRequest) {
       data: {
         userId: user.id,
         slug,
-        status: "PENDING",
+        // B347/Механика 9: admin-created practitioners go live immediately so
+        // their landing page works and they participate in search/recommendations.
+        // verified stays false → "не верифицирован" badge (B354).
+        status: "ACTIVE",
         title,
         bio,
         experience,
@@ -198,7 +202,28 @@ export async function PATCH(req: NextRequest) {
   if (role) data.role = role;
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Нет изменений" }, { status: 400 });
 
-  const user = await db.user.update({ where: { id: userId }, data, select: { id: true, name: true, freeToolsLimit: true, role: true } });
+  // B347/Механика 9: a role change to/from PRACTITIONER must keep the
+  // Practitioner profile in sync — otherwise a converted user has the role but
+  // no landing page, attributes, or search participation.
+  const { user, provisioning } = await db.$transaction(async (tx) => {
+    const updated = await tx.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, name: true, freeToolsLimit: true, role: true },
+    });
+    let provisioning: Awaited<ReturnType<typeof ensurePractitionerForUser>> | null = null;
+    if (role === Role.PRACTITIONER) {
+      provisioning = await ensurePractitionerForUser(tx, { userId, name: updated.name ?? "" });
+    } else if (role) {
+      // Demotion: hide the profile from the catalog without deleting data.
+      await suspendPractitionerForUser(tx, userId);
+    }
+    return { user: updated, provisioning };
+  });
+
   await logAudit(adminId, "PROFILE_UPDATE", userId, Object.keys(data).join(","));
+  if (provisioning?.created) {
+    await logAudit(adminId, "PRACTITIONER_CREATE", userId, "converted to practitioner by admin");
+  }
   return NextResponse.json({ ok: true, user });
 }
