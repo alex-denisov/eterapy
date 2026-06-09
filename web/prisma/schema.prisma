@@ -1047,6 +1047,12 @@ model Dialogue {
   intakeProductKey String?         @map("intake_product_key")
   intakeMode     String?           @map("intake_mode")
   metadata       Json?
+  // B363 / Механика 12: explicit, owner-given consent to publish a question in
+  // the public library. NULL libraryStatus = private (the strict default — a
+  // question is NEVER published without consent). State machine lives in
+  // lib/library-consent.ts.
+  libraryConsentAt DateTime?       @map("library_consent_at")
+  libraryStatus    String?         @map("library_status")
   createdAt      DateTime         @default(now()) @map("created_at")
   updatedAt      DateTime         @updatedAt @map("updated_at")
   archivedAt     DateTime?        @map("archived_at")
@@ -1061,6 +1067,7 @@ model Dialogue {
   @@index([guestSessionId, updatedAt])
   @@index([guestSessionId, intakeProductKey, createdAt])
   @@index([status, updatedAt])
+  @@index([libraryStatus, libraryConsentAt])
   @@map("dialogues")
 }
 

@@ -27,6 +27,9 @@ export type MyMapItem = {
   // W13: whether this item is hidden from the map (surfaced only when the
   // viewer asked to see hidden items, so they can un-hide it).
   hidden: boolean;
+  // B363: library publish-consent state (dialogues only; null elsewhere).
+  libraryConsentAt?: Date | null;
+  libraryStatus?: string | null;
 };
 
 const PRODUCT_LABELS: Record<string, string> = {
@@ -135,6 +138,8 @@ export async function listMyMapItems(
         status: true,
         metadata: true,
         updatedAt: true,
+        libraryConsentAt: true,
+        libraryStatus: true,
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -200,6 +205,8 @@ export async function listMyMapItems(
         topic: dialogue.topic ?? "other",
         topicLabel: dialogueTopicLabelRu(dialogue.topic),
         hidden: isHiddenFromMap(dialogue.metadata),
+        libraryConsentAt: dialogue.libraryConsentAt,
+        libraryStatus: dialogue.libraryStatus,
       })),
     ...products
       .filter((product) => includeHidden || !isHiddenFromMap(product.metadata))

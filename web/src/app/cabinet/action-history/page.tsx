@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { Download, Eye, EyeOff, Lock, Share2, Trash2 } from "lucide-react";
+import { BookOpen, Download, Eye, EyeOff, Globe, Lock, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -10,6 +10,7 @@ import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
+import { canGrantConsent, canWithdrawConsent, consentBadge, grantConsentPatch, withdrawConsentPatch } from "@/lib/library-consent";
 
 function shareHref(title: string, topic: string) {
   return mainUrl(`/share?from=my-map&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
@@ -129,6 +130,42 @@ async function saveMapItem(formData: FormData) {
 
   revalidatePath("/cabinet/action-history");
   revalidatePath("/cabinet");
+}
+
+// B363 / Механика 12: explicit consent to publish a question in the public
+// library. The owner grants consent here (→ moderation queue); without it a
+// question is never published. Strict gating lives in lib/library-consent.ts.
+async function grantLibraryConsent(formData: FormData) {
+  "use server";
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const patch = grantConsentPatch();
+  await db.dialogue.updateMany({
+    // Owner-scoped: a user can only consent to publish their OWN question.
+    where: { id, userId: session.user.id, deletedAt: null },
+    data: { libraryConsentAt: patch.libraryConsentAt, libraryStatus: patch.libraryStatus },
+  });
+
+  revalidatePath("/cabinet/action-history");
+}
+
+async function withdrawLibraryConsent(formData: FormData) {
+  "use server";
+  const session = await auth();
+  if (!session?.user?.id) redirect(loginUrl());
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const patch = withdrawConsentPatch();
+  await db.dialogue.updateMany({
+    where: { id, userId: session.user.id, deletedAt: null },
+    data: { libraryConsentAt: patch.libraryConsentAt, libraryStatus: patch.libraryStatus },
+  });
+
+  revalidatePath("/cabinet/action-history");
 }
 
 export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string }> }) {
@@ -422,6 +459,51 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                       <Share2 className="size-4" />
                       Поделиться
                     </a>
+                    {/* B363 / Механика 12: owner consent to publish this
+                        question in the public library. Без согласия вопрос не
+                        публикуется. The consent is anonymized + moderated before
+                        it ever appears publicly, and can be withdrawn anytime. */}
+                    {item.kind === "dialogue" && (() => {
+                      const consent = { libraryConsentAt: item.libraryConsentAt ?? null, libraryStatus: item.libraryStatus ?? null };
+                      const badge = consentBadge(consent);
+                      if (canGrantConsent(consent)) {
+                        return (
+                          <form action={grantLibraryConsent}>
+                            <input type="hidden" name="id" value={item.id} />
+                            <button type="submit" className="soft-button soft-button-ghost"
+                              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                              title="Анонимно опубликовать этот вопрос в библиотеке. Перед публикацией он проходит модерацию, согласие можно отозвать в любой момент."
+                              data-analytics-event="my_map_library_consent_granted"
+                              data-analytics-surface="my_map"
+                              data-analytics-target="dialogue">
+                              <BookOpen className="size-4" />
+                              Опубликовать в библиотеке
+                            </button>
+                          </form>
+                        );
+                      }
+                      return (
+                        <span className="inline-flex items-center gap-2">
+                          <span className={`soft-chip ${badge.tone === "published" ? "soft-chip-warm" : ""}`}>
+                            <Globe className="size-3" aria-hidden="true" />
+                            {badge.label}
+                          </span>
+                          {canWithdrawConsent(consent) && (
+                            <form action={withdrawLibraryConsent}>
+                              <input type="hidden" name="id" value={item.id} />
+                              <button type="submit" className="soft-button soft-button-ghost"
+                                style={{ minHeight: "2.25rem", padding: "0.5rem 0.75rem", fontSize: "0.8125rem" }}
+                                title="Отозвать согласие — вопрос не будет опубликован."
+                                data-analytics-event="my_map_library_consent_withdrawn"
+                                data-analytics-surface="my_map"
+                                data-analytics-target="dialogue">
+                                Убрать
+                              </button>
+                            </form>
+                          )}
+                        </span>
+                      );
+                    })()}
                     <form action={item.hidden ? unhideMapItem : hideMapItem}>
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="id" value={item.id} />
