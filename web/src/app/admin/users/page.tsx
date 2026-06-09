@@ -189,11 +189,15 @@ export default async function AdminUsersPage(props: {
     : [];
   const creditByUser = new Map(creditSums.map((row) => [row.userId, row._sum.amount ?? 0]));
 
-  // U5 (antifraud): latest LOGIN audit per user → last-session timestamp + IP +
-  // device + channel. distinct + desc returns the most recent row per user.
+  // U5 (antifraud): latest session-establishing audit per user → last-session
+  // timestamp + IP + device + channel. distinct + desc returns the most recent
+  // row per user.
+  // B359 / Баг 2: include REGISTER alongside LOGIN so a just-registered user
+  // (who has a REGISTER event with captured IP/device but may not have a
+  // separate LOGIN yet) still shows a «последняя сессия» instead of "—".
   const loginEvents = users.length > 0
     ? await db.auditLog.findMany({
-      where: { userId: { in: users.map((u) => u.id) }, action: "LOGIN" },
+      where: { userId: { in: users.map((u) => u.id) }, action: { in: ["LOGIN", "REGISTER"] } },
       orderBy: { createdAt: "desc" },
       distinct: ["userId"],
       select: { userId: true, createdAt: true, ip: true, details: true },
