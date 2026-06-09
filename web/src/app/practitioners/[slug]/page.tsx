@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { type Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Zap } from "lucide-react";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { SPECIALTY_LABELS } from "@/lib/types";
@@ -244,27 +244,29 @@ export default async function PractitionerPage({
               </div>
             )}
 
-            {/* v4: "услуги" pricing rows card */}
+            {/* v4: "услуги" pricing rows card — B353/Интерфейс 10 (6): tighter
+                card + rows (one duration·price line each) so the block reads as a
+                compact price list instead of large padded tiles. */}
             {p.priceRates.length > 0 && (
-              <div className="soft-card mt-4 p-5">
-                <p className="soft-eyebrow mb-3">услуги</p>
-                <div className="flex flex-col gap-3">
+              <div className="soft-card mt-4 p-4">
+                <p className="soft-eyebrow mb-2.5">услуги</p>
+                <div className="flex flex-col gap-2">
                   {p.priceRates.map((rate) => (
                     <div
                       key={rate.id}
                       className="flex items-center justify-between"
-                      style={{ padding: "12px 16px", background: "var(--soft-paper-deep)", borderRadius: 12 }}
+                      style={{ padding: "8px 12px", background: "var(--soft-paper-deep)", borderRadius: 10 }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 600 }}>Индивидуальная сессия</div>
-                        <div className="text-xs text-[var(--soft-ink-faint)] mt-0.5">{rate.durationMin} мин · онлайн</div>
+                      <div className="flex items-baseline gap-2">
+                        <span style={{ fontWeight: 600 }}>Индивидуальная сессия</span>
+                        <span className="text-xs text-[var(--soft-ink-faint)]">{rate.durationMin} мин · онлайн</span>
                       </div>
                       <div
                         style={{
                           fontFamily: "var(--font-heading, serif)",
                           color: "var(--soft-bordeaux)",
                           fontWeight: 600,
-                          fontSize: 17,
+                          fontSize: 16,
                         }}
                       >
                         {rate.priceRub.toLocaleString("ru")} ₽
@@ -291,7 +293,14 @@ export default async function PractitionerPage({
           </div>
 
           {/* ── Right column: sticky booking sidebar ── */}
-          <aside style={{ position: "sticky", top: 84 }}>
+          {/* B353/Интерфейс 10 (5): a sticky element taller than the viewport
+              gets its lower part (calendar + slots + confirm) clipped and
+              unreachable. Cap the height to the viewport and let the booking
+              block scroll within itself so every control stays accessible. */}
+          <aside
+            className="self-start overflow-y-auto"
+            style={{ position: "sticky", top: 84, maxHeight: "calc(100vh - 100px)" }}
+          >
             {/* v4: booking card */}
             <div className="soft-card p-7">
               <p className="soft-eyebrow">записаться</p>
@@ -317,6 +326,18 @@ export default async function PractitionerPage({
               <div className="mt-4 text-xs text-[var(--soft-ink-faint)] text-center">
                 Оплата после подтверждения слота. Можно отменить за 24 часа.
               </div>
+
+              {/* B353/Интерфейс 10 (2): make priority booking visible. Premium
+                  gets early access to slots + waitlist promotion when full —
+                  previously a backend-only benefit with no surface here. */}
+              <Link
+                href={`${APP_URL}/cabinet/billing`}
+                className="mt-3 flex items-center gap-2 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] px-3 py-2 text-xs leading-snug text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)]"
+                data-testid="priority-booking-hint"
+              >
+                <Zap className="size-3.5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                <span><span style={{ fontWeight: 600 }}>Приоритетная запись</span> — ранний доступ к слотам и место в листе ожидания на Premium.</span>
+              </Link>
             </div>
 
             {/* v4: ethics card-flat */}
