@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
+import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { log, serializeError } from "@/lib/logger";
 
 export const SYMBOLIC_PRODUCT_DEFINITIONS = [
@@ -244,8 +245,20 @@ export async function generateSymbolicProductResult(input: {
   const fallback = cards ? tarotReadingFromCards(cards, input.userInput) : heuristicSymbolicResult(input);
 
   try {
+    // B362/Механика 7: каждый символический продукт должен использовать СВОЙ
+    // промт (product-tarot / product-natal-chart / product-numerology / product-my-map),
+    // а не один общий. Берём промт продукта из конфигурации промтов — тот же,
+    // что виден и редактируется суперадмином в /admin/ai (DB-override применяется
+    // дальше в applyAIPromptOverride). Раньше здесь был общий хардкод → все
+    // символические продукты выходили «одинаковыми» и админ-промты не работали.
+    const feature = `product-${input.productKey}`;
+    const baseSystemPrompt = defaultPromptTextForFeature(feature);
+    const tarotCardsNote = cards
+      ? "\n\nЭто расклad из 3 карт (Прошлое/Настоящее/Будущее). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте вопроса."
+      : "";
+
     const response = await aiComplete({
-      feature: `product-${input.productKey}`,
+      feature,
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 1400,
@@ -253,13 +266,7 @@ export async function generateSymbolicProductResult(input: {
       messages: [
         {
           role: "system",
-          content: [
-            "Write a paid ETerapy symbolic product result in Russian.",
-            "Be warm, concrete, non-fatalistic and ethical.",
-            "Do not predict the future as fact. Do not diagnose. Do not give medical, legal or financial instructions.",
-            "Use short Markdown sections (## headings) and always end with one practical next step.",
-            cards ? "This is a 3-card tarot spread (Прошлое/Настоящее/Будущее). Interpret EXACTLY the drawn cards given below, one section per card, in their context." : "",
-          ].filter(Boolean).join(" "),
+          content: baseSystemPrompt + tarotCardsNote,
         },
         {
           role: "user",

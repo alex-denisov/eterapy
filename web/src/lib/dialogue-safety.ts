@@ -87,7 +87,10 @@ export async function classifyDialogueSafety(input: {
 
   try {
     const response = await aiComplete({
-      feature: "safety_classification",
+      // B362/Механика 7: feature key must match the prompt config key
+      // ("safety-classification" with a hyphen) — normalizeAIFeatureKey keeps
+      // underscores, so "safety_classification" never matched the admin prompt.
+      feature: "safety-classification",
       userId: input.userId,
       requestId: input.requestId,
       maxTokens: 140,

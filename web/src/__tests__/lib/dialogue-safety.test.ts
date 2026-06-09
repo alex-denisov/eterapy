@@ -64,7 +64,8 @@ describe("dialogue-safety", () => {
       model: "gpt-4o-mini",
     });
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
-      feature: "safety_classification",
+      // B362/Механика 7: hyphenated key so the admin prompt + routing policy apply.
+      feature: "safety-classification",
       userId: "user-1",
       requestId: "req-1",
       maxTokens: 140,
