@@ -306,21 +306,10 @@ export default async function PractitionerPage({
                   Предразбор сохранён. Выберите время, а контекст вопроса останется связанным с этим переходом.
                 </div>
               )}
-              <p className="text-sm text-[var(--soft-ink-faint)] mt-1">
-                {firstRate?.durationMin ?? 50} минут · онлайн
-              </p>
-              <div
-                style={{
-                  fontFamily: "var(--font-heading, serif)",
-                  fontSize: 32,
-                  color: "var(--soft-bordeaux)",
-                  fontWeight: 600,
-                  marginTop: 12,
-                }}
-              >
-                {priceDisplay} ₽
-              </div>
-
+              {/* B353/Интерфейс 10: длительность и цена показываются на чипах
+                  «Формат сессии» внутри SlotPicker и меняются при переключении.
+                  Прежний статичный подзаголовок с длительностью/ценой убран —
+                  он не обновлялся при смене формата и дублировал переключатель. */}
               <div className="mt-6">
                 <SlotPicker practitionerId={p.id} practitionerName={p.user.name} />
               </div>

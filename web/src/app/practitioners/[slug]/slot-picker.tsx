@@ -219,7 +219,7 @@ export function SlotPicker({
       <div className="mt-6 rounded-xl border border-green-500/20 bg-green-500/5 p-6 text-center">
         <p className="text-3xl mb-2">✅</p>
         <p className="font-heading text-lg font-semibold text-green-400">Запись оформлена!</p>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
           Встреча с {practitionerName} появится в <a href={appUrl("/bookings")} className="text-primary hover:underline">кабинете</a>.
         </p>
       </div>
@@ -229,7 +229,7 @@ export function SlotPicker({
   if (rates.length === 0) {
     return (
       <div className="mt-4 rounded-lg border border-border/30 bg-card/20 px-4 py-3">
-        <p className="text-sm text-muted-foreground">{practitionerName} пока не настроил(а) расписание.</p>
+        <p className="text-sm text-[var(--soft-ink-soft)]">{practitionerName} пока не настроил(а) расписание.</p>
       </div>
     );
   }
@@ -241,7 +241,7 @@ export function SlotPicker({
       <div className="mt-4 space-y-5">
         {/* Шаг 1: Длительность — компактные чипы */}
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Формат сессии</p>
+          <p className="text-xs font-medium text-[var(--soft-ink-soft)] mb-2 uppercase tracking-wide">Формат сессии</p>
           <div className="flex flex-wrap gap-1.5">
             {rates.map(rate => (
               <button key={rate.durationMin}
@@ -249,7 +249,7 @@ export function SlotPicker({
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
                   selectedDuration === rate.durationMin
                     ? "border-primary bg-primary/15 text-primary"
-                    : "border-border/30 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                    : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]/30 hover:text-[var(--soft-ink)]"
                 }`}>
                 {DURATION_LABELS[rate.durationMin]} · {rate.priceRub.toLocaleString("ru")} ₽
               </button>
@@ -292,7 +292,7 @@ export function SlotPicker({
             <div className="rounded-xl border border-border/20 bg-card/10 p-3">
               <div className="grid grid-cols-7 gap-1 mb-1 text-center">
                 {["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(day => (
-                  <div key={day} className="text-[10px] font-medium text-muted-foreground/60 py-1">{day}</div>
+                  <div key={day} className="text-[10px] font-medium text-[var(--soft-ink-soft)]/60 py-1">{day}</div>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
@@ -311,15 +311,17 @@ export function SlotPicker({
                         }
                       }}
                       className={`relative rounded-lg p-1.5 text-xs transition-colors ${
-                        !thisMonth ? "text-muted-foreground/20" :
-                        !day.isAvailable ? "text-muted-foreground/15 cursor-not-allowed" :
-                        isSelected ? "bg-primary text-white font-semibold" :
-                        day.isToday ? "ring-1 ring-primary/50 text-primary font-medium" :
-                        "text-foreground hover:bg-primary/5"
+                        !thisMonth ? "text-[var(--soft-ink-faint)]/30" :
+                        !day.isAvailable ? "text-[var(--soft-ink-faint)]/25 cursor-not-allowed" :
+                        isSelected ? "bg-[var(--soft-bordeaux)] text-white font-semibold" :
+                        // B353/Интерфейс 10: доступные дни — тёплая подсветка (apricot),
+                        // чтобы было видно, какие даты открыты для записи, без пестроты.
+                        day.isToday ? "bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)] font-semibold ring-1 ring-[var(--soft-bordeaux)]/40" :
+                        "bg-[var(--soft-apricot)]/55 text-[var(--soft-bordeaux)] font-medium hover:bg-[var(--soft-apricot)]"
                       }`}>
                       {day.date.getDate()}
                       {day.isToday && thisMonth && (
-                        <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[8px] text-primary/70 font-medium leading-none whitespace-nowrap">
+                        <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 text-[8px] text-[var(--soft-bordeaux)]/70 font-medium leading-none whitespace-nowrap">
                           сегодня
                         </span>
                       )}
@@ -334,13 +336,13 @@ export function SlotPicker({
         {/* Шаг 3: Время — компактные плитки */}
         {selectedDate && selectedDuration && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+            <p className="text-xs font-medium text-[var(--soft-ink-soft)] mb-2 uppercase tracking-wide">
               {isTodaySelected ? "Сегодня" : new Date(selectedDate + "T00:00:00").toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" })}
             </p>
             {loadingSlots ? (
-              <p className="text-xs text-muted-foreground animate-pulse">Загрузка...</p>
+              <p className="text-xs text-[var(--soft-ink-soft)] animate-pulse">Загрузка...</p>
             ) : slots.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[var(--soft-ink-soft)]">
                 {isTodaySelected ? "Сегодня свободных окон нет." : "Нет свободных слотов на этот день."}
               </p>
             ) : (
@@ -353,14 +355,14 @@ export function SlotPicker({
                     <button key={i} onClick={() => setSelectedSlot(isSelected ? null : slot)}
                       className={`rounded-lg border px-3 py-1.5 text-sm font-mono font-medium transition-all relative ${
                         isSelected
-                          ? "border-primary bg-primary/10 text-primary"
+                          ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]"
                           : isSoon
-                          ? "border-amber-400/40 text-foreground hover:border-amber-400"
-                          : "border-border/30 text-foreground hover:border-primary/40"
+                          ? "border-amber-500/50 text-[var(--soft-ink)] hover:border-amber-500"
+                          : "border-[var(--soft-paper-edge)] text-[var(--soft-ink)] hover:border-[var(--soft-bordeaux)]/40"
                       }`}>
                       <span>{formatTime(slot.startAt)}</span>
                       {slot.earlyAccess && (
-                        <span className="ml-1 align-middle text-[10px] font-sans text-primary">Premium</span>
+                        <span className="ml-1 align-middle text-[10px] font-sans text-[var(--soft-bordeaux)]">Premium</span>
                       )}
                       {isSoon && <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-400" />}
                     </button>
@@ -375,7 +377,7 @@ export function SlotPicker({
         {selectedSlot && selectedRate && (
           <div className="flex items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
             <div>
-              <p className="text-xs text-muted-foreground">Выбрано</p>
+              <p className="text-xs text-[var(--soft-ink-soft)]">Выбрано</p>
               <p className="text-sm font-medium">
                 {new Date(selectedSlot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
                 {" · "}
