@@ -7,6 +7,7 @@ jest.mock("@/lib/env", () => ({ APP_URL: "https://app.test", YUKASSA_API_URL: "h
 
 const yk = {
   createTwoStagePayment: jest.fn(),
+  createTwoStagePaymentFromSavedMethod: jest.fn(),
   capturePayment: jest.fn(),
   cancelPayment: jest.fn(),
   createRefund: jest.fn(),
@@ -16,10 +17,14 @@ jest.mock("@/lib/yukassa", () => ({ __esModule: true, ...yk }));
 const mockDb = {
   booking: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   payment: { upsert: jest.fn(), update: jest.fn(), findUnique: jest.fn() },
+  savedCard: { findFirst: jest.fn() },
   transaction: { create: jest.fn() },
   $transaction: jest.fn(),
 };
 jest.mock("@/lib/db", () => ({ __esModule: true, default: mockDb }));
+
+const mockNotify = jest.fn();
+jest.mock("@/lib/notifications", () => ({ __esModule: true, notify: (...a: unknown[]) => mockNotify(...a) }));
 
 import {
   holdSessionForBooking,
@@ -46,13 +51,30 @@ describe("Z1a holdSessionForBooking", () => {
     expect(yk.createTwoStagePayment).not.toHaveBeenCalled();
   });
 
-  it("creates a two-stage hold and records the payment", async () => {
+  it("creates a two-stage hold and records the payment (no saved card → redirect)", async () => {
+    mockDb.savedCard.findFirst.mockResolvedValueOnce(null);
     yk.createTwoStagePayment.mockResolvedValueOnce({ id: "pay-1", status: "waiting_for_capture", confirmationUrl: "https://yk/confirm" });
-    const res = await holdSessionForBooking({ bookingId: "b1", priceRub: 9500 });
+    const res = await holdSessionForBooking({ bookingId: "b1", priceRub: 9500, clientId: "u1" });
     expect(yk.createTwoStagePayment).toHaveBeenCalledWith(expect.objectContaining({ amountKopecks: 950_000, bookingId: "b1" }));
     expect(mockDb.booking.update).toHaveBeenCalledWith(expect.objectContaining({ data: { paymentId: "pay-1", paymentMethod: "yukassa" } }));
     expect(mockDb.payment.upsert).toHaveBeenCalled();
-    expect(res).toEqual({ status: "held", paymentId: "pay-1", confirmationUrl: "https://yk/confirm" });
+    expect(res).toEqual({ status: "held", paymentId: "pay-1", confirmationUrl: "https://yk/confirm", viaSavedCard: false });
+  });
+
+  it("Баг 16: holds one-tap on a saved card without a confirmation redirect", async () => {
+    mockDb.savedCard.findFirst.mockResolvedValueOnce({ paymentMethodId: "pm-9" });
+    yk.createTwoStagePaymentFromSavedMethod.mockResolvedValueOnce({ id: "pay-2", status: "waiting_for_capture", confirmationUrl: null });
+    const res = await holdSessionForBooking({ bookingId: "b2", priceRub: 2000, clientId: "u1" });
+    expect(yk.createTwoStagePaymentFromSavedMethod).toHaveBeenCalledWith(expect.objectContaining({ paymentMethodId: "pm-9", customerId: "u1", bookingId: "b2" }));
+    expect(yk.createTwoStagePayment).not.toHaveBeenCalled();
+    expect(res).toEqual({ status: "held", paymentId: "pay-2", confirmationUrl: "", viaSavedCard: true });
+  });
+
+  it("falls back to a redirect hold when the saved-card payment needs 3DS", async () => {
+    mockDb.savedCard.findFirst.mockResolvedValueOnce({ paymentMethodId: "pm-9" });
+    yk.createTwoStagePaymentFromSavedMethod.mockResolvedValueOnce({ id: "pay-3", status: "pending", confirmationUrl: "https://yk/3ds" });
+    const res = await holdSessionForBooking({ bookingId: "b3", priceRub: 2000, clientId: "u1" });
+    expect(res).toEqual({ status: "held", paymentId: "pay-3", confirmationUrl: "https://yk/3ds", viaSavedCard: false });
   });
 });
 

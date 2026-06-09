@@ -356,18 +356,30 @@ export async function POST(req: NextRequest) {
     // брони и списываются при старте сессии (captureSessionForBooking). Бесплатная
     // сессия (test mode / priceRub=0) → hold "free", confirmationUrl не нужен.
     let confirmationUrl: string | null = null;
+    let heldViaSavedCard = false;
     try {
       const hold = await holdSessionForBooking({
         bookingId: booking.id,
         priceRub,
+        clientId: session.user.id,
         description: `Сессия с ${practitioner.user.name ?? "специалистом"}`,
       });
-      if (hold.status === "held") confirmationUrl = hold.confirmationUrl;
+      if (hold.status === "held") {
+        confirmationUrl = hold.confirmationUrl || null;
+        heldViaSavedCard = hold.viaSavedCard;
+        // Баг 16: при одно-таповом холде по карте клиент уже «оплатил» (средства
+        // зарезервированы) — уведомляем его, что оплата прошла, без редиректа.
+        if (hold.viaSavedCard) {
+          notify({ userId: session.user.id, event: "PAYMENT_RECEIVED", data: {
+            amountRub: priceRub.toLocaleString("ru-RU"), date: slotDate,
+          }}).catch((e: unknown) => log.error("bookings.post.hold_notify_failed", { bookingId: booking.id, err: e }));
+        }
+      }
     } catch (e) {
       log.error("bookings.post.hold_failed", { bookingId: booking.id, err: e });
     }
 
-    return NextResponse.json({ booking: formatBooking(booking), confirmationUrl, ok: true });
+    return NextResponse.json({ booking: formatBooking(booking), confirmationUrl, heldViaSavedCard, ok: true });
   } catch (err) {
     log.error("api.bookings.post", { err });
     return NextResponse.json({ error: "Ошибка сервера" }, { status: 500 });
