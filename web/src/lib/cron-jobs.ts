@@ -12,9 +12,14 @@ import {
   runStreakAtRiskJob,
 } from "@/lib/reactivation-cron";
 import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
+import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 const CLEANUP_GRACE_DAYS = 10;
+// B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
+// window absorbs the daily cron cadence so a renewal is never missed nor doubled.
+const RENEWAL_REMINDER_LEAD_DAYS = 3;
+const RENEWAL_WINDOW_DAYS = 1;
 
 function jobNow(job: Job) {
   const payload = job.payload;
@@ -307,6 +312,84 @@ export async function runPayoutRunJob(job: Job): Promise<JobResult> {
   return result;
 }
 
+/**
+ * B348 / Механика 1 — 3-day subscription auto-renewal reminder.
+ *
+ * Finds active (non-cancelling) subscriptions whose current period ends in ~3
+ * days and that have not yet been reminded THIS period, then notifies the owner
+ * (email forced via DEFAULT_EMAIL_EVENTS; other channels per prefs) and stamps
+ * `renewalReminderAt` so the next daily run skips them. Reminding is deduped
+ * per period by comparing against `currentPeriodStart`.
+ */
+export async function runSubscriptionRenewalRemindersJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const windowStart = new Date(now.getTime() + (RENEWAL_REMINDER_LEAD_DAYS - RENEWAL_WINDOW_DAYS / 2) * 24 * 3600 * 1000);
+  const windowEnd = new Date(now.getTime() + (RENEWAL_REMINDER_LEAD_DAYS + RENEWAL_WINDOW_DAYS / 2) * 24 * 3600 * 1000);
+
+  const subscriptions = await db.userSubscription.findMany({
+    where: {
+      status: { in: ["ACTIVE", "TRIALING"] },
+      // A subscription set to cancel at period end will NOT auto-renew — no
+      // reminder, otherwise the message would be misleading.
+      cancelAtPeriodEnd: false,
+      currentPeriodEnd: { gte: windowStart, lt: windowEnd },
+    },
+    select: {
+      id: true,
+      userId: true,
+      planKey: true,
+      currentPeriodStart: true,
+      currentPeriodEnd: true,
+      renewalReminderAt: true,
+    },
+    take: 5000,
+  });
+
+  let remindersSent = 0;
+  let skipped = 0;
+  for (const sub of subscriptions) {
+    // Dedupe per period: skip if already reminded after this period started.
+    const periodStart = sub.currentPeriodStart;
+    if (sub.renewalReminderAt && (!periodStart || sub.renewalReminderAt >= periodStart)) {
+      skipped++;
+      continue;
+    }
+
+    const plan = V5_SUBSCRIPTION_PLANS[sub.planKey];
+    const renewsOn = sub.currentPeriodEnd
+      ? new Date(sub.currentPeriodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })
+      : "скоро";
+
+    await notify({
+      userId: sub.userId,
+      event: "SUBSCRIPTION_RENEWAL",
+      data: {
+        planKey: sub.planKey,
+        planLabel: plan?.name ?? sub.planKey,
+        renewsOn,
+        amountRub: plan ? String(Math.round(plan.amountKopecks / 100)) : "",
+      },
+    });
+
+    await db.userSubscription.update({
+      where: { id: sub.id },
+      data: { renewalReminderAt: now },
+    });
+    remindersSent++;
+  }
+
+  const result = {
+    ok: true,
+    remindersSent,
+    skipped,
+    processed: subscriptions.length,
+    timestamp: now.toISOString(),
+  };
+
+  log.info("cron-subscription-renewal-reminders-completed", { jobId: job.id, ...result });
+  return result;
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
   "cron.booking-reminders": runBookingRemindersJob as JobHandler,
@@ -315,4 +398,5 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.credits-expiring": runCreditsExpiringJob as JobHandler,
   "cron.streak-at-risk": runStreakAtRiskJob as JobHandler,
   "cron.moment-of-need": runMomentOfNeedJob as JobHandler,
+  "cron.subscription-renewal": runSubscriptionRenewalRemindersJob as JobHandler,
 };

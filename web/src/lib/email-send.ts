@@ -62,6 +62,7 @@ const SUBJECTS: Record<NotifEvent, string> = {
   BALANCE_TOPUP:      "Баланс пополнен — ETerapy",
   PRODUCT_UNLOCKED:   "Продукт открыт — ETerapy",
   SUBSCRIPTION_STARTED: "Подписка активна — ETerapy",
+  SUBSCRIPTION_RENEWAL: "Скоро автопродление подписки — ETerapy",
   SUBSCRIPTION_CANCELLED: "Подписка отменена — ETerapy",
   SUBSCRIPTION_PAYMENT_FAILED: "Платёж подписки не прошёл — ETerapy",
   CARD_LINKED:        "Карта привязана — ETerapy",

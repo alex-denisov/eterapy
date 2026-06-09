@@ -17,6 +17,7 @@ export type NotifEvent =
   | "BALANCE_TOPUP"
   | "PRODUCT_UNLOCKED"
   | "SUBSCRIPTION_STARTED"
+  | "SUBSCRIPTION_RENEWAL"
   | "SUBSCRIPTION_CANCELLED"
   | "SUBSCRIPTION_PAYMENT_FAILED"
   | "CARD_LINKED"
@@ -165,6 +166,13 @@ export const ALL_EVENTS: Array<{
     roles: ["CLIENT", "PRACTITIONER"],
   },
   {
+    event: "SUBSCRIPTION_RENEWAL",
+    category: "payments",
+    label: "Скоро автопродление",
+    description: "За 3 дня до автоматического продления подписки",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
     event: "SUBSCRIPTION_CANCELLED",
     category: "payments",
     label: "Подписка отменена",
@@ -304,6 +312,7 @@ export const DEFAULT_EMAIL_EVENTS: NotifEvent[] = [
   "BOOKING_REMINDER",
   "SESSION_COMPLETED",
   "REVIEW_REQUESTED",
+  "SUBSCRIPTION_RENEWAL",
   "DAILY_CARD",
   "ABANDONED_CHECKOUT",
   "REPORT_READY",

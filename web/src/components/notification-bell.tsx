@@ -44,6 +44,7 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   BALANCE_TOPUP: Wallet,
   PRODUCT_UNLOCKED: BookmarkCheck,
   SUBSCRIPTION_STARTED: Wallet,
+  SUBSCRIPTION_RENEWAL: Wallet,
   SUBSCRIPTION_CANCELLED: Wallet,
   SUBSCRIPTION_PAYMENT_FAILED: Wallet,
   CARD_LINKED: Wallet,

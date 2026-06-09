@@ -161,6 +161,8 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
       return { title: "Продукт открыт", body: data.productKey, href: "/cabinet/billing" };
     case "SUBSCRIPTION_STARTED":
       return { title: "Подписка активна", body: `Тариф ${data.planKey}`, href: "/cabinet/billing" };
+    case "SUBSCRIPTION_RENEWAL":
+      return { title: "Скоро автопродление", body: `Тариф ${data.planLabel || data.planKey} продлится ${data.renewsOn}${data.amountRub ? ` — ${data.amountRub} ₽` : ""}`, href: "/cabinet/billing" };
     case "SUBSCRIPTION_CANCELLED":
       return { title: "Подписка отменена", body: `Тариф ${data.planKey}`, href: "/cabinet/billing" };
     case "SUBSCRIPTION_PAYMENT_FAILED":
@@ -231,6 +233,8 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `✨ Продукт открыт\nДоступ к ${data.productKey} активен.\n<a href="${baseUrl}/cabinet/billing">Открыть доступы →</a>`;
     case "SUBSCRIPTION_STARTED":
       return `✨ Подписка активна\nТариф ${data.planKey} подключён.\n<a href="${baseUrl}/cabinet/billing">Управлять подпиской →</a>`;
+    case "SUBSCRIPTION_RENEWAL":
+      return `🔄 Скоро автопродление\nТариф ${data.planLabel || data.planKey} продлится ${data.renewsOn}${data.amountRub ? ` на сумму ${data.amountRub} ₽` : ""}.\n<a href="${baseUrl}/cabinet/billing">Управлять подпиской →</a>`;
     case "SUBSCRIPTION_CANCELLED":
       return `Подписка отменена\nТариф ${data.planKey}. Подробности доступны в биллинге.\n<a href="${baseUrl}/cabinet/billing">Открыть биллинг →</a>`;
     case "SUBSCRIPTION_PAYMENT_FAILED":

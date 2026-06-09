@@ -600,6 +600,7 @@ enum NotificationEvent {
   BALANCE_TOPUP          // Пополнение баланса (для клиента/практика)
   PRODUCT_UNLOCKED       // Платный продукт открыт
   SUBSCRIPTION_STARTED   // Подписка активирована
+  SUBSCRIPTION_RENEWAL   // Скоро автопродление подписки (за 3 дня)
   SUBSCRIPTION_CANCELLED // Подписка отменена
   SUBSCRIPTION_PAYMENT_FAILED // Платеж подписки не прошел
   CARD_LINKED            // Новая карта привязана
@@ -1447,6 +1448,10 @@ model UserSubscription {
   currentPeriodEnd       DateTime?
   cancelAtPeriodEnd      Boolean  @default(false)
   cancelledAt            DateTime?
+  // B348 / Механика 1: timestamp of the last 3-day auto-renewal reminder sent
+  // for the CURRENT period. Compared against currentPeriodStart so each period
+  // is reminded at most once. NULL = not yet reminded this period.
+  renewalReminderAt      DateTime?
   metadata               Json?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
@@ -1454,6 +1459,7 @@ model UserSubscription {
   @@index([userId, status])
   @@index([planKey, status])
   @@index([providerSubscriptionId])
+  @@index([status, currentPeriodEnd])
   @@map("user_subscriptions")
 }
 

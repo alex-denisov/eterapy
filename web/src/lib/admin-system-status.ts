@@ -39,6 +39,11 @@ export const PRODUCT_CRONS = [
     purpose: "Реактивация клиентов после 14 дней паузы по сохраненной теме",
     cadence: "1 раз в сутки",
   },
+  {
+    path: "/api/cron/subscription-renewal",
+    purpose: "Напоминание об автопродлении подписки за 3 дня до конца периода",
+    cadence: "1 раз в сутки",
+  },
 ];
 
 export interface SystemStats {
