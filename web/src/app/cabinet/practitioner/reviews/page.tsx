@@ -18,6 +18,12 @@ export default async function PractitionerReviewsPage() {
   });
   if (!practitioner) redirect("/cabinet/practitioner");
 
+  // B359 / Интерфейс 11: mark reviews as seen so the sidebar «новых отзывов»
+  // badge resets. Best-effort — a failed stamp must not break the page render.
+  await db.practitioner
+    .update({ where: { id: practitioner.id }, data: { reviewsSeenAt: new Date() } })
+    .catch(() => {});
+
   const avg = practitioner.reviewCount > 0
     ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1)
     : null;

@@ -47,18 +47,25 @@ export default async function CabinetLayout({ children }: { children: React.Reac
   let counts: Record<string, number> | undefined;
   if (role === "PRACTITIONER") {
     const practitioner = await db.practitioner
-      .findUnique({ where: { userId: session.user.id }, select: { id: true } })
+      .findUnique({ where: { userId: session.user.id }, select: { id: true, reviewsSeenAt: true } })
       .catch(() => null);
     if (practitioner) {
       const since = new Date();
       since.setDate(since.getDate() - 14);
+      // B359 / Интерфейс 11: «новых отзывов» = reviews created after the
+      // practitioner last opened the reviews page (so the badge clears once
+      // seen). Never-opened falls back to a 14-day window. Capped at the
+      // 14-day window so a long-stale reviewsSeenAt can't surface ancient ones.
+      const reviewsSince = practitioner.reviewsSeenAt && practitioner.reviewsSeenAt > since
+        ? practitioner.reviewsSeenAt
+        : since;
       const [requests, clients, reviews] = await Promise.all([
         // Заявки — booking requests awaiting the practitioner's confirmation.
         db.booking.count({ where: { practitionerId: practitioner.id, status: "PENDING" } }).catch(() => 0),
         // Клиенты — confirmed upcoming sessions to attend.
         db.booking.count({ where: { practitionerId: practitioner.id, status: "CONFIRMED" } }).catch(() => 0),
-        // Отзывы — reviews received in the last 14 days.
-        db.review.count({ where: { practitionerId: practitioner.id, createdAt: { gte: since } } }).catch(() => 0),
+        // Отзывы — new reviews since last viewed.
+        db.review.count({ where: { practitionerId: practitioner.id, createdAt: { gt: reviewsSince } } }).catch(() => 0),
       ]);
       counts = { requests, clients, reviews };
     }

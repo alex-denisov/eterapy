@@ -135,6 +135,11 @@ model Practitioner {
   ratingSum       Float               @default(0)
   reviewCount     Int                 @default(0)
   sessionCount    Int                 @default(0)
+  // B359 / Интерфейс 11: when the practitioner last opened /practitioner/reviews.
+  // The sidebar «новых отзывов» badge counts reviews created after this, so it
+  // resets to 0 once they've been seen (was a rolling 14-day window that never
+  // cleared). NULL = never opened → fall back to a 14-day window.
+  reviewsSeenAt   DateTime?
 
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
