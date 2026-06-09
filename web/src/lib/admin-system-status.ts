@@ -44,6 +44,11 @@ export const PRODUCT_CRONS = [
     purpose: "Напоминание об автопродлении подписки за 3 дня до конца периода",
     cadence: "1 раз в сутки",
   },
+  {
+    path: "/api/cron/session-escrow-capture",
+    purpose: "24ч-grace захват холда сессий, не захваченных при старте (Баг 16)",
+    cadence: "ежечасно",
+  },
 ];
 
 export interface SystemStats {

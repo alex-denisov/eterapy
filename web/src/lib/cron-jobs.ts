@@ -12,6 +12,7 @@ import {
   runStreakAtRiskJob,
 } from "@/lib/reactivation-cron";
 import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
+import { captureGraceExpiredSessions } from "@/lib/session-payment";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
@@ -390,6 +391,19 @@ export async function runSubscriptionRenewalRemindersJob(job: Job): Promise<JobR
   return result;
 }
 
+/**
+ * B351 / Баг 16 — 24h-grace session escrow capture. Captures still-held
+ * CONFIRMED bookings whose session ended >24h ago and were never captured at
+ * start (no video room opened), so the authorized hold doesn't expire unpaid.
+ */
+export async function runSessionEscrowCaptureJob(job: Job): Promise<JobResult> {
+  const now = jobNow(job);
+  const { scanned, captured } = await captureGraceExpiredSessions(now);
+  const result = { ok: true, scanned, captured, timestamp: now.toISOString() };
+  log.info("cron-session-escrow-capture-completed", { jobId: job.id, ...result });
+  return result;
+}
+
 export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.cleanup-users": runCleanupUsersJob as JobHandler,
   "cron.booking-reminders": runBookingRemindersJob as JobHandler,
@@ -399,4 +413,5 @@ export const CRON_JOB_HANDLERS: JobHandlers = {
   "cron.streak-at-risk": runStreakAtRiskJob as JobHandler,
   "cron.moment-of-need": runMomentOfNeedJob as JobHandler,
   "cron.subscription-renewal": runSubscriptionRenewalRemindersJob as JobHandler,
+  "cron.session-escrow-capture": runSessionEscrowCaptureJob as JobHandler,
 };

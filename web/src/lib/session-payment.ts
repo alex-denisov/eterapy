@@ -220,3 +220,37 @@ export async function refundSessionForBooking(
   }).catch(() => {});
   return { status: "refunded" };
 }
+
+/**
+ * B351 / Баг 16 — 24h-grace auto-capture (spec: «после 24ч grace переводится
+ * платформе»). Captures still-held CONFIRMED bookings whose scheduled session
+ * end passed more than `graceHours` ago. This is the safety net for the case
+ * where a session was never opened (no video room → no capture-at-start): the
+ * authorized hold would otherwise expire (~7 days) and the practitioner would
+ * never be paid. Idempotent — capture is no-op once already charged.
+ */
+export async function captureGraceExpiredSessions(
+  now: Date = new Date(),
+  graceHours = 24,
+): Promise<{ scanned: number; captured: number }> {
+  const cutoff = new Date(now.getTime() - graceHours * 60 * 60 * 1000);
+  const due = await db.booking.findMany({
+    where: {
+      status: "CONFIRMED",
+      paymentId: { not: null },
+      slot: { endAt: { lte: cutoff } },
+    },
+    select: { id: true },
+    take: 500,
+  });
+
+  let captured = 0;
+  for (const booking of due) {
+    const outcome = await captureSessionForBooking(booking.id).catch((err) => {
+      log.warn("session-payment.grace_capture_failed", { bookingId: booking.id, err });
+      return null;
+    });
+    if (outcome?.status === "charged") captured++;
+  }
+  return { scanned: due.length, captured };
+}
