@@ -112,7 +112,7 @@ function buildOrderBy(params: SearchParams): Prisma.AuditLogOrderByWithRelationI
 
 function actionTone(action: string) {
   if (action.includes("BLOCK") || action.includes("DELETE") || action.includes("FAILED")) return "danger";
-  if (action.includes("RESET") || action.includes("UPDATE") || action.includes("PAYOUT")) return "warn";
+  if (action.includes("RESET") || action.includes("UPDATE") || action.includes("PAYOUT") || action.includes("PAYMENT")) return "warn";
   return "ok";
 }
 

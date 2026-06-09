@@ -106,6 +106,16 @@ export async function creditSucceededPayment(
     },
   });
 
+  // B359 / Баг 4: persist successful payments to the audit log so superadmin has
+  // a durable «история оплат» (the PAYMENT action existed but was never written).
+  // Best-effort, non-PII details (amount, product type, provider payment id).
+  logAudit(
+    result.userId,
+    AUDIT_ACTIONS.PAYMENT,
+    result.userId,
+    JSON.stringify({ amountRub, currency: "RUB", productType, providerPaymentId }),
+  ).catch((e) => log.error("billing.payment_audit_failed", { err: e }));
+
   // Fire notifications outside the DB transaction — best-effort, no blocking.
   if (result.newCard) {
     notify({
