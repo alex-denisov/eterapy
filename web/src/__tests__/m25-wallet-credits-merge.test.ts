@@ -48,4 +48,15 @@ describe("B349 — wallet/credits merge", () => {
     expect(dashboard).not.toContain('appUrl("/credits")');
     expect(dashboard).toContain('appUrl("/wallet")');
   });
+
+  it("/billing: current subscription shares the plan-cards row + a credits CTA", () => {
+    const billing = source("src/app/cabinet/billing/page.tsx");
+    // Current subscription is the first cell of the 3-col plans grid (apricot).
+    expect(billing).toContain('className="grid gap-4 md:grid-cols-3"');
+    expect(billing).toContain('data-testid="client-billing-subscription"');
+    expect(billing).toContain("linear-gradient(160deg, #F4D9C1, #F8E6D1)");
+    // Attractive credit-purchase block routing to the wallet top-up.
+    expect(billing).toContain('data-testid="client-billing-credits-cta"');
+    expect(billing).toContain('appUrl("/wallet#wallet-topup")');
+  });
 });

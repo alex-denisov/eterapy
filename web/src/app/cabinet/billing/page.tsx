@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Plus, Shield, Trash2, Check } from "lucide-react";
+import { Loader2, Plus, Shield, Trash2, Check, Sparkles, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   getSubscriptionPlanLabel,
   getSubscriptionStatusLabel,
 } from "@/lib/billing-labels";
-import { mainUrl } from "@/lib/subdomain";
+import { appUrl, mainUrl } from "@/lib/subdomain";
 import { BillingHistoryTable } from "@/components/cabinet/billing-history-table";
 
 // Static metadata mirrors V5_SUBSCRIPTION_PLANS so we don't drag the
@@ -340,8 +340,10 @@ export default function BillingPage() {
         <h1 className="soft-h1 mt-2">Подписка и оплата</h1>
       </div>
 
-      {/* Current subscription overview */}
-      <div className="soft-card p-6" data-testid="client-billing-subscription" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
+      {/* B349/Механика 2: current subscription sits in the same row as the plan
+          cards; the apricot gradient marks the active subscription. */}
+      <div className="grid gap-4 md:grid-cols-3" data-testid="client-billing-plans">
+        <div className="soft-card p-6" data-testid="client-billing-subscription" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="soft-eyebrow">текущая подписка</div>
@@ -382,8 +384,7 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* All available plans — paid by card (the ₽ balance rail is removed) */}
-      <div className="grid gap-4 md:grid-cols-2" data-testid="client-billing-plans">
+        {/* Plans — paid by card (the ₽ balance rail is removed) */}
         {CLIENT_PLAN_KEYS.map((key) => {
           const plan = CLIENT_PLANS[key];
           if (!plan) return null;
@@ -431,6 +432,35 @@ export default function BillingPage() {
           );
         })}
       </div>
+
+      {/* B349/Механика 2: an attractive credit-purchase block right under the
+          plans — для тех, кому подписка не нужна, но хочется докупить кредиты. */}
+      <Link
+        href={appUrl("/wallet#wallet-topup")}
+        className="soft-card block p-6"
+        data-testid="client-billing-credits-cta"
+        style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)", textDecoration: "none" }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="soft-eyebrow flex items-center gap-2">
+              <Sparkles className="size-4" aria-hidden="true" />
+              кредиты без подписки
+            </div>
+            <div className="mt-2" style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
+              Докупить кредиты ясности
+            </div>
+            <p className="mt-1 max-w-xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+              Разовая дозаправка кошелька — открывайте 4 ракурса, отчёты, Таро и маршруты
+              без ежемесячной подписки. Купленные кредиты не сгорают.
+            </p>
+          </div>
+          <span className="soft-button soft-button-primary shrink-0" style={{ minHeight: "2.5rem" }}>
+            Пополнить кошелёк
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </span>
+        </div>
+      </Link>
 
       {/* Saved cards — the wallet used for sessions and subscriptions. Binding a
           card holds 1 ₽ then releases it (verification only, no charge). */}
