@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import { Resend } from "resend";
 import { validateName, validateEmail, validateTelegramUsername } from "@/lib/validation";
+import { checkRequestAuthRateLimit, authRateLimitResponse } from "@/lib/auth-rate-limit";
 import { log } from "@/lib/logger";
 import { ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "@/lib/env";
 
@@ -16,6 +17,14 @@ const ADMIN_EMAIL = ADMIN_NOTIFICATION_EMAIL;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
+  // B341 / Баг 7: this anonymous endpoint writes a DB row AND sends an email,
+  // so it must be rate-limited to prevent application spam / email-cost abuse.
+  // Mirrors the registration limits: burst per IP + a daily IP cap.
+  const ipLimit = checkRequestAuthRateLimit(req, "practitioner-apply", 5, 15 * 60_000);
+  if (!ipLimit.allowed) return authRateLimitResponse(ipLimit);
+  const dailyLimit = checkRequestAuthRateLimit(req, "practitioner-apply:daily:ip", 10, 24 * 60 * 60_000);
+  if (!dailyLimit.allowed) return authRateLimitResponse(dailyLimit);
+
   const body = await req.json();
   const { name, email, telegram, specialties, experience, formats, about, why, portfolio } = body;
 
