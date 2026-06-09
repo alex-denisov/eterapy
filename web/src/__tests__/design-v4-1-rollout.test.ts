@@ -90,9 +90,10 @@ describe("design v4.2 rollout", () => {
     const grid = source("app/practitioners/practitioners-grid.tsx");
     const shell = source("components/cabinet/cabinet-shell.tsx");
 
-    expect(specialists).toContain("София Мирная");
-    expect(specialists).toContain("Елена Орлова");
-    expect(specialists).toContain("Ника Сокол");
+    // B346/Интерфейс 8-9: the catalog is purely DB-backed — no hardcoded demo
+    // personas. The grid's empty-state handles the no-data case.
+    expect(specialists).not.toContain("София Мирная");
+    expect(specialists).toContain("getPractitioners");
     expect(grid).toContain('data-testid="specialists-empty-state"');
     expect(shell).not.toContain("<BrandSignature compact");
     expect(shell).toContain('data-testid="app-shell-user"');

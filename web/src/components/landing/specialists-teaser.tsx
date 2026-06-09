@@ -3,11 +3,10 @@ import { ArrowRight } from "lucide-react";
 import db from "@/lib/db";
 import { log, serializeError } from "@/lib/logger";
 
-// B334: landing "проверенные специалисты" now reads from db.practitioner
-// instead of a hardcoded list. We select the top-4 verified ACTIVE
-// practitioners ordered by rating × review-count weight, fall back to
-// `FALLBACK_SPECIALISTS` only if the DB returns nothing (so the section
-// is never empty on a fresh install).
+// B334/B346: landing "проверенные специалисты" reads from db.practitioner.
+// We select the top-4 verified ACTIVE practitioners ordered by founding/rating/
+// review weight. If the DB has none, the section hides itself (B346 — no
+// hardcoded demo personas), so every card always links to a real profile page.
 //
 // Gradient backgrounds are indexed by card position, not stored in DB —
 // they belong to the visual layer, not the practitioner profile.
@@ -17,16 +16,6 @@ const GRADIENTS = [
   "linear-gradient(140deg, #F4D9C1, #F8E6D1)",
   "linear-gradient(140deg, #DBD3EA, #E8E1F2)",
   "linear-gradient(140deg, #D6DECC, #E5EBDC)",
-];
-
-// Fallback list — exact same data shape as the DB query result. Only used
-// if the DB is empty (fresh install before seed). Slugs match the
-// FALLBACK_PRACTITIONERS list in src/app/practitioners/page.tsx.
-const FALLBACK_SPECIALISTS = [
-  { slug: "anna-kamenskaya", name: "Анна Каменская", title: "Клинический психолог", rating: 4.9, pricePerSession: 4500 },
-  { slug: "liza-morozova",   name: "Лиза Морозова",   title: "Коуч идентичности",   rating: 4.8, pricePerSession: 3200 },
-  { slug: "sofia-mirnaya",   name: "София Мирная",    title: "Таролог-практик",     rating: 4.7, pricePerSession: 2880 },
-  { slug: "elena-orlova",    name: "Елена Орлова",    title: "Астролог",            rating: 4.6, pricePerSession: 3500 },
 ];
 
 type SpecialistCard = {
@@ -64,7 +53,7 @@ async function loadTopSpecialists(): Promise<SpecialistCard[]> {
       take: 4,
     });
 
-    if (rows.length === 0) return FALLBACK_SPECIALISTS;
+    if (rows.length === 0) return [];
 
     return rows.map((row) => ({
       slug: row.slug,
@@ -75,12 +64,16 @@ async function loadTopSpecialists(): Promise<SpecialistCard[]> {
     }));
   } catch (error) {
     log.warn("specialists-teaser.db_fallback", { error: serializeError(error) });
-    return FALLBACK_SPECIALISTS;
+    return [];
   }
 }
 
 export async function SpecialistsTeaserSection() {
   const specialists = await loadTopSpecialists();
+
+  // B346/Интерфейс 8-9: no hardcoded demo personas. If there are no real
+  // practitioners to surface, hide the section rather than show fictional cards.
+  if (specialists.length === 0) return null;
 
   return (
     <section className="soft-shell py-16 md:py-24" data-testid="v42-specialists-teaser">
