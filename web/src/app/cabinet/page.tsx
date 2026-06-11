@@ -328,7 +328,7 @@ export default async function ClientCabinetPage() {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
-                    +{mission.rewardCredits} кр.
+                    +{mission.rewardCredits} {pointsWord(mission.rewardCredits)}
                   </span>
                   {mission.completed ? (
                     <CheckCircle2 className="size-4 text-[var(--soft-sage)]" aria-hidden="true" />
