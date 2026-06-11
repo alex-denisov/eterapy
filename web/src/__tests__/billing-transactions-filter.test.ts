@@ -39,7 +39,7 @@ describe("GET /api/billing/transactions — legacy ₽-balance is hidden", () =>
       { id: "t-balance", amount: 50000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "Пополнение баланса на сайте ETerapy", createdAt: new Date(), metadata: { purchaseKind: "balance" } },
       { id: "t-product", amount: 69000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "ETerapy: deep-report", createdAt: new Date(), metadata: { purchaseKind: "product", productKey: "deep-report" } },
       { id: "t-sub", amount: 129000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "ETerapy Premium", createdAt: new Date(), metadata: { purchaseKind: "subscription", planKey: "premium" } },
-      { id: "t-credits", amount: 24900, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "5 кредитов", createdAt: new Date(), metadata: { purchaseKind: "credits", creditPackKey: "pack-5" } },
+      { id: "t-credits", amount: 24900, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "5 баллов", createdAt: new Date(), metadata: { purchaseKind: "credits", creditPackKey: "pack-5" } },
     ]);
     mockDb.creditLedgerEntry.findMany.mockResolvedValueOnce([]);
 

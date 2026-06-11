@@ -16,9 +16,9 @@ describe("U1 — compact read-only users table (colored text, no badges)", () =>
 
   it("Z1-Ф1: shows a credits column; the ₽ balance column is removed", () => {
     expect(panel).not.toContain("Баланс, ₽");
-    expect(panel).toContain('label="Кредиты"');
+    expect(panel).toContain('label="Баллы"');
     // the old combined header must be gone
-    expect(panel).not.toContain("Баланс · кредиты");
+    expect(panel).not.toContain("Баланс · баллы");
   });
 
   it("clarifies the Лимит and Активность columns", () => {

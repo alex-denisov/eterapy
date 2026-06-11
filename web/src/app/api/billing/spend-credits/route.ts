@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const creditCost = getProductCreditCost(productKey);
   if (!creditCost) {
-    return errorWithRequestContext("CREDITS_NOT_SUPPORTED", "Для продукта не настроена оплата кредитами", 400, context);
+    return errorWithRequestContext("CREDITS_NOT_SUPPORTED", "Для продукта не настроена оплата баллами", 400, context);
   }
   const bundleProductKeys = isKnownBundleProduct(productKey) ? V5_BUNDLE_CONTENTS[productKey] : [productKey];
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
       const balance = await getSpendableClarityCreditBalance(session.user.id, tx);
       if (balance < creditCost) {
-        throw new Error("Недостаточно кредитов");
+        throw new Error("Недостаточно баллов");
       }
 
       const spend = await recordClarityCreditEntry(tx, {
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
     return jsonWithRequestContext({ ok: true, productKey, ...result }, undefined, context);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Не удалось списать кредиты";
+    const message = error instanceof Error ? error.message : "Не удалось списать баллы";
     return errorWithRequestContext(
       message.includes("Недостаточно") ? "INSUFFICIENT_CREDITS" : "CREDIT_SPEND_FAILED",
       message,

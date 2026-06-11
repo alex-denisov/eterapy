@@ -4,8 +4,8 @@ import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { creditExpiryFor } from "@/lib/credit-expiry";
 
 export const STREAK_REWARDS: Record<number, { creditAmount?: number; productKey?: string; validDays?: number; label: string }> = {
-  3: { creditAmount: 2, label: "+2 кредита за 3 дня" },
-  7: { creditAmount: 3, productKey: "weekly-report", validDays: 7, label: "+3 кредита и недельный отчёт" },
+  3: { creditAmount: 2, label: "+2 балла за 3 дня" },
+  7: { creditAmount: 3, productKey: "weekly-report", validDays: 7, label: "+3 балла и недельный отчёт" },
   30: { productKey: "my-map", validDays: 14, label: "Расширенная карта на 14 дней" },
 };
 

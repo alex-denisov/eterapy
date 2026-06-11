@@ -31,9 +31,9 @@ describe("B203 Practice and missions", () => {
 
     expect(dashboard).toContain("getClarityCreditBalance");
     expect(dashboard).toContain("<DailyPracticeActions");
-    expect(dashboard).toContain("Кредиты ясности");
+    expect(dashboard).toContain("Баллы");
     expect(actions).toContain('action: "complete"');
-    expect(actions).toContain("+1 кредит ясности");
+    expect(actions).toContain("+1 балл");
   });
 
   it("T20: builds the daily card as a monitored LLM three-beat ritual with a deterministic fallback", () => {

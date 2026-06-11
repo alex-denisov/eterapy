@@ -272,7 +272,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
   async function generateReport() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы открыть 4 ракурса кредитами ясности или картой.");
+      setMessage("Войдите, чтобы открыть 4 ракурса баллами или картой.");
       setStatus("error");
       return;
     }
@@ -290,7 +290,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к 4 ракурсам кредитами ясности или картой — после этого результат появится здесь же.");
+        setMessage("Откройте доступ к 4 ракурсам баллами или картой — после этого результат появится здесь же.");
         setStatus("error");
         return;
       }

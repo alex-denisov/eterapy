@@ -382,7 +382,7 @@ export function ChatAnalysisActions() {
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к разбору переписки кредитами ясности или картой — распознанный текст останется здесь.");
+        setMessage("Откройте доступ к разбору переписки баллами или картой — распознанный текст останется здесь.");
         setStatus("error");
         return;
       }

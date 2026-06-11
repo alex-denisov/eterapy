@@ -190,15 +190,15 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "COMPLIANCE_ALERT":
       return { title: "Комплаенс-сигнал", body: data.summary || "Нужна проверка модератором", href: data.reviewUrl || "/admin/complaints" };
     case "CREDITS_EXPIRING":
-      return { title: "Кредиты скоро сгорят", body: `${data.credits || "Несколько"} кредитов закончатся через ${data.days || "пару"} дн.`, href: data.walletUrl || "/cabinet/wallet" };
+      return { title: "Баллы скоро сгорят", body: `${data.credits || "Несколько"} баллов закончатся через ${data.days || "пару"} дн.`, href: data.walletUrl || "/cabinet/wallet" };
     case "STREAK_AT_RISK":
       return { title: "Ритм практики", body: `Можно сделать один короткий шаг и сохранить ${data.streak || ""} дн.`, href: data.practiceUrl || "/cabinet/practice" };
     case "MOMENT_OF_NEED":
       return { title: "Можно вернуться к теме", body: data.topic ? `Тема: ${data.topic}` : "Ваша карта все еще доступна", href: data.mapUrl || "/cabinet/action-history" };
     case "WELCOME_CREDITS":
-      return { title: "Приветственные кредиты начислены", body: `${data.credits || "3"} кредита уже в кошельке`, href: data.walletUrl || "/cabinet/wallet" };
+      return { title: "Приветственные баллы начислены", body: `${data.credits || "3"} балла уже в кошельке`, href: data.walletUrl || "/cabinet/wallet" };
     case "WELCOME_CREDITS_REMINDER":
-      return { title: "Приветственные кредиты ждут", body: "Можно попробовать первый небольшой разбор", href: data.walletUrl || "/cabinet/wallet" };
+      return { title: "Приветственные баллы ждут", body: "Можно попробовать первый небольшой разбор", href: data.walletUrl || "/cabinet/wallet" };
     default:
       return { title: "Уведомление", body: "" };
   }
@@ -262,15 +262,15 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "COMPLIANCE_ALERT":
       return `Комплаенс-сигнал\n${data.summary ?? "Нужна проверка модератором."}\n<a href="${data.reviewUrl ?? `${baseUrl}/admin/complaints`}">Открыть →</a>`;
     case "CREDITS_EXPIRING":
-      return `Кредиты скоро сгорят\n${data.credits ?? "Несколько"} кредитов закончатся примерно через ${data.days ?? "пару"} дн.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кредиты →</a>`;
+      return `Баллы скоро сгорят\n${data.credits ?? "Несколько"} баллов закончатся примерно через ${data.days ?? "пару"} дн.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кошелёк →</a>`;
     case "STREAK_AT_RISK":
       return `Ритм практики\nЕсли сегодня есть силы, один короткий шаг сохранит ${data.streak ?? ""} дн.\n<a href="${data.practiceUrl ?? `${baseUrl}/cabinet/practice`}">Открыть практику →</a>`;
     case "MOMENT_OF_NEED":
       return `Можно вернуться к теме\n${data.topic ? `Тема: ${data.topic}.` : "Ваша карта все еще доступна."}\n<a href="${data.mapUrl ?? `${baseUrl}/cabinet/action-history`}">Открыть карту →</a>`;
     case "WELCOME_CREDITS":
-      return `Приветственные кредиты начислены\n${data.credits ?? "3"} кредита уже в кошельке.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кредиты →</a>`;
+      return `Приветственные баллы начислены\n${data.credits ?? "3"} балла уже в кошельке.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кошелёк →</a>`;
     case "WELCOME_CREDITS_REMINDER":
-      return `Приветственные кредиты ждут\nМожно попробовать первый небольшой разбор без спешки.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кредиты →</a>`;
+      return `Приветственные баллы ждут\nМожно попробовать первый небольшой разбор без спешки.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кошелёк →</a>`;
     default:
       return `ETerapy: уведомление`;
   }

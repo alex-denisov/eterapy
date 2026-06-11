@@ -316,7 +316,7 @@ function ClarityPracticeSide() {
             <span className="text-[0.6rem] text-[var(--soft-ink-faint)]">11/30</span>
           </div>
         </div>
-        <div className="absolute -bottom-3 right-2 rotate-[6deg] rounded-full bg-[var(--soft-apricot)] px-3 py-1 text-[0.65rem] font-semibold text-[var(--soft-bordeaux)]">+1 кредит</div>
+        <div className="absolute -bottom-3 right-2 rotate-[6deg] rounded-full bg-[var(--soft-apricot)] px-3 py-1 text-[0.65rem] font-semibold text-[var(--soft-bordeaux)]">+1 балл</div>
       </div>
     </div>
   );

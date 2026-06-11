@@ -372,7 +372,7 @@ export function PaymentsPanel({
       <div className="mt-8 rounded-xl border border-border/30 overflow-hidden" data-testid="admin-clarity-credit-audit">
         <div className="flex items-center justify-between border-b border-border/20 bg-card/30 px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold">Аудит кредитов ясности</h2>
+            <h2 className="text-sm font-semibold">Аудит баллов</h2>
             <p className="text-xs text-muted-foreground">Источник, статус, срок действия и clawback-события</p>
           </div>
           <Badge variant="outline">{clarityCredits.length}</Badge>
@@ -381,7 +381,7 @@ export function PaymentsPanel({
           <thead className="bg-card/20">
             <tr>
               <th className="p-3 text-left text-xs text-muted-foreground font-medium">Пользователь</th>
-              <th className="p-3 text-right text-xs text-muted-foreground font-medium">Кредиты</th>
+              <th className="p-3 text-right text-xs text-muted-foreground font-medium">Баллы</th>
               <th className="p-3 text-left text-xs text-muted-foreground font-medium">Тип / источник</th>
               <th className="p-3 text-left text-xs text-muted-foreground font-medium">Статус</th>
               <th className="p-3 text-left text-xs text-muted-foreground font-medium">Срок</th>
@@ -412,7 +412,7 @@ export function PaymentsPanel({
               </tr>
             ))}
             {clarityCredits.length === 0 && (
-              <tr><td colSpan={5} className="py-10 text-center text-sm text-muted-foreground">Пока нет операций по кредитам ясности</td></tr>
+              <tr><td colSpan={5} className="py-10 text-center text-sm text-muted-foreground">Пока нет операций по баллам</td></tr>
             )}
           </tbody>
         </table>

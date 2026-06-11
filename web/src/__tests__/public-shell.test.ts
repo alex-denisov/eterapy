@@ -46,7 +46,9 @@ describe("v5 public shell", () => {
     expect(header).toContain('label: "Главная"');
     expect(header).toContain("Моя карта");
     expect(header).toContain("История разборов");
-    expect(header).toContain("Кредиты ясности");
+    expect(header).toContain("Кошелёк");
+    // B365 (M26): header balance pill reads «Баланс: N баллов».
+    expect(header).toContain("Баланс:");
     expect(header).toContain("Практика ясности");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");

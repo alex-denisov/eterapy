@@ -27,6 +27,7 @@ import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
 import { track } from "@/lib/analytics";
+import { pointsWord } from "@/lib/points";
 
 // B319: hard cap on user input length per turn. 1200 characters is roomy
 // for a thoughtful 2-3 paragraph reply while still keeping LLM context
@@ -515,7 +516,7 @@ export default function CheckinPage() {
                         На сегодня бесплатный разбор использован
                       </h2>
                       <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                        Зарегистрируйтесь, чтобы продолжить прямо сейчас: это бесплатно, откроет 3 разбора в день и welcome-кредиты.
+                        Зарегистрируйтесь, чтобы продолжить прямо сейчас: это бесплатно, откроет 3 разбора в день и welcome-баллы.
                       </p>
                       <Link
                         href="/register?intent=continue-dialogue"
@@ -944,7 +945,7 @@ export default function CheckinPage() {
                     <div>
                       <div className="font-heading text-3xl font-semibold leading-none text-[var(--soft-bordeaux)]">{productRecommendation?.price ?? "299 ₽"}</div>
                       <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
-                        {productRecommendation?.creditCost != null ? `или −${productRecommendation.creditCost} кредита` : "или −1 кредит"}
+                        {productRecommendation?.creditCost != null ? `или −${productRecommendation.creditCost} ${pointsWord(productRecommendation.creditCost)}` : "или −1 балл"}
                       </div>
                     </div>
                     <span className="soft-button soft-button-primary text-sm">
@@ -982,7 +983,7 @@ export default function CheckinPage() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium text-[var(--soft-ink)]">{item.name}</span>
                         {item.creditCost != null && (
-                          <span className="block text-[11px] text-[var(--soft-ink-faint)]">или −{item.creditCost} кредита</span>
+                          <span className="block text-[11px] text-[var(--soft-ink-faint)]">или −{item.creditCost} {pointsWord(item.creditCost)}</span>
                         )}
                       </span>
                       <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">{item.price}</span>

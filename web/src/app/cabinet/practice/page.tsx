@@ -33,7 +33,7 @@ async function loadWeekStrip(userId: string): Promise<WeekDayCell[]> {
   sunday.setUTCDate(sunday.getUTCDate() + 6);
 
   // A "completed" day is a DailyCard with completedAt set (the daily-card POST
-  // handler stamps completedAt and grants the +1 кредит ledger entry atomically).
+  // handler stamps completedAt and grants the +1 балл ledger entry atomically).
   const cards = await db.dailyCard.findMany({
     where: {
       userId,
@@ -209,14 +209,14 @@ export default async function ClarityPracticePage() {
         </div>
       </section>
 
-      {/* B329: extra practice slot — docs §4 "Дополнительная практика 99 ₽ или 1 кредит". */}
+      {/* B329: extra practice slot — docs §4 "Дополнительная практика 99 ₽ или 1 балл". */}
       <section
         className="mt-4 soft-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between"
         data-testid="practice-extra-slot"
       >
         <div>
           <p className="soft-eyebrow" style={{ color: "var(--soft-terracotta-dark)" }}>хочется ещё одну сегодня?</p>
-          <h3 className="soft-h3 mt-2">Дополнительная практика — 99 ₽ или 1 кредит</h3>
+          <h3 className="soft-h3 mt-2">Дополнительная практика — 99 ₽ или 1 балл</h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             {completed
               ? "Вы уже прошли сегодняшнюю — можно открыть ещё одну: новый вопрос, новый ракурс."
@@ -247,8 +247,8 @@ export default async function ClarityPracticePage() {
             body: "Помогаем заметить, что вы уже знаете, но ещё не сказали себе вслух.",
           },
           {
-            eyebrow: "кредит",
-            title: "+1 кредит ясности",
+            eyebrow: "балл",
+            title: "+1 балл",
             body: "За каждую завершённую практику. Можно потратить на любой цифровой формат.",
           },
         ].map((item) => (
@@ -319,7 +319,7 @@ export default async function ClarityPracticePage() {
         <LockKeyhole className="size-4 shrink-0 text-[var(--soft-bordeaux)]" aria-hidden="true" />
         <p className="text-[13.5px] leading-relaxed text-[var(--soft-ink-soft)]">
           Прогресс практики засчитывается только за реальное действие — не за просмотр или открытие
-          страницы. Кредиты не выводятся деньгами и не тратятся на встречи со специалистами.
+          страницы. Баллы не выводятся деньгами и не тратятся на встречи со специалистами.
         </p>
       </section>
     </PageContainer>

@@ -85,7 +85,7 @@ export async function grantClarityCredits(input: {
   metadata?: Prisma.InputJsonValue;
 }) {
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
-    throw new Error("Количество кредитов должно быть положительным целым числом");
+    throw new Error("Количество баллов должно быть положительным целым числом");
   }
 
   return db.$transaction((tx) => recordClarityCreditEntry(tx, {
@@ -107,13 +107,13 @@ export async function spendClarityCreditsForProduct(input: {
 }) {
   const cost = getProductCreditCost(input.productKey);
   if (!cost) {
-    throw new Error("Для продукта не настроена стоимость в кредитах");
+    throw new Error("Для продукта не настроена стоимость в баллах");
   }
 
   return db.$transaction(async (tx) => {
     const balance = await getSpendableClarityCreditBalance(input.userId, tx);
     if (balance < cost) {
-      throw new Error("Недостаточно кредитов");
+      throw new Error("Недостаточно баллов");
     }
 
     return recordClarityCreditEntry(tx, {
@@ -139,7 +139,7 @@ export async function revokeClarityCredits(input: {
   reason: string;
 }) {
   if (!Number.isInteger(input.amount) || input.amount <= 0) {
-    throw new Error("Количество отзываемых кредитов должно быть положительным целым числом");
+    throw new Error("Количество отзываемых баллов должно быть положительным целым числом");
   }
 
   return db.$transaction((tx) => recordClarityCreditEntry(tx, {

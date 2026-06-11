@@ -94,7 +94,7 @@ describe("v5 billing entitlements", () => {
   it("resolves checkout intent server-side for products, subscriptions, and credit packs (no ₽ balance)", () => {
     // Z1-Ф1: a bare amount (the old ₽ top-up) is no longer a valid purchase.
     expect(() => resolveBillingPurchase({ amountKopecks: 50_000 })).toThrow(
-      "Укажите продукт, тариф или пакет кредитов"
+      "Укажите продукт, тариф или пакет баллов"
     );
     expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
     expect(resolveBillingPurchase({ productKey: "full-question" })).toEqual(expect.objectContaining({
@@ -120,7 +120,7 @@ describe("v5 billing entitlements", () => {
     expect(resolveBillingPurchase({ creditPackKey: "pack-10", returnPath: "/cabinet/wallet" })).toEqual(expect.objectContaining({
       kind: "credits",
       amountKopecks: 44_900,
-      description: "Кредиты ясности, 10 шт.",
+      description: "Баллы, 10 шт.",
       metadata: expect.objectContaining({
         purchaseKind: "credits",
         creditPackKey: "pack-10",
@@ -188,7 +188,7 @@ describe("v5 billing entitlements", () => {
       id: "tx-pack",
       userId: "user-1",
       amount: 44900,
-      description: "Кредиты ясности, 10 шт.",
+      description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     });
 
@@ -411,7 +411,7 @@ describe("v5 billing entitlements", () => {
       id: "tx-pack",
       userId: "user-1",
       amount: 44900,
-      description: "Кредиты ясности, 10 шт.",
+      description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     } as never, "Возврат по обращению клиента");
 

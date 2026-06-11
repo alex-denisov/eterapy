@@ -107,9 +107,9 @@ export function ProductPurchaseControls({
     try {
       await jsonRequest("/api/billing/spend-credits", { productKey });
       onUnlocked?.();
-      setMessage("Доступ открыт за кредиты ясности.");
+      setMessage("Доступ открыт за баллы.");
     } catch (error) {
-      const text = error instanceof Error ? error.message : "Не удалось списать кредиты";
+      const text = error instanceof Error ? error.message : "Не удалось списать баллы";
       setMessage(`${text}. Можно оплатить картой.`);
     } finally {
       setAction("idle");
@@ -154,9 +154,9 @@ export function ProductPurchaseControls({
   const messageBlock = message && (
     <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
       {message}{" "}
-      {message.includes("кредит") && (
+      {message.includes("балл") && (
         <Link href={appUrl("/wallet")} prefetch={false} className="font-semibold underline">
-          Кредиты
+          Баллы
         </Link>
       )}
     </p>
@@ -173,7 +173,7 @@ export function ProductPurchaseControls({
                 className={cn("soft-button soft-button-primary", className)}
                 disabled={busy}
                 onClick={payWithCredits}
-                title={`Открыть за кредиты ясности: ${creditCost}`}
+                title={`Открыть за баллы: ${creditCost}`}
                 data-analytics-event="credits_spend_clicked"
                 data-analytics-product={productKey}
                 data-analytics-checkout-source={checkoutSource}
@@ -229,7 +229,7 @@ export function ProductPurchaseControls({
             data-analytics-checkout-source={checkoutSource}
           >
             {action === "credits" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Coins className="size-4" aria-hidden="true" />}
-            {action === "credits" ? "Списываем кредиты" : creditsLabel}
+            {action === "credits" ? "Списываем баллы" : creditsLabel}
           </button>
         )}
         <button

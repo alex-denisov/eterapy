@@ -71,7 +71,7 @@ export function GrowthFormatsSection() {
             Практика ясности — <span className="soft-italic">5 минут в день</span>
           </h3>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Один тёплый вопрос в день, маленький разворот и +1 кредит ясности за пройденный день.
+            Один тёплый вопрос в день, маленький разворот и +1 балл за пройденный день.
             Без чек-листов и серий, к которым стыдно возвращаться.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -103,7 +103,7 @@ export function GrowthFormatsSection() {
               </div>
             ))}
           </div>
-          <p className="mt-4 text-xs text-[var(--soft-ink-faint)]">11 дней практики подряд · +14 кредитов ясности</p>
+          <p className="mt-4 text-xs text-[var(--soft-ink-faint)]">11 дней практики подряд · +14 баллов</p>
         </div>
       </div>
     </section>

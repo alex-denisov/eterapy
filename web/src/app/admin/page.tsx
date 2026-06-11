@@ -343,7 +343,7 @@ export default async function AdminPage() {
     { label: "Главный paid CTA", value: business.triagePrimaryClicked30d, rate: conversion(business.triagePrimaryClicked30d, business.answersViewed30d) },
     { label: "Другие углубления", value: business.triageSecondaryClicked30d, rate: conversion(business.triageSecondaryClicked30d, business.answersViewed30d) },
     { label: "Подписка", value: business.triageSubscriptionClicked30d, rate: conversion(business.triageSubscriptionClicked30d, business.answersViewed30d) },
-    { label: "Кредиты", value: business.creditsSpendClicked30d, rate: conversion(business.creditsSpendClicked30d, business.answersViewed30d) },
+    { label: "Баллы", value: business.creditsSpendClicked30d, rate: conversion(business.creditsSpendClicked30d, business.answersViewed30d) },
   ] : [];
 
   return (
@@ -470,9 +470,9 @@ export default async function AdminPage() {
                   ],
                 },
                 {
-                  title: "Кредиты ясности",
+                  title: "Баллы",
                   items: [
-                    { label: "Кредиты ясности", value: formatNumber(business.clarityCreditBalance), hint: "confirmed ledger net" },
+                    { label: "Баллы", value: formatNumber(business.clarityCreditBalance), hint: "confirmed ledger net" },
                   ],
                 },
                 {

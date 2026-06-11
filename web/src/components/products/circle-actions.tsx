@@ -88,7 +88,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
 
   async function createCircle() {
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы создать круг и управлять доступом через кредиты или карту.");
+      setMessage("Войдите, чтобы создать круг и управлять доступом через баллы или карту.");
       setStatus("error");
       return;
     }

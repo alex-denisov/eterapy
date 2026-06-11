@@ -305,7 +305,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 ]}
               />
             </th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Кредиты" hint="Кредиты ясности (только клиенты)" /></th>
+            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Баллы" hint="Баллы (только клиенты)" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
             <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" /></th>
             <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" /></th>

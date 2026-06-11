@@ -107,7 +107,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
         </div>
         <div>
           <p className="soft-eyebrow">credit boundary</p>
-          <p className="mt-2 text-sm font-medium">Кредиты можно отозвать при fraud</p>
+          <p className="mt-2 text-sm font-medium">Баллы можно отозвать при fraud</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             Ledger хранит source/status, clawback и expiry; живые консультации не превращаются в бесплатный вывод бонусов.
           </p>

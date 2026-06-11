@@ -407,7 +407,7 @@ export default function BillingPage() {
                 </div>
               </div>
               <p className="mt-3 text-sm text-[var(--soft-ink-soft)]">
-                +{plan.creditsPerPeriod} кредитов ясности каждый месяц
+                +{plan.creditsPerPeriod} баллов каждый месяц
                 · {plan.includedProductsCount} цифровых продуктов включено
                 {plan.trialDays > 0 ? ` · ${plan.trialDays} дней пробного периода` : ""}
               </p>
@@ -434,7 +434,7 @@ export default function BillingPage() {
       </div>
 
       {/* B349/Механика 2: an attractive credit-purchase block right under the
-          plans — для тех, кому подписка не нужна, но хочется докупить кредиты. */}
+          plans — для тех, кому подписка не нужна, но хочется докупить баллы. */}
       <Link
         href={appUrl("/wallet#wallet-topup")}
         className="soft-card block p-6"
@@ -445,14 +445,14 @@ export default function BillingPage() {
           <div className="min-w-0">
             <div className="soft-eyebrow flex items-center gap-2">
               <Sparkles className="size-4" aria-hidden="true" />
-              кредиты без подписки
+              баллы без подписки
             </div>
             <div className="mt-2" style={{ fontFamily: "var(--font-heading)", fontSize: 26, color: "var(--soft-bordeaux)", fontWeight: 600 }}>
-              Докупить кредиты ясности
+              Докупить баллы
             </div>
             <p className="mt-1 max-w-xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
               Разовая дозаправка кошелька — открывайте 4 ракурса, отчёты, Таро и маршруты
-              без ежемесячной подписки. Купленные кредиты не сгорают.
+              без ежемесячной подписки. Купленные баллы не сгорают.
             </p>
           </div>
           <span className="soft-button soft-button-primary shrink-0" style={{ minHeight: "2.5rem" }}>

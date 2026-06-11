@@ -26,7 +26,7 @@ export const PRODUCT_CRONS = [
   },
   {
     path: "/api/cron/credits-expiring",
-    purpose: "Реактивация клиентов: кредиты сгорают через 2-3 дня",
+    purpose: "Реактивация клиентов: баллы сгорают через 2-3 дня",
     cadence: "1 раз в сутки",
   },
   {

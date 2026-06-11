@@ -163,7 +163,7 @@ export function recommendSubscription(
       tier: "plus",
       name: plus.name,
       priceRub: Math.round(plus.amountKopecks / 100),
-      reason: `В ${plus.name} этот формат включён и +${plus.creditsPerPeriod} кредитов ясности каждый месяц`,
+      reason: `В ${plus.name} этот формат включён и +${plus.creditsPerPeriod} баллов каждый месяц`,
     };
   }
   if ((premium.includedProducts as string[]).includes(primarySlug)) {
@@ -171,7 +171,7 @@ export function recommendSubscription(
       tier: "premium",
       name: premium.name,
       priceRub: Math.round(premium.amountKopecks / 100),
-      reason: `В ${premium.name} входит этот формат и ещё ${premium.includedProducts.length - 1} + ${premium.creditsPerPeriod} кредитов`,
+      reason: `В ${premium.name} входит этот формат и ещё ${premium.includedProducts.length - 1} + ${premium.creditsPerPeriod} баллов`,
     };
   }
   // X17: for free/unmatched products the nudge no longer disappears entirely —
@@ -181,7 +181,7 @@ export function recommendSubscription(
     tier: "plus",
     name: plus.name,
     priceRub: Math.round(plus.amountKopecks / 100),
-    reason: `Если планируете возвращаться — в ${plus.name} +${plus.creditsPerPeriod} кредитов ясности каждый месяц и доступ к маршрутам`,
+    reason: `Если планируете возвращаться — в ${plus.name} +${plus.creditsPerPeriod} баллов каждый месяц и доступ к маршрутам`,
   };
 }
 

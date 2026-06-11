@@ -27,7 +27,7 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
-  // X18: was 2 here but advertised as «1 кредит» (B322 / v5-products.ts) — a user
+  // X18: was 2 here but advertised as «1 балл» (B322 / v5-products.ts) — a user
   // was charged 2 for a product priced at 1. Aligned to the advertised cost.
   "perspectives": 1,
   "deep-report": 4,
@@ -133,17 +133,17 @@ export const CREDIT_PACKS: Record<string, CreditPackDefinition> = {
   "pack-5": {
     credits: 5,
     amountKopecks: 24900,
-    label: "5 кредитов",
+    label: "5 баллов",
   },
   "pack-10": {
     credits: 10,
     amountKopecks: 44900,
-    label: "10 кредитов",
+    label: "10 баллов",
   },
   "pack-25": {
     credits: 25,
     amountKopecks: 99000,
-    label: "25 кредитов",
+    label: "25 баллов",
     badge: "выгодно",
   },
 };
@@ -305,12 +305,12 @@ export function resolveBillingPurchase(input: {
   if (creditPackKey) {
     const pack = getCreditPack(creditPackKey);
     if (!pack) {
-      throw new Error("Неизвестный пакет кредитов");
+      throw new Error("Неизвестный пакет баллов");
     }
     return {
       kind: "credits",
       amountKopecks: pack.amountKopecks,
-      description: `Кредиты ясности, ${pack.credits} шт.`,
+      description: `Баллы, ${pack.credits} шт.`,
       metadata: {
         purchaseKind: "credits",
         creditPackKey,
@@ -323,7 +323,7 @@ export function resolveBillingPurchase(input: {
 
   // Z1-Ф1: no client ₽ balance — a payment must name a product, a plan, or a
   // fixed credit pack.
-  throw new Error("Укажите продукт, тариф или пакет кредитов для оплаты");
+  throw new Error("Укажите продукт, тариф или пакет баллов для оплаты");
 }
 
 export async function userHasActiveEntitlement(userId: string, productKey: string): Promise<boolean> {

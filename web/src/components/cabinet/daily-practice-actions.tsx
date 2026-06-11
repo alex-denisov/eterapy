@@ -52,7 +52,7 @@ export function DailyPracticeActions({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Не удалось завершить практику");
       setDone(true);
-      setMessage(payload.rewardGranted ? "+1 кредит ясности начислен." : "Практика уже была завершена сегодня.");
+      setMessage(payload.rewardGranted ? "+1 балл начислен." : "Практика уже была завершена сегодня.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось завершить практику");
     } finally {
@@ -83,7 +83,7 @@ export function DailyPracticeActions({
         perspective: payload.card?.perspective ?? beats.perspective,
         step: payload.card?.step ?? beats.step,
       });
-      setMessage(payload.rewardGranted ? "+1 кредит ясности начислен." : "Практика на сегодня уже пройдена.");
+      setMessage(payload.rewardGranted ? "+1 балл начислен." : "Практика на сегодня уже пройдена.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось обработать вопрос");
     } finally {

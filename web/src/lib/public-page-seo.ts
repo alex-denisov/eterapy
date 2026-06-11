@@ -44,7 +44,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/pricing/compare": {
     title: "Сравнение тарифов ETerapy",
-    description: "Подробное сравнение Free, Plus и Premium: кредиты, карта, цифровые продукты, маршруты, ограничения и что не входит в подписки.",
+    description: "Подробное сравнение Free, Plus и Premium: баллы, карта, цифровые продукты, маршруты, ограничения и что не входит в подписки.",
     schemaKind: "Product",
   },
   "/products/circle": {
@@ -74,7 +74,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/products/clarity-practice": {
     title: "Практика ясности — продукт ETerapy",
-    description: "Ежедневная мягкая практика: один вопрос, один ракурс, один маленький шаг и кредиты ясности за осмысленные действия.",
+    description: "Ежедневная мягкая практика: один вопрос, один ракурс, один маленький шаг и баллы за осмысленные действия.",
     schemaKind: "Product",
   },
   "/products/perspectives": {

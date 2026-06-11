@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
+import { formatPoints } from "@/lib/points";
 import { NotificationBell } from "@/components/notification-bell";
 import {
   Banknote,
@@ -118,7 +119,7 @@ function BalanceSummaryLink({
     <Link
       href={appUrl("/wallet")}
       prefetch={false}
-      aria-label={`Кредиты ясности: ${clarityCredits}`}
+      aria-label={`Баланс: ${formatPoints(clarityCredits)}`}
       className={cn(
         "hidden h-7 items-center gap-1 overflow-hidden rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 text-[12px] font-semibold tabular-nums text-[var(--soft-terracotta-dark)] shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] transition-colors hover:bg-[color-mix(in_srgb,var(--soft-paper-card)_92%,white)]",
         className,
@@ -129,7 +130,7 @@ function BalanceSummaryLink({
       {/* N8 quick win: at zero credits the pill turns into a top-up cue
           instead of a dead "0" — it already routes to /credits. */}
       {clarityCredits > 0 ? (
-        <span className="min-w-[1rem] text-center">{clarityCredits}</span>
+        <span className="whitespace-nowrap text-center">{formatPoints(clarityCredits)}</span>
       ) : (
         <span className="text-[11px]" data-testid="header-credits-topup">Пополнить</span>
       )}
@@ -575,7 +576,7 @@ export function Header() {
                   <Link href={appUrl("/wallet")} prefetch={false} onClick={() => setMobileOpen(false)}
                     className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
                     <Sparkles className="size-4" aria-hidden="true" />
-                    {clarityCredits} кредитов
+                    Баланс: {formatPoints(clarityCredits)}
                   </Link>
                 )}
                 <Link href={cabinetHref} prefetch={false} onClick={() => setMobileOpen(false)}

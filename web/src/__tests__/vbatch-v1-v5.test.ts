@@ -33,6 +33,6 @@ describe("V5 — owner financial loop rendered as grouped metric cards", () => {
     expect(page).toContain('title: "Выплаты практикам"');
     expect(page).toContain('title: "Возвраты и риски"');
     // Z1-Ф1: the client ₽ balance liability card became a clarity-credits card.
-    expect(page).toContain('title: "Кредиты ясности"');
+    expect(page).toContain('title: "Баллы"');
   });
 });

@@ -295,7 +295,7 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
               <h3 className={`mb-2 ${LABEL}`}>Финансы</h3>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
-                  <span className={LABEL}>Кредиты ясности {row.role !== "CLIENT" && "(только клиенты)"}</span>
+                  <span className={LABEL}>Баллы {row.role !== "CLIENT" && "(только клиенты)"}</span>
                   <Input className={FIELD} inputMode="numeric" value={row.role === "CLIENT" ? clarityCredits : "—"} disabled={!canEditBalance || row.role !== "CLIENT"} onChange={(e) => setClarityCredits(e.target.value)} />
                 </label>
               </div>

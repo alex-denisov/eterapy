@@ -136,7 +136,7 @@ export default async function PractitionerServicesPage() {
             <p className="soft-eyebrow">комиссия платформы</p>
             <p className="font-heading mt-3 text-4xl font-semibold text-[var(--soft-bordeaux)]">{commissionPercent}%</p>
             <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Удерживается только с проведённых встреч. Цифровые продукты и кредиты ясности не уменьшают цену вашей
+              Удерживается только с проведённых встреч. Цифровые продукты и баллы не уменьшают цену вашей
               сессии.
             </p>
           </section>
@@ -160,7 +160,7 @@ export default async function PractitionerServicesPage() {
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {[
             ["Прозрачная цена", "Клиент видит стоимость до записи, без скрытых доплат."],
-            ["Без скидок на встречи", "Подписки и кредиты применяются только к цифровым продуктам."],
+            ["Без скидок на встречи", "Подписки и баллы применяются только к цифровым продуктам."],
             ["Этическая рамка", "Нельзя обещать гарантированный результат или давить срочностью."],
           ].map(([title, text]) => (
             <div key={title} className="soft-card-flat p-4">

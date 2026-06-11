@@ -6,11 +6,11 @@ const ACTIVE_STATUSES = ["pending", "confirmed"];
 
 export const WALLET_SOURCE_LABELS: Record<string, string> = {
   daily_practice: "Практика ясности",
-  welcome: "Приветственные кредиты",
+  welcome: "Приветственные баллы",
   streak: "Стрик практики",
   subscription: "Подписка",
   referral: "Реферальная программа",
-  purchase: "Купленные кредиты",
+  purchase: "Купленные баллы",
   product: "Открытие продукта",
   mission: "Миссия",
   admin: "Начисление от команды",
@@ -24,13 +24,9 @@ export const WALLET_TYPE_LABELS: Record<string, string> = {
   adjustment: "Коррекция",
 };
 
-export function creditsWord(n: number): string {
-  const mod10 = Math.abs(n) % 10;
-  const mod100 = Math.abs(n) % 100;
-  if (mod10 === 1 && mod100 !== 11) return "кредит";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "кредита";
-  return "кредитов";
-}
+// B365 (M26): UI currency is «баллы»; declension lives in the client-safe
+// lib/points.ts. Re-exported here for existing wallet-page imports.
+export { pointsWord as creditsWord } from "@/lib/points";
 
 function daysUntil(date: Date, now: Date): number {
   return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));

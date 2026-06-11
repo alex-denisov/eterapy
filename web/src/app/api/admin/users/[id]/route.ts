@@ -166,11 +166,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       // Clarity credits are a client-only currency; gate by user class so the
       // option stays inert for practitioners/staff (T4).
       if (targetUser.role !== "CLIENT") {
-        return NextResponse.json({ error: "Кредиты ясности доступны только клиентам" }, { status: 400 });
+        return NextResponse.json({ error: "Баллы доступны только клиентам" }, { status: 400 });
       }
       const target = Number(body.clarityCredits);
       if (!Number.isInteger(target) || target < 0) {
-        return NextResponse.json({ error: "Некорректное количество кредитов" }, { status: 400 });
+        return NextResponse.json({ error: "Некорректное количество баллов" }, { status: 400 });
       }
       const reason = typeof body.reason === "string" ? body.reason.trim() : "";
       const current = await getClarityCreditBalance(id);

@@ -77,7 +77,7 @@ export function SynastryActions() {
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
       if (payload.paywalled) {
-        setMessage("Бесплатный фрагмент готов. Полную синастрию можно открыть кредитами ясности или картой.");
+        setMessage("Бесплатный фрагмент готов. Полную синастрию можно открыть баллами или картой.");
       }
       setStatus("idle");
     } catch (error) {
@@ -85,7 +85,7 @@ export function SynastryActions() {
       if (typed.status === 400) {
         setMessage("Заполните данные рождения обоих участников: дата, примерное время и город.");
       } else if (typed.status === 402) {
-        setMessage("Откройте доступ кредитами ясности или картой — полный результат появится здесь же.");
+        setMessage("Откройте доступ баллами или картой — полный результат появится здесь же.");
       } else {
         setMessage(typed.message || "Не удалось создать синастрию");
       }
@@ -117,7 +117,7 @@ export function SynastryActions() {
           <p className="soft-eyebrow">получить продукт</p>
           <h2 className="soft-h3 mt-2">Синастрия</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Сначала можно получить один настоящий акцент по данным рождения. Полная синастрия открывается кредитами ясности или картой.
+            Сначала можно получить один настоящий акцент по данным рождения. Полная синастрия открывается баллами или картой.
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>

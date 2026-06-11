@@ -266,8 +266,8 @@ export const ALL_EVENTS: Array<{
   {
     event: "CREDITS_EXPIRING",
     category: "retention",
-    label: "Кредиты скоро сгорят",
-    description: "Бережное напоминание за 2-3 дня до сгорания кредитов",
+    label: "Баллы скоро сгорят",
+    description: "Бережное напоминание за 2-3 дня до сгорания баллов",
     roles: ["CLIENT"],
   },
   {
@@ -287,15 +287,15 @@ export const ALL_EVENTS: Array<{
   {
     event: "WELCOME_CREDITS",
     category: "retention",
-    label: "Приветственные кредиты",
-    description: "Когда приветственные кредиты начислены",
+    label: "Приветственные баллы",
+    description: "Когда приветственные баллы начислены",
     roles: ["CLIENT"],
   },
   {
     event: "WELCOME_CREDITS_REMINDER",
     category: "retention",
-    label: "Приветственные кредиты ждут",
-    description: "Напоминание о неиспользованных приветственных кредитах",
+    label: "Приветственные баллы ждут",
+    description: "Напоминание о неиспользованных приветственных баллах",
     roles: ["CLIENT"],
   },
 ];

@@ -32,10 +32,10 @@ describe("B349 — wallet/credits merge", () => {
     expect(wallet).toContain("getCreditWalletSnapshot");
   });
 
-  it("cabinet nav shows one money/credits item — no duplicate «Кредиты ясности»", () => {
+  it("cabinet nav shows one money/credits item — no duplicate «Баллы»", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
     expect(shell).toContain('label: "Кошелёк"');
-    expect(shell).not.toContain('label: "Кредиты ясности"');
+    expect(shell).not.toContain('label: "Баллы"');
     expect(shell).not.toContain('appUrl("/credits")');
   });
 

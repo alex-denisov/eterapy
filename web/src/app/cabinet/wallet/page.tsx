@@ -16,7 +16,7 @@ import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 // B349 / Механика 2: /wallet and /credits used to be two near-identical pages.
 // They are now merged into this single "Кошелёк" page: balance + срок-разбивка +
 // пополнение пакетами (top-up) AND the spend catalog (открыть продукты за
-// кредиты). `/credits` redirects here, and the nav shows one item.
+// баллы). `/credits` redirects here, and the nav shows one item.
 
 type CreditWalletSnapshot = Awaited<ReturnType<typeof getCreditWalletSnapshot>>;
 type WalletPack = CreditWalletSnapshot["packs"][number];
@@ -32,10 +32,10 @@ function WalletBalanceHeader({ balance }: { balance: number }) {
     <section className="mb-5 grid gap-4 lg:grid-cols-[1fr_18rem]">
       <div>
         <p className="soft-eyebrow">кошелёк кабинета</p>
-        <h1 className="soft-h1 mt-2">Кошелёк кредитов</h1>
+        <h1 className="soft-h1 mt-2">Кошелёк баллов</h1>
         <p className="soft-lede mt-3 max-w-3xl">
-          Здесь видно, сколько кредитов ясности доступно сейчас, какие начисления сгорают
-          раньше, какие пакеты можно докупить и на что потратить кредиты.
+          Здесь видно, сколько баллов доступно сейчас, какие начисления сгорают
+          раньше, какие пакеты можно докупить и на что потратить баллы.
         </p>
       </div>
       <div className="soft-card p-5">
@@ -87,7 +87,7 @@ function SubscriptionCreditsCallout() {
       <p className="soft-eyebrow">подписка</p>
       <h2 className="soft-h3 mt-2">Plus и Premium пополняют кошелёк каждый месяц</h2>
       <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-        Пакеты удобны для разовой дозаправки. Если кредиты нужны регулярно, подписка
+        Пакеты удобны для разовой дозаправки. Если баллы нужны регулярно, подписка
         даёт месячный кошелёк и открывает якорные форматы без списания.
       </p>
       <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5">
@@ -103,11 +103,11 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
     <section className="mt-6" id="wallet-topup">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <p className="soft-eyebrow">пакеты кредитов</p>
+          <p className="soft-eyebrow">пакеты баллов</p>
           <h2 className="soft-h2 mt-1">Дозаправить кошелёк</h2>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
-          Купленные кредиты не сгорают. Ими можно открыть цифровые продукты, но не живые сессии.
+          Купленные баллы не сгорают. Ими можно открыть цифровые продукты, но не живые сессии.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
@@ -124,7 +124,7 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
               {pack.amountRub} ₽
             </p>
             <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">
-              {pack.pricePerCreditRub} ₽ за кредит
+              {pack.pricePerCreditRub} ₽ за балл
             </p>
             <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               +{pack.credits} {creditsWord(pack.credits)} на продукты каталога.
@@ -207,10 +207,10 @@ export default async function CabinetWalletPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="soft-eyebrow">стартовый подарок</p>
-              <h2 className="soft-h3 mt-2">3 приветственных кредита на первые разборы</h2>
+              <h2 className="soft-h3 mt-2">3 приветственных балла на первые разборы</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 Они действуют ещё {daysUntil(welcomeGrant.expiresAt, now)} дн. Этого хватит,
-                чтобы открыть «4 ракурса» и попробовать один следующий формат за кредиты.
+                чтобы открыть «4 ракурса» и попробовать один следующий формат за баллы.
               </p>
             </div>
             <Link
@@ -261,12 +261,12 @@ export default async function CabinetWalletPage() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="soft-eyebrow">подписка</p>
-              <h3 className="soft-h3 mt-2">Больше кредитов каждый месяц</h3>
+              <h3 className="soft-h3 mt-2">Больше баллов каждый месяц</h3>
             </div>
-            <span className="soft-badge shrink-0 whitespace-nowrap">от 12 кредитов/мес</span>
+            <span className="soft-badge shrink-0 whitespace-nowrap">от 12 баллов/мес</span>
           </div>
           <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Подписка Plus и Premium пополняет баланс кредитов ясности каждый месяц и открывает
+            Подписка Plus и Premium пополняет баланс баллов каждый месяц и открывает
             включённые цифровые продукты. Подбор тарифа — на странице подписки.
           </p>
           <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5 self-start">
@@ -282,7 +282,7 @@ export default async function CabinetWalletPage() {
           <h2 className="soft-h2 mt-1">Откройте больше ясности</h2>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
-          Спишите кредиты или оплатите картой. Продукты из вашего тарифа открыты сразу.
+          Спишите баллы или оплатите картой. Продукты из вашего тарифа открыты сразу.
         </p>
       </div>
       <section className="grid gap-4 lg:grid-cols-2">
@@ -291,7 +291,7 @@ export default async function CabinetWalletPage() {
           const includedInPlan = subscriptionProducts.has(productKey);
           const unlocked = activeProducts.has(productKey) || includedInPlan;
           const priceRub = priceKopecks ? Math.round(priceKopecks / 100).toLocaleString("ru-RU") : null;
-          const creditLine = creditCost ? `или −${creditCost} ${creditsWord(creditCost)} ясности` : null;
+          const creditLine = creditCost ? `или −${creditCost} ${creditsWord(creditCost)}` : null;
           const badge = includedInPlan
             ? { label: "входит в подписку", className: "soft-badge soft-badge-warm" }
             : unlocked
@@ -319,7 +319,7 @@ export default async function CabinetWalletPage() {
                   <>
                     <ProductPurchaseControls
                       productKey={productKey}
-                      label="Открыть за кредиты"
+                      label="Открыть за баллы"
                       checkoutSource={`cabinet-wallet-${product.slug}`}
                       creditCost={creditCost}
                     />
@@ -349,7 +349,7 @@ export default async function CabinetWalletPage() {
 
       <div className="mt-3 flex items-center gap-2 text-sm text-[var(--soft-ink-soft)]">
         <CheckCircle2 className="size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-        Если кредитов не хватает — пополните кошелёк выше или оплатите продукт картой.
+        Если баллов не хватает — пополните кошелёк выше или оплатите продукт картой.
       </div>
     </main>
   );

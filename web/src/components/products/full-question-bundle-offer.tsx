@@ -80,7 +80,7 @@ export function FullQuestionBundleOffer({
           </p>
           <div className="mt-3 flex items-center gap-2 text-xs text-[var(--soft-ink-faint)]">
             <CheckCircle2 className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-            или −5 кредитов ясности
+            или −5 баллов
           </div>
           <ProductPurchaseControls
             productKey="full-question"
@@ -101,7 +101,7 @@ export function FullQuestionBundleOffer({
           <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Premium</h4>
           <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">1 290 ₽</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            35 кредитов в месяц, 4 ракурса и глубокий отчёт как якорные форматы.
+            35 баллов в месяц, 4 ракурса и глубокий отчёт как якорные форматы.
           </p>
           <Link href={appUrl("/billing?plan=premium")} className="soft-button soft-button-ghost mt-4">
             Выбрать Premium

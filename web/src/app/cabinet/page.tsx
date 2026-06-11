@@ -8,6 +8,7 @@ import { DailyPracticeActions } from "@/components/cabinet/daily-practice-action
 import db from "@/lib/db";
 import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
+import { pointsWord } from "@/lib/points";
 import { listMissionChecklist } from "@/lib/missions";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
@@ -169,7 +170,7 @@ export default async function ClientCabinetPage() {
         </h1>
       </div>
 
-      {/* v4.2: 3-col stat grid — тема / кредиты / подписка */}
+      {/* v4.2: 3-col stat grid — тема / баллы / подписка */}
       <div className="mb-4 grid gap-4 md:grid-cols-3">
         <div
           className="soft-card p-5"
@@ -203,7 +204,7 @@ export default async function ClientCabinetPage() {
           style={{ background: "linear-gradient(140deg, #F4D9C1, #F8E6D1)", textDecoration: "none" }}
         >
           <div className="flex items-center justify-between">
-            <p className="soft-eyebrow">Кредиты ясности</p>
+            <p className="soft-eyebrow">Баллы</p>
           </div>
           <p style={{ fontFamily: "var(--font-heading, serif)", fontSize: 44, color: "var(--soft-bordeaux)", fontWeight: 600, lineHeight: 1, marginTop: 8 }}>
             {clarityCredits}
@@ -300,7 +301,7 @@ export default async function ClientCabinetPage() {
                 {missionChecklist.completedCount} из {missionChecklist.totalCount} миссий пройдено
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                Награды начисляются только за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} кредитов,
+                Награды начисляются только за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)},
                 которые можно потратить на цифровые форматы.
               </p>
             </div>
@@ -447,7 +448,7 @@ export default async function ClientCabinetPage() {
           </div>
           <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
             <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{clarityCredits}</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>кредитов ясности</p>
+            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>{pointsWord(clarityCredits)}</p>
           </div>
         </div>
         <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>

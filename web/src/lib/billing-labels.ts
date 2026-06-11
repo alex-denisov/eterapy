@@ -35,9 +35,9 @@ export const PRODUCT_LABELS: Record<string, string> = {
 
 // Credit-pack purchase descriptions, keyed by pack key (see lib/entitlements CREDIT_PACKS).
 export const CREDIT_PACK_LABELS: Record<string, string> = {
-  "pack-5": "Пакет 5 кредитов",
-  "pack-10": "Пакет 10 кредитов",
-  "pack-25": "Пакет 25 кредитов",
+  "pack-5": "Пакет 5 баллов",
+  "pack-10": "Пакет 10 баллов",
+  "pack-25": "Пакет 25 баллов",
 };
 
 export const LEDGER_TYPE_LABELS: Record<string, string> = {

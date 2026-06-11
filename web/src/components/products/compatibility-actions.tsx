@@ -93,7 +93,7 @@ export function CompatibilityActions({
   async function createInvite() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы создать приглашение и открыть совместимость через кредиты или карту.");
+      setMessage("Войдите, чтобы создать приглашение и открыть совместимость через баллы или карту.");
       setStatus("error");
       return;
     }
@@ -170,7 +170,7 @@ export function CompatibilityActions({
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к совместимости кредитами ясности или картой — ответы партнеров останутся на месте.");
+        setMessage("Откройте доступ к совместимости баллами или картой — ответы партнеров останутся на месте.");
         setStatus("error");
         return;
       }

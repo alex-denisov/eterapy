@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   if (payload?.action === "reflect") {
     // G14: the user writes their own вопрос дня; we generate ракурс + шаг from
-    // it, store them, mark the day done and grant the +1 кредит reward once.
+    // it, store them, mark the day done and grant the +1 балл reward once.
     const question = typeof payload.question === "string" ? payload.question.trim().slice(0, 600) : "";
     if (question.length < 3) {
       return errorWithRequestContext("VALIDATION_ERROR", "Запишите вопрос дня (хотя бы несколько слов)", 400, context);
