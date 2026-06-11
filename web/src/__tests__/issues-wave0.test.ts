@@ -23,7 +23,7 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
     const pricing = source("src/app/pricing/pricing-plans.tsx");
     expect(catalog).not.toContain("50 минут");
     expect(pricing).not.toContain("50 минут");
-    expect(catalog).toContain("60 минут онлайн с проверенным специалистом");
+    expect(catalog).toContain("60 минут онлайн");
   });
 
   it("D3/D5: unified admin segmented control exists and replaces low-contrast toggles", () => {

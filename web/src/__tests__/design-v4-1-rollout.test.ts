@@ -41,18 +41,21 @@ describe("design v4.2 rollout", () => {
     const pricing = source("app/pricing/pricing-plans.tsx");
     const products = source("lib/v5-products.ts");
 
-    expect(catalog).toContain("Круг");
-    expect(catalog).toContain("Разобраться вдвоём");
-    expect(catalog).toContain("Ежедневная практика");
+    // M26/B370: каталог = 5 групп; «Вместе» — одна карточка, практик-карточек нет.
+    expect(catalog).toContain("Начать бесплатно");
+    expect(catalog).toContain("Самостоятельные разборы");
+    expect(catalog).toContain("Вместе");
+    expect(catalog).toContain("Эзотерика");
+    expect(catalog).toContain("Поговорить со специалистом");
     expect(catalog).toContain("soft-service-card");
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("490");
     expect(pricing).toContain("Без скидок на встречи");
     // T9: chat-analysis is a single 390 ₽ price (tiers removed until they ship);
-    // natal 590, joint от 4 500.
+    // natal 590; M26/B370: live-встречи — одна карточка «от 2 000 ₽» (минималка каталога).
     expect(catalog).toContain("590 ₽");
     expect(catalog).toContain("390 ₽");
-    expect(catalog).toContain("от 4 500 ₽");
+    expect(catalog).toContain("от 2 000 ₽");
     expect(products).toContain("один отчёт на двоих");
   });
 
