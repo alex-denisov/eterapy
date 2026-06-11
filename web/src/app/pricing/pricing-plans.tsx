@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { getProductPriceLabel } from "@/lib/product-prices";
+
+// B366: à-la-carte prices derive from the single billing source.
+const price = (slug: string): string => getProductPriceLabel(slug) ?? "—";
 
 const plans = [
   {
@@ -9,11 +13,11 @@ const plans = [
     name: "Базовый",
     tagline: "Чтобы попробовать",
     monthPrice: 0,
+    // B371: «Карточка для шеринга — 2 шаблона» убрана — механики шаринга-шаблонов нет.
     perks: [
       "Первый разбор бесплатно",
       "Доступ к библиотеке вопросов",
       "1 разбор в неделю",
-      "Карточка для шеринга — 2 шаблона",
     ],
     cta: "Начать",
     href: "/checkin",
@@ -67,29 +71,24 @@ const plans = [
   },
 ];
 
-// W19: prices reconciled with the canonical catalog (lib/v5-products.ts) —
-// deep-report 690 (was 590), compatibility 790 (was 590–990), the phantom
-// "Разбор переписки Deep/Pro 890–1490" row removed (that tier no longer
-// exists), natal-chart synastry note added. Session rows moved to a separate
-// DB-priced block (see sessionRows) so they reflect the real PriceRate floor.
+// B366/B371: prices derive from the single billing source (no hand-typed ₽).
+// B371 cleanup: «Маршруты и карта» категория убрана целиком (Ежедневная практика
+// бесплатна и живёт в кабинете; «7 дней» и «Расширенная карта» закрыты,
+// роуты выпиливаются в B373); «Круг» закрыт (→ «Вместе» в B385).
 const oneOff = [
   { cat: "Бесплатный вход", t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно", href: "/checkin", cta: "Начать" },
-  { cat: "Цифровые углубления", t: "Полная картина", d: "Мысли · Чувства · Скрытый смысл · Первый шаг", price: "299 ₽", href: "/products/perspectives", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Подробный разбор", d: "Документ-разбор · 10–15 страниц", price: "690 ₽", href: "/products/deep-report", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Разбор переписки", d: "Тон, динамика, варианты ответа", price: "390 ₽", href: "/products/chat-analysis", cta: "Разобрать" },
-  { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению, начало бесплатно", price: "790 ₽", href: "/products/compatibility", cta: "Создать" },
-  { cat: "Для двоих и круга", t: "Круг", d: "2–5 участников и общий итог", price: "790 ₽", href: "/products/circle", cta: "Создать" },
-  { cat: "Для двоих и круга", t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽", href: "/products/pair", cta: "Пригласить" },
-  { cat: "Маршруты и карта", t: "Ежедневная практика", d: "Базовый ритм бесплатно, расширение по запросу", price: "0 ₽", href: "/products/clarity-practice", cta: "Открыть" },
-  { cat: "Маршруты и карта", t: "7 дней", d: "Один шаг в день, 5–10 мин · день 1 бесплатно", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
-  { cat: "Маршруты и карта", t: "Расширенная карта", d: "Годовой портрет паттернов · история и темы", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
-  { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: "390 ₽", href: "/products/tarot", cta: "Купить" },
-  { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор · совместимость по звёздам с партнёром 990 ₽", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
-  { cat: "Эзотерика", t: "Совместимость по звёздам", d: "Две натальные карты · карта пары", price: "990 ₽", href: "/products/synastry", cta: "Собрать" },
-  { cat: "Эзотерика", t: "Числовой портрет", d: "Имя, дата и цикл года", price: "390 ₽", href: "/products/numerology", cta: "Купить" },
+  { cat: "Цифровые углубления", t: "Полная картина", d: "Мысли · Чувства · Скрытый смысл · Первый шаг", price: price("perspectives"), href: "/products/perspectives", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Подробный разбор", d: "Документ-разбор · 10–15 страниц", price: price("deep-report"), href: "/products/deep-report", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Разбор переписки", d: "Тон, динамика, варианты ответа", price: price("chat-analysis"), href: "/products/chat-analysis", cta: "Разобрать" },
+  { cat: "Для двоих", t: "Совместимость", d: "Парный отчёт по приглашению, начало бесплатно", price: price("compatibility"), href: "/products/compatibility", cta: "Создать" },
+  { cat: "Для двоих", t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: price("pair"), href: "/products/pair", cta: "Пригласить" },
+  { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: price("tarot"), href: "/products/tarot", cta: "Купить" },
+  { cat: "Эзотерика", t: "Натальная карта", d: `Базовый разбор · совместимость по звёздам с партнёром ${price("synastry")}`, price: price("natal-chart"), href: "/products/natal-chart", cta: "Купить" },
+  { cat: "Эзотерика", t: "Совместимость по звёздам", d: "Две натальные карты · карта пары", price: price("synastry"), href: "/products/synastry", cta: "Собрать" },
+  { cat: "Эзотерика", t: "Числовой портрет", d: "Имя, дата и цикл года", price: price("numerology"), href: "/products/numerology", cta: "Купить" },
 ];
 
-const oneOffCats = ["Бесплатный вход", "Цифровые углубления", "Для двоих и круга", "Маршруты и карта", "Эзотерика", "Встречи"];
+const oneOffCats = ["Бесплатный вход", "Цифровые углубления", "Для двоих", "Эзотерика", "Встречи"];
 
 // W19: session prices come from the real PriceRate floor (passed from the
 // server), never a hardcoded fiction. Specialties without a published rate show

@@ -29,17 +29,19 @@ describe("Z11 — full-question bundle", () => {
     expect(entitlements).toContain('"deep-report"');
   });
 
-  it("shows the deep-report decoy ladder with 690 / 890 / Premium 1290", () => {
+  // B366: the decoy ladder prices now derive from the single billing source
+  // (getProductPriceLabel) instead of hardcoded ₽ literals.
+  it("shows the deep-report decoy ladder derived from the single price source", () => {
     const deepActions = source("components/products/deep-report-actions.tsx");
     const bundleOffer = source("components/products/full-question-bundle-offer.tsx");
 
     expect(deepActions).toContain("FullQuestionBundleOffer");
     expect(bundleOffer).toContain('data-testid="full-question-bundle-offer"');
-    expect(bundleOffer).toContain("690 ₽");
-    expect(bundleOffer).toContain("890 ₽");
+    expect(bundleOffer).toContain('getProductPriceLabel("deep-report")');
+    expect(bundleOffer).toContain('getProductPriceLabel("full-question")');
     expect(bundleOffer).toContain("1 290 ₽");
     expect(bundleOffer).toContain('productKey="full-question"');
-    expect(bundleOffer).toContain("creditCost={5}");
+    expect(bundleOffer).toContain("creditCost={BUNDLE_COST}");
     expect(bundleOffer).toContain("/api/billing/entitlements?productKey=full-question");
   });
 });

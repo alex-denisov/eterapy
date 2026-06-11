@@ -78,7 +78,11 @@ describe("Y5 — verification: documents + non-empty guard", () => {
 
 describe("Y9 — pricing «Встречи» reflects the base 60-minute tariff", () => {
   it("queries the minimum enabled 60-minute PriceRate first", () => {
+    // B366: the DB floor getter moved to the single session-pricing source.
     const page = src("app/pricing/page.tsx");
-    expect(page).toContain("durationMin: 60");
+    expect(page).toContain("getMinSessionPriceRub");
+    const server = src("lib/session-pricing-server.ts");
+    expect(server).toContain("durationMin: SESSION_BASE_DURATION_MIN");
+    expect(src("lib/session-pricing.ts")).toContain("SESSION_BASE_DURATION_MIN = 60");
   });
 });

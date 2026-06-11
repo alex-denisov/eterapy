@@ -51,11 +51,10 @@ describe("design v4.2 rollout", () => {
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("490");
     expect(pricing).toContain("Без скидок на встречи");
-    // T9: chat-analysis is a single 390 ₽ price (tiers removed until they ship);
-    // natal 590; M26/B370: live-встречи — одна карточка «от 2 000 ₽» (минималка каталога).
-    expect(catalog).toContain("590 ₽");
-    expect(catalog).toContain("390 ₽");
-    expect(catalog).toContain("от 2 000 ₽");
+    // B366: catalog prices derive from the single billing source (no ₽ literals);
+    // the live-встреча card uses the single session floor helper.
+    expect(catalog).toContain("getProductPriceLabel");
+    expect(catalog).toContain("formatSessionFloor");
     expect(products).toContain("один отчёт на двоих");
   });
 

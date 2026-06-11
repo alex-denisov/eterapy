@@ -2,18 +2,23 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, MinusCircle } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
+import { getProductPriceLabel, getProductCreditCost } from "@/lib/product-prices";
+import { formatPoints } from "@/lib/points";
 
 export const metadata = createPublicPageMetadata("/pricing/compare");
+
+// B366: «баллы / ₽» derive from the single billing source. B371: «7 дней» строка
+// убрана (практика бесплатна), «Моя карта» → «Дневник».
+const cost = (slug: string): string => `${formatPoints(getProductCreditCost(slug) ?? 0)} / ${getProductPriceLabel(slug) ?? "—"}`;
 
 const rows = [
   ["Первичный разбор", "1 / день", "3 / день", "без лимита"],
   ["Баллы", "3 в подарок (14 дн)", "12 / месяц", "35 / месяц"],
-  ["Полная картина", "1 балл / 299 ₽", "включено без баллов", "включено без баллов"],
-  ["Подробный разбор", "4 балла / 690 ₽", "4 балла из кошелька", "включено без баллов"],
-  ["Разбор переписки", "2 балла / 390 ₽", "2 балла из кошелька", "2 балла из кошелька"],
-  ["Совместимость («Вы двое»)", "4 балла / 790 ₽", "4 балла из кошелька", "4 балла из кошелька"],
-  ["7 дней", "8 баллов / 990 ₽", "8 баллов из кошелька", "8 баллов из кошелька"],
-  ["Моя карта", "ограниченная история", "история и темы", "расширенная карта и аналитика"],
+  ["Полная картина", cost("perspectives"), "включено без баллов", "включено без баллов"],
+  ["Подробный разбор", cost("deep-report"), "из кошелька", "включено без баллов"],
+  ["Разбор переписки", cost("chat-analysis"), "из кошелька", "из кошелька"],
+  ["Совместимость", cost("compatibility"), "из кошелька", "из кошелька"],
+  ["Дневник", "ограниченная история", "история и темы", "расширенная карта и аналитика"],
   ["Встречи со специалистами", "по тарифу специалиста", "по тарифу специалиста", "по тарифу специалиста"],
 ];
 

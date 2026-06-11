@@ -306,7 +306,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
                   productKey="deep-report"
                   label="Открыть полный отчёт"
                   checkoutSource="deep-report-generate"
-                  creditCost={4}
+                  creditCost={3}
                   onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
                 />
                 {!result?.previewText && (

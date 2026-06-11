@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { Compass, Moon, Sparkles } from "lucide-react";
+import { getProductPriceLabel } from "@/lib/product-prices";
 
+// B366: prices derive from the single billing source.
 const offers = [
-  { href: "/products/tarot", icon: Moon, label: "Таро · 390 ₽" },
-  { href: "/products/natal-chart", icon: Compass, label: "Натальная карта · 590 ₽" },
-  { href: "/products/synastry", icon: Compass, label: "Совместимость по звёздам · 990 ₽" },
-  { href: "/products/numerology", icon: Sparkles, label: "Числовой портрет · 390 ₽" },
+  { href: "/products/tarot", icon: Moon, label: `Таро · ${getProductPriceLabel("tarot")}` },
+  { href: "/products/natal-chart", icon: Compass, label: `Натальная карта · ${getProductPriceLabel("natal-chart")}` },
+  { href: "/products/synastry", icon: Compass, label: `Совместимость по звёздам · ${getProductPriceLabel("synastry")}` },
+  { href: "/products/numerology", icon: Sparkles, label: `Числовой портрет · ${getProductPriceLabel("numerology")}` },
 ];
 
 export function EsotericShowcaseSection() {

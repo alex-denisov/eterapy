@@ -3,6 +3,7 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { CircleActions } from "@/components/products/circle-actions";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
+import { getProductPriceLabel } from "@/lib/product-prices";
 
 export const metadata = createPublicPageMetadata("/products/circle");
 
@@ -39,7 +40,7 @@ export default async function CirclePage({
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
               <Link href="/pricing" className="soft-button soft-button-ghost">
-                790 ₽ за полный итог
+                {getProductPriceLabel("circle")} за полный итог
               </Link>
             </div>
           </div>

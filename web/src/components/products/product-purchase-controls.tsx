@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Coins, CreditCard, Loader2 } from "lucide-react";
 import { appUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
+import { pointsWord } from "@/lib/points";
 
 type ProductPurchaseControlsProps = {
   productKey: string;
@@ -150,7 +151,7 @@ export function ProductPurchaseControls({
     );
   }
 
-  const creditsLabel = hasCredits ? `${label} · ${creditCost} кр` : label;
+  const creditsLabel = hasCredits ? `${label} · ${creditCost} ${pointsWord(creditCost as number)}` : label;
   const messageBlock = message && (
     <p className="mt-2 text-xs leading-relaxed text-[var(--soft-bordeaux)]" role="status">
       {message}{" "}

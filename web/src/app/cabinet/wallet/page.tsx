@@ -11,6 +11,7 @@ import { creditsWord, getCreditWalletSnapshot } from "@/lib/credit-wallet";
 import db from "@/lib/db";
 import { getProductCreditCost, getProductPriceKopecks, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
 import { v5Products } from "@/lib/v5-products";
+import { formatSessionFloor } from "@/lib/session-pricing";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
 // B349 / Механика 2: /wallet and /credits used to be two near-identical pages.
@@ -247,7 +248,7 @@ export default async function CabinetWalletPage() {
               <p className="soft-eyebrow">живая сессия</p>
               <h3 className="soft-h3 mt-2">Записаться к специалисту</h3>
             </div>
-            <span className="soft-badge shrink-0 whitespace-nowrap">от 1 500 ₽</span>
+            <span className="soft-badge shrink-0 whitespace-nowrap">{formatSessionFloor()}</span>
           </div>
           <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Разбор с проверенным практиком — таролог, астролог или психолог. Подберите специалиста и удобное время.

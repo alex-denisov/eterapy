@@ -28,16 +28,17 @@ describe("Z14 synastry product", () => {
   });
 
   it("registers synastry pricing, credits, product metadata, and SEO route", () => {
-    expect(getProductPriceKopecks("synastry")).toBe(99_000);
-    expect(getProductCreditCost("synastry")).toBe(5);
+    // B366: 890 ₽ / 3 балла (≈297 ₽/балл).
+    expect(getProductPriceKopecks("synastry")).toBe(89_000);
+    expect(getProductCreditCost("synastry")).toBe(3);
 
     const product = v5Products.find((item) => item.slug === "synastry");
     expect(product).toEqual(expect.objectContaining({
       slug: "synastry",
       route: "/products/synastry",
       name: "Совместимость по звёздам",
-      price: "990 ₽",
-      creditCost: 5,
+      price: "890 ₽",
+      creditCost: 3,
       productKey: "synastry",
     }));
     expect(publicSeoRoutes).toContain("/products/synastry");

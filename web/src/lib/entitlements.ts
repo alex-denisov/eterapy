@@ -7,43 +7,19 @@ import { type V5ProductSlug } from "@/lib/v5-products";
 export type BundleProductKey = "full-question";
 export type PaidProductKey = V5ProductSlug | BundleProductKey;
 
-export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
-  "perspectives": 29900,
-  // Z3: align code ₽ with advertised copy (v5-products.ts / pricing): deep-report
-  // was 590 in code but 690 everywhere else; compatibility was 590 but 790.
-  "deep-report": 69000,
-  // Z11: packaging SKU = perspectives + deep-report. Not a public product page.
-  "full-question": 89000,
-  "chat-analysis": 39000,
-  "compatibility": 79000,
-  "circle": 79000,
-  "pair": 79000,
-  "seven-days": 99000,
-  "my-map": 99000,
-  "tarot": 39000,
-  "natal-chart": 59000,
-  "synastry": 99000,
-  "numerology": 39000,
-};
-
-export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
-  // X18: was 2 here but advertised as «1 балл» (B322 / v5-products.ts) — a user
-  // was charged 2 for a product priced at 1. Aligned to the advertised cost.
-  "perspectives": 1,
-  "deep-report": 4,
-  "full-question": 5,
-  "chat-analysis": 2,
-  "compatibility": 4,
-  // Z3: founder-accepted — circle/«Вы двое» = 4 credits (code had 3, copy said 4).
-  "circle": 4,
-  "pair": 4,
-  "seven-days": 8,
-  "my-map": 6,
-  "tarot": 2,
-  "natal-chart": 4,
-  "synastry": 5,
-  "numerology": 2,
-};
+// B366 (M26): the product price ladder now lives in the client-safe
+// `lib/product-prices.ts` (no `db` import) so client surfaces can derive from the
+// same source. Re-exported here so existing `@/lib/entitlements` imports keep working.
+export {
+  V5_PRODUCT_PRICES_KOPECKS,
+  V5_PRODUCT_CREDIT_COSTS,
+  V5_LADDER_ACTIVE_PRODUCTS,
+  formatRubFromKopecks,
+  getProductPriceKopecks,
+  getProductCreditCost,
+  getProductPriceLabel,
+} from "@/lib/product-prices";
+import { V5_PRODUCT_PRICES_KOPECKS, getProductPriceKopecks } from "@/lib/product-prices";
 
 export const V5_BUNDLE_CONTENTS: Record<BundleProductKey, V5ProductSlug[]> = {
   "full-question": ["perspectives", "deep-report"],
@@ -188,14 +164,6 @@ export function getBillingTransactionMetadata(transaction: Pick<Transaction, "me
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as BillingTransactionMetadata
     : {};
-}
-
-export function getProductPriceKopecks(productKey: string): number | null {
-  return V5_PRODUCT_PRICES_KOPECKS[productKey] ?? null;
-}
-
-export function getProductCreditCost(productKey: string): number | null {
-  return V5_PRODUCT_CREDIT_COSTS[productKey] ?? null;
 }
 
 export function getSubscriptionPlan(planKey: string) {

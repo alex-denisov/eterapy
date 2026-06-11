@@ -1,3 +1,9 @@
+import {
+  V5_PRODUCT_PRICES_KOPECKS,
+  V5_PRODUCT_CREDIT_COSTS,
+  formatRubFromKopecks,
+} from "@/lib/product-prices";
+
 export type V5ProductSlug =
   | "clarity-practice"
   | "perspectives"
@@ -35,7 +41,11 @@ export type V5Product = {
   result: string;
 };
 
-export const v5Products: V5Product[] = [
+// B366: the `price`/`creditCost` literals below are placeholders — the real
+// values are injected from entitlements (V5_PRODUCT_PRICES_KOPECKS /
+// V5_PRODUCT_CREDIT_COSTS) by the derive step at the bottom of this file, so the
+// catalog can never drift from the billing source of truth.
+const RAW_V5_PRODUCTS: V5Product[] = [
   {
     slug: "clarity-practice",
     route: "/products/clarity-practice",
@@ -85,11 +95,11 @@ export const v5Products: V5Product[] = [
     name: "Подробный разбор",
     eyebrow: "углубление · документ-разбор",
     summary: "Полноценный разбор-документ на 10–15 страниц. С оглавлением, выводами и рекомендациями. Можно скачать PDF, сохранить в Мою карту, обсудить со специалистом.",
-    // B322: docs §6 — рекомендация 690 ₽ (Standard tier). 4 балла остаются.
-    price: "690 ₽",
-    priceMeta: "или −4 балла · в Premium входит",
-    creditPrice: "или −4 балла · в Premium входит",
-    creditCost: 4,
+    // B366: 890 ₽ / 3 балла (≈297 ₽/балл, выровненная лестница). В Premium входит.
+    price: "890 ₽",
+    priceMeta: "или −3 балла · в Premium входит",
+    creditPrice: "или −3 балла · в Premium входит",
+    creditCost: 3,
     tone: "paid",
     cta: "Посмотреть глубину",
     directCta: "Купить разбор",
@@ -104,9 +114,8 @@ export const v5Products: V5Product[] = [
     name: "Разбор переписки",
     eyebrow: "Приватный анализ",
     summary: "Анализ текста или скриншота переписки: тон, эмоции, границы и бережные варианты ответа.",
-    // T9: single price for now (390 ₽ = V5_PRODUCT_PRICES_KOPECKS["chat-analysis"]).
-    // The earlier Start/Deep/Pro tier copy is removed until those tiers ship.
-    price: "390 ₽",
+    // B366: single price 590 ₽ / 2 балла (295 ₽/балл).
+    price: "590 ₽",
     priceMeta: "разовый разбор · или −2 балла",
     creditPrice: "или −2 балла",
     creditCost: 2,
@@ -127,11 +136,11 @@ export const v5Products: V5Product[] = [
     // взаимодействия и зоны различий), в отличие от «Разобраться вдвоём»,
     // который решает один конкретный общий вопрос.
     summary: "Парный отчёт о том, насколько вы совпадаете: сильные стороны взаимодействия и зоны различий — открывается после согласия обоих.",
-    // B322: docs §10 — рекомендованная цена 790 ₽ (was 590). Начало бесплатно.
-    price: "790 ₽",
+    // B366: 890 ₽ / 3 балла (≈297 ₽/балл). Начало бесплатно.
+    price: "890 ₽",
     priceMeta: "один отчёт на двоих · начало бесплатно",
-    creditPrice: "от −4 баллов",
-    creditCost: 4,
+    creditPrice: "от −3 баллов",
+    creditCost: 3,
     tone: "free",
     cta: "Создать совместимость",
     directCta: "Купить совместимость",
@@ -166,11 +175,11 @@ export const v5Products: V5Product[] = [
     name: "Круг",
     eyebrow: "Групповой формат · начало бесплатно",
     summary: "Один общий вопрос на 2–5 человек. Каждый отвечает отдельно, ETerapy собирает бережный итог без раскрытия приватных ответов.",
-    // B322: docs §9 — начало бесплатно, полный отчёт 790 ₽.
-    price: "790 ₽",
+    // B366: 890 ₽ / 3 балла (≈297 ₽/балл). Начало бесплатно. (legacy → «Вместе» в B385)
+    price: "890 ₽",
     priceMeta: "полный отчёт · начало бесплатно",
-    creditPrice: "или −4 балла",
-    creditCost: 4,
+    creditPrice: "или −3 балла",
+    creditCost: 3,
     tone: "free",
     cta: "Создать круг",
     directCta: "Открыть круг",
@@ -188,11 +197,11 @@ export const v5Products: V5Product[] = [
     // (ожидания, напряжение, что уточнить), в отличие от «Совместимости»,
     // которая оценивает общую совместимость пары.
     summary: "Один общий вопрос на двоих: каждый отвечает отдельно, ETerapy показывает, где совпали ожидания, где напряжение и что стоит обсудить.",
-    // B322: docs §8 — начало бесплатно, полный 790 ₽, Pro 990 ₽.
-    price: "790 ₽",
+    // B366: 890 ₽ / 3 балла (≈297 ₽/балл). Начало бесплатно.
+    price: "890 ₽",
     priceMeta: "полный отчёт · начало бесплатно",
-    creditPrice: "или −4 балла",
-    creditCost: 4,
+    creditPrice: "или −3 балла",
+    creditCost: 3,
     tone: "free",
     cta: "Пригласить второго",
     directCta: "Открыть формат вдвоём",
@@ -225,7 +234,8 @@ export const v5Products: V5Product[] = [
     name: "Расклад Таро",
     eyebrow: "расклад · тематический разбор",
     summary: "Три карты на ваш вопрос. Не оракул и не приговор — приглашение посмотреть на ситуацию через символ. Карты выпадают случайно, разбор готовит таролог-практик ETerapy.",
-    price: "390 ₽",
+    // B366: 590 ₽ / 2 балла (295 ₽/балл).
+    price: "590 ₽",
     priceMeta: "или −2 балла",
     creditPrice: "или −2 балла",
     creditCost: 2,
@@ -243,10 +253,11 @@ export const v5Products: V5Product[] = [
     name: "Натальная карта",
     eyebrow: "астрология · базовый разбор",
     summary: "Карта неба на момент вашего рождения — как символический портрет, а не сценарий. Разбираем ключевые акценты: где сильное «я», где обучение, где зона роста.",
+    // B366: 590 ₽ / 2 балла (295 ₽/балл).
     price: "590 ₽",
-    priceMeta: "или −4 балла · с картой партнёра — совместимость по звёздам 990 ₽",
-    creditPrice: "или −4 балла · с картой партнёра — совместимость по звёздам 990 ₽",
-    creditCost: 4,
+    priceMeta: "или −2 балла · с картой партнёра — совместимость по звёздам 890 ₽",
+    creditPrice: "или −2 балла · с картой партнёра — совместимость по звёздам 890 ₽",
+    creditCost: 2,
     tone: "paid",
     cta: "Открыть карту",
     directCta: "Купить натальную карту",
@@ -261,10 +272,11 @@ export const v5Products: V5Product[] = [
     name: "Совместимость по звёздам",
     eyebrow: "астрология · две натальные карты рядом",
     summary: "Сравнение двух натальных карт как язык динамики пары: где легче совпасть, где разные ритмы, какие вопросы помогают разговаривать бережнее.",
-    price: "990 ₽",
-    priceMeta: "или −5 баллов · натальная карта + партнёр",
-    creditPrice: "или −5 баллов",
-    creditCost: 5,
+    // B366: 890 ₽ / 3 балла (≈297 ₽/балл).
+    price: "890 ₽",
+    priceMeta: "или −3 балла · натальная карта + партнёр",
+    creditPrice: "или −3 балла",
+    creditCost: 3,
     tone: "paid",
     cta: "Сравнить карты",
     directCta: "Купить совместимость по звёздам",
@@ -279,7 +291,8 @@ export const v5Products: V5Product[] = [
     name: "Числовой портрет",
     eyebrow: "нумерология · число имени и даты",
     summary: "Короткий язык чисел про ваши темы и ритмы. Не приговор и не «когда выйти замуж», а удобная схема, на которой видны сильные стороны, повторяющиеся уроки и цикл года.",
-    price: "390 ₽",
+    // B366: 590 ₽ / 2 балла (295 ₽/балл).
+    price: "590 ₽",
     priceMeta: "или −2 балла",
     creditPrice: "или −2 балла",
     creditCost: 2,
@@ -294,6 +307,16 @@ export const v5Products: V5Product[] = [
   // M26/B367: joint-session («Эзотерик + психотерапевт») закрыт как услуга —
   // вместо него бейдж практика «психология + эзотерика» в каталоге специалистов.
 ];
+
+// B366: derive `price` (₽ label) and `creditCost` (баллы) from the single billing
+// source so the public catalog is provably consistent with checkout. Products
+// without a price entry (e.g. the free «Ежедневная практика») keep their literal.
+export const v5Products: V5Product[] = RAW_V5_PRODUCTS.map((product) => {
+  const kopecks = V5_PRODUCT_PRICES_KOPECKS[product.slug];
+  const cost = V5_PRODUCT_CREDIT_COSTS[product.slug];
+  if (kopecks == null || cost == null) return product;
+  return { ...product, price: formatRubFromKopecks(kopecks), creditCost: cost };
+});
 
 export function getV5Product(slug: string): V5Product | undefined {
   return v5Products.find((product) => product.slug === slug);

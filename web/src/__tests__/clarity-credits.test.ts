@@ -23,10 +23,11 @@ describe("M21 clarity credits", () => {
   });
 
   it("keeps product credit costs server-side", () => {
+    // B366: consistent ~297 ₽/балл ladder.
     expect(getProductCreditCost("perspectives")).toBe(1);
-    expect(getProductCreditCost("deep-report")).toBe(4);
+    expect(getProductCreditCost("deep-report")).toBe(3);
     expect(getProductCreditCost("chat-analysis")).toBe(2);
-    expect(getProductCreditCost("compatibility")).toBe(4);
+    expect(getProductCreditCost("compatibility")).toBe(3);
     expect(getProductCreditCost("seven-days")).toBe(8);
   });
 

@@ -363,7 +363,7 @@ export function CompatibilityActions({
                   productKey={productKey}
                   label="Открыть полную карту"
                   checkoutSource="compatibility-generate"
-                  creditCost={4}
+                  creditCost={3}
                   onUnlocked={() => { setHasEntitlement(true); void generateReport(); }}
                 />
               </div>

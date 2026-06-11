@@ -67,16 +67,17 @@ describe("v5 billing entitlements", () => {
   });
 
   it("keeps product prices server-side", () => {
+    // B366: consistent ~297 ₽/балл ladder (1=299·2=590·3=890·4=1090 ₽ bundle).
     expect(getProductPriceKopecks("perspectives")).toBe(29900);
-    expect(getProductPriceKopecks("deep-report")).toBe(69000);
-    expect(getProductPriceKopecks("full-question")).toBe(89000);
-    expect(getProductPriceKopecks("chat-analysis")).toBe(39000);
-    expect(getProductPriceKopecks("compatibility")).toBe(79000);
+    expect(getProductPriceKopecks("deep-report")).toBe(89000);
+    expect(getProductPriceKopecks("full-question")).toBe(109000);
+    expect(getProductPriceKopecks("chat-analysis")).toBe(59000);
+    expect(getProductPriceKopecks("compatibility")).toBe(89000);
     expect(getProductPriceKopecks("seven-days")).toBe(99000);
     // primary-answer was retired in B293; the free dialogue is now /checkin only.
     expect(getProductPriceKopecks("unknown-slug")).toBeNull();
-    expect(getProductCreditCost("deep-report")).toBe(4);
-    expect(getProductCreditCost("full-question")).toBe(5);
+    expect(getProductCreditCost("deep-report")).toBe(3);
+    expect(getProductCreditCost("full-question")).toBe(4);
     expect(V5_BUNDLE_CONTENTS["full-question"]).toEqual(["perspectives", "deep-report"]);
     expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
       amountKopecks: 49_000,
@@ -96,10 +97,10 @@ describe("v5 billing entitlements", () => {
     expect(() => resolveBillingPurchase({ amountKopecks: 50_000 })).toThrow(
       "Укажите продукт, тариф или пакет баллов"
     );
-    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(69_000);
+    expect(resolveBillingPurchase({ productKey: "deep-report", amountKopecks: 100 }).amountKopecks).toBe(89_000);
     expect(resolveBillingPurchase({ productKey: "full-question" })).toEqual(expect.objectContaining({
       kind: "product",
-      amountKopecks: 89_000,
+      amountKopecks: 109_000,
       description: "ETerapy: full-question",
       metadata: expect.objectContaining({ purchaseKind: "product", productKey: "full-question" }),
     }));

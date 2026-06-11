@@ -28,6 +28,7 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
 import { track } from "@/lib/analytics";
 import { pointsWord } from "@/lib/points";
+import { MIN_SESSION_PRICE_RUB, formatSessionFloor } from "@/lib/session-pricing";
 
 // B319: hard cap on user input length per turn. 1200 characters is roomy
 // for a thoughtful 2-3 paragraph reply while still keeping LLM context
@@ -1027,14 +1028,14 @@ export default function CheckinPage() {
                     data-analytics-cta-role="secondary"
                     data-analytics-offer-id="specialist_catalog_fallback"
                     data-analytics-offer-reason="human_continuation_after_context"
-                    data-analytics-price-rub="4500"
+                    data-analytics-price-rub={MIN_SESSION_PRICE_RUB}
                   >
                     <Heart className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-medium text-[var(--soft-ink)]">Встреча со специалистом</span>
                       <span className="block text-[11px] text-[var(--soft-ink-faint)]">после контекста</span>
                     </span>
-                    <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">от 4 500 ₽</span>
+                    <span className="font-heading font-semibold text-[var(--soft-bordeaux)]">{formatSessionFloor()}</span>
                   </Link>
                 )}
               </div>

@@ -187,7 +187,7 @@ export function SynastryActions() {
                 productKey="synastry"
                 label="Открыть полностью"
                 checkoutSource="synastry-direct"
-                creditCost={5}
+                creditCost={3}
                 onUnlocked={() => {
                   setHasEntitlement(true);
                   if (userBirthData.trim() && partnerBirthData.trim()) {

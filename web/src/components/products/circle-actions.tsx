@@ -303,7 +303,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
                 productKey="circle"
                 label="Открыть полный итог"
                 checkoutSource="circle-generate"
-                creditCost={4}
+                creditCost={3}
                 onUnlocked={() => {
                   setHasEntitlement(true);
                   setMessage("Доступ открыт. Теперь можно собрать итог круга.");

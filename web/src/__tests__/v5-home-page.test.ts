@@ -50,7 +50,8 @@ describe("v5 public home page", () => {
     // Primary разбор is /checkin (no standalone product page after B293).
     expect(services).toContain('href: "/checkin"');
     expect(services).toContain("Открыть бесплатный вход");
-    expect(services).toContain("от 2 000 ₽");
+    // B366: session floor derives from the single source (formatSessionFloor()).
+    expect(services).toContain("formatSessionFloor");
     expect(services).toContain('href: "/products/tarot"');
   });
 

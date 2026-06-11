@@ -76,7 +76,7 @@ describe("v5 product pages", () => {
     expect(products).toContain("Подробный разбор");
     // Z2 credit-centric: deep-report is a PREMIUM anchor (Plus includes only
     // perspectives), so the copy must say Premium, not Plus.
-    expect(products).toContain("или −4 балла · в Premium входит");
+    expect(products).toContain("или −3 балла · в Premium входит");
     expect(products).not.toContain("в Plus входит");
     expect(products).toContain("один отчёт на двоих");
   });
@@ -115,7 +115,7 @@ describe("v5 product pages", () => {
     expect(products).toContain("пауза и продолжение");
     expect(products).toContain("сохранить, скрыть или удалить");
     expect(products).toContain("открытие через entitlement");
-    expect(products).toContain("или −4 балла");
+    expect(products).toContain("или −3 балла");
     expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");
     expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/spend-credits");
   });
