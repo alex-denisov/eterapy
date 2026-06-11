@@ -70,6 +70,20 @@ describe("v5 public shell", () => {
     expect(softCss).toContain("soft-footer-columns");
   });
 
+  it("keeps the authenticated right cluster inside a 360px viewport", () => {
+    const header = source("src/components/header.tsx");
+
+    // The logged-in client cluster (balance + help + bell + avatar + CTA +
+    // burger) overflowed 360px and produced horizontal scroll. Below md the
+    // CTA «Новый разбор» and the help icon must collapse — both are
+    // duplicated inside the burger menu («Начать диалог» / «Помощь»).
+    expect(header).toContain('className="soft-header-cta soft-header-cta-primary hidden md:inline-flex"');
+    expect(header).toContain('className="soft-user-icon hidden md:inline-flex"');
+    // The mobile burger menu keeps both actions reachable.
+    expect(header).toContain("Помощь");
+    expect(header).toContain("Начать диалог");
+  });
+
   it("defers session and host-specific header branches until after mount", () => {
     const header = source("src/components/header.tsx");
 

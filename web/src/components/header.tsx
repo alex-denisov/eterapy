@@ -497,7 +497,9 @@ export function Header() {
                   href={appUrl("/support")}
                   prefetch={false}
                   aria-label="Поддержка и помощь"
-                  className="soft-user-icon"
+                  // 360px fix: below md the right cluster overflows the
+                  // viewport; the burger menu carries «Помощь» instead.
+                  className="soft-user-icon hidden md:inline-flex"
                 >
                   <CircleHelp className="size-4" />
                 </Link>
@@ -511,7 +513,10 @@ export function Header() {
               {showNewDialogueCta && (
                 <Link
                   href={mainUrl("/checkin")}
-                  className="soft-header-cta soft-header-cta-primary"
+                  // 360px fix: below md the CTA pushed the cluster past the
+                  // right edge (horizontal scroll); the burger menu carries
+                  // «Начать диалог» for clients instead.
+                  className="soft-header-cta soft-header-cta-primary hidden md:inline-flex"
                   data-testid="header-dialogue-cta"
                   data-analytics-event="dialogue_cta_clicked"
                   data-analytics-target="/checkin"

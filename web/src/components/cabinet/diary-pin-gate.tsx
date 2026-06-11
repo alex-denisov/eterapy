@@ -47,7 +47,6 @@ export function DiaryPinGate({ children }: { children: ReactNode }) {
       setState("no-pin");
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(shouldLockDiary(readUnlockedAt(), Date.now()) ? "locked" : "unlocked");
   }, []);
 
