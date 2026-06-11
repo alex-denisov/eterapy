@@ -16,17 +16,10 @@ describe("Y6 — role-based client cabinet access control", () => {
   it.each([
     "app/cabinet/wallet/page.tsx",
     "app/cabinet/questions/page.tsx",
-    "app/cabinet/action-history/page.tsx",
+    "app/cabinet/diary/page.tsx",
     "app/cabinet/practice/page.tsx",
-    "app/cabinet/map/page.tsx",
   ])("guards the client-only surface %s", (file) => {
     expect(src(file)).toContain("guardClientCabinet");
-  });
-
-  it("map page now performs an auth() check (previously had none)", () => {
-    const map = src("app/cabinet/map/page.tsx");
-    expect(map).toContain("await auth()");
-    expect(map).toContain("export default async function");
   });
 
   it("billing (client component) routes non-CLIENT roles back to /cabinet", () => {

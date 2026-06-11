@@ -35,12 +35,13 @@ describe("M11 client retention surfaces", () => {
   it("adds v4.1 history navigation to the cabinet", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
-    expect(shell).toContain('appUrl("/questions")');
-    expect(shell).toContain('"История разборов"');
+    // M26/B369: «История разборов» слита с «Моей картой» в один пункт «Дневник».
+    expect(shell).toContain('appUrl("/diary")');
+    expect(shell).toContain('"Дневник"');
     expect(shell).toContain('appUrl("/wallet")');
     expect(shell).toContain('appUrl("/practice")');
     expect(shell).toContain('"Кошелёк"');
-    expect(shell).toContain("History");
+    expect(shell).toContain("BookOpen");
   });
 
   it("lets clients browse, continue, and soft-delete their own questions", () => {
@@ -72,17 +73,17 @@ describe("M11 client retention surfaces", () => {
   });
 
   it("keeps action history on the existing modalities history API", () => {
-    const page = source("src/app/cabinet/action-history/page.tsx");
+    const page = source("src/app/cabinet/diary/page.tsx");
 
     expect(page).not.toContain("/api/ai/history");
   });
 
   it("implements My Map as a unified save, hide, delete, export, and share surface", () => {
-    const page = source("src/app/cabinet/action-history/page.tsx");
+    const page = source("src/app/cabinet/diary/page.tsx");
     const helper = source("src/lib/my-map.ts");
     const exportRoute = source("src/app/api/cabinet/map/export/route.ts");
 
-    expect(page).toContain('data-testid="my-map-page"');
+    expect(page).toContain('data-testid="diary-page"');
     expect(page).toContain('data-testid="my-map-items"');
     expect(page).toContain("listMyMapItems");
     expect(page).toContain("async function hideMapItem");
@@ -154,7 +155,7 @@ describe("M11 client retention surfaces", () => {
   it("tracks retention actions through the global analytics listener", () => {
     const analytics = source("src/components/analytics.tsx");
     const dashboard = source("src/app/cabinet/page.tsx");
-    const map = source("src/app/cabinet/action-history/page.tsx");
+    const map = source("src/app/cabinet/diary/page.tsx");
 
     expect(analytics).toContain("[data-analytics-event]");
     expect(analytics).toContain("eterapy:analytics");

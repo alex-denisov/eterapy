@@ -176,7 +176,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "ABANDONED_CHECKOUT":
       return { title: "Оплата не завершена", body: data.productName || "Можно вернуться без спешки", href: data.checkoutUrl || "/pricing" };
     case "REPORT_READY":
-      return { title: "Отчет готов", body: data.title || "Ваш разбор готов к чтению", href: data.reportUrl || "/cabinet/action-history" };
+      return { title: "Отчет готов", body: data.title || "Ваш разбор готов к чтению", href: data.reportUrl || "/cabinet/diary" };
     case "PARTNER_COMPLETED":
       return { title: "Партнер завершил часть", body: "Можно открыть совместный результат", href: data.reportUrl || "/products/pair" };
     case "CIRCLE_READY":
@@ -194,7 +194,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "STREAK_AT_RISK":
       return { title: "Ритм практики", body: `Можно сделать один короткий шаг и сохранить ${data.streak || ""} дн.`, href: data.practiceUrl || "/cabinet/practice" };
     case "MOMENT_OF_NEED":
-      return { title: "Можно вернуться к теме", body: data.topic ? `Тема: ${data.topic}` : "Ваша карта все еще доступна", href: data.mapUrl || "/cabinet/action-history" };
+      return { title: "Можно вернуться к теме", body: data.topic ? `Тема: ${data.topic}` : "Ваша карта все еще доступна", href: data.mapUrl || "/cabinet/diary" };
     case "WELCOME_CREDITS":
       return { title: "Приветственные баллы начислены", body: `${data.credits || "3"} балла уже в кошельке`, href: data.walletUrl || "/cabinet/wallet" };
     case "WELCOME_CREDITS_REMINDER":
@@ -248,7 +248,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "ABANDONED_CHECKOUT":
       return `Оплату можно завершить\n${data.productName ?? "Выбранный продукт"}.\n<a href="${data.checkoutUrl ?? `${baseUrl}/pricing`}">Вернуться →</a>`;
     case "REPORT_READY":
-      return `Отчет готов\n${data.title ?? "Ваш разбор готов к чтению"}.\n<a href="${data.reportUrl ?? `${baseUrl}/cabinet/action-history`}">Открыть →</a>`;
+      return `Отчет готов\n${data.title ?? "Ваш разбор готов к чтению"}.\n<a href="${data.reportUrl ?? `${baseUrl}/cabinet/diary`}">Открыть →</a>`;
     case "PARTNER_COMPLETED":
       return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/products/pair`}">Открыть результат →</a>`;
     case "CIRCLE_READY":
@@ -266,7 +266,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "STREAK_AT_RISK":
       return `Ритм практики\nЕсли сегодня есть силы, один короткий шаг сохранит ${data.streak ?? ""} дн.\n<a href="${data.practiceUrl ?? `${baseUrl}/cabinet/practice`}">Открыть практику →</a>`;
     case "MOMENT_OF_NEED":
-      return `Можно вернуться к теме\n${data.topic ? `Тема: ${data.topic}.` : "Ваша карта все еще доступна."}\n<a href="${data.mapUrl ?? `${baseUrl}/cabinet/action-history`}">Открыть карту →</a>`;
+      return `Можно вернуться к теме\n${data.topic ? `Тема: ${data.topic}.` : "Ваша карта все еще доступна."}\n<a href="${data.mapUrl ?? `${baseUrl}/cabinet/diary`}">Открыть карту →</a>`;
     case "WELCOME_CREDITS":
       return `Приветственные баллы начислены\n${data.credits ?? "3"} балла уже в кошельке.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кошелёк →</a>`;
     case "WELCOME_CREDITS_REMINDER":

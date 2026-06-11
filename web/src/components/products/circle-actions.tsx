@@ -292,7 +292,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
               <RefreshCcw className="size-4" /> Обновить
             </Button>
             {circle.reportId && (
-              <Link href="/cabinet/action-history" className="soft-button soft-button-ghost">
+              <Link href="/cabinet/diary" className="soft-button soft-button-ghost">
                 В Мою карту
               </Link>
             )}

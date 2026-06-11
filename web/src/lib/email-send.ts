@@ -266,7 +266,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
     case "ABANDONED_CHECKOUT":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Оплату можно спокойно завершить</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.productName ?? "Выбранный продукт"} останется доступен после оплаты.</p>${btn(data.checkoutUrl ?? `${BASE_URL}/pricing`, "Вернуться к оплате")}`;
     case "REPORT_READY":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Отчет готов</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.title ?? "Ваш разбор"} можно открыть в кабинете.</p>${btn(data.reportUrl ?? `${BASE_URL}/cabinet/action-history`, "Открыть отчет")}`;
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Отчет готов</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.title ?? "Ваш разбор"} можно открыть в кабинете.</p>${btn(data.reportUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть отчет")}`;
     case "PARTNER_COMPLETED":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Вторая часть готова</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Партнер завершил свою часть. Можно открыть результат и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
     case "CIRCLE_READY":
@@ -284,7 +284,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
     case "STREAK_AT_RISK":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Один короткий шаг сохранит ритм</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Вчера у вас был ритм практики ${data.streak ?? "несколько"} дн. Если сегодня есть силы, можно сделать только один маленький шаг.</p>${btn(data.practiceUrl ?? `${BASE_URL}/cabinet/practice`, "Открыть практику")}`;
     case "MOMENT_OF_NEED":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к своей теме</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.topic ? `Тема "${data.topic}"` : "Ваша сохраненная тема"} все еще доступна в карте. Можно продолжить с одного вопроса.</p>${btn(data.mapUrl ?? `${BASE_URL}/cabinet/action-history`, "Открыть карту")}`;
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к своей теме</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.topic ? `Тема "${data.topic}"` : "Ваша сохраненная тема"} все еще доступна в карте. Можно продолжить с одного вопроса.</p>${btn(data.mapUrl ?? `${BASE_URL}/cabinet/diary`, "Открыть карту")}`;
     case "WELCOME_CREDITS":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные баллы начислены</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.credits ?? "3"} балла уже в кошельке. Они помогут попробовать первый небольшой формат.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     case "WELCOME_CREDITS_REMINDER":

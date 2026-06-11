@@ -10,6 +10,7 @@ import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
+import { DiaryPinGate } from "@/components/cabinet/diary-pin-gate";
 import { canGrantConsent, canWithdrawConsent, consentBadge, grantConsentPatch, withdrawConsentPatch } from "@/lib/library-consent";
 
 function shareHref(title: string, topic: string) {
@@ -55,7 +56,7 @@ async function hideMapItem(formData: FormData) {
     if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
   }
 
-  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet/diary");
   revalidatePath("/cabinet");
 }
 
@@ -81,7 +82,7 @@ async function unhideMapItem(formData: FormData) {
     if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
   }
 
-  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet/diary");
   revalidatePath("/cabinet");
 }
 
@@ -112,7 +113,7 @@ async function deleteMapItem(formData: FormData) {
     });
   }
 
-  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet/diary");
   revalidatePath("/cabinet");
 }
 
@@ -128,7 +129,7 @@ async function saveMapItem(formData: FormData) {
     data: { savedAt: new Date() },
   });
 
-  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet/diary");
   revalidatePath("/cabinet");
 }
 
@@ -149,7 +150,7 @@ async function grantLibraryConsent(formData: FormData) {
     data: { libraryConsentAt: patch.libraryConsentAt, libraryStatus: patch.libraryStatus },
   });
 
-  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet/diary");
 }
 
 async function withdrawLibraryConsent(formData: FormData) {
@@ -165,7 +166,7 @@ async function withdrawLibraryConsent(formData: FormData) {
     data: { libraryConsentAt: patch.libraryConsentAt, libraryStatus: patch.libraryStatus },
   });
 
-  revalidatePath("/cabinet/action-history");
+  revalidatePath("/cabinet/diary");
 }
 
 export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string }> }) {
@@ -200,14 +201,15 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
     .slice(0, 8);
 
   return (
-    <div className="p-6 md:p-8" data-testid="my-map-page">
+    <DiaryPinGate>
+    <div className="p-6 md:p-8" data-testid="diary-page">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
-          <div className="soft-eyebrow">моя карта eterapy</div>
-          <h1 className="soft-h1 mt-2">Ваш путь — <span style={{ fontStyle: "italic" }}>на одной карте</span></h1>
+          <div className="soft-eyebrow">дневник</div>
+          <h1 className="soft-h1 mt-2">Ваш <span style={{ fontStyle: "italic" }}>дневник</span></h1>
           <p className="mt-2 text-sm max-w-xl" style={{ color: "var(--soft-ink-soft)" }}>
-            Личное пространство ваших разборов, инсайтов и маршрутов. Видите только вы.
+            Личное пространство ваших вопросов, разборов и выводов. Видите только вы.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -400,7 +402,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                 lets the user un-hide. Shown only when something is hidden. */}
             {hiddenCount > 0 && (
               <a
-                href={wantHidden ? appUrl("/action-history") : appUrl("/action-history?showHidden=1")}
+                href={wantHidden ? appUrl("/diary") : appUrl("/diary?showHidden=1")}
                 className="soft-button soft-button-ghost"
                 style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
               >
@@ -536,5 +538,6 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
         </>
       )}
     </div>
+    </DiaryPinGate>
   );
 }

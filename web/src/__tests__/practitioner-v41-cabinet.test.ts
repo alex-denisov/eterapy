@@ -43,7 +43,7 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
   it("keeps cabinet navigation aligned with v4.2 labels", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
-    expect(shell).toContain('"История разборов"');
+    expect(shell).toContain('"Дневник"');
     expect(shell).toContain('"Услуги и цены"');
     expect(shell).toContain('"Этический кодекс"');
     expect(shell).toContain("soft-app-sidebar-card");

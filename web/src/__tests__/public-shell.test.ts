@@ -44,8 +44,8 @@ describe("v5 public shell", () => {
     expect(header).toContain("soft-user-icon");
     // T11: dropdown mirrors the real CLIENT_NAV cabinet sidebar one-to-one.
     expect(header).toContain('label: "Главная"');
-    expect(header).toContain("Моя карта");
-    expect(header).toContain("История разборов");
+    // M26/B369: «Моя карта» + «История разборов» слиты в «Дневник».
+    expect(header).toContain("Дневник");
     expect(header).toContain("Кошелёк");
     // B365 (M26): header balance pill reads «Баланс: N баллов».
     expect(header).toContain("Баланс:");

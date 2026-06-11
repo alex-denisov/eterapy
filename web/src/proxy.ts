@@ -141,13 +141,21 @@ function unknownProductSlug(pathname: string): boolean {
   return Boolean(match && !VALID_PRODUCT_SLUGS.has(match[1]));
 }
 
+// M26/B369: выпиленные кабинетные роуты (без редиректов). Покрываем и
+// «голые» пути app-поддомена, и их /cabinet-формы на основном домене.
+const REMOVED_PATHS = ["/cabinet/action-history", "/cabinet/map", "/action-history", "/map"];
+
+function isRemovedPath(pathname: string): boolean {
+  return REMOVED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
 export default async function proxy(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const requestHeaders = new Headers(request.headers);
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
 
-  if (unknownProductSlug(pathname)) {
+  if (unknownProductSlug(pathname) || isRemovedPath(pathname)) {
     return applyRobotsPolicy(
       rewriteWithContext(internalRewriteUrl(request, "/__product-not-found"), requestHeaders, context),
       host,

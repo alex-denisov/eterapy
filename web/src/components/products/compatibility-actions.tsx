@@ -384,7 +384,7 @@ export function CompatibilityActions({
         {result?.status === "READY" && (
           <>
             <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Разбор готов и доступен обоим партнерам в личном кабинете.</p>
-            <Link href="/cabinet/action-history" className="soft-button soft-button-primary mt-4 flex w-full justify-center">
+            <Link href="/cabinet/diary" className="soft-button soft-button-primary mt-4 flex w-full justify-center">
               Посмотреть разбор
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>

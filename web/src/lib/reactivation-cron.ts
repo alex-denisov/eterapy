@@ -240,7 +240,7 @@ export async function runMomentOfNeedJob(job: Job): Promise<JobResult> {
       data: {
         topic,
         title: user.dialogues[0]?.title ?? "",
-        mapUrl: "/cabinet/action-history",
+        mapUrl: "/cabinet/diary",
       },
     });
     if (sent) notified++;

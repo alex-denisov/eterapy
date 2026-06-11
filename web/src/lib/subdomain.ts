@@ -8,7 +8,7 @@ export const PROTOCOL = "https://";
 const APP_PATHS = ["/cabinet"];
 const ADMIN_PATHS = ["/admin"];
 const APP_VISIBLE_PATHS = [
-  "/action-history",
+  "/diary",
   "/questions",
   "/bookings",
   "/wallet",

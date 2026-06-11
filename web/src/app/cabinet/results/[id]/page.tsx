@@ -97,7 +97,7 @@ export default async function CabinetResultPage({
       {isReady && body && (
         <section className="mt-4 flex flex-wrap gap-3" data-testid="cabinet-result-actions">
           <Link
-            href={appUrl("/action-history")}
+            href={appUrl("/diary")}
             className="soft-button soft-button-ghost inline-flex"
           >
             <Sparkles className="size-4" aria-hidden="true" />

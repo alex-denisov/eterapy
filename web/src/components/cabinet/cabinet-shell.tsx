@@ -4,12 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  BookOpen,
   LayoutDashboard,
   Users,
   CalendarDays,
-  Compass,
   MessageCircle,
-  History,
   Wallet,
   Settings,
   UserPen,
@@ -32,8 +31,8 @@ interface NavItem {
 
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/"), icon: LayoutDashboard, label: "Главная" },
-  { href: appUrl("/action-history"), icon: Compass, label: "Моя карта" },
-  { href: appUrl("/questions"), icon: History, label: "История разборов" },
+  // M26/B369: «Моя карта» + «История разборов» слиты в один пункт «Дневник».
+  { href: appUrl("/diary"), icon: BookOpen, label: "Дневник" },
   { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
   // B349/Механика 2: /credits merged into /wallet — one «Кошелёк» nav item.
   { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },

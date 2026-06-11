@@ -192,7 +192,7 @@ export default async function ClientCabinetPage() {
               Начните первый разбор
             </p>
           )}
-          <Link href={appUrl("/action-history")} className="soft-chip mt-4 inline-block">
+          <Link href={appUrl("/diary")} className="soft-chip mt-4 inline-block">
             Открыть карту →
           </Link>
         </div>

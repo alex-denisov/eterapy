@@ -37,7 +37,7 @@ describe("v5 app shell", () => {
     expect(clientCabinet).toContain('appUrl("/wallet")');
     expect(shell).toContain('appUrl("/practice")');
     expect(shell).toContain('appUrl("/wallet")');
-    expect(clientCabinet).toContain('appUrl("/action-history")');
+    expect(clientCabinet).toContain('appUrl("/diary")');
     expect(clientCabinet).toContain('data-testid="client-map-preview"');
     // Product CTAs on cabinet homepage must stay in-cabinet (not link to eterapy.com/products/...)
     expect(clientCabinet).not.toContain('mainUrl("/products/seven-days")');

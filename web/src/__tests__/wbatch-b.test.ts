@@ -23,7 +23,7 @@ describe("W13 — action-history hide persists + show-hidden toggle + un-hide", 
     expect(lib).toContain("hidden: isHiddenFromMap");
   });
   it("the page adds a show-hidden toggle and an un-hide action", () => {
-    const page = read("src/app/cabinet/action-history/page.tsx");
+    const page = read("src/app/cabinet/diary/page.tsx");
     expect(page).toContain("async function unhideMapItem");
     expect(page).toContain("hiddenFromMap: false");
     expect(page).toContain("Показать скрытые");
@@ -33,7 +33,7 @@ describe("W13 — action-history hide persists + show-hidden toggle + un-hide", 
 
 describe("W15 — duplicate mid-page Экспорт removed", () => {
   it("action-history keeps a single export (header), none in the bottom CTA", () => {
-    const page = read("src/app/cabinet/action-history/page.tsx");
+    const page = read("src/app/cabinet/diary/page.tsx");
     const exportButtons = page.split('api/cabinet/map/export').length - 1;
     expect(exportButtons).toBe(1);
   });

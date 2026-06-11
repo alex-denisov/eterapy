@@ -23,7 +23,7 @@ describe("G16 — practitioner header hides «Новый разбор»", () => 
 
 describe("G12 — action-history «все элементы карты» readable cards", () => {
   it("renders a full-width break-words body with a description fallback", () => {
-    const page = source("src/app/cabinet/action-history/page.tsx");
+    const page = source("src/app/cabinet/diary/page.tsx");
     expect(page).toContain("const previewBody = item.bodyMarkdown?.trim();");
     expect(page).toContain("[overflow-wrap:anywhere]");
     // single-column card, body no longer trapped in a narrow flex track
