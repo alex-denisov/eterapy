@@ -4,13 +4,12 @@ import path from "path";
 const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
-describe("B205 Library, esoteric service, and joint-session pages", () => {
+describe("B205 Library and esoteric service pages", () => {
   it("keeps legacy esoteric URLs as redirects to canonical /products pages", () => {
     const redirects: Record<string, string> = {
       tarot: "/products/tarot",
       astro: "/products/natal-chart",
       numerology: "/products/numerology",
-      joint: "/products/joint-session",
     };
 
     for (const [route, target] of Object.entries(redirects)) {
@@ -22,7 +21,7 @@ describe("B205 Library, esoteric service, and joint-session pages", () => {
     const seo = source("src/lib/seo.ts");
     const publicSeo = source("src/lib/public-page-seo.ts");
 
-    for (const route of ["/products/tarot", "/products/natal-chart", "/products/numerology", "/products/joint-session"]) {
+    for (const route of ["/products/tarot", "/products/natal-chart", "/products/numerology"]) {
       expect(seo).toContain(`"${route}"`);
       expect(publicSeo).toContain(`"${route}"`);
     }
@@ -34,8 +33,8 @@ describe("B205 Library, esoteric service, and joint-session pages", () => {
     expect(page).toContain("языку метафор, не как к предсказанию");
     expect(page).toContain("не обещаем точных");
     expect(page).toContain("не заменяем психолога или врача");
-    expect(page).toContain("нет прогнозов как фактов");
-    expect(page).toContain("без скидок на встречи");
+    // M26/B367: joint-session блок заменён на каталожный CTA с бейджем универсала.
+    expect(page).toContain("психология + эзотерика");
   });
 
   it("links v4.2 service catalog cards to real service pages instead of placeholders", () => {
@@ -44,7 +43,7 @@ describe("B205 Library, esoteric service, and joint-session pages", () => {
     expect(catalog).toContain('href: "/products/tarot"');
     expect(catalog).toContain('href: "/products/natal-chart"');
     expect(catalog).toContain('href: "/products/numerology"');
-    expect(catalog).toContain('href: "/products/joint-session"');
+    expect(catalog).not.toContain("joint-session");
     expect(catalog).toContain("Подробнее и заказать");
     expect(catalog).not.toContain('id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "#"' );
   });

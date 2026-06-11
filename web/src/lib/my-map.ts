@@ -33,12 +33,12 @@ export type MyMapItem = {
 };
 
 const PRODUCT_LABELS: Record<string, string> = {
-  "deep-report": "Глубокий отчет",
-  perspectives: "4 ракурса",
+  "deep-report": "Подробный разбор",
+  perspectives: "Полная картина",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
   "seven-days": "7 дней к ясности",
-  synastry: "Синастрия",
+  synastry: "Совместимость по звёздам",
 };
 
 function asJsonObject(value: Prisma.JsonValue | null | undefined): Prisma.JsonObject {

@@ -1,12 +1,11 @@
 import Link from "next/link";
-import { Compass, Moon, Sparkles, Users } from "lucide-react";
+import { Compass, Moon, Sparkles } from "lucide-react";
 
 const offers = [
   { href: "/products/tarot", icon: Moon, label: "Таро · 390 ₽" },
   { href: "/products/natal-chart", icon: Compass, label: "Натальная карта · 590 ₽" },
-  { href: "/products/synastry", icon: Compass, label: "Синастрия · 990 ₽" },
+  { href: "/products/synastry", icon: Compass, label: "Совместимость по звёздам · 990 ₽" },
   { href: "/products/numerology", icon: Sparkles, label: "Числовой портрет · 390 ₽" },
-  { href: "/products/joint-session", icon: Users, label: "Эзотерик + психотерапевт · от 4 500 ₽" },
 ];
 
 export function EsotericShowcaseSection() {

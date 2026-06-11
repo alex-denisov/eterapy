@@ -6,7 +6,6 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
-import { JointSessionActions } from "@/components/products/joint-session-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
@@ -59,7 +58,7 @@ function ProductHero({
           {isPerspectives ? (
             search?.dialogueId ? (
               <a href="#perspectives-actions" className="soft-button soft-button-primary" data-testid="product-hero-primary-cta">
-                Получить 4 ракурса
+                Увидеть полную картину
                 <ArrowRight className="size-4" aria-hidden="true" />
               </a>
             ) : (
@@ -88,7 +87,7 @@ function DeepReportSide() {
   return (
     <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-10 text-center">
       <div className="relative h-80 w-60 rotate-[-2deg] rounded-lg border border-[var(--soft-paper-edge)] bg-white p-6 text-left shadow-[0_20px_50px_-15px_rgba(60,30,20,.3),0_2px_4px_rgba(60,30,20,.06)]">
-        <div className="soft-eyebrow text-[0.56rem]">ETerapy · глубокий отчёт</div>
+        <div className="soft-eyebrow text-[0.56rem]">ETerapy · подробный разбор</div>
         <div className="mt-3 font-heading text-base italic leading-snug text-[var(--soft-bordeaux)]">Сепарация и собственный голос</div>
         <div className="my-3 h-px bg-[var(--soft-paper-edge)]" />
         <div className="flex flex-col gap-1 text-[0.56rem] leading-relaxed text-[var(--soft-ink-faint)]">
@@ -196,18 +195,6 @@ function NumerologySide() {
   );
 }
 
-function JointSide() {
-  return (
-    <div className="relative min-h-[20rem] rounded-[1.75rem] bg-[linear-gradient(160deg,#DBD3EA,#D6DECC)] p-10">
-      <div className="relative mx-auto h-60 w-72 max-w-full">
-        <div className="absolute left-0 top-8 grid size-28 place-items-center rounded-full bg-[linear-gradient(140deg,#DBD3EA,#B5A8D1)] font-heading text-4xl font-medium text-[#4A3E5E] shadow-[0_12px_24px_-8px_rgba(74,62,94,.4)]">Э</div>
-        <div className="absolute right-0 top-8 grid size-28 place-items-center rounded-full bg-[linear-gradient(140deg,#D6DECC,#9BAE94)] font-heading text-4xl font-medium text-[#3A4A36] shadow-[0_12px_24px_-8px_rgba(58,74,54,.4)]">П</div>
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-5 py-2 font-heading italic text-[var(--soft-bordeaux)]">один разговор</div>
-      </div>
-    </div>
-  );
-}
-
 function DefaultSide() {
   return (
     <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-10">
@@ -218,10 +205,10 @@ function DefaultSide() {
 
 function PerspectivesSide() {
   const tiles: Array<{ label: string; sub: string; bg: string; color: string }> = [
-    { label: "Разум", sub: "факты · варианты", bg: "linear-gradient(140deg,#F4D9C1,#F8E6D1)", color: "var(--soft-bordeaux)" },
+    { label: "Мысли", sub: "факты · варианты", bg: "linear-gradient(140deg,#F4D9C1,#F8E6D1)", color: "var(--soft-bordeaux)" },
     { label: "Чувства", sub: "что внутри", bg: "linear-gradient(140deg,#E8C4B8,#F4D5C8)", color: "var(--soft-bordeaux)" },
-    { label: "Символ", sub: "образ ситуации", bg: "linear-gradient(140deg,#DBD3EA,#E8E1F2)", color: "#4A3E5E" },
-    { label: "Действие", sub: "шаги на неделю", bg: "linear-gradient(140deg,#D6DECC,#E5EBDC)", color: "#3A4A36" },
+    { label: "Скрытый смысл", sub: "образ ситуации", bg: "linear-gradient(140deg,#DBD3EA,#E8E1F2)", color: "#4A3E5E" },
+    { label: "Первый шаг", sub: "шаги на неделю", bg: "linear-gradient(140deg,#D6DECC,#E5EBDC)", color: "#3A4A36" },
   ];
   return (
     <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-8" data-testid="product-perspectives-preview">
@@ -329,7 +316,6 @@ function productSide(product: V5Product) {
   if (product.slug === "natal-chart") return <NatalSide />;
   if (product.slug === "synastry") return <SynastrySide />;
   if (product.slug === "numerology") return <NumerologySide />;
-  if (product.slug === "joint-session") return <JointSide />;
   if (product.slug === "perspectives") return <PerspectivesSide />;
   if (product.slug === "chat-analysis") return <ChatAnalysisSide />;
   if (product.slug === "compatibility") return <CompatibilitySide />;
@@ -343,7 +329,7 @@ function DeepReportSections() {
     "Что я слышу в вашем вопросе",
     "Главная развилка",
     "Карта факт-чувство-предположение",
-    "Четыре ракурса · разум · чувства · символ · действие",
+    "Полная картина · мысли · чувства · скрытый смысл · первый шаг",
     "Возможные сценарии и их цена",
     "Безопасный маршрут на 2 недели",
     "С кем продолжить — если захочется",
@@ -599,56 +585,6 @@ function NumerologySections() {
   );
 }
 
-function JointSessionSections() {
-  return (
-    <section className="soft-shell mt-12" data-testid="joint-session-timeline">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="soft-eyebrow">структура встречи</p>
-          <h2 className="soft-h2 mt-2">Один час · понятный ритм</h2>
-        </div>
-        <span className="text-sm text-[var(--soft-ink-faint)]">60 минут · видеовстреча</span>
-      </div>
-      <div className="flex flex-col gap-2">
-        {[
-          ["00:00 — 00:05", "Знакомство и согласование запроса", "Оба специалиста, вы. Договариваемся о фокусе встречи."],
-          ["00:05 — 00:25", "Символический разбор", "Эзотерик ведёт: расклад, натальная карта или числовой портрет."],
-          ["00:25 — 00:45", "Психотерапевтический разбор", "Психотерапевт продолжает: проверка реальности, чувства, контекст."],
-          ["00:45 — 00:55", "Совместное направление", "Оба специалиста сводят разговор в один безопасный следующий шаг."],
-          ["00:55 — 01:00", "Ваши вопросы", "Можно задать всё, что не успели."],
-        ].map(([time, title, text]) => (
-          <div key={time} className="soft-card-flat grid gap-4 p-5 md:grid-cols-[8rem_2.25rem_1fr] md:items-center">
-            <span className="font-mono text-sm italic text-[var(--soft-terracotta-dark)]">{time}</span>
-            <span className="grid size-9 place-items-center rounded-xl bg-[var(--soft-paper-card)] text-[var(--soft-bordeaux)]">✦</span>
-            <div>
-              <p className="font-semibold">{title}</p>
-              <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">{text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-8 grid gap-4 md:grid-cols-2">
-        <div className="soft-card bg-[var(--soft-lilac-soft)] p-6">
-          <p className="soft-eyebrow text-[#4A3E5E]">когда подходит</p>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-[#4A3E5E]">
-            <li>Большая тема, и нужны и метафора, и реальность</li>
-            <li>Цените эзотерический язык, но хотите этическую опору</li>
-            <li>Долгая ситуация — обычный формат не сдвигает</li>
-          </ul>
-        </div>
-        <div className="soft-card bg-[var(--soft-bordeaux)] p-6 text-[#E8C4B8]">
-          <p className="soft-eyebrow text-[#F4D9C1]">что не происходит</p>
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-sm">
-            <li>нет «диагнозов по карте» — ни эзотерических, ни медицинских</li>
-            <li>нет прогнозов как фактов — есть темы и развилки</li>
-            <li>специалисты работают по протоколу, а не спорят между собой</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function ProductSpecificSections({ product }: { product: V5Product }) {
   const sections =
     product.slug === "deep-report" ? <DeepReportSections /> :
@@ -657,7 +593,6 @@ function ProductSpecificSections({ product }: { product: V5Product }) {
     product.slug === "natal-chart" ? <NatalSections /> :
     product.slug === "synastry" ? <SynastrySections /> :
     product.slug === "numerology" ? <NumerologySections /> :
-    product.slug === "joint-session" ? <JointSessionSections /> :
     null;
   if (!sections) return null;
 
@@ -702,7 +637,6 @@ function ProductActionSurface({
   if (product.slug === "my-map") {
     return <SymbolicProductActions productKey="my-map" title="Расширенная карта" promptLabel="История Моей карты" placeholder="История собирается автоматически из сохранённых вопросов, маршрутов и результатов." creditCost={6} />;
   }
-  if (product.slug === "joint-session") return <JointSessionActions />;
   return null;
 }
 

@@ -100,10 +100,10 @@ describe("G14 — Практика ясности full three-beat mechanic", () 
     expect(page).toContain("WEEKDAY_RU_SHORT");
   });
 
-  it("lets the user write their own вопрос дня and request ракурс + шаг", () => {
+  it("lets the user write their own вопрос дня and request взгляд + шаг", () => {
     const actions = source("src/components/cabinet/daily-practice-actions.tsx");
     expect(actions).toContain('action: "reflect"');
-    expect(actions).toContain("Получить ракурс и шаг");
+    expect(actions).toContain("Получить взгляд и шаг");
     expect(actions).toContain("ваш вопрос дня");
     expect(actions).toContain("practice-suggested-prompt");
   });

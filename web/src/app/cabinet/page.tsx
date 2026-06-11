@@ -210,7 +210,7 @@ export default async function ClientCabinetPage() {
             {clarityCredits}
           </p>
           <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-            потратить на ракурсы и отчёты
+            потратить на разборы и отчёты
           </p>
           <span className="soft-chip mt-4 inline-block">Пополнить →</span>
         </Link>
@@ -473,7 +473,7 @@ export default async function ClientCabinetPage() {
             Подобрать специалиста
           </Link>
           <Link href={`${appUrl("/wallet")}#credits-products`} className="soft-chip" style={{ fontSize: 12 }}>
-            Глубокий отчёт →
+            Подробный разбор →
           </Link>
         </div>
       </div>

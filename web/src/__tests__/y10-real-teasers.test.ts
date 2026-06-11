@@ -47,7 +47,7 @@ describe("M24 Z6 real truncated product teasers", () => {
 
     const teaser = buildPerspectivesTeaser(dialogue, fullResult);
 
-    expect(teaser).toContain("Бесплатный ракурс");
+    expect(teaser).toContain("Бесплатная часть");
     expect(teaser).toContain("Вы хотите роста");
     expect(teaser).toContain("Что вы уже знаете наверняка?");
     expect(teaser).toContain("Еще внутри полного результата");
@@ -59,7 +59,7 @@ describe("M24 Z6 real truncated product teasers", () => {
 
   it("builds a deep-report teaser with personalized TOC and the first two report blocks", () => {
     const fullReport = [
-      "Глубокий отчет",
+      "Подробный разбор",
       "",
       "1. Что я слышу",
       "Вы хотите не просто сменить работу, а вернуть ощущение роста без резкого обрыва стабильности.",

@@ -42,8 +42,8 @@ interface PriceKey {
 // single table. Platform commission moved to the per-practitioner table, and the
 // obsolete free-session / tool-limit / min-price settings were removed.
 const PRODUCT_PRICE_KEYS: PriceKey[] = [
-  { key: "product.perspectives.price", label: "4 ракурса ответа", unit: "₽", recommended: 299 },
-  { key: "product.deep-report.price", label: "Глубокий отчёт", unit: "₽", recommended: 690 },
+  { key: "product.perspectives.price", label: "Полная картина", unit: "₽", recommended: 299 },
+  { key: "product.deep-report.price", label: "Подробный разбор", unit: "₽", recommended: 690 },
   { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽", recommended: 790 },
   { key: "product.seven-days.price", label: "7 дней к ясности", unit: "₽", recommended: 790 },
   { key: "product.circle.price", label: "Круг ясности", unit: "₽", recommended: 790 },

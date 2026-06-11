@@ -27,21 +27,21 @@ export type PerspectivesStructured = {
 };
 
 export function buildPerspectivesTitle(dialogue: Pick<DialogueForPerspectives, "title">) {
-  return `4 ракурса: ${(dialogue.title || "ваш вопрос").slice(0, 80)}`;
+  return `Полная картина: ${(dialogue.title || "ваш вопрос").slice(0, 80)}`;
 }
 
 export function buildPerspectivesPreview(dialogue: DialogueForPerspectives) {
   const first = dialogue.messages.find((message) => message.role === "USER")?.content ?? dialogue.title;
   return [
-    "Предпросмотр 4 ракурсов",
+    "Предпросмотр полной картины",
     "",
     `Запрос: ${first.slice(0, 260)}`,
     "",
     "Полный результат раскроет вопрос через:",
-    "- рациональный ракурс;",
-    "- эмоциональный ракурс;",
-    "- символический ракурс без фатальности;",
-    "- практический шаг.",
+    "- мысли;",
+    "- чувства;",
+    "- скрытый смысл без фатальности;",
+    "- первый шаг.",
   ].join("\n");
 }
 
@@ -50,9 +50,9 @@ export function buildPerspectivesTeaser(dialogue: DialogueForPerspectives, gener
   const first = parsed?.angles[0];
   if (!first) return buildPerspectivesPreview(dialogue);
 
-  const lockedTitles = parsed.angles.slice(1).map((angle) => `- ${angle.title}: ${angle.subtitle || "ракурс будет открыт после оплаты"}`);
+  const lockedTitles = parsed.angles.slice(1).map((angle) => `- ${angle.title}: ${angle.subtitle || "часть будет открыта после оплаты"}`);
   return [
-    `Бесплатный ракурс: ${first.title}`,
+    `Бесплатная часть: ${first.title}`,
     first.subtitle ? `Фокус: ${first.subtitle}` : "",
     "",
     "Что уже видно",
@@ -90,7 +90,7 @@ export function heuristicPerspectives(dialogue: DialogueForPerspectives): { text
     angles: [
       {
         id: "mind",
-        title: "Разум",
+        title: "Мысли",
         subtitle: "что известно, а что — нет",
         facts: [
           "Вы обратились с конкретным вопросом, который вас беспокоит",
@@ -130,7 +130,7 @@ export function heuristicPerspectives(dialogue: DialogueForPerspectives): { text
       },
       {
         id: "symbol",
-        title: "Символ",
+        title: "Скрытый смысл",
         subtitle: "метафорический взгляд",
         facts: [
           "Образ ситуации — порог: старый способ понимать уже тесен, новый ещё не сложился",
@@ -149,7 +149,7 @@ export function heuristicPerspectives(dialogue: DialogueForPerspectives): { text
       },
       {
         id: "action",
-        title: "Действие",
+        title: "Первый шаг",
         subtitle: "что можно сделать на этой неделе",
         facts: [
           "Вы не обязаны решить всё за один разговор или один день",

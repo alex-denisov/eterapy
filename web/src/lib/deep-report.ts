@@ -13,14 +13,14 @@ type DialogueForDeepReport = {
 
 export function buildDeepReportTitle(dialogue: Pick<DialogueForDeepReport, "title" | "topic">) {
   const title = dialogue.title?.trim();
-  if (title) return `Глубокий отчет: ${title.slice(0, 80)}`;
-  return `Глубокий отчет${dialogue.topic ? `: ${dialogue.topic}` : ""}`;
+  if (title) return `Подробный разбор: ${title.slice(0, 80)}`;
+  return `Подробный разбор${dialogue.topic ? `: ${dialogue.topic}` : ""}`;
 }
 
 export function buildDeepReportPreview(dialogue: DialogueForDeepReport) {
   const firstUserMessage = dialogue.messages.find((message) => message.role === "USER")?.content ?? dialogue.title;
   return [
-    "Предпросмотр глубокого отчета",
+    "Предпросмотр подробного разбора",
     "",
     `Запрос: ${firstUserMessage.slice(0, 280)}`,
     "",
@@ -37,7 +37,7 @@ export function buildDeepReportTeaser(dialogue: DialogueForDeepReport, generated
   const report = normalizeReport(generatedText || heuristicDeepReport(dialogue));
   const visibleBlocks = report
     .split(/\n(?=3[.)]\s|\n3\.\s)/)[0]
-    .replace(/^Глубокий отчет\s*/i, "")
+    .replace(/^Подробный разбор\s*/i, "")
     .trim();
   const firstUserMessage = dialogue.messages.find((message) => message.role === "USER")?.content ?? dialogue.title;
 
@@ -66,7 +66,7 @@ function normalizeReport(text: string) {
 export function heuristicDeepReport(dialogue: DialogueForDeepReport) {
   const preview = buildDeepReportPreview(dialogue);
   return normalizeReport([
-    "Глубокий отчет",
+    "Подробный разбор",
     "",
     "1. Обзор ситуации",
     "Сейчас важно не искать один окончательный ответ, а отделить факты, чувства и ожидания. Вопрос уже содержит напряжение между желанием ясности и страхом поспешить.",

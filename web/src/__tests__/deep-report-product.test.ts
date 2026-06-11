@@ -26,9 +26,9 @@ describe("B085 deep report product", () => {
     const preview = buildDeepReportPreview(dialogue);
     const report = heuristicDeepReport(dialogue);
 
-    expect(preview).toContain("Предпросмотр глубокого отчета");
+    expect(preview).toContain("Предпросмотр подробного разбора");
     expect(preview).toContain("Стоит ли менять работу");
-    expect(report).toContain("Глубокий отчет");
+    expect(report).toContain("Подробный разбор");
     expect(report).toContain("План на 24-72 часа");
     expect(report).not.toContain("гарантированно");
   });

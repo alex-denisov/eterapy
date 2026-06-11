@@ -3,7 +3,7 @@
  *
  * Fixes three long-standing defects on the /checkin result page:
  *   1. the recommended PRODUCT never matched the user's topic (the UI hard-coded
- *      "4 ракурса"); now it is derived from the classified topic + catalog,
+ *      "Полная картина"); now it is derived from the classified topic + catalog,
  *   2. the "другие форматы" list was a static 5-item array (same for everyone);
  *      now it is topic-adjacent and excludes the primary recommendation,
  *   3. the subscription nudge was always "Plus / 490 ₽"; now the tier is chosen
@@ -112,7 +112,7 @@ export function recommendPrimaryProduct(topic: string | null | undefined): Produ
   // defensive fallback anyway.
   return rec ?? {
     slug: "perspectives",
-    name: "4 ракурса ответа",
+    name: "Полная картина",
     href: "/products/perspectives",
     reason: PRIMARY_REASON.other,
     price: "299 ₽",

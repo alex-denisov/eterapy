@@ -26,12 +26,12 @@ describe("B086 perspectives product", () => {
     const preview = buildPerspectivesPreview(dialogue);
     const report = heuristicPerspectives(dialogue);
 
-    expect(preview).toContain("Предпросмотр 4 ракурсов");
+    expect(preview).toContain("Предпросмотр полной картины");
     expect(preview).toContain("Запрос: Стоит ли менять работу сейчас?");
     const reportJson = JSON.parse(report.text) as { angles: Array<{ id: string; title: string }> };
     expect(reportJson.angles).toHaveLength(4);
     expect(reportJson.angles[0].id).toBe("mind");
-    expect(reportJson.angles[0].title).toBe("Разум");
+    expect(reportJson.angles[0].title).toBe("Мысли");
     expect(reportJson.angles[3].id).toBe("action");
   });
 

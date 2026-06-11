@@ -9,12 +9,9 @@ import { CATEGORIES, effectiveCategories, directionLabel } from "@/lib/practitio
 
 // Map of deep-link `?format=` query values to the W3 level-1 category id used by
 // CATEGORY_FILTERS. Keeps the practitioner CTA on product pages
-// (e.g. /products/joint-session → /practitioners?format=joint-session)
 // connected to the filtered grid view. Esoteric sub-types collapse into the
 // single "esoteric" specialization (their granularity now lives in directions).
 const FORMAT_TO_CATEGORY: Record<string, string> = {
-  "joint-session": "joint",
-  joint: "joint",
   psychology: "psychology",
   psy: "psychology",
   coaching: "coaching",
@@ -38,10 +35,12 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #DBD3EA, #F4D5C8)",
 ];
 
-// W3: the public filters are the six canonical specializations (level 1).
+// W3: the public filters are the canonical specializations (level 1).
+// M26/B367: «Совместные сессии» (joint) убраны из публичного фильтра — услуга
+// joint-session закрыта; универсалов подсвечивает бейдж «психология + эзотерика».
 const CATEGORY_FILTERS: Array<{ id: string; label: string }> = [
   { id: "all", label: "Все специалисты" },
-  ...CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
+  ...CATEGORIES.filter((c) => c.id !== "joint").map((c) => ({ id: c.id, label: c.label })),
 ];
 
 // V8: the six enum categories use the canonical labels (lib/types) so cards
@@ -102,11 +101,20 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
     // We intentionally re-evaluate when the URL search param changes.
   }, [formatParam, cat]);
 
-  const withCat = practitioners.map((p, i) => ({
-    ...p,
-    cats: effectiveCategories({ categories: p.categories, specialties: p.specialties, title: p.title }) as string[],
-    gradIdx: i % AVATAR_GRADIENTS.length,
-  }));
+  const withCat = practitioners.map((p, i) => {
+    const rawCats = effectiveCategories({ categories: p.categories, specialties: p.specialties, title: p.title }) as string[];
+    // M26/B367: legacy "joint" category practitioners are psychology+esoteric
+    // universals; the closed joint-session service is replaced by a badge.
+    const cats = rawCats.includes("joint")
+      ? [...new Set([...rawCats.filter((c) => c !== "joint"), "psychology", "esoteric"])]
+      : rawCats;
+    return {
+      ...p,
+      cats,
+      universal: cats.includes("psychology") && cats.includes("esoteric"),
+      gradIdx: i % AVATAR_GRADIENTS.length,
+    };
+  });
 
   const filtered = cat === "all" ? withCat : withCat.filter((p) => p.cats.includes(cat));
   const sorted = [...filtered].sort((a, b) =>
@@ -181,15 +189,25 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
             >
               {/* Gradient header */}
               <div style={{ height: 120, background: gradient, position: "relative", flexShrink: 0 }}>
-                {p.verified && (
-                  <div style={{ position: "absolute", top: 14, left: 16, display: "flex", gap: 6 }}>
-                    <span
-                      className="inline-flex items-center gap-1"
-                      style={{ background: "rgba(255,255,255,.72)", color: "var(--soft-bordeaux)", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999 }}
-                    >
-                      <BadgeCheck className="size-3" aria-hidden="true" />
-                      Проверен
-                    </span>
+                {(p.verified || p.universal) && (
+                  <div style={{ position: "absolute", top: 14, left: 16, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {p.verified && (
+                      <span
+                        className="inline-flex items-center gap-1"
+                        style={{ background: "rgba(255,255,255,.72)", color: "var(--soft-bordeaux)", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999 }}
+                      >
+                        <BadgeCheck className="size-3" aria-hidden="true" />
+                        Проверен
+                      </span>
+                    )}
+                    {p.universal && (
+                      <span
+                        data-testid="practitioner-universal-badge"
+                        style={{ background: "rgba(255,255,255,.72)", color: "#4A3E5E", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999 }}
+                      >
+                        психология + эзотерика
+                      </span>
+                    )}
                   </div>
                 )}
                 {/* Circle avatar overlapping header bottom */}

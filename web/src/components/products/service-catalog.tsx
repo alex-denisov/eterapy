@@ -48,7 +48,6 @@ const CATEGORIES: Category[] = [
   { id: "tarot", label: "Таро", live: true, icon: Moon },
   { id: "astro", label: "Астрология", live: true, icon: Compass },
   { id: "numero", label: "Нумерология", live: true, icon: Sparkles },
-  { id: "joint", label: "Совместные сессии", live: true, icon: Users },
 ];
 
 // B322 / B323 / T13: prices aligned with docs/ETerapy_v5_Product_Package/13_Prices_Breakdown.md.
@@ -66,20 +65,19 @@ const SERVICES: ServiceCard[] = [
   { id: "pair", title: "Разобраться вдвоём", desc: "Общий вопрос на двоих: где совпали ожидания, где напряжение и что стоит обсудить.", price: "790 ₽", cat: "social", kind: "Для двоих", href: "/products/pair", icon: Heart },
   { id: "7days", title: "7 дней к ясности", desc: "Маршрут по 5–10 минут в день — первый день бесплатно.", price: "990 ₽", cat: "practice", kind: "Маршрут", href: "/products/seven-days", icon: Calendar },
   // Paid digital products
-  { id: "angles", title: "4 ракурса ответа", desc: "Разум · чувства · символ · действие. Часто первый платный шаг после ответа.", price: "299 ₽", cat: "digital", kind: "Цифровое", href: "/products/perspectives", icon: Compass },
-  { id: "report", title: "Глубокий отчёт", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: "690 ₽", cat: "digital", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
+  { id: "angles", title: "Полная картина", desc: "Мысли · чувства · скрытый смысл · первый шаг. Часто первый платный шаг после ответа.", price: "299 ₽", cat: "digital", kind: "Цифровое", href: "/products/perspectives", icon: Compass },
+  { id: "report", title: "Подробный разбор", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: "690 ₽", cat: "digital", kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
   { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: "390 ₽", cat: "digital", kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
   { id: "map", title: "Моя карта ETerapy", desc: "Личное пространство вопросов, выводов и повторяющихся тем.", price: "990 ₽", cat: "practice", kind: "Приватное", href: "/products/my-map", icon: Compass },
   { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "/products/tarot", icon: Moon },
   { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: "590 ₽", cat: "astro", kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
-  { id: "synastry-d", title: "Синастрия", desc: "Сравнение двух натальных карт как карта ресурсов и разных ритмов пары.", price: "990 ₽", cat: "astro", kind: "Цифровое", href: "/products/synastry", icon: Compass },
+  { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом: ресурсы и разные ритмы пары.", price: "990 ₽", cat: "astro", kind: "Цифровое", href: "/products/synastry", icon: Compass },
   { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: "390 ₽", cat: "numero", kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
   // Specialist live sessions
   { id: "psy-live", title: "Встреча с психологом", desc: "60 минут онлайн с проверенным специалистом — он заранее видит ваш разбор.", price: "от 4 500 ₽", cat: "psy", kind: "Встреча", href: "/practitioners", icon: Heart },
   { id: "coach-live", title: "Коуч-сессия", desc: "Карьера, призвание, переход.", price: "от 3 200 ₽", cat: "coach", kind: "Встреча", href: "/practitioners", icon: Leaf },
   { id: "legal-live", title: "Юридическая консультация", desc: "Семейное право, документы, опека.", price: "от 6 000 ₽", cat: "legal", kind: "Встреча", href: "/practitioners", icon: Lock },
   { id: "finance-live", title: "Финансовый коуч", desc: "Деньги, тревога, личный финансовый план.", price: "от 3 200 ₽", cat: "finance", kind: "Встреча", href: "/practitioners", icon: Bookmark },
-  { id: "joint-pair", title: "Эзотерик + психотерапевт", desc: "Совместная сессия двух специалистов.", price: "от 4 500 ₽", cat: "joint", kind: "Встреча", href: "/products/joint-session", icon: Users },
 ];
 
 export function ServiceCatalog({

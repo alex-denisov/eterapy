@@ -24,7 +24,7 @@ describe("v5 pricing page", () => {
 
     expect(page).toContain('data-testid="pricing-page"');
     expect(combined).toContain("Первичный");
-    expect(combined).toContain("4 ракурса ответа");
+    expect(combined).toContain("Полная картина");
     expect(combined).toContain("299 ₽");
     // B348/Механика 1: подписки только месячные — годовых планов и тумблера «на год» нет.
     expect(combined).toContain("490");

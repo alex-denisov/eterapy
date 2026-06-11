@@ -40,7 +40,8 @@ describe("v5 product pages", () => {
     expect(source("components/products/product-purchase-controls.tsx")).not.toContain("/api/billing/pay-from-balance");
     expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/create-payment");
     expect(source("lib/v5-products.ts")).toContain('route: "/products/tarot"');
-    expect(source("lib/v5-products.ts")).toContain('directHref: "/practitioners?format=joint-session"');
+    // M26/B367: joint-session removed from the catalog entirely.
+    expect(source("lib/v5-products.ts")).not.toContain("joint-session\":");
   });
 
   it("ports v4.2 product hero and page-specific blocks instead of a generic product template", () => {
@@ -52,7 +53,7 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain("← На главную");
     expect(detailPage).toContain("product.priceMeta");
 
-    expect(detailPage).toContain("ETerapy · глубокий отчёт");
+    expect(detailPage).toContain("ETerapy · подробный разбор");
     expect(detailPage).toContain('data-testid="deep-report-sample-main-fork"');
     expect(detailPage).toContain("03 · Карта факт-чувство-предположение");
     expect(detailPage).toContain("Если хочется");
@@ -70,10 +71,9 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain('data-testid="numerology-number-cards"');
     expect(detailPage).toContain("что с этим делать");
 
-    expect(detailPage).toContain('data-testid="joint-session-timeline"');
-    expect(detailPage).toContain("структура встречи");
+    expect(detailPage).not.toContain("joint-session");
 
-    expect(products).toContain("Глубокий отчёт");
+    expect(products).toContain("Подробный разбор");
     // Z2 credit-centric: deep-report is a PREMIUM anchor (Plus includes only
     // perspectives), so the copy must say Premium, not Plus.
     expect(products).toContain("или −4 балла · в Premium входит");

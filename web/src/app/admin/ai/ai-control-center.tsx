@@ -1838,7 +1838,7 @@ export function AIControlCenter({
           <p className="soft-eyebrow">paid layer</p>
           <p className="mt-2 text-sm font-medium">Платные продукты получают сильный слой</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            Разборы, ракурсы, совместимость и сессии настраиваются отдельно по цепочке провайдеров.
+            Разборы, полная картина, совместимость и сессии настраиваются отдельно по цепочке провайдеров.
           </p>
         </div>
         <div>

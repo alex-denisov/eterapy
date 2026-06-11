@@ -25,8 +25,8 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       title: "Разборы",
       links: [
         [mainUrl("/checkin"), "Первичный разбор"],
-        [mainUrl("/products/perspectives"), "4 ракурса"],
-        [mainUrl("/products/deep-report"), "Глубокий отчёт"],
+        [mainUrl("/products/perspectives"), "Полная картина"],
+        [mainUrl("/products/deep-report"), "Подробный разбор"],
         [mainUrl("/products/chat-analysis"), "Разбор переписки"],
         [mainUrl("/products/my-map"), "Расширенная карта"],
       ],
@@ -47,9 +47,8 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       links: [
         [mainUrl("/products/tarot"), "Таро"],
         [mainUrl("/products/natal-chart"), "Натальная карта"],
-        [mainUrl("/products/synastry"), "Синастрия"],
+        [mainUrl("/products/synastry"), "Совместимость по звёздам"],
         [mainUrl("/products/numerology"), "Нумерология"],
-        [mainUrl("/products/joint-session"), "Эзотерик + психотерапевт"],
         [mainUrl("/practitioners"), "Специалисты"],
         [mainUrl("/practitioners/apply"), "Стать специалистом"],
       ],

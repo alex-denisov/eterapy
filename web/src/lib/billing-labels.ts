@@ -18,8 +18,8 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
 
 // Russian display names, aligned with the public catalog (lib/v5-products.ts).
 export const PRODUCT_LABELS: Record<string, string> = {
-  perspectives: "4 ракурса ответа",
-  "deep-report": "Глубокий отчёт",
+  perspectives: "Полная картина",
+  "deep-report": "Подробный разбор",
   "full-question": "Полный разбор вопроса",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
@@ -29,7 +29,7 @@ export const PRODUCT_LABELS: Record<string, string> = {
   "my-map": "Расширенная карта",
   tarot: "Расклад Таро",
   "natal-chart": "Натальная карта",
-  synastry: "Синастрия",
+  synastry: "Совместимость по звёздам",
   numerology: "Числовой портрет",
 };
 

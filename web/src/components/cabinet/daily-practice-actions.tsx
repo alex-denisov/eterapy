@@ -61,7 +61,7 @@ export function DailyPracticeActions({
   }
 
   // Full ritual (/cabinet/practice): the user writes their own вопрос дня, the
-  // LLM returns ракурс дня + маленький шаг.
+  // LLM returns взгляд дня + маленький шаг.
   async function reflect() {
     const trimmed = question.trim();
     if (trimmed.length < 3) {
@@ -129,14 +129,14 @@ export function DailyPracticeActions({
           </div>
         )}
 
-        {/* Beats 2 & 3 — ракурс + маленький шаг */}
+        {/* Beats 2 & 3 — взгляд дня + маленький шаг */}
         {(beats.perspective || beats.step) && (
           <div className="mt-3 grid gap-3" data-testid="practice-beats">
             {beats.perspective && (
               <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="practice-perspective">
                 <p className="soft-eyebrow inline-flex items-center gap-1.5 text-[var(--soft-terracotta-dark)]">
                   <Compass className="size-3.5" aria-hidden="true" />
-                  ракурс дня
+                  взгляд дня
                 </p>
                 <p className="mt-2 text-[15px] leading-relaxed text-[var(--soft-ink)]">{beats.perspective}</p>
               </div>
@@ -200,7 +200,7 @@ export function DailyPracticeActions({
         data-testid="practice-complete-button"
       >
         {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Compass className="size-4" aria-hidden="true" />}
-        Получить ракурс и шаг
+        Получить взгляд и шаг
       </Button>
       {message && (
         <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{message}</p>

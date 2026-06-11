@@ -120,7 +120,7 @@ export default async function LibraryEntryPage({
             {[
               "детали запроса автора",
               "ответы в уточняющем диалоге",
-              "4 ракурса: разум, чувства, символ, действие",
+              "Полная картина: мысли, чувства, скрытый смысл, первый шаг",
               "безопасный следующий шаг",
             ].map((item) => (
               <div key={item} className="flex items-center gap-3 text-sm text-[var(--soft-ink-soft)]">

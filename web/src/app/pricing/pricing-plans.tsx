@@ -32,7 +32,7 @@ const plans = [
     // /Telegram are available to every user, not a Plus exclusive.
     perks: [
       "+12 баллов каждый месяц",
-      "4 ракурса ответа включены — без баллов, без лимита",
+      "Полная картина включена — без баллов, без лимита",
       "Баллами оплачивайте любой цифровой формат",
       "Моя карта: история разборов и темы",
       "Без скидок на встречи — полная ставка специалиста",
@@ -51,12 +51,12 @@ const plans = [
     // Z2 credit-centric (docs/v5-release/MONETIZATION-STRATEGY-Y10 §3): Premium
     // includes only two anchors (perspectives + deep-report) + 35 monthly credits;
     // the rest of the catalog (chat-analysis, my-map, 7 дней, «Вы двое», круг,
-    // синастрия, …) is paid from the wallet — NOT bundled free. Perks must not
+    // совместимость по звёздам, …) is paid from the wallet — NOT bundled free. Perks must not
     // claim otherwise.
     perks: [
       "Всё из Plus",
       "+35 баллов каждый месяц",
-      "4 ракурса + Глубокий отчёт включены без баллов",
+      "Полная картина + Подробный разбор включены без баллов",
       "Весь премиальный каталог — из щедрого кошелька баллов",
     ],
     cta: "Подключить Premium",
@@ -74,8 +74,8 @@ const plans = [
 // DB-priced block (see sessionRows) so they reflect the real PriceRate floor.
 const oneOff = [
   { cat: "Бесплатный вход", t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно", href: "/checkin", cta: "Начать" },
-  { cat: "Цифровые углубления", t: "4 ракурса ответа", d: "Разум · Чувства · Символ · Действие", price: "299 ₽", href: "/products/perspectives", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Глубокий отчёт", d: "Документ-разбор · 10–15 страниц", price: "690 ₽", href: "/products/deep-report", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Полная картина", d: "Мысли · Чувства · Скрытый смысл · Первый шаг", price: "299 ₽", href: "/products/perspectives", cta: "Заказать" },
+  { cat: "Цифровые углубления", t: "Подробный разбор", d: "Документ-разбор · 10–15 страниц", price: "690 ₽", href: "/products/deep-report", cta: "Заказать" },
   { cat: "Цифровые углубления", t: "Разбор переписки", d: "Тон, динамика, варианты ответа", price: "390 ₽", href: "/products/chat-analysis", cta: "Разобрать" },
   { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению, начало бесплатно", price: "790 ₽", href: "/products/compatibility", cta: "Создать" },
   { cat: "Для двоих и круга", t: "Круг ясности", d: "2–5 участников и общий итог", price: "790 ₽", href: "/products/circle", cta: "Создать" },
@@ -84,8 +84,8 @@ const oneOff = [
   { cat: "Маршруты и карта", t: "7 дней к ясности", d: "Один шаг в день, 5–10 мин · день 1 бесплатно", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
   { cat: "Маршруты и карта", t: "Расширенная карта", d: "Годовой портрет паттернов · история и темы", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
   { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: "390 ₽", href: "/products/tarot", cta: "Купить" },
-  { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор · синастрия с партнёром 990 ₽", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
-  { cat: "Эзотерика", t: "Синастрия", d: "Две натальные карты · карта пары", price: "990 ₽", href: "/products/synastry", cta: "Собрать" },
+  { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор · совместимость по звёздам с партнёром 990 ₽", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
+  { cat: "Эзотерика", t: "Совместимость по звёздам", d: "Две натальные карты · карта пары", price: "990 ₽", href: "/products/synastry", cta: "Собрать" },
   { cat: "Эзотерика", t: "Числовой портрет", d: "Имя, дата и цикл года", price: "390 ₽", href: "/products/numerology", cta: "Купить" },
 ];
 
@@ -101,7 +101,6 @@ function buildSessionRows(minSessionPriceRub: number | null) {
     { cat: "Встречи", t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "по записи", href: "/practitioners?format=coaching", cta: "Записаться" },
     { cat: "Встречи", t: "Юрист", d: "Семейное право, развод, опека", price: "по записи", href: "/practitioners?format=legal", cta: "Записаться" },
     { cat: "Встречи", t: "Финансовый консультант", d: "Бюджет, долги, инвестиции", price: "по записи", href: "/practitioners?format=finance", cta: "Записаться" },
-    { cat: "Встречи", t: "Эзотерик + психотерапевт", d: "Совместная сессия двух специалистов", price: "по записи", href: "/products/joint-session", cta: "Посмотреть" },
   ];
 }
 

@@ -14,7 +14,7 @@ export const ONBOARDING_MISSIONS = [
   {
     key: "first_practice",
     title: "Завершить первую практику",
-    description: "Один вопрос дня, один ракурс и один маленький шаг.",
+    description: "Один вопрос дня, один взгляд со стороны и один маленький шаг.",
     actionHref: "/cabinet/practice",
     rewardCredits: 2,
   },
@@ -28,7 +28,7 @@ export const ONBOARDING_MISSIONS = [
   {
     key: "first_product",
     title: "Открыть первый цифровой формат",
-    description: "Попробуйте ракурсы, отчёт, карту или другой формат из каталога.",
+    description: "Попробуйте полную картину, разбор, карту или другой формат из каталога.",
     actionHref: "/products",
     rewardCredits: 2,
   },

@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       ? await db.productResult.update({
           where: { id: existingPreview.id },
           data: {
-            title: "Синастрия как карта пары",
+            title: "Совместимость по звёздам как карта пары",
             previewText,
             metadata: {
               userBirthData: parsed.data.userBirthData,
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId,
             productKey: PRODUCT_KEY,
-            title: "Синастрия как карта пары",
+            title: "Совместимость по звёздам как карта пары",
             status: "PREVIEW",
             previewText,
             metadata: {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     data: {
       userId,
       productKey: PRODUCT_KEY,
-      title: "Синастрия как карта пары",
+      title: "Совместимость по звёздам как карта пары",
       status: "READY",
       previewText,
       resultText: generated.text,

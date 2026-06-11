@@ -23,8 +23,8 @@ const PRODUCT_PRICES_RUB: Record<string, number> = {
 };
 
 const PRODUCT_NAMES: Record<string, string> = {
-  perspectives: "4 ракурса",
-  "deep-report": "Глубокий отчёт",
+  perspectives: "Полная картина",
+  "deep-report": "Подробный разбор",
   "chat-analysis": "Анализ переписки",
   compatibility: "Совместимость",
   circle: "Круг ясности",

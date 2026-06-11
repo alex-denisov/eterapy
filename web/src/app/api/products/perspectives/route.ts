@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
   const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
   if (!hasEntitlement) {
     return jsonWithRequestContext({
-      error: "Для 4 ракурсов нужна оплата или активная подписка",
+      error: "Для полной картины нужна оплата или активная подписка",
       code: "PAYMENT_REQUIRED",
       checkout: { productKey: PRODUCT_KEY, checkoutSource: "perspectives-generate" },
       preview: existing ? serializeResult(existing) : { title, previewText },

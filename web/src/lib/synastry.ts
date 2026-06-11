@@ -17,7 +17,7 @@ function fallbackSynastryResult(input: {
 }) {
   const question = normalize(input.question ?? "");
   return [
-    "Синастрия",
+    "Совместимость по звёздам",
     "",
     "Этот разбор стоит читать как язык тем между двумя людьми, а не как verdict о совместимости. Карта не решает за пару — она подсвечивает, где разговору нужна форма.",
     "",
@@ -38,15 +38,15 @@ export function buildSynastryTeaser(input: {
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const firstLine = lines.find((line) => !/^синастрия$/i.test(line))
+  const firstLine = lines.find((line) => !/^совместимость по звёздам$/i.test(line))
     ?? "В вашей паре уже виден один ритм: близость легче выдерживается, когда у каждого есть право на темп.";
 
   return [
-    "Один акцент синастрии",
+    "Один акцент совместимости по звёздам",
     firstLine,
     "",
     `Данные: ${compactBirthData(input.userBirthData)} + ${compactBirthData(input.partnerBirthData)}.`,
-    "Полная синастрия откроет общие ресурсы, зоны различий и безопасный разговорный шаг.",
+    "Полная совместимость по звёздам откроет общие ресурсы, зоны различий и безопасный разговорный шаг.",
   ].join("\n");
 }
 

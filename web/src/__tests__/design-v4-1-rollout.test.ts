@@ -79,7 +79,8 @@ describe("design v4.2 rollout", () => {
     expect(esoteric).toContain("/products/tarot");
     expect(esoteric).toContain("/products/natal-chart");
     expect(esoteric).toContain("/products/numerology");
-    expect(esoteric).toContain("/products/joint-session");
+    // M26/B367: joint-session закрыт — ссылки на него быть не должно.
+    expect(esoteric).not.toContain("/products/joint-session");
     expect(specialists).toContain("проверенные специалисты");
     expect(specialists).toContain("живой разговор");
     expect(specialists).toContain('href="/practitioners"');

@@ -142,14 +142,14 @@ export default async function PractitionerServicesPage() {
           </section>
 
           <section className="soft-card p-5" style={{ background: "linear-gradient(140deg, #dbd3ea, #f4d5c8)" }}>
-            <p className="soft-eyebrow">совместный формат</p>
-            <h2 className="soft-h3 mt-3">Эзотерик + психотерапевт</h2>
+            <p className="soft-eyebrow">психология + эзотерика</p>
+            <h2 className="soft-h3 mt-3">Бейдж универсала</h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Совместный формат доступен в каталоге. Участие подтверждается вручную, без автоматического снижения
-              вашей ставки.
+              Если вы работаете и в психологии, и в эзотерике, каталог подсвечивает ваш профиль
+              бейджем «психология + эзотерика». Ставка не меняется.
             </p>
-            <Link href={mainUrl("/products/joint-session")} className="soft-chip mt-4">
-              Посмотреть формат →
+            <Link href={mainUrl("/practitioners")} className="soft-chip mt-4">
+              Открыть каталог →
             </Link>
           </section>
         </aside>

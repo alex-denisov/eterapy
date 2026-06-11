@@ -74,16 +74,16 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/products/clarity-practice": {
     title: "Практика ясности — продукт ETerapy",
-    description: "Ежедневная мягкая практика: один вопрос, один ракурс, один маленький шаг и баллы за осмысленные действия.",
+    description: "Ежедневная мягкая практика: один вопрос, один взгляд со стороны, один маленький шаг и баллы за осмысленные действия.",
     schemaKind: "Product",
   },
   "/products/perspectives": {
-    title: "4 ракурса ответа — ETerapy",
-    description: "Платное углубление: рациональный, эмоциональный, символический и практический ракурс одного вопроса.",
+    title: "Полная картина — ETerapy",
+    description: "Платное углубление: мысли, чувства, скрытый смысл и первый шаг одного вопроса. Первая часть разбора бесплатно.",
     schemaKind: "Product",
   },
   "/products/deep-report": {
-    title: "Глубокий отчет — ETerapy",
+    title: "Подробный разбор — ETerapy",
     description: "Развернутый отчет по ситуации на основе диалога, доступный после оплаты или по подписке.",
     schemaKind: "Product",
   },
@@ -118,18 +118,13 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/synastry": {
-    title: "Синастрия — продукт ETerapy",
+    title: "Совместимость по звёздам — продукт ETerapy",
     description: "Сравнение двух натальных карт как символический язык динамики пары: ресурсы, разные ритмы и вопросы для бережного разговора.",
     schemaKind: "Product",
   },
   "/products/numerology": {
     title: "Числовой портрет — продукт ETerapy",
     description: "Нумерологический разбор имени и даты как карта вопросов, циклов и повторяющихся тем.",
-    schemaKind: "Product",
-  },
-  "/products/joint-session": {
-    title: "Эзотерик + психотерапевт — продукт ETerapy",
-    description: "Совместная живая сессия двух специалистов: символический язык и психотерапевтическая проверка реальности.",
     schemaKind: "Product",
   },
   "/all-modalities": {

@@ -4,9 +4,9 @@ import { aiComplete } from "@/lib/ai";
 import { log, serializeError } from "@/lib/logger";
 
 // Each daily practice is a three-beat ritual (docs/Design/v4.2 «Практика
-// ясности»): вопрос дня → ракурс дня → маленький шаг. The static templates
+// ясности»): вопрос дня → взгляд дня → маленький шаг. The static templates
 // below are the deterministic fallback used whenever the LLM is unavailable —
-// they MUST carry all three beats so the page never renders an empty ракурс
+// they MUST carry all three beats so the page never renders an empty взгляд
 // or шаг.
 export interface DailyPracticeContent {
   title: string;
@@ -68,7 +68,7 @@ const CARDS: DailyPracticeContent[] = [
   },
 ];
 
-/** Read the ракурс/шаг beats out of a stored DailyCard.metadata blob. */
+/** Read the взгляд/шаг beats out of a stored DailyCard.metadata blob. */
 export function dailyCardBeats(metadata: unknown): { perspective: string | null; step: string | null } {
   if (!metadata || typeof metadata !== "object") return { perspective: null, step: null };
   const meta = metadata as Record<string, unknown>;
@@ -85,7 +85,7 @@ export function dailyCardUserQuestion(metadata: unknown): string | null {
   return typeof meta.userQuestion === "string" && meta.userQuestion.trim() ? meta.userQuestion : null;
 }
 
-// G14: when the LLM is unavailable we still return a warm, useful ракурс + шаг
+// G14: when the LLM is unavailable we still return a warm, useful взгляд + шаг
 // so the user-authored question always gets a response.
 const GENERIC_PRACTICE_RESPONSE = {
   perspective:
@@ -180,7 +180,7 @@ export async function generateDailyPracticeContent(
             "title — короткое название дня (2–4 слова).",
             "body — одно тёплое вводное предложение (до 160 символов).",
             "question — вопрос дня от первого лица, на который человек отвечает себе (до 140 символов).",
-            "perspective — ракурс дня: один бережный разворот взгляда, помогающий увидеть ситуацию иначе (1–2 предложения).",
+            "perspective — взгляд дня: один бережный разворот, помогающий увидеть ситуацию иначе (1–2 предложения).",
             "step — маленький шаг: одно конкретное, выполнимое за минуты действие на сегодня (1 предложение).",
             "Тон: тёплый, без диагнозов, без медицинских/юридических/финансовых советов, без кризисных тем. Только русский язык.",
           ].join(" "),
@@ -221,7 +221,7 @@ function parsePracticeBeatsResponse(text: string): { perspective: string; step: 
 /**
  * G14 — Практика ясности core mechanic. The user writes their OWN вопрос дня;
  * we run it through the monitored `daily-practice` policy and return the two
- * remaining beats: ракурс дня (a gentle reframe / action) and маленький шаг
+ * remaining beats: взгляд дня (a gentle reframe / action) and маленький шаг
  * (one concrete doable step with a recommendation). The user's question is
  * their own text, so it is safe to send. Always returns content — on any
  * failure it falls back to a warm generic response so the ritual never breaks.
@@ -246,14 +246,14 @@ export async function generatePracticeResponseForQuestion(
             "Ты ведёшь ежедневную «Практику ясности» в продукте ETerapy — мягком сервисе самонаблюдения.",
             "Человек написал свой вопрос дня. Ответь двумя частями. Верни ТОЛЬКО JSON без markdown:",
             '{"perspective": "...", "step": "..."}',
-            "perspective — ракурс дня: один бережный разворот взгляда, помогающий увидеть ситуацию иначе (1–2 предложения, обращение на «вы»).",
+            "perspective — взгляд дня: один бережный разворот, помогающий увидеть ситуацию иначе (1–2 предложения, обращение на «вы»).",
             "step — маленький шаг: одно конкретное, выполнимое за минуты действие на сегодня с короткой рекомендацией (1–2 предложения).",
             "Тон: тёплый, поддерживающий, без диагнозов, без медицинских/юридических/финансовых советов, без кризисных тем. Только русский язык.",
           ].join(" "),
         },
         {
           role: "user",
-          content: `Мой вопрос дня: «${cleaned}». Дай ракурс дня и маленький шаг.`,
+          content: `Мой вопрос дня: «${cleaned}». Дай взгляд дня и маленький шаг.`,
         },
       ],
     });

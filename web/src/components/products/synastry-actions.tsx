@@ -63,7 +63,7 @@ export function SynastryActions() {
 
   async function generateResult() {
     if (authStatus !== "authenticated") {
-      setMessage("Войдите, чтобы открыть синастрию и сохранить результат в кабинете.");
+      setMessage("Войдите, чтобы открыть совместимость по звёздам и сохранить результат в кабинете.");
       setStatus("error");
       return;
     }
@@ -77,7 +77,7 @@ export function SynastryActions() {
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
       if (payload.paywalled) {
-        setMessage("Бесплатный фрагмент готов. Полную синастрию можно открыть баллами или картой.");
+        setMessage("Бесплатный фрагмент готов. Полную совместимость по звёздам можно открыть баллами или картой.");
       }
       setStatus("idle");
     } catch (error) {
@@ -87,7 +87,7 @@ export function SynastryActions() {
       } else if (typed.status === 402) {
         setMessage("Откройте доступ баллами или картой — полный результат появится здесь же.");
       } else {
-        setMessage(typed.message || "Не удалось создать синастрию");
+        setMessage(typed.message || "Не удалось создать совместимость по звёздам");
       }
       setStatus("error");
     }
@@ -115,9 +115,9 @@ export function SynastryActions() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="soft-eyebrow">получить продукт</p>
-          <h2 className="soft-h3 mt-2">Синастрия</h2>
+          <h2 className="soft-h3 mt-2">Совместимость по звёздам</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Сначала можно получить один настоящий акцент по данным рождения. Полная синастрия открывается баллами или картой.
+            Сначала можно получить один настоящий акцент по данным рождения. Полная совместимость по звёздам открывается баллами или картой.
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
@@ -179,7 +179,7 @@ export function SynastryActions() {
               className="soft-button soft-button-primary"
             >
               {hasEntitlement && <Sparkles className="size-4" aria-hidden="true" />}
-              {status === "loading" ? "Собираем синастрию" : hasEntitlement ? "Получить полную синастрию" : "Бесплатный фрагмент"}
+              {status === "loading" ? "Собираем совместимость по звёздам" : hasEntitlement ? "Получить полную совместимость по звёздам" : "Бесплатный фрагмент"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
             {!hasEntitlement && (
@@ -227,7 +227,7 @@ export function SynastryActions() {
                 className="mt-3 font-heading text-[1.08rem] text-[var(--soft-ink)]"
               />
               <p className="mt-4 rounded-[16px] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                Это бесплатный фрагмент. Полная синастрия откроет карту ресурсов, различий и вопросов для разговора.
+                Это бесплатный фрагмент. Полная совместимость по звёздам откроет карту ресурсов, различий и вопросов для разговора.
               </p>
             </>
           ) : (

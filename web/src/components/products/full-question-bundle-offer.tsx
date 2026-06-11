@@ -44,13 +44,13 @@ export function FullQuestionBundleOffer({
           <h3 className="soft-h3 mt-1">Один вопрос — три способа продолжить</h3>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
-          Бандл открывает 4 ракурса и глубокий отчёт из одного контекста.
+          Бандл открывает полную картину и подробный разбор из одного контекста.
         </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-3">
         <article className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
           <p className="soft-eyebrow">отчёт</p>
-          <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Глубокий отчёт</h4>
+          <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Подробный разбор</h4>
           <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">690 ₽</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Документ-разбор с выводами, маршрутом и сохранением в Мою карту.
@@ -76,7 +76,7 @@ export function FullQuestionBundleOffer({
           <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Полный разбор</h4>
           <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">890 ₽</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            4 ракурса сначала, затем глубокий отчёт по тому же вопросу.
+            Полная картина сначала, затем подробный разбор по тому же вопросу.
           </p>
           <div className="mt-3 flex items-center gap-2 text-xs text-[var(--soft-ink-faint)]">
             <CheckCircle2 className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
@@ -91,7 +91,7 @@ export function FullQuestionBundleOffer({
             className="mt-4"
           />
           <Link href={perspectivesHref} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-bordeaux)] underline">
-            Сначала открыть 4 ракурса
+            Сначала открыть полную картину
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>
         </article>
@@ -101,7 +101,7 @@ export function FullQuestionBundleOffer({
           <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Premium</h4>
           <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">1 290 ₽</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            35 баллов в месяц, 4 ракурса и глубокий отчёт как якорные форматы.
+            35 баллов в месяц, полная картина и подробный разбор как якорные форматы.
           </p>
           <Link href={appUrl("/billing?plan=premium")} className="soft-button soft-button-ghost mt-4">
             Выбрать Premium

@@ -35,13 +35,13 @@ describe("Z14 synastry product", () => {
     expect(product).toEqual(expect.objectContaining({
       slug: "synastry",
       route: "/products/synastry",
-      name: "Синастрия",
+      name: "Совместимость по звёздам",
       price: "990 ₽",
       creditCost: 5,
       productKey: "synastry",
     }));
     expect(publicSeoRoutes).toContain("/products/synastry");
-    expect(publicPageSeo["/products/synastry"].title).toContain("Синастрия");
+    expect(publicPageSeo["/products/synastry"].title).toContain("Совместимость по звёздам");
   });
 
   it("wires the public page, action component, API route, and catalogue surfaces", () => {
@@ -75,8 +75,8 @@ describe("Z14 synastry product", () => {
     expect(pricing).toContain("/products/synastry");
     expect(showcase).toContain("/products/synastry");
     expect(footer).toContain("/products/synastry");
-    expect(map).toContain('synastry: "Синастрия"');
-    expect(resultPage).toContain('"synastry": "Синастрия"');
+    expect(map).toContain('synastry: "Совместимость по звёздам"');
+    expect(resultPage).toContain('"synastry": "Совместимость по звёздам"');
     expect(taskPolicy).toContain('feature: "product-synastry"');
     expect(prompts).toContain('"product-synastry"');
   });
@@ -84,7 +84,7 @@ describe("Z14 synastry product", () => {
   it("generates a non-fatalistic synastry result through AI with a safe fallback", async () => {
     mockAiComplete.mockResolvedValueOnce({
       text: [
-        "Синастрия",
+        "Совместимость по звёздам",
         "",
         "Главное совпадение: оба быстрее успокаиваются, когда разговор становится конкретным.",
         "Главное различие: один ищет паузу, другой — немедленное подтверждение близости.",
@@ -117,7 +117,7 @@ describe("Z14 synastry product", () => {
       partnerBirthData: "09.11.1990, 08:10, Санкт-Петербург",
       generatedText: generated.text,
     });
-    expect(teaser).toContain("Один акцент синастрии");
-    expect(teaser).toContain("Полная синастрия");
+    expect(teaser).toContain("Один акцент совместимости по звёздам");
+    expect(teaser).toContain("Полная совместимость по звёздам");
   });
 });

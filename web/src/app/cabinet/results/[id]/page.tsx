@@ -9,12 +9,12 @@ import { loginUrl, appUrl } from "@/lib/subdomain";
 
 const PRODUCT_LABELS: Record<string, string> = {
   "seven-days": "7 дней к ясности",
-  "deep-report": "Глубокий отчёт",
-  "perspectives": "4 ракурса ответа",
+  "deep-report": "Подробный разбор",
+  "perspectives": "Полная картина",
   "compatibility": "Совместимость",
   "tarot": "Расклад Таро",
   "natal-chart": "Натальная карта",
-  "synastry": "Синастрия",
+  "synastry": "Совместимость по звёздам",
   "numerology": "Числовой портрет",
   "my-map": "Расширенная карта",
 };

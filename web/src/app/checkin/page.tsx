@@ -927,7 +927,7 @@ export default function CheckinPage() {
                   <div className="mt-2 flex items-start gap-3">
                     <Compass className="mt-1 size-6 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                     <div>
-                      <h3 className="soft-h3">4 ракурса ответа</h3>
+                      <h3 className="soft-h3">Полная картина</h3>
                       <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                         {productRecommendation?.reason ?? "Похоже на запрос про решение. Разложим ситуацию на разум, чувства, символ и действие."}
                       </p>

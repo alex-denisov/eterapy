@@ -30,7 +30,7 @@ const TOC_LABELS = [
   "Что я слышу в вашем вопросе",
   "Главная развилка",
   "Карта факт-чувство-предположение",
-  "Четыре ракурса · разум · чувства · символ · действие",
+  "Полная картина · мысли · чувства · скрытый смысл · первый шаг",
   "Возможные сценарии и их цена",
   "Безопасный маршрут на 2 недели",
   "С кем продолжить — если захочется",
@@ -98,7 +98,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
   async function generateReport() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы открыть глубокий отчет баллами или картой.");
+      setMessage("Войдите, чтобы открыть подробный разбор баллами или картой.");
       setStatus("error");
       return;
     }
@@ -115,7 +115,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к глубокому отчету баллами или картой — после этого полный текст появится на этой странице.");
+        setMessage("Откройте доступ к подробному разбору баллами или картой — после этого полный текст появится на этой странице.");
         setStatus("error");
         return;
       }
@@ -244,7 +244,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="soft-eyebrow">углубление · документ-разбор</p>
-              <h2 className="soft-h3 mt-2">Глубокий отчёт</h2>
+              <h2 className="soft-h3 mt-2">Подробный разбор</h2>
             </div>
             <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
               {hasEntitlement ? "доступ открыт" : "нужна оплата"}

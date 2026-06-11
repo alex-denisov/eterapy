@@ -210,7 +210,7 @@ export default async function CabinetWalletPage() {
               <h2 className="soft-h3 mt-2">3 приветственных балла на первые разборы</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 Они действуют ещё {daysUntil(welcomeGrant.expiresAt, now)} дн. Этого хватит,
-                чтобы открыть «4 ракурса» и попробовать один следующий формат за баллы.
+                чтобы открыть «Полную картину» и попробовать один следующий формат за баллы.
               </p>
             </div>
             <Link
@@ -221,7 +221,7 @@ export default async function CabinetWalletPage() {
               data-analytics-target="/products/perspectives"
               data-analytics-product="perspectives"
             >
-              Открыть 4 ракурса
+              Открыть полную картину
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </div>

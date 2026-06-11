@@ -53,13 +53,13 @@ describe("B203 Practice and missions", () => {
     expect(policy).toContain('feature: "daily-practice"');
   });
 
-  it("T20: surfaces ракурс дня and маленький шаг in the full practice ritual", () => {
+  it("T20: surfaces взгляд дня and маленький шаг in the full practice ritual", () => {
     const page = source("src/app/cabinet/practice/page.tsx");
     const actions = source("src/components/cabinet/daily-practice-actions.tsx");
 
     expect(page).toContain('variant="full"');
     expect(page).toContain("dailyCardBeats");
-    expect(actions).toContain("ракурс дня");
+    expect(actions).toContain("взгляд дня");
     expect(actions).toContain("маленький шаг");
     expect(actions).toContain("practice-reflection-input");
   });

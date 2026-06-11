@@ -104,7 +104,7 @@ function AngleCardPreview({
         {ANGLE_GLYPHS[angle.id] ?? "·"}
       </span>
       <span className="text-xs font-semibold uppercase tracking-widest opacity-60">
-        ракурс {String(index + 1).padStart(2, "0")}
+        часть {String(index + 1).padStart(2, "0")}
       </span>
       <span className="mt-2 font-heading text-xl font-semibold leading-tight">{angle.title}</span>
       <span className="mt-1 text-sm italic opacity-80">{angle.subtitle}</span>
@@ -205,7 +205,7 @@ function AngleDetail({ angle, index, total, nextTitle, onPrev, onNext, onSave }:
           className="soft-button soft-button-ghost"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
-          Предыдущий ракурс
+          Предыдущая часть
         </Button>
         {index < total - 1 ? (
           <Button onClick={onNext} className="soft-button soft-button-primary">
@@ -248,7 +248,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
   async function createPreview() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы получить бесплатный ракурс и сохранить его в кабинете.");
+      setMessage("Войдите, чтобы получить бесплатную часть разбора и сохранить её в кабинете.");
       setStatus("error");
       return;
     }
@@ -264,7 +264,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
       setActiveAngle(0);
       setStatus("idle");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось получить бесплатный ракурс");
+      setMessage(error instanceof Error ? error.message : "Не удалось получить бесплатную часть разбора");
       setStatus("error");
     }
   }
@@ -272,7 +272,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
   async function generateReport() {
     if (!dialogueId) return;
     if (!isAuthenticated) {
-      setMessage("Войдите, чтобы открыть 4 ракурса баллами или картой.");
+      setMessage("Войдите, чтобы открыть полную картину баллами или картой.");
       setStatus("error");
       return;
     }
@@ -290,11 +290,11 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 402) {
-        setMessage("Откройте доступ к 4 ракурсам баллами или картой — после этого результат появится здесь же.");
+        setMessage("Откройте полную картину баллами или картой — после этого результат появится здесь же.");
         setStatus("error");
         return;
       }
-      setMessage(typed.message || "Не удалось получить ракурсы");
+      setMessage(typed.message || "Не удалось получить полную картину");
       setStatus("error");
     }
   }
@@ -333,10 +333,10 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
       <ProductIntake
         productKey="perspectives"
         mode="full"
-        title="Соберём контекст для 4 ракурсов"
-        description="Короткий сбор контекста останется внутри услуги и откроет ракурсы на этой же странице, без перехода в общий первичный разбор."
+        title="Соберём контекст для полной картины"
+        description="Короткий сбор контекста останется внутри услуги и откроет полную картину на этой же странице, без перехода в общий первичный разбор."
         submitLabel="Начать с вопроса"
-        readyLabel="Контекст готов. Возвращаем вас к ракурсам."
+        readyLabel="Контекст готов. Возвращаем вас к полной картине."
         testId="perspectives-no-dialogue"
       />
     );
@@ -352,14 +352,14 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
         <div>
           <p className="soft-eyebrow">углубление</p>
           <h2 className="soft-h3 mt-2">
-            4 ракурса <em className="not-italic italic">одного</em> ответа
+            Полная картина <em className="not-italic italic">одного</em> ответа
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Разные углы зрения на одну и ту же ситуацию. Можно читать в любом порядке.
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "доступ открыт" : "1 ракурс бесплатно"}
+          {hasEntitlement ? "доступ открыт" : "первая часть бесплатно"}
         </span>
       </div>
 
@@ -408,9 +408,9 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
 
       {/* actions */}
       <div className="mt-6 flex flex-wrap gap-3">
-        {/* #7: paid order is the single primary action (credits → 4 ракурса in
-            one click); the free first ракурс is a quiet secondary link. The old
-            always-disabled «Получить 4 ракурса» button is gone for non-buyers. */}
+        {/* #7: paid order is the single primary action (credits → полная картина in
+            one click); the free first part is a quiet secondary link. The old
+            always-disabled buy button is gone for non-buyers. */}
         {hasEntitlement ? (
           <Button
             onClick={generateReport}
@@ -418,13 +418,13 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
             className="soft-button soft-button-primary"
           >
             <LockKeyhole className="size-4" aria-hidden="true" />
-            {angles.length ? "Обновить ракурсы" : "Получить 4 ракурса"}
+            {angles.length ? "Обновить картину" : "Увидеть полную картину"}
           </Button>
         ) : (
           <>
             <ProductPurchaseControls
               productKey="perspectives"
-              label="Открыть 4 ракурса"
+              label="Открыть полную картину"
               checkoutSource="perspectives-generate"
               creditCost={1}
               onUnlocked={() => {
@@ -440,7 +440,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
                 className="self-start text-sm font-medium text-[var(--soft-bordeaux)] underline underline-offset-4 disabled:opacity-50"
                 data-testid="perspectives-free-fragment"
               >
-                Сначала бесплатный ракурс
+                Сначала бесплатная часть
               </button>
             )}
           </>
@@ -463,7 +463,7 @@ export function PerspectivesActions({ dialogueId }: { dialogueId?: string | null
               onClick={async () => {
                 if (!result?.id) return;
                 const shareUrl = `${window.location.origin}/products/perspectives?dialogueId=${encodeURIComponent(result.id)}`;
-                const shareText = "4 ракурса ответа — ETerapy";
+                const shareText = "Полная картина — ETerapy";
                 if (typeof navigator.share === "function") {
                   try {
                     await navigator.share({ title: shareText, url: shareUrl });

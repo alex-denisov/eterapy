@@ -101,7 +101,7 @@ export default async function ClarityPracticePage() {
             </h1>
             <p className="mt-5 max-w-prose text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               Запишите свой вопрос дня — то, что просит внимания прямо сейчас.
-              ETerapy предложит ракурс дня и один маленький шаг, который можно сделать сегодня.
+              ETerapy предложит взгляд дня и один маленький шаг, который можно сделать сегодня.
             </p>
             <DailyPracticeActions
               completed={completed}
@@ -190,7 +190,7 @@ export default async function ClarityPracticePage() {
         <div className="flex flex-col gap-3">
           {[
             "Запишите свой вопрос дня — то, что правда просит внимания прямо сейчас",
-            "Прочитайте ракурс дня — мягкий разворот взгляда на вашу ситуацию",
+            "Прочитайте взгляд дня — мягкий разворот в вашей ситуации",
             "Сделайте маленький шаг с рекомендацией — за пару минут",
           ].map((step, i) => (
             <div key={step} className="flex items-start gap-4">
@@ -219,7 +219,7 @@ export default async function ClarityPracticePage() {
           <h3 className="soft-h3 mt-2">Дополнительная практика — 99 ₽ или 1 балл</h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             {completed
-              ? "Вы уже прошли сегодняшнюю — можно открыть ещё одну: новый вопрос, новый ракурс."
+              ? "Вы уже прошли сегодняшнюю — можно открыть ещё одну: новый вопрос, новый взгляд."
               : "Сначала завершите сегодняшнюю — а потом можно купить ещё одну на этот же день."}
           </p>
         </div>
@@ -242,7 +242,7 @@ export default async function ClarityPracticePage() {
             body: "Без чек-листов. Простой повод вернуться к себе на 5 минут.",
           },
           {
-            eyebrow: "ракурс",
+            eyebrow: "взгляд дня",
             title: "Маленький разворот",
             body: "Помогаем заметить, что вы уже знаете, но ещё не сказали себе вслух.",
           },

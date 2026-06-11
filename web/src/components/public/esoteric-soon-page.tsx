@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ArrowRight, Check, Heart, Lock, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 type EsotericProduct = {
   title: string;
@@ -116,14 +116,14 @@ export function EsotericServicePage({
         <section className="soft-card mt-8 p-6 md:p-8" style={{ background: "linear-gradient(140deg, #ded3ec, #f3e4ee)" }}>
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="soft-eyebrow text-[#4a3e5e]">совместный формат</p>
-              <h2 className="soft-h3 mt-3 text-[#4a3e5e]">Соединить с психотерапевтом</h2>
+              <p className="soft-eyebrow text-[#4a3e5e]">живое продолжение</p>
+              <h2 className="soft-h3 mt-3 text-[#4a3e5e]">Поговорить со специалистом</h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#4a3e5e]">
-                Разбор продолжает живой специалист, чтобы метафора не осталась без контекста и практического шага.
+                Разбор может продолжить живой специалист — ищите в каталоге бейдж «психология + эзотерика».
               </p>
             </div>
-            <Link href="/products/joint-session" className="soft-button soft-button-ghost shrink-0">
-              Узнать про совместные
+            <Link href="/practitioners" className="soft-button soft-button-ghost shrink-0">
+              Выбрать специалиста
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </div>
@@ -134,107 +134,3 @@ export function EsotericServicePage({
 }
 
 export const EsotericSoonPage = EsotericServicePage;
-
-export function JointSessionPage() {
-  const sections = [
-    {
-      icon: Sparkles,
-      title: "Эзотерик · 30 минут",
-      tone: "#4a3e5e",
-      bg: "linear-gradient(160deg, #dbd3ea, #eee6f5)",
-      items: [
-        "расклад, натальная карта или числовой портрет по запросу",
-        "символический разбор без катастрофических трактовок",
-        "выделение тем для дальнейшей работы",
-      ],
-    },
-    {
-      icon: Heart,
-      title: "Психотерапевт · 30 минут",
-      tone: "#3a4a36",
-      bg: "linear-gradient(160deg, #d6decc, #eff2e8)",
-      items: [
-        "проверка реальности и контекста",
-        "работа с чувствами, которые поднимет разбор",
-        "безопасный следующий шаг: практический, не «знаковый»",
-      ],
-    },
-  ];
-
-  return (
-    <main className="soft-clarity-page soft-public-page" data-testid="joint-session-page">
-      <section className="soft-shell py-12 md:py-16">
-        <Link href="/products" className="soft-chip soft-chip-warm">
-          К продуктам
-        </Link>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <span className="soft-badge soft-badge-lilac">доступно сейчас</span>
-          <span className="text-xs text-[var(--soft-ink-faint)]">уникальный для ETerapy формат</span>
-        </div>
-
-        <p className="soft-eyebrow mt-6">совместная сессия</p>
-        <h1 className="soft-display mt-3" style={{ maxWidth: "48rem" }}>
-          Эзотерик и <span className="soft-italic">психотерапевт</span> в одной встрече
-        </h1>
-        <p className="soft-lede mt-5" style={{ maxWidth: "45rem" }}>
-          Один час, два специалиста. Эзотерик предлагает символический язык, психотерапевт удерживает реальность,
-          контекст и безопасный следующий шаг.
-        </p>
-
-        <div className="mt-9 grid gap-4 md:grid-cols-2">
-          {sections.map((section) => {
-            const Icon = section.icon;
-            return (
-              <article key={section.title} className="soft-card p-6 md:p-8" style={{ background: section.bg }}>
-                <Icon className="size-7" style={{ color: section.tone }} aria-hidden="true" />
-                <h2 className="soft-h3 mt-4" style={{ color: section.tone }}>
-                  {section.title}
-                </h2>
-                <ul className="mt-4 grid gap-3 text-sm leading-relaxed" style={{ color: section.tone }}>
-                  {section.items.map((item) => (
-                    <li key={item} className="flex gap-3">
-                      <Check className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            );
-          })}
-        </div>
-
-        <section className="soft-card mt-8 bg-[var(--soft-bordeaux)] p-6 text-[var(--soft-paper)] md:p-8">
-          <div className="flex items-center gap-3">
-            <Lock className="size-5 text-[var(--soft-gold)]" aria-hidden="true" />
-            <p className="soft-eyebrow text-[var(--soft-gold)]">что не происходит</p>
-          </div>
-          <ul className="mt-4 grid gap-3 text-sm leading-relaxed text-[#e8c4b8] md:grid-cols-2">
-            <li>нет «диагнозов по карте» — ни эзотерических, ни медицинских;</li>
-            <li>нет прогнозов как фактов — есть темы и развилки;</li>
-            <li>специалисты не спорят между собой, а работают по согласованному протоколу;</li>
-            <li>встреча не отменяет терапию и не претендует на её роль.</li>
-          </ul>
-        </section>
-
-        <section className="soft-card mt-8 p-6 md:p-8">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="soft-eyebrow">формат и цена</p>
-              <h2 className="soft-h3 mt-3">60 минут · видеовстреча</h2>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                Оплата делится между двумя специалистами по их полной ставке. ETerapy удерживает сервисный сбор за
-                организацию, без скидок на встречи.
-              </p>
-            </div>
-            <div className="flex flex-col items-start gap-3 md:items-end">
-              <p className="text-4xl font-semibold text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>от 4 500 ₽</p>
-              <Link href="/checkin" className="soft-button soft-button-primary">
-                Начать с вопроса
-              </Link>
-            </div>
-          </div>
-        </section>
-      </section>
-    </main>
-  );
-}

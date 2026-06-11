@@ -15,7 +15,7 @@ describe("W17 dialogue recommendation engine", () => {
     expect(recommendPrimaryProduct("self").slug).toBe("clarity-practice");
     // catalog metadata is attached (fixes the "card doesn't match" drift)
     const money = recommendPrimaryProduct("money");
-    expect(money.name).toBe("Глубокий отчёт");
+    expect(money.name).toBe("Подробный разбор");
     expect(money.price).toMatch(/₽/);
   });
 
@@ -47,7 +47,7 @@ describe("W17 dialogue recommendation engine", () => {
     // X17: free/unmatched products surface Plus as the calm entry tier (the
     // nudge no longer disappears entirely), framed as «возвращаться».
     expect(recommendSubscription("clarity-practice", false)?.tier).toBe("plus");
-    expect(recommendSubscription("joint-session", false)?.tier).toBe("plus");
+    expect(recommendSubscription("tarot", false)?.tier).toBe("plus");
     // already-subscribed users are never nudged
     expect(recommendSubscription("deep-report", true)).toBeNull();
   });
