@@ -473,7 +473,7 @@ export default function CheckinPage() {
   return (
     <DialogueShell
       className="soft-clarity-page soft-dialogue-page"
-      title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Экстренная поддержка" : "Диалог ясности"}
+      title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Экстренная поддержка" : "Разбор"}
       description={
         phase === "result"
           ? "Это первый слой ответа. Его можно сохранить, отправить себе или углубить."
@@ -808,7 +808,7 @@ export default function CheckinPage() {
                       {thread.map((m) => (
                         <div key={m.id} className={m.role === "USER" ? "max-w-[88%] self-end" : "max-w-[88%] self-start"}>
                           <p className="mb-0.5 text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">
-                            {m.role === "USER" ? "вы" : "ясность"}
+                            {m.role === "USER" ? "вы" : "ETerapy"}
                           </p>
                           <div
                             className="whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed"

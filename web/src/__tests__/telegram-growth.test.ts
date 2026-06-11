@@ -28,7 +28,7 @@ describe("B204 Telegram growth surfaces", () => {
     expect(entry).toBeTruthy();
     const message = formatTelegramGrowthMessage(entry!);
 
-    expect(message).toContain("Практика ясности");
+    expect(message).toContain("Ежедневная практика");
     expect(message).toContain("channel=telegram_bot");
     expect(message).toContain("Открыть в ETerapy");
   });

@@ -17,7 +17,7 @@ export function CTASection() {
           data-analytics-event="dialogue_cta_clicked"
           data-analytics-target="/checkin"
         >
-          Начать диалог ясности
+          Начать разбор
           <ArrowRight className="size-4" aria-hidden="true" />
         </Link>
         <Link href="/library" className="soft-button soft-button-ghost min-w-56">

@@ -124,7 +124,7 @@ describe("M11 client retention surfaces", () => {
     expect(route).toContain("action === \"notify\"");
     expect(route).toContain("action === \"share\"");
     expect(dashboard).toContain('data-testid="client-daily-card"');
-    expect(events).toContain("Практики ясности");
+    expect(events).toContain("Ежедневная практика");
     expect(delivery).toContain("case \"DAILY_CARD\"");
   });
 

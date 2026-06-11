@@ -15,7 +15,7 @@ export default function NotFound() {
           </h1>
           <p className="mt-4 text-base leading-relaxed text-[var(--soft-ink-soft)]">
             Возможно, ссылка устарела или раздел переехал. Самые надёжные точки
-            входа — главная и бесплатный диалог ясности.
+            входа — главная и бесплатный разбор.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/" className="soft-button soft-button-primary">

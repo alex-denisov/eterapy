@@ -1831,7 +1831,7 @@ export function AIControlCenter({
           <p className="soft-eyebrow">free layer</p>
           <p className="mt-2 text-sm font-medium">Бесплатный вход остается дешевым</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            Диалог ясности, routing и уточнения идут через цепочку дешевых моделей с fallback между LLM.
+            Разбор, routing и уточнения идут через цепочку дешевых моделей с fallback между LLM.
           </p>
         </div>
         <div>

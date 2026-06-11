@@ -24,7 +24,7 @@ const plans = [
   {
     id: "plus",
     name: "Plus",
-    tagline: "Для регулярной практики ясности",
+    tagline: "Для регулярной практики",
     monthPrice: 490,
     // X18/Z2: honest perks — Plus bundles only `perspectives`
     // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. «my-map» is NOT
@@ -78,10 +78,10 @@ const oneOff = [
   { cat: "Цифровые углубления", t: "Подробный разбор", d: "Документ-разбор · 10–15 страниц", price: "690 ₽", href: "/products/deep-report", cta: "Заказать" },
   { cat: "Цифровые углубления", t: "Разбор переписки", d: "Тон, динамика, варианты ответа", price: "390 ₽", href: "/products/chat-analysis", cta: "Разобрать" },
   { cat: "Для двоих и круга", t: "Совместимость", d: "Парный отчёт по приглашению, начало бесплатно", price: "790 ₽", href: "/products/compatibility", cta: "Создать" },
-  { cat: "Для двоих и круга", t: "Круг ясности", d: "2–5 участников и общий итог", price: "790 ₽", href: "/products/circle", cta: "Создать" },
+  { cat: "Для двоих и круга", t: "Круг", d: "2–5 участников и общий итог", price: "790 ₽", href: "/products/circle", cta: "Создать" },
   { cat: "Для двоих и круга", t: "Разобраться вдвоём", d: "Отдельные ответы + общий результат", price: "790 ₽", href: "/products/pair", cta: "Пригласить" },
-  { cat: "Маршруты и карта", t: "Практика ясности", d: "Базовый ритм бесплатно, расширение по запросу", price: "0 ₽", href: "/products/clarity-practice", cta: "Открыть" },
-  { cat: "Маршруты и карта", t: "7 дней к ясности", d: "Один шаг в день, 5–10 мин · день 1 бесплатно", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
+  { cat: "Маршруты и карта", t: "Ежедневная практика", d: "Базовый ритм бесплатно, расширение по запросу", price: "0 ₽", href: "/products/clarity-practice", cta: "Открыть" },
+  { cat: "Маршруты и карта", t: "7 дней", d: "Один шаг в день, 5–10 мин · день 1 бесплатно", price: "990 ₽", href: "/products/seven-days", cta: "Начать" },
   { cat: "Маршруты и карта", t: "Расширенная карта", d: "Годовой портрет паттернов · история и темы", price: "990 ₽", href: "/products/my-map", cta: "Расширить" },
   { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: "390 ₽", href: "/products/tarot", cta: "Купить" },
   { cat: "Эзотерика", t: "Натальная карта", d: "Базовый разбор · совместимость по звёздам с партнёром 990 ₽", price: "590 ₽", href: "/products/natal-chart", cta: "Купить" },
@@ -120,7 +120,7 @@ export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub
         <div style={{ maxWidth: "48rem", marginInline: "auto", textAlign: "center" }}>
           <p className="soft-eyebrow">тарифы</p>
           <h1 className="soft-h1 mt-4">
-            Платите за <em className="soft-italic">ясность</em>, а не за подписку «на всякий случай»
+            Платите за <em className="soft-italic">результат</em>, а не за подписку «на всякий случай»
           </h1>
           <p className="soft-lede mt-5" style={{ maxWidth: "38rem", marginInline: "auto" }}>
               Один разбор всегда бесплатный. Подписка — для практики и цифровых углублений.

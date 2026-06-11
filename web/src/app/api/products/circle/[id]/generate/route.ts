@@ -67,7 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: {
       userId,
       productKey: PRODUCT_KEY,
-      title: "Круг ясности",
+      title: "Круг",
       status: "READY",
       previewText: teaserText,
       resultText: reportText,

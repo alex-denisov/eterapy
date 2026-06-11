@@ -15,7 +15,7 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     expect(login).toContain("Войти через Telegram");
     expect(login).toContain("Запомнить устройство");
     expect(register).toContain('data-testid="auth-v41-register"');
-    expect(register).toContain("личное пространство ясности");
+    expect(register).toContain("личное пространство для своих вопросов");
     expect(register).toContain("не заменяет психолога или врача");
     expect(register).toContain("Без рекламы и продажи данных");
   });

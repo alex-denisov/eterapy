@@ -33,7 +33,7 @@ export function HowItWorksSection() {
       <div className="mb-8 text-center md:mb-12">
         <div className="soft-eyebrow">Как это работает</div>
         <h2 className="soft-h1 mt-3 mx-auto max-w-3xl">
-          От вопроса <span className="soft-italic">к ясности</span> — за 5–7 минут
+          От вопроса <span className="soft-italic">к ответу</span> — за 5–7 минут
         </h2>
       </div>
 

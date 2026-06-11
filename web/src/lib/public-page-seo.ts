@@ -39,7 +39,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/pricing": {
     title: "Цены и тарифы ETerapy",
-    description: "Прозрачные цены: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней к ясности и клиентские подписки.",
+    description: "Прозрачные цены: бесплатный первичный ответ, разовые углубления, разбор переписки, совместимость, 7 дней и клиентские подписки.",
     schemaKind: "Product",
   },
   "/pricing/compare": {
@@ -48,7 +48,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/circle": {
-    title: "Круг ясности — ETerapy",
+    title: "Круг — ETerapy",
     description: "Групповой формат для 2–5 участников: общий вопрос, приватные ответы, согласие и бережный итоговый разбор.",
     schemaKind: "Product",
   },
@@ -59,7 +59,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   },
   "/telegram": {
     title: "ETerapy в Telegram",
-    description: "Диалог ясности, ежедневные карточки и мягкие напоминания ETerapy в Telegram с управлением приватностью.",
+    description: "Разбор, ежедневные карточки и мягкие напоминания ETerapy в Telegram с управлением приватностью.",
     schemaKind: "WebPage",
   },
   "/library": {
@@ -73,7 +73,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/clarity-practice": {
-    title: "Практика ясности — продукт ETerapy",
+    title: "Ежедневная практика — продукт ETerapy",
     description: "Ежедневная мягкая практика: один вопрос, один взгляд со стороны, один маленький шаг и баллы за осмысленные действия.",
     schemaKind: "Product",
   },
@@ -98,7 +98,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/products/seven-days": {
-    title: "7 дней к ясности — ETerapy",
+    title: "Маршрут 7 дней — ETerapy",
     description: "Маршрут из ежедневных шагов по 5-10 минут, паузой, напоминаниями и итоговым отчетом.",
     schemaKind: "Product",
   },
@@ -133,7 +133,7 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     schemaKind: "Product",
   },
   "/checkin": {
-    title: "Диалог ясности — ETerapy",
+    title: "Разбор — ETerapy",
     description: "Напишите ситуацию своими словами. Диалог уточнит контекст и даст бесплатный первичный ответ.",
     schemaKind: "Product",
   },

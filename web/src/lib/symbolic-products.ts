@@ -66,7 +66,7 @@ const TAROT_MAJOR_ARCANA: Array<{ name: string; meaning: string }> = [
   { name: "Башня", meaning: "слом иллюзии, освобождение" },
   { name: "Звезда", meaning: "надежда и восстановление" },
   { name: "Луна", meaning: "туман, тревога, образы" },
-  { name: "Солнце", meaning: "ясность, тепло, радость" },
+  { name: "Солнце", meaning: "свет, тепло, радость" },
   { name: "Суд", meaning: "пробуждение, честный итог" },
   { name: "Мир", meaning: "целостность, завершение круга" },
 ];

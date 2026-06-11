@@ -221,7 +221,7 @@ export function CircleActions({ inviteToken }: { inviteToken?: string | null }) 
     <div className="soft-card soft-form-panel" data-testid="circle-actions">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="soft-eyebrow">круг ясности</p>
+          <p className="soft-eyebrow">круг</p>
           <h2 className="soft-h3 mt-2">Создайте общий вопрос</h2>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>

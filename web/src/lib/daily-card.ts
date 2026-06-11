@@ -4,7 +4,7 @@ import { aiComplete } from "@/lib/ai";
 import { log, serializeError } from "@/lib/logger";
 
 // Each daily practice is a three-beat ritual (docs/Design/v4.2 «Практика
-// ясности»): вопрос дня → взгляд дня → маленький шаг. The static templates
+// практика»): вопрос дня → взгляд дня → маленький шаг. The static templates
 // below are the deterministic fallback used whenever the LLM is unavailable —
 // they MUST carry all three beats so the page never renders an empty взгляд
 // or шаг.
@@ -33,7 +33,7 @@ const CARDS: DailyPracticeContent[] = [
   },
   {
     title: "Пауза перед ответом",
-    body: "Не каждый импульс требует немедленного действия. Иногда ясность приходит после паузы.",
+    body: "Не каждый импульс требует немедленного действия. Иногда ответ приходит после паузы.",
     prompt: "Что изменится, если я отвечу не сразу?",
     perspective: "Посмотрите на паузу как на пространство выбора, а не на промедление. Между событием и реакцией всегда есть зазор — он ваш.",
     step: "Выберите одну ситуацию сегодня, где вы дадите себе три вдоха перед ответом.",
@@ -60,7 +60,7 @@ const CARDS: DailyPracticeContent[] = [
     step: "Сделайте одно небольшое действие из заботы о себе в ближайший час.",
   },
   {
-    title: "Право на ясность",
+    title: "Право на свой ответ",
     body: "Ваш вопрос достаточно важен уже потому, что он возвращается.",
     prompt: "Какой ответ я боюсь услышать, но готова рассмотреть?",
     perspective: "Страх перед ответом часто больше самого ответа. Посмотрите на него с любопытством: что он бережёт?",
@@ -138,7 +138,7 @@ function parseDailyPracticeResponse(text: string): DailyPracticeContent | null {
     const perspective = typeof raw.perspective === "string" ? raw.perspective.trim() : "";
     const step = typeof raw.step === "string" ? raw.step.trim() : "";
     if (!prompt || !body || !perspective || !step) return null;
-    const title = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Практика ясности";
+    const title = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : "Ежедневная практика";
     return {
       title: title.slice(0, 80),
       body: body.slice(0, 400),
@@ -174,7 +174,7 @@ export async function generateDailyPracticeContent(
         {
           role: "system",
           content: [
-            "Ты ведёшь ежедневную «Практику ясности» в продукте ETerapy — мягком сервисе самонаблюдения.",
+            "Ты ведёшь ежедневную «Ежедневную практику» в продукте ETerapy — мягком сервисе самонаблюдения.",
             "Сгенерируй один день практики из трёх частей. Верни ТОЛЬКО JSON без markdown:",
             '{"title": "...", "body": "...", "question": "...", "perspective": "...", "step": "..."}',
             "title — короткое название дня (2–4 слова).",
@@ -219,7 +219,7 @@ function parsePracticeBeatsResponse(text: string): { perspective: string; step: 
 }
 
 /**
- * G14 — Практика ясности core mechanic. The user writes their OWN вопрос дня;
+ * G14 — Ежедневная практика core mechanic. The user writes their OWN вопрос дня;
  * we run it through the monitored `daily-practice` policy and return the two
  * remaining beats: взгляд дня (a gentle reframe / action) and маленький шаг
  * (one concrete doable step with a recommendation). The user's question is
@@ -243,7 +243,7 @@ export async function generatePracticeResponseForQuestion(
         {
           role: "system",
           content: [
-            "Ты ведёшь ежедневную «Практику ясности» в продукте ETerapy — мягком сервисе самонаблюдения.",
+            "Ты ведёшь ежедневную «Ежедневную практику» в продукте ETerapy — мягком сервисе самонаблюдения.",
             "Человек написал свой вопрос дня. Ответь двумя частями. Верни ТОЛЬКО JSON без markdown:",
             '{"perspective": "...", "step": "..."}',
             "perspective — взгляд дня: один бережный разворот, помогающий увидеть ситуацию иначе (1–2 предложения, обращение на «вы»).",

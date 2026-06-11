@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     data: {
       userId,
       dialogueId: dialogue.id,
-      title: "7 дней к ясности",
+      title: "Маршрут 7 дней",
       status: "ACTIVE",
       currentDay: 1,
     },

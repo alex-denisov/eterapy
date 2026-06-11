@@ -78,7 +78,7 @@ export function buildCircleReport(input: {
     .join("\n");
 
   return [
-    "Круг ясности",
+    "Круг",
     "",
     `Общий вопрос: ${input.question.trim()}`,
     "",

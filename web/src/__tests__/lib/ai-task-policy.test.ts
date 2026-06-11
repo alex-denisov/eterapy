@@ -82,7 +82,7 @@ describe("AI task taxonomy and default routing policy", () => {
     const dialogue = merged.find((policy) => policy.feature === "dialogue-primary-answer");
     expect(dialogue).toEqual(expect.objectContaining({
       source: "database",
-      title: "Free Диалог ясности",
+      title: "Free первичный разбор",
       enabled: false,
       maxTokens: 321,
       providerOrder: [AIProvider.OPENAI],

@@ -13,7 +13,7 @@ interface DialogueShellProps {
 
 export function DialogueShell({
   title: _title,
-  kicker = "диалог ясности",
+  kicker = "разбор",
   description: _description,
   progress,
   children,

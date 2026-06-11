@@ -169,7 +169,7 @@ export function DailyPracticeActions({
       <textarea
         id="practice-question"
         className="soft-input mt-2 min-h-28 w-full resize-y"
-        placeholder="О чём сегодня хочется получить ясность? Например: «Почему меня задевает эта ситуация на работе?»"
+        placeholder="В чём сегодня хочется разобраться? Например: «Почему меня задевает эта ситуация на работе?»"
         value={question}
         maxLength={QUESTION_LIMIT}
         onChange={(event) => setQuestion(event.target.value)}

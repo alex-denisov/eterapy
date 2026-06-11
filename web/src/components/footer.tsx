@@ -36,9 +36,9 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       links: [
         [mainUrl("/products/pair"), "Разобраться вдвоём"],
         [mainUrl("/products/compatibility"), "Совместимость"],
-        [mainUrl("/products/circle"), "Круг ясности"],
-        [mainUrl("/products/clarity-practice"), "Практика ясности"],
-        [mainUrl("/products/seven-days"), "7 дней к ясности"],
+        [mainUrl("/products/circle"), "Круг"],
+        [mainUrl("/products/clarity-practice"), "Ежедневная практика"],
+        [mainUrl("/products/seven-days"), "7 дней"],
         [mainUrl("/library"), "Библиотека вопросов"],
       ],
     },

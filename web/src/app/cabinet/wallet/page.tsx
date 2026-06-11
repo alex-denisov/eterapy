@@ -279,7 +279,7 @@ export default async function CabinetWalletPage() {
       <div id="credits-products" className="mb-3 mt-2 flex flex-wrap items-end justify-between gap-2 scroll-mt-24">
         <div>
           <p className="soft-eyebrow">углубления и форматы</p>
-          <h2 className="soft-h2 mt-1">Откройте больше ясности</h2>
+          <h2 className="soft-h2 mt-1">Откройте больше форматов</h2>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
           Спишите баллы или оплатите картой. Продукты из вашего тарифа открыты сразу.

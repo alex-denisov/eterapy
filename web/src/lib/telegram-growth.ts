@@ -13,20 +13,20 @@ export const TELEGRAM_GROWTH_ENTRIES: TelegramGrowthEntry[] = [
   {
     key: "dialogue",
     label: "Начать диалог",
-    description: "Быстрый вход в бесплатный Диалог ясности.",
+    description: "Быстрый вход в бесплатный разбор.",
     webPath: "/checkin?channel=telegram_bot&entry=dialogue",
     startPayload: "dialogue",
   },
   {
     key: "practice",
-    label: "Практика ясности",
+    label: "Ежедневная практика",
     description: "Карта дня, мягкий ритм и ежедневная практика.",
     webPath: "/practice?channel=telegram_bot&entry=practice",
     startPayload: "practice",
   },
   {
     key: "circle",
-    label: "Круг ясности",
+    label: "Круг",
     description: "Создать общий вопрос и пригласить 2-5 участников.",
     webPath: "/circle?channel=telegram_bot&entry=circle",
     startPayload: "circle",

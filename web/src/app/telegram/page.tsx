@@ -14,7 +14,7 @@ export default function TelegramPage() {
         <div className="mx-auto max-w-4xl text-center">
           <p className="soft-eyebrow">telegram</p>
           <h1 className="soft-display mt-4">
-            Ясность там, где <span className="soft-italic">вы уже пишете</span>
+            Разбор там, где <span className="soft-italic">вы уже пишете</span>
           </h1>
           <p className="soft-lede mx-auto mt-6 max-w-2xl">
             Карта дня, мягкие напоминания и быстрый вход в диалог. Telegram —

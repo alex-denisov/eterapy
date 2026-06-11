@@ -250,7 +250,7 @@ export default function LoginPage() {
         </div>
         <aside className="hidden items-center px-8 lg:flex" style={{ background: "linear-gradient(160deg, #DBD3EA, #F4D9C1)" }}>
           <div className="soft-card max-w-[420px] p-8">
-            <p className="soft-eyebrow">из дневника ясности</p>
+            <p className="soft-eyebrow">из дневника</p>
             <p className="mt-4 font-heading text-2xl italic leading-relaxed text-[var(--soft-bordeaux)]">
               «Я приходила сюда раз в неделю в течение трёх месяцев. Не чтобы получить ответы, а чтобы научиться слышать свои.»
             </p>

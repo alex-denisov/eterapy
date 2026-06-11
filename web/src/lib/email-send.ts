@@ -71,7 +71,7 @@ const SUBJECTS: Record<NotifEvent, string> = {
   ABANDONED_CHECKOUT: "Вы остановились перед оплатой — ETerapy",
   REPORT_READY:       "Ваш отчет готов — ETerapy",
   PARTNER_COMPLETED:  "Партнер завершил свою часть — ETerapy",
-  CIRCLE_READY:       "Круг ясности готов — ETerapy",
+  CIRCLE_READY:       "Круг готов — ETerapy",
   ROUTE_REMINDER:     "Мягкое напоминание — ETerapy",
   WEEKLY_DIGEST:      "Ваш недельный дайджест — ETerapy",
   PRACTITIONER_DIGEST: "Дайджест специалиста — ETerapy",
@@ -270,7 +270,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
     case "PARTNER_COMPLETED":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Вторая часть готова</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Партнер завершил свою часть. Можно открыть результат и продолжить к общему отчету.</p>${btn(data.reportUrl ?? `${BASE_URL}/pair`, "Открыть")}`;
     case "CIRCLE_READY":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Круг ясности собран</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Ответов уже достаточно, чтобы собрать общий мягкий вывод.</p>${btn(data.circleUrl ?? `${BASE_URL}/circle`, "Открыть круг")}`;
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Круг собран</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Ответов уже достаточно, чтобы собрать общий мягкий вывод.</p>${btn(data.circleUrl ?? `${BASE_URL}/circle`, "Открыть круг")}`;
     case "ROUTE_REMINDER":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Можно вернуться к маршруту</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.body ?? "Один маленький шаг сегодня будет достаточно."}</p>${btn(data.routeUrl ?? `${BASE_URL}/cabinet`, "Продолжить")}`;
     case "WEEKLY_DIGEST":

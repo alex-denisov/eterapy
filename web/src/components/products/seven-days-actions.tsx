@@ -87,7 +87,7 @@ const DAYS: DayContent[] = [
   },
   {
     n: 7,
-    t: "Карта ясности",
+    t: "Итоговая карта",
     d: "Собрать инсайты в одну страницу. Решить, что дальше.",
     body: "Сегодня — итог. Что вы заметили за неделю? Что окрепло, что стихло? Какой один следующий шаг вы хотите взять с собой? После сохранения мы соберём это в карту, которую можно перечитать или поделиться со специалистом.",
     journalPrompt: "Если бы я мог взять в следующую неделю одно решение, одно ощущение и один вопрос — какие они?",
@@ -226,7 +226,7 @@ export function SevenDaysActions({ dialogueId }: { dialogueId?: string | null })
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="soft-eyebrow">маршрут</p>
-          <h2 className="soft-h3 mt-2">7 дней к ясности</h2>
+          <h2 className="soft-h3 mt-2">7 дней</h2>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
           {hasEntitlement ? "доступ открыт" : "день 1 бесплатно"}

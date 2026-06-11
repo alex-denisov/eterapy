@@ -25,7 +25,7 @@ export default async function CirclePage({
       <section className="soft-shell py-12 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
-            <p className="soft-eyebrow">круг ясности</p>
+            <p className="soft-eyebrow">круг</p>
             <h1 className="soft-display mt-4">
               Разобраться <span className="soft-italic">вместе</span>, не теряя границ
             </h1>

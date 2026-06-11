@@ -180,7 +180,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "PARTNER_COMPLETED":
       return { title: "Партнер завершил часть", body: "Можно открыть совместный результат", href: data.reportUrl || "/products/pair" };
     case "CIRCLE_READY":
-      return { title: "Круг ясности готов", body: "Ответов достаточно для общего вывода", href: data.circleUrl || "/products/circle" };
+      return { title: "Круг готов", body: "Ответов достаточно для общего вывода", href: data.circleUrl || "/products/circle" };
     case "ROUTE_REMINDER":
       return { title: data.title || "Мягкое напоминание", body: data.body || "Один маленький шаг сегодня", href: data.routeUrl || "/cabinet" };
     case "WEEKLY_DIGEST":
@@ -252,7 +252,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "PARTNER_COMPLETED":
       return `Партнер завершил свою часть\n<a href="${data.reportUrl ?? `${baseUrl}/products/pair`}">Открыть результат →</a>`;
     case "CIRCLE_READY":
-      return `Круг ясности готов\n<a href="${data.circleUrl ?? `${baseUrl}/products/circle`}">Открыть круг →</a>`;
+      return `Круг готов\n<a href="${data.circleUrl ?? `${baseUrl}/products/circle`}">Открыть круг →</a>`;
     case "ROUTE_REMINDER":
       return `${data.title ?? "Мягкое напоминание"}\n${data.body ?? "Можно вернуться к маршруту."}\n<a href="${data.routeUrl ?? `${baseUrl}/cabinet`}">Продолжить →</a>`;
     case "WEEKLY_DIGEST":

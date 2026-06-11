@@ -8,7 +8,7 @@ import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { loginUrl, appUrl } from "@/lib/subdomain";
 
 const PRODUCT_LABELS: Record<string, string> = {
-  "seven-days": "7 дней к ясности",
+  "seven-days": "Маршрут 7 дней",
   "deep-report": "Подробный разбор",
   "perspectives": "Полная картина",
   "compatibility": "Совместимость",

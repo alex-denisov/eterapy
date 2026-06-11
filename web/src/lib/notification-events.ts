@@ -58,7 +58,7 @@ export const NOTIFICATION_CATEGORY_META: Record<NotificationCategory, { label: s
     description: "Баланс, карты, выплаты и платежные события.",
   },
   retention: {
-    label: "Практики ясности",
+    label: "Ежедневная практика",
     description: "Карта дня, маршруты и бережные напоминания.",
   },
   system: {
@@ -232,7 +232,7 @@ export const ALL_EVENTS: Array<{
     event: "CIRCLE_READY",
     category: "retention",
     label: "Круг собран",
-    description: "Достаточно ответов для отчета Круга ясности",
+    description: "Достаточно ответов для отчета Круга",
     roles: ["CLIENT"],
   },
   {

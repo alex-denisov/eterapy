@@ -41,9 +41,9 @@ describe("design v4.2 rollout", () => {
     const pricing = source("app/pricing/pricing-plans.tsx");
     const products = source("lib/v5-products.ts");
 
-    expect(catalog).toContain("Круг ясности");
+    expect(catalog).toContain("Круг");
     expect(catalog).toContain("Разобраться вдвоём");
-    expect(catalog).toContain("Практика ясности");
+    expect(catalog).toContain("Ежедневная практика");
     expect(catalog).toContain("soft-service-card");
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("490");
@@ -62,7 +62,7 @@ describe("design v4.2 rollout", () => {
 
     expect(home).toContain("<GrowthFormatsSection />");
     expect(growth).toContain("взгляд со стороны");
-    expect(growth).toContain("Круг ясности");
+    expect(growth).toContain("Круг");
     expect(growth).toContain("Разобраться вдвоём");
     expect(growth).toContain("ежедневная практика");
   });

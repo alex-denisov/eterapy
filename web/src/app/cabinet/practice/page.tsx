@@ -92,12 +92,12 @@ export default async function ClarityPracticePage() {
       <section className="soft-card overflow-hidden p-7 md:p-10" data-testid="practice-today" style={{ background: "linear-gradient(160deg,#FFFCF5 0%,#F4D9C1 100%)" }}>
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
-            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">практика ясности</p>
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">ежедневная практика</p>
             <h1
               className="mt-3 font-heading italic leading-snug text-[var(--soft-bordeaux)]"
               style={{ fontSize: "clamp(1.75rem, 2.6vw, 2.5rem)" }}
             >
-              Сегодняшний вопрос ясности
+              Сегодняшний вопрос
             </h1>
             <p className="mt-5 max-w-prose text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               Запишите свой вопрос дня — то, что просит внимания прямо сейчас.
@@ -300,7 +300,7 @@ export default async function ClarityPracticePage() {
         >
           <div>
             <p className="soft-eyebrow">если нужен маршрут с началом и концом</p>
-            <h3 className="soft-h3 mt-2">7 дней к ясности — отдельный продукт</h3>
+            <h3 className="soft-h3 mt-2">Маршрут 7 дней — отдельный продукт</h3>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
               Один большой вопрос, неделя сфокусированной работы и итоговая карта. Не подменяет
               ежедневную практику — это разовый интенсив.

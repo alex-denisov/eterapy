@@ -48,7 +48,7 @@ export function HeroSection() {
           </div>
 
           <h1 id="home-hero-title" className="soft-display">
-            Не всегда первый вопрос — <span className="soft-italic">главный.</span>
+            Разберитесь в ситуации <span className="soft-italic">за несколько минут.</span>
           </h1>
           <p className="soft-lede mx-auto mt-3 max-w-2xl">
             Короткий, тёплый диалог поможет добраться до сути и выбрать ближайший шаг.
@@ -59,7 +59,7 @@ export function HeroSection() {
           <div className="soft-ask-card" data-testid="v5-question-entry">
             <div className="mb-3 flex items-center gap-2">
               <SoftHaloMark size={14} />
-              <span className="soft-eyebrow">Диалог ясности</span>
+              <span className="soft-eyebrow">Разбор</span>
             </div>
             <form action="/checkin" data-testid="question-entry">
               <label htmlFor="home-question" className="sr-only">

@@ -213,7 +213,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: appUrl("/questions"), label: "История разборов", icon: History },
     { href: appUrl("/bookings"), label: "Записи", icon: CalendarDays },
     { href: appUrl("/wallet"), label: "Кошелёк", icon: Sparkles },
-    { href: appUrl("/practice"), label: "Практика ясности", icon: Leaf },
+    { href: appUrl("/practice"), label: "Ежедневная практика", icon: Leaf },
     { href: appUrl("/billing"), label: "Подписка и оплата", icon: Wallet },
     { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ];

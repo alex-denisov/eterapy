@@ -205,7 +205,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
       <div className="flex flex-wrap items-end justify-between gap-4 mb-8">
         <div>
           <div className="soft-eyebrow">моя карта eterapy</div>
-          <h1 className="soft-h1 mt-2">Ваш путь к <span style={{ fontStyle: "italic" }}>ясности</span></h1>
+          <h1 className="soft-h1 mt-2">Ваш путь — <span style={{ fontStyle: "italic" }}>на одной карте</span></h1>
           <p className="mt-2 text-sm max-w-xl" style={{ color: "var(--soft-ink-soft)" }}>
             Личное пространство ваших разборов, инсайтов и маршрутов. Видите только вы.
           </p>

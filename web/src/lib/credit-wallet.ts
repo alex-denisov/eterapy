@@ -5,7 +5,7 @@ import { CREDIT_PACKS } from "@/lib/entitlements";
 const ACTIVE_STATUSES = ["pending", "confirmed"];
 
 export const WALLET_SOURCE_LABELS: Record<string, string> = {
-  daily_practice: "Практика ясности",
+  daily_practice: "Ежедневная практика",
   welcome: "Приветственные баллы",
   streak: "Стрик практики",
   subscription: "Подписка",

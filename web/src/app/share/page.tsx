@@ -5,7 +5,7 @@ import { mainUrl } from "@/lib/subdomain";
 import { ShareAttribution } from "@/app/share/share-attribution";
 
 export const metadata = {
-  title: "ETerapy — мягкое приглашение к ясности",
+  title: "ETerapy — мягкое приглашение разобраться",
   description: "Обезличенная страница-приглашение после инсайта ETerapy: задайте свой вопрос и получите бережный первичный разбор.",
   robots: { index: true, follow: true },
 };
@@ -30,7 +30,7 @@ export default async function ShareLandingPage({
             <Link href={mainUrl("/")} aria-label="ETerapy">
               <BrandLogo theme="light" />
             </Link>
-            <p className="premium-eyebrow mt-12">приглашение к ясности</p>
+            <p className="premium-eyebrow mt-12">приглашение разобраться</p>
             <h1 className="soft-heading mt-4 max-w-3xl text-5xl md:text-7xl">
               Иногда одного вопроса достаточно, чтобы стало чуть тише внутри.
             </h1>

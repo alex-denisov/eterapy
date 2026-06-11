@@ -143,7 +143,7 @@ export function PractitionerTaxonomyFields({ value, onChange, dense = false }: T
         <p className={heading}>Задачи {dense ? "" : <span className="text-xs font-normal text-[var(--soft-ink-soft)]/60">(с чем помогаете)</span>}</p>
         {!dense && (
           <p className="text-xs text-[var(--soft-ink-soft)]/60 mb-2">
-            Конкретные запросы, с которыми вы работаете. Используются для подбора специалиста после диалога ясности.
+            Конкретные запросы, с которыми вы работаете. Используются для подбора специалиста после разбора.
           </p>
         )}
         {suggestedTasks.length > 0 && (

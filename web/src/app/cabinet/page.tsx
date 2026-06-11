@@ -462,7 +462,7 @@ export default async function ClientCabinetPage() {
         <p className="soft-eyebrow mb-3">подсказка от карты</p>
         <p className="soft-h3 mt-2 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
           {currentTheme
-            ? `За последние разборы карта замечает тему «${currentTheme}». Возможно, маршрут «7 дней к ясности» сейчас будет уместен.`
+            ? `За последние разборы карта замечает тему «${currentTheme}». Возможно, маршрут «7 дней» сейчас будет уместен.`
             : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">

@@ -27,9 +27,9 @@ const PRODUCT_NAMES: Record<string, string> = {
   "deep-report": "Подробный разбор",
   "chat-analysis": "Анализ переписки",
   compatibility: "Совместимость",
-  circle: "Круг ясности",
+  circle: "Круг",
   pair: "Разобраться вдвоём",
-  "seven-days": "7 дней к ясности",
+  "seven-days": "Маршрут 7 дней",
   "my-map": "Моя карта",
 };
 
@@ -394,7 +394,7 @@ export default async function AdminPage() {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Воронка бесплатное → платное за 30 дней</h2>
-                <p className="text-xs text-[var(--soft-ink-faint)]">Основной сигнал по CTA после Диалога ясности и paid-углублениям — one primary CTA.</p>
+                <p className="text-xs text-[var(--soft-ink-faint)]">Основной сигнал по CTA после разбора и paid-углублениям — one primary CTA.</p>
               </div>
               <span className="soft-admin-status-pill" data-tone="ok">AnalyticsEvent</span>
             </div>

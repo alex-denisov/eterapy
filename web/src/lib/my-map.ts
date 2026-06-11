@@ -37,7 +37,7 @@ const PRODUCT_LABELS: Record<string, string> = {
   perspectives: "Полная картина",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
-  "seven-days": "7 дней к ясности",
+  "seven-days": "Маршрут 7 дней",
   synastry: "Совместимость по звёздам",
 };
 

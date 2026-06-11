@@ -49,7 +49,7 @@ describe("v5 public shell", () => {
     expect(header).toContain("Кошелёк");
     // B365 (M26): header balance pill reads «Баланс: N баллов».
     expect(header).toContain("Баланс:");
-    expect(header).toContain("Практика ясности");
+    expect(header).toContain("Ежедневная практика");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");
     // T12: footer taxonomy is grouped by product FAMILY, not by price. The old

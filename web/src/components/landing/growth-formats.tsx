@@ -5,7 +5,7 @@ const formats = [
   {
     href: "/products/circle",
     icon: Users,
-    title: "Круг ясности",
+    title: "Круг",
     text: "Пригласите 2–5 близких. Они ответят на один вопрос, а ETerapy соберёт бережный общий итог.",
     cta: "Создать круг",
     className: "from-[#F4D9C1] to-[#F8E6D1]",
@@ -34,7 +34,7 @@ export function GrowthFormatsSection() {
       <div className="mx-auto mb-10 max-w-3xl text-center">
         <p className="soft-eyebrow">взгляд со стороны</p>
         <h2 className="soft-h1 mt-3">
-          Ясность <span className="soft-italic">вдвоём</span> и в кругу
+          Разобраться <span className="soft-italic">вдвоём</span> и в кругу
         </h2>
         <p className="soft-lede mt-4">
           Бережные форматы для тех, кому доверяете. Иногда взгляд другого —
@@ -68,7 +68,7 @@ export function GrowthFormatsSection() {
         <div>
           <p className="soft-eyebrow">ежедневная практика</p>
           <h3 className="soft-h2 mt-3">
-            Практика ясности — <span className="soft-italic">5 минут в день</span>
+            Ежедневная практика — <span className="soft-italic">5 минут в день</span>
           </h3>
           <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Один тёплый вопрос в день, маленький разворот и +1 балл за пройденный день.
@@ -80,7 +80,7 @@ export function GrowthFormatsSection() {
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
             <Link href="/products/seven-days" className="soft-button soft-button-ghost">
-              Маршрут «7 дней к ясности»
+              Маршрут «7 дней»
             </Link>
           </div>
         </div>

@@ -21,7 +21,7 @@ export const ONBOARDING_MISSIONS = [
   {
     key: "first_dialogue",
     title: "Задать первый вопрос",
-    description: "Начните с бесплатного диалога ясности, без обязательной покупки.",
+    description: "Начните с бесплатного разбора, без обязательной покупки.",
     actionHref: "/checkin",
     rewardCredits: 2,
   },

@@ -40,7 +40,7 @@ describe("B048 marketplace-first cleanup", () => {
 
     expect(notFound).toContain('href="/checkin"');
     expect(about).toContain('href="/checkin"');
-    expect(chooser).toContain("Начать диалог ясности");
+    expect(chooser).toContain("Начать разбор");
     expect(help).toContain("Для записи к практику в v5");
     expect(`${notFound}\n${about}\n${chooser}\n${help}`).not.toContain("Перейдите в каталог практиков");
     expect(`${notFound}\n${about}\n${chooser}`).not.toContain("Найти практика в каталоге");

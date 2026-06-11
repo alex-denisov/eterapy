@@ -71,7 +71,7 @@ describe("v5 public home page", () => {
 
     expect(howItWorks).toContain("Опишите своими словами");
     expect(howItWorks).toContain("Углубление по выбору");
-    expect(cta).toContain("Начать диалог ясности");
+    expect(cta).toContain("Начать разбор");
     expect(cta).toContain('href="/checkin"');
   });
 });

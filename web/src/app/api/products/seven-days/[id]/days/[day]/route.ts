@@ -75,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       data: {
         userId,
         productKey: PRODUCT_KEY,
-        title: "Итоги 7 дней к ясности",
+        title: "Итоги маршрута 7 дней",
         status: "READY",
         resultText: generated.text,
         metadata: {

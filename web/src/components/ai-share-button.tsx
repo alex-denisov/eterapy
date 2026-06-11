@@ -16,7 +16,7 @@ interface AIShareButtonProps {
 
 const TOOL_LABELS: Record<string, string> = {
   TAROT: "Расклад таро",
-  CHECKIN: "Диалог ясности",
+  CHECKIN: "Разбор",
   NATAL: "Натальная карта",
   NUMEROLOGY: "Нумерология",
   HOROSCOPE: "Гороскоп",
@@ -234,7 +234,7 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
                     <span className="font-heading text-lg font-semibold">ETerapy</span>
                   </div>
                   <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: template.muted }}>
-                    ясность дня
+                    карта дня
                   </p>
                 </div>
 

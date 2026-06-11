@@ -116,7 +116,7 @@ export default function RegisterPage() {
         <CardHeader className="text-center">
           <p className="soft-eyebrow">регистрация</p>
           <CardTitle className="font-heading text-3xl font-medium leading-tight text-[var(--soft-bordeaux)]">
-            Создайте личное пространство ясности.
+            Создайте личное пространство для своих вопросов.
           </CardTitle>
           <p className="text-sm text-[var(--soft-ink-soft)]">
             {isSavingResult ? "Сохраните уже полученный ответ и вернитесь к нему позже" : "Регистрация после первого полезного шага"}
