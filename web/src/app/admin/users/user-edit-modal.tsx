@@ -249,6 +249,12 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                 <dt className="text-[var(--soft-ink-faint)]">Канал входа</dt>
                 <dd className="font-medium text-[var(--soft-ink-strong)]">{row.lastLogin?.channel || "—"}</dd>
               </div>
+              <div className="flex justify-between gap-2">
+                <dt className="text-[var(--soft-ink-faint)]">Отпечаток устройства</dt>
+                <dd className="font-mono text-[var(--soft-ink-strong)]" title={row.lastLogin?.fingerprint ?? undefined} data-testid="user-card-fingerprint">
+                  {row.lastLogin?.fingerprint ? `${row.lastLogin.fingerprint.slice(0, 12)}…` : "—"}
+                </dd>
+              </div>
             </dl>
             <p className="mt-1.5 text-[10px] text-[var(--soft-ink-faint)]">Полная история входов — в разделе «Логи» (события LOGIN).</p>
           </section>

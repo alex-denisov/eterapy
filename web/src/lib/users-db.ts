@@ -4,6 +4,7 @@
  */
 
 import db from "./db";
+import { normalizeEmailForFraud } from "@/lib/email-normalize";
 import bcrypt from "bcryptjs";
 import type { User } from "@prisma/client";
 
@@ -32,6 +33,7 @@ export const usersDb = {
     return db.user.create({
       data: {
         email: data.email.toLowerCase(),
+        normalizedEmail: normalizeEmailForFraud(data.email),
         name: data.name,
         password: hashedPassword,
         emailVerified: false,

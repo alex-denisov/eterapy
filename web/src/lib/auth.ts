@@ -19,7 +19,8 @@ import { getRequestMeta } from "./request-meta";
  */
 async function logLoginEvent(userId: string, channel: string): Promise<void> {
   const meta = await getRequestMeta();
-  const details = JSON.stringify({ method: channel, device: meta.device ?? null, channel });
+  // B372: отпечаток устройства попадает в LOGIN-аудит — виден в суперадминке.
+  const details = JSON.stringify({ method: channel, device: meta.device ?? null, channel, fingerprint: meta.fingerprint ?? null });
   await logAudit(userId, "LOGIN", undefined, details, meta.ip ?? undefined);
 }
 

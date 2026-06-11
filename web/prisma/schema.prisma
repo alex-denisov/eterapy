@@ -11,6 +11,9 @@ datasource db {
 model User {
   id                  String    @id @default(cuid())
   email               String    @unique
+  // B372 (M26): нормализованный e-mail для антифрода gmail-дублей
+  // (точки и +suffix в local part у gmail/googlemail схлопываются).
+  normalizedEmail     String?   @map("normalized_email")
   name                String
   password            String
   role                Role      @default(CLIENT)
@@ -36,6 +39,7 @@ model User {
 
   @@index([provider, providerId])
   @@index([email, provider])
+  @@index([normalizedEmail])
 
   // Telegram
   telegramId          String?   @unique  // Telegram chat_id (set via bot)
@@ -1045,6 +1049,9 @@ model Dialogue {
   userId         String?          @map("user_id")
   user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   guestSessionId String?          @map("guest_session_id")
+  // B372 (M26): лёгкий клиентский отпечаток (sha-256 от UA+canvas+TZ) для
+  // гостевого лимита 1 разбор/мес и антифрода. Только для гостевых диалогов.
+  guestFingerprint String?        @map("guest_fingerprint")
   status         DialogueStatus   @default(OPEN)
   title          String
   topic          String?
@@ -1072,6 +1079,7 @@ model Dialogue {
   @@index([userId, intakeProductKey, createdAt])
   @@index([guestSessionId, updatedAt])
   @@index([guestSessionId, intakeProductKey, createdAt])
+  @@index([guestFingerprint, intakeProductKey, createdAt])
   @@index([status, updatedAt])
   @@index([libraryStatus, libraryConsentAt])
   @@map("dialogues")

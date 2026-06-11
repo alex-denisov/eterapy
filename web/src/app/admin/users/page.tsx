@@ -206,16 +206,18 @@ export default async function AdminUsersPage(props: {
   const lastLoginByUser = new Map(loginEvents.map((event) => {
     let device: string | null = null;
     let channel: string | null = null;
+    let fingerprint: string | null = null;
     if (event.details) {
       try {
-        const parsed = JSON.parse(event.details) as { device?: unknown; channel?: unknown };
+        const parsed = JSON.parse(event.details) as { device?: unknown; channel?: unknown; fingerprint?: unknown };
         device = typeof parsed.device === "string" ? parsed.device : null;
         channel = typeof parsed.channel === "string" ? parsed.channel : null;
+        fingerprint = typeof parsed.fingerprint === "string" ? parsed.fingerprint : null;
       } catch {
         // legacy plain-text details ("Email: …" / "OAuth: …") — no structured data.
       }
     }
-    return [event.userId, { at: event.createdAt.toISOString(), ip: event.ip, device, channel }];
+    return [event.userId, { at: event.createdAt.toISOString(), ip: event.ip, device, channel, fingerprint }];
   }));
 
   const rows: AdminUserRow[] = users.map((user) => ({

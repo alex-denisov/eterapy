@@ -5,12 +5,15 @@
  * Works in any server context where next/headers `headers()` is available
  * (route handlers, server actions, the Credentials authorize callback).
  */
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { CLIENT_FINGERPRINT_COOKIE, isValidClientFingerprint } from "@/lib/guest-fingerprint";
 
 export interface RequestMeta {
   ip: string | null;
   userAgent: string | null;
   device: string | null;
+  /** B372: лёгкий клиентский отпечаток из cookie eterapy_fp (64 hex) или null. */
+  fingerprint: string | null;
 }
 
 /** Parse a User-Agent string into a short "Browser · OS" label. */
@@ -50,12 +53,20 @@ export async function getRequestMeta(): Promise<RequestMeta> {
   try {
     const h = await headers();
     const userAgent = h.get("user-agent");
+    let fingerprint: string | null = null;
+    try {
+      const raw = (await cookies()).get(CLIENT_FINGERPRINT_COOKIE)?.value ?? null;
+      fingerprint = isValidClientFingerprint(raw) ? raw : null;
+    } catch {
+      fingerprint = null;
+    }
     return {
       ip: ipFromHeaders((name) => h.get(name)),
       userAgent,
       device: parseDevice(userAgent),
+      fingerprint,
     };
   } catch {
-    return { ip: null, userAgent: null, device: null };
+    return { ip: null, userAgent: null, device: null, fingerprint: null };
   }
 }

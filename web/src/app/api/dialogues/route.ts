@@ -11,6 +11,7 @@ import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-
 import { generateDialogueConversationalTurn } from "@/lib/dialogue-clarifier";
 import { claimGuestDialoguesForUser } from "@/lib/claim-guest-dialogues";
 import { ensureGuestSession, GUEST_SESSION_COOKIE, readGuestSessionId } from "@/lib/guest-session";
+import { readClientFingerprint } from "@/lib/guest-fingerprint";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { markReferralMeaningfulAction } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
@@ -167,17 +168,23 @@ export async function POST(request: NextRequest) {
   const intakeProductKey = parsed.data.intakeProductKey ?? null;
   const intakeMode = intakeProductKey ? (parsed.data.intakeMode ?? "full") : null;
   const isProductIntake = Boolean(intakeProductKey);
+  // B372: лёгкий клиентский отпечаток — для гостевого месячного лимита и
+  // антифрод-следа на самом диалоге.
+  const fingerprint = userId ? null : readClientFingerprint(request);
   if (!isProductIntake) {
     const dailyLimit = await checkStandaloneDialogueDailyLimit({
       request,
       userId,
       guestSessionId: guest?.id ?? null,
+      fingerprint,
     });
     if (!dailyLimit.allowed) {
       const response = jsonWithRequestContext(
         {
           error: dailyLimit.code === "DIALOGUE_DAILY_LIMIT"
-            ? "Дневной лимит новых разборов исчерпан."
+            ? (dailyLimit.audience === "guest"
+              ? "Бесплатный гостевой разбор уже использован в этом месяце. Зарегистрируйтесь — это бесплатно и откроет 3 разбора в день."
+              : "Дневной лимит новых разборов исчерпан.")
             : "Слишком много новых разборов за сутки.",
           code: dailyLimit.code,
           audience: dailyLimit.audience,
@@ -255,6 +262,7 @@ export async function POST(request: NextRequest) {
     data: {
       userId,
       guestSessionId: guest?.id ?? null,
+      guestFingerprint: fingerprint,
       intakeProductKey,
       intakeMode,
       title,

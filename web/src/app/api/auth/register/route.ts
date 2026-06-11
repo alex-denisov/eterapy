@@ -9,6 +9,10 @@ import { attachReferralToRegisteredUser } from "@/lib/share-referral";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { attachByocAtRegistration } from "@/lib/byoc";
 import { getRequestMeta } from "@/lib/request-meta";
+import { normalizeEmailForFraud } from "@/lib/email-normalize";
+import { readClientFingerprint } from "@/lib/guest-fingerprint";
+import db from "@/lib/db";
+import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,6 +43,36 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await usersDb.create({ email, name, password });
+
+    // B372 (M26): gmail-дубль через точки/+suffix — risk-флаг в антифрод-журнал
+    // (регистрацию не блокируем: алиасы легальны, но велосити по ним — сигнал).
+    try {
+      const normalized = normalizeEmailForFraud(email);
+      const aliasTwin = normalized.endsWith("@gmail.com")
+        ? await db.user.findFirst({
+          where: { normalizedEmail: normalized, id: { not: user.id } },
+          select: { id: true, email: true },
+        })
+        : null;
+      if (aliasTwin) {
+        const fp = requestFingerprint(req);
+        await logFraudEvent(db, {
+          subjectType: "user",
+          subjectId: user.id,
+          actorUserId: user.id,
+          riskScore: 45,
+          riskFlags: ["gmail_alias_duplicate"],
+          action: "register_gmail_alias_duplicate",
+          status: "review",
+          ipHash: fp.ipHash,
+          userAgentHash: fp.userAgentHash,
+          deviceHash: fp.deviceHash,
+          metadata: { normalizedEmail: normalized, matchedUserId: aliasTwin.id },
+        });
+      }
+    } catch (fraudErr) {
+      log.error("register.gmail_alias_check_failed", { err: fraudErr });
+    }
     await attachReferralToRegisteredUser({ request: req, userId: user.id }).catch((referralErr) => {
       log.error("register.referral_attach_failed", { err: referralErr });
     });
@@ -61,7 +95,12 @@ export async function POST(req: NextRequest) {
     }
 
     const meta = await getRequestMeta();
-    const details = JSON.stringify({ email, device: meta.device ?? null });
+    const details = JSON.stringify({
+      email,
+      device: meta.device ?? null,
+      // B372: клиентский отпечаток — виден в логах суперадминки.
+      fingerprint: readClientFingerprint(req),
+    });
     await logAudit(user.id, "REGISTER", undefined, details, meta.ip ?? undefined);
     
     return NextResponse.json({ ok: true, emailSent: true });

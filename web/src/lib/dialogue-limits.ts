@@ -2,15 +2,20 @@ import type { NextRequest } from "next/server";
 import { authRateLimitKeyFromRequest, checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { getUserActivePlan } from "@/lib/entitlements";
+import { startOfDialogueLimitMonth } from "@/lib/guest-fingerprint";
 
 export type DialogueAudience = "guest" | "free" | "plus" | "premium";
 
+// B372 (M26): гость — 1 разбор в КАЛЕНДАРНЫЙ МЕСЯЦ (окно и подсчёт по
+// guestSessionId + клиентскому отпечатку); зарегистрированные аудитории
+// остаются на дневных лимитах.
 const DAILY_NEW_DIALOGUE_LIMIT: Record<DialogueAudience, number | null> = {
   guest: 1,
   free: 3,
   plus: null,
   premium: null,
 };
+export const GUEST_MONTHLY_DIALOGUE_LIMIT = 1;
 
 export const ABUSE_CAP_NEW_DIALOGUES_PER_DAY = 20;
 export const DIALOGUE_LIMIT_TIMEZONE = "UTC";
@@ -35,26 +40,31 @@ export async function resolveDialogueAudience(userId: string | null): Promise<Di
 export async function countStandaloneDialoguesToday(input: {
   userId: string | null;
   guestSessionId: string | null;
+  fingerprint?: string | null;
   now?: Date;
 }) {
-  const createdAt = { gte: startOfDialogueLimitDay(input.now) };
   if (input.userId) {
     return db.dialogue.count({
       where: {
         userId: input.userId,
         intakeProductKey: null,
-        createdAt,
+        createdAt: { gte: startOfDialogueLimitDay(input.now) },
       },
     });
   }
 
-  if (!input.guestSessionId) return 0;
+  // B372: гостевое окно — календарный месяц; совпадение по cookie-сессии ИЛИ
+  // отпечатку устройства (новая cookie не обнуляет лимит).
+  const owners: Array<{ guestSessionId: string } | { guestFingerprint: string }> = [];
+  if (input.guestSessionId) owners.push({ guestSessionId: input.guestSessionId });
+  if (input.fingerprint) owners.push({ guestFingerprint: input.fingerprint });
+  if (owners.length === 0) return 0;
 
   return db.dialogue.count({
     where: {
-      guestSessionId: input.guestSessionId,
+      OR: owners,
       intakeProductKey: null,
-      createdAt,
+      createdAt: { gte: startOfDialogueLimitMonth(input.now) },
     },
   });
 }
@@ -75,6 +85,7 @@ export async function checkStandaloneDialogueDailyLimit(input: {
   request: NextRequest;
   userId: string | null;
   guestSessionId: string | null;
+  fingerprint?: string | null;
   now?: Date;
 }): Promise<DialogueDailyLimitResult> {
   const audience = await resolveDialogueAudience(input.userId);
@@ -91,6 +102,7 @@ export async function checkStandaloneDialogueDailyLimit(input: {
   }
 
   if (!input.userId) {
+    // IP-страховка остаётся суточной (in-memory) — месячное окно держит БД.
     const ipLimit = checkRequestAuthRateLimit(input.request, "dialogue:daily:guest:ip", 1, 24 * 60 * 60_000);
     if (!ipLimit.allowed) {
       return {

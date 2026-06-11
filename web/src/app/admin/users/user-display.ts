@@ -55,6 +55,8 @@ export interface AdminUserRow {
     ip: string | null;
     device: string | null;
     channel: string | null;
+    // B372: клиентский отпечаток устройства (64 hex) из LOGIN/REGISTER-аудита.
+    fingerprint: string | null;
   } | null;
 }
 
