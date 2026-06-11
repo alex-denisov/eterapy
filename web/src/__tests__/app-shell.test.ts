@@ -35,7 +35,7 @@ describe("v5 app shell", () => {
     // X11: product actions point to the single in-cabinet funnel (/credits),
     // not the removed duplicate /products and not the landing.
     expect(clientCabinet).toContain('appUrl("/wallet")');
-    expect(shell).toContain('appUrl("/practice")');
+    expect(shell).not.toContain('appUrl("/practice")');
     expect(shell).toContain('appUrl("/wallet")');
     expect(clientCabinet).toContain('appUrl("/diary")');
     expect(clientCabinet).toContain('data-testid="client-map-preview"');

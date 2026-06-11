@@ -39,7 +39,7 @@ describe("M11 client retention surfaces", () => {
     expect(shell).toContain('appUrl("/diary")');
     expect(shell).toContain('"Дневник"');
     expect(shell).toContain('appUrl("/wallet")');
-    expect(shell).toContain('appUrl("/practice")');
+    expect(shell).not.toContain('appUrl("/practice")');
     expect(shell).toContain('"Кошелёк"');
     expect(shell).toContain("BookOpen");
   });

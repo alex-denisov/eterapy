@@ -10,7 +10,8 @@ import { getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { pointsWord } from "@/lib/points";
 import { listMissionChecklist } from "@/lib/missions";
-import { getPracticeStreakSnapshot } from "@/lib/streaks";
+import { getPracticeStreakSnapshot, STREAK_REWARDS } from "@/lib/streaks";
+import { practiceWeekDays, startOfPracticeWeek, WEEKLY_SUMMARY_PRODUCT_KEY } from "@/lib/weekly-summary";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
@@ -75,7 +76,7 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, clarityCredits, topicGroups, recommendedPractitioner, missionChecklist, practiceStreak] = await Promise.all([
+  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, weekCards, weeklySummary, clarityCredits, topicGroups, recommendedPractitioner, missionChecklist, practiceStreak] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -117,6 +118,15 @@ export default async function ClientCabinetPage() {
     }),
     getOrCreateDailyCard(userId),
     db.dailyCard.count({ where: { userId } }),
+    // B375: прогресс пн–вс и готовый «итог недели» для блока «Ежедневный вопрос».
+    db.dailyCard.findMany({
+      where: { userId, completedAt: { not: null }, cardDate: { gte: startOfPracticeWeek() } },
+      select: { cardDate: true },
+    }),
+    db.productResult.findFirst({
+      where: { userId, productKey: WEEKLY_SUMMARY_PRODUCT_KEY, createdAt: { gte: startOfPracticeWeek() }, status: "READY" },
+      select: { id: true },
+    }),
     getClarityCreditBalance(userId),
     // G4: count dialogues per topic across ALL history (not just the last 4),
     // so the "текущая тема" card can show "N разборов на эту тему" instead of
@@ -394,13 +404,47 @@ export default async function ClientCabinetPage() {
         </section>
       </div>
 
-      {/* Daily card */}
+      {/* B375: «Ежедневный вопрос» — бесплатный блок дашборда с недельным
+          прогрессом пн–вс и наградами по вехам (3/7/14/30 дней). */}
       <section className="soft-card soft-form-panel mb-4" data-testid="client-daily-card">
         <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
-            <p className="soft-eyebrow">Карта дня</p>
+            <p className="soft-eyebrow">Ежедневный вопрос</p>
             <h2 className="mt-3 font-heading text-3xl font-medium" style={{ color: "var(--soft-bordeaux)" }}>{dailyCard.title}</h2>
             <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{dailyCard.body}</p>
+            <div className="mt-5 flex items-center gap-2" data-testid="practice-week-progress" aria-label="Прогресс недели">
+              {practiceWeekDays(weekCards.map((card) => card.cardDate)).map((day) => (
+                <span key={day.label} className="flex flex-col items-center gap-1">
+                  <span
+                    className="grid size-7 place-items-center rounded-full text-[11px] font-semibold"
+                    style={{
+                      background: day.done ? "var(--soft-terracotta-dark)" : "var(--soft-paper-deep)",
+                      color: day.done ? "#FFFCF5" : "var(--soft-ink-faint)",
+                      outline: day.isToday ? "2px solid var(--soft-bordeaux)" : "none",
+                      outlineOffset: 2,
+                    }}
+                    data-done={day.done ? "1" : "0"}
+                  >
+                    {day.done ? "✓" : ""}
+                  </span>
+                  <span className="text-[10px] text-[var(--soft-ink-faint)]">{day.label}</span>
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
+              {practiceStreak.count > 0 ? `Серия: ${practiceStreak.count} дн. · ` : ""}
+              Награды по вехам: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")} баллов.
+            </p>
+            {weeklySummary && (
+              <Link
+                href={appUrl("/diary")}
+                className="soft-chip mt-3 inline-flex items-center gap-2"
+                data-testid="weekly-summary-link"
+              >
+                <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                Итог недели готов — открыть в Дневнике
+              </Link>
+            )}
           </div>
           <div className="rounded-[16px] border border-[var(--soft-paper-edge)] p-5" style={{ background: "var(--soft-paper-deep)" }}>
             <p className="soft-eyebrow">Вопрос для себя</p>

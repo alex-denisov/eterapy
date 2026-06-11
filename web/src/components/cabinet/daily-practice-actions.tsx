@@ -6,6 +6,21 @@ import { Button } from "@/components/ui/button";
 
 const QUESTION_LIMIT = 600;
 
+// B375 (M26): баллы начисляются по вехам серии (3/7/14/30 дней), не за каждый
+// день. API возвращает milestones: number[] — собираем тёплое сообщение.
+function milestoneMessage(payload: { milestones?: number[]; streakCount?: number | null }): string | null {
+  const milestones = payload.milestones ?? [];
+  if (milestones.length > 0) {
+    const rewards: Record<number, string> = { 3: "+1 балл", 7: "+2 балла и итог недели", 14: "+2 балла", 30: "+3 балла" };
+    const parts = milestones.map((m) => `${m} дней подряд — ${rewards[m] ?? "награда"}`);
+    return `День отмечен. Веха: ${parts.join("; ")}!`;
+  }
+  if (typeof payload.streakCount === "number" && payload.streakCount > 0) {
+    return `День отмечен. Серия: ${payload.streakCount} дн. — баллы приходят на вехах 3, 7, 14 и 30 дней.`;
+  }
+  return null;
+}
+
 interface DailyPracticeActionsProps {
   completed: boolean;
   /** Full three-beat ritual surfaces these; the compact cabinet-home CTA omits them. */
@@ -52,7 +67,7 @@ export function DailyPracticeActions({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Не удалось завершить практику");
       setDone(true);
-      setMessage(payload.rewardGranted ? "+1 балл начислен." : "Практика уже была завершена сегодня.");
+      setMessage(milestoneMessage(payload) ?? "Практика уже была завершена сегодня.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось завершить практику");
     } finally {
@@ -83,7 +98,7 @@ export function DailyPracticeActions({
         perspective: payload.card?.perspective ?? beats.perspective,
         step: payload.card?.step ?? beats.step,
       });
-      setMessage(payload.rewardGranted ? "+1 балл начислен." : "Практика на сегодня уже пройдена.");
+      setMessage(milestoneMessage(payload) ?? "Практика на сегодня уже пройдена.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось обработать вопрос");
     } finally {

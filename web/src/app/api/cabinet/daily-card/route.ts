@@ -4,10 +4,10 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import db from "@/lib/db";
 import { getOrCreateDailyCard, dailyCardBeats, generatePracticeResponseForQuestion } from "@/lib/daily-card";
-import { recordClarityCreditEntry } from "@/lib/clarity-credits";
-import { creditExpiryFor } from "@/lib/credit-expiry";
 import { completeMission } from "@/lib/missions";
 import { bumpPracticeStreak } from "@/lib/streaks";
+import { generateWeeklySummary } from "@/lib/weekly-summary";
+import { log, serializeError } from "@/lib/logger";
 import { notify } from "@/lib/notifications";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { mainUrl } from "@/lib/subdomain";
@@ -103,41 +103,22 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const existingReward = await tx.clarityCreditLedgerEntry.findFirst({
-        where: {
-          userId,
-          source: "daily_practice",
-          sourceEventId: card.id,
-          status: { not: "revoked" },
-        },
-        select: { id: true },
-      });
-
-      if (!existingReward) {
-        const expiresAt = creditExpiryFor("daily_practice");
-        await recordClarityCreditEntry(tx, {
-          userId,
-          amount: 1,
-          type: "grant",
-          source: "daily_practice",
-          sourceEventId: card.id,
-          status: "confirmed",
-          expiresAt,
-          metadata: {
-            cardTitle: card.title,
-            reward: "daily_practice_completion",
-          },
-        });
-      }
-
-      await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
+      // B375 (M26): начисление по вехам (3/7/14/30 дней) вместо +1 за каждый
+      // день — правило живёт в bumpPracticeStreak/STREAK_REWARDS.
+      const streak = await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
       await completeMission({ userId, missionKey: "first_practice", tx });
 
-      return { card: updated, rewardGranted: !existingReward };
+      return { card: updated, rewardGranted: streak.rewardsGranted.length > 0, milestones: streak.rewardsGranted, streakCount: streak.count };
     });
 
+    if (result.milestones?.includes(7)) {
+      await generateWeeklySummary({ userId, requestId: context.requestId }).catch((summaryErr) => {
+        log.error("daily_card.weekly_summary_failed", { err: serializeError(summaryErr) });
+      });
+    }
+
     return jsonWithRequestContext(
-      { card: serialize(result.card), reflected: true, rewardGranted: result.rewardGranted },
+      { card: serialize(result.card), reflected: true, rewardGranted: result.rewardGranted, milestones: result.milestones ?? [], streakCount: result.streakCount ?? null },
       { status: 200 },
       context
     );
@@ -161,41 +142,21 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const existingReward = await tx.clarityCreditLedgerEntry.findFirst({
-        where: {
-          userId,
-          source: "daily_practice",
-          sourceEventId: card.id,
-          status: { not: "revoked" },
-        },
-        select: { id: true },
-      });
-
-      if (!existingReward) {
-        const expiresAt = creditExpiryFor("daily_practice");
-        await recordClarityCreditEntry(tx, {
-          userId,
-          amount: 1,
-          type: "grant",
-          source: "daily_practice",
-          sourceEventId: card.id,
-          status: "confirmed",
-          expiresAt,
-          metadata: {
-            cardTitle: card.title,
-            reward: "daily_practice_completion",
-          },
-        });
-      }
-
-      await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
+      // B375 (M26): начисление по вехам — см. STREAK_REWARDS.
+      const streak = await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
       await completeMission({ userId, missionKey: "first_practice", tx });
 
-      return { card: updated, rewardGranted: !existingReward };
+      return { card: updated, rewardGranted: streak.rewardsGranted.length > 0, milestones: streak.rewardsGranted, streakCount: streak.count };
     });
 
+    if (result.milestones?.includes(7)) {
+      await generateWeeklySummary({ userId, requestId: context.requestId }).catch((summaryErr) => {
+        log.error("daily_card.weekly_summary_failed", { err: serializeError(summaryErr) });
+      });
+    }
+
     return jsonWithRequestContext(
-      { card: serialize(result.card), completed: true, rewardGranted: result.rewardGranted },
+      { card: serialize(result.card), completed: true, rewardGranted: result.rewardGranted, milestones: result.milestones ?? [], streakCount: result.streakCount ?? null },
       { status: 200 },
       context
     );

@@ -19,10 +19,13 @@ describe("B203 Practice and missions", () => {
     const route = source("src/app/api/cabinet/daily-card/route.ts");
 
     expect(route).toContain('payload?.action === "complete"');
-    expect(route).toContain("recordClarityCreditEntry");
-    expect(route).toContain('source: "daily_practice"');
-    expect(route).toContain('sourceEventId: card.id');
-    expect(route).toContain("existingReward");
+    // B375: баллы идут по вехам серии (STREAK_REWARDS в lib/streaks.ts),
+    // а не +1 за каждый день — начисление живёт в bumpPracticeStreak.
+    expect(route).toContain("bumpPracticeStreak");
+    expect(route).not.toContain("recordClarityCreditEntry");
+    const streaks = source("src/lib/streaks.ts");
+    expect(streaks).toContain('source: "daily_practice"');
+    expect(streaks).toContain("existingCreditReward");
   });
 
   it("surfaces practice, credits, and gentle rhythm in the client cabinet", () => {

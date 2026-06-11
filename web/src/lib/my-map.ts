@@ -39,6 +39,8 @@ const PRODUCT_LABELS: Record<string, string> = {
   compatibility: "Совместимость",
   "seven-days": "Маршрут 7 дней",
   synastry: "Совместимость по звёздам",
+  // B375 (M26): бесплатный итог недели ежедневной практики.
+  "weekly-summary": "Итог недели",
 };
 
 function asJsonObject(value: Prisma.JsonValue | null | undefined): Prisma.JsonObject {

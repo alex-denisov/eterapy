@@ -209,7 +209,7 @@ describe("Y10 Z16 missions and streaks", () => {
       rewardsGranted: [3],
     });
 
-    expect(STREAK_REWARDS[3]).toMatchObject({ creditAmount: 2 });
+    expect(STREAK_REWARDS[3]).toMatchObject({ creditAmount: 1 });
     expect(mockDb.user.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "user-1" },
       data: expect.objectContaining({
@@ -221,9 +221,11 @@ describe("Y10 Z16 missions and streaks", () => {
     expect(mockDb.clarityCreditLedgerEntry.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: "user-1",
-        amount: 2,
-        source: "streak",
-        sourceEventId: "streak:3:user-1",
+        // B375: вехи 3/7/14/30; источник остаётся daily_practice, eventId
+        // включает день достижения (повторная веха после разрыва — новая награда).
+        amount: 1,
+        source: "daily_practice",
+        sourceEventId: "daily_practice:m3:user-1:2026-06-06",
         expiresAt: new Date("2026-07-06T10:00:00.000Z"),
       }),
     }));

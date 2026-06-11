@@ -36,7 +36,7 @@ const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
   // B349/Механика 2: /credits merged into /wallet — one «Кошелёк» nav item.
   { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
-  { href: appUrl("/practice"), icon: Leaf, label: "Ежедневная практика" },
+  // B375 (M26): практика живёт блоком «Ежедневный вопрос» на дашборде — отдельного пункта нет.
   { href: appUrl("/billing"), icon: Wallet, label: "Подписка и оплата" },
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];

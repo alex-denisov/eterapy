@@ -72,7 +72,8 @@ describe("Y10 Z4 credit expiry windows", () => {
   });
 
   it("uses the shared expiry helper for daily-practice credits", () => {
-    const route = source("src/app/api/cabinet/daily-card/route.ts");
+    // B375: начисление переехало в lib/streaks.ts (вехи серии).
+    const route = source("src/lib/streaks.ts");
 
     expect(route).toContain("creditExpiryFor");
     expect(route).not.toContain("setDate(expiresAt.getDate() + 90)");

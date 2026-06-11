@@ -3,11 +3,21 @@ import db from "@/lib/db";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { creditExpiryFor } from "@/lib/credit-expiry";
 
+// B375 (M26): награды по вехам вместо +1/день. Источник остаётся
+// daily_practice (меняется только правило начисления). Веха 7 дополнительно
+// открывает бесплатный «итог недели» (генерится в weekly-summary.ts).
 export const STREAK_REWARDS: Record<number, { creditAmount?: number; productKey?: string; validDays?: number; label: string }> = {
-  3: { creditAmount: 2, label: "+2 балла за 3 дня" },
-  7: { creditAmount: 3, productKey: "weekly-report", validDays: 7, label: "+3 балла и недельный отчёт" },
-  30: { productKey: "my-map", validDays: 14, label: "Расширенная карта на 14 дней" },
+  3: { creditAmount: 1, label: "+1 балл за 3 дня подряд" },
+  7: { creditAmount: 2, label: "+2 балла и итог недели" },
+  14: { creditAmount: 2, label: "+2 балла за 14 дней" },
+  30: { creditAmount: 3, label: "+3 балла за 30 дней" },
 };
+
+/** Чистый помощник для UI и тестов: награда за достигнутую веху или null. */
+export function milestoneRewardFor(count: number) {
+  const reward = STREAK_REWARDS[count];
+  return reward ? { milestone: count, ...reward } : null;
+}
 
 type StreakTx = Pick<Prisma.TransactionClient, "user" | "clarityCreditLedgerEntry" | "productEntitlement">;
 
@@ -38,12 +48,16 @@ async function grantStreakReward(
   const reward = STREAK_REWARDS[input.milestone];
   if (!reward) return false;
 
-  const sourceEventId = `streak:${input.milestone}:${input.userId}`;
+  // B375: серия может прерываться и достигать вехи заново — eventId включает
+  // день достижения, чтобы повторная веха награждалась, а ретраи в тот же
+  // день оставались идемпотентными.
+  const milestoneDay = dayStartUTC(input.completedAt).toISOString().slice(0, 10);
+  const sourceEventId = `daily_practice:m${input.milestone}:${input.userId}:${milestoneDay}`;
   const existingCreditReward = reward.creditAmount
     ? await tx.clarityCreditLedgerEntry.findFirst({
       where: {
         userId: input.userId,
-        source: "streak",
+        source: "daily_practice",
         sourceEventId,
         status: { not: "revoked" },
       },
@@ -56,10 +70,10 @@ async function grantStreakReward(
       userId: input.userId,
       amount: reward.creditAmount,
       type: "grant",
-      source: "streak",
+      source: "daily_practice",
       sourceEventId,
       status: "confirmed",
-      expiresAt: creditExpiryFor("streak", input.completedAt),
+      expiresAt: creditExpiryFor("daily_practice", input.completedAt),
       metadata: {
         milestone: input.milestone,
         reward: "practice_streak",
