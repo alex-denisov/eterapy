@@ -18,6 +18,11 @@ export function generateStaticParams() {
   return v5Products.map((product) => ({ slug: product.slug }));
 }
 
+// M26/B367: unknown slugs (включая выпиленные услуги) должны отдавать
+// настоящий HTTP 404 на уровне роутера. Без этого root loading.tsx начинает
+// стримить ответ со статусом 200 раньше, чем сработает notFound().
+export const dynamicParams = false;
+
 export async function generateMetadata({
   params,
 }: {
