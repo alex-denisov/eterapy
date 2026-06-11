@@ -6,6 +6,7 @@ import { applyRequestContextHeaders, requestContextFromHeaders } from "@/lib/req
 import { shouldNoIndex } from "@/lib/seo";
 import { legacyPublicRedirect } from "@/lib/legacy-public-routes";
 import { MAIN_DOMAIN, APP_DOMAIN, ADMIN_DOMAIN } from "@/lib/env";
+import { v5Products } from "@/lib/v5-products";
 
 const USE_SUBDOMAINS = process.env.NEXT_PUBLIC_USE_SUBDOMAINS === "true";
 const PROTO = "https://";
@@ -129,11 +130,30 @@ export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
   return APP_PUBLIC_MAIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
+// M26/B367: выпиленные/неизвестные слаги услуг должны отдавать настоящий
+// HTTP 404. notFound() внутри страницы не выставляет статус, потому что root
+// loading.tsx начинает стримить ответ (200) раньше — поэтому гасим такие пути
+// в middleware, переписывая их на заведомо несуществующий роут.
+const VALID_PRODUCT_SLUGS = new Set<string>(v5Products.map((product) => product.slug));
+
+function unknownProductSlug(pathname: string): boolean {
+  const match = pathname.match(/^\/products\/([^/]+)\/?$/);
+  return Boolean(match && !VALID_PRODUCT_SLUGS.has(match[1]));
+}
+
 export default async function proxy(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const requestHeaders = new Headers(request.headers);
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
+
+  if (unknownProductSlug(pathname)) {
+    return applyRobotsPolicy(
+      rewriteWithContext(internalRewriteUrl(request, "/__product-not-found"), requestHeaders, context),
+      host,
+      pathname,
+    );
+  }
   const realSession = await getSessionFromCookie(request);
   const role = realSession.role;
   // U3: respect impersonation on the app host. When an admin/superadmin has an
