@@ -60,6 +60,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   return (
     <footer
       data-testid="public-shell-footer"
+      data-site-chrome="footer"
       className={cn("border-t border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]", soft && "soft-footer")}
     >
       <div className="mx-auto max-w-6xl px-4 py-8">

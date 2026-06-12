@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
 import { formatPoints } from "@/lib/points";
 import { NotificationBell } from "@/components/notification-bell";
+import { useMiniApp } from "@/components/miniapp-provider";
 import {
   Banknote,
   BookOpen,
@@ -358,6 +359,7 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
 
 export function Header() {
   const { data: session, status } = useSession();
+  const { isMiniApp } = useMiniApp();
   const livePathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -383,6 +385,11 @@ export function Header() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  // B381: inside a messenger mini-app the shell draws its own native header —
+  // hiding the site header avoids the "double header". The pre-paint inline
+  // script (data-miniapp) hides it via CSS before this unmount lands.
+  if (isMiniApp) return null;
 
   // Скрываем header на странице видеосессии
   if (mounted && livePathname.startsWith("/session")) return null;
@@ -430,6 +437,7 @@ export function Header() {
   return (
     <header
       data-testid="public-shell-header"
+      data-site-chrome="header"
       className={cn(
         "sticky top-0 z-50 border-b border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]/90 shadow-[0_8px_38px_rgba(60,30,20,0.08)] backdrop-blur-xl",
         softPublicHeader && "soft-header",

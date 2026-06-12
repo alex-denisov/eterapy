@@ -466,3 +466,20 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* B381 (M26): mini-app shell layout.
+   Inside a messenger mini-app (Telegram/VK/MAX) the messenger draws its own
+   native header — the data-miniapp attribute is set pre-paint by the inline
+   detect script, so the site header/footer are hidden before first paint
+   (no flash-of-chrome) while React unmounts them right after. Unlayered, so it
+   wins over the layered component styles without an !important arms race. */
+html[data-miniapp] [data-site-chrome] {
+  display: none !important;
+}
+
+/* Respect the device safe-area at the bottom so the cabinet tab bar clears the
+   home indicator / messenger chrome on phones. */
+html[data-miniapp] .soft-app-mobile-nav,
+html[data-miniapp] .soft-admin-mobile-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 import "./v4-soft.css";
 import { Header } from "@/components/header";
 import { FooterConditional } from "@/components/footer-conditional";
+import { MiniAppProvider } from "@/components/miniapp-provider";
 import { Providers } from "@/components/providers";
+import { MINIAPP_INLINE_SCRIPT } from "@/lib/miniapp";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
@@ -65,18 +68,32 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className={`${bodyFont.variable} ${headingFont.variable} h-full`}>
+    <html
+      lang="ru"
+      className={`${bodyFont.variable} ${headingFont.variable} h-full`}
+      // B381: the pre-paint detect script sets data-miniapp on <html> before
+      // hydration; suppress the expected attribute mismatch on this element only.
+      suppressHydrationWarning
+    >
       <body className="min-h-full flex flex-col">
+        {/* B381: set data-miniapp before hydration so the lean mini-app layout
+            (CSS hides site header/footer) has no flash-of-chrome. Trusted
+            compile-time constant — no user input is interpolated. */}
+        <Script id="miniapp-detect" strategy="beforeInteractive">
+          {MINIAPP_INLINE_SCRIPT}
+        </Script>
         <Providers>
-          {/* X2: impersonation banner renders right under the email-verify
-              banner (in Providers) and above the header, both static. */}
-          <ImpersonationBanner />
-          <HashScroll />
-          <FingerprintBeacon />
-          <Header />
-          <main className="flex-1">{children}</main>
-          <FooterConditional />
-          <CookieBanner />
+          <MiniAppProvider>
+            {/* X2: impersonation banner renders right under the email-verify
+                banner (in Providers) and above the header, both static. */}
+            <ImpersonationBanner />
+            <HashScroll />
+            <FingerprintBeacon />
+            <Header />
+            <main className="flex-1">{children}</main>
+            <FooterConditional />
+            <CookieBanner />
+          </MiniAppProvider>
         </Providers>
         <Analytics />
       </body>
