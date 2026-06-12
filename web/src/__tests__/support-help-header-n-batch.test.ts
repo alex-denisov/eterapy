@@ -63,6 +63,44 @@ describe("N6 — /help content + pagination", () => {
     expect(help).toContain("const PAGE_STEP = 10");
     expect(help).toContain("help-show-more");
     expect(help).toContain("setVisibleCount((c) => c + PAGE_STEP)");
-    expect(help).toContain("const visible = filtered.slice(0, visibleCount)");
+    expect(help).toContain("source.slice(0, visibleCount)");
+  });
+});
+
+describe("B380 — /help opens with curated top questions", () => {
+  const help = source("src/app/help/page.tsx");
+
+  it("defines a curated set of 10-15 top question ids", () => {
+    expect(help).toContain("const TOP_FAQ_IDS");
+    const block = help.slice(help.indexOf("const TOP_FAQ_IDS"));
+    const ids = (block.slice(0, block.indexOf("]")).match(/"[a-z0-9]+"/g) ?? []).length;
+    expect(ids).toBeGreaterThanOrEqual(10);
+    expect(ids).toBeLessThanOrEqual(15);
+  });
+
+  it("shows the curated set by default and lets the visitor open the full list", () => {
+    expect(help).toContain("const isTopView");
+    expect(help).toContain('"help-featured"');
+    expect(help).toContain("help-show-all");
+    expect(help).toContain("setShowAll(true)");
+    expect(help).toContain("Популярные вопросы");
+  });
+});
+
+describe("B380 — /legal/privacy human-readable summary", () => {
+  const privacy = source("src/app/legal/privacy/page.tsx");
+
+  it("places a plain-language summary above the legal text", () => {
+    expect(privacy).toContain('data-testid="privacy-summary"');
+    expect(privacy).toContain("Коротко и по-человечески");
+    // The summary must precede the first numbered legal section.
+    expect(privacy.indexOf("privacy-summary")).toBeLessThan(
+      privacy.indexOf("1. Какие данные мы собираем"),
+    );
+  });
+
+  it("drops removed M26 products from the data-retention list", () => {
+    expect(privacy).not.toContain("Круг близких");
+    expect(privacy).not.toContain("Моя карта");
   });
 });

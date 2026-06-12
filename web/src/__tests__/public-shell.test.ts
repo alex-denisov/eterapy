@@ -53,20 +53,21 @@ describe("v5 public shell", () => {
     expect(header).not.toContain("Ежедневная практика");
     expect(header).toContain("Подписка и оплата");
     expect(footer).toContain("soft-footer-columns");
-    // T12: footer taxonomy is grouped by product FAMILY, not by price. The old
-    // price-based split ("Бесплатно" / "Платные разборы") was misleading because
-    // conditionally-free products (круг, пара, совместимость, 7 дней) were filed
-    // under "Бесплатно". Columns are now thematic; free entries are communicated
-    // on each product page, not implied by a footer column.
-    // T8: condensed to 5 thematic columns so the whole row fits one line.
+    // B380 (M26): footer condensed 5 → 4 thematic columns aligned to the
+    // catalogue groups; free entries are communicated on each product page,
+    // not implied by a footer column.
     expect(footer).toContain('title: "Разборы"');
-    expect(footer).toContain('title: "Вместе и практика"');
-    expect(footer).toContain('title: "Эзотерика и специалисты"');
+    expect(footer).toContain('title: "Эзотерика"');
     expect(footer).toContain('title: "Платформа"');
     expect(footer).toContain('title: "Помощь"');
     // The footer must NOT reintroduce the misleading price-based columns.
     expect(footer).not.toContain('title: "Бесплатно"');
     expect(footer).not.toContain('title: "Платные разборы"');
+    // B380: dead routes are removed from footer navigation ahead of B373.
+    expect(footer).not.toContain('mainUrl("/products/circle")');
+    expect(footer).not.toContain('mainUrl("/products/seven-days")');
+    expect(footer).not.toContain('mainUrl("/products/clarity-practice")');
+    expect(footer).not.toContain('mainUrl("/products/my-map")');
     expect(softCss).toContain(".soft-user-menu");
     expect(softCss).toContain("soft-footer-columns");
   });

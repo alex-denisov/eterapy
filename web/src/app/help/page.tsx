@@ -238,11 +238,29 @@ function FaqCard({ item, catLabel }: { item: FaqItem; catLabel: string }) {
 
 const PAGE_STEP = 10;
 
+// B380: /help opens with a curated set of the most-asked questions instead of
+// the first 10 in array order. Search and category chips still reach all 132.
+// IDs are chosen for evergreen accuracy (no renamed/removed M26 mechanics).
+const TOP_FAQ_IDS = [
+  "p1", "p2", "p4", "p6", "p7", "p8",
+  "pr1", "pr3", "pr4", "pay4", "s1", "s2", "sf1",
+];
+
 function HelpContent() {
   const [cat, setCat] = useState("all");
   const [query, setQuery] = useState("");
   // N6: show only 10 Q&A by default; «Еще» reveals 10 more each click.
   const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
+  // B380: collapsed to top questions until the visitor opts into the full list.
+  const [showAll, setShowAll] = useState(false);
+
+  const topFaqs = useMemo(
+    () =>
+      TOP_FAQ_IDS.map((id) => FAQS.find((f) => f.id === id)).filter(
+        (f): f is FaqItem => Boolean(f),
+      ),
+    [],
+  );
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -253,18 +271,24 @@ function HelpContent() {
     );
   }, [cat, query]);
 
-  // Any new filter/search resets back to the first page of 10.
+  // Any new filter/search resets back to the first page of 10 and to top view.
   function pickCat(next: string) {
     setCat(next);
     setVisibleCount(PAGE_STEP);
+    setShowAll(false);
   }
   function updateQuery(next: string) {
     setQuery(next);
     setVisibleCount(PAGE_STEP);
+    setShowAll(false);
   }
 
-  const visible = filtered.slice(0, visibleCount);
-  const hasMore = filtered.length > visibleCount;
+  // Default landing = curated top questions; a search/category/«показать все»
+  // switches to the full paginated catalogue.
+  const isTopView = cat === "all" && query.trim() === "" && !showAll;
+  const source = isTopView ? topFaqs : filtered;
+  const visible = isTopView ? source : source.slice(0, visibleCount);
+  const hasMore = !isTopView && filtered.length > visibleCount;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6" data-testid="help-page-v42">
@@ -350,9 +374,20 @@ function HelpContent() {
         </div>
       </div>
 
+      {/* B380: curated «Популярные вопросы» heading on the default landing. */}
+      {isTopView && (
+        <p
+          className="mb-3 text-sm font-medium"
+          style={{ color: "var(--soft-ink-soft)" }}
+          data-testid="help-featured-heading"
+        >
+          Популярные вопросы
+        </p>
+      )}
+
       {/* FAQ items */}
-      <div className="space-y-2">
-        {filtered.length === 0 ? (
+      <div className="space-y-2" data-testid={isTopView ? "help-featured" : "help-results"}>
+        {source.length === 0 ? (
           <div className="soft-card py-12 text-center">
             <p className="font-heading text-xl italic" style={{ color: "var(--soft-ink-soft)" }}>
               Не нашли ответ?
@@ -377,6 +412,20 @@ function HelpContent() {
           ))
         )}
       </div>
+
+      {/* B380: «показать все» switches the top view to the full catalogue. */}
+      {isTopView && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowAll(true)}
+            className="soft-button soft-button-ghost px-6"
+            data-testid="help-show-all"
+          >
+            Показать все вопросы ({FAQS.length})
+          </button>
+        </div>
+      )}
 
       {/* N6: «Еще» reveals the next 10 Q&A. Default page is 10. */}
       {hasMore && (

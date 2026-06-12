@@ -8,59 +8,41 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
   const mutedCls = cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]");
   const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
-  // T12: footer columns are grouped by product FAMILY, not by price. Earlier the
-  // "Бесплатно / Платные разборы / Эзотерика" split was misleading — several
-  // products (круг, пара, совместимость, 7 дней) start free but have a paid part,
-  // so calling them "Бесплатно" was wrong, and the price-based labels mixed
-  // unrelated themes. The footer is navigation, not a price list (G2): prices
-  // live on each product page, so labels carry no "₽". Where a free entry exists
-  // it is communicated in the product's own copy, not implied by a footer column.
-  // T8: footer condensed from 7 → 5 columns so the whole row fits on one line
-  // (the 7-column layout pushed "Помощь" onto a second row). The four product
-  // families are merged into two thematic columns by meaning: solo AI analyses
-  // ("Разборы"), shared + habit formats ("Вместе и практика"), and the symbolic
-  // + human track ("Эзотерика и специалисты"). Platform + Help stay separate.
+  // B380: footer condensed from 5 → 4 columns and restructured under the M26
+  // catalogue groups (Начать бесплатно · Самостоятельные разборы · Вместе ·
+  // Эзотерика · Поговорить со специалистом). Dead routes removed from
+  // navigation ahead of B373: /products/my-map, /products/circle,
+  // /products/clarity-practice, /products/seven-days, /products/compatibility.
+  // The footer is navigation, not a price list (G2) — labels carry no "₽".
   const columns = [
     {
       title: "Разборы",
       links: [
-        [mainUrl("/checkin"), "Первичный разбор"],
+        [mainUrl("/"), "Разобрать бесплатно"],
         [mainUrl("/products/perspectives"), "Полная картина"],
         [mainUrl("/products/deep-report"), "Подробный разбор"],
         [mainUrl("/products/chat-analysis"), "Разбор переписки"],
-        [mainUrl("/products/my-map"), "Расширенная карта"],
+        [mainUrl("/products/pair"), "Вместе"],
       ],
     },
     {
-      title: "Вместе и практика",
-      links: [
-        [mainUrl("/products/pair"), "Разобраться вдвоём"],
-        [mainUrl("/products/compatibility"), "Совместимость"],
-        [mainUrl("/products/circle"), "Круг"],
-        [mainUrl("/products/clarity-practice"), "Ежедневная практика"],
-        [mainUrl("/products/seven-days"), "7 дней"],
-        [mainUrl("/library"), "Библиотека вопросов"],
-      ],
-    },
-    {
-      title: "Эзотерика и специалисты",
+      title: "Эзотерика",
       links: [
         [mainUrl("/products/tarot"), "Таро"],
         [mainUrl("/products/natal-chart"), "Натальная карта"],
         [mainUrl("/products/synastry"), "Совместимость по звёздам"],
         [mainUrl("/products/numerology"), "Нумерология"],
-        [mainUrl("/practitioners"), "Специалисты"],
-        [mainUrl("/practitioners/apply"), "Стать специалистом"],
       ],
     },
     {
       title: "Платформа",
       links: [
         [mainUrl("/products"), "Все форматы"],
+        [mainUrl("/practitioners"), "Специалисты"],
+        [mainUrl("/practitioners/apply"), "Стать специалистом"],
         [mainUrl("/pricing"), "Тарифы"],
         [mainUrl("/how-it-works"), "Как работает"],
         [mainUrl("/about"), "О проекте"],
-        [mainUrl("/telegram"), "Telegram"],
       ],
     },
     {
@@ -70,7 +52,6 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
         [mainUrl("/legal/privacy"), "Приватность"],
         [mainUrl("/legal/cookies"), "Cookies"],
         [mainUrl("/legal/disclaimer"), "Дисклеймер"],
-        [mainUrl("/legal/ethics"), "Этический кодекс"],
         [mainUrl("/legal/offer"), "Договор-оферта"],
       ],
     },

@@ -20,10 +20,13 @@ describe("design v4.2 rollout", () => {
     const footer = source("components/footer.tsx");
 
     expect(header).toContain('label: "Продукты"');
-    expect(footer).toContain('mainUrl("/products/circle")');
+    // B380 (M26): the footer was condensed to the catalogue groups and no longer
+    // links the soon-to-be-removed growth routes (circle / clarity-practice /
+    // telegram). The «Вместе» entry (→ /products/pair) stays. The routes still
+    // exist in SEO until B373 retires them.
     expect(footer).toContain('mainUrl("/products/pair")');
-    expect(footer).toContain('mainUrl("/telegram")');
-    expect(footer).toContain('mainUrl("/products/clarity-practice")');
+    expect(footer).not.toContain('mainUrl("/products/circle")');
+    expect(footer).not.toContain('mainUrl("/products/clarity-practice")');
   });
 
   it("keeps the v4.2 logo as the only active app icon shape", () => {
