@@ -3,8 +3,9 @@
 // `entitlements.ts` re-exports everything here for back-compat.
 //
 // The hidden ₽-value of 1 балл used to jump 124–299 ₽ between products; the ladder
-// below holds it flat at ~295–299 ₽/балл (target band 250–300) so no product is a
-// secret балл-bargain. Ladder: 1 балл = 299 ₽ · 2 = 590 ₽ · 3 = 890 ₽ · 4 = 1190 ₽.
+// below holds it flat at ~272–299 ₽/балл (target band 250–300) so no product is a
+// secret балл-bargain. Ladder: 1 балл = 299 ₽ · 2 = 590 ₽ · 3 = 890 ₽ · 4 = 1090 ₽
+// (the 4-балл bundle is a ₽ discount vs the sum of its parts, so it dips to ~272).
 // seven-days/my-map are deprecated (practice is free, карта → Дневник) and removed
 // from the catalog in B373 — their legacy values are excluded from the ₽/балл
 // invariant. Pack/subscription acquisition pricing is a separate, intentional

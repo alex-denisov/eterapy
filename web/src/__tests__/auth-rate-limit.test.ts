@@ -61,6 +61,29 @@ describe("B054 auth rate limits", () => {
     expect(checkAuthRateLimit(key, 2, 60_000)).toEqual(expect.objectContaining({ allowed: false }));
   });
 
+  it("charges multi-unit cost so batch endpoints are bounded by work, not request count", () => {
+    const key = "auth:batch";
+
+    // A 10-image batch should consume 10 of a 15-unit budget in one call.
+    expect(checkAuthRateLimit(key, 15, 60_000, 10)).toEqual({ allowed: true });
+    // Only 5 units remain — a second 10-image batch must be rejected.
+    expect(checkAuthRateLimit(key, 15, 60_000, 10)).toEqual(
+      expect.objectContaining({ allowed: false }),
+    );
+    // …but a 5-image batch still fits exactly.
+    expect(checkAuthRateLimit(key, 15, 60_000, 5)).toEqual({ allowed: true });
+    // Budget exhausted — even a single unit is now rejected.
+    expect(checkAuthRateLimit(key, 15, 60_000, 1)).toEqual(
+      expect.objectContaining({ allowed: false }),
+    );
+  });
+
+  it("defaults cost to 1 (single-unit callers unchanged)", () => {
+    const key = "auth:default-cost";
+    expect(checkAuthRateLimit(key, 1, 60_000)).toEqual({ allowed: true });
+    expect(checkAuthRateLimit(key, 1, 60_000)).toEqual(expect.objectContaining({ allowed: false }));
+  });
+
   it("derives request keys from forwarded IP", () => {
     const req = request("/api/auth/forgot-password");
 

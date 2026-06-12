@@ -31,22 +31,31 @@ export function authRateLimitKey(scope: string, value: string) {
   return `auth:${scope}:${hashKey(value.toLowerCase())}`;
 }
 
-export function checkAuthRateLimit(key: string, limit: number, windowMs: number): AuthRateLimitResult {
+// `cost` lets a single request consume more than one unit of the budget, so
+// endpoints that fan out into N expensive downstream calls (e.g. batch OCR over
+// up to 10 screenshots) are bounded by real work, not request count. Defaults to
+// 1 so every existing caller keeps its current behaviour.
+export function checkAuthRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number,
+  cost = 1
+): AuthRateLimitResult {
   const now = nowMs();
   const existing = buckets.get(key);
   if (!existing || existing.resetAt <= now) {
-    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    buckets.set(key, { count: cost, resetAt: now + windowMs });
     return { allowed: true };
   }
 
-  if (existing.count >= limit) {
+  if (existing.count + cost > limit) {
     return {
       allowed: false,
       retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
     };
   }
 
-  existing.count += 1;
+  existing.count += cost;
   return { allowed: true };
 }
 
@@ -54,9 +63,10 @@ export function checkRequestAuthRateLimit(
   request: NextRequest,
   scope: string,
   limit: number,
-  windowMs: number
+  windowMs: number,
+  cost = 1
 ) {
-  return checkAuthRateLimit(authRateLimitKeyFromRequest(request, scope), limit, windowMs);
+  return checkAuthRateLimit(authRateLimitKeyFromRequest(request, scope), limit, windowMs, cost);
 }
 
 export function authRateLimitResponse(result: Extract<AuthRateLimitResult, { allowed: false }>) {

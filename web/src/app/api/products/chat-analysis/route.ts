@@ -243,6 +243,27 @@ export async function POST(request: NextRequest) {
   }
 
   if (input.action === "screenshots_preview") {
+    // B378 follow-up (cost integrity): each screenshot triggers a free vision-OCR
+    // call before any payment. The top-of-handler check charged 1 unit for this
+    // request; charge the remaining (N-1) so a 10-image batch costs 10 budget
+    // units, not 1. Bounds OCR fan-out to the same 15/5min as single screenshots.
+    if (input.screenshots.length > 1) {
+      const batchLimit = checkRequestAuthRateLimit(
+        request,
+        "product:chat-analysis",
+        15,
+        5 * 60_000,
+        input.screenshots.length - 1,
+      );
+      if (!batchLimit.allowed) {
+        return jsonWithRequestContext(
+          { error: "Too many chat analysis requests", code: "RATE_LIMITED" },
+          { status: 429, headers: { "Retry-After": String(batchLimit.retryAfterSeconds) } },
+          context,
+        );
+      }
+    }
+
     const ocrItems: Prisma.InputJsonObject[] = [];
     const recognizedFragments: string[] = [];
 
