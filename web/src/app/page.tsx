@@ -1,20 +1,24 @@
 import { auth } from "@/lib/auth";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { HeroSection } from "@/components/landing/hero";
+import { ScenariosSection } from "@/components/landing/scenarios";
 import { HowItWorksSection } from "@/components/landing/how-it-works";
-import { AIToolsSection } from "@/components/landing/ai-tools";
-import { EsotericShowcaseSection } from "@/components/landing/esoteric-showcase";
 import { LibraryPreviewSection } from "@/components/landing/library-preview";
-import { SpecialistsTeaserSection } from "@/components/landing/specialists-teaser";
-import { ForPractitionersSection } from "@/components/landing/for-practitioners";
-import { GrowthFormatsSection } from "@/components/landing/growth-formats";
-import { TrustPromisesSection, TrustPrivacySection } from "@/components/landing/trust";
 import { CTASection } from "@/components/landing/cta";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { HomeAnalytics } from "@/components/landing/home-analytics";
 
 export const metadata = createPublicPageMetadata("/");
 
+// B374: lean, dialogue-first landing (≤6 mobile screens). The hero question
+// entry is the single funnel entry; three scenario-routers sit below for people
+// not ready to type. The 21-card service «простыня», esoteric service chips, the
+// standalone growth widget, the B2B practitioners block, the specialists teaser
+// and the duplicate "помогаем/не обещаем" panel were removed from the landing —
+// services live in /products (5 groups), specialists on /practitioners, B2B on
+// /practitioners/apply (footer link). One social-proof block (library) remains;
+// privacy is reassured inline in the hero, on /how-it-works and in the footer,
+// so the page stays ≤6 mobile screens.
 export default async function Home() {
   await auth();
 
@@ -23,15 +27,9 @@ export default async function Home() {
       <PublicJsonLd route="/" />
       <HomeAnalytics />
       <HeroSection />
+      <ScenariosSection />
       <HowItWorksSection />
-      <AIToolsSection />
-      <EsotericShowcaseSection />
-      <GrowthFormatsSection />
       <LibraryPreviewSection />
-      <SpecialistsTeaserSection />
-      <TrustPromisesSection />
-      <TrustPrivacySection />
-      <ForPractitionersSection />
       <CTASection />
     </div>
   );

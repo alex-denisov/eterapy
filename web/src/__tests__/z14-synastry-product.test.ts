@@ -53,7 +53,6 @@ describe("Z14 synastry product", () => {
     const products = source("src/lib/v5-products.ts");
     const serviceCatalog = source("src/components/products/service-catalog.tsx");
     const pricing = source("src/app/pricing/pricing-plans.tsx");
-    const showcase = source("src/components/landing/esoteric-showcase.tsx");
     const footer = source("src/components/footer.tsx");
     const map = source("src/lib/my-map.ts");
     const resultPage = source("src/app/cabinet/results/[id]/page.tsx");
@@ -76,7 +75,7 @@ describe("Z14 synastry product", () => {
     expect(products).toContain('slug: "synastry"');
     expect(serviceCatalog).toContain("/products/synastry");
     expect(pricing).toContain("/products/synastry");
-    expect(showcase).toContain("/products/synastry");
+    // B374: esoteric showcase removed from landing — synastry surfaces via catalog/footer.
     expect(footer).toContain("/products/synastry");
     expect(map).toContain('synastry: "Совместимость по звёздам"');
     expect(resultPage).toContain('"synastry": "Совместимость по звёздам"');

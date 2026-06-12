@@ -58,34 +58,20 @@ describe("design v4.2 rollout", () => {
     expect(products).toContain("один отчёт на двоих");
   });
 
-  it("adds the v4.2 growth loop section to the landing", () => {
+  // B374: the v4.2 growth-loop, esoteric-showcase and specialists-teaser
+  // sections were removed from the landing to keep it ≤6 mobile screens
+  // (growth-formats.tsx / esoteric-showcase.tsx deleted). Their routing now
+  // lives in the three scenario-routers + /products + /practitioners.
+  it("keeps the landing lean — no growth/esoteric/specialists/trust blocks", () => {
     const home = source("app/page.tsx");
-    const growth = source("components/landing/growth-formats.tsx");
 
-    expect(home).toContain("<GrowthFormatsSection />");
-    expect(growth).toContain("взгляд со стороны");
-    expect(growth).toContain("Круг");
-    expect(growth).toContain("Разобраться вдвоём");
-    expect(growth).toContain("ежедневная практика");
-  });
-
-  it("adds the v4.2 esoteric showcase and specialists teaser to the landing", () => {
-    const home = source("app/page.tsx");
-    const esoteric = source("components/landing/esoteric-showcase.tsx");
-    const specialists = source("components/landing/specialists-teaser.tsx");
-
-    expect(home).toContain("<EsotericShowcaseSection />");
-    expect(home).toContain("<SpecialistsTeaserSection />");
-    expect(esoteric).toContain("эзотерические направления");
-    expect(esoteric).toContain("как метафоры");
-    expect(esoteric).toContain("/products/tarot");
-    expect(esoteric).toContain("/products/natal-chart");
-    expect(esoteric).toContain("/products/numerology");
-    // M26/B367: joint-session закрыт — ссылки на него быть не должно.
-    expect(esoteric).not.toContain("/products/joint-session");
-    expect(specialists).toContain("проверенные специалисты");
-    expect(specialists).toContain("живой разговор");
-    expect(specialists).toContain('href="/practitioners"');
+    expect(home).not.toContain("GrowthFormatsSection");
+    expect(home).not.toContain("EsotericShowcaseSection");
+    expect(home).not.toContain("SpecialistsTeaserSection");
+    expect(home).not.toContain("TrustPromisesSection");
+    expect(home).not.toContain("TrustPrivacySection");
+    // One social-proof block (library) remains; privacy is reassured inline.
+    expect(home).toContain("<LibraryPreviewSection />");
   });
 
   it("keeps specialist and cabinet surfaces inside the v4.2 shell", () => {

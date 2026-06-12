@@ -14,7 +14,7 @@ export function LibraryPreviewSection() {
     .filter(Boolean) as typeof anonymousLibraryEntries;
 
   return (
-    <section className="soft-shell py-16 md:py-24">
+    <section className="soft-shell py-12 md:py-20">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="soft-eyebrow">библиотека анонимных вопросов</div>

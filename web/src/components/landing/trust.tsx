@@ -27,7 +27,7 @@ const privacy = [
 
 export function TrustPromisesSection() {
   return (
-    <section className="soft-shell py-16 md:py-24">
+    <section className="soft-shell py-12 md:py-20">
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="soft-card p-7 md:p-8" style={{ background: "linear-gradient(150deg, #fffcf5, #f4d9c1)" }}>
           <div className="soft-eyebrow">мы помогаем</div>
@@ -61,7 +61,7 @@ export function TrustPromisesSection() {
 
 export function TrustPrivacySection() {
   return (
-    <section className="soft-shell py-16 md:py-24">
+    <section className="soft-shell py-12 md:py-20">
       <div className="soft-card soft-dark-panel p-7 md:p-10">
         <div className="grid gap-8 md:grid-cols-[1.08fr_1fr] md:items-center">
           <div>

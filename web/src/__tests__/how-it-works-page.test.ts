@@ -22,12 +22,12 @@ describe("v5 how-it-works page", () => {
     expect(page).toContain("Вы пишете своими словами");
     expect(page).toContain("Мы задаём 2–4 коротких вопроса");
     expect(page).toContain("первичный разбор");
-    expect(page).toContain("На странице ответа видны углубления");
-    expect(page).toContain("Покупаете услугу напрямую или после triage");
+    // B374: trimmed to three steps; углубление + сохранение folded into step 03.
+    expect(page).toContain("углубление по выбору");
+    expect(page).toContain("сохраняется в Дневник");
     // B292: replaced two internal-spec headings with user-facing copy.
     expect(page).toContain("если уже знаете, что нужно");
     expect(page).toContain("Откройте нужный формат");
-    expect(page).toContain("Сохраняете в карту");
     expect(page).toContain("Когда мы перенаправим к человеку");
     expect(page).toContain("Регулярно");
     expect(page).toContain("выгоднее в подписке");
