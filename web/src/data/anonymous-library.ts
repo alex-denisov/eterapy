@@ -1,17 +1,30 @@
+import { LIBRARY_TOPICS, type LibraryTopic, type LibraryCtaProduct } from "@/lib/library-cta";
+import { b383LibraryCards } from "@/data/library-cards-b383";
+
 export type AnonymousLibraryStatus = "approved" | "rejected" | "deleted";
+
+export type LibraryMainFork = { title: string; note?: string };
 
 export type AnonymousLibraryEntry = {
   slug: string;
-  topic: string;
+  topic: LibraryTopic;
   question: string;
   summary: string;
   perspectives: string[];
   reactions: number;
   status: AnonymousLibraryStatus;
   indexable: boolean;
+  // v2 single-canvas card fields (B382 schema; filled by B383). All optional so the
+  // legacy entries still render via the `perspectives[]`/`reactions` fallback.
+  ctaProduct?: LibraryCtaProduct;
+  mainFork?: LibraryMainFork;
+  freeFragment?: string;
+  hidden?: string[];
+  similarCount?: number;
+  seo?: { metaTitle: string; metaDescription: string };
 };
 
-export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
+const baseLibraryEntries: AnonymousLibraryEntry[] = [
   {
     slug: "ne-mogu-reshitsya-na-razgovor",
     topic: "Отношения",
@@ -28,7 +41,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "stoyu-pered-vyborom-raboty",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Есть стабильная работа и новая возможность, но я не понимаю, где мой настоящий шанс.",
     summary: "Выбор можно рассмотреть через энергию, риски, ресурсы и цену бездействия, не превращая его в обещание судьбы.",
     perspectives: [
@@ -42,7 +55,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "povtoryaetsya-odin-i-tot-zhe-scenariy",
-    topic: "Паттерны",
+    topic: "Хожу по кругу",
     question: "Почему я снова оказываюсь в похожей ситуации, хотя каждый раз выбираю по-другому?",
     summary: "Повтор может быть не в событии, а в критериях выбора, привычной роли или моменте, где вы перестаете замечать свои границы.",
     perspectives: [
@@ -70,7 +83,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ustayu-ot-vsego-no-ne-mogu-ostanovitsya",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "Я постоянно устаю, но не могу позволить себе остановиться. Это норма или стоит беспокоиться?",
     summary: "Усталость, которая не уходит после отдыха, часто сигнализирует не о нехватке времени, а о несоответствии между тем, что вы делаете, и тем, что вам важно.",
     perspectives: [
@@ -84,7 +97,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "kak-ponyat-chto-ya-na-pravil-nom-meste",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Как понять, что я занимаюсь тем, чем нужно, а не просто привык к месту?",
     summary: "Разница между «это моё место» и «я просто привык» обычно ощущается в том, есть ли у вас интерес к росту или только комфорт от знакомого.",
     perspectives: [
@@ -98,7 +111,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "roditeli-ne-prinimayu-moy-vybor",
-    topic: "Семья",
+    topic: "Отношения",
     question: "Родители не принимают мой выбор партнёра. Как с этим жить?",
     summary: "Конфликт между семейными ожиданиями и собственным выбором требует не победы одной стороны, а понимания, что именно стоит за несогласием.",
     perspectives: [
@@ -112,7 +125,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "trevoga-pered-novym-etapom",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "Предстоит важное изменение, и я боюсь, что не справлюсь. Как перестать накручивать?",
     summary: "Тревога перед переменами почти всегда содержит полезную информацию о том, что для вас важно. Задача не убрать её, а разобраться, что именно она охраняет.",
     perspectives: [
@@ -140,7 +153,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "hochu-smenit-sferu-no-strashno-nachat",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Хочу сменить профессию, но страшно начинать с нуля в 35. Это разумно или поздно?",
     summary: "Вопрос «поздно ли» почти всегда прикрывает более конкретный страх: потери статуса, дохода или уважения. Стоит посмотреть, что именно стоит за этим словом.",
     perspectives: [
@@ -168,7 +181,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "kak-ne-zaviset-ot-chuzhogo-mneniya",
-    topic: "Самооценка",
+    topic: "Про себя",
     question: "Мне важно, что обо мне думают другие, и я устала от этого зависеть. Как это изменить?",
     summary: "Чувствительность к оценке других — не дефект, а адаптация. Вопрос в том, насколько она управляет вашими решениями.",
     perspectives: [
@@ -182,7 +195,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "nichego-ne-hochetsya-eto-depressiya",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "Последние несколько недель ничего не хочется и нет сил. Это депрессия или просто усталость?",
     summary: "Отличить усталость от чего-то более серьёзного важно, но это не задача для самодиагностики. Разбор может помочь сформулировать, что именно происходит.",
     perspectives: [
@@ -196,7 +209,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "drug-stal-chuzhim",
-    topic: "Дружба",
+    topic: "Отношения",
     question: "Близкий друг стал другим человеком, и я не понимаю, стоит ли продолжать дружбу.",
     summary: "Люди меняются, и дружба тоже. Вопрос не в том, стоит ли дружить «вообще», а в том, что именно изменилось и что из этого важно для вас.",
     perspectives: [
@@ -210,7 +223,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "bolyus-chto-menya-zabrasyvayut",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "Я боюсь, что люди, которые мне важны, в какой-то момент просто уйдут. Откуда этот страх?",
     summary: "Страх быть брошенным — один из самых распространённых. Он почти всегда связан с прошлым опытом, а не с реальной угрозой в настоящем.",
     perspectives: [
@@ -296,7 +309,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Работа
   {
     slug: "vygoranie-ili-net",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Работа перестала приносить удовольствие. Это выгорание или я просто ленюсь?",
     summary: "Выгорание и лень — разные состояния. Выгорание сопровождается упадком сил даже при отдыхе, лень — ощущением, что сил есть, но не хочется.",
     perspectives: [
@@ -310,7 +323,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "bos-ne-tseneet-menya",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Я много работаю, но руководство не замечает моих усилий. Как перестать ждать признания?",
     summary: "Ожидание признания — естественная потребность. Вопрос в том, как она выражается и кто должен её удовлетворять.",
     perspectives: [
@@ -324,7 +337,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "kak-otkazat-na-rabote",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Я не умею говорить «нет» коллегам и руководителю. Это вредит мне, но я боюсь конфликта.",
     summary: "Неумение отказывать часто связано со страхом, что вас перестанут ценить или обидятся. Но граница — это не конфликт, а коммуникация.",
     perspectives: [
@@ -338,7 +351,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ne-mogu-sosredotochitsya-na-rabote",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "С трудом могу сосредоточиться на работе больше 20 минут. Это со мной что-то не так?",
     summary: "Трудности с концентрацией могут быть связаны с усталостью, тревогой, неподходящими условиями или природой работы — и редко означают, что «что-то не так».",
     perspectives: [
@@ -353,7 +366,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Семья
   {
     slug: "mama-vmeshivaetsya-v-nashu-zhizn",
-    topic: "Семья",
+    topic: "Отношения",
     question: "Моя мама постоянно вмешивается в нашу семейную жизнь, и партнёр уже устал. Как установить границы, не обижая её?",
     summary: "Граница с родителями — одна из самых сложных в жизни взрослого человека. Её цель не наказать маму, а защитить важные отношения.",
     perspectives: [
@@ -367,7 +380,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "razvod-s-detmi",
-    topic: "Семья",
+    topic: "Отношения",
     question: "Мы разводимся, и я не знаю, как объяснить это детям. Они ещё маленькие.",
     summary: "Дети воспринимают развод через то, что они видят: как родители разговаривают, ведут себя и относятся к ним. Слова важны, но поведение важнее.",
     perspectives: [
@@ -381,7 +394,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "sibling-rivalry-adult",
-    topic: "Семья",
+    topic: "Отношения",
     question: "У меня сложные отношения с братом. Мы взрослые, но постоянно соперничаем. Это нормально?",
     summary: "Соперничество между взрослыми братьями и сёстрами — частое явление. Оно часто уходит корнями в детский опыт и не означает, что вы не любите друг друга.",
     perspectives: [
@@ -396,7 +409,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Самооценка
   {
     slug: "sravnivayu-sebya-s-drugimi",
-    topic: "Самооценка",
+    topic: "Про себя",
     question: "Я постоянно сравниваю себя с другими в соцсетях и чувствую себя недостаточной. Как перестать?",
     summary: "Сравнение в соцсетях — это сравнение вашей реальности с чужим монтажом. Оно почти всегда нечестное.",
     perspectives: [
@@ -410,7 +423,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ne-veryu-v-svoi-sily",
-    topic: "Самооценка",
+    topic: "Про себя",
     question: "Мне предложили важный проект, но я боюсь, что не справлюсь. Как понять, тянусь ли я сам или это реально не моё?",
     summary: "Синдром самозванца — частый спутник роста. Страх «не справиться» почти никогда не означает реальную некомпетентность.",
     perspectives: [
@@ -424,7 +437,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ya-silno-kritikuyu-sebya",
-    topic: "Самооценка",
+    topic: "Про себя",
     question: "Я постоянно критикую себя за ошибки и не могу отпустить неудачи. Откуда это?",
     summary: "Самокритика часто бывает усвоенным голосом критичного взрослого из прошлого. Она может казаться «мотивирующей», но обычно истощает.",
     perspectives: [
@@ -439,7 +452,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Тревога
   {
     slug: "trevoga-bez-prichiny",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "У меня тревога, но я не понимаю из-за чего. Всё вроде нормально, а тяжело.",
     summary: "Фоновая тревога без очевидной причины — очень частое состояние. Она может быть накопленной или связанной с чем-то, что мы пока не осознали.",
     perspectives: [
@@ -453,7 +466,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "panicheskie-ataki",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "Недавно у меня впервые случилась паническая атака. Я теперь боюсь, что это повторится.",
     summary: "Страх повторения панической атаки — один из главных факторов, которые её поддерживают. Понимание механизма помогает снизить этот страх.",
     perspectives: [
@@ -467,7 +480,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "trevoga-za-zdorovye",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "Я постоянно беспокоюсь о своём здоровье и ищу симптомы болезней. Это ипохондрия?",
     summary: "Тревога о здоровье — спектр от нормального беспокойства до состояния, которое мешает жить. Важно понять, насколько это влияет на вашу жизнь.",
     perspectives: [
@@ -482,7 +495,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Самочувствие
   {
     slug: "ne-mogu-zasnut",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "Я плохо сплю уже несколько недель. Мысли не дают успокоиться по ночам.",
     summary: "Нарушение сна из-за мыслей — частый симптом повышенной тревоги или нерешённых вопросов. Работа со сном начинается с работы с состоянием.",
     perspectives: [
@@ -496,7 +509,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ne-khochu-nikogo-videt",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "Последнее время я избегаю людей и не хочу ни с кем встречаться. Это нормально?",
     summary: "Желание побыть в одиночестве бывает здоровым восстановлением, а бывает признаком истощения или депрессии. Важно понять разницу.",
     perspectives: [
@@ -511,7 +524,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Деньги
   {
     slug: "strakh-bednosti",
-    topic: "Деньги",
+    topic: "Работа и деньги",
     question: "У меня достаточно денег, но я постоянно боюсь, что их не хватит. Откуда этот страх?",
     summary: "Страх бедности часто не связан с реальной ситуацией. Он может быть унаследован от родителей или основан на прошлом опыте нехватки.",
     perspectives: [
@@ -525,7 +538,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ne-mogu-poprosit-povysheniya",
-    topic: "Деньги",
+    topic: "Работа и деньги",
     question: "Я понимаю, что заслуживаю повышения зарплаты, но не могу об этом попросить. Почему?",
     summary: "Трудность с просьбой о повышении — очень распространённая история. Обычно за ней стоит страх отказа или убеждение, что хорошая работа должна быть замечена сама.",
     perspectives: [
@@ -539,7 +552,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "tratu-impulse",
-    topic: "Деньги",
+    topic: "Работа и деньги",
     question: "Я трачу деньги импульсивно и потом жалею. Как остановиться?",
     summary: "Импульсивные траты часто служат способом справиться с тревогой или скукой. Понимание триггера помогает больше, чем сила воли.",
     perspectives: [
@@ -554,7 +567,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Родительство
   {
     slug: "kak-ne-krichat-na-rebyonka",
-    topic: "Родительство",
+    topic: "Отношения",
     question: "Я срываюсь на ребёнке и потом чувствую себя ужасным родителем. Как это остановить?",
     summary: "Срывы на детях — это почти всегда результат накопленного стресса и истощения, а не плохого родительства. Их можно снизить, работая с собственным состоянием.",
     perspectives: [
@@ -568,7 +581,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "rebyonok-ne-slushaetsya",
-    topic: "Родительство",
+    topic: "Отношения",
     question: "Мой ребёнок 5 лет меня совсем не слушается. Я чувствую, что теряю контроль.",
     summary: "Пятилетний возраст — период активной проверки границ. «Непослушание» в этом возрасте часто является нормальным развитием, а не проблемой поведения.",
     perspectives: [
@@ -582,7 +595,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "vinovata-li-ya-kak-mama",
-    topic: "Родительство",
+    topic: "Отношения",
     question: "Я вышла на работу, когда ребёнку был год. Теперь чувствую себя виноватой. Это обоснованно?",
     summary: "Вина работающей матери — социально навязанная, а не объективная. Ребёнку нужна присутствующая мать, а не постоянно физически рядом находящаяся.",
     perspectives: [
@@ -597,7 +610,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Дружба
   {
     slug: "net-nastoyashchikh-druzey",
-    topic: "Дружба",
+    topic: "Отношения",
     question: "Мне 32, и у меня нет по-настоящему близких друзей. Это странно?",
     summary: "После 30 лет найти новых близких друзей сложнее, но нормально. Это связано со структурой жизни, а не с вашей «неправильностью».",
     perspectives: [
@@ -611,7 +624,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "drug-predal-moe-doveriye",
-    topic: "Дружба",
+    topic: "Отношения",
     question: "Подруга рассказала мой секрет другим. Я не знаю, стоит ли продолжать с ней общаться.",
     summary: "Предательство доверия — серьёзный момент в дружбе. Его можно прожить и продолжить, а можно принять как сигнал о несовместимости.",
     perspectives: [
@@ -625,7 +638,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "odnostoronnaya-druzhba",
-    topic: "Дружба",
+    topic: "Отношения",
     question: "Кажется, в нашей дружбе я всегда отдаю больше, чем получаю. Это моя проблема?",
     summary: "Дисбаланс в дружбе — реальная проблема, которую стоит назвать. Иногда это паттерн выбора, иногда — конкретная ситуация.",
     perspectives: [
@@ -640,7 +653,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Паттерны
   {
     slug: "vsegda-ugozhdayu-drugim",
-    topic: "Паттерны",
+    topic: "Хожу по кругу",
     question: "Я всегда ставлю других на первое место и игнорирую свои потребности. Почему я так делаю?",
     summary: "Постоянное угождение другим — выученный способ получить безопасность или принятие. Это не ваша природа, а стратегия.",
     perspectives: [
@@ -654,7 +667,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "privlekayu-nezdorovykh-lyudey",
-    topic: "Паттерны",
+    topic: "Хожу по кругу",
     question: "Я замечаю, что постоянно притягиваю нарциссичных или манипулятивных людей. Почему?",
     summary: "Паттерны выбора партнёров и друзей формируются в детстве. «Притягивание» — это не магия, а знакомость: мы тянемся к тому, что похоже на то, что знаем.",
     perspectives: [
@@ -668,7 +681,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "zavisat-v-nereshennosti",
-    topic: "Паттерны",
+    topic: "Хожу по кругу",
     question: "Я долго не принимаю решения и потом упускаю возможности. Почему мне так трудно выбирать?",
     summary: "Трудность с выбором часто связана не с нерешительностью как чертой, а с конкретными страхами: ошибиться, потерять другой вариант, не угодить другим.",
     perspectives: [
@@ -683,7 +696,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Самочувствие (продолжение)
   {
     slug: "chuvstvo-pustoty",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "Я чувствую внутреннюю пустоту. Снаружи всё хорошо, но внутри ничего нет.",
     summary: "Внутренняя пустота при внешнем благополучии — один из самых сложных запросов. Она часто говорит о разрыве между тем, как вы живёте, и тем, что для вас важно.",
     perspectives: [
@@ -697,7 +710,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "poteryal-smysl",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "После важного события жизнь потеряла смысл. Я не понимаю, зачем всё это.",
     summary: "Потеря смысла после значимого события — нормальная реакция горя или переломного момента. Это не диагноз, но это сигнал, что нужна поддержка.",
     perspectives: [
@@ -740,7 +753,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "podruga-vsegda-zhaluetsya",
-    topic: "Дружба",
+    topic: "Отношения",
     question: "Я устаю от того, что подруга постоянно жалуется на жизнь и ничего не делает для изменений.",
     summary: "Усталость от хронических жалоб — нормальная реакция. Она говорит о том, что дружба требует пересмотра или разговора о границах.",
     perspectives: [
@@ -754,7 +767,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "kak-perezhit-odinochestvo",
-    topic: "Самочувствие",
+    topic: "Тревога и состояние",
     question: "Мне очень одиноко. Я не понимаю, как с этим жить.",
     summary: "Одиночество — одно из самых тяжёлых переживаний. Оно может быть ситуативным или хроническим, и с каждым работают по-разному.",
     perspectives: [
@@ -768,7 +781,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "ne-znayu-chego-khochu",
-    topic: "Паттерны",
+    topic: "Хожу по кругу",
     question: "Я не понимаю, чего хочу от жизни. Все вокруг знают, а я нет.",
     summary: "Незнание своих желаний — очень распространённое состояние, особенно если вы долго жили чужими ожиданиями. Это не признак «сломленности».",
     perspectives: [
@@ -782,7 +795,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "boyus-byt-soboj",
-    topic: "Самооценка",
+    topic: "Про себя",
     question: "Я боюсь быть собой. Кажется, настоящий я — недостаточно хорош.",
     summary: "Страх быть собой почти всегда связан с опытом, когда вас отвергали за то, что вы проявляли себя. Это защита, которая стала тюрьмой.",
     perspectives: [
@@ -797,7 +810,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Деньги (продолжение)
   {
     slug: "partnyor-ne-zanimaetsya-dengami",
-    topic: "Деньги",
+    topic: "Работа и деньги",
     question: "Партнёр избегает разговоров о деньгах, и я не понимаю нашего финансового положения.",
     summary: "Финансовая закрытость в паре — частая проблема. За ней может стоять стыд, страх контроля или разные установки о деньгах.",
     perspectives: [
@@ -812,7 +825,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Работа (продолжение)
   {
     slug: "rabochu-iz-doma-i-net-granits",
-    topic: "Работа",
+    topic: "Работа и деньги",
     question: "Работаю из дома и не могу отделить работу от жизни. Всё сливается в одно.",
     summary: "Отсутствие физических границ делает психологические границы ответственностью самого человека — и это требует намеренных усилий.",
     perspectives: [
@@ -827,7 +840,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Семья (продолжение)
   {
     slug: "poteryali-rebyonka",
-    topic: "Семья",
+    topic: "Отношения",
     question: "Мы с партнёром потеряли ребёнка. Не знаем, как жить дальше вместе.",
     summary: "Потеря ребёнка — один из самых тяжёлых кризисов, которые переживает пара. Горе у партнёров может быть очень разным, и это само по себе источник непонимания.",
     perspectives: [
@@ -841,7 +854,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "starey-roditeli-trebuyut-vnimaniya",
-    topic: "Семья",
+    topic: "Отношения",
     question: "Стареющие родители требуют всё больше внимания, и я не справляюсь с работой, семьёй и ними одновременно.",
     summary: "Уход за стареющими родителями при своей семье и работе — системная проблема, а не провал одного человека. Помощь здесь возможна и нужна.",
     perspectives: [
@@ -856,7 +869,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Тревога (продолжение)
   {
     slug: "boju-sya-ne-uspeyu",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "Мне 30, и я боюсь, что не успею сделать всё, что хотела — карьера, семья, дети.",
     summary: "Страх «не успеть» усиливается социальными нарративами о «правильных» дедлайнах жизни. Они редко совпадают с реальными возможностями.",
     perspectives: [
@@ -870,7 +883,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "trevoga-za-blizikh",
-    topic: "Тревога",
+    topic: "Тревога и состояние",
     question: "Я постоянно тревожусь о близких — что с ними что-то случится. Это не даёт покоя.",
     summary: "Тревога за близких — форма любви, которая иногда становится её тюрьмой. Она редко защищает, но часто истощает.",
     perspectives: [
@@ -885,7 +898,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   // Паттерны (продолжение)
   {
     slug: "sabotuyu-svoy-uspekh",
-    topic: "Паттерны",
+    topic: "Хожу по кругу",
     question: "Когда я близка к успеху, что-то всегда идёт не так — кажется, я сама себе мешаю.",
     summary: "Самосаботаж — реальный феномен. За ним обычно стоит страх успеха, его последствий или ощущение, что вы «не заслуживаете».",
     perspectives: [
@@ -899,7 +912,7 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
   {
     slug: "deleted-private-case",
-    topic: "Приватность",
+    topic: "Про себя",
     question: "Удаленный вопрос не должен индексироваться.",
     summary: "Удалено по запросу автора.",
     perspectives: [],
@@ -909,12 +922,20 @@ export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
   },
 ];
 
+// B383: legacy entries (perspectives[] fallback) + new v2-rich cards → ~120 total.
+export const anonymousLibraryEntries: AnonymousLibraryEntry[] = [
+  ...baseLibraryEntries,
+  ...b383LibraryCards,
+];
+
 export function approvedLibraryEntries() {
   return anonymousLibraryEntries.filter((entry) => entry.status === "approved" && entry.indexable);
 }
 
-export function libraryTopics() {
-  return Array.from(new Set(approvedLibraryEntries().map((entry) => entry.topic))).sort((a, b) => a.localeCompare(b, "ru"));
+export function libraryTopics(): LibraryTopic[] {
+  const present = new Set(approvedLibraryEntries().map((entry) => entry.topic));
+  // Canonical life-stage order (B382), not alphabetical; only topics with cards.
+  return LIBRARY_TOPICS.filter((topic) => present.has(topic));
 }
 
 export function getApprovedLibraryEntry(slug: string) {

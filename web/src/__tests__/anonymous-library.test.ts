@@ -20,7 +20,7 @@ describe("anonymous question library", () => {
     expect(publicSeoRoutes).toContain("/library");
     expect(publicPageSeo["/library"].title).toContain("Библиотека");
     expect(approvedLibraryEntries().length).toBeGreaterThan(2);
-    expect(libraryTopics()).toEqual(expect.arrayContaining(["Отношения", "Работа"]));
+    expect(libraryTopics()).toEqual(expect.arrayContaining(["Отношения", "Работа и деньги"]));
     expect(getApprovedLibraryEntry("deleted-private-case")).toBeUndefined();
   });
 

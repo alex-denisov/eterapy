@@ -51,13 +51,18 @@ describe("B205 Library and esoteric service pages", () => {
   it("updates library detail pages to match the v4.1 public anonymous-card structure", () => {
     const detail = source("src/app/library/[slug]/page.tsx");
     const cta = source("src/components/library/library-entry-cta.tsx");
+    const ctaLib = source("src/lib/library-cta.ts");
 
     expect(detail).toContain("что мы услышали");
     expect(detail).toContain("главная развилка");
     expect(detail).toContain("фрагмент разбора · открыт публично");
-    expect(detail).toContain("Скрыто в публичной карточке");
+    // B382: single-canvas redesign — boxed «Скрыто в публичной карточке» panel
+    // became a typographic «что в полном разборе» section.
+    expect(detail).toContain("что в полном разборе");
     expect(detail).toContain("рядом в библиотеке");
     expect(detail).toContain("LibraryEntryCta");
-    expect(cta).toContain("Начать свой разбор");
+    // B382: CTA now drives into the mapped paid service (label from resolveLibraryCta).
+    expect(cta).toContain("data-analytics-event=\"library_cta_clicked\"");
+    expect(ctaLib).toContain("Разобрать свой вопрос");
   });
 });

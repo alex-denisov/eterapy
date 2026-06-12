@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Lock, X } from "lucide-react";
+import { ArrowRight, Lock } from "lucide-react";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
 import { mainUrl } from "@/lib/subdomain";
 import { approvedLibraryEntries, getApprovedLibraryEntry } from "@/data/anonymous-library";
+import { resolveLibraryCta } from "@/lib/library-cta";
 import { LibraryEntryCta } from "@/components/library/library-entry-cta";
 
 export function generateStaticParams() {
@@ -21,8 +22,8 @@ export async function generateMetadata({
   const entry = getApprovedLibraryEntry(slug);
   if (!entry) return {};
 
-  const title = `${entry.topic}: анонимный вопрос — ETerapy`;
-  const description = entry.summary;
+  const title = entry.seo?.metaTitle ?? `${entry.topic}: анонимный вопрос — ETerapy`;
+  const description = entry.seo?.metaDescription ?? entry.summary;
   const url = canonicalUrl(`/library/${entry.slug}`);
 
   return {
@@ -56,23 +57,61 @@ export default async function LibraryEntryPage({
   const relatedEntries = approvedLibraryEntries()
     .filter((item) => item.slug !== entry.slug && (item.topic === entry.topic || item.reactions >= entry.reactions - 10))
     .slice(0, 3);
-  const centralFork = entry.perspectives[1] ?? entry.perspectives[0] ?? "Что в этой ситуации требует бережного уточнения?";
-  const publicFragment = entry.perspectives[0] ?? entry.summary;
+  // v2 single-canvas content with graceful fallback to legacy perspectives[].
+  const forkTitle =
+    entry.mainFork?.title ??
+    entry.perspectives[1] ??
+    entry.perspectives[0] ??
+    "Что в этой ситуации требует бережного уточнения?";
+  const forkNote =
+    entry.mainFork?.note ??
+    "Публичная карточка показывает только безопасный контур. В личном разборе система уточнит факты, чувства, границы и ближайший шаг именно под ваш контекст.";
+  const freeFragment = entry.freeFragment ?? entry.perspectives[0] ?? entry.summary;
+  const hidden = entry.hidden ?? [
+    "детали запроса автора и уточняющий диалог",
+    "Полная картина: мысли, чувства, скрытый смысл, первый шаг",
+    "безопасный следующий шаг",
+  ];
+  const similar = entry.similarCount ?? entry.reactions;
+  const cta = resolveLibraryCta({ topic: entry.topic, ctaProduct: entry.ctaProduct, fromSlug: entry.slug });
+  const ctaHref = mainUrl(cta.productPath);
+
+  // B384: each card is a search target — enrich Article (about/section/teaser-gated)
+  // and add a BreadcrumbList. One @graph keeps it in a single JSON-LD script.
+  const articleUrl = canonicalUrl(`/library/${entry.slug}`);
+  const orgUrl = canonicalUrl("/");
+  const libraryJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: entry.seo?.metaTitle ?? `${entry.topic}: анонимный вопрос`,
+        description: entry.seo?.metaDescription ?? entry.summary,
+        about: { "@type": "Thing", name: entry.topic },
+        articleSection: entry.topic,
+        url: articleUrl,
+        mainEntityOfPage: { "@type": "WebPage", "@id": articleUrl },
+        inLanguage: "ru-RU",
+        isAccessibleForFree: false,
+        author: { "@type": "Organization", name: "ETerapy", url: orgUrl },
+        publisher: { "@type": "Organization", name: "ETerapy", url: orgUrl },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Главная", item: orgUrl },
+          { "@type": "ListItem", position: 2, name: "Библиотека", item: canonicalUrl("/library") },
+          { "@type": "ListItem", position: 3, name: entry.topic, item: articleUrl },
+        ],
+      },
+    ],
+  };
 
   return (
     <main className="soft-clarity-page soft-public-page" data-testid={`library-entry-${entry.slug}`}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Article",
-            headline: `${entry.topic}: анонимный вопрос`,
-            description: entry.summary,
-            url: canonicalUrl(`/library/${entry.slug}`),
-            inLanguage: "ru-RU",
-          }),
-        }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(libraryJsonLd) }}
       />
 
       <article className="soft-shell-narrow py-12 md:py-16">
@@ -84,7 +123,7 @@ export default async function LibraryEntryPage({
           <div className="flex flex-wrap items-center gap-3">
             <span className="soft-chip">{entry.topic}</span>
             <span className="text-xs text-[var(--soft-ink-faint)]">
-              анонимно · {entry.reactions.toLocaleString("ru-RU")} прошли похожий разбор
+              анонимно · {similar.toLocaleString("ru-RU")} прошли похожий разбор
             </span>
           </div>
           <h1 className="mt-7 max-w-3xl text-3xl italic leading-snug text-[var(--soft-bordeaux)] md:text-4xl" style={{ fontFamily: "var(--font-heading)" }}>
@@ -92,53 +131,64 @@ export default async function LibraryEntryPage({
           </h1>
         </header>
 
-        <section className="soft-card mt-8 p-6 md:p-8">
-          <p className="soft-eyebrow">что мы услышали</p>
-          <p className="mt-3 text-xl leading-relaxed text-[var(--soft-ink)]" style={{ fontFamily: "var(--font-heading)" }}>{entry.summary}</p>
-        </section>
+        {/* Единое полотно: одна типографская колонка, секции разделены типографикой
+            (eyebrow + интервалы + тонкие линии), а не цветными рамками. */}
+        <div className="soft-library-canvas mt-10 max-w-3xl">
+          <section>
+            <p className="soft-eyebrow">что мы услышали</p>
+            <p className="mt-3 text-xl leading-relaxed text-[var(--soft-ink)]" style={{ fontFamily: "var(--font-heading)" }}>
+              {entry.summary}
+            </p>
+          </section>
 
-        <section className="soft-card mt-5 bg-[var(--soft-paper-deep)] p-6 md:p-8">
-          <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
-          <h2 className="soft-h3 mt-3">{centralFork}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Публичная карточка показывает только безопасный контур. В личном разборе система уточнит факты, чувства,
-            границы и ближайший шаг именно под ваш контекст.
-          </p>
-        </section>
+          <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
 
-        <section className="soft-card mt-5 p-6 md:p-8" style={{ background: "linear-gradient(140deg, #fffaf1, #f4d9c1)" }}>
-          <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">фрагмент разбора · открыт публично</p>
-          <p className="mt-4 text-2xl italic leading-snug text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>{publicFragment}</p>
-        </section>
+          <section>
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">главная развилка</p>
+            <h2 className="soft-h3 mt-3">{forkTitle}</h2>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{forkNote}</p>
+          </section>
 
-        <section className="soft-card mt-5 border-dashed p-6 md:p-8">
-          <div className="flex items-center gap-3">
-            <Lock className="size-4 text-[var(--soft-bordeaux)]" aria-hidden="true" />
-            <h2 className="text-sm font-semibold text-[var(--soft-bordeaux)]">Скрыто в публичной карточке</h2>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {[
-              "детали запроса автора",
-              "ответы в уточняющем диалоге",
-              "Полная картина: мысли, чувства, скрытый смысл, первый шаг",
-              "безопасный следующий шаг",
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-3 text-sm text-[var(--soft-ink-soft)]">
-                <X className="size-4 text-[var(--soft-ink-faint)]" aria-hidden="true" />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-          <Disclaimer className="mt-5 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)]">
-            Мы публикуем только обезличенный вопрос и короткий фрагмент разбора с согласия автора. Всё остальное
-            доступно только в личном разборе.
-          </Disclaimer>
-        </section>
+          <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
+
+          <section>
+            <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">фрагмент разбора · открыт публично</p>
+            <p className="mt-4 text-2xl italic leading-snug text-[var(--soft-bordeaux)]" style={{ fontFamily: "var(--font-heading)" }}>
+              {freeFragment}
+            </p>
+          </section>
+
+          <hr className="my-9 border-0 border-t border-[var(--soft-paper-edge)]" />
+
+          <section>
+            <div className="flex items-center gap-3">
+              <Lock className="size-4 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+              <p className="soft-eyebrow text-[var(--soft-bordeaux)]" style={{ marginBottom: 0 }}>
+                что в полном разборе
+              </p>
+            </div>
+            <ul className="mt-4 space-y-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              {hidden.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span aria-hidden="true" className="text-[var(--soft-ink-faint)]">—</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <Disclaimer className="mt-6 border-[var(--soft-paper-edge)] bg-transparent text-[var(--soft-ink-soft)]">
+              Мы публикуем только обезличенный вопрос и короткий фрагмент разбора с согласия автора. Всё остальное
+              доступно только в личном разборе.
+            </Disclaimer>
+          </section>
+        </div>
 
         <LibraryEntryCta
           slug={entry.slug}
-          baseline={entry.reactions}
-          checkinHref={mainUrl(`/checkin?from=library&slug=${encodeURIComponent(entry.slug)}`)}
+          baseline={similar}
+          href={ctaHref}
+          label={cta.label}
+          teaserNote={cta.teaserNote}
+          product={cta.product}
         />
 
         {relatedEntries.length > 0 && (
