@@ -24,6 +24,7 @@ import { log } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { bookingPriorityForPlan, canAccessPrioritySlot, promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
+import { sanitizeMeetingContext } from "@/lib/booking-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -125,8 +126,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { practitionerId, slotId, slotStartAt, slotEndAt, priceOverride } = await req.json();
+    const { practitionerId, slotId, slotStartAt, slotEndAt, priceOverride, meetingContext } = await req.json();
     if (!practitionerId) return NextResponse.json({ error: "practitionerId обязателен" }, { status: 400 });
+
+    // B379: «контекст встречи» — нормализуем на границе (тримминг, лимит длины).
+    const cleanMeetingContext = sanitizeMeetingContext(meetingContext);
 
     const practitioner = await db.practitioner.findUnique({
       where: { id: practitionerId },
@@ -268,6 +272,7 @@ export async function POST(req: NextRequest) {
           slotId: resolvedSlotId,
           status: BookingStatus.PENDING,
           priceRub,
+          meetingContext: cleanMeetingContext,
           source: byocCommission.source,
           referrerPractitionerId: byocCommission.referrerPractitionerId,
           commissionPercentApplied: byocCommission.commissionPercentApplied,

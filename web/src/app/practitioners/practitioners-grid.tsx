@@ -5,19 +5,31 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BadgeCheck, ArrowRight } from "lucide-react";
 import { SPECIALTY_LABELS as CANONICAL_SPECIALTY_LABELS } from "@/lib/types";
-import { CATEGORIES, effectiveCategories, directionLabel } from "@/lib/practitioner-taxonomy";
+import { effectiveCategories, directionLabel } from "@/lib/practitioner-taxonomy";
 
-// Map of deep-link `?format=` query values to the W3 level-1 category id used by
-// CATEGORY_FILTERS. Keeps the practitioner CTA on product pages
-// connected to the filtered grid view. Esoteric sub-types collapse into the
-// single "esoteric" specialization (their granularity now lives in directions).
-const FORMAT_TO_CATEGORY: Record<string, string> = {
-  psychology: "psychology",
-  psy: "psychology",
-  coaching: "coaching",
-  coach: "coaching",
-  legal: "legal",
-  finance: "finance",
+// B379 (M26): каталог специалистов открывается на вкладке «Психология и
+// коучинг» (дефолт); эзотерика — отдельная вкладка. Универсалов (психология +
+// эзотерика) подсвечивает бейдж и они попадают в обе релевантные вкладки.
+type TabId = "psy-coach" | "esoteric" | "all";
+
+const TABS: Array<{ id: TabId; label: string; match: (cats: string[]) => boolean }> = [
+  { id: "psy-coach", label: "Психология и коучинг", match: (c) => c.includes("psychology") || c.includes("coaching") },
+  { id: "esoteric", label: "Эзотерика", match: (c) => c.includes("esoteric") },
+  { id: "all", label: "Все специалисты", match: () => true },
+];
+
+const DEFAULT_TAB: TabId = "psy-coach";
+
+// Map of deep-link `?format=` query values to a catalog tab. Keeps the
+// practitioner CTA on product pages connected to the filtered grid view.
+// Esoteric sub-types (tarot/astro/numerology) all route to the «Эзотерика» tab.
+const FORMAT_TO_TAB: Record<string, TabId> = {
+  psychology: "psy-coach",
+  psy: "psy-coach",
+  coaching: "psy-coach",
+  coach: "psy-coach",
+  legal: "all",
+  finance: "all",
   tarot: "esoteric",
   astrology: "esoteric",
   astro: "esoteric",
@@ -33,14 +45,6 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #D6DECC, #E5EBDC)",
   "linear-gradient(140deg, #F4D9C1, #E8C4B8)",
   "linear-gradient(140deg, #DBD3EA, #F4D5C8)",
-];
-
-// W3: the public filters are the canonical specializations (level 1).
-// M26/B367: «Совместные сессии» (joint) убраны из публичного фильтра — услуга
-// joint-session закрыта; универсалов подсвечивает бейдж «психология + эзотерика».
-const CATEGORY_FILTERS: Array<{ id: string; label: string }> = [
-  { id: "all", label: "Все специалисты" },
-  ...CATEGORIES.filter((c) => c.id !== "joint").map((c) => ({ id: c.id, label: c.label })),
 ];
 
 // V8: the six enum categories use the canonical labels (lib/types) so cards
@@ -86,20 +90,20 @@ function cardChips(p: Practitioner): string[] {
 export function PractitionersGrid({ practitioners }: { practitioners: Practitioner[] }) {
   const searchParams = useSearchParams();
   const formatParam = searchParams.get("format");
-  const initialCat = (formatParam && FORMAT_TO_CATEGORY[formatParam]) || "all";
-  const [cat, setCat] = useState(initialCat);
+  const initialTab: TabId = (formatParam && FORMAT_TO_TAB[formatParam]) || DEFAULT_TAB;
+  const [tab, setTab] = useState<TabId>(initialTab);
   const [sort, setSort] = useState("rec");
 
-  // Keep the chip in sync if the user navigates between practitioner CTAs
+  // Keep the tab in sync if the user navigates between practitioner CTAs
   // with different `?format=` query values without a full page reload.
   useEffect(() => {
     if (formatParam) {
-      const mapped = FORMAT_TO_CATEGORY[formatParam];
+      const mapped = FORMAT_TO_TAB[formatParam];
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (mapped && mapped !== cat) setCat(mapped);
+      if (mapped && mapped !== tab) setTab(mapped);
     }
     // We intentionally re-evaluate when the URL search param changes.
-  }, [formatParam, cat]);
+  }, [formatParam, tab]);
 
   const withCat = practitioners.map((p, i) => {
     const rawCats = effectiveCategories({ categories: p.categories, specialties: p.specialties, title: p.title }) as string[];
@@ -116,7 +120,8 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
     };
   });
 
-  const filtered = cat === "all" ? withCat : withCat.filter((p) => p.cats.includes(cat));
+  const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const filtered = withCat.filter((p) => activeTab.match(p.cats));
   const sorted = [...filtered].sort((a, b) =>
     sort === "price" ? a.pricePerSession - b.pricePerSession :
     sort === "rating" ? b.rating - a.rating : 0,
@@ -124,17 +129,19 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
 
   return (
     <>
-      {/* Filters + sort row */}
+      {/* Tabs + sort row — B379: вкладки «Психология и коучинг» (дефолт) ·
+          «Эзотерика» · «Все специалисты». */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-2">
-          {CATEGORY_FILTERS.map((c) => (
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Категории специалистов" data-testid="practitioner-tabs">
+          {TABS.map((t) => (
             <button
-              key={c.id}
-              className={["soft-chip transition-colors", cat === c.id ? "soft-chip-warm" : ""].join(" ")}
-              onClick={() => setCat(c.id)}
-              aria-pressed={cat === c.id}
+              key={t.id}
+              role="tab"
+              className={["soft-chip transition-colors", tab === t.id ? "soft-chip-warm" : ""].join(" ")}
+              onClick={() => setTab(t.id)}
+              aria-selected={tab === t.id}
             >
-              {c.label}
+              {t.label}
             </button>
           ))}
         </div>
@@ -162,7 +169,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
             подписывает этический кодекс и показывает цену до записи.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <button type="button" className="soft-button soft-button-ghost" onClick={() => setCat("all")}>
+            <button type="button" className="soft-button soft-button-ghost" onClick={() => setTab("all")}>
               Показать всех
             </button>
             <Link href="/checkin" className="soft-button soft-button-primary inline-flex">

@@ -263,6 +263,10 @@ model Booking {
 
   status         BookingStatus @default(PENDING)
   priceRub       Int
+  // B379 (M26): «контекст встречи» — с чем клиент хочет разобраться. Задаётся
+  // клиентом при первой записи к специалисту (перенос из диалога или ручной
+  // ввод); виден только клиенту, назначенному специалисту и админам.
+  meetingContext String?       @map("meeting_context")
   source         ClientSource  @default(PLATFORM)
   referrerPractitionerId String?
   referrerPractitioner   Practitioner? @relation("BookingReferrerPractitioner", fields: [referrerPractitionerId], references: [id])

@@ -61,6 +61,17 @@ export default async function PractitionerRequestsPage() {
                         Сигналы: {b.riskFlags.slice(0, 4).join(", ")}
                       </p>
                     )}
+                    {b.meetingContext && (
+                      <div
+                        className="mt-3 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-3"
+                        data-testid="request-meeting-context"
+                      >
+                        <p className="soft-eyebrow mb-1">контекст встречи</p>
+                        <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)] whitespace-pre-wrap">
+                          {b.meetingContext}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <BookingActions
                     bookingId={b.id}

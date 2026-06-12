@@ -36,6 +36,7 @@ export default async function PractitionerClientsPage() {
       priceRub: b.priceRub,
       durationMinutes,
       startedAt: b.startedAt?.toISOString() ?? null,
+      meetingContext: b.meetingContext ?? null,
     };
   });
 

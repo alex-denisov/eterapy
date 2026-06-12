@@ -13,6 +13,7 @@ export interface SessionRow {
   priceRub: number;
   durationMinutes: number;
   startedAt: string | null;
+  meetingContext?: string | null;
 }
 
 type Category = "all" | "upcoming" | "completed" | "cancelled";
@@ -200,6 +201,15 @@ export function ClientsSessionsTable({ rows }: { rows: SessionRow[] }) {
                     <td className="px-3 py-2.5">
                       <p className="font-medium text-[var(--soft-ink)]">{row.clientName}</p>
                       <p className="text-xs text-[var(--soft-ink-faint)]">{row.clientEmail}</p>
+                      {row.meetingContext && (
+                        <p
+                          className="mt-1 max-w-[260px] truncate text-xs italic text-[var(--soft-ink-soft)]"
+                          title={row.meetingContext}
+                          data-testid="session-meeting-context"
+                        >
+                          Контекст: {row.meetingContext}
+                        </p>
+                      )}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-[var(--soft-ink-soft)]">{formatWhen(row.startAt)}</td>
                     <td className="px-3 py-2.5 text-[var(--soft-ink-soft)]">{row.durationMinutes} мин</td>

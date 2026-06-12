@@ -5,7 +5,9 @@ import { type Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, Zap } from "lucide-react";
 import db from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { PractitionerStatus } from "@prisma/client";
+import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
 import { SPECIALTY_LABELS } from "@/lib/types";
 import { effectiveCategories, categoryLabel, directionLabel } from "@/lib/practitioner-taxonomy";
 import { SlotPicker } from "./slot-picker";
@@ -121,6 +123,32 @@ export default async function PractitionerPage({
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
   const cameFromRecommendation = Boolean(query?.dialogueId);
+
+  // B379: «контекст встречи». Спрашиваем при первой записи к специалисту;
+  // повторная запись к тому же специалисту — без повторного запроса. Контекст
+  // можно перенести из диалога, из которого пришла рекомендация (dialogueId).
+  const session = await auth().catch(() => null);
+  let askContext = true;
+  let prefillContext = "";
+  if (session?.user?.id) {
+    const priorBooking = await db.booking
+      .findFirst({ where: { clientId: session.user.id, practitionerId: p.id }, select: { id: true } })
+      .catch(() => null);
+    askContext = !priorBooking;
+    if (askContext && query?.dialogueId) {
+      // Переносим контекст только из диалога, принадлежащего этому пользователю
+      // (защита от подстановки чужого dialogueId через URL).
+      const dialogue = await db.dialogue
+        .findFirst({
+          where: { id: query.dialogueId, userId: session.user.id },
+          select: { title: true, topic: true },
+        })
+        .catch(() => null);
+      if (dialogue) {
+        prefillContext = (dialogue.topic || dialogue.title || "").slice(0, MEETING_CONTEXT_MAX);
+      }
+    }
+  }
 
   return (
     <main className="soft-clarity-page soft-public-page">
@@ -320,7 +348,12 @@ export default async function PractitionerPage({
                   Прежний статичный подзаголовок с длительностью/ценой убран —
                   он не обновлялся при смене формата и дублировал переключатель. */}
               <div className="mt-6">
-                <SlotPicker practitionerId={p.id} practitionerName={p.user.name} />
+                <SlotPicker
+                  practitionerId={p.id}
+                  practitionerName={p.user.name}
+                  askContext={askContext}
+                  prefillContext={prefillContext}
+                />
               </div>
 
               <div className="mt-4 text-xs text-[var(--soft-ink-faint)] text-center">

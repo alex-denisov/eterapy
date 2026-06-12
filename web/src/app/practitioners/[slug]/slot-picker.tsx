@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/auth-modal";
 import { appUrl } from "@/lib/subdomain";
+import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
 
 interface PriceRate {
   durationMin: number;
@@ -56,11 +57,17 @@ const MONTH_NAMES = [
 export function SlotPicker({
   practitionerId,
   practitionerName,
+  askContext = true,
+  prefillContext = "",
 }: {
   practitionerId: string;
   practitionerName: string;
   pricePerSession?: number;
   sessionDuration?: number;
+  // B379: спрашивать ли контекст встречи (false для повторной записи к тому же
+  // специалисту) и значение для предзаполнения (перенос из диалога).
+  askContext?: boolean;
+  prefillContext?: string;
 }) {
   const { data: session, status } = useSession();
 
@@ -78,6 +85,7 @@ export function SlotPicker({
   const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [meetingContext, setMeetingContext] = useState(prefillContext);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -154,6 +162,7 @@ export function SlotPicker({
           slotEndAt: selectedSlot.endAt,
           durationMin: selectedDuration,
           priceOverride: rate?.priceRub,
+          meetingContext: askContext ? meetingContext : undefined,
         }),
       });
       const data = await res.json();
@@ -239,6 +248,31 @@ export function SlotPicker({
       <AuthModal toolName="записи к практику" initialMode="login" open={showAuth} onSuccess={doBook} onClose={() => setShowAuth(false)} />
 
       <div className="mt-4 space-y-5">
+        {/* B379: «контекст встречи» — спрашиваем только при первой записи к
+            специалисту (askContext). Повторная запись — без повторного запроса. */}
+        {askContext && (
+          <div data-testid="meeting-context-field">
+            <label
+              htmlFor="meeting-context"
+              className="text-xs font-medium text-[var(--soft-ink-soft)] mb-2 block uppercase tracking-wide"
+            >
+              С чем хотите разобраться?
+            </label>
+            <textarea
+              id="meeting-context"
+              value={meetingContext}
+              onChange={(e) => setMeetingContext(e.target.value.slice(0, MEETING_CONTEXT_MAX))}
+              maxLength={MEETING_CONTEXT_MAX}
+              rows={3}
+              placeholder="Коротко опишите ситуацию или вопрос — специалист увидит это в заявке. Необязательно."
+              className="w-full resize-none rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink)] placeholder:text-[var(--soft-ink-faint)]"
+            />
+            <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
+              Виден только выбранному специалисту. {meetingContext.length}/{MEETING_CONTEXT_MAX}
+            </p>
+          </div>
+        )}
+
         {/* Шаг 1: Длительность — компактные чипы */}
         <div>
           <p className="text-xs font-medium text-[var(--soft-ink-soft)] mb-2 uppercase tracking-wide">Формат сессии</p>
