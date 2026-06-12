@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Save, Sparkles } from "lucide-react";
+import { ArrowRight, Download, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { SynastryWheel } from "@/components/products/esoteric-chart-visuals";
+import type { SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
 
 type SynastryResult = {
   id: string;
@@ -14,7 +16,20 @@ type SynastryResult = {
   previewText: string | null;
   resultText: string | null;
   saved: boolean;
+  metadata?: unknown;
 };
+
+// B388: достаём структурное колесо совместимости из metadata (как в Таро/натальной).
+function extractSynastryWheel(result: SynastryResult | null): SynastryWheelData | null {
+  const md = result?.metadata;
+  if (!md || typeof md !== "object") return null;
+  const meta = md as Record<string, unknown>;
+  const nested = (meta.generationMetadata ?? meta.previewGenerationMetadata) as Record<string, unknown> | undefined;
+  const raw = (nested?.wheel ?? meta.wheel) as unknown;
+  if (!raw || typeof raw !== "object") return null;
+  if ((raw as { kind?: unknown }).kind !== "synastry") return null;
+  return raw as SynastryWheelData;
+}
 
 type ApiPayload = {
   hasEntitlement?: boolean;
@@ -110,6 +125,8 @@ export function SynastryActions() {
     }
   }
 
+  const synastryWheel = extractSynastryWheel(result);
+
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid="synastry-actions">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -203,22 +220,35 @@ export function SynastryActions() {
 
         <div className="soft-card p-5">
           <p className="soft-eyebrow">результат</p>
+          {synastryWheel && <div className="mt-3"><SynastryWheel wheel={synastryWheel} /></div>}
           {result?.resultText ? (
             <>
               <SoftMarkdown
                 content={result.resultText}
                 className="mt-3 font-heading text-[1.08rem] text-[var(--soft-ink)]"
               />
-              <Button
-                type="button"
-                onClick={saveToMap}
-                disabled={result.saved || status === "loading"}
-                className="soft-button soft-button-ghost mt-5"
-                data-testid="synastry-save"
-              >
-                <Save className="size-4" aria-hidden="true" />
-                {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем…" : "Сохранить в Мою карту"}
-              </Button>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  onClick={saveToMap}
+                  disabled={result.saved || status === "loading"}
+                  className="soft-button soft-button-ghost"
+                  data-testid="synastry-save"
+                >
+                  <Save className="size-4" aria-hidden="true" />
+                  {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем…" : "Сохранить в Мою карту"}
+                </Button>
+                <a
+                  href={`/products/print/${result.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="soft-button soft-button-ghost"
+                  data-testid="synastry-pdf"
+                >
+                  <Download className="size-4" aria-hidden="true" />
+                  Скачать PDF
+                </a>
+              </div>
             </>
           ) : result?.previewText ? (
             <>

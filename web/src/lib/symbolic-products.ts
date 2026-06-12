@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
+import { buildNatalWheel } from "@/lib/esoteric-chart";
 import { log, serializeError } from "@/lib/logger";
 
 export const SYMBOLIC_PRODUCT_DEFINITIONS = [
@@ -241,7 +242,14 @@ export async function generateSymbolicProductResult(input: {
   const cards = input.productKey === "tarot"
     ? drawTarotSpread(`${input.userId}:${normalize(input.userInput)}`)
     : null;
-  const cardsMeta: Prisma.InputJsonObject = cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {};
+  // B388: натальная карта получает детерминированное структурное колесо в metadata,
+  // чтобы страница услуги и PDF рендерили визуал, совпадающий с интерпретацией.
+  const wheel = input.productKey === "natal-chart" ? buildNatalWheel(normalize(input.userInput)) : null;
+  const visualMeta: Prisma.InputJsonObject = {
+    ...(cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {}),
+    ...(wheel ? { wheel: wheel as unknown as Prisma.InputJsonValue } : {}),
+  };
+  const cardsMeta = visualMeta;
   const fallback = cards ? tarotReadingFromCards(cards, input.userInput) : heuristicSymbolicResult(input);
 
   try {

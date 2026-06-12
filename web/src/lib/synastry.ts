@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
+import { buildSynastryWheel } from "@/lib/esoteric-chart";
 import { log, serializeError } from "@/lib/logger";
 
 function normalize(text: string) {
@@ -58,13 +59,17 @@ export async function generateSynastryResult(input: {
   requestId?: string;
 }): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
   const fallback = fallbackSynastryResult(input);
+  // B388: структурное колесо совместимости в metadata (визуал = «расклад»).
+  const wheel = buildSynastryWheel(input.userBirthData, input.partnerBirthData);
+  const wheelMeta: Prisma.InputJsonObject = { wheel: wheel as unknown as Prisma.InputJsonValue };
 
   try {
     const response = await aiComplete({
       feature: "product-synastry",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 1900,
+      // B388: ограничиваем объём до ≤2 страниц A4 (человеческий текст, не простыня).
+      maxTokens: 1300,
       temperature: 0.45,
       messages: [
         {
@@ -89,7 +94,7 @@ export async function generateSynastryResult(input: {
 
     const text = normalize(response.text);
     if (text.length < 240) {
-      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response" } };
+      return { text: fallback, metadata: { source: "heuristic", fallbackReason: "short_ai_response", ...wheelMeta } };
     }
 
     return {
@@ -101,6 +106,7 @@ export async function generateSynastryResult(input: {
         tokensIn: response.tokensIn,
         tokensOut: response.tokensOut,
         latencyMs: response.latencyMs,
+        ...wheelMeta,
       },
     };
   } catch (error) {
@@ -108,6 +114,6 @@ export async function generateSynastryResult(input: {
       requestId: input.requestId,
       error: serializeError(error),
     });
-    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error" } };
+    return { text: fallback, metadata: { source: "heuristic", fallbackReason: "ai_error", ...wheelMeta } };
   }
 }

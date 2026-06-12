@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Compass, LockKeyhole, Save } from "lucide-react";
+import { ArrowRight, Compass, Download, LockKeyhole, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
+import type { NatalWheel } from "@/lib/esoteric-chart";
 
 type SymbolicResult = {
   id: string;
@@ -34,21 +36,17 @@ function extractTarotCards(result: SymbolicResult | null): TarotCardView[] | nul
   return cards.length > 0 ? cards : null;
 }
 
-function TarotSpread({ cards }: { cards: TarotCardView[] }) {
-  return (
-    <div className="mt-3 rounded-[18px] bg-[linear-gradient(160deg,#4A3E5E,#2A2240)] p-4 text-[#DBD3EA]" data-testid="tarot-spread">
-      <p className="soft-eyebrow text-[#DBD3EA]/70">ваш расклад</p>
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        {cards.map((card) => (
-          <div key={card.position} className="rounded-[14px] border border-[#FBF0E1]/20 bg-[#FBF0E1]/10 p-3 text-center">
-            <p className="text-[10px] uppercase tracking-widest text-[#DBD3EA]/70">{card.position}</p>
-            <p className="mt-2 font-heading text-base italic leading-tight">{card.name}</p>
-            {card.reversed && <p className="mt-1 text-[10px] text-[#DBD3EA]/60">перевёрнутая</p>}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+// B388: натальное колесо хранится в metadata так же, как карты Таро.
+function extractNatalWheel(result: SymbolicResult | null): NatalWheel | null {
+  const md = result?.metadata;
+  if (!md || typeof md !== "object") return null;
+  const meta = md as Record<string, unknown>;
+  const nested = (meta.generationMetadata ?? meta.previewGenerationMetadata) as Record<string, unknown> | undefined;
+  const raw = (nested?.wheel ?? meta.wheel) as unknown;
+  if (!raw || typeof raw !== "object") return null;
+  const wheel = raw as { sunSign?: unknown; placements?: unknown };
+  if (!wheel.sunSign || !Array.isArray(wheel.placements)) return null;
+  return raw as NatalWheel;
 }
 
 type ApiPayload = {
@@ -196,6 +194,7 @@ export function SymbolicProductActions({
   }
 
   const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
+  const natalWheel = productKey === "natal-chart" ? extractNatalWheel(result) : null;
 
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid={`symbolic-product-actions-${productKey}`}>
@@ -310,23 +309,37 @@ export function SymbolicProductActions({
 
         <div className="soft-card p-5">
           <p className="soft-eyebrow">результат</p>
-          {tarotCards && <TarotSpread cards={tarotCards} />}
+          {tarotCards && <TarotSpreadCards cards={tarotCards} />}
+          {natalWheel && <div className="mt-3"><ZodiacWheel wheel={natalWheel} /></div>}
           {result?.resultText ? (
             <>
               <SoftMarkdown
                 content={result.resultText}
                 className="mt-3 font-heading text-[1.08rem] text-[var(--soft-ink)]"
               />
-              <Button
-                type="button"
-                onClick={saveToMap}
-                disabled={result.saved || status === "loading"}
-                className="soft-button soft-button-ghost mt-5"
-                data-testid={`symbolic-save-${productKey}`}
-              >
-                <Save className="size-4" aria-hidden="true" />
-                {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем…" : "Сохранить в Мою карту"}
-              </Button>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  onClick={saveToMap}
+                  disabled={result.saved || status === "loading"}
+                  className="soft-button soft-button-ghost"
+                  data-testid={`symbolic-save-${productKey}`}
+                >
+                  <Save className="size-4" aria-hidden="true" />
+                  {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем…" : "Сохранить в Мою карту"}
+                </Button>
+                {/* B388: PDF с отрисовкой визуала (колесо/расклад), не только текст. */}
+                <a
+                  href={`/products/print/${result.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="soft-button soft-button-ghost"
+                  data-testid={`symbolic-pdf-${productKey}`}
+                >
+                  <Download className="size-4" aria-hidden="true" />
+                  Скачать PDF
+                </a>
+              </div>
             </>
           ) : result?.previewText ? (
             <>

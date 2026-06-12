@@ -199,7 +199,7 @@ export function DeepReportActions({ dialogueId }: { dialogueId?: string | null }
               ))}
             </div>
             <div className="mt-5 flex gap-2">
-              <a href={`/api/products/deep-report/${result.id}/export`} className="soft-button soft-button-ghost flex-1 justify-center text-xs">
+              <a href={`/products/print/${result.id}`} target="_blank" rel="noopener noreferrer" className="soft-button soft-button-ghost flex-1 justify-center text-xs">
                 PDF
               </a>
               <Button onClick={saveReport} disabled={status === "loading" || result.saved} className="soft-button soft-button-ghost flex-1 justify-center text-xs">
