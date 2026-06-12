@@ -12,6 +12,7 @@ import {
   buildChatAnalysisPreview,
   buildChatAnalysisTeaser,
   buildChatAnalysisTitle,
+  combineRecognizedChatTexts,
   extractChatTextFromScreenshot,
   generateChatAnalysis,
   maskChatAnalysisPii,
@@ -28,6 +29,13 @@ const postSchema = z.discriminatedUnion("action", [
     action: z.literal("screenshot_preview"),
     imageDataUrl: z.string().min(100).max(6_000_000),
     fileName: z.string().max(200).optional(),
+  }),
+  z.object({
+    action: z.literal("screenshots_preview"),
+    screenshots: z.array(z.object({
+      imageDataUrl: z.string().min(100).max(6_000_000),
+      fileName: z.string().max(200).optional(),
+    })).min(1).max(10),
   }),
   z.object({
     action: z.literal("generate"),
@@ -54,6 +62,8 @@ function serializeResult(result: {
     recognizedText?: string | null;
     piiMasked?: boolean | null;
     screenshot?: { stored?: boolean | null } | null;
+    screenshotCount?: number | null;
+    recognizedScreenshotCount?: number | null;
   } | null;
   return {
     id: result.id,
@@ -71,6 +81,8 @@ function serializeResult(result: {
       recognizedText: metadata?.sourceDeletedAt ? null : metadata?.recognizedText ?? null,
       piiMasked: Boolean(metadata?.piiMasked),
       screenshotStored: Boolean(metadata?.screenshot?.stored),
+      screenshotCount: metadata?.screenshotCount ?? null,
+      recognizedScreenshotCount: metadata?.recognizedScreenshotCount ?? null,
     },
   };
 }
@@ -228,6 +240,96 @@ export async function POST(request: NextRequest) {
       }
       throw error;
     }
+  }
+
+  if (input.action === "screenshots_preview") {
+    const ocrItems: Prisma.InputJsonObject[] = [];
+    const recognizedFragments: string[] = [];
+
+    for (const screenshotInput of input.screenshots) {
+      try {
+        const extraction = await extractChatTextFromScreenshot({
+          imageDataUrl: screenshotInput.imageDataUrl,
+          userId,
+          requestId: context.requestId,
+        });
+        recognizedFragments.push(extraction.recognizedText);
+        ocrItems.push({
+          fileName: screenshotInput.fileName ?? null,
+          ok: true,
+          metadata: extraction.metadata,
+        });
+      } catch (error) {
+        if (error instanceof ChatAnalysisInputError) {
+          ocrItems.push({
+            fileName: screenshotInput.fileName ?? null,
+            ok: false,
+            code: error.code,
+          });
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    const recognizedText = combineRecognizedChatTexts(recognizedFragments);
+    if (recognizedText.length < 10) {
+      return errorWithRequestContext(
+        "OCR_TEXT_TOO_SHORT",
+        "Не удалось распознать достаточно текста. Попробуйте другие скриншоты или вставьте текст вручную",
+        400,
+        context,
+      );
+    }
+
+    const maskedSourceText = maskChatAnalysisPii(recognizedText);
+    const generated = await generateChatAnalysis({
+      sourceText: maskedSourceText,
+      userId,
+      requestId: context.requestId,
+    });
+    const previewText = buildChatAnalysisTeaser(maskedSourceText, generated.text) || buildChatAnalysisPreview(maskedSourceText);
+
+    const existing = await db.productResult.findFirst({
+      where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const metadata = {
+      sourceKind: "screenshots",
+      sourceText: maskedSourceText,
+      recognizedText: maskedSourceText,
+      piiMasked: true,
+      sourceRawStored: false,
+      imageStored: false,
+      screenshotCount: input.screenshots.length,
+      recognizedScreenshotCount: recognizedFragments.length,
+      uploadPreviewedAt: new Date().toISOString(),
+      ocrItems,
+      previewGenerationMetadata: generated.metadata,
+    };
+
+    const result = existing
+      ? await db.productResult.update({
+          where: { id: existing.id },
+          data: {
+            title: buildChatAnalysisTitle(maskedSourceText),
+            previewText,
+            metadata,
+          },
+        })
+      : await db.productResult.create({
+          data: {
+            userId,
+            productKey: PRODUCT_KEY,
+            title: buildChatAnalysisTitle(maskedSourceText),
+            status: "PREVIEW",
+            previewText,
+            metadata,
+          },
+        });
+
+    return jsonWithRequestContext({ hasEntitlement, result: serializeResult(result), generated: false }, { status: 200 }, context);
   }
 
   if (input.action === "generate") {

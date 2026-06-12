@@ -43,6 +43,8 @@ type ChatAnalysisResult = {
     recognizedText?: string | null;
     piiMasked?: boolean | null;
     screenshotStored?: boolean | null;
+    screenshotCount?: number | null;
+    recognizedScreenshotCount?: number | null;
   };
 };
 
@@ -252,43 +254,34 @@ export function ChatAnalysisActions() {
     setStatus("loading");
     setMessage(null);
     try {
-      let combined = sourceText.trim();
-      const newNames: string[] = [];
-      let failedCount = 0;
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        // G7: one screenshot that the OCR can't read must NOT discard the
-        // others or the text already typed. Catch per-file, mark it as
-        // "не распознан", and keep going — the user can still paste manually.
-        try {
-          const imageDataUrl = await readAsDataURL(file);
-          const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
-            method: "POST",
-            body: JSON.stringify({ action: "screenshot_preview", imageDataUrl, fileName: file.name }),
-          });
-          setHasEntitlement(Boolean(payload.hasEntitlement));
-          const recognized = payload.result?.metadata?.recognizedText ?? "";
-          if (recognized) {
-            combined = combined ? `${combined}\n\n${recognized}` : recognized;
-            newNames.push(file.name);
-          } else {
-            failedCount += 1;
-            newNames.push(`${file.name} (текст не распознан)`);
-          }
-          // Keep the latest preview result so the user can see something even
-          // before generating; downstream upload_preview will rebuild it.
-          setResult(payload.result ?? null);
-        } catch {
-          failedCount += 1;
-          newNames.push(`${file.name} (текст не распознан)`);
-        }
-      }
+      const selectedFiles = Array.from(files).slice(0, 10);
+      const screenshots = await Promise.all(selectedFiles.map(async (file) => ({
+        imageDataUrl: await readAsDataURL(file),
+        fileName: file.name,
+      })));
+      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
+        method: "POST",
+        body: JSON.stringify({ action: "screenshots_preview", screenshots }),
+      });
+      setHasEntitlement(Boolean(payload.hasEntitlement));
+
+      const recognized = payload.result?.metadata?.recognizedText ?? "";
+      const combined = sourceText.trim() && recognized
+        ? `${sourceText.trim()}\n\n${recognized}`
+        : recognized || sourceText.trim();
+      const screenshotCount = payload.result?.metadata?.screenshotCount ?? selectedFiles.length;
+      const recognizedCount = payload.result?.metadata?.recognizedScreenshotCount ?? screenshotCount;
+      const failedCount = Math.max(0, screenshotCount - recognizedCount);
       setSourceText(combined);
-      setUploadedFiles((prev) => [...prev, ...newNames]);
+      setUploadedFiles((prev) => [
+        ...prev,
+        ...selectedFiles.map((file, index) => index >= recognizedCount ? `${file.name} (текст не распознан)` : file.name),
+      ]);
+      setResult(payload.result ?? null);
       if (failedCount > 0) {
         setMessage(
-          failedCount === files.length
-            ? "Не удалось распознать текст на скриншоте. Попробуйте другой файл или вставьте текст вручную в поле ниже."
+          failedCount === screenshotCount
+            ? "Не удалось распознать текст на скриншотах. Попробуйте другие файлы или вставьте текст вручную в поле ниже."
             : `Часть скриншотов (${failedCount}) не распозналась — добавьте их текст вручную в поле ниже.`,
         );
         setStatus("error");
@@ -542,7 +535,7 @@ export function ChatAnalysisActions() {
               data-testid="chat-analysis-upload-screenshot"
             >
               <ImageIcon className="size-4" aria-hidden="true" />
-              {status === "loading" ? "Распознаём…" : "Скриншот"}
+              {status === "loading" ? "Распознаём…" : "5-10 скриншотов"}
             </button>
             <input
               ref={screenshotInputRef}
@@ -567,6 +560,17 @@ export function ChatAnalysisActions() {
               <ClipboardPaste className="size-4" aria-hidden="true" />
               Вставить из Telegram
             </button>
+          </div>
+
+          <div className="mt-4 rounded-2xl bg-[var(--soft-paper-card)] p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+            <p className="font-medium text-[var(--soft-ink)]">Как добавить переписку</p>
+            <p className="mt-2">
+              С телефона: выделите несколько сообщений, скопируйте их и вставьте сюда; если так неудобно,
+              загрузите 5-10 скриншотов подряд.
+            </p>
+            <p className="mt-1">
+              С компьютера: экспортируйте чат в `.txt` или скопируйте нужный фрагмент из Telegram Desktop.
+            </p>
           </div>
 
           {uploadedFiles.length > 0 && (

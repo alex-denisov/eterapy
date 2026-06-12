@@ -137,6 +137,16 @@ function cleanOcrText(text: string) {
     .slice(0, 10000);
 }
 
+export function combineRecognizedChatTexts(fragments: string[]) {
+  return fragments
+    .map((fragment) => cleanOcrText(fragment))
+    .filter(Boolean)
+    .join("\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, 10000);
+}
+
 export async function extractChatTextFromScreenshot(input: {
   imageDataUrl: string;
   userId: string;

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ChatAnalysisInputError,
+  combineRecognizedChatTexts,
   maskChatAnalysisPii,
   validateChatScreenshotDataUrl,
 } from "@/lib/chat-analysis";
@@ -76,6 +77,27 @@ describe("B087/B088 chat analysis product", () => {
     expect(helper).toContain("{ type: \"image_url\"");
     expect(taskPolicy).toContain("product-chat-analysis-ocr");
     expect(domain).toContain("AIGatewayContentBlock");
+  });
+
+  it("B378 accepts screenshot batches as one ordered OCR preview without storing raw images", () => {
+    const route = source("src/app/api/products/chat-analysis/route.ts");
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    expect(route).toContain("z.literal(\"screenshots_preview\")");
+    expect(route).toContain("screenshots: z.array");
+    expect(route).toContain(".max(10");
+    expect(route).toContain("combineRecognizedChatTexts");
+    expect(route).toContain("sourceKind: \"screenshots\"");
+    expect(route).toContain("screenshotCount");
+    expect(route).toContain("imageStored: false");
+
+    expect(actions).toContain("action: \"screenshots_preview\"");
+    expect(actions).toContain("5-10 скриншотов");
+    expect(actions).toContain("multiple");
+    expect(actions).toContain("С телефона: выделите несколько сообщений");
+    expect(actions).toContain("С компьютера: экспортируйте чат");
+
+    expect(combineRecognizedChatTexts(["Анна: привет\n\n", "", " Я: отвечу позже "])).toBe("Анна: привет\n\nЯ: отвечу позже");
   });
 
   it("validates screenshot data URLs and masks PII before storage", () => {
