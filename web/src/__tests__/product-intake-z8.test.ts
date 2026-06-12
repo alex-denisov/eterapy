@@ -54,16 +54,17 @@ describe("Z8 product-local dialogue intake", () => {
     expect(compatibility).toContain('productKey={productKey}');
   });
 
-  it("keeps pair and circle direct entry on their product surfaces", () => {
+  it("keeps «Вместе» direct entry and closes the standalone circle product (B385)", () => {
     const products = source("src/lib/v5-products.ts");
     const pairPage = source("src/app/products/pair/page.tsx");
     const circlePage = source("src/app/products/circle/page.tsx");
 
     expect(v5Products.find((product) => product.slug === "pair")?.directHref).toBe("/products/pair");
-    expect(v5Products.find((product) => product.slug === "circle")?.directHref).toBe("/products/circle");
+    // «Круг ясности» merged into «Вместе» — no standalone catalogue card and the route 404s.
+    expect(v5Products.find((product) => product.slug === "pair")?.name).toBe("Вместе");
+    expect(products).not.toContain('slug: "circle"');
     expect(products).not.toContain('directHref: "/checkin?entry=pair"');
-    expect(products).not.toContain('directHref: "/checkin?entry=circle"');
     expect(pairPage).not.toContain("/checkin?entry=pair");
-    expect(circlePage).not.toContain("/checkin?entry=circle");
+    expect(circlePage).toContain("notFound");
   });
 });

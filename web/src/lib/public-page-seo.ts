@@ -47,14 +47,9 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Подробное сравнение Free, Plus и Premium: баллы, карта, цифровые продукты, маршруты, ограничения и что не входит в подписки.",
     schemaKind: "Product",
   },
-  "/products/circle": {
-    title: "Круг — ETerapy",
-    description: "Групповой формат для 2–5 участников: общий вопрос, приватные ответы, согласие и бережный итоговый разбор.",
-    schemaKind: "Product",
-  },
   "/products/pair": {
-    title: "Разобраться вдвоём — ETerapy",
-    description: "Парный формат ETerapy: каждый отвечает отдельно, результат открывается по согласию и помогает начать спокойный разговор.",
+    title: "Вместе — ETerapy",
+    description: "Три формата разобраться вместе: взгляд со стороны от близкого по ссылке, сверить взгляды по согласию или посмотреть на совместимость. Начало бесплатно.",
     schemaKind: "Product",
   },
   "/telegram": {

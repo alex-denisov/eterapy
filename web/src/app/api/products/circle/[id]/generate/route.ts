@@ -31,8 +31,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!circle || circle.status === "DELETED") return errorWithRequestContext("NOT_FOUND", "Circle not found", 404, context);
   if (circle.creatorId !== userId) return errorWithRequestContext("FORBIDDEN", "Only creator can generate", 403, context);
   const eligibleParticipants = circle.participants.filter((participant) => !participant.riskFlags.includes("same_device_as_creator"));
-  if (eligibleParticipants.length < 2) {
-    return errorWithRequestContext("CONFLICT", "Нужно минимум два ответа участников", 409, context);
+  // Outside-view (B385) needs a single invited answer; legacy circle needs two.
+  const isOutside = (circle.metadata as { mode?: string } | null)?.mode === "outside";
+  const minParticipants = isOutside ? 1 : 2;
+  if (eligibleParticipants.length < minParticipants) {
+    return errorWithRequestContext(
+      "CONFLICT",
+      isOutside ? "Нужен хотя бы один ответ приглашённого" : "Нужно минимум два ответа участников",
+      409,
+      context,
+    );
   }
 
   const teaserText = buildCircleTeaser({

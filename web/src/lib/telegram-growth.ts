@@ -25,10 +25,12 @@ export const TELEGRAM_GROWTH_ENTRIES: TelegramGrowthEntry[] = [
     startPayload: "practice",
   },
   {
+    // B385: «Круг» закрыт и слит в «Вместе»; payload "circle" сохранён для
+    // обратной совместимости старых deep-link, но ведёт на /pair.
     key: "circle",
-    label: "Круг",
-    description: "Создать общий вопрос и пригласить 2-5 участников.",
-    webPath: "/circle?channel=telegram_bot&entry=circle",
+    label: "Вместе",
+    description: "Позвать близкого за взглядом со стороны по ссылке или сверить взгляды.",
+    webPath: "/pair?channel=telegram_bot&entry=together",
     startPayload: "circle",
   },
   {

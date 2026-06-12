@@ -24,21 +24,35 @@ describe("B201/B202 Circle and Pair flows", () => {
     expect(antiAbuseMigration).toContain("answer_hash");
   });
 
-  it("wires Circle public UI to setup, invite, participant, teaser, payment, and map states", () => {
-    const page = source("src/app/products/circle/page.tsx");
-    const actions = source("src/components/products/circle-actions.tsx");
+  it("B385: closes the standalone Circle product and reuses its engine for «Вместе» outside-view", () => {
+    const circlePage = source("src/app/products/circle/page.tsx");
+    const togetherPage = source("src/app/products/pair/page.tsx");
+    const actions = source("src/components/products/together-actions.tsx");
     const createRoute = source("src/app/api/products/circle/route.ts");
+    const inviteRoute = source("src/app/api/products/circle/invite/[token]/route.ts");
     const participantRoute = source("src/app/api/products/circle/[id]/participant/route.ts");
     const generateRoute = source("src/app/api/products/circle/[id]/generate/route.ts");
     const reportRoute = source("src/app/api/products/circle/[id]/report/route.ts");
 
-    expect(page).toContain("<CircleActions");
-    expect(actions).toContain('data-testid="circle-actions"');
-    expect(actions).toContain('data-testid="circle-participant-actions"');
-    expect(actions).toContain('data-testid="circle-participant-review-list"');
+    // Standalone circle page 404s; the «Вместе» hub renders the new flow.
+    expect(circlePage).toContain("notFound");
+    expect(togetherPage).toContain("<TogetherActions");
+    expect(togetherPage).toContain('data-testid="together-scenarios"');
+
+    // Outside-view UI (initiator + account-less guest) lives in together-actions.
+    expect(actions).toContain('data-testid="together-actions"');
+    expect(actions).toContain('data-testid="together-guest"');
     expect(actions).toContain("<ProductPurchaseControls");
-    expect(actions).toContain('productKey="circle"');
-    expect(createRoute).toContain("create_circle");
+
+    // Backend: new outside-view creation + the no-leak invite projection.
+    expect(createRoute).toContain("create_outside");
+    expect(createRoute).toContain("generateOutsideViewQuestions");
+    expect(inviteRoute).toContain("toInviteSafeView");
+    // The invite endpoint must NOT leak creator hashes or other answers.
+    expect(inviteRoute).not.toContain("creatorIpHash");
+    expect(inviteRoute).not.toContain("answerText");
+
+    // The circle engine (participant/generate/report) stays intact.
     expect(participantRoute).toContain("Circle is full");
     expect(participantRoute).toContain("assessCircleParticipantRisk");
     expect(participantRoute).toContain("circle_answer_hidden");

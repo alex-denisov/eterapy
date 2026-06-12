@@ -11,7 +11,7 @@ function source(relativePath: string) {
 
 describe("design v4.2 rollout", () => {
   it("exposes the v4.2 growth routes in SEO and public navigation", () => {
-    for (const route of ["/products/clarity-practice", "/products/circle", "/products/pair", "/telegram"] as const) {
+    for (const route of ["/products/clarity-practice", "/products/pair", "/telegram"] as const) {
       expect(publicSeoRoutes).toContain(route);
       expect(publicPageSeo[route].title).toContain("ETerapy");
     }

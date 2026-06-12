@@ -18,7 +18,9 @@ describe("B204 Telegram growth surfaces", () => {
       "circle",
       "pair",
     ]);
-    expect(resolveTelegramGrowthPayload("tg_circle")?.webPath).toContain("/circle");
+    // B385: legacy "circle" payload kept for back-compat but now routes to «Вместе» (/pair).
+    expect(resolveTelegramGrowthPayload("tg_circle")?.webPath).toContain("/pair");
+    expect(resolveTelegramGrowthPayload("tg_circle")?.label).toBe("Вместе");
     expect(resolveTelegramGrowthPayload("pair")?.webPath).toContain("/pair");
     expect(getTelegramStartUrl("practice")).toContain("start=practice");
   });

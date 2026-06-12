@@ -20,7 +20,6 @@ export const publicSeoRoutes = [
   "/how-to-choose",
   "/pricing",
   "/telegram",
-  "/products/circle",
   "/products/pair",
   "/library",
   "/products",

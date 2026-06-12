@@ -42,7 +42,7 @@ const TOPICS: DialogueTopic[] = ["relationships", "family", "career", "money", "
 /** Topic → the single most relevant next product. */
 const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
   relationships: "compatibility",
-  family: "circle",
+  family: "pair",
   career: "perspectives",
   money: "deep-report",
   anxiety: "seven-days",
@@ -53,7 +53,7 @@ const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
 /** Topic → adjacent products (variety pool; the primary is filtered out). */
 const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
   relationships: ["pair", "chat-analysis", "compatibility", "tarot"],
-  family: ["circle", "compatibility", "pair", "my-map"],
+  family: ["compatibility", "chat-analysis", "pair", "my-map"],
   career: ["perspectives", "deep-report", "seven-days", "numerology"],
   money: ["deep-report", "perspectives", "seven-days", "numerology"],
   anxiety: ["seven-days", "clarity-practice", "perspectives", "tarot"],

@@ -104,7 +104,6 @@ const APP_PUBLIC_MAIN_PATHS = [
   // The public directory is /practitioners (plural); the legacy singular
   // /practitioner → /practitioners redirect still fires on the main domain.
   "/practitioners",
-  "/products/circle",
   "/products/clarity-practice",
   "/products/pair",
   "/pricing",
