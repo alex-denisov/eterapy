@@ -44,6 +44,17 @@ describe("v5 app shell", () => {
     expect(clientCabinet).not.toContain('mainUrl("/products/deep-report")');
   });
 
+  it("uses explicit B376 mobile tabs with a More destination", () => {
+    expect(shell).toContain("const mobileTabs =");
+    expect(shell).toContain('label: "Главная"');
+    expect(shell).toContain('label: "Дневник"');
+    expect(shell).toContain('label: "Кошелёк"');
+    expect(shell).toContain('label: "Ещё"');
+    expect(shell).toContain("data-testid={item.label");
+    expect(shell).toContain('"app-shell-mobile-more"');
+    expect(shell).not.toContain("nav.slice(0, 4)");
+  });
+
   it("shows subscription label (not role) in sidebar header per v4.2 design", () => {
     const layout = fs.readFileSync(path.join(process.cwd(), "src/app/cabinet/layout.tsx"), "utf8");
     // Layout must fetch active subscription and derive a label

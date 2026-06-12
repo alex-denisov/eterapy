@@ -17,9 +17,9 @@ import {
   Bookmark,
   Lock,
   LogOut,
-  Leaf,
   Crown,
   Handshake,
+  MoreHorizontal,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 
@@ -27,6 +27,10 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   label: string;
+}
+
+interface MobileNavItem extends NavItem {
+  activeHrefs?: string[];
 }
 
 const CLIENT_NAV: NavItem[] = [
@@ -146,8 +150,29 @@ export function CabinetShell({
     return normActive.startsWith(normItem);
   }
 
-  // Для мобильной навигации — первые 4 пункта.
-  const mobileNav = nav.slice(0, 4);
+  const mobileTabs = (role === "CLIENT"
+    ? [
+        { href: appUrl("/"), icon: LayoutDashboard, label: "Главная" },
+        { href: appUrl("/diary"), icon: BookOpen, label: "Дневник" },
+        { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
+        {
+          href: appUrl("/settings"),
+          icon: MoreHorizontal,
+          label: "Ещё",
+          activeHrefs: [
+            appUrl("/settings"),
+            appUrl("/billing"),
+            appUrl("/bookings"),
+            appUrl("/support"),
+          ],
+        },
+      ]
+    : nav.filter((_, index) => index < 4)) satisfies MobileNavItem[];
+
+  function isMobileActive(item: MobileNavItem) {
+    if (isActive(item.href)) return true;
+    return item.activeHrefs?.some((href) => isActive(href)) ?? false;
+  }
 
   return (
     <div data-testid="app-shell" data-shell-role={role} className="soft-clarity-page soft-app-shell min-h-screen">
@@ -217,12 +242,15 @@ export function CabinetShell({
 
       {/* Mobile nav */}
       <div data-testid="app-shell-mobile-nav" className="soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
-        {mobileNav.map((item) => {
+        {mobileTabs.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href}
+            <Link
+              key={item.href}
+              href={item.href}
+              data-testid={item.label === "Ещё" ? "app-shell-mobile-more" : "app-shell-mobile-tab"}
               className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
-                isActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
+                isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
               }`}>
               <Icon className="h-5 w-5" />
               {item.label.split(" ")[0]}

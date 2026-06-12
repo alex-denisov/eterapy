@@ -180,8 +180,33 @@ export default async function ClientCabinetPage() {
         </h1>
       </div>
 
-      {/* v4.2: 3-col stat grid — тема / баллы / подписка */}
-      <div className="mb-4 grid gap-4 md:grid-cols-3">
+      <section className="soft-card mb-4 p-5" data-testid="client-primary-action">
+        <p className="soft-eyebrow">Следующий шаг</p>
+        <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="soft-h3">{nextAction.label}</h2>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{nextAction.hint}</p>
+          </div>
+          <Link href={nextAction.href} className="soft-button soft-button-primary shrink-0">
+            Продолжить
+          </Link>
+        </div>
+      </section>
+
+      <div
+        className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[var(--soft-paper-edge)] px-4 py-3 text-sm"
+        style={{ background: "var(--soft-paper-deep)" }}
+        data-testid="client-dashboard-balance"
+      >
+        <span className="font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+          Баланс: {clarityCredits} {pointsWord(clarityCredits)}
+        </span>
+        <Link href={appUrl("/wallet")} className="soft-chip">
+          Открыть кошелёк →
+        </Link>
+      </div>
+
+      <div className="mb-4 grid gap-4 md:grid-cols-2">
         <div
           className="soft-card p-5"
           data-testid="client-map-preview"
@@ -203,27 +228,9 @@ export default async function ClientCabinetPage() {
             </p>
           )}
           <Link href={appUrl("/diary")} className="soft-chip mt-4 inline-block">
-            Открыть карту →
+            Открыть дневник →
           </Link>
         </div>
-
-        <Link
-          href={appUrl("/wallet")}
-          className="soft-card p-5 block"
-          data-testid="client-clarity-credits"
-          style={{ background: "linear-gradient(140deg, #F4D9C1, #F8E6D1)", textDecoration: "none" }}
-        >
-          <div className="flex items-center justify-between">
-            <p className="soft-eyebrow">Баллы</p>
-          </div>
-          <p style={{ fontFamily: "var(--font-heading, serif)", fontSize: 44, color: "var(--soft-bordeaux)", fontWeight: 600, lineHeight: 1, marginTop: 8 }}>
-            {clarityCredits}
-          </p>
-          <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-            потратить на разборы и отчёты
-          </p>
-          <span className="soft-chip mt-4 inline-block">Пополнить →</span>
-        </Link>
 
         <div className="soft-card p-5" data-testid="client-subscription-status">
           <p className="soft-eyebrow">подписка</p>
@@ -303,9 +310,9 @@ export default async function ClientCabinetPage() {
       {/* #5: onboarding «первые шаги» lives high on the first screen, and
           disappears once every mission reward has been granted. */}
       {missionChecklist.completedCount < missionChecklist.totalCount && (
-        <section className="soft-card mb-4 p-5" data-testid="client-first-steps">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+        <details className="soft-card mb-4 p-5" data-testid="client-first-steps" open={false}>
+          <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
               <p className="soft-eyebrow">первые шаги</p>
               <h2 className="soft-h3 mt-2">
                 {missionChecklist.completedCount} из {missionChecklist.totalCount} миссий пройдено
@@ -323,7 +330,7 @@ export default async function ClientCabinetPage() {
               <Leaf className="size-4" aria-hidden="true" />
               {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
             </div>
-          </div>
+          </summary>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
             {missionChecklist.items.map((mission) => (
               <Link
@@ -353,7 +360,7 @@ export default async function ClientCabinetPage() {
               </Link>
             ))}
           </div>
-        </section>
+        </details>
       )}
 
       {/* v4: recent dialogues card — directly below stat grid. T16: показываем
@@ -390,18 +397,6 @@ export default async function ClientCabinetPage() {
             <Link href={mainUrl(`/checkin?dialogueId=${d.id}`)} className="soft-chip shrink-0">Открыть →</Link>
           </div>
         ))}
-      </div>
-
-      {/* Next action — full width now that the duplicate history block is gone (T16). */}
-      <div className="mb-4">
-        <section className="soft-card p-5" data-testid="client-next-action">
-          <p className="soft-eyebrow">Следующий шаг</p>
-          <h2 className="soft-h3 mt-3">{nextAction.label}</h2>
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{nextAction.hint}</p>
-          <Link href={nextAction.href} className="soft-button soft-button-primary mt-5">
-            Продолжить
-          </Link>
-        </section>
       </div>
 
       {/* B375: «Ежедневный вопрос» — бесплатный блок дашборда с недельным
@@ -474,10 +469,14 @@ export default async function ClientCabinetPage() {
         </div>
       </section>
 
-      {/* Gentle milestones */}
-      <section className="soft-card mb-4 p-5" data-testid="client-gentle-milestones">
-        <p className="soft-eyebrow">Мягкий ритм</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <details className="soft-card mb-4 p-5" data-testid="client-gentle-milestones" open={false}>
+        <summary className="cursor-pointer list-none">
+          <p className="soft-eyebrow">Мягкий ритм</p>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+            Статистика свернута, чтобы главная кабинета начиналась с действия и вопроса дня.
+          </p>
+        </summary>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
             <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{dailyCardCount}</p>
             <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>карт дня открыто</p>
@@ -490,28 +489,24 @@ export default async function ClientCabinetPage() {
             <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{productCount}</p>
             <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>результатов в карте</p>
           </div>
-          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{clarityCredits}</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>{pointsWord(clarityCredits)}</p>
-          </div>
         </div>
         <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
           Здесь нет штрафов, дедлайнов и давления. Ритм нужен только как напоминание,
           что маленькие возвращения к себе тоже считаются.
         </p>
-      </section>
+      </details>
 
       {/* v4: card-flat "подсказка от карты" */}
       <div className="soft-card-flat p-5">
         <p className="soft-eyebrow mb-3">подсказка от карты</p>
         <p className="soft-h3 mt-2 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
           {currentTheme
-            ? `За последние разборы карта замечает тему «${currentTheme}». Возможно, маршрут «7 дней» сейчас будет уместен.`
-            : "Карта собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и карта начнёт наблюдать."}
+            ? `За последние разборы дневник замечает тему «${currentTheme}». Можно вернуться к ней в подробном разборе или обсудить со специалистом.`
+            : "Дневник собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и дневник начнёт наблюдать."}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link href={appUrl("/wallet")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
-            Начать маршрут
+            Подобрать разбор
           </Link>
           <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
             Подобрать специалиста

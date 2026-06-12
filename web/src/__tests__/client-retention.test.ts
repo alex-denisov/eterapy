@@ -12,7 +12,7 @@ describe("M11 client retention surfaces", () => {
     const page = source("src/app/cabinet/page.tsx");
 
     expect(page).toContain('data-testid="client-map-preview"');
-    expect(page).toContain('data-testid="client-next-action"');
+    expect(page).toContain('data-testid="client-primary-action"');
     expect(page).toContain('data-testid="client-recent-questions"');
     expect(page).toContain("db.dialogue.count");
     expect(page).toContain("db.productResult.count");
@@ -136,6 +136,23 @@ describe("M11 client retention surfaces", () => {
     expect(dashboard).toContain("Мягкий ритм");
     expect(dashboard).toContain("нет штрафов, дедлайнов и давления");
     expect(dashboard).toContain("db.dailyCard.count");
+  });
+
+  it("keeps the B376 cabinet dashboard to one primary action and one points balance", () => {
+    const dashboard = source("src/app/cabinet/page.tsx");
+
+    expect(dashboard).toContain('data-testid="client-primary-action"');
+    expect(dashboard.indexOf('data-testid="client-primary-action"')).toBeLessThan(
+      dashboard.indexOf('data-testid="client-map-preview"'),
+    );
+    expect(dashboard).toContain('data-testid="client-dashboard-balance"');
+    expect(dashboard).toContain('<details className="soft-card mb-4 p-5" data-testid="client-first-steps"');
+    expect(dashboard).toContain('<details className="soft-card mb-4 p-5" data-testid="client-gentle-milestones"');
+    expect(dashboard).toContain("open={false}");
+    expect(dashboard).not.toContain('data-testid="client-clarity-credits"');
+    expect(dashboard).not.toContain("<p className=\"font-heading text-3xl\" style={{ color: \"var(--soft-bordeaux)\" }}>{clarityCredits}</p>");
+    expect(dashboard).not.toContain("Начать маршрут");
+    expect(dashboard).not.toContain("маршрут «7 дней»");
   });
 
   it("lets users export allowed personal data before account deletion", () => {

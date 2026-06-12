@@ -28,13 +28,14 @@ describe("B203 Practice and missions", () => {
     expect(streaks).toContain("existingCreditReward");
   });
 
-  it("surfaces practice, credits, and gentle rhythm in the client cabinet", () => {
+  it("surfaces practice, balance, and gentle rhythm in the client cabinet", () => {
     const dashboard = source("src/app/cabinet/page.tsx");
     const actions = source("src/components/cabinet/daily-practice-actions.tsx");
 
     expect(dashboard).toContain("getClarityCreditBalance");
     expect(dashboard).toContain("<DailyPracticeActions");
-    expect(dashboard).toContain("Баллы");
+    expect(dashboard).toContain('data-testid="client-dashboard-balance"');
+    expect(dashboard).toContain("Баланс:");
     expect(actions).toContain('action: "complete"');
     expect(actions).toContain("+1 балл");
   });
