@@ -38,7 +38,9 @@ describe("Z8 product-local dialogue intake", () => {
     expect(intake).toContain("intakeMode");
     expect(intake).toContain("router.replace");
 
-    expect(detailPage).toContain('href="#product-intake-perspectives"');
+    expect(detailPage).toContain("<ProductActionSurface");
+    expect(detailPage).toContain("<PerspectivesActions");
+    expect(detailPage).toContain('data-testid="product-service-start"');
     expect(deepReport).toContain("<ProductIntake");
     expect(deepReport).toContain('productKey="deep-report"');
     expect(deepReport).toContain('mode="full"');

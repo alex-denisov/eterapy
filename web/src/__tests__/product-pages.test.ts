@@ -22,29 +22,39 @@ describe("v5 product pages", () => {
     }
   });
 
-  it("keeps products canonical, direct-orderable, and still connected to the free dialogue", () => {
+  it("keeps products canonical, flat, and still connected to the free dialogue", () => {
     const indexPage = source("app/products/page.tsx");
     const detailPage = source("app/products/[slug]/page.tsx");
+    const purchaseControls = source("components/products/product-purchase-controls.tsx");
+    const productActions = [
+      "components/products/deep-report-actions.tsx",
+      "components/products/perspectives-actions.tsx",
+      "components/products/chat-analysis-actions.tsx",
+      "components/products/compatibility-actions.tsx",
+      "components/products/seven-days-actions.tsx",
+      "components/products/symbolic-product-actions.tsx",
+      "components/products/synastry-actions.tsx",
+    ].map(source).join("\n");
 
     expect(indexPage).toContain('data-testid="products-page"');
     expect(indexPage).toContain('href="/checkin"');
     expect(indexPage).toContain("открыть нужную услугу напрямую");
-    expect(detailPage).toContain('data-testid="product-dialogue-cta"');
+    expect(detailPage).toContain('data-testid="product-service-start"');
     expect(detailPage).toContain('data-testid="product-my-map-preview"');
-    expect(detailPage).toContain('href="#product-intake-perspectives"');
+    expect(detailPage).toContain("<ProductActionSurface");
+    expect(detailPage).toContain("<PerspectivesActions");
     expect(detailPage).not.toContain("nextProduct=");
-    expect(detailPage).toContain("<ProductPurchaseControls");
-    expect(detailPage).toContain('href={product.directHref}');
-    expect(detailPage).toContain("creditCost={product.creditCost}");
+    expect(detailPage).not.toContain("<ProductPurchaseControls");
+    expect(productActions).toContain("<ProductPurchaseControls");
     // Z1-Ф1: the ₽ balance rail is gone — products open with credits or card.
-    expect(source("components/products/product-purchase-controls.tsx")).not.toContain("/api/billing/pay-from-balance");
-    expect(source("components/products/product-purchase-controls.tsx")).toContain("/api/billing/create-payment");
+    expect(purchaseControls).not.toContain("/api/billing/pay-from-balance");
+    expect(purchaseControls).toContain("/api/billing/create-payment");
     expect(source("lib/v5-products.ts")).toContain('route: "/products/tarot"');
     // M26/B367: joint-session removed from the catalog entirely.
     expect(source("lib/v5-products.ts")).not.toContain("joint-session\":");
   });
 
-  it("ports v4.2 product hero and page-specific blocks instead of a generic product template", () => {
+  it("ports v4.2 product hero and flat page-specific previews instead of sample blocks", () => {
     const detailPage = source("app/products/[slug]/page.tsx");
     const products = source("lib/v5-products.ts");
 
@@ -54,22 +64,16 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain("product.priceMeta");
 
     expect(detailPage).toContain("ETerapy · подробный разбор");
-    expect(detailPage).toContain('data-testid="deep-report-sample-main-fork"');
-    expect(detailPage).toContain("03 · Карта факт-чувство-предположение");
-    expect(detailPage).toContain("Если хочется");
+    expect(detailPage).toContain('data-testid="product-service-start"');
+    expect(detailPage).not.toContain('data-testid="deep-report-sample-main-fork"');
+    expect(detailPage).not.toContain('data-testid="product-example-disclosure"');
 
-    expect(detailPage).toContain('data-testid="extended-map-central-story"');
+    expect(detailPage).toContain('data-testid="product-my-map-preview"');
     expect(detailPage).toContain("3 темы стали тише за год, 1 — окрепла");
 
-    expect(detailPage).toContain('data-testid="tarot-live-example"');
-    expect(detailPage).toContain("Раскрыть карты");
-    expect(detailPage).toContain("интерпретация · фрагмент");
-
-    expect(detailPage).toContain('data-testid="natal-birth-data"');
-    expect(detailPage).toContain("акцент года");
-
-    expect(detailPage).toContain('data-testid="numerology-number-cards"');
-    expect(detailPage).toContain("что с этим делать");
+    expect(detailPage).toContain("<TarotSide");
+    expect(detailPage).toContain("<NatalSide");
+    expect(detailPage).toContain("<NumerologySide");
 
     expect(detailPage).not.toContain("joint-session");
 

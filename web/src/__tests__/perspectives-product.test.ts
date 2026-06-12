@@ -76,17 +76,13 @@ describe("B086 perspectives product", () => {
     expect(actions).toContain("Сохранить в Мою карту");
   });
 
-  it("shows dialogue-first CTA (not a purchase button) on standalone product page access without dialogueId", () => {
+  it("starts the standalone product page with the service surface, not a hero purchase button", () => {
     const detailPage = source("src/app/products/[slug]/page.tsx");
 
-    // perspectives hero branch: no-dialogue case shows checkin link, not a purchase button
     expect(detailPage).toContain('product.slug === "perspectives"');
-    expect(detailPage).toContain("search?.dialogueId");
-    expect(detailPage).toContain("Начать бесплатный диалог");
-    // The hero buttons container (identified by its unique wrapper class) should not
-    // contain ProductPurchaseControls for perspectives — purchase is only inside PerspectivesActions
-    const heroButtons = detailPage.split('soft-product-detail-hero"')[1]?.split('<PerspectivesActions')[0] ?? "";
-    expect(heroButtons).toContain("Начать бесплатный диалог");
-    expect(heroButtons).not.toContain("<ProductPurchaseControls");
+    expect(detailPage).toContain("action={<ProductActionSurface");
+    expect(detailPage).toContain('data-testid="product-service-start"');
+    const hero = detailPage.split("function ProductHero")[1]?.split("function DeepReportSide")[0] ?? "";
+    expect(hero).not.toContain("<ProductPurchaseControls");
   });
 });

@@ -463,25 +463,28 @@ export function ChatAnalysisActions() {
     ? tryParseChatAnalysis(result.resultText)
     : null;
 
+  const tabNav = (
+    <div className="flex flex-wrap gap-2">
+      {(["input", "context", "result"] as const).map((t, i) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => { if (t === "context" && !result) return; if (t === "result" && !result?.resultText) return; setTab(t); }}
+          className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+            tab === t
+              ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
+              : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]"
+          } ${t === "context" && !result ? "opacity-40 cursor-not-allowed" : ""} ${t === "result" && !result?.resultText ? "opacity-40 cursor-not-allowed" : ""}`}
+        >
+          {i + 1}. {t === "input" ? "Вставить переписку" : t === "context" ? "Контекст" : "Разбор"}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid="chat-analysis-actions">
-      {/* tab nav */}
-      <div className="flex flex-wrap gap-2">
-        {(["input", "context", "result"] as const).map((t, i) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => { if (t === "context" && !result) return; if (t === "result" && !result?.resultText) return; setTab(t); }}
-            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-              tab === t
-                ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
-                : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]"
-            } ${t === "context" && !result ? "opacity-40 cursor-not-allowed" : ""} ${t === "result" && !result?.resultText ? "opacity-40 cursor-not-allowed" : ""}`}
-          >
-            {i + 1}. {t === "input" ? "Вставить переписку" : t === "context" ? "Контекст" : "Разбор"}
-          </button>
-        ))}
-      </div>
+      {tab !== "input" && tabNav}
 
       {message && (
         <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
@@ -503,6 +506,9 @@ export function ChatAnalysisActions() {
             disabled={status === "loading"}
             data-testid="chat-analysis-textarea"
           />
+          <div className="mt-4">
+            {tabNav}
+          </div>
 
           {/* Three input affordances — v4.2 deepenings.jsx:26-30 */}
           <div className="mt-4 flex flex-wrap gap-2" data-testid="chat-analysis-upload-row">

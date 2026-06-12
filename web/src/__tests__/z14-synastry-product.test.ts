@@ -62,7 +62,9 @@ describe("Z14 synastry product", () => {
 
     expect(detailPage).toContain("<SynastryActions");
     expect(detailPage).toContain('product.slug === "synastry"');
-    expect(detailPage).toContain('data-testid="synastry-relationship-map"');
+    expect(detailPage).toContain("<SynastrySide");
+    expect(detailPage).toContain('data-testid="product-service-start"');
+    expect(detailPage).not.toContain('data-testid="synastry-relationship-map"');
     expect(actions).toContain("/api/products/synastry");
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain("partnerBirthData");
