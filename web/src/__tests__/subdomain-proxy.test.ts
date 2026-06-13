@@ -5,6 +5,7 @@ jest.mock("@/lib/session-from-cookie", () => ({
 }));
 
 import { internalRewriteUrl, shouldRedirectAppPublicPathToMain } from "@/proxy";
+import { v5Products } from "@/lib/v5-products";
 
 function request(url: string): NextRequest {
   return { url } as NextRequest;
@@ -56,5 +57,17 @@ describe("subdomain proxy rewrites", () => {
 
   it("allows the stripped wallet path on app subdomain so it rewrites to /cabinet/wallet", () => {
     expect(shouldRedirectAppPublicPathToMain("/wallet")).toBe(false);
+  });
+
+  it("B387/B389: every valid product page is public (derived from v5Products, not a hardcoded list)", () => {
+    // Регрессия: human-design и family-scenarios отсутствовали в хардкод-списке и
+    // гнались в /login на app-поддомене. Теперь публичность деривится из v5Products.
+    for (const product of v5Products) {
+      expect(shouldRedirectAppPublicPathToMain(product.route)).toBe(true);
+    }
+    expect(shouldRedirectAppPublicPathToMain("/products/human-design")).toBe(true);
+    expect(shouldRedirectAppPublicPathToMain("/products/family-scenarios")).toBe(true);
+    // Неизвестный слаг услуги — НЕ публичный (отдаётся 404 отдельной логикой).
+    expect(shouldRedirectAppPublicPathToMain("/products/definitely-not-a-product")).toBe(false);
   });
 });

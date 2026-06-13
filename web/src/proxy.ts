@@ -126,7 +126,14 @@ const APP_PUBLIC_MAIN_PATHS = [
 ];
 
 export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
-  return APP_PUBLIC_MAIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (APP_PUBLIC_MAIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
+    return true;
+  }
+  // B387/B389: любая валидная страница услуги — публичная (не кабинет). Деривим
+  // из v5Products, чтобы новые услуги (human-design, family-scenarios, …) не
+  // приходилось дублировать в списке выше (иначе app-поддомен гонит их в /login).
+  const product = pathname.match(/^\/products\/([^/]+)\/?$/);
+  return Boolean(product && VALID_PRODUCT_SLUGS.has(product[1]));
 }
 
 // M26/B367: выпиленные/неизвестные слаги услуг должны отдавать настоящий
