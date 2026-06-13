@@ -90,6 +90,7 @@ model User {
   channelAttributions    ChannelAttribution[]
   supportConversations   SupportConversation[]
   bookingWaitlistEntries BookingWaitlistEntry[]
+  companionChatSessions  CompanionChatSession[]
 
   @@map("users")
 }
@@ -1116,6 +1117,30 @@ enum DialogueMessageRole {
   USER
   ASSISTANT
   SYSTEM
+}
+
+// B386 (M26): «Решить вопрос в чате» — платный чат-компаньон с человеческим ритмом.
+// messages — JSON-массив [{role:"user"|"companion", text, at}]. Биллинг сеансами:
+// первый мини-чат бесплатно (free_messages_used), затем оплаченное окно
+// (paid_started_at..paid_expires_at). premium_included — сеанс из квоты Premium.
+model CompanionChatSession {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDialogueId String?   @map("source_dialogue_id")
+  mode             String    @default("explore")
+  status           String    @default("free")
+  freeMessagesUsed Int       @default(0) @map("free_messages_used")
+  paidStartedAt    DateTime? @map("paid_started_at")
+  paidExpiresAt    DateTime? @map("paid_expires_at")
+  premiumIncluded  Boolean   @default(false) @map("premium_included")
+  messages         Json      @default("[]")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, updatedAt], map: "companion_chat_user_updated_idx")
+  @@index([userId, premiumIncluded, paidStartedAt], map: "companion_chat_premium_quota_idx")
+  @@map("companion_chat_sessions")
 }
 
 model ProductResult {

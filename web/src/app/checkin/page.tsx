@@ -957,6 +957,23 @@ export default function CheckinPage() {
                 </Link>
               )}
 
+              {/* B386 (M26): мягкая точка входа в платный чат-компаньон прямо из
+                  результата первичного диалога. Первые сообщения бесплатно. */}
+              <Link
+                href={`/cabinet/chat?dialogueId=${dialogue.id}`}
+                className="soft-triage-option mt-3"
+                data-testid="continue-in-chat-cta"
+                onClick={() => track({ event: "companion_chat_cta_clicked", surface: "checkin", dialogueId: dialogue.id })}
+              >
+                <MessageSquareText className="mt-1 size-5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                <div>
+                  <h3 className="font-heading text-base text-[var(--soft-bordeaux)]">Продолжить разговор в чате</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                    Спокойный диалог в своём темпе. Первые сообщения — бесплатно.
+                  </p>
+                </div>
+              </Link>
+
               <p className="soft-eyebrow mt-6">другие форматы</p>
               <div className="mt-2 grid gap-2" data-testid="triage-secondary-options">
                 {/* W17: topic-adjacent products from the recommendation API,

@@ -34,6 +34,10 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   // B387 (M26): «Дизайн человека» — тип/бодиграф бесплатно, платный глубокий разбор.
   // 2 балла = 590 ₽ (295 ₽/балл), тариф уровня натальной карты (личный «чертёж»).
   "human-design": 59000,
+  // B386 (M26): платный чат-сеанс 45 мин. Цена утверждена владельцем: 790 ₽ / 4 балла
+  // (197.5 ₽/балл — НАМЕРЕННО вне ладдера услуг, как seven-days/my-map: это «время
+  // в разговоре», другой рычаг, не разовый разбор). НЕ в V5_LADDER_ACTIVE_PRODUCTS.
+  "chat-session": 79000,
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
@@ -52,6 +56,9 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "numerology": 2,
   "family-scenarios": 4,
   "human-design": 2,
+  // B386 (M26): сеанс чата 45 мин = 4 балла; продление +30 мин = 2 балла.
+  "chat-session": 4,
+  "chat-extension": 2,
 };
 
 // Active (non-deprecated) priced products whose ₽/балл must stay in the 250–300

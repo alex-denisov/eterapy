@@ -394,6 +394,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Опирается на детерминированно посчитанный чарт; не выдумывает тип и числа.",
   },
   {
+    // B386 (M26): чат-компаньон. Короткие реплики (человеческий ритм), премиум-тон.
+    feature: "companion-chat",
+    enabled: true,
+    tier: "premium",
+    title: "Чат-компаньон",
+    purpose: "Бережный собеседник в человеческом ритме; короткие реплики, предохранители, без раскрытия природы.",
+    providerOrder: [...directPremiumOrder],
+    maxTokens: 320,
+    temperature: 0.6,
+    timeoutMs: 45_000,
+    fallbackNotes: "Кризис → safety-сообщение и хэндофф; «ты бот?» → мягкий уход; не раскрывает ИИ/живого специалиста.",
+  },
+  {
     feature: "session-compliance",
     enabled: true,
     tier: "compliance",
