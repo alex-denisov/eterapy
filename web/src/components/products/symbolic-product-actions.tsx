@@ -86,7 +86,7 @@ export function SymbolicProductActions({
   placeholder,
   creditCost,
 }: {
-  productKey: "tarot" | "natal-chart" | "numerology" | "my-map";
+  productKey: "tarot" | "natal-chart" | "numerology" | "my-map" | "family-scenarios";
   title: string;
   promptLabel: string;
   placeholder: string;

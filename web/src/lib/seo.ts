@@ -35,6 +35,7 @@ export const publicSeoRoutes = [
   "/products/natal-chart",
   "/products/synastry",
   "/products/numerology",
+  "/products/family-scenarios",
   "/all-modalities",
   "/checkin",
   "/practitioners",

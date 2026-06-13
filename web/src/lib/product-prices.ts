@@ -28,6 +28,9 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "natal-chart": 59000,
   "synastry": 89000,
   "numerology": 59000,
+  // B389 (M26): genogram-разбор «Семейные сценарии», рекомендуется в Дневнике.
+  // 4 балла = 1090 ₽ (272.5 ₽/балл, в полосе ладдера).
+  "family-scenarios": 109000,
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
@@ -44,6 +47,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "natal-chart": 2,
   "synastry": 3,
   "numerology": 2,
+  "family-scenarios": 4,
 };
 
 // Active (non-deprecated) priced products whose ₽/балл must stay in the 250–300
@@ -51,6 +55,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
 export const V5_LADDER_ACTIVE_PRODUCTS = [
   "perspectives", "deep-report", "full-question", "chat-analysis",
   "compatibility", "circle", "pair", "tarot", "natal-chart", "synastry", "numerology",
+  "family-scenarios",
 ] as const;
 
 export function getProductPriceKopecks(productKey: string): number | null {

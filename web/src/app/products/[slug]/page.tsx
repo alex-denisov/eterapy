@@ -336,6 +336,9 @@ function ProductActionSurface({
   if (product.slug === "my-map") {
     return <SymbolicProductActions productKey="my-map" title="Расширенная карта" promptLabel="История Моей карты" placeholder="История собирается автоматически из сохранённых вопросов, маршрутов и результатов." creditCost={6} />;
   }
+  if (product.slug === "family-scenarios") {
+    return <SymbolicProductActions productKey="family-scenarios" title="Семейные сценарии" promptLabel="Что повторяется в вашей семье и роду" placeholder="Например: в семье по женской линии все рано брали ответственность за других и не умели просить помощи. Я ловлю себя на том же." creditCost={4} />;
+  }
   return null;
 }
 

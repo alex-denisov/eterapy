@@ -29,6 +29,13 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     promptLabel: "Что собрать в карту",
     resultTitle: "Расширенная карта ETerapy",
   },
+  {
+    // B389 (M26): genogram-разбор «Семейные сценарии» (рекомендуется в Дневнике).
+    productKey: "family-scenarios",
+    title: "Семейные сценарии",
+    promptLabel: "Что повторяется в вашей семье и роду",
+    resultTitle: "Семейные сценарии: что повторяется в роду",
+  },
 ] as const;
 
 export type SymbolicProductKey = (typeof SYMBOLIC_PRODUCT_DEFINITIONS)[number]["productKey"];
@@ -161,6 +168,18 @@ export function buildSymbolicProductTeaser(input: {
     ].join("\n");
   }
 
+  if (input.productKey === "family-scenarios") {
+    const repeated = extractRepeatedTheme(input.userInput);
+    return [
+      "Один повторяющийся сценарий",
+      repeated
+        ? `В вашем описании рода чаще всего звучит: ${repeated}.`
+        : firstMeaningfulLine,
+      "",
+      "Полный разбор покажет, что передаётся из поколения в поколение и где это можно бережно прервать.",
+    ].join("\n");
+  }
+
   const repeatedTheme = extractRepeatedTheme(input.userInput);
   return [
     "Повторяющаяся тема",
@@ -219,6 +238,17 @@ function heuristicSymbolicResult(input: { productKey: SymbolicProductKey; userIn
       "Числа здесь работают как короткий язык повторов. Один слой показывает, где вам нужна свобода движения, другой — где вы ищете тишину и смысл.",
       "",
       "Практический вопрос: где вы сейчас тратите силы против собственного ритма, а где энергия появляется почти сама?",
+    ].join("\n");
+  }
+  if (input.productKey === "family-scenarios") {
+    return [
+      "Семейные сценарии",
+      "",
+      "Этот разбор читается как карта повторов, а не приговор рода. Мы смотрим, какие роли, темы и негласные правила передавались по семье — и какие из них вы уже несёте, не выбирая.",
+      "",
+      "Один частый узор: то, что в одном поколении было способом выжить, в следующем становится привычкой, которая больше не нужна.",
+      "",
+      "Бережный следующий шаг: выберите один сценарий, который вы НЕ хотите передавать дальше, и назовите, как он проявляется у вас сейчас.",
     ].join("\n");
   }
   return [

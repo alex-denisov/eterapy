@@ -122,6 +122,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Нумерологический разбор имени и даты как карта вопросов, циклов и повторяющихся тем.",
     schemaKind: "Product",
   },
+  "/products/family-scenarios": {
+    title: "Семейные сценарии — продукт ETerapy",
+    description: "Бережная карта повторов рода: какие роли и темы передаются по семье и что можно мягко прервать. Без приговоров и диагнозов.",
+    schemaKind: "Product",
+  },
   "/all-modalities": {
     title: "Сервисы самопознания — ETerapy",
     description: "Сервисы ETerapy от вопроса: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",

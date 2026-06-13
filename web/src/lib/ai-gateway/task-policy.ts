@@ -368,6 +368,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Числа интерпретируются бережно, без предсказаний и давления.",
   },
   {
+    // B389 (M26): genogram-разбор «Семейные сценарии».
+    feature: "product-family-scenarios",
+    enabled: true,
+    tier: "premium",
+    title: "Семейные сценарии",
+    purpose: "Genogram-язык повторов рода без фатальности и обвинения семьи.",
+    providerOrder: [...directPremiumOrder],
+    maxTokens: 1600,
+    temperature: 0.45,
+    timeoutMs: 45_000,
+    fallbackNotes: "Никаких диагнозов рода и приговоров; только повторы и бережный шаг.",
+  },
+  {
     feature: "session-compliance",
     enabled: true,
     tier: "compliance",

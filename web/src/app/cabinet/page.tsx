@@ -14,6 +14,7 @@ import { getPracticeStreakSnapshot, STREAK_REWARDS } from "@/lib/streaks";
 import { practiceWeekDays, startOfPracticeWeek, WEEKLY_SUMMARY_PRODUCT_KEY } from "@/lib/weekly-summary";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
+import { recommendForDiary, topObservation } from "@/lib/diary-recommendation";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
 
@@ -157,6 +158,19 @@ export default async function ClientCabinetPage() {
   const currentThemeCount = sortedTopics[0]?._count._all ?? 0;
   // B325: resolve the topic enum (English) into a Russian label for the UI.
   const currentTheme = currentTopicKey ? dialogueTopicLabelRu(currentTopicKey) : null;
+
+  // B389 (M26): рекомендательный движок Дневника — одна контекстная рекомендация
+  // за раз + игровое «наблюдение» (3 записи по теме → наблюдение).
+  const diaryTopicCounts: Record<string, number> = Object.fromEntries(
+    topicGroups
+      .filter((group) => group.topic)
+      .map((group) => [group.topic as string, group._count._all]),
+  );
+  const diaryRecommendation = recommendForDiary(diaryTopicCounts);
+  const diaryRecommendationHref = diaryRecommendation.surface === "app"
+    ? appUrl(diaryRecommendation.route.replace(/^\/cabinet/, ""))
+    : mainUrl(diaryRecommendation.route);
+  const diaryObservation = topObservation(diaryTopicCounts);
 
   const nextAction = activeRoutes[0]
     ? { href: appUrl("/wallet"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
@@ -496,23 +510,28 @@ export default async function ClientCabinetPage() {
         </p>
       </details>
 
-      {/* v4: card-flat "подсказка от карты" */}
-      <div className="soft-card-flat p-5">
-        <p className="soft-eyebrow mb-3">подсказка от карты</p>
+      {/* B389: игровое «наблюдение» Дневника — одно за раз, без перегруза. */}
+      {diaryObservation && (
+        <div className="soft-card-flat p-5" data-testid="diary-observation">
+          <p className="soft-eyebrow mb-2">дневник открыл наблюдение</p>
+          <p className="soft-h3 mt-1 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
+            {diaryObservation.text}
+          </p>
+        </div>
+      )}
+
+      {/* B389: рекомендательный движок Дневника — одна контекстная рекомендация. */}
+      <div className="soft-card-flat p-5" data-testid="diary-recommendation">
+        <p className="soft-eyebrow mb-3">{diaryRecommendation.eyebrow}</p>
         <p className="soft-h3 mt-2 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
-          {currentTheme
-            ? `За последние разборы дневник замечает тему «${currentTheme}». Можно вернуться к ней в подробном разборе или обсудить со специалистом.`
-            : "Дневник собирает повторяющиеся темы после каждого разбора. Начните первый диалог — и дневник начнёт наблюдать."}
+          {diaryRecommendation.body}
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={appUrl("/wallet")} className="soft-button soft-button-primary" style={{ fontSize: 13 }}>
-            Подобрать разбор
+          <Link href={diaryRecommendationHref} className="soft-button soft-button-primary" style={{ fontSize: 13 }} data-testid="diary-recommendation-cta">
+            {diaryRecommendation.ctaLabel}
           </Link>
           <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
             Подобрать специалиста
-          </Link>
-          <Link href={`${appUrl("/wallet")}#credits-products`} className="soft-chip" style={{ fontSize: 12 }}>
-            Подробный разбор →
           </Link>
         </div>
       </div>
