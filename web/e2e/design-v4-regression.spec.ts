@@ -7,7 +7,7 @@ const publicRoutes = [
   "/products/deep-report",
   "/products/chat-analysis",
   "/products/compatibility",
-  "/products/seven-days",
+  "/products/surname-story",
   "/pricing",
   "/library",
   "/how-it-works",
