@@ -16,7 +16,6 @@ describe("Z8 product-local dialogue intake", () => {
       "src/components/products/deep-report-actions.tsx",
       "src/components/products/perspectives-actions.tsx",
       "src/components/products/compatibility-actions.tsx",
-      "src/components/products/seven-days-actions.tsx",
     ].map(source).join("\n");
 
     expect(checkin).not.toContain("nextProduct");
@@ -31,7 +30,6 @@ describe("Z8 product-local dialogue intake", () => {
     const deepReport = source("src/components/products/deep-report-actions.tsx");
     const perspectives = source("src/components/products/perspectives-actions.tsx");
     const compatibility = source("src/components/products/compatibility-actions.tsx");
-    const sevenDays = source("src/components/products/seven-days-actions.tsx");
 
     expect(intake).toContain('testId = "product-intake"');
     expect(intake).toContain("intakeProductKey");
@@ -47,9 +45,6 @@ describe("Z8 product-local dialogue intake", () => {
     expect(perspectives).toContain("<ProductIntake");
     expect(perspectives).toContain('productKey="perspectives"');
     expect(perspectives).toContain('mode="full"');
-    expect(sevenDays).toContain("<ProductIntake");
-    expect(sevenDays).toContain('productKey="seven-days"');
-    expect(sevenDays).toContain('mode="full"');
     expect(compatibility).toContain('mode="light"');
     expect(compatibility).toContain('productKey={productKey}');
   });

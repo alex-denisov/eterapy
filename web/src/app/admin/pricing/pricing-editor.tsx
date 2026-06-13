@@ -45,7 +45,6 @@ const PRODUCT_PRICE_KEYS: PriceKey[] = [
   { key: "product.perspectives.price", label: "Полная картина", unit: "₽", recommended: 299 },
   { key: "product.deep-report.price", label: "Подробный разбор", unit: "₽", recommended: 690 },
   { key: "product.chat-analysis.price", label: "Анализ переписки", unit: "₽", recommended: 790 },
-  { key: "product.seven-days.price", label: "7 дней", unit: "₽", recommended: 790 },
   { key: "product.circle.price", label: "Круг", unit: "₽", recommended: 790 },
   { key: "product.pair.price", label: "Разобраться вдвоём", unit: "₽", recommended: 790 },
   { key: "product.compatibility.price", label: "Совместимость", unit: "₽", recommended: 790 },

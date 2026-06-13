@@ -40,8 +40,8 @@ export interface SubscriptionRecommendation {
 const TOPICS: DialogueTopic[] = ["relationships", "family", "career", "money", "anxiety", "self", "other"];
 
 /** Topic → the single most relevant next product. */
-// B373 (M26): seven-days/my-map/clarity-practice выпилены как услуги — рекомендации
-// переведены на живые продукты, чтобы воронка не вела на 404.
+// B373 (M26): выпиленные услуги убраны из рекомендаций — воронка ведёт только на
+// живые продукты, чтобы не упереться в 404.
 const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
   relationships: "compatibility",
   family: "pair",

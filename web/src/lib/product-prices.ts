@@ -6,9 +6,9 @@
 // below holds it flat at ~272–299 ₽/балл (target band 250–300) so no product is a
 // secret балл-bargain. Ladder: 1 балл = 299 ₽ · 2 = 590 ₽ · 3 = 890 ₽ · 4 = 1090 ₽
 // (the 4-балл bundle is a ₽ discount vs the sum of its parts, so it dips to ~272).
-// seven-days/my-map are deprecated (practice is free, карта → Дневник) and removed
-// from the catalog in B373 — their legacy values are excluded from the ₽/балл
-// invariant. Pack/subscription acquisition pricing is a separate, intentional
+// «Ежедневная практика»/«Маршрут 7 дней»/«Расширенная карта» retired in B373
+// (practice is free, карта → Дневник) — fully removed from prices, billing and
+// catalog. Pack/subscription acquisition pricing is a separate, intentional
 // membership discount and is NOT governed by this per-product ladder.
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
@@ -22,8 +22,6 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   "compatibility": 89000,
   "circle": 89000,
   "pair": 89000,
-  "seven-days": 99000,
-  "my-map": 99000,
   "tarot": 59000,
   "natal-chart": 59000,
   "synastry": 89000,
@@ -38,8 +36,8 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
   // платный «родовой разбор». 2 балла = 590 ₽ (295 ₽/балл), уровень натальной карты.
   "surname-story": 59000,
   // B386 (M26): платный чат-сеанс 45 мин. Цена утверждена владельцем: 790 ₽ / 4 балла
-  // (197.5 ₽/балл — НАМЕРЕННО вне ладдера услуг, как seven-days/my-map: это «время
-  // в разговоре», другой рычаг, не разовый разбор). НЕ в V5_LADDER_ACTIVE_PRODUCTS.
+  // (197.5 ₽/балл — НАМЕРЕННО вне ладдера услуг: это «время в разговоре», другой
+  // рычаг, не разовый разбор). НЕ в V5_LADDER_ACTIVE_PRODUCTS.
   "chat-session": 79000,
 };
 
@@ -51,8 +49,6 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
   "compatibility": 3,
   "circle": 3,
   "pair": 3,
-  "seven-days": 8,
-  "my-map": 6,
   "tarot": 2,
   "natal-chart": 2,
   "synastry": 3,
@@ -66,7 +62,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
 };
 
 // Active (non-deprecated) priced products whose ₽/балл must stay in the 250–300
-// band. seven-days/my-map are intentionally excluded (deprecated, removed in B373).
+// band. (Retired services were fully removed in B373.)
 export const V5_LADDER_ACTIVE_PRODUCTS = [
   "perspectives", "deep-report", "full-question", "chat-analysis",
   "compatibility", "circle", "pair", "tarot", "natal-chart", "synastry", "numerology",

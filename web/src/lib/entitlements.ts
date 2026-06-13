@@ -40,10 +40,10 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     name: "Plus",
     amountKopecks: 49000,
     trialDays: 7,
-    // X18: «my-map» (990 ₽) bundled into a 490 ₽ tier meant one included service
-    // cost more than the subscription — the founder's exact unit-economics
+    // X18: «Расширенная карта» (990 ₽) bundled into a 490 ₽ tier meant one included
+    // service cost more than the subscription — the founder's exact unit-economics
     // complaint. Plus now bundles only «perspectives» (299 ₽ < 490 ₽) plus the
-    // monthly credits; «my-map» stays a Premium / credit purchase.
+    // monthly credits. (The retired card is gone entirely as of B373.)
     includedProducts: ["perspectives"],
     creditsPerPeriod: 12,
   },
@@ -63,21 +63,22 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     name: "Legacy Start",
     amountKopecks: 149000,
     trialDays: 0,
-    includedProducts: ["my-map"],
+    // B373: legacy «Расширенная карта» retired — no bundled product remains.
+    includedProducts: [],
     creditsPerPeriod: 0,
   },
   deep: {
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "seven-days", "my-map", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   practitioner_pro: {
@@ -316,8 +317,8 @@ export async function userHasActiveEntitlement(userId: string, productKey: strin
   if (direct) return true;
 
   // Z2 (credit-centric): a subscription grants access only to its explicit
-  // includedProducts anchors; everything else (circle, pair, esoteric, seven-days,
-  // my-map, …) is paid from the credit wallet — so credits always have a use.
+  // includedProducts anchors; everything else (circle, pair, esoteric, …) is paid
+  // from the credit wallet — so credits always have a use.
   const activePlans = await getUserActivePlans(userId, now);
   return activePlans.some((plan) => plan.includedProducts.includes(productKey as V5ProductSlug));
 }

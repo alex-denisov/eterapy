@@ -6,15 +6,17 @@ import { stripMarkdown } from "@/lib/markdown";
 import { tryParseChatAnalysis } from "@/lib/chat-analysis";
 import { tryParsePerspectives } from "@/lib/perspectives";
 
-export type MyMapItemKind = "dialogue" | "product" | "route";
+// B373 (M26): «Моя карта» → Дневник. Этот слой собирает личную историю
+// пользователя (диалоги, сохранённые результаты, маршруты) для страницы Дневника.
+export type DiaryItemKind = "dialogue" | "product" | "route";
 
-export type MyMapItem = {
-  kind: MyMapItemKind;
+export type DiaryItem = {
+  kind: DiaryItemKind;
   id: string;
   title: string;
   eyebrow: string;
   description: string;
-  // T17: full Markdown body (untruncated) so map surfaces can render formatted
+  // T17: full Markdown body (untruncated) so diary surfaces can render formatted
   // prose instead of the cleaned one-line `description` preview.
   bodyMarkdown: string;
   href: string;
@@ -24,7 +26,7 @@ export type MyMapItem = {
   shareTopic: string;
   topic?: string;
   topicLabel?: string;
-  // W13: whether this item is hidden from the map (surfaced only when the
+  // W13: whether this item is hidden from the diary (surfaced only when the
   // viewer asked to see hidden items, so they can un-hide it).
   hidden: boolean;
   // B363: library publish-consent state (dialogues only; null elsewhere).
@@ -37,7 +39,6 @@ const PRODUCT_LABELS: Record<string, string> = {
   perspectives: "Полная картина",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
-  "seven-days": "Маршрут 7 дней",
   synastry: "Совместимость по звёздам",
   // B375 (M26): бесплатный итог недели ежедневной практики.
   "weekly-summary": "Итог недели",
@@ -48,14 +49,14 @@ function asJsonObject(value: Prisma.JsonValue | null | undefined): Prisma.JsonOb
   return value as Prisma.JsonObject;
 }
 
-export function mergeMapMetadata(value: Prisma.JsonValue | null | undefined, patch: Prisma.JsonObject): Prisma.JsonObject {
+export function mergeDiaryMetadata(value: Prisma.JsonValue | null | undefined, patch: Prisma.JsonObject): Prisma.JsonObject {
   return {
     ...asJsonObject(value),
     ...patch,
   };
 }
 
-export function isHiddenFromMap(value: Prisma.JsonValue | null | undefined) {
+export function isHiddenFromDiary(value: Prisma.JsonValue | null | undefined) {
   return asJsonObject(value).hiddenFromMap === true;
 }
 
@@ -74,7 +75,7 @@ function looksLikeJson(text: string): boolean {
 /**
  * T10: some products persist a STRUCTURED JSON result (chat-analysis tones,
  * perspectives angles) rather than markdown prose. Dumping that JSON into the
- * map tile showed users raw `"label":"Уклончивый","pct":50}` noise. This turns
+ * diary tile showed users raw `"label":"Уклончивый","pct":50}` noise. This turns
  * each known structured result into clean, human-readable prose, and guards
  * against ever surfacing raw JSON for any other product.
  */
@@ -123,10 +124,10 @@ function readableProductBody(
   };
 }
 
-export async function listMyMapItems(
+export async function listDiaryItems(
   userId: string,
   options: { includeHidden?: boolean } = {},
-): Promise<MyMapItem[]> {
+): Promise<DiaryItem[]> {
   const includeHidden = options.includeHidden === true;
   const [dialogues, products, routes] = await Promise.all([
     db.dialogue.findMany({
@@ -187,31 +188,31 @@ export async function listMyMapItems(
     }),
   ]);
 
-  const items: MyMapItem[] = [
+  const items: DiaryItem[] = [
     ...dialogues
-      .filter((dialogue) => includeHidden || !isHiddenFromMap(dialogue.metadata))
+      .filter((dialogue) => includeHidden || !isHiddenFromDiary(dialogue.metadata))
       .map((dialogue) => ({
         kind: "dialogue" as const,
         id: dialogue.id,
         title: dialogue.title,
         eyebrow: "Вопрос",
-        description: truncate(dialogue.messages[0]?.content, "Диалог сохранен в вашей карте."),
+        description: truncate(dialogue.messages[0]?.content, "Диалог сохранён в вашем дневнике."),
         bodyMarkdown: dialogue.messages[0]?.content ?? "",
         href: mainUrl(`/checkin?dialogueId=${dialogue.id}`),
         updatedAt: dialogue.updatedAt,
         status: dialogue.status,
         exportText: `Вопрос: ${dialogue.title}\nСтатус: ${dialogue.status}\n${dialogue.messages[0]?.content ?? ""}`,
         shareTopic: dialogue.topic ?? "dialogue",
-        // Z9: the real map uses Dialogue.topic as a first-class user-facing
-        // theme source instead of the retired hard-coded /cabinet/map mock.
+        // Z9: the diary uses Dialogue.topic as a first-class user-facing theme
+        // source instead of the retired hard-coded /cabinet/map mock.
         topic: dialogue.topic ?? "other",
         topicLabel: dialogueTopicLabelRu(dialogue.topic),
-        hidden: isHiddenFromMap(dialogue.metadata),
+        hidden: isHiddenFromDiary(dialogue.metadata),
         libraryConsentAt: dialogue.libraryConsentAt,
         libraryStatus: dialogue.libraryStatus,
       })),
     ...products
-      .filter((product) => includeHidden || !isHiddenFromMap(product.metadata))
+      .filter((product) => includeHidden || !isHiddenFromDiary(product.metadata))
       .map((product) => {
         const { description, bodyMarkdown } = readableProductBody(
           product.productKey,
@@ -231,11 +232,11 @@ export async function listMyMapItems(
           // Export keeps the readable prose too (never the raw JSON blob).
           exportText: `${PRODUCT_LABELS[product.productKey] ?? "Результат"}: ${product.title}\n${bodyMarkdown}`,
           shareTopic: product.productKey,
-          hidden: isHiddenFromMap(product.metadata),
+          hidden: isHiddenFromDiary(product.metadata),
         };
       }),
     ...routes
-      .filter((route) => includeHidden || !isHiddenFromMap(route.metadata))
+      .filter((route) => includeHidden || !isHiddenFromDiary(route.metadata))
       .map((route) => ({
         kind: "route" as const,
         id: route.id,
@@ -243,12 +244,12 @@ export async function listMyMapItems(
         eyebrow: "Маршрут",
         description: `День ${route.currentDay}. Статус: ${route.status === "PAUSED" ? "пауза" : route.status.toLowerCase()}.`,
         bodyMarkdown: "",
-        href: mainUrl("/products/seven-days"),
+        href: appUrl("/cabinet/practice"),
         updatedAt: route.updatedAt,
         status: route.status,
         exportText: `Маршрут: ${route.title}\nДень: ${route.currentDay}\nСтатус: ${route.status}`,
-        shareTopic: "seven-days",
-        hidden: isHiddenFromMap(route.metadata),
+        shareTopic: "route",
+        hidden: isHiddenFromDiary(route.metadata),
       })),
   ];
 

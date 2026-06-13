@@ -28,7 +28,7 @@ describe("M21 clarity credits", () => {
     expect(getProductCreditCost("deep-report")).toBe(3);
     expect(getProductCreditCost("chat-analysis")).toBe(2);
     expect(getProductCreditCost("compatibility")).toBe(3);
-    expect(getProductCreditCost("seven-days")).toBe(8);
+    expect(getProductCreditCost("tarot")).toBe(2);
   });
 
   it("gates credit spending through an authenticated entitlement API", () => {

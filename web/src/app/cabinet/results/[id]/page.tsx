@@ -8,7 +8,6 @@ import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { loginUrl, appUrl } from "@/lib/subdomain";
 
 const PRODUCT_LABELS: Record<string, string> = {
-  "seven-days": "Маршрут 7 дней",
   "deep-report": "Подробный разбор",
   "perspectives": "Полная картина",
   "compatibility": "Совместимость",
@@ -16,7 +15,6 @@ const PRODUCT_LABELS: Record<string, string> = {
   "natal-chart": "Натальная карта",
   "synastry": "Совместимость по звёздам",
   "numerology": "Числовой портрет",
-  "my-map": "Расширенная карта",
 };
 
 export const dynamic = "force-dynamic";

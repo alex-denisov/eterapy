@@ -9,14 +9,14 @@ describe("Y10 Z9 — My Map routes to real action history", () => {
   });
 
   it("surfaces Dialogue.topic as a real map topic instead of hiding it in mock chips", () => {
-    const helper = source("src/lib/my-map.ts");
+    const helper = source("src/lib/diary.ts");
     const page = source("src/app/cabinet/diary/page.tsx");
 
     expect(helper).toContain("topicLabel?: string");
     expect(helper).toContain("topic: dialogue.topic ?? \"other\"");
     expect(helper).toContain("topicLabel: dialogueTopicLabelRu(dialogue.topic)");
     expect(page).toContain("dialogueTopicCounts");
-    expect(page).toContain('data-testid="my-map-dialogue-topics"');
+    expect(page).toContain('data-testid="diary-dialogue-topics"');
     expect(page).toContain("data-topic-key={topic.value}");
   });
 });

@@ -6,12 +6,6 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { userHasActiveEntitlement } from "@/lib/entitlements";
-import {
-  MIN_EXTENDED_MAP_ITEMS,
-  buildExtendedMapTeaser,
-  generateExtendedMapResult,
-  getExtendedMapHistorySnapshot,
-} from "@/lib/extended-map";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import {
   SYMBOLIC_PRODUCT_DEFINITIONS,
@@ -26,7 +20,6 @@ const PRODUCT_KEYS = [
   { productKey: "tarot" },
   { productKey: "natal-chart" },
   { productKey: "numerology" },
-  { productKey: "my-map" },
   { productKey: "family-scenarios" },
   { productKey: "human-design" },
 ] as const;
@@ -34,7 +27,7 @@ const PRODUCT_KEYS = [
 // B387/B389: family-scenarios и human-design тоже идут через этот эндпоинт.
 // Раньше их не было в enum — генерация платного разбора падала на валидации.
 const postSchema = z.object({
-  productKey: z.enum(["tarot", "natal-chart", "numerology", "my-map", "family-scenarios", "human-design"]),
+  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design"]),
   userInput: z.string().max(4000).optional(),
 });
 
@@ -74,14 +67,13 @@ export async function GET(request: NextRequest) {
   const productKey = parseProductKey(request.nextUrl.searchParams.get("productKey"));
   if (!productKey) return errorWithRequestContext("INVALID_PRODUCT", "Неизвестный продукт", 400, context);
 
-  const [hasEntitlement, results, mapHistory] = await Promise.all([
+  const [hasEntitlement, results] = await Promise.all([
     userHasActiveEntitlement(userId, productKey),
     db.productResult.findMany({
       where: { userId, productKey, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 1,
     }),
-    productKey === "my-map" ? getExtendedMapHistorySnapshot(userId) : Promise.resolve(null),
   ]);
 
   return jsonWithRequestContext(
@@ -90,12 +82,6 @@ export async function GET(request: NextRequest) {
       definitions: SYMBOLIC_PRODUCT_DEFINITIONS,
       hasEntitlement,
       results: results.map(serializeResult),
-      mapItemCount: mapHistory?.itemCount,
-      minMapItems: mapHistory?.minItems,
-      canGenerateMap: mapHistory?.canGenerate,
-      mapEmptyState: mapHistory && !mapHistory.canGenerate
-        ? `Нужно ${MIN_EXTENDED_MAP_ITEMS} сохранённых элемента, сейчас ${mapHistory.itemCount}.`
-        : undefined,
     },
     { status: 200 },
     context,
@@ -123,113 +109,6 @@ export async function POST(request: NextRequest) {
   const { productKey } = parsed.data;
   const definition = getSymbolicProductDefinition(productKey);
   const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
-
-  if (productKey === "my-map") {
-    const generated = await generateExtendedMapResult({
-      userId,
-      requestId: context.requestId,
-    });
-
-    if (generated.status === "insufficient_history") {
-      return jsonWithRequestContext(
-        {
-          hasEntitlement,
-          generated: false,
-          insufficientHistory: true,
-          itemCount: generated.itemCount,
-          minItems: generated.minItems,
-          missingCount: generated.missingCount,
-          emptyState: generated.emptyState,
-          result: null,
-        },
-        { status: 200 },
-        context,
-      );
-    }
-
-    const previewText = buildExtendedMapTeaser({
-      items: generated.items,
-      generatedText: generated.text,
-    });
-    const historyMetadata = {
-      source: "history",
-      sourceItemCount: generated.itemCount,
-      sourceItemIds: generated.items.map((item) => item.id),
-    } as Prisma.InputJsonObject;
-
-    if (!hasEntitlement) {
-      const existingPreview = await db.productResult.findFirst({
-        where: { userId, productKey, status: "PREVIEW", deletedAt: null },
-        orderBy: { createdAt: "desc" },
-      });
-
-      const result = existingPreview
-        ? await db.productResult.update({
-          where: { id: existingPreview.id },
-          data: {
-            title: definition?.resultTitle ?? productKey,
-            previewText,
-            metadata: {
-              ...historyMetadata,
-              previewGenerationMetadata: generated.metadata,
-            } as Prisma.InputJsonObject,
-          },
-        })
-        : await db.productResult.create({
-          data: {
-            userId,
-            productKey,
-            title: definition?.resultTitle ?? productKey,
-            status: "PREVIEW",
-            previewText,
-            metadata: {
-              ...historyMetadata,
-              previewGenerationMetadata: generated.metadata,
-            } as Prisma.InputJsonObject,
-          },
-        });
-
-      return jsonWithRequestContext(
-        {
-          hasEntitlement,
-          result: serializeResult(result),
-          generated: false,
-          paywalled: true,
-          itemCount: generated.itemCount,
-          minItems: MIN_EXTENDED_MAP_ITEMS,
-        },
-        { status: 200 },
-        context,
-      );
-    }
-
-    const result = await db.productResult.create({
-      data: {
-        userId,
-        productKey,
-        title: definition?.resultTitle ?? productKey,
-        status: "READY",
-        previewText,
-        resultText: generated.text,
-        metadata: {
-          ...historyMetadata,
-          generationMetadata: generated.metadata,
-        } as Prisma.InputJsonObject,
-      },
-    });
-
-    return jsonWithRequestContext(
-      {
-        hasEntitlement,
-        result: serializeResult(result),
-        generated: true,
-        itemCount: generated.itemCount,
-        minItems: MIN_EXTENDED_MAP_ITEMS,
-      },
-      { status: 200 },
-      context,
-    );
-  }
 
   const userInput = parsed.data.userInput?.trim() || definition?.promptLabel || productKey;
   const generated = await generateSymbolicProductResult({

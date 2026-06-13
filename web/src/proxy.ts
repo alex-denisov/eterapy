@@ -104,18 +104,15 @@ const APP_PUBLIC_MAIN_PATHS = [
   // The public directory is /practitioners (plural); the legacy singular
   // /practitioner → /practitioners redirect still fires on the main domain.
   "/practitioners",
-  "/products/clarity-practice",
   "/products/pair",
   "/pricing",
   "/products/chat-analysis",
   "/products/compatibility",
   "/products/deep-report",
-  "/products/my-map",
   "/products/natal-chart",
   "/products/synastry",
   "/products/numerology",
   "/products/perspectives",
-  "/products/seven-days",
   "/products/tarot",
   "/register",
   "/share",
@@ -142,17 +139,14 @@ export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
 // в middleware, переписывая их на заведомо несуществующий роут.
 const VALID_PRODUCT_SLUGS = new Set<string>(v5Products.map((product) => product.slug));
 
-// B373 (M26): мёртвые услуги выпилены из продажи — их страницы отдают честный 404
-// (без редиректа), слаги убраны из v5Products/sitemap/каталога/рекомендаций. Цены/
-// промпты пока остаются ради рендера исторических результатов; глубокая чистка кода
-// биллинга/AI-роутинга — отдельной сессией. «Круг» закрыт ещё в B385. RETIRED — явная
-// защита: даже если слаг вернётся в v5Products ради истории, публичная страница 404.
-const RETIRED_PRODUCT_SLUGS = new Set<string>(["seven-days", "my-map", "clarity-practice", "circle"]);
-
+// B373 (M26): любой слаг, которого нет в v5Products, отдаёт честный 404 (без
+// редиректа). Выпиленные услуги и «Круг» (закрыт в B385) убраны из v5Products/
+// sitemap/каталога/рекомендаций, поэтому их публичные страницы 404 автоматически —
+// отдельный список RETIRED больше не нужен.
 function unknownProductSlug(pathname: string): boolean {
   const match = pathname.match(/^\/products\/([^/]+)\/?$/);
   if (!match) return false;
-  return RETIRED_PRODUCT_SLUGS.has(match[1]) || !VALID_PRODUCT_SLUGS.has(match[1]);
+  return !VALID_PRODUCT_SLUGS.has(match[1]);
 }
 
 // M26/B369: выпиленные кабинетные роуты (без редиректов). Покрываем и

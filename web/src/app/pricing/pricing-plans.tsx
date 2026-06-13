@@ -31,9 +31,9 @@ const plans = [
     tagline: "Для регулярной практики",
     monthPrice: 490,
     // X18/Z2: honest perks — Plus bundles only `perspectives`
-    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. «my-map» is NOT
-    // bundled on any tier — it is a credit/card purchase everywhere. Reminders
-    // /Telegram are available to every user, not a Plus exclusive.
+    // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. The retired
+    // «Расширенная карта» is gone; everything else is a credit/card purchase.
+    // Reminders/Telegram are available to every user, not a Plus exclusive.
     perks: [
       "+12 баллов каждый месяц",
       "Полная картина включена — без баллов, без лимита",
@@ -54,8 +54,8 @@ const plans = [
     monthPrice: 1290,
     // Z2 credit-centric (docs/v5-release/MONETIZATION-STRATEGY-Y10 §3): Premium
     // includes only two anchors (perspectives + deep-report) + 35 monthly credits;
-    // the rest of the catalog (chat-analysis, my-map, 7 дней, «Вы двое», круг,
-    // совместимость по звёздам, …) is paid from the wallet — NOT bundled free. Perks must not
+    // the rest of the catalog (chat-analysis, «Вы двое», круг, совместимость по
+    // звёздам, …) is paid from the wallet — NOT bundled free. Perks must not
     // claim otherwise.
     perks: [
       "Всё из Plus",

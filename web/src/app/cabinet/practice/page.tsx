@@ -1,12 +1,10 @@
-import Link from "next/link";
-import { ArrowRight, Sparkles, Check, LockKeyhole, Compass, Leaf } from "lucide-react";
+import { Sparkles, Check, LockKeyhole, Leaf } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { getOrCreateDailyCard, dailyCardDate, dailyCardBeats } from "@/lib/daily-card";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
-import { mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 
 // Monday-based weekday labels for the «эта неделя» calendar.
@@ -71,17 +69,9 @@ export default async function ClarityPracticePage() {
   guardClientCabinet(session.user.role); // Y6: client-only surface
 
   const { card } = await getOrCreateDailyCard(userId);
-  const [strip, practiceStreak, activeRoute] = await Promise.all([
+  const [strip, practiceStreak] = await Promise.all([
     loadWeekStrip(userId),
     getPracticeStreakSnapshot(userId),
-    // B329: surface the user's active 7-day route on the practice page so
-    // the daily ritual and the structured route live on one screen
-    // (per docs/Design/v4.2/screens/mission_detail.jsx layout).
-    db.clarityRoute.findFirst({
-      where: { userId, status: { in: ["ACTIVE", "PAUSED"] } },
-      orderBy: { updatedAt: "desc" },
-      select: { id: true, title: true, status: true, currentDay: true },
-    }),
   ]);
   const completed = Boolean(card.completedAt);
   const beats = dailyCardBeats(card.metadata);
@@ -209,30 +199,6 @@ export default async function ClarityPracticePage() {
         </div>
       </section>
 
-      {/* B329: extra practice slot — docs §4 "Дополнительная практика 99 ₽ или 1 балл". */}
-      <section
-        className="mt-4 soft-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between"
-        data-testid="practice-extra-slot"
-      >
-        <div>
-          <p className="soft-eyebrow" style={{ color: "var(--soft-terracotta-dark)" }}>хочется ещё одну сегодня?</p>
-          <h3 className="soft-h3 mt-2">Дополнительная практика — 99 ₽ или 1 балл</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            {completed
-              ? "Вы уже прошли сегодняшнюю — можно открыть ещё одну: новый вопрос, новый взгляд."
-              : "Сначала завершите сегодняшнюю — а потом можно купить ещё одну на этот же день."}
-          </p>
-        </div>
-        <Link
-          href={mainUrl("/products/clarity-practice")}
-          className="soft-button soft-button-primary shrink-0"
-          data-testid="practice-extra-cta"
-        >
-          {completed ? "Купить ещё одну" : "Открыть продукт"}
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-      </section>
-
       {/* B329: 3-up value cards moved BELOW interactive blocks. */}
       <section className="mt-4 grid gap-4 md:grid-cols-3" data-testid="practice-value">
         {[
@@ -259,60 +225,6 @@ export default async function ClarityPracticePage() {
           </article>
         ))}
       </section>
-
-      {/* B329: 7-day route — show current progress if active, else upsell. */}
-      {activeRoute ? (
-        <section
-          className="mt-4 soft-card p-6 md:p-7"
-          data-testid="practice-active-route"
-          style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="soft-eyebrow" style={{ color: "var(--soft-terracotta-dark)" }}>ваш маршрут</p>
-              <h3 className="soft-h3 mt-2">{activeRoute.title}</h3>
-              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
-                День {activeRoute.currentDay} из 7 ·{" "}
-                {activeRoute.status === "PAUSED" ? "на паузе" : "активен"}
-              </p>
-            </div>
-            <Compass className="size-7 text-[var(--soft-bordeaux)]" aria-hidden="true" />
-          </div>
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/50">
-            <div
-              className="h-full rounded-full bg-[var(--soft-terracotta-dark)] transition-all"
-              style={{ width: `${Math.round(((activeRoute.currentDay - 1) / 7) * 100)}%` }}
-            />
-          </div>
-          <Link
-            href={mainUrl("/products/seven-days")}
-            className="soft-button soft-button-primary mt-5 inline-flex"
-            data-testid="practice-route-continue"
-          >
-            Продолжить день {activeRoute.currentDay}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </section>
-      ) : (
-        <section
-          className="mt-4 soft-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between"
-          data-testid="practice-seven-days-link"
-        >
-          <div>
-            <p className="soft-eyebrow">если нужен маршрут с началом и концом</p>
-            <h3 className="soft-h3 mt-2">Маршрут 7 дней — отдельный продукт</h3>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Один большой вопрос, неделя сфокусированной работы и итоговая карта. Не подменяет
-              ежедневную практику — это разовый интенсив.
-            </p>
-          </div>
-          <Link href={mainUrl("/products/seven-days")} className="soft-button soft-button-ghost shrink-0">
-            <Leaf className="size-4" aria-hidden="true" />
-            Открыть маршрут
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </section>
-      )}
 
       {/* B329: privacy/credit disclaimer — v4.2 mission_detail.jsx:108-115. */}
       <section className="mt-4 soft-card-flat flex items-start gap-3 p-4">

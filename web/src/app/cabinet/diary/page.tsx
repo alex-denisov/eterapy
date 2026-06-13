@@ -1,11 +1,11 @@
 import type { Prisma } from "@prisma/client";
-import { BookOpen, Download, Eye, EyeOff, Globe, Lock, Share2, Trash2 } from "lucide-react";
+import { BookOpen, Eye, EyeOff, Globe, Lock, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { listMyMapItems, mergeMapMetadata, type MyMapItemKind } from "@/lib/my-map";
+import { listDiaryItems, mergeDiaryMetadata, type DiaryItemKind } from "@/lib/diary";
 import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
@@ -14,7 +14,7 @@ import { DiaryPinGate } from "@/components/cabinet/diary-pin-gate";
 import { canGrantConsent, canWithdrawConsent, consentBadge, grantConsentPatch, withdrawConsentPatch } from "@/lib/library-consent";
 
 function shareHref(title: string, topic: string) {
-  return mainUrl(`/share?from=my-map&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
+  return mainUrl(`/share?from=diary&topic=${encodeURIComponent(topic)}&title=${encodeURIComponent(title)}`);
 }
 
 // T17: map every item status to a Russian label — no raw "answered"/"ready"
@@ -30,7 +30,7 @@ const MAP_STATUS_LABELS_RU: Record<string, string> = {
   DELETED: "Удалён",
 };
 
-function mapItemStatusRu(kind: MyMapItemKind, status: string): string {
+function mapItemStatusRu(kind: DiaryItemKind, status: string): string {
   if (kind === "dialogue") return dialogueStatusLabelRu(status);
   return MAP_STATUS_LABELS_RU[status] ?? status.toLowerCase();
 }
@@ -39,21 +39,21 @@ async function hideMapItem(formData: FormData) {
   "use server";
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
-  const kind = String(formData.get("kind") ?? "") as MyMapItemKind;
+  const kind = String(formData.get("kind") ?? "") as DiaryItemKind;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   if (kind === "dialogue") {
     const item = await db.dialogue.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
-    if (item) await db.dialogue.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
+    if (item) await db.dialogue.update({ where: { id: item.id }, data: { metadata: mergeDiaryMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
   }
   if (kind === "product") {
     const item = await db.productResult.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
-    if (item) await db.productResult.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
+    if (item) await db.productResult.update({ where: { id: item.id }, data: { metadata: mergeDiaryMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
   }
   if (kind === "route") {
     const item = await db.clarityRoute.findFirst({ where: { id, userId: session.user.id, status: { not: "CANCELLED" } }, select: { id: true, metadata: true } });
-    if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
+    if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeDiaryMetadata(item.metadata, { hiddenFromMap: true, hiddenFromMapAt: new Date().toISOString() }) } });
   }
 
   revalidatePath("/cabinet/diary");
@@ -65,21 +65,21 @@ async function unhideMapItem(formData: FormData) {
   "use server";
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
-  const kind = String(formData.get("kind") ?? "") as MyMapItemKind;
+  const kind = String(formData.get("kind") ?? "") as DiaryItemKind;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
   if (kind === "dialogue") {
     const item = await db.dialogue.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
-    if (item) await db.dialogue.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
+    if (item) await db.dialogue.update({ where: { id: item.id }, data: { metadata: mergeDiaryMetadata(item.metadata, { hiddenFromMap: false }) } });
   }
   if (kind === "product") {
     const item = await db.productResult.findFirst({ where: { id, userId: session.user.id, deletedAt: null }, select: { id: true, metadata: true } });
-    if (item) await db.productResult.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
+    if (item) await db.productResult.update({ where: { id: item.id }, data: { metadata: mergeDiaryMetadata(item.metadata, { hiddenFromMap: false }) } });
   }
   if (kind === "route") {
     const item = await db.clarityRoute.findFirst({ where: { id, userId: session.user.id, status: { not: "CANCELLED" } }, select: { id: true, metadata: true } });
-    if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeMapMetadata(item.metadata, { hiddenFromMap: false }) } });
+    if (item) await db.clarityRoute.update({ where: { id: item.id }, data: { metadata: mergeDiaryMetadata(item.metadata, { hiddenFromMap: false }) } });
   }
 
   revalidatePath("/cabinet/diary");
@@ -90,7 +90,7 @@ async function deleteMapItem(formData: FormData) {
   "use server";
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
-  const kind = String(formData.get("kind") ?? "") as MyMapItemKind;
+  const kind = String(formData.get("kind") ?? "") as DiaryItemKind;
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
@@ -178,7 +178,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
   const wantHidden = showHidden === "1";
   // W13: fetch everything (incl. hidden) so we know the hidden count, then show
   // hidden items only when the user asked to ("показать скрытые").
-  const allItems = await listMyMapItems(session.user.id, { includeHidden: true });
+  const allItems = await listDiaryItems(session.user.id, { includeHidden: true });
   const hiddenCount = allItems.filter((item) => item.hidden).length;
   const items = wantHidden ? allItems : allItems.filter((item) => !item.hidden);
   const productCount = items.filter((item) => item.kind === "product").length;
@@ -215,17 +215,6 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
         <div className="flex items-center gap-2">
           {/* X15: «Приватно» (lock) — no implication of a non-existent public mode */}
           <span className="soft-badge inline-flex items-center gap-1"><Lock className="size-3" aria-hidden="true" /> Приватно</span>
-          {/* X16: export demoted to a subtle icon-only control — it's a rare action,
-              no longer a prominent ghost button competing in the header. */}
-          <a href={appUrl("/api/cabinet/map/export")}
-            className="inline-flex size-9 items-center justify-center rounded-md text-[var(--soft-ink-faint)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-ink)]"
-            title="Экспортировать карту"
-            aria-label="Экспортировать карту"
-            data-analytics-event="my_map_export_clicked"
-            data-analytics-surface="my_map"
-            data-analytics-target="export">
-            <Download className="size-4" />
-          </a>
           <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary"
             style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
             Новый разбор
@@ -247,7 +236,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
       ) : (
         <>
           {dialogueTopics.length > 0 && (
-            <section className="soft-card mb-6 p-5 md:p-6" data-testid="my-map-dialogue-topics">
+            <section className="soft-card mb-6 p-5 md:p-6" data-testid="diary-dialogue-topics">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="soft-eyebrow">темы из ваших диалогов</div>
@@ -417,7 +406,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
               spans the whole card width with break-words so every разбор
               renders cleanly, with a description fallback so a card is never
               left with an empty body. */}
-          <div className="grid gap-3" data-testid="my-map-items">
+          <div className="grid gap-3" data-testid="diary-items">
             {items.map((item) => {
               const previewBody = item.bodyMarkdown?.trim();
               return (

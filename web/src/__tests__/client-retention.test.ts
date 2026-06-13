@@ -78,30 +78,25 @@ describe("M11 client retention surfaces", () => {
     expect(page).not.toContain("/api/ai/history");
   });
 
-  it("implements My Map as a unified save, hide, delete, export, and share surface", () => {
+  it("implements the diary as a unified save, hide, delete, and share surface", () => {
     const page = source("src/app/cabinet/diary/page.tsx");
-    const helper = source("src/lib/my-map.ts");
-    const exportRoute = source("src/app/api/cabinet/map/export/route.ts");
+    const helper = source("src/lib/diary.ts");
 
     expect(page).toContain('data-testid="diary-page"');
-    expect(page).toContain('data-testid="my-map-items"');
-    expect(page).toContain("listMyMapItems");
+    expect(page).toContain('data-testid="diary-items"');
+    expect(page).toContain("listDiaryItems");
     expect(page).toContain("async function hideMapItem");
     expect(page).toContain("async function deleteMapItem");
     expect(page).toContain("async function saveMapItem");
     expect(page).toContain("hiddenFromMap");
-    expect(page).toContain('href={appUrl("/api/cabinet/map/export")}');
-    expect(page).toContain("/share?from=my-map");
+    expect(page).toContain("/share?from=diary");
     expect(page).toContain('status: "DELETED"');
     expect(page).toContain('status: "CANCELLED"');
     expect(helper).toContain("db.dialogue.findMany");
     expect(helper).toContain("db.productResult.findMany");
     expect(helper).toContain("db.clarityRoute.findMany");
-    expect(helper).toContain("isHiddenFromMap");
+    expect(helper).toContain("isHiddenFromDiary");
     expect(helper).toContain("savedAt: { not: null }");
-    expect(exportRoute).toContain("Моя карта ETerapy");
-    expect(exportRoute).toContain("Content-Disposition");
-    expect(exportRoute).toContain("no-store");
   });
 
   it("adds a once-per-day daily card with notification support", () => {
@@ -182,7 +177,6 @@ describe("M11 client retention surfaces", () => {
     expect(analytics).toContain("analyticsCreditCost");
     expect(dashboard).toContain("daily_card_question_clicked");
     expect(dashboard).toContain("daily_card_share_clicked");
-    expect(map).toContain("my_map_export_clicked");
     expect(map).toContain("my_map_share_clicked");
     expect(map).toContain("my_map_hide_clicked");
     expect(map).toContain("my_map_delete_clicked");

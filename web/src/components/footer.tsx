@@ -10,9 +10,8 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
   const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
   // B380: footer condensed from 5 → 4 columns and restructured under the M26
   // catalogue groups (Начать бесплатно · Самостоятельные разборы · Вместе ·
-  // Эзотерика · Поговорить со специалистом). Dead routes removed from
-  // navigation ahead of B373: /products/my-map, /products/circle,
-  // /products/clarity-practice, /products/seven-days, /products/compatibility.
+  // Эзотерика · Поговорить со специалистом). Retired/dead service routes were
+  // removed from navigation in B373 (their pages now 404).
   // The footer is navigation, not a price list (G2) — labels carry no "₽".
   const columns = [
     {

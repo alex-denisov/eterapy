@@ -7,7 +7,6 @@ import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
-import { SevenDaysActions } from "@/components/products/seven-days-actions";
 import { SynastryActions } from "@/components/products/synastry-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
 import { HumanDesignActions } from "@/components/products/human-design-actions";
@@ -83,25 +82,6 @@ function DeepReportSide() {
           {[1, 2, 3, 4, 5, 6, 7].map((item) => <div key={item}>{item}. ▬▬▬▬▬▬▬▬</div>)}
         </div>
         <div className="absolute -bottom-2 -right-2 rotate-[8deg] rounded-full bg-[var(--soft-apricot)] px-3 py-1 text-[0.63rem] font-semibold text-[var(--soft-bordeaux)]">15 стр.</div>
-      </div>
-    </div>
-  );
-}
-
-function ExtendedMapSide() {
-  return (
-    <div className="relative grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#DBD3EA,#F4D9C1)] p-6 sm:p-10" data-testid="product-my-map-preview">
-      <div className="relative w-full max-w-80">
-        <div className="grid grid-cols-4 gap-1.5">
-          {["Отношения", "Семья", "Работа", "Тело", "Деньги", "Подруги", "Мама", "Партнёр"].map((topic, index) => (
-            <div key={topic} className="rounded-lg p-2 text-center text-[0.56rem] text-[var(--soft-bordeaux)]" style={{ background: ["#F4D9C1", "#E8C4B8", "#DBD3EA", "#D6DECC"][index % 4] }}>
-              {topic}
-            </div>
-          ))}
-        </div>
-        <div className="absolute bottom-[-0.5rem] right-0 w-40 rotate-[-3deg] rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 font-heading text-xs italic text-[var(--soft-bordeaux)] shadow-[0_8px_20px_-8px_rgba(60,30,20,.2)] sm:inset-[-0.75rem] sm:w-44 sm:translate-x-[48%] sm:translate-y-[62%]">
-          «3 темы стали тише за год, 1 — окрепла»
-        </div>
       </div>
     </div>
   );
@@ -307,54 +287,8 @@ function CompatibilitySide() {
   );
 }
 
-function SevenDaysSide() {
-  const days = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
-  return (
-    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#F4D9C1,#FFFCF5)] p-10" data-testid="product-seven-days-preview">
-      <div className="grid w-72 max-w-full grid-cols-7 gap-1.5">
-        {days.map((day, index) => (
-          <div
-            key={day}
-            className="grid aspect-square place-items-center rounded-[10px] border text-[0.72rem] font-semibold"
-            style={{
-              borderColor: index < 3 ? "var(--soft-terracotta-dark)" : index === 3 ? "var(--soft-apricot)" : "var(--soft-paper-edge)",
-              background: index < 3 ? "var(--soft-terracotta-dark)" : index === 3 ? "var(--soft-apricot)" : "var(--soft-paper-card)",
-              color: index < 3 ? "#FBF0E1" : index === 3 ? "var(--soft-bordeaux)" : "var(--soft-ink-faint)",
-            }}
-          >
-            {index < 3 ? "✓" : day}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ClarityPracticeSide() {
-  return (
-    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#D6DECC,#F4D9C1)] p-10" data-testid="product-clarity-practice-preview">
-      <div className="relative w-72 max-w-full">
-        <div className="rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[0_14px_28px_-12px_rgba(60,30,20,.22)]">
-          <div className="soft-eyebrow text-[0.6rem]">сегодняшний вопрос</div>
-          <p className="mt-3 font-heading text-lg italic leading-snug text-[var(--soft-bordeaux)]">
-            Какая забота о себе сегодня была бы по-настоящему добра?
-          </p>
-          <div className="mt-4 flex items-center gap-2">
-            <div className="h-1 flex-1 rounded-full bg-[var(--soft-paper-edge)]">
-              <div className="h-1 rounded-full bg-[var(--soft-terracotta-dark)]" style={{ width: "42%" }} />
-            </div>
-            <span className="text-[0.6rem] text-[var(--soft-ink-faint)]">11/30</span>
-          </div>
-        </div>
-        <div className="absolute -bottom-3 right-2 rotate-[6deg] rounded-full bg-[var(--soft-apricot)] px-3 py-1 text-[0.65rem] font-semibold text-[var(--soft-bordeaux)]">+1 балл</div>
-      </div>
-    </div>
-  );
-}
-
 function productSide(product: V5Product) {
   if (product.slug === "deep-report") return <DeepReportSide />;
-  if (product.slug === "my-map") return <ExtendedMapSide />;
   if (product.slug === "tarot") return <TarotSide />;
   if (product.slug === "natal-chart") return <NatalSide />;
   if (product.slug === "synastry") return <SynastrySide />;
@@ -362,8 +296,6 @@ function productSide(product: V5Product) {
   if (product.slug === "perspectives") return <PerspectivesSide />;
   if (product.slug === "chat-analysis") return <ChatAnalysisSide />;
   if (product.slug === "compatibility") return <CompatibilitySide />;
-  if (product.slug === "seven-days") return <SevenDaysSide />;
-  if (product.slug === "clarity-practice") return <ClarityPracticeSide />;
   if (product.slug === "human-design") return <HumanDesignSide />;
   if (product.slug === "surname-story") return <SurnameStorySide />;
   return <DefaultSide />;
@@ -380,7 +312,6 @@ function ProductActionSurface({
   if (product.slug === "perspectives") return <PerspectivesActions dialogueId={search?.dialogueId ?? null} />;
   if (product.slug === "chat-analysis") return <ChatAnalysisActions />;
   if (product.slug === "compatibility") return <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} />;
-  if (product.slug === "seven-days") return <SevenDaysActions dialogueId={search?.dialogueId ?? null} />;
   if (product.slug === "tarot") {
     return <SymbolicProductActions productKey="tarot" title="Расклад Таро" promptLabel="Вопрос для расклада" placeholder="Например: стоит ли мне сейчас менять работу, если внутри много сомнений?" creditCost={2} />;
   }
@@ -390,9 +321,6 @@ function ProductActionSurface({
   if (product.slug === "synastry") return <SynastryActions />;
   if (product.slug === "numerology") {
     return <SymbolicProductActions productKey="numerology" title="Числовой портрет" promptLabel="Имя и дата рождения" placeholder="Анна, 12.04.1992. Хочу понять повторяющийся сценарий в отношениях." creditCost={2} />;
-  }
-  if (product.slug === "my-map") {
-    return <SymbolicProductActions productKey="my-map" title="Расширенная карта" promptLabel="История Моей карты" placeholder="История собирается автоматически из сохранённых вопросов, маршрутов и результатов." creditCost={6} />;
   }
   if (product.slug === "family-scenarios") {
     return <SymbolicProductActions productKey="family-scenarios" title="Семейные сценарии" promptLabel="Что повторяется в вашей семье и роду" placeholder="Например: в семье по женской линии все рано брали ответственность за других и не умели просить помощи. Я ловлю себя на том же." creditCost={4} />;

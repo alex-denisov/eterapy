@@ -5,14 +5,11 @@ import {
 } from "@/lib/product-prices";
 
 export type V5ProductSlug =
-  | "clarity-practice"
   | "perspectives"
   | "deep-report"
   | "chat-analysis"
   | "compatibility"
   | "pair"
-  | "seven-days"
-  | "my-map"
   | "tarot"
   | "natal-chart"
   | "synastry"
@@ -48,11 +45,11 @@ export type V5Product = {
 // V5_PRODUCT_CREDIT_COSTS) by the derive step at the bottom of this file, so the
 // catalog can never drift from the billing source of truth.
 const RAW_V5_PRODUCTS: V5Product[] = [
-  // B373 (M26): «Ежедневная практика» (clarity-practice), «Маршрут 7 дней»
-  // (seven-days) и «Расширенная карта» (my-map) выпилены как услуги — практика
-  // теперь бесплатный блок дашборда, карта → Дневник. Их слаги остаются в типе
-  // V5ProductSlug и в ценах ради рендера исторических результатов; страницы 404
-  // (не в v5Products → unknownProductSlug), убраны из sitemap/каталога/рекомендаций.
+  // B373 (M26): «Ежедневная практика», «Маршрут 7 дней» и «Расширенная карта»
+  // полностью выпилены как услуги — практика теперь бесплатный блок дашборда,
+  // карта → Дневник. Их слаги убраны из типа V5ProductSlug, цен, биллинга и
+  // AI-роутинга; публичные страницы отдают честный 404 (не в v5Products →
+  // unknownProductSlug), их нет в sitemap/каталоге/рекомендациях.
   {
     slug: "perspectives",
     route: "/products/perspectives",

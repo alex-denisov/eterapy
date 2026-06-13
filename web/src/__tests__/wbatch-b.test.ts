@@ -17,10 +17,10 @@ describe("W10 — /credits title, products anchor, balance-aware CTA", () => {
 });
 
 describe("W13 — action-history hide persists + show-hidden toggle + un-hide", () => {
-  it("listMyMapItems supports includeHidden + a hidden flag", () => {
-    const lib = read("src/lib/my-map.ts");
+  it("listDiaryItems supports includeHidden + a hidden flag", () => {
+    const lib = read("src/lib/diary.ts");
     expect(lib).toContain("includeHidden");
-    expect(lib).toContain("hidden: isHiddenFromMap");
+    expect(lib).toContain("hidden: isHiddenFromDiary");
   });
   it("the page adds a show-hidden toggle and an un-hide action", () => {
     const page = read("src/app/cabinet/diary/page.tsx");
@@ -31,10 +31,10 @@ describe("W13 — action-history hide persists + show-hidden toggle + un-hide", 
   });
 });
 
-describe("W15 — duplicate mid-page Экспорт removed", () => {
-  it("action-history keeps a single export (header), none in the bottom CTA", () => {
+describe("W15/B373 — diary export removed with the retired map/export route", () => {
+  it("the diary no longer links the removed /api/cabinet/map/export endpoint", () => {
     const page = read("src/app/cabinet/diary/page.tsx");
     const exportButtons = page.split('api/cabinet/map/export').length - 1;
-    expect(exportButtons).toBe(1);
+    expect(exportButtons).toBe(0);
   });
 });

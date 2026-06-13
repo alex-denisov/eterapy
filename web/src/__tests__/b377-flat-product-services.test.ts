@@ -41,7 +41,6 @@ describe("B377 flat product service pages", () => {
       "src/components/products/perspectives-actions.tsx",
       "src/components/products/chat-analysis-actions.tsx",
       "src/components/products/compatibility-actions.tsx",
-      "src/components/products/seven-days-actions.tsx",
       "src/components/products/symbolic-product-actions.tsx",
       "src/components/products/synastry-actions.tsx",
     ];

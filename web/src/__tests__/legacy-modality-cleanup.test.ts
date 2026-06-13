@@ -57,7 +57,8 @@ describe("B084 legacy modality unlock cleanup", () => {
     expect(practice).not.toContain("/cabinet/modalities/tarot");
     expect(practice).not.toContain("/cabinet/modalities/horoscope");
     expect(practice).not.toContain("/cabinet/modalities/natal");
-    expect(practice).toContain('mainUrl("/products/seven-days")');
+    // B373: the retired «Маршрут 7 дней» upsell/link is gone from the practice page.
+    expect(practice).not.toContain('mainUrl("/products/seven-days")');
     expect(practice).not.toContain("premium-card");
     expect(practice).not.toContain("premium-chip");
   });

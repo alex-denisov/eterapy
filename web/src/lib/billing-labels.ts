@@ -25,8 +25,6 @@ export const PRODUCT_LABELS: Record<string, string> = {
   compatibility: "Совместимость",
   circle: "Круг",
   pair: "Разобраться вдвоём",
-  "seven-days": "Маршрут 7 дней",
-  "my-map": "Расширенная карта",
   tarot: "Расклад Таро",
   "natal-chart": "Натальная карта",
   synastry: "Совместимость по звёздам",

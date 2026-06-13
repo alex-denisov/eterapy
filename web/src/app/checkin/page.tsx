@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import {
   ArrowRight,
   Bookmark,
-  CalendarDays,
   CheckCircle2,
   Compass,
   FileText,
@@ -45,9 +44,6 @@ const PRODUCT_ICONS: Record<string, typeof Compass> = {
   compatibility: Users,
   pair: Users,
   circle: Users,
-  "seven-days": CalendarDays,
-  "clarity-practice": Sparkles,
-  "my-map": Compass,
   tarot: Moon,
   "natal-chart": Moon,
   numerology: Sparkles,

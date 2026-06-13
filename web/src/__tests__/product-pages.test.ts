@@ -31,7 +31,6 @@ describe("v5 product pages", () => {
       "components/products/perspectives-actions.tsx",
       "components/products/chat-analysis-actions.tsx",
       "components/products/compatibility-actions.tsx",
-      "components/products/seven-days-actions.tsx",
       "components/products/symbolic-product-actions.tsx",
       "components/products/synastry-actions.tsx",
     ].map(source).join("\n");
@@ -40,7 +39,6 @@ describe("v5 product pages", () => {
     expect(indexPage).toContain('href="/checkin"');
     expect(indexPage).toContain("открыть нужную услугу напрямую");
     expect(detailPage).toContain('data-testid="product-service-start"');
-    expect(detailPage).toContain('data-testid="product-my-map-preview"');
     expect(detailPage).toContain("<ProductActionSurface");
     expect(detailPage).toContain("<PerspectivesActions");
     expect(detailPage).not.toContain("nextProduct=");
@@ -68,8 +66,7 @@ describe("v5 product pages", () => {
     expect(detailPage).not.toContain('data-testid="deep-report-sample-main-fork"');
     expect(detailPage).not.toContain('data-testid="product-example-disclosure"');
 
-    expect(detailPage).toContain('data-testid="product-my-map-preview"');
-    expect(detailPage).toContain("3 темы стали тише за год, 1 — окрепла");
+    expect(detailPage).toContain('data-testid="product-human-design-preview"');
 
     expect(detailPage).toContain("<TarotSide");
     expect(detailPage).toContain("<NatalSide");
@@ -94,15 +91,13 @@ describe("v5 product pages", () => {
     expect(detailPage).toContain('product.slug === "tarot"');
     expect(detailPage).toContain('product.slug === "natal-chart"');
     expect(detailPage).toContain('product.slug === "numerology"');
-    expect(detailPage).toContain('product.slug === "my-map"');
 
     expect(actions).toContain("/api/products/symbolic");
     expect(actions).toContain("<ProductPurchaseControls");
-    // #7: paid purchase auto-generates the full result once unlocked (history-
-    // driven or once the user has typed their context).
-    expect(actions).toContain("if (historyDriven || userInput.trim())");
+    // #7: paid purchase auto-generates the full result once unlocked, once the
+    // user has typed their context.
+    expect(actions).toContain("if (userInput.trim())");
     expect(route).toContain('productKey: "tarot"');
-    expect(route).toContain('productKey: "my-map"');
     expect(route).toContain("userHasActiveEntitlement");
     expect(route).toContain("Не авторизован");
   });
@@ -116,8 +111,8 @@ describe("v5 product pages", () => {
     // compatibility) are still required.
     expect(products).toContain("удаление источника");
     expect(products).toContain("согласие партнёра");
-    // B373: «пауза и продолжение» (seven-days) и «сохранить, скрыть или удалить»
-    // (my-map) ушли вместе с выпиленными услугами.
+    // B373: «пауза и продолжение» и «сохранить, скрыть или удалить» ушли вместе
+    // с выпиленными услугами (маршрут и расширенная карта).
     expect(products).toContain("открытие через entitlement");
     expect(products).toContain("или −3 балла");
     expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");

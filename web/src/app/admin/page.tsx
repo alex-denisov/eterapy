@@ -18,8 +18,6 @@ const PRODUCT_PRICES_RUB: Record<string, number> = {
   compatibility: 590,
   circle: 790,
   pair: 790,
-  "seven-days": 990,
-  "my-map": 990,
 };
 
 const PRODUCT_NAMES: Record<string, string> = {
@@ -29,8 +27,6 @@ const PRODUCT_NAMES: Record<string, string> = {
   compatibility: "Совместимость",
   circle: "Круг",
   pair: "Разобраться вдвоём",
-  "seven-days": "Маршрут 7 дней",
-  "my-map": "Моя карта",
 };
 
 function formatRub(value: number) {

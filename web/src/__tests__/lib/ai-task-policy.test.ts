@@ -19,7 +19,6 @@ describe("AI task taxonomy and default routing policy", () => {
       "product-tarot",
       "product-natal-chart",
       "product-numerology",
-      "product-my-map",
       "session-summary",
       "session-compliance",
     ]));

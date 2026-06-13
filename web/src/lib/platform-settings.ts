@@ -24,7 +24,6 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   "product.perspectives.price":   "299",
   "product.deep-report.price":    "590",
   "product.chat-analysis.price":  "390",
-  "product.seven-days.price":     "990",
   "product.circle.price":         "790",
   "product.pair.price":           "790",
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Compass, Download, LockKeyhole, Save } from "lucide-react";
+import { ArrowRight, Download, LockKeyhole, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
@@ -54,14 +54,6 @@ type ApiPayload = {
   result?: SymbolicResult;
   results?: SymbolicResult[];
   paywalled?: boolean;
-  insufficientHistory?: boolean;
-  itemCount?: number;
-  minItems?: number;
-  mapItemCount?: number;
-  minMapItems?: number;
-  canGenerateMap?: boolean;
-  mapEmptyState?: string;
-  emptyState?: string;
   error?: string;
 };
 
@@ -86,7 +78,7 @@ export function SymbolicProductActions({
   placeholder,
   creditCost,
 }: {
-  productKey: "tarot" | "natal-chart" | "numerology" | "my-map" | "family-scenarios";
+  productKey: "tarot" | "natal-chart" | "numerology" | "family-scenarios";
   title: string;
   promptLabel: string;
   placeholder: string;
@@ -98,15 +90,6 @@ export function SymbolicProductActions({
   const [userInput, setUserInput] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const [mapItemCount, setMapItemCount] = useState<number | null>(null);
-  const [minMapItems, setMinMapItems] = useState(3);
-  const historyDriven = productKey === "my-map";
-  const hasEnoughMapHistory = !historyDriven || (mapItemCount !== null && mapItemCount >= minMapItems);
-  const canAttemptGeneration = !historyDriven || authStatus !== "authenticated" || hasEnoughMapHistory;
-  const canShowPurchaseControls = !historyDriven
-    || authStatus !== "authenticated"
-    || mapItemCount === null
-    || hasEnoughMapHistory;
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -116,24 +99,14 @@ export function SymbolicProductActions({
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
         setResult(payload.results?.[0] ?? null);
-        if (historyDriven) {
-          setMapItemCount(payload.mapItemCount ?? 0);
-          setMinMapItems(payload.minMapItems ?? 3);
-          setMessage(payload.mapEmptyState ?? null);
-        }
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, [authStatus, historyDriven, productKey]);
+  }, [authStatus, productKey]);
 
   async function generateResult() {
     if (authStatus !== "authenticated") {
       setMessage("Войдите, чтобы открыть продукт и сохранить результат в кабинете.");
-      setStatus("error");
-      return;
-    }
-    if (!hasEnoughMapHistory) {
-      setMessage(`Чтобы собрать расширенную карту, нужно ${minMapItems} сохранённых элемента. Сейчас есть ${mapItemCount ?? 0}.`);
       setStatus("error");
       return;
     }
@@ -142,24 +115,12 @@ export function SymbolicProductActions({
     try {
       const payload = await jsonRequest<ApiPayload>("/api/products/symbolic", {
         method: "POST",
-        body: JSON.stringify(historyDriven ? { productKey } : { productKey, userInput }),
+        body: JSON.stringify({ productKey, userInput }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
-      if (historyDriven) {
-        setMapItemCount(payload.itemCount ?? payload.mapItemCount ?? mapItemCount);
-        setMinMapItems(payload.minItems ?? payload.minMapItems ?? minMapItems);
-      }
-      if (payload.insufficientHistory) {
-        setResult(null);
-        setMessage(payload.emptyState ?? "Сохраните ещё несколько элементов в Моей карте, чтобы собрать расширенную карту.");
-        setStatus("idle");
-        return;
-      }
       setResult(payload.result ?? null);
       if (payload.paywalled) {
-        setMessage(historyDriven
-          ? "Бесплатный фрагмент из вашей истории готов. Полную карту можно открыть баллами или картой."
-          : "Бесплатный фрагмент готов. Полный разбор можно открыть баллами или картой.");
+        setMessage("Бесплатный фрагмент готов. Полный разбор можно открыть баллами или картой.");
       }
       setStatus("idle");
     } catch (error) {
@@ -175,7 +136,7 @@ export function SymbolicProductActions({
 
   // B308: real save → PATCH /api/products/symbolic/[id] with action: "save".
   // Spec (04_UI_UX_Mechanics §10) requires every symbolic result to be
-  // saveable into My Map.
+  // saveable into the user's Мою карту (диалоги/результаты Дневника).
   async function saveToMap() {
     if (!result) return;
     setStatus("loading");
@@ -203,9 +164,7 @@ export function SymbolicProductActions({
           <p className="soft-eyebrow">получить продукт</p>
           <h2 className="soft-h3 mt-2">{title}</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            {historyDriven
-              ? "Карта собирается из сохранённых вопросов, маршрутов и результатов. Полную карту открывают баллами или картой — результат появится здесь же. Можно начать с бесплатной темы."
-              : "Полный разбор открывается баллами или картой — результат появится здесь же. Можно начать с бесплатного фрагмента."}
+            Полный разбор открывается баллами или картой — результат появится здесь же. Можно начать с бесплатного фрагмента.
           </p>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
@@ -221,45 +180,16 @@ export function SymbolicProductActions({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
         <div className="soft-card-flat p-5">
-          {!historyDriven && (
-            <>
-              <label className="soft-eyebrow" htmlFor={`symbolic-input-${productKey}`}>{promptLabel}</label>
-              <textarea
-                id={`symbolic-input-${productKey}`}
-                value={userInput}
-                onChange={(event) => setUserInput(event.target.value)}
-                placeholder={placeholder}
-                rows={6}
-                className="soft-question-input mt-3"
-                disabled={status === "loading"}
-              />
-            </>
-          )}
-          {historyDriven && (
-            <div
-              className="rounded-[18px] border border-[var(--soft-border)] bg-[var(--soft-paper)] p-4"
-              data-testid="extended-map-history-state"
-            >
-              <div className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[var(--soft-lilac)] text-[var(--soft-bordeaux)]">
-                  <Compass className="size-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="soft-eyebrow">{promptLabel}</p>
-                  <p className="mt-1 font-heading text-xl text-[var(--soft-ink)]">
-                    {authStatus === "authenticated" ? `${mapItemCount ?? 0} из ${minMapItems} элементов` : `нужно ${minMapItems} элемента`}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                {authStatus !== "authenticated"
-                  ? "Войдите, чтобы мы проверили сохранённые вопросы, маршруты и результаты."
-                  : hasEnoughMapHistory
-                    ? "Истории достаточно: можно собрать бесплатный фрагмент и затем открыть полную карту."
-                    : "Пока недостаточно истории. Сохраните вопросы, маршруты или результаты разборов в Моей карте."}
-              </p>
-            </div>
-          )}
+          <label className="soft-eyebrow" htmlFor={`symbolic-input-${productKey}`}>{promptLabel}</label>
+          <textarea
+            id={`symbolic-input-${productKey}`}
+            value={userInput}
+            onChange={(event) => setUserInput(event.target.value)}
+            placeholder={placeholder}
+            rows={6}
+            className="soft-question-input mt-3"
+            disabled={status === "loading"}
+          />
           {/* #7: one clear order action. The PAID CTA (credits → full result in
               one click) is primary; the free fragment is a quiet secondary link
               so users no longer mistake the teaser for the order and pay twice. */}
@@ -268,7 +198,7 @@ export function SymbolicProductActions({
               <Button
                 type="button"
                 onClick={generateResult}
-                disabled={status === "loading" || !canAttemptGeneration}
+                disabled={status === "loading"}
                 className="soft-button soft-button-primary"
               >
                 <LockKeyhole className="size-4" aria-hidden="true" />
@@ -277,26 +207,24 @@ export function SymbolicProductActions({
               </Button>
             ) : (
               <>
-                {canShowPurchaseControls && (
-                  <ProductPurchaseControls
-                    productKey={productKey}
-                    label={`Открыть ${title}`}
-                    checkoutSource={`${productKey}-direct`}
-                    creditCost={creditCost}
-                    onUnlocked={() => {
-                      setHasEntitlement(true);
-                      if (historyDriven || userInput.trim()) {
-                        void generateResult();
-                      } else {
-                        setMessage("Доступ открыт. Добавьте данные или вопрос — и получите результат здесь же.");
-                      }
-                    }}
-                  />
-                )}
+                <ProductPurchaseControls
+                  productKey={productKey}
+                  label={`Открыть ${title}`}
+                  checkoutSource={`${productKey}-direct`}
+                  creditCost={creditCost}
+                  onUnlocked={() => {
+                    setHasEntitlement(true);
+                    if (userInput.trim()) {
+                      void generateResult();
+                    } else {
+                      setMessage("Доступ открыт. Добавьте данные или вопрос — и получите результат здесь же.");
+                    }
+                  }}
+                />
                 <button
                   type="button"
                   onClick={generateResult}
-                  disabled={status === "loading" || !canAttemptGeneration}
+                  disabled={status === "loading"}
                   className="self-start text-sm font-medium text-[var(--soft-bordeaux)] underline underline-offset-4 disabled:opacity-50"
                   data-testid={`symbolic-free-fragment-${productKey}`}
                 >
@@ -353,9 +281,7 @@ export function SymbolicProductActions({
             </>
           ) : (
             <p className="mt-3 font-heading text-xl italic leading-relaxed text-[var(--soft-ink-soft)]">
-              {historyDriven
-                ? "Здесь появится 1 тема из ваших сохранённых вопросов, маршрутов и результатов."
-                : "Введите вопрос или данные — здесь появится первый настоящий фрагмент до оплаты."}
+              Введите вопрос или данные — здесь появится первый настоящий фрагмент до оплаты.
             </p>
           )}
         </div>

@@ -27,12 +27,6 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     resultTitle: "Числовой портрет",
   },
   {
-    productKey: "my-map",
-    title: "Расширенная карта",
-    promptLabel: "Что собрать в карту",
-    resultTitle: "Расширенная карта ETerapy",
-  },
-  {
     // B389 (M26): genogram-разбор «Семейные сценарии» (рекомендуется в Дневнике).
     productKey: "family-scenarios",
     title: "Семейные сценарии",
@@ -295,11 +289,11 @@ function heuristicSymbolicResult(input: { productKey: SymbolicProductKey; userIn
     ].join("\n");
   }
   return [
-    "Расширенная карта ETerapy",
+    "Символический разбор ETerapy",
     "",
-    "Карта собирает повторяющиеся темы в один годовой портрет: что стало тише, что окрепло, какие фразы возвращаются чаще всего.",
+    "Этот разбор — язык образов и тем, а не приговор. Мы смотрим, что в вашем запросе повторяется и просит больше внимания.",
     "",
-    "Центральный сюжет: учиться занимать место без чувства вины. Следующий шаг — выбрать одну тему, которую вы больше не хотите решать в одиночку.",
+    "Бережный следующий шаг: выберите одну тему из разбора и назовите один маленький шаг, который можно сделать на этой неделе.",
   ].join("\n");
 }
 
@@ -404,7 +398,7 @@ export async function generateSymbolicProductResult(input: {
 
   try {
     // B362/Механика 7: каждый символический продукт должен использовать СВОЙ
-    // промт (product-tarot / product-natal-chart / product-numerology / product-my-map),
+    // промт (product-tarot / product-natal-chart / product-numerology / …),
     // а не один общий. Берём промт продукта из конфигурации промтов — тот же,
     // что виден и редактируется суперадмином в /admin/ai (DB-override применяется
     // дальше в applyAIPromptOverride). Раньше здесь был общий хардкод → все

@@ -120,12 +120,6 @@ describe("M24 Z6 real truncated product teasers", () => {
       userInput: "Анна, 12.04.1992",
       generatedText: "Число года — 7. Сильная сторона: видеть глубину там, где другие спешат.",
     });
-    const map = buildSymbolicProductTeaser({
-      productKey: "my-map",
-      userInput: "границы работа голос границы отношения голос границы",
-      generatedText: "full map remains locked",
-    });
-
     expect(tarot).toContain("Первая карта");
     expect(tarot).toContain("Жрица");
     expect(tarot).not.toContain("Башня");
@@ -133,9 +127,6 @@ describe("M24 Z6 real truncated product teasers", () => {
     expect(natal).toContain("собственный темп");
     expect(numerology).toContain("Число года");
     expect(numerology).toContain("Сильная сторона");
-    expect(map).toContain("Повторяющаяся тема");
-    expect(map).toContain("границы");
-    expect(map).not.toBe("границы работа голос границы отношения голос границы");
   });
 
   it("expands social teasers into the free block promised by the matrix", () => {

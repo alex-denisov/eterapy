@@ -34,10 +34,10 @@ describe("B201/B202 Circle and Pair flows", () => {
     const reportRoute = source("src/app/api/products/circle/[id]/report/route.ts");
 
     // B373: the standalone circle PAGE file is removed; the route now 404s via the
-    // proxy (RETIRED_PRODUCT_SLUGS). The «Вместе» hub renders the new flow.
+    // proxy (unknownProductSlug — circle is not in v5Products). «Вместе» renders the flow.
     expect(fs.existsSync(path.join(root, "src/app/products/circle/page.tsx"))).toBe(false);
-    expect(source("src/proxy.ts")).toContain("RETIRED_PRODUCT_SLUGS");
-    expect(source("src/proxy.ts")).toContain('"circle"');
+    expect(source("src/proxy.ts")).toContain("unknownProductSlug");
+    expect(source("src/lib/v5-products.ts")).not.toContain('slug: "circle"');
     expect(togetherPage).toContain("<TogetherActions");
     expect(togetherPage).toContain('data-testid="together-scenarios"');
 

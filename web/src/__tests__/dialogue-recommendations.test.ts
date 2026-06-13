@@ -11,7 +11,7 @@ describe("W17 dialogue recommendation engine", () => {
   it("maps each topic to a distinct, catalog-backed primary product", () => {
     expect(recommendPrimaryProduct("relationships").slug).toBe("compatibility");
     expect(recommendPrimaryProduct("money").slug).toBe("deep-report");
-    // B373 (M26): seven-days/clarity-practice выпилены — remap на живые продукты.
+    // B373 (M26): выпиленные услуги remapped на живые продукты.
     expect(recommendPrimaryProduct("anxiety").slug).toBe("deep-report");
     expect(recommendPrimaryProduct("self").slug).toBe("perspectives");
     // catalog metadata is attached (fixes the "card doesn't match" drift)
@@ -47,7 +47,7 @@ describe("W17 dialogue recommendation engine", () => {
     expect(recommendSubscription("deep-report", false)?.tier).toBe("premium");
     // X17: free/unmatched products surface Plus as the calm entry tier (the
     // nudge no longer disappears entirely), framed as «возвращаться».
-    expect(recommendSubscription("clarity-practice", false)?.tier).toBe("plus");
+    expect(recommendSubscription("unmatched-product", false)?.tier).toBe("plus");
     expect(recommendSubscription("tarot", false)?.tier).toBe("plus");
     // already-subscribed users are never nudged
     expect(recommendSubscription("deep-report", true)).toBeNull();
