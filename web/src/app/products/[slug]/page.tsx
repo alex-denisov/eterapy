@@ -11,6 +11,7 @@ import { SevenDaysActions } from "@/components/products/seven-days-actions";
 import { SynastryActions } from "@/components/products/synastry-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
 import { HumanDesignActions } from "@/components/products/human-design-actions";
+import { SurnameStoryActions } from "@/components/products/surname-story-actions";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -211,6 +212,32 @@ function HumanDesignSide() {
   );
 }
 
+function SurnameStorySide() {
+  // Стилизованное родовое древо (превью услуги «История фамилии»).
+  const nodes: Array<{ x: number; y: number; r: number; fill: boolean }> = [
+    { x: 130, y: 26, r: 16, fill: true },
+    { x: 78, y: 116, r: 14, fill: true },
+    { x: 182, y: 116, r: 14, fill: false },
+    { x: 44, y: 214, r: 12, fill: false },
+    { x: 104, y: 214, r: 14, fill: true },
+    { x: 160, y: 214, r: 12, fill: false },
+    { x: 216, y: 214, r: 14, fill: true },
+  ];
+  const links: Array<[number, number]> = [[0, 1], [0, 2], [1, 3], [1, 4], [2, 5], [2, 6]];
+  return (
+    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#F4D9C1,#E8C4B8)] p-8" data-testid="product-surname-story-preview">
+      <svg viewBox="0 0 260 250" className="w-full max-w-[220px]" aria-hidden="true">
+        {links.map(([a, b], i) => (
+          <line key={i} x1={nodes[a].x} y1={nodes[a].y} x2={nodes[b].x} y2={nodes[b].y} stroke="#B85B40" strokeWidth={2} opacity={0.6} strokeLinecap="round" />
+        ))}
+        {nodes.map((n, i) => (
+          <circle key={i} cx={n.x} cy={n.y} r={n.r} fill={n.fill ? "#B85B40" : "#FBF0E1"} stroke="#B85B40" strokeWidth={1.5} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function DefaultSide() {
   return (
     <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-10">
@@ -338,6 +365,7 @@ function productSide(product: V5Product) {
   if (product.slug === "seven-days") return <SevenDaysSide />;
   if (product.slug === "clarity-practice") return <ClarityPracticeSide />;
   if (product.slug === "human-design") return <HumanDesignSide />;
+  if (product.slug === "surname-story") return <SurnameStorySide />;
   return <DefaultSide />;
 }
 
@@ -371,6 +399,9 @@ function ProductActionSurface({
   }
   if (product.slug === "human-design") {
     return <HumanDesignActions creditCost={product.creditCost ?? 2} />;
+  }
+  if (product.slug === "surname-story") {
+    return <SurnameStoryActions creditCost={product.creditCost ?? 2} />;
   }
   return null;
 }

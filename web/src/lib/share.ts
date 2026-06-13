@@ -8,7 +8,7 @@ export const SHARE_EVENTS = {
   referredDialogue: "referred_dialogue_started",
 } as const;
 
-export type ShareArtifactKind = "library" | "human-design" | "weekly-summary" | "insight";
+export type ShareArtifactKind = "library" | "human-design" | "surname-story" | "weekly-summary" | "insight";
 
 // Декоративная OG-картинка по типу артефакта. Текст артефакта едет в og:title/
 // og:description (соцсеть рисует его своим шрифтом — кириллица без проблем),
@@ -45,6 +45,8 @@ export function shareText(kind: ShareArtifactKind, headline: string): string {
   switch (kind) {
     case "human-design":
       return `${headline} — узнайте свой тип в Дизайне человека бесплатно:`;
+    case "surname-story":
+      return `${headline} — узнайте историю своей фамилии бесплатно:`;
     case "weekly-summary":
       return `Мой итог недели в ETerapy. Сделайте свой:`;
     case "insight":

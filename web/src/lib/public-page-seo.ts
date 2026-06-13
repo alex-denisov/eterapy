@@ -132,6 +132,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Ваш тип, стратегия, авторитет и бодиграф по реальным данным рождения — бесплатно. Полный разбор каналов и профиля за баллы. Без фатализма и приговоров.",
     schemaKind: "Product",
   },
+  "/products/surname-story": {
+    title: "История фамилии — узнать происхождение бесплатно — ETerapy",
+    description: "Что говорит форма вашей фамилии: происхождение, регион, занятие предков — коротко и бесплатно. Полный родовой разбор за баллы. Бережно, без фатализма.",
+    schemaKind: "Product",
+  },
   "/all-modalities": {
     title: "Сервисы самопознания — ETerapy",
     description: "Сервисы ETerapy от вопроса: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
@@ -174,7 +179,11 @@ export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
   const url = canonicalUrl(route);
   // B390: брендовая OG-картинка для красивого превью при шеринге. «Дизайн
   // человека» — отдельный мотив (бодиграф), остальные публичные страницы — общий.
-  const ogKind = route === "/products/human-design" ? "human-design" : "library";
+  const ogKind = route === "/products/human-design"
+    ? "human-design"
+    : route === "/products/surname-story"
+      ? "surname-story"
+      : "library";
   const ogImage = canonicalUrl(`/api/og?kind=${ogKind}`);
 
   return {

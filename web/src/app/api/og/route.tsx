@@ -13,6 +13,7 @@ export const runtime = "nodejs";
 const KIND_TAG: Record<string, string> = {
   library: "library",
   "human-design": "human design",
+  "surname-story": "surname story",
   "weekly-summary": "weekly",
   insight: "insight",
 };
@@ -68,8 +69,36 @@ function Week() {
   );
 }
 
+// B391: мотив «история фамилии» — стилизованное родовое древо (узлы поколений).
+function FamilyTree() {
+  const node = (x: number, y: number, fill: boolean) => (
+    <div style={{ position: "absolute", left: x, top: y, width: 34, height: 34, borderRadius: 17, background: fill ? "#b5623f" : "rgba(181,98,63,0.22)", border: "3px solid #b5623f" }} />
+  );
+  const edge = (x: number, y: number, w: number, rot: number) => (
+    <div style={{ position: "absolute", left: x, top: y, width: w, height: 3, background: "rgba(181,98,63,0.55)", transform: `rotate(${rot}deg)`, transformOrigin: "left center" }} />
+  );
+  return (
+    <div style={{ display: "flex", position: "relative", width: 260, height: 300 }}>
+      {edge(146, 50, 70, 50)}
+      {edge(116, 50, 70, 130)}
+      {edge(78, 132, 60, 55)}
+      {edge(60, 132, 60, 125)}
+      {edge(198, 132, 60, 55)}
+      {edge(180, 132, 60, 125)}
+      {node(130, 16, true)}
+      {node(70, 116, true)}
+      {node(190, 116, false)}
+      {node(30, 216, false)}
+      {node(108, 216, true)}
+      {node(160, 216, false)}
+      {node(230, 216, true)}
+    </div>
+  );
+}
+
 function motifFor(kind: string) {
   if (kind === "human-design") return <Bodygraph />;
+  if (kind === "surname-story") return <FamilyTree />;
   if (kind === "weekly-summary") return <Week />;
   if (kind === "insight") return <Quote />;
   return <Wheel />;

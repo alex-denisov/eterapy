@@ -394,6 +394,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Опирается на детерминированно посчитанный чарт; не выдумывает тип и числа.",
   },
   {
+    // B391 (M26): «История фамилии» — родовой разбор поверх распознанной формы фамилии.
+    feature: "product-surname-story",
+    enabled: true,
+    tier: "premium",
+    title: "История фамилии",
+    purpose: "Тёплый родовой разбор по форме фамилии без фатализма и приговоров рода.",
+    providerOrder: [...directPremiumOrder],
+    maxTokens: 1500,
+    temperature: 0.5,
+    timeoutMs: 45_000,
+    fallbackNotes: "Опирается на распознанную форму фамилии; род — тема для размышления, не судьба.",
+  },
+  {
     // B386 (M26): чат-компаньон. Короткие реплики (человеческий ритм), премиум-тон.
     feature: "companion-chat",
     enabled: true,

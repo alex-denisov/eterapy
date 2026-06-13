@@ -4,6 +4,7 @@ import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { buildNatalWheel } from "@/lib/esoteric-chart";
 import { computeHumanDesignFromText } from "@/lib/human-design";
 import type { HumanDesignChart } from "@/lib/human-design-data";
+import { analyzeSurname, surnameFactsForAI, type SurnameStory } from "@/lib/surname-story";
 import { log, serializeError } from "@/lib/logger";
 
 export const SYMBOLIC_PRODUCT_DEFINITIONS = [
@@ -46,6 +47,15 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     title: "Дизайн человека",
     promptLabel: "Дата, время и место рождения",
     resultTitle: "Дизайн человека: ваш тип и стратегия",
+  },
+  {
+    // B391 (M26): «История фамилии». Короткая история фамилии считается бесплатно
+    // и детерминированно (surname-story.ts по форме); этот платный «родовой разбор»
+    // расширяет распознанную форму в тёплый нарратив про род человеческим языком.
+    productKey: "surname-story",
+    title: "История фамилии",
+    promptLabel: "Ваша фамилия",
+    resultTitle: "История фамилии: что говорит ваш род",
   },
 ] as const;
 
@@ -203,6 +213,16 @@ export function buildSymbolicProductTeaser(input: {
     ].join("\n");
   }
 
+  if (input.productKey === "surname-story") {
+    const story = analyzeSurname(input.userInput);
+    return [
+      story ? story.originLabel : "Форма вашей фамилии",
+      story ? story.originStory : firstMeaningfulLine,
+      "",
+      "Полный родовой разбор раскроет вероятное происхождение, родовую тему и что из этого может откликаться у вас сегодня.",
+    ].join("\n");
+  }
+
   const repeatedTheme = extractRepeatedTheme(input.userInput);
   return [
     "Повторяющаяся тема",
@@ -323,6 +343,29 @@ function humanDesignFallback(chart: HumanDesignChart | null): string {
   ].join("\n");
 }
 
+// B391: детерминированный фолбэк родового разбора по распознанной форме фамилии.
+function surnameStoryFallback(story: SurnameStory | null): string {
+  if (!story) {
+    return [
+      "История фамилии",
+      "",
+      "Чтобы рассказать историю фамилии, напишите саму фамилию — например «Кузнецов» или «Ковальчук». По её форме видно происхождение и вероятное занятие или местность предков.",
+      "",
+      "Бережный шаг: укажите фамилию, и здесь появится её короткая история и родовая тема для размышления.",
+    ].join("\n");
+  }
+  return [
+    `История фамилии: ${story.surname}`,
+    "",
+    `## Что говорит форма\n${story.originLabel}. ${story.originStory}`,
+    story.rootHint ? `## Занятие предков\nВероятно, фамилия связана с ${story.rootHint}.` : "",
+    story.regionHint ? `## География\nТакая форма ${story.regionHint}.` : "",
+    `## Родовая тема\n${story.familyTheme}. Это тема для размышления, а не судьба и не приговор роду.`,
+    "",
+    "## Бережный вопрос к себе\nЧто из истории вашего рода вы хотели бы продолжить, а что — мягко оставить в прошлом?",
+  ].filter(Boolean).join("\n");
+}
+
 export async function generateSymbolicProductResult(input: {
   productKey: SymbolicProductKey;
   userInput: string;
@@ -341,17 +384,23 @@ export async function generateSymbolicProductResult(input: {
   // B387: «Дизайн человека» — детерминированный чарт по реальным эфемеридам;
   // храним в metadata (для бодиграфа на странице/в PDF) и передаём в AI как факты.
   const hdChart = input.productKey === "human-design" ? computeHumanDesignFromText(input.userInput).chart : null;
+  // B391: распознанная форма фамилии — детерминированно; храним в metadata (для
+  // страницы/PDF) и передаём в AI как факты, чтобы разбор не выдумывал этимологию.
+  const surnameStory = input.productKey === "surname-story" ? analyzeSurname(input.userInput) : null;
   const visualMeta: Prisma.InputJsonObject = {
     ...(cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {}),
     ...(wheel ? { wheel: wheel as unknown as Prisma.InputJsonValue } : {}),
     ...(hdChart ? { chart: hdChart as unknown as Prisma.InputJsonValue } : {}),
+    ...(surnameStory ? { surname: surnameStory as unknown as Prisma.InputJsonValue } : {}),
   };
   const cardsMeta = visualMeta;
   const fallback = cards
     ? tarotReadingFromCards(cards, input.userInput)
     : input.productKey === "human-design"
       ? humanDesignFallback(hdChart)
-      : heuristicSymbolicResult(input);
+      : input.productKey === "surname-story"
+        ? surnameStoryFallback(surnameStory)
+        : heuristicSymbolicResult(input);
 
   try {
     // B362/Механика 7: каждый символический продукт должен использовать СВОЙ
@@ -366,6 +415,7 @@ export async function generateSymbolicProductResult(input: {
       ? "\n\nЭто расклad из 3 карт (Прошлое/Настоящее/Будущее). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте вопроса."
       : "";
     const hdNote = hdChart ? `\n\n${humanDesignFactsForAI(hdChart)}` : "";
+    const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory)}` : "";
 
     const response = await aiComplete({
       feature,
@@ -376,7 +426,7 @@ export async function generateSymbolicProductResult(input: {
       messages: [
         {
           role: "system",
-          content: baseSystemPrompt + tarotCardsNote + hdNote,
+          content: baseSystemPrompt + tarotCardsNote + hdNote + surnameNote,
         },
         {
           role: "user",
