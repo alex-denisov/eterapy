@@ -11,19 +11,22 @@ function source(relativePath: string) {
 
 describe("design v4.2 rollout", () => {
   it("exposes the v4.2 growth routes in SEO and public navigation", () => {
-    for (const route of ["/products/clarity-practice", "/products/pair", "/telegram"] as const) {
+    // B373 (M26): clarity-practice retired (page 404, out of SEO). The «Вместе»
+    // (/products/pair) and /telegram growth routes stay public.
+    for (const route of ["/products/pair", "/telegram"] as const) {
       expect(publicSeoRoutes).toContain(route);
       expect(publicPageSeo[route].title).toContain("ETerapy");
     }
+    // clarity-practice is no longer a public SEO route after B373.
+    expect(publicSeoRoutes).not.toContain("/products/clarity-practice");
 
     const header = source("components/header.tsx");
     const footer = source("components/footer.tsx");
 
     expect(header).toContain('label: "Продукты"');
     // B380 (M26): the footer was condensed to the catalogue groups and no longer
-    // links the soon-to-be-removed growth routes (circle / clarity-practice /
-    // telegram). The «Вместе» entry (→ /products/pair) stays. The routes still
-    // exist in SEO until B373 retires them.
+    // links the removed growth routes (circle / clarity-practice / telegram).
+    // The «Вместе» entry (→ /products/pair) stays.
     expect(footer).toContain('mainUrl("/products/pair")');
     expect(footer).not.toContain('mainUrl("/products/circle")');
     expect(footer).not.toContain('mainUrl("/products/clarity-practice")');

@@ -25,7 +25,6 @@ describe("B201/B202 Circle and Pair flows", () => {
   });
 
   it("B385: closes the standalone Circle product and reuses its engine for «Вместе» outside-view", () => {
-    const circlePage = source("src/app/products/circle/page.tsx");
     const togetherPage = source("src/app/products/pair/page.tsx");
     const actions = source("src/components/products/together-actions.tsx");
     const createRoute = source("src/app/api/products/circle/route.ts");
@@ -34,8 +33,11 @@ describe("B201/B202 Circle and Pair flows", () => {
     const generateRoute = source("src/app/api/products/circle/[id]/generate/route.ts");
     const reportRoute = source("src/app/api/products/circle/[id]/report/route.ts");
 
-    // Standalone circle page 404s; the «Вместе» hub renders the new flow.
-    expect(circlePage).toContain("notFound");
+    // B373: the standalone circle PAGE file is removed; the route now 404s via the
+    // proxy (RETIRED_PRODUCT_SLUGS). The «Вместе» hub renders the new flow.
+    expect(fs.existsSync(path.join(root, "src/app/products/circle/page.tsx"))).toBe(false);
+    expect(source("src/proxy.ts")).toContain("RETIRED_PRODUCT_SLUGS");
+    expect(source("src/proxy.ts")).toContain('"circle"');
     expect(togetherPage).toContain("<TogetherActions");
     expect(togetherPage).toContain('data-testid="together-scenarios"');
 

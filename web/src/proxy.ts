@@ -142,9 +142,17 @@ export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
 // в middleware, переписывая их на заведомо несуществующий роут.
 const VALID_PRODUCT_SLUGS = new Set<string>(v5Products.map((product) => product.slug));
 
+// B373 (M26): мёртвые услуги выпилены из продажи — их страницы отдают честный 404
+// (без редиректа), слаги убраны из v5Products/sitemap/каталога/рекомендаций. Цены/
+// промпты пока остаются ради рендера исторических результатов; глубокая чистка кода
+// биллинга/AI-роутинга — отдельной сессией. «Круг» закрыт ещё в B385. RETIRED — явная
+// защита: даже если слаг вернётся в v5Products ради истории, публичная страница 404.
+const RETIRED_PRODUCT_SLUGS = new Set<string>(["seven-days", "my-map", "clarity-practice", "circle"]);
+
 function unknownProductSlug(pathname: string): boolean {
   const match = pathname.match(/^\/products\/([^/]+)\/?$/);
-  return Boolean(match && !VALID_PRODUCT_SLUGS.has(match[1]));
+  if (!match) return false;
+  return RETIRED_PRODUCT_SLUGS.has(match[1]) || !VALID_PRODUCT_SLUGS.has(match[1]);
 }
 
 // M26/B369: выпиленные кабинетные роуты (без редиректов). Покрываем и

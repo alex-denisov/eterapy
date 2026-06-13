@@ -116,8 +116,8 @@ describe("v5 product pages", () => {
     // compatibility) are still required.
     expect(products).toContain("удаление источника");
     expect(products).toContain("согласие партнёра");
-    expect(products).toContain("пауза и продолжение");
-    expect(products).toContain("сохранить, скрыть или удалить");
+    // B373: «пауза и продолжение» (seven-days) и «сохранить, скрыть или удалить»
+    // (my-map) ушли вместе с выпиленными услугами.
     expect(products).toContain("открытие через entitlement");
     expect(products).toContain("или −3 балла");
     expect(source("components/products/credit-spend-button.tsx")).toContain("/api/billing/spend-credits");

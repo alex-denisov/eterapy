@@ -40,25 +40,27 @@ export interface SubscriptionRecommendation {
 const TOPICS: DialogueTopic[] = ["relationships", "family", "career", "money", "anxiety", "self", "other"];
 
 /** Topic → the single most relevant next product. */
+// B373 (M26): seven-days/my-map/clarity-practice выпилены как услуги — рекомендации
+// переведены на живые продукты, чтобы воронка не вела на 404.
 const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
   relationships: "compatibility",
   family: "pair",
   career: "perspectives",
   money: "deep-report",
-  anxiety: "seven-days",
-  self: "clarity-practice",
+  anxiety: "deep-report",
+  self: "perspectives",
   other: "perspectives",
 };
 
 /** Topic → adjacent products (variety pool; the primary is filtered out). */
 const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
   relationships: ["pair", "chat-analysis", "compatibility", "tarot"],
-  family: ["compatibility", "chat-analysis", "pair", "my-map"],
-  career: ["perspectives", "deep-report", "seven-days", "numerology"],
-  money: ["deep-report", "perspectives", "seven-days", "numerology"],
-  anxiety: ["seven-days", "clarity-practice", "perspectives", "tarot"],
-  self: ["clarity-practice", "perspectives", "my-map", "tarot"],
-  other: ["perspectives", "deep-report", "tarot", "my-map"],
+  family: ["compatibility", "chat-analysis", "pair", "family-scenarios"],
+  career: ["perspectives", "deep-report", "numerology", "tarot"],
+  money: ["deep-report", "perspectives", "numerology", "tarot"],
+  anxiety: ["deep-report", "perspectives", "tarot", "natal-chart"],
+  self: ["perspectives", "natal-chart", "human-design", "tarot"],
+  other: ["perspectives", "deep-report", "tarot", "numerology"],
 };
 
 /** Topic → reason copy shown on the primary product card. */
@@ -67,8 +69,8 @@ const PRIMARY_REASON: Record<DialogueTopic, string> = {
   family: "Бережный групповой формат, чтобы услышать близких без давления и спора.",
   career: "Разложим ваше решение на разум, чувства, символ и действие — где ответ уже виден.",
   money: "Структурируем варианты, риски и безопасные шаги в подробный документ-разбор.",
-  anxiety: "Короткие ежедневные шаги, чтобы тревога не управляла днём.",
-  self: "Регулярный ритм возвращения к себе — без давления и без срочности.",
+  anxiety: "Структурируем тревожную ситуацию: что здесь факт, а что страх, и какие шаги безопасны.",
+  self: "Посмотрим на вас с четырёх сторон сразу: мысли, чувства, скрытый смысл и первый шаг.",
   other: "Универсальное углубление: посмотрим на ситуацию с четырёх сторон сразу.",
 };
 

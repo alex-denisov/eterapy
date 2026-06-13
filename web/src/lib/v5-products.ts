@@ -48,29 +48,11 @@ export type V5Product = {
 // V5_PRODUCT_CREDIT_COSTS) by the derive step at the bottom of this file, so the
 // catalog can never drift from the billing source of truth.
 const RAW_V5_PRODUCTS: V5Product[] = [
-  {
-    slug: "clarity-practice",
-    route: "/products/clarity-practice",
-    name: "Ежедневная практика",
-    eyebrow: "Ежедневный ритм",
-    summary: "Один короткий вопрос, один мягкий взгляд со стороны и один маленький шаг в день. Формат помогает возвращаться к себе без длинной сессии.",
-    price: "0 ₽",
-    priceMeta: "расширение — от 299 ₽ или за баллы",
-    creditPrice: "расширение — от 299 ₽ или за баллы",
-    creditCost: null,
-    tone: "free",
-    cta: "Сегодняшний вопрос",
-    directCta: "Открыть практику в кабинете",
-    // B306: renamed cabinet URL from /modalities → /practice for
-    // semantic clarity (modalities was the legacy name for many tools,
-    // but only the daily clarity-practice lives here now). The proxy
-    // rewrites app.eterapy.com/practice → /cabinet/practice;
-    // /cabinet/modalities still works as a legacy redirect.
-    directHref: "https://app.eterapy.com/practice",
-    mechanics: ["один вопрос в день", "короткий взгляд дня", "мягкие напоминания", "баллы за осмысленное действие"],
-    privacy: "Напоминания и сохранение работают только по выбранным пользователем каналам.",
-    result: "Ежедневная привычка, которая пополняет личную карту без давления и публичности.",
-  },
+  // B373 (M26): «Ежедневная практика» (clarity-practice), «Маршрут 7 дней»
+  // (seven-days) и «Расширенная карта» (my-map) выпилены как услуги — практика
+  // теперь бесплатный блок дашборда, карта → Дневник. Их слаги остаются в типе
+  // V5ProductSlug и в ценах ради рендера исторических результатов; страницы 404
+  // (не в v5Products → unknownProductSlug), убраны из sitemap/каталога/рекомендаций.
   {
     slug: "perspectives",
     route: "/products/perspectives",
@@ -152,26 +134,6 @@ const RAW_V5_PRODUCTS: V5Product[] = [
     result: "Сильные стороны взаимодействия, зоны различий и тёплые темы для разговора.",
   },
   {
-    slug: "seven-days",
-    route: "/products/seven-days",
-    name: "Маршрут 7 дней",
-    eyebrow: "Маршрут · день 1 бесплатно",
-    summary: "Маршрут из коротких ежедневных шагов по 5-10 минут с итоговым отчетом.",
-    // B322: docs §11 — день 1 бесплатно, полный маршрут 990 ₽. Tone "free"
-    // чтобы отражать бесплатный первый день.
-    price: "990 ₽",
-    priceMeta: "или −8 баллов · день 1 бесплатно",
-    creditPrice: "или −8 баллов",
-    creditCost: 8,
-    tone: "free",
-    cta: "Начать день 1 бесплатно",
-    directCta: "Начать маршрут",
-    productKey: "seven-days",
-    mechanics: ["статус дня", "пауза и продолжение", "напоминания", "итоговый отчет"],
-    privacy: "Напоминания работают только по выбранным каналам и preference center.",
-    result: "Семь дневных шагов, мягкий прогресс и финальный отчет по вопросу.",
-  },
-  {
     // B385: «Вместе» объединяет три сценария (взгляд со стороны / сверить
     // взгляды / совместимость). Старый «Круг» закрыт и слит сюда.
     slug: "pair",
@@ -191,24 +153,6 @@ const RAW_V5_PRODUCTS: V5Product[] = [
     mechanics: ["взгляд со стороны по ссылке", "согласие участников", "приватные ответы", "совместный итог"],
     privacy: "Приватные ответы не раскрываются как инструмент давления — только общий бережный итог.",
     result: "Где совпали ожидания, где напряжение, что стоит обсудить и один безопасный шаг.",
-  },
-  {
-    slug: "my-map",
-    route: "/products/my-map",
-    name: "Расширенная карта",
-    eyebrow: "углубление · годовой портрет",
-    summary: "Годовой разбор паттернов и тем — на основе всех ваших разборов в Моей карте. Что повторялось, что менялось, какие сценарии стихли, какие — окрепли.",
-    price: "990 ₽",
-    priceMeta: "или −6 баллов",
-    creditPrice: "или −6 баллов",
-    creditCost: 6,
-    tone: "private",
-    cta: "Сохранить в карту",
-    directCta: "Расширить карту",
-    productKey: "my-map",
-    mechanics: ["сохранить, скрыть или удалить", "экспорт", "обезличенный фрагмент для шаринга", "карта дня"],
-    privacy: "Карта приватна по умолчанию и не содержит медицинских диагнозов.",
-    result: "Накопленная личная карта тем, решений и повторяющихся паттернов.",
   },
   {
     slug: "tarot",

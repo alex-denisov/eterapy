@@ -11,8 +11,9 @@ describe("W17 dialogue recommendation engine", () => {
   it("maps each topic to a distinct, catalog-backed primary product", () => {
     expect(recommendPrimaryProduct("relationships").slug).toBe("compatibility");
     expect(recommendPrimaryProduct("money").slug).toBe("deep-report");
-    expect(recommendPrimaryProduct("anxiety").slug).toBe("seven-days");
-    expect(recommendPrimaryProduct("self").slug).toBe("clarity-practice");
+    // B373 (M26): seven-days/clarity-practice выпилены — remap на живые продукты.
+    expect(recommendPrimaryProduct("anxiety").slug).toBe("deep-report");
+    expect(recommendPrimaryProduct("self").slug).toBe("perspectives");
     // catalog metadata is attached (fixes the "card doesn't match" drift)
     const money = recommendPrimaryProduct("money");
     expect(money.name).toBe("Подробный разбор");

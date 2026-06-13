@@ -68,18 +68,20 @@ describe("B203 Practice and missions", () => {
     expect(actions).toContain("practice-reflection-input");
   });
 
-  it("keeps clarity-practice as the single public daily-practice entry", () => {
-    // /products/missions was retired in B287 — there is one canonical
-    // product surface (/products/clarity-practice) and one cabinet
-    // surface (/cabinet/practice — renamed from /cabinet/modalities in
-    // B306) for the daily ritual.
+  it("retires the clarity-practice PRODUCT page; daily practice is the cabinet block (B373)", () => {
+    // B287 retired /products/missions. B373 (M26) retires the /products/clarity-practice
+    // PRODUCT page too: the daily ritual is a free dashboard/cabinet block (B375), not a
+    // sellable product. The public route 404s via the proxy (RETIRED_PRODUCT_SLUGS); the
+    // /cabinet/practice surface (read in the T20 test above) stays.
     const productPage = source("src/lib/v5-products.ts");
     const seo = source("src/lib/seo.ts");
     const publicSeo = source("src/lib/public-page-seo.ts");
+    const proxy = source("src/proxy.ts");
 
-    expect(productPage).toContain('slug: "clarity-practice"');
-    expect(seo).toContain('"/products/clarity-practice"');
-    expect(publicSeo).toContain('"/products/clarity-practice"');
+    expect(productPage).not.toContain('slug: "clarity-practice"');
+    expect(seo).not.toContain('"/products/clarity-practice"');
+    expect(publicSeo).not.toContain('"/products/clarity-practice"');
     expect(seo).not.toContain('"/products/missions"');
+    expect(proxy).toContain('"clarity-practice"');
   });
 });

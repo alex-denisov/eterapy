@@ -67,11 +67,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Цифровые углубления, совместные форматы, эзотерические разборы и встречи со специалистами. Начните с бесплатного первичного ответа или откройте нужный продукт сразу.",
     schemaKind: "Product",
   },
-  "/products/clarity-practice": {
-    title: "Ежедневная практика — продукт ETerapy",
-    description: "Ежедневная мягкая практика: один вопрос, один взгляд со стороны, один маленький шаг и баллы за осмысленные действия.",
-    schemaKind: "Product",
-  },
   "/products/perspectives": {
     title: "Полная картина — ETerapy",
     description: "Платное углубление: мысли, чувства, скрытый смысл и первый шаг одного вопроса. Первая часть разбора бесплатно.",
@@ -90,16 +85,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
   "/products/compatibility": {
     title: "Совместимость — ETerapy",
     description: "Парный отчет по совместимости с invite flow, согласием второго участника и приватностью ответов.",
-    schemaKind: "Product",
-  },
-  "/products/seven-days": {
-    title: "Маршрут 7 дней — ETerapy",
-    description: "Маршрут из ежедневных шагов по 5-10 минут, паузой, напоминаниями и итоговым отчетом.",
-    schemaKind: "Product",
-  },
-  "/products/my-map": {
-    title: "Моя карта ETerapy",
-    description: "Приватное пространство для сохранения вопросов, ответов, отчетов, маршрутов и личных выводов.",
     schemaKind: "Product",
   },
   "/products/tarot": {

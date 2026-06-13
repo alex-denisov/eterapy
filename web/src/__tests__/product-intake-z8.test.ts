@@ -57,7 +57,6 @@ describe("Z8 product-local dialogue intake", () => {
   it("keeps «Вместе» direct entry and closes the standalone circle product (B385)", () => {
     const products = source("src/lib/v5-products.ts");
     const pairPage = source("src/app/products/pair/page.tsx");
-    const circlePage = source("src/app/products/circle/page.tsx");
 
     expect(v5Products.find((product) => product.slug === "pair")?.directHref).toBe("/products/pair");
     // «Круг ясности» merged into «Вместе» — no standalone catalogue card and the route 404s.
@@ -65,6 +64,7 @@ describe("Z8 product-local dialogue intake", () => {
     expect(products).not.toContain('slug: "circle"');
     expect(products).not.toContain('directHref: "/checkin?entry=pair"');
     expect(pairPage).not.toContain("/checkin?entry=pair");
-    expect(circlePage).toContain("notFound");
+    // B373: the circle product page file is removed; the route 404s via the proxy.
+    expect(fs.existsSync(path.join(root, "src/app/products/circle/page.tsx"))).toBe(false);
   });
 });
