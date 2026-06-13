@@ -381,6 +381,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Никаких диагнозов рода и приговоров; только повторы и бережный шаг.",
   },
   {
+    // B387 (M26): «Дизайн человека» — разбор рассчитанного чарта.
+    feature: "product-human-design",
+    enabled: true,
+    tier: "premium",
+    title: "Дизайн человека",
+    purpose: "Человеческий разбор рассчитанного типа/стратегии/авторитета/каналов без фатализма.",
+    providerOrder: [...directPremiumOrder],
+    maxTokens: 1700,
+    temperature: 0.45,
+    timeoutMs: 45_000,
+    fallbackNotes: "Опирается на детерминированно посчитанный чарт; не выдумывает тип и числа.",
+  },
+  {
     feature: "session-compliance",
     enabled: true,
     tier: "compliance",

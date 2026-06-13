@@ -2,6 +2,8 @@ import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { buildNatalWheel } from "@/lib/esoteric-chart";
+import { computeHumanDesignFromText } from "@/lib/human-design";
+import type { HumanDesignChart } from "@/lib/human-design-data";
 import { log, serializeError } from "@/lib/logger";
 
 export const SYMBOLIC_PRODUCT_DEFINITIONS = [
@@ -35,6 +37,15 @@ export const SYMBOLIC_PRODUCT_DEFINITIONS = [
     title: "Семейные сценарии",
     promptLabel: "Что повторяется в вашей семье и роду",
     resultTitle: "Семейные сценарии: что повторяется в роду",
+  },
+  {
+    // B387 (M26): «Дизайн человека». Тип/бодиграф считаются бесплатно и
+    // детерминированно (human-design.ts); этот платный разбор расшифровывает
+    // рассчитанный чарт (каналы, профиль, маршрут) человеческим языком.
+    productKey: "human-design",
+    title: "Дизайн человека",
+    promptLabel: "Дата, время и место рождения",
+    resultTitle: "Дизайн человека: ваш тип и стратегия",
   },
 ] as const;
 
@@ -180,6 +191,18 @@ export function buildSymbolicProductTeaser(input: {
     ].join("\n");
   }
 
+  if (input.productKey === "human-design") {
+    const { chart } = computeHumanDesignFromText(input.userInput);
+    return [
+      chart ? `Ваш тип — ${chart.typeName}` : "Ваш тип",
+      chart
+        ? `Стратегия: ${chart.strategy.toLowerCase()}. Внутренний авторитет: ${chart.authorityName.toLowerCase()}.`
+        : firstMeaningfulLine,
+      "",
+      "Полный разбор расшифрует ваши каналы, профиль и подскажет, как мягко жить по своей стратегии.",
+    ].join("\n");
+  }
+
   const repeatedTheme = extractRepeatedTheme(input.userInput);
   return [
     "Повторяющаяся тема",
@@ -260,6 +283,46 @@ function heuristicSymbolicResult(input: { productKey: SymbolicProductKey; userIn
   ].join("\n");
 }
 
+// B387: факты рассчитанного чарта для AI, чтобы разбор опирался на реальный тип,
+// а не выдумывал. Передаём в системный промт как «вот что точно посчитано».
+function humanDesignFactsForAI(chart: HumanDesignChart): string {
+  const defined = chart.centers.filter((c) => c.defined).map((c) => c.name).join(", ") || "нет определённых центров";
+  const channels = chart.definedChannels.map((c) => `${c.gates[0]}-${c.gates[1]}`).join(", ") || "нет";
+  return [
+    "ТОЧНО РАССЧИТАНО (не меняй и не выдумывай эти факты):",
+    `Тип: ${chart.typeName}. Стратегия: ${chart.strategy}. Внутренний авторитет: ${chart.authorityName}.`,
+    `Профиль: ${chart.profile} (${chart.profileName}). Определение: ${chart.definition}.`,
+    `Определённые центры: ${defined}.`,
+    `Определённые каналы: ${channels}.`,
+    `Подпись: ${chart.signature}. Тема не-я: ${chart.notSelf}.`,
+    chart.hasExactTime ? "Указано точное время рождения." : "Время рождения не указано — считай тип как ориентир, мягко предложи уточнить время.",
+    "Объясни ИМЕННО эти тип/стратегию/авторитет/профиль/каналы человеческим языком, без фатализма и без эзотерического жаргона как догмы.",
+  ].join("\n");
+}
+
+function humanDesignFallback(chart: HumanDesignChart | null): string {
+  if (!chart) {
+    return [
+      "Дизайн человека",
+      "",
+      "Чтобы посчитать тип точно, нужна дата рождения с годом, а лучше — точное время и город. Тип и бодиграф строятся по реальному положению светил в момент рождения.",
+      "",
+      "Бережный шаг: укажите данные рождения как можно точнее — и здесь появится ваш тип, стратегия и авторитет.",
+    ].join("\n");
+  }
+  return [
+    `Дизайн человека: ${chart.typeName}`,
+    "",
+    `Ваш тип — ${chart.typeName}. ${chart.typeSummary}`,
+    "",
+    `## Стратегия\n${chart.strategy}. Это не правило, а способ тратить меньше сил впустую.`,
+    `## Внутренний авторитет\n${chart.authorityName}. ${chart.authorityHint}`,
+    `## Профиль ${chart.profile} — ${chart.profileName}\nЭто язык того, как вы естественно учитесь и проявляетесь.`,
+    "",
+    `Подпись «${chart.signature}» — знак, что вы живёте по себе; «${chart.notSelf.toLowerCase()}» — сигнал свернуть не туда. Это карта самопонимания, а не приговор.`,
+  ].join("\n");
+}
+
 export async function generateSymbolicProductResult(input: {
   productKey: SymbolicProductKey;
   userInput: string;
@@ -275,12 +338,20 @@ export async function generateSymbolicProductResult(input: {
   // B388: натальная карта получает детерминированное структурное колесо в metadata,
   // чтобы страница услуги и PDF рендерили визуал, совпадающий с интерпретацией.
   const wheel = input.productKey === "natal-chart" ? buildNatalWheel(normalize(input.userInput)) : null;
+  // B387: «Дизайн человека» — детерминированный чарт по реальным эфемеридам;
+  // храним в metadata (для бодиграфа на странице/в PDF) и передаём в AI как факты.
+  const hdChart = input.productKey === "human-design" ? computeHumanDesignFromText(input.userInput).chart : null;
   const visualMeta: Prisma.InputJsonObject = {
     ...(cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {}),
     ...(wheel ? { wheel: wheel as unknown as Prisma.InputJsonValue } : {}),
+    ...(hdChart ? { chart: hdChart as unknown as Prisma.InputJsonValue } : {}),
   };
   const cardsMeta = visualMeta;
-  const fallback = cards ? tarotReadingFromCards(cards, input.userInput) : heuristicSymbolicResult(input);
+  const fallback = cards
+    ? tarotReadingFromCards(cards, input.userInput)
+    : input.productKey === "human-design"
+      ? humanDesignFallback(hdChart)
+      : heuristicSymbolicResult(input);
 
   try {
     // B362/Механика 7: каждый символический продукт должен использовать СВОЙ
@@ -294,6 +365,7 @@ export async function generateSymbolicProductResult(input: {
     const tarotCardsNote = cards
       ? "\n\nЭто расклad из 3 карт (Прошлое/Настоящее/Будущее). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте вопроса."
       : "";
+    const hdNote = hdChart ? `\n\n${humanDesignFactsForAI(hdChart)}` : "";
 
     const response = await aiComplete({
       feature,
@@ -304,7 +376,7 @@ export async function generateSymbolicProductResult(input: {
       messages: [
         {
           role: "system",
-          content: baseSystemPrompt + tarotCardsNote,
+          content: baseSystemPrompt + tarotCardsNote + hdNote,
         },
         {
           role: "user",

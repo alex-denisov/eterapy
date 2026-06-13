@@ -71,6 +71,7 @@ const GROUPS: ServiceGroup[] = [
       { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: price("natal-chart"), kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
       { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом: ресурсы и разные ритмы пары.", price: price("synastry"), kind: "Цифровое", href: "/products/synastry", icon: Compass },
       { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: price("numerology"), kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
+      { id: "hd-d", title: "Дизайн человека", desc: "Ваш тип и бодиграф по реальным данным рождения — бесплатно. Полный разбор каналов — за баллы.", price: `тип бесплатно · ${price("human-design")}`, kind: "Цифровое", href: "/products/human-design", icon: Compass },
     ],
   },
   {

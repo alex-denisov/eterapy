@@ -10,6 +10,7 @@ import { PerspectivesActions } from "@/components/products/perspectives-actions"
 import { SevenDaysActions } from "@/components/products/seven-days-actions";
 import { SynastryActions } from "@/components/products/synastry-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
+import { HumanDesignActions } from "@/components/products/human-design-actions";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
 import { getV5Product, v5Products, type V5Product } from "@/lib/v5-products";
 
@@ -182,6 +183,34 @@ function NumerologySide() {
   );
 }
 
+function HumanDesignSide() {
+  // Стилизованный силуэт бодиграфа из 9 центров (превью услуги).
+  const centers: Array<{ x: number; y: number; r: number; fill: boolean }> = [
+    { x: 130, y: 28, r: 14, fill: false },
+    { x: 130, y: 70, r: 14, fill: true },
+    { x: 130, y: 112, r: 16, fill: true },
+    { x: 130, y: 158, r: 18, fill: true },
+    { x: 184, y: 158, r: 12, fill: false },
+    { x: 70, y: 196, r: 14, fill: true },
+    { x: 190, y: 196, r: 14, fill: false },
+    { x: 130, y: 200, r: 18, fill: true },
+    { x: 130, y: 244, r: 16, fill: false },
+  ];
+  const links: Array<[number, number]> = [[0, 1], [1, 2], [2, 3], [3, 7], [3, 4], [2, 5], [2, 6], [5, 7], [7, 8], [6, 8]];
+  return (
+    <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#F4D9C1,#E8C4B8)] p-8" data-testid="product-human-design-preview">
+      <svg viewBox="0 0 260 272" className="w-full max-w-[220px]" aria-hidden="true">
+        {links.map(([a, b], i) => (
+          <line key={i} x1={centers[a].x} y1={centers[a].y} x2={centers[b].x} y2={centers[b].y} stroke="#B85B40" strokeWidth={centers[a].fill && centers[b].fill ? 3 : 1.2} opacity={centers[a].fill && centers[b].fill ? 0.85 : 0.4} strokeLinecap="round" />
+        ))}
+        {centers.map((c, i) => (
+          <circle key={i} cx={c.x} cy={c.y} r={c.r} fill={c.fill ? "#B85B40" : "#FBF0E1"} stroke="#B85B40" strokeWidth={1.5} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function DefaultSide() {
   return (
     <div className="grid min-h-[20rem] place-items-center rounded-[1.75rem] bg-[linear-gradient(160deg,#FFFCF5,#F4D9C1)] p-10">
@@ -308,6 +337,7 @@ function productSide(product: V5Product) {
   if (product.slug === "compatibility") return <CompatibilitySide />;
   if (product.slug === "seven-days") return <SevenDaysSide />;
   if (product.slug === "clarity-practice") return <ClarityPracticeSide />;
+  if (product.slug === "human-design") return <HumanDesignSide />;
   return <DefaultSide />;
 }
 
@@ -338,6 +368,9 @@ function ProductActionSurface({
   }
   if (product.slug === "family-scenarios") {
     return <SymbolicProductActions productKey="family-scenarios" title="Семейные сценарии" promptLabel="Что повторяется в вашей семье и роду" placeholder="Например: в семье по женской линии все рано брали ответственность за других и не умели просить помощи. Я ловлю себя на том же." creditCost={4} />;
+  }
+  if (product.slug === "human-design") {
+    return <HumanDesignActions creditCost={product.creditCost ?? 2} />;
   }
   return null;
 }

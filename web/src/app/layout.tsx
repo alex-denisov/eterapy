@@ -12,6 +12,7 @@ import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { Analytics } from "@/components/analytics";
 import { HashScroll } from "@/components/hash-scroll";
 import { FingerprintBeacon } from "@/components/fingerprint-beacon";
+import { ReferralTracker } from "@/components/referral-tracker";
 import { CookieBanner } from "@/components/cookie-banner";
 import { seoOrigins } from "@/lib/seo";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
@@ -88,6 +89,7 @@ export default function RootLayout({
                 banner (in Providers) and above the header, both static. */}
             <ImpersonationBanner />
             <HashScroll />
+            <ReferralTracker />
             <FingerprintBeacon />
             <Header />
             <main className="flex-1">{children}</main>

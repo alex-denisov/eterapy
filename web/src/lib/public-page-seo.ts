@@ -127,6 +127,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Бережная карта повторов рода: какие роли и темы передаются по семье и что можно мягко прервать. Без приговоров и диагнозов.",
     schemaKind: "Product",
   },
+  "/products/human-design": {
+    title: "Дизайн человека — узнать свой тип бесплатно — ETerapy",
+    description: "Ваш тип, стратегия, авторитет и бодиграф по реальным данным рождения — бесплатно. Полный разбор каналов и профиля за баллы. Без фатализма и приговоров.",
+    schemaKind: "Product",
+  },
   "/all-modalities": {
     title: "Сервисы самопознания — ETerapy",
     description: "Сервисы ETerapy от вопроса: рефлексия, Таро, натальная карта, нумерология, гороскоп и личный гид.",
@@ -167,6 +172,10 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
 export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
   const seo = publicPageSeo[route];
   const url = canonicalUrl(route);
+  // B390: брендовая OG-картинка для красивого превью при шеринге. «Дизайн
+  // человека» — отдельный мотив (бодиграф), остальные публичные страницы — общий.
+  const ogKind = route === "/products/human-design" ? "human-design" : "library";
+  const ogImage = canonicalUrl(`/api/og?kind=${ogKind}`);
 
   return {
     title: seo.title,
@@ -181,11 +190,13 @@ export function createPublicPageMetadata(route: PublicSeoRoute): Metadata {
       siteName: "ETerapy",
       locale: "ru_RU",
       type: seo.schemaKind === "Article" ? "article" : "website",
+      images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: seo.title,
       description: seo.description,
+      images: [ogImage],
     },
   };
 }

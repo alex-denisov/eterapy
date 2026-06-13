@@ -3,14 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { track } from "@/lib/analytics";
+import { SHARE_EVENTS, libraryStartParam, telegramDeepLink } from "@/lib/share";
+import { ShareButton } from "@/components/share/share-button";
+import { consumeReferralSource } from "@/components/referral-tracker";
 
 /**
- * Composite CTA on /library/[slug] (B382 funnel):
+ * Composite CTA on /library/[slug] (B382 funnel + B390 viral loop):
  * - Shows the live "прошли разбор" counter (baseline + persisted increments).
  * - "Разобрать свой вопрос" navigates into the paid service mapped to the card's
  *   topic (`href`), incrementing the counter server-side on click.
- * - Microcopy ("первая часть разбора бесплатно · полный — за N баллов") comes from
- *   resolveLibraryCta so price never drifts from the product page (B366 source).
+ * - B390: «Поделиться» (TG deep-link / web URL) + referred_dialogue_started when
+ *   the visitor arrived via a share/deep-link (KPI K-reg).
  */
 export function LibraryEntryCta({
   slug,
@@ -19,6 +23,7 @@ export function LibraryEntryCta({
   label,
   teaserNote,
   product,
+  headline,
 }: {
   slug: string;
   baseline: number;
@@ -26,8 +31,16 @@ export function LibraryEntryCta({
   label: string;
   teaserNote: string;
   product: string;
+  headline: string;
 }) {
   const [count, setCount] = useState<number>(baseline);
+
+  // B390: deep-link для шеринга (мини-апп, если сконфигурирован, иначе web).
+  // Считается в рендере (используется только в onClick, в DOM не попадает → нет
+  // несоответствия гидрации); на сервере — относительный путь-заглушка.
+  const shareUrl = typeof window !== "undefined"
+    ? telegramDeepLink(libraryStartParam(slug), `${window.location.origin}/library/${slug}`)
+    : `/library/${slug}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +59,11 @@ export function LibraryEntryCta({
   async function trackAndNavigate(event: React.MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     setCount((current) => current + 1);
+    // B390: если пришли по шерингу/deep-link — это реферальный старт разбора.
+    const referral = consumeReferralSource();
+    if (referral) {
+      track({ event: SHARE_EVENTS.referredDialogue, surface: "library", properties: { slug, source: referral } });
+    }
     try {
       await fetch(`/api/library/${encodeURIComponent(slug)}/track`, { method: "POST" });
     } catch {
@@ -85,6 +103,14 @@ export function LibraryEntryCta({
             {label}
             <ArrowRight className="size-4" aria-hidden="true" />
           </Link>
+          <ShareButton
+            kind="library"
+            headline={headline}
+            url={shareUrl}
+            surface="library-card"
+            label="Поделиться"
+            className="text-xs font-medium text-[var(--soft-gold)] underline underline-offset-4 inline-flex items-center gap-1.5"
+          />
           <p className="text-xs text-[#e8c4b8]/80 md:text-right">{teaserNote}</p>
         </div>
       </div>

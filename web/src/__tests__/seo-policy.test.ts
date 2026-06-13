@@ -79,8 +79,10 @@ describe("v5 SEO routing policy", () => {
         description: publicPageSeo[route].description,
         url: canonicalUrl(route),
       }));
+      // B390: каждая публичная страница отдаёт брендовую OG-картинку.
+      expect(Array.isArray(metadata.openGraph?.images) && metadata.openGraph.images.length > 0).toBe(true);
       expect(metadata.twitter).toEqual(expect.objectContaining({
-        card: "summary",
+        card: "summary_large_image",
         title: publicPageSeo[route].title,
       }));
       expect(jsonLd).toEqual(expect.objectContaining({

@@ -27,10 +27,14 @@ const PRODUCT_KEYS = [
   { productKey: "natal-chart" },
   { productKey: "numerology" },
   { productKey: "my-map" },
+  { productKey: "family-scenarios" },
+  { productKey: "human-design" },
 ] as const;
 
+// B387/B389: family-scenarios и human-design тоже идут через этот эндпоинт.
+// Раньше их не было в enum — генерация платного разбора падала на валидации.
 const postSchema = z.object({
-  productKey: z.enum(["tarot", "natal-chart", "numerology", "my-map"]),
+  productKey: z.enum(["tarot", "natal-chart", "numerology", "my-map", "family-scenarios", "human-design"]),
   userInput: z.string().max(4000).optional(),
 });
 

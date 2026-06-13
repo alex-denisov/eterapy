@@ -8,6 +8,7 @@ import { mainUrl } from "@/lib/subdomain";
 import { approvedLibraryEntries, getApprovedLibraryEntry } from "@/data/anonymous-library";
 import { resolveLibraryCta } from "@/lib/library-cta";
 import { LibraryEntryCta } from "@/components/library/library-entry-cta";
+import { ogImageUrl } from "@/lib/share";
 
 export function generateStaticParams() {
   return approvedLibraryEntries().map((entry) => ({ slug: entry.slug }));
@@ -25,6 +26,9 @@ export async function generateMetadata({
   const title = entry.seo?.metaTitle ?? `${entry.topic}: анонимный вопрос — ETerapy`;
   const description = entry.seo?.metaDescription ?? entry.summary;
   const url = canonicalUrl(`/library/${entry.slug}`);
+  // B390: брендовая OG-картинка делает карточку красивой при шеринге; конкретный
+  // текст вопроса идёт в og:title/description (соцсеть рисует его сама).
+  const ogImage = canonicalUrl(ogImageUrl("library"));
 
   return {
     title,
@@ -37,11 +41,13 @@ export async function generateMetadata({
       siteName: "ETerapy",
       locale: "ru_RU",
       type: "article",
+      images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: [ogImage],
     },
   };
 }
@@ -189,6 +195,7 @@ export default async function LibraryEntryPage({
           label={cta.label}
           teaserNote={cta.teaserNote}
           product={cta.product}
+          headline={forkTitle}
         />
 
         {relatedEntries.length > 0 && (

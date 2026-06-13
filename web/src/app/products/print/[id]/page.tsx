@@ -4,8 +4,10 @@ import db from "@/lib/db";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { PrintTrigger } from "@/components/products/print-trigger";
 import { TarotSpreadCards, ZodiacWheel, SynastryWheel } from "@/components/products/esoteric-chart-visuals";
+import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
 import type { TarotCard } from "@/lib/symbolic-products";
 import type { NatalWheel, SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
+import type { HumanDesignChart } from "@/lib/human-design-data";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +39,15 @@ function readWheel(metadata: unknown): NatalWheel | SynastryWheelData | null {
   return null;
 }
 
+function readHumanDesign(metadata: unknown): HumanDesignChart | null {
+  const meta = generationBag(metadata);
+  const raw = meta.chart;
+  if (!raw || typeof raw !== "object") return null;
+  const candidate = raw as { type?: unknown; centers?: unknown };
+  if (typeof candidate.type !== "string" || !Array.isArray(candidate.centers)) return null;
+  return raw as HumanDesignChart;
+}
+
 // Статическая печатная стилизация (константа, не пользовательский ввод).
 const PRINT_CSS = `
 @page { size: A4; margin: 16mm; }
@@ -64,6 +75,7 @@ export default async function PrintProductResultPage({ params }: { params: Promi
   const body = result.resultText ?? result.previewText ?? "";
   const cards = readCards(result.metadata);
   const wheel = readWheel(result.metadata);
+  const humanDesign = readHumanDesign(result.metadata);
   const isPreviewOnly = !result.resultText && Boolean(result.previewText);
 
   return (
@@ -89,6 +101,11 @@ export default async function PrintProductResultPage({ params }: { params: Promi
       {wheel?.kind === "synastry" && (
         <div className="print-visual">
           <SynastryWheel wheel={wheel} />
+        </div>
+      )}
+      {humanDesign && (
+        <div className="print-visual">
+          <HumanDesignBodygraph chart={humanDesign} />
         </div>
       )}
 

@@ -81,6 +81,43 @@ export function detectMiniAppPlatform(input: MiniAppDetectInput): MiniAppPlatfor
   return null;
 }
 
+// B390: deep-link start-параметр. Telegram кладёт startapp в хеш запуска как
+// tgWebAppStartParam; наш override/web-вариант — ?startapp= или ?start=.
+export function getMiniAppStartParam(input: { search?: string; hash?: string }): string | null {
+  const { search = "", hash = "" } = input;
+  const qs = new URLSearchParams(search);
+  const direct = qs.get("startapp") ?? qs.get("start") ?? qs.get("tgWebAppStartParam");
+  if (direct) return direct;
+  const fromHash = hash.match(/tgWebAppStartParam=([^&]+)/);
+  if (fromHash) {
+    try {
+      return decodeURIComponent(fromHash[1]);
+    } catch {
+      return fromHash[1];
+    }
+  }
+  return null;
+}
+
+export type MiniAppDeepLink = { kind: "library"; slug: string } | null;
+
+// Разбор deep-link-параметра в навигационную цель. «lib-<slug>» → карточка
+// библиотеки (всё после префикса — слаг, он url-safe).
+export function parseMiniAppDeepLink(param: string | null): MiniAppDeepLink {
+  if (!param) return null;
+  if (param.startsWith("lib-")) {
+    const slug = param.slice(4).trim();
+    if (/^[a-z0-9-]+$/.test(slug)) return { kind: "library", slug };
+  }
+  return null;
+}
+
+export function deepLinkToPath(link: MiniAppDeepLink): string | null {
+  if (!link) return null;
+  if (link.kind === "library") return `/library/${link.slug}`;
+  return null;
+}
+
 const BACK_BUTTON_ROOT_PATHS: readonly string[] = [
   "/",
   "/cabinet",
