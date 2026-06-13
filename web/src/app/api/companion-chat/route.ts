@@ -13,11 +13,13 @@ import {
   sendCompanionMessage,
 } from "@/lib/companion-chat-server";
 
+// nullish: клиент может прислать null (нет dialogueId) — не считаем это ошибкой.
 const postSchema = z.object({
-  sessionId: z.string().min(1).optional(),
-  sourceDialogueId: z.string().min(1).max(64).optional(),
+  sessionId: z.string().min(1).nullish(),
+  sourceDialogueId: z.string().min(1).max(64).nullish(),
+  dialogueId: z.string().min(1).max(64).nullish(),
   message: z.string().min(1).max(2000),
-  mode: z.enum(["stay", "explore", "question"]).optional(),
+  mode: z.enum(["stay", "explore", "question"]).nullish(),
 });
 
 export async function GET(request: NextRequest) {
