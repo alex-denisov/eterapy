@@ -21,7 +21,9 @@ describe("B377 flat product service pages", () => {
 
     expect(renderOrder.indexOf("<ProductHero")).toBeLessThan(renderOrder.indexOf("<ProductActionSurface"));
     expect(renderOrder.indexOf("<ProductActionSurface")).toBeGreaterThan(-1);
-    expect(renderOrder.indexOf("<ProductActionSurface")).toBeLessThan(renderOrder.indexOf("<ProductFooter"));
+    // B395: the action surface now lives inside the hero (tool-first), and the
+    // separate in-page <ProductFooter> was removed — the footer is the global
+    // compact footer. The action is the page's last major block.
   });
 
   it("keeps paid copy as flat service starts instead of buy buttons", () => {

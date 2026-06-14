@@ -3,16 +3,17 @@ import { BrandLogo } from "@/components/brand/brand-mark";
 import { mainUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 
-export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
+export function Footer({ variant = "soft", compact = false }: { variant?: "dark" | "soft"; compact?: boolean }) {
   const soft = variant === "soft";
   const linkCls = cn("hover:text-foreground transition-colors", soft && "hover:text-[var(--soft-bordeaux)]");
-  const mutedCls = cn("space-y-1.5 text-muted-foreground", soft && "text-[var(--soft-ink-faint)]");
-  const titleCls = cn("mb-2 font-semibold", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
+  const mutedCls = cn("text-muted-foreground", compact ? "space-y-1" : "space-y-1.5", soft && "text-[var(--soft-ink-faint)]");
+  const titleCls = cn("font-semibold", compact ? "mb-1" : "mb-2", soft ? "text-[var(--soft-bordeaux)]" : "text-foreground");
   // B380: footer condensed from 5 → 4 columns and restructured under the M26
-  // catalogue groups (Начать бесплатно · Самостоятельные разборы · Вместе ·
-  // Эзотерика · Поговорить со специалистом). Retired/dead service routes were
-  // removed from navigation in B373 (their pages now 404).
+  // catalogue groups. Retired/dead service routes were removed in B373.
   // The footer is navigation, not a price list (G2) — labels carry no "₽".
+  // B395: `compact` (product/tool pages) ONLY tightens type + spacing so the
+  // footer doesn't dominate the first screen — it keeps every link (an earlier
+  // variant stripped links to four; owner asked to keep them all, just denser).
   const columns = [
     {
       title: "Разборы",
@@ -62,11 +63,11 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
       data-site-chrome="footer"
       className={cn("border-t border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]", soft && "soft-footer")}
     >
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
-          <BrandLogo height={34} theme={soft ? "light" : "dark"} />
+      <div className={cn("mx-auto max-w-6xl px-4", compact ? "py-5" : "py-8")}>
+        <div className={cn("flex flex-col lg:flex-row lg:items-start lg:justify-between", compact ? "gap-5" : "gap-8")}>
+          <BrandLogo height={compact ? 26 : 34} theme={soft ? "light" : "dark"} />
 
-          <div className="soft-footer-columns grid flex-1 gap-x-8 gap-y-6 text-sm">
+          <div className={cn("soft-footer-columns grid flex-1", compact ? "gap-x-6 gap-y-4 text-[12.5px]" : "gap-x-8 gap-y-6 text-sm")}>
             {columns.map((column) => (
               <div key={column.title}>
                 <p className={titleCls}>{column.title}</p>
@@ -80,7 +81,7 @@ export function Footer({ variant = "soft" }: { variant?: "dark" | "soft" }) {
           </div>
         </div>
 
-        <p className={cn("mt-6 border-t pt-5 text-xs text-muted-foreground", soft ? "border-[var(--soft-paper-edge)] text-[var(--soft-ink-faint)]" : "border-border/30")}>
+        <p className={cn("border-t text-xs text-muted-foreground", compact ? "mt-4 pt-3.5" : "mt-6 pt-5", soft ? "border-[var(--soft-paper-edge)] text-[var(--soft-ink-faint)]" : "border-border/30")}>
           © {new Date().getFullYear()} ETerapy. Все услуги носят ознакомительный характер — не являются медицинской, юридической или финансовой помощью.
         </p>
       </div>

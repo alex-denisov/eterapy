@@ -59,34 +59,52 @@ export function CookieBanner() {
   if (!hydrated || consent !== "missing") return null;
 
   return (
+    // B395: тёплая «стеклянная» плашка в стиле iOS — полупрозрачный фон +
+    // backdrop-blur, компактная, плавает над контентом и помещается на мобильном
+    // экране. Раньше использовала корневую (тёмную) shadcn-тему — отсюда тёмная
+    // полоса поверх кремовой страницы. Теперь на токенах --soft-*.
     <div
       role="dialog"
       aria-label="Настройки cookies"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur-sm px-4 py-4 md:px-6"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3"
+      style={{ paddingBottom: "max(0.6rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="mx-auto max-w-5xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Мы используем{" "}
-          <strong className="text-foreground">необходимые cookies</strong>{" "}
-          для аутентификации, а также{" "}
-          <strong className="text-foreground">аналитические cookies</strong>{" "}
-          (Яндекс.Метрика, Google Analytics) для улучшения сервиса — только с вашего согласия.{" "}
-          <Link href="/legal/privacy" className="underline hover:no-underline">
-            Политика конфиденциальности
+      <div
+        className="pointer-events-auto mx-auto flex max-w-xl flex-wrap items-center justify-between gap-x-4 gap-y-2 border px-4 py-2.5"
+        style={{
+          borderRadius: "1.5rem",
+          background: "color-mix(in srgb, var(--soft-paper-card) 70%, transparent)",
+          borderColor: "color-mix(in srgb, var(--soft-bordeaux) 10%, transparent)",
+          backdropFilter: "blur(24px) saturate(1.8)",
+          WebkitBackdropFilter: "blur(24px) saturate(1.8)",
+          boxShadow: "0 10px 36px -16px rgba(60,30,20,0.4)",
+          color: "var(--soft-ink)",
+        }}
+      >
+        <p className="min-w-0 flex-1 text-xs" style={{ color: "var(--soft-ink-soft)" }}>
+          Cookies для входа и аналитики.{" "}
+          <Link
+            href="/legal/privacy"
+            className="underline underline-offset-2 hover:no-underline"
+            style={{ color: "var(--soft-bordeaux)" }}
+          >
+            Подробнее
           </Link>
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={necessary}
-            className="rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+            className="rounded-full px-3 py-1.5 text-[13px] font-medium transition-opacity hover:opacity-70"
+            style={{ color: "var(--soft-ink-soft)" }}
           >
-            Только необходимые
+            Только нужные
           </button>
           <button
             onClick={accept}
-            className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="soft-button soft-button-primary"
+            style={{ minHeight: "2rem", padding: "0.35rem 1rem", fontSize: "0.8125rem" }}
           >
-            Принять все
+            Принять
           </button>
         </div>
       </div>

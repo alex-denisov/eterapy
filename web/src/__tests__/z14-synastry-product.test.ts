@@ -61,7 +61,8 @@ describe("Z14 synastry product", () => {
 
     expect(detailPage).toContain("<SynastryActions");
     expect(detailPage).toContain('product.slug === "synastry"');
-    expect(detailPage).toContain("<SynastrySide");
+    // B395: decorative <SynastrySide> removed — the tool-first hero renders the
+    // action component directly, no side preview panel.
     expect(detailPage).toContain('data-testid="product-service-start"');
     expect(detailPage).not.toContain('data-testid="synastry-relationship-map"');
     expect(actions).toContain("/api/products/synastry");

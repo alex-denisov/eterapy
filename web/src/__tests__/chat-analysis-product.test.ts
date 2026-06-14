@@ -92,10 +92,11 @@ describe("B087/B088 chat analysis product", () => {
     expect(route).toContain("imageStored: false");
 
     expect(actions).toContain("action: \"screenshots_preview\"");
-    expect(actions).toContain("5-10 скриншотов");
+    // B395: upload affordances became icon buttons (with titles), not helper
+    // lines or the «5-10 скриншотов» label.
+    expect(actions).toContain("Скриншоты переписки");
     expect(actions).toContain("multiple");
-    expect(actions).toContain("С телефона: выделите несколько сообщений");
-    expect(actions).toContain("С компьютера: экспортируйте чат");
+    expect(actions).toContain("Загрузить файл (.txt, экспорт из Telegram)");
 
     expect(combineRecognizedChatTexts(["Анна: привет\n\n", "", " Я: отвечу позже "])).toBe("Анна: привет\n\nЯ: отвечу позже");
   });
@@ -119,14 +120,17 @@ describe("B087/B088 chat analysis product", () => {
     expect(masked).toContain("[ник скрыт]");
   });
 
-  it("Z7 replaces old consent checkbox with a stronger privacy notice", () => {
+  it("Z7/B395 keeps no consent checkbox and no false name-masking claim; privacy cue lives in the hero", () => {
     const actions = source("src/components/products/chat-analysis-actions.tsx");
+    const detailPage = source("src/app/products/[slug]/page.tsx");
 
+    // No legacy consent checkbox.
     expect(actions).not.toContain("checkbox");
     expect(actions).not.toContain("переписка — моя");
-    expect(actions).toContain("Имена заменяются на «Я» и «Собеседник»");
-    expect(actions).toContain("Переписка не хранится дольше 30 дней");
-    expect(actions).toContain("исходник можно удалить");
-    expect(actions).toContain("не приговор другому человеку");
+    // B395 (owner): the claim that names are auto-replaced with «Я»/«Собеседник»
+    // was FALSE and was removed from the tool. It must not reappear.
+    expect(actions).not.toContain("Имена заменяются");
+    // Privacy is now a quiet muted cue in the product hero, not a loud notice.
+    expect(detailPage).toContain("Приватно — видно только вам");
   });
 });

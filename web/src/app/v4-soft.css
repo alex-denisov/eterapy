@@ -1018,8 +1018,14 @@
   }
 
   .soft-products-page,
-  .soft-product-detail-page {
-    min-height: 100vh;
+  /* B395: was `min-height: 100vh` — it forced the short tool area to a full
+     screen, pushing the footer below the fold. The warm field now comes from
+     `.soft-product-shell` on the stretched <main> (see AppMain), so the page
+     can be its natural height and the compact footer reaches the first screen.
+     The page gradient resolves to --soft-paper at its edges, matching the shell
+     fill below, so there is no seam. */
+  .soft-product-shell {
+    background: #fbf6ee;
   }
 
   .soft-products-hero,

@@ -15,5 +15,10 @@ export function FooterConditional() {
   const hide = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
   if (hide) return null;
 
-  return <Footer variant="soft" />;
+  // B395: individual product/service pages are single-screen tools — give them
+  // the slim footer so it no longer eats the whole mobile screen. The rich
+  // 4-column footer stays on the landing and the catalogue.
+  const compact = /^\/products\/[^/]+/.test(pathname);
+
+  return <Footer variant="soft" compact={compact} />;
 }

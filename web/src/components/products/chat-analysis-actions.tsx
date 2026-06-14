@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ClipboardPaste, Download, EyeOff, FileText, ImageIcon, LockKeyhole, Save, Trash2, Upload } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Check, ClipboardPaste, Copy, FileText, ImageIcon, LockKeyhole, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { getNextStepRecommendation, type NextStepRecommendation } from "@/lib/product-recommendations";
+import { appUrl } from "@/lib/subdomain";
 
 type ToneEntry = { label: string; pct: number };
 type ReplyVariant = { style: string; text: string };
@@ -45,6 +48,9 @@ type ChatAnalysisResult = {
     screenshotStored?: boolean | null;
     screenshotCount?: number | null;
     recognizedScreenshotCount?: number | null;
+    // B395: эмоции-подсказки, которые ИИ считал в диалоге (ваш тон) — ими
+    // динамически наполняется блок «что вы сейчас чувствуете».
+    suggestedEmotions?: string[] | null;
   };
 };
 
@@ -69,120 +75,196 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+// B395: приложенные файлы показываем как мини-вложения (превью + удаление).
+type Attachment = { id: string; name: string; kind: "image" | "text"; url?: string };
+
+// B395: iOS-style activity indicator (rotating «flower» of fading petals). Used
+// inside the primary button so the loading state never shifts layout width.
+function IosSpinner({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`animate-spin ${className ?? ""}`} aria-hidden="true">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <rect
+          key={i}
+          x="11"
+          y="2.5"
+          width="2"
+          height="6"
+          rx="1"
+          fill="currentColor"
+          opacity={0.15 + (i / 7) * 0.85}
+          transform={`rotate(${i * 45} 12 12)`}
+        />
+      ))}
+    </svg>
+  );
+}
+
 const CONTACTS = ["партнёр", "бывший(ая)", "родитель", "друг", "коллега", "начальник", "другой"];
 const EMOTIONS = ["растерянность", "злость", "вина", "грусть", "страх", "пустота", "стыд"];
 
-function ToneBar({ label, pct, color }: { label: string; pct: number; color: string }) {
+// B395: тон разговора — сегментированная лента + ЛЕГЕНДА (точка того же оттенка
+// + название + %), чтобы было видно, какой сегмент к какой характеристике
+// относится. Доли нормируем к 100% (pct тонов в сумме ≈ 200%, см. lib/chat-analysis).
+function ToneRow({ who, tones, hue }: { who: string; tones: ToneEntry[]; hue: "them" | "me" }) {
+  const items = tones.filter((t) => t.pct > 0).slice(0, 4);
+  const total = items.reduce((sum, t) => sum + t.pct, 0) || 1;
+  const base = hue === "them" ? "var(--soft-terracotta-dark)" : "var(--soft-bordeaux)";
+  const shade = (i: number) => ({ background: base, opacity: 1 - i * 0.2 });
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <span className="text-[13.5px] font-medium text-[var(--soft-ink)]">{label}</span>
-        <span className="text-xs text-[var(--soft-ink-faint)]">{pct}%</span>
+      <span className="text-[13.5px] font-medium text-[var(--soft-ink)]">{who}</span>
+      <div className="mt-2 flex h-2.5 gap-px overflow-hidden rounded-full" style={{ background: "var(--soft-paper-edge)" }}>
+        {items.map((t, i) => (
+          <div key={t.label} title={`${t.label} · ${t.pct}%`} style={{ width: `${(t.pct / total) * 100}%`, ...shade(i) }} />
+        ))}
       </div>
-      <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--soft-paper-edge)]">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+      <div className="mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1.5">
+        {items.map((t, i) => (
+          <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[var(--soft-ink-soft)]">
+            <span className="size-2 shrink-0 rounded-full" style={shade(i)} />
+            {t.label}
+            <span className="text-[var(--soft-ink-faint)]">{t.pct}%</span>
+          </span>
+        ))}
       </div>
     </div>
   );
 }
 
-function StructuredResult({ data, result, onSave, onDelete, onDeleteSource, onStartNew, loading }: {
-  data: ChatAnalysisStructured;
-  result: ChatAnalysisResult;
-  onSave: () => void;
-  onDelete: () => void;
-  onDeleteSource: () => void;
+// B395: варианты ответа — это черновики, которые можно отправить. Кнопка копии
+// делает их рабочим инструментом; ставит галочку на ~1.5с после копирования.
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          // B395: копируем готовый к отправке текст — без кавычек-«ёлочек».
+          await navigator.clipboard.writeText(text.replace(/[«»]/g, "").trim());
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1600);
+        } catch {
+          /* буфер обмена недоступен — тихо игнорируем */
+        }
+      }}
+      aria-label="Скопировать ответ"
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-faint)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)]"
+    >
+      {copied ? <Check className="size-4 text-[var(--soft-sage)]" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+    </button>
+  );
+}
+
+// B395: «следующий шаг» — единственный насыщенный (бордовый) акцент экрана.
+// Карточка-рекомендация следующей услуги, к которой ВИЗУАЛЬНО ПРИСОЕДИНЕНА
+// кнопка «Начать новый разбор» (одна поверхность, разделённая тонкой линией).
+function NextStepCard({ rec, onStartNew, loading }: {
+  rec: NextStepRecommendation | null;
   onStartNew: () => void;
   loading: boolean;
 }) {
   return (
-    <div className="mt-4 flex flex-col gap-4">
-      {/* main insight */}
-      <div className="rounded-[20px] p-6" style={{ background: "linear-gradient(160deg, #FFFCF5, #F4D9C1)" }}>
+    <div className="overflow-hidden rounded-[20px]" style={{ background: "var(--soft-bordeaux)" }}>
+      {rec && (
+        <div className="p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#E9B59B" }}>
+            {rec.eyebrow}
+          </p>
+          <p className="mt-2 font-heading text-[1.3rem] leading-snug" style={{ color: "#FFF4E8" }}>{rec.name}</p>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: "rgba(251,240,225,0.82)" }}>{rec.reason}</p>
+          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link
+              href={rec.href}
+              data-testid="chat-analysis-next-step"
+              className="inline-flex items-center gap-2 rounded-full bg-[#FBF0E1] px-5 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition hover:brightness-[1.04]"
+            >
+              {rec.cta}
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            </Link>
+            <span className="text-sm" style={{ color: "rgba(251,240,225,0.66)" }}>{rec.price}</span>
+          </div>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onStartNew}
+        disabled={loading}
+        data-testid="chat-analysis-start-new"
+        className="flex w-full items-center justify-center gap-2 px-6 py-3.5 text-sm font-medium transition hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-50"
+        style={rec
+          ? { borderTop: "1px solid rgba(251,240,225,0.16)", color: "rgba(251,240,225,0.9)" }
+          : { color: "rgba(251,240,225,0.9)" }}
+      >
+        <RotateCcw className="size-4" aria-hidden="true" />
+        Начать новый разбор
+      </button>
+    </div>
+  );
+}
+
+function StructuredResult({ data, recommendation, onStartNew, loading }: {
+  data: ChatAnalysisStructured;
+  recommendation: NextStepRecommendation | null;
+  onStartNew: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div className="mt-4 flex flex-col gap-3.5" data-testid="chat-analysis-result">
+      {/* главное — один спокойный тёплый блок (без двухцветного градиента) */}
+      <div className="rounded-[20px] px-6 py-5" style={{ background: "var(--soft-paper-warm)" }}>
         <p className="soft-eyebrow">главное</p>
-        <p className="mt-3 font-heading text-[1.6rem] italic leading-snug text-[var(--soft-bordeaux)]">
+        <p className="mt-2.5 font-heading text-[1.45rem] italic leading-snug text-[var(--soft-bordeaux)]">
           {data.insight}
         </p>
       </div>
 
-      {/* tone bars */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="soft-card p-5">
-          <p className="soft-eyebrow mb-4">тон собеседника</p>
-          <div className="flex flex-col gap-3">
-            {data.tonesThem.map((t) => (
-              <ToneBar key={t.label} label={t.label} pct={t.pct} color="var(--soft-terracotta-dark)" />
-            ))}
-          </div>
-        </div>
-        <div className="soft-card p-5">
-          <p className="soft-eyebrow mb-4">ваш тон</p>
-          <div className="flex flex-col gap-3">
-            {data.tonesMe.map((t) => (
-              <ToneBar key={t.label} label={t.label} pct={t.pct} color="var(--soft-bordeaux)" />
-            ))}
-          </div>
+      {/* тон разговора — один блок, две ленты, две приглушённые гаммы */}
+      <div className="soft-card p-5">
+        <p className="soft-eyebrow mb-4">тон разговора</p>
+        <div className="flex flex-col gap-4">
+          <ToneRow who="Собеседник" tones={data.tonesThem} hue="them" />
+          <div className="h-px bg-[var(--soft-paper-edge)]" />
+          <ToneRow who="Вы" tones={data.tonesMe} hue="me" />
         </div>
       </div>
 
-      {/* reply variants */}
+      {/* что можно ответить — черновики через тонкие разделители + копирование */}
       <div className="soft-card p-5">
-        <p className="soft-eyebrow mb-4">три варианта ответа</p>
-        <div className="flex flex-col gap-3">
+        <p className="soft-eyebrow mb-1">что можно ответить</p>
+        <p className="text-xs text-[var(--soft-ink-faint)]">Три тона на выбор — можно скопировать и отправить.</p>
+        <div className="mt-2 flex flex-col">
           {data.replies.map((r, i) => (
-            <div key={i} className="soft-card-flat p-4">
-              <span className="soft-badge soft-badge-warm" style={{ fontSize: 11 }}>{r.style}</span>
-              <p className="mt-2 font-heading text-[1.06rem] italic leading-relaxed text-[var(--soft-ink)]">
-                {r.text}
-              </p>
+            <div key={i} className={`flex items-start gap-3 py-3.5 ${i > 0 ? "border-t border-[var(--soft-paper-edge)]" : ""}`}>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">{r.style}</span>
+                <p className="mt-1 font-heading text-[1.05rem] italic leading-relaxed text-[var(--soft-ink)]">{r.text}</p>
+              </div>
+              <CopyButton text={r.text} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* safety card */}
-      <div className="rounded-[20px] p-5" style={{ background: "var(--soft-bordeaux)", color: "#F4D9C1" }}>
-        <p className="text-xs font-semibold uppercase tracking-widest opacity-70">важно</p>
-        <p className="mt-2 font-heading text-lg italic leading-relaxed" style={{ color: "#FBF0E1" }}>
-          {data.safetyNote}
+      {/* безопасность — тихая подпись (контент сохранён, без громкого блока) */}
+      {data.safetyNote && (
+        <p className="flex items-start gap-2 px-1 text-[12.5px] leading-relaxed text-[var(--soft-ink-soft)]">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+          <span>{data.safetyNote}</span>
         </p>
-      </div>
+      )}
 
-      {/* action buttons. B320: when result.saved (auto-saved on generate for
-          authenticated users), label flips to "Сохранено в кабинете" — the
-          phrasing the user expected and that matches the cabinet location. */}
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={onSave} disabled={loading || result.saved} className="soft-button soft-button-ghost" data-testid="chat-analysis-save">
-          <Save className="size-4" aria-hidden="true" />
-          {result.saved ? "Сохранено в кабинете" : loading ? "Сохраняем…" : "Сохранить разбор"}
-        </Button>
-        <a href={`/api/products/chat-analysis/${result.id}/export`} className="soft-button soft-button-ghost">
-          <Download className="size-4" aria-hidden="true" />
-          Экспорт
-        </a>
-        {result.metadata?.sourceText && !result.metadata?.sourceDeletedAt && (
-          <Button onClick={onDeleteSource} disabled={loading} className="soft-button soft-button-ghost text-[var(--soft-terracotta-dark)]">
-            <EyeOff className="size-4" aria-hidden="true" />
-            Удалить исходник
-          </Button>
-        )}
-        <Button onClick={onDelete} disabled={loading} className="soft-button soft-button-ghost">
-          <Trash2 className="size-4" aria-hidden="true" />
-          Удалить разбор
-        </Button>
-        {/* B330: explicit "start over" entry. Resets the form to the input
-            tab without touching the saved result in My Map, so the user can
-            queue up a second analysis right after the first. */}
-        <Button
-          onClick={onStartNew}
-          disabled={loading}
-          className="soft-button soft-button-primary"
-          data-testid="chat-analysis-start-new"
-        >
-          <ArrowRight className="size-4" aria-hidden="true" />
-          Начать новый разбор
-        </Button>
-      </div>
+      {/* следующий шаг (CTA) + «начать новый разбор» — одна поверхность */}
+      <NextStepCard rec={recommendation} onStartNew={onStartNew} loading={loading} />
+
+      {/* разбор уже в дневнике — тихая строка-напоминание (вместо кнопок) */}
+      <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
+        <BookOpen className="size-3.5" aria-hidden="true" />
+        <span>Разбор сохранён в</span>
+        <Link href={appUrl("/diary")} className="font-medium text-[var(--soft-ink-soft)] underline-offset-2 hover:underline">дневнике</Link>
+        <span>— там его можно перечитать или удалить.</span>
+      </p>
     </div>
   );
 }
@@ -196,7 +278,7 @@ export function ChatAnalysisActions() {
 
   const [tab, setTab] = useState<"input" | "context" | "result">("input");
   const [sourceText, setSourceText] = useState("");
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   // B330/Z7: the old ownership gate was removed because chats are multi-party
   // by nature. Privacy is conveyed through the inline notice and delete-source
   // affordance after generation.
@@ -273,9 +355,14 @@ export function ChatAnalysisActions() {
       const recognizedCount = payload.result?.metadata?.recognizedScreenshotCount ?? screenshotCount;
       const failedCount = Math.max(0, screenshotCount - recognizedCount);
       setSourceText(combined);
-      setUploadedFiles((prev) => [
+      setAttachments((prev) => [
         ...prev,
-        ...selectedFiles.map((file, index) => index >= recognizedCount ? `${file.name} (текст не распознан)` : file.name),
+        ...screenshots.map((shot) => ({
+          id: crypto.randomUUID(),
+          name: shot.fileName ?? "Скриншот",
+          kind: "image" as const,
+          url: shot.imageDataUrl,
+        })),
       ]);
       setResult(payload.result ?? null);
       if (failedCount > 0) {
@@ -303,12 +390,18 @@ export function ChatAnalysisActions() {
       const text = await readAsText(file);
       const combined = sourceText.trim() ? `${sourceText.trim()}\n\n${text}` : text;
       setSourceText(combined.slice(0, 10000));
-      setUploadedFiles((prev) => [...prev, file.name]);
+      setAttachments((prev) => [...prev, { id: crypto.randomUUID(), name: file.name, kind: "text" as const }]);
       setStatus("idle");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось прочитать файл");
       setStatus("error");
     }
+  }
+
+  // B395: remove an attachment chip. The recognized text already merged into the
+  // textarea stays editable there; this clears the visual attachment + preview.
+  function removeAttachment(id: string) {
+    setAttachments((prev) => prev.filter((item) => item.id !== id));
   }
 
   // Paste from clipboard — works for "Из Telegram" affordance. Browsers
@@ -384,66 +477,20 @@ export function ChatAnalysisActions() {
     }
   }
 
-  async function saveReport() {
-    if (!result) return;
-    setStatus("loading");
-    try {
-      const payload = await jsonRequest<ApiPayload>(`/api/products/chat-analysis/${result.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action: "save" }),
-      });
-      setResult(payload.result ?? result);
-      setStatus("idle");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось сохранить результат");
-      setStatus("error");
-    }
-  }
-
-  async function deleteSource() {
-    if (!result) return;
-    setStatus("loading");
-    try {
-      const payload = await jsonRequest<ApiPayload>(`/api/products/chat-analysis/${result.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action: "delete_source" }),
-      });
-      setResult(payload.result ?? result);
-      setStatus("idle");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось удалить исходник");
-      setStatus("error");
-    }
-  }
-
-  async function deleteReport() {
-    if (!result) return;
-    setStatus("loading");
-    try {
-      await jsonRequest(`/api/products/chat-analysis/${result.id}`, { method: "DELETE" });
-      setResult(null);
-      setSourceText("");
-      setUploadedFiles([]);
-      setContact(null);
-      setEmotion(null);
-      setGoal("");
-      setTab("input");
-      setStatus("idle");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось удалить результат");
-      setStatus("error");
-    }
-  }
+  // B395: убраны кнопки «Сохранить / Экспорт / Удалить исходник / Удалить
+  // разбор» — разбор автосохраняется в Дневник при генерации (route.ts), а
+  // удаление/скрытие живёт в самом Дневнике. Поэтому saveReport/deleteSource/
+  // deleteReport больше не нужны на экране результата.
 
   // B330: "Начать новый разбор" — clear local form state and go to input
   // tab. We deliberately do NOT delete the saved result from the cabinet;
-  // it stays in My Map. The entitlement is also dropped from local state
+  // it stays in the diary. The entitlement is also dropped from local state
   // so the next analysis triggers a fresh purchase / credit deduction.
   function startNewAnalysis() {
     setResult(null);
     setHasEntitlement(false);
     setSourceText("");
-    setUploadedFiles([]);
+    setAttachments([]);
     setContact(null);
     setEmotion(null);
     setGoal("");
@@ -456,247 +503,310 @@ export function ChatAnalysisActions() {
     ? tryParseChatAnalysis(result.resultText)
     : null;
 
-  const tabNav = (
-    <div className="flex flex-wrap gap-2">
-      {(["input", "context", "result"] as const).map((t, i) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => { if (t === "context" && !result) return; if (t === "result" && !result?.resultText) return; setTab(t); }}
-          className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-            tab === t
-              ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
-              : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]"
-          } ${t === "context" && !result ? "opacity-40 cursor-not-allowed" : ""} ${t === "result" && !result?.resultText ? "opacity-40 cursor-not-allowed" : ""}`}
-        >
-          {i + 1}. {t === "input" ? "Вставить переписку" : t === "context" ? "Контекст" : "Разбор"}
-        </button>
-      ))}
+  // B395: рекомендация следующего шага зависит от собранного контекста
+  // (кто собеседник / что чувствуете). Считается единой системой рекомендаций.
+  const recommendation = getNextStepRecommendation("chat-analysis", { contact, emotion });
+
+  // B395: кнопки «что вы сейчас чувствуете» наполняются динамически — из тонов,
+  // которые ИИ считал в диалоге (ваш тон, приходит в metadata.suggestedEmotions
+  // на шаге предпросмотра). Фолбэк на статический список, если их нет.
+  const emotionOptions = result?.metadata?.suggestedEmotions?.length
+    ? result.metadata.suggestedEmotions
+    : EMOTIONS;
+
+  // B395: компактный одно-рядный степпер (раньше — pills с переносом на мобиле).
+  // Кружок-индекс + короткая подпись, связаны гибкой тонкой линией; три шага
+  // всегда в один ряд и не переносятся (flex без wrap, whitespace-nowrap).
+  const steps = [
+    { key: "input", label: "Переписка" },
+    { key: "context", label: "Контекст" },
+    { key: "result", label: "Разбор" },
+  ] as const;
+  const currentIndex = steps.findIndex((s) => s.key === tab);
+  const stepper = (
+    <div className="mb-5 flex items-center gap-2" data-testid="chat-analysis-steps">
+      {steps.map((s, i) => {
+        const state = i < currentIndex ? "done" : i === currentIndex ? "active" : "todo";
+        const reachable = s.key === "input" || (s.key === "context" && Boolean(result)) || (s.key === "result" && Boolean(result?.resultText));
+        return (
+          <Fragment key={s.key}>
+            <button
+              type="button"
+              disabled={!reachable}
+              onClick={() => { if (reachable) setTab(s.key); }}
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap ${reachable ? "" : "cursor-not-allowed"}`}
+            >
+              <span
+                className={`inline-flex size-5 items-center justify-center rounded-full text-[11px] font-semibold ${
+                  state === "active"
+                    ? "bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
+                    : state === "done"
+                      ? "bg-[var(--soft-paper-deep)] text-[var(--soft-bordeaux)]"
+                      : "border border-[var(--soft-paper-edge)] text-[var(--soft-ink-faint)]"
+                }`}
+              >
+                {state === "done" ? <Check className="size-3" aria-hidden="true" /> : i + 1}
+              </span>
+              <span className={`text-[12.5px] font-medium ${state === "todo" ? "text-[var(--soft-ink-faint)]" : "text-[var(--soft-ink)]"}`}>
+                {s.label}
+              </span>
+            </button>
+            {i < steps.length - 1 && <span className="h-px flex-1 bg-[var(--soft-paper-edge)]" />}
+          </Fragment>
+        );
+      })}
     </div>
   );
 
   return (
-    <div className="soft-card soft-form-panel mt-8" data-testid="chat-analysis-actions">
-      {tab !== "input" && tabNav}
+    <div data-testid="chat-analysis-actions">
+      {tab !== "input" && stepper}
 
       {message && (
-        <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
+        <p className="mb-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">
           {message}
         </p>
       )}
 
-      {/* tab 1: input — v4.2 design: three affordances + soft privacy notice */}
+      {/* tab 1: input — modern «composer» surface (single frame, no card-in-card):
+          textarea + a bottom toolbar with icon attach actions on the left and the
+          primary action on the right, so the CTA always stays on the first screen. */}
       {tab === "input" && (
-        <div className="soft-card mt-4 p-5" data-testid="chat-analysis-input">
-          {/* B330/Z7: privacy notice replaces the old ownership gate. */}
-          <p className="soft-eyebrow mb-3">переписка</p>
-          <textarea
-            value={sourceText}
-            onChange={(e) => setSourceText(e.target.value)}
-            placeholder={"Вставьте фрагмент диалога. Имена будут автоматически заменены на «Я» и «Собеседник». Файлы тоже подойдут — .txt, экспорт из Telegram, скриншоты."}
-            className="soft-question-input"
-            rows={8}
-            disabled={status === "loading"}
-            data-testid="chat-analysis-textarea"
-          />
-          <div className="mt-4">
-            {tabNav}
-          </div>
-
-          {/* Three input affordances — v4.2 deepenings.jsx:26-30 */}
-          <div className="mt-4 flex flex-wrap gap-2" data-testid="chat-analysis-upload-row">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
+        <div data-testid="chat-analysis-input">
+          <div className="soft-card overflow-hidden p-0 transition-colors focus-within:border-[var(--soft-bordeaux)]">
+            <textarea
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              placeholder={"Вставьте переписку или приложите скриншоты — можно частями. Чем больше контекста, тем точнее разбор."}
+              className="soft-question-input"
+              style={{ padding: "1.1rem 1.25rem 0.6rem" }}
+              rows={5}
               disabled={status === "loading"}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
-              data-testid="chat-analysis-upload-file"
-            >
-              <FileText className="size-4" aria-hidden="true" />
-              Загрузить файл
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,.html,.json,text/plain,text/html,application/json"
-              className="sr-only"
-              disabled={status === "loading"}
-              onChange={(e) => {
-                void uploadTextFile(e.target.files?.[0] ?? null);
-                e.currentTarget.value = "";
-              }}
+              data-testid="chat-analysis-textarea"
             />
 
-            <button
-              type="button"
-              onClick={() => screenshotInputRef.current?.click()}
-              disabled={status === "loading"}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
-              data-testid="chat-analysis-upload-screenshot"
-            >
-              <ImageIcon className="size-4" aria-hidden="true" />
-              {status === "loading" ? "Распознаём…" : "5-10 скриншотов"}
-            </button>
-            <input
-              ref={screenshotInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              className="sr-only"
-              disabled={status === "loading"}
-              onChange={(e) => {
-                void uploadScreenshots(e.target.files);
-                e.currentTarget.value = "";
-              }}
-            />
+            {/* Attachments as uniform micro-thumbnails (image preview / file chip)
+                with a tappable × to remove. Sized small + names truncated so many
+                files fit; row-gap leaves room for the × when they wrap. */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-x-2.5 gap-y-3 px-4 pb-3 pt-1" data-testid="chat-analysis-file-list">
+                {attachments.map((att) => (
+                  <div key={att.id} className="relative">
+                    {att.kind === "image" && att.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="size-12 rounded-lg border border-[var(--soft-paper-edge)] object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 max-w-[8.5rem] items-center gap-1.5 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5">
+                        <FileText className="size-4 shrink-0 text-[var(--soft-ink-soft)]" aria-hidden="true" />
+                        <span className="truncate text-[11px] text-[var(--soft-ink-soft)]">{att.name}</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      aria-label={`Удалить ${att.name}`}
+                      className="absolute -right-1.5 -top-1.5 inline-flex size-5 items-center justify-center rounded-full bg-[var(--soft-bordeaux)] text-[#fff8f1] shadow-sm transition hover:brightness-110"
+                    >
+                      <X className="size-3" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <button
-              type="button"
-              onClick={() => void pasteFromClipboard()}
-              disabled={status === "loading"}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3.5 py-1.5 text-[13px] text-[var(--soft-ink-soft)] transition hover:border-[var(--soft-bordeaux)] hover:text-[var(--soft-bordeaux)] disabled:opacity-40 disabled:cursor-not-allowed"
-              data-testid="chat-analysis-upload-paste"
-            >
-              <ClipboardPaste className="size-4" aria-hidden="true" />
-              Вставить из Telegram
-            </button>
+            {/* Toolbar: attach actions (icons) + primary action. Order: screenshots → paste → «Загрузить файл» last. */}
+            <div className="flex items-center justify-between gap-2 border-t border-[var(--soft-paper-edge)] px-2.5 py-2">
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => screenshotInputRef.current?.click()}
+                  disabled={status === "loading"}
+                  title="Скриншоты переписки"
+                  aria-label="Загрузить скриншоты"
+                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] disabled:cursor-not-allowed disabled:opacity-40"
+                  data-testid="chat-analysis-upload-screenshot"
+                >
+                  <ImageIcon className="size-[18px]" aria-hidden="true" />
+                </button>
+                <input
+                  ref={screenshotInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  multiple
+                  className="sr-only"
+                  disabled={status === "loading"}
+                  onChange={(e) => {
+                    void uploadScreenshots(e.target.files);
+                    e.currentTarget.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => void pasteFromClipboard()}
+                  disabled={status === "loading"}
+                  title="Вставить из буфера обмена"
+                  aria-label="Вставить из буфера обмена"
+                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] disabled:cursor-not-allowed disabled:opacity-40"
+                  data-testid="chat-analysis-upload-paste"
+                >
+                  <ClipboardPaste className="size-[18px]" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={status === "loading"}
+                  title="Загрузить файл (.txt, экспорт из Telegram)"
+                  aria-label="Загрузить файл"
+                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] disabled:cursor-not-allowed disabled:opacity-40"
+                  data-testid="chat-analysis-upload-file"
+                >
+                  <FileText className="size-[18px]" aria-hidden="true" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.html,.json,text/plain,text/html,application/json"
+                  className="sr-only"
+                  disabled={status === "loading"}
+                  onChange={(e) => {
+                    void uploadTextFile(e.target.files?.[0] ?? null);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </div>
+
+              <Button
+                onClick={proceedToContext}
+                disabled={status === "loading" || sourceText.trim().length < 10}
+                className="soft-button soft-button-primary"
+                style={{ minHeight: "2.5rem", padding: "0 1.1rem" }}
+              >
+                Начать разбор
+                {status === "loading" ? (
+                  <IosSpinner className="size-4" />
+                ) : (
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                )}
+              </Button>
+            </div>
           </div>
-
-          <div className="mt-4 rounded-2xl bg-[var(--soft-paper-card)] p-4 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            <p className="font-medium text-[var(--soft-ink)]">Как добавить переписку</p>
-            <p className="mt-2">
-              С телефона: выделите несколько сообщений, скопируйте их и вставьте сюда; если так неудобно,
-              загрузите 5-10 скриншотов подряд.
-            </p>
-            <p className="mt-1">
-              С компьютера: экспортируйте чат в `.txt` или скопируйте нужный фрагмент из Telegram Desktop.
-            </p>
-          </div>
-
-          {uploadedFiles.length > 0 && (
-            <ul className="mt-3 flex flex-col gap-1" data-testid="chat-analysis-file-list">
-              {uploadedFiles.map((name, i) => (
-                <li key={`${name}-${i}`} className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
-                  <Upload className="size-3" aria-hidden="true" />
-                  {name}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <p className="mt-4 flex items-start gap-1.5 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-            <LockKeyhole className="size-3" aria-hidden="true" />
-            <span>
-              Имена заменяются на «Я» и «Собеседник». Переписка не хранится дольше 30 дней,
-              исходник можно удалить после разбора. Разбор — про ваши чувства и варианты ответа,
-              не приговор другому человеку.
-            </span>
-          </p>
-          <Button
-            onClick={proceedToContext}
-            disabled={status === "loading" || sourceText.trim().length < 10}
-            className="soft-button soft-button-primary mt-5"
-          >
-            Дальше: контекст
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
         </div>
       )}
 
-      {/* tab 2: context */}
+      {/* tab 2: context — два РАЗНЫХ визуальных блока: тёплый «первый взгляд»
+          (предпросмотр) и отдельная карточка-форма сбора контекста, чтобы форма
+          не сливалась с предпросмотром. Компактно — помещается на мобиле. */}
       {tab === "context" && (
-        <div className="soft-card mt-4 p-5">
+        <div className="mt-4 flex flex-col gap-3" data-testid="chat-analysis-context">
+          {/* распознанный текст со скриншота — тихий сворачиваемый блок */}
           {result?.metadata?.sourceKind === "screenshot" && result.metadata?.recognizedText && (
-        <div className="soft-card-flat mb-4 max-h-40 overflow-y-auto p-4 text-sm leading-relaxed text-[var(--soft-ink)]">
-          <p className="soft-eyebrow mb-2 text-[var(--soft-bordeaux)]">Распознанный текст</p>
-          <p className="whitespace-pre-wrap">{result.metadata.recognizedText}</p>
-        </div>
-      )}
-      {result?.previewText && !result.resultText && (
-        <div className="soft-card-flat mb-4 p-4 text-sm leading-relaxed text-[var(--soft-ink)]">
-          <p className="soft-eyebrow mb-2 text-[var(--soft-bordeaux)]">Бесплатный фрагмент</p>
-          <SoftMarkdown content={result.previewText} />
-        </div>
-      )}
-      <p className="soft-eyebrow mb-4">короткий контекст</p>
-          <div className="flex flex-col gap-5">
-            <div>
-              <label className="text-[13px] text-[var(--soft-ink-soft)]">Кто собеседник?</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {CONTACTS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => setContact(contact === c ? null : c)}
-                    className={`rounded-full border px-3 py-1 text-sm transition ${
-                      contact === c
-                        ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
-                        : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]"
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-[13px] text-[var(--soft-ink-soft)]">Что вы сейчас чувствуете?</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {EMOTIONS.map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => setEmotion(emotion === e ? null : e)}
-                    className={`rounded-full border px-3 py-1 text-sm transition ${
-                      emotion === e
-                        ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
-                        : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]"
-                    }`}
-                  >
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-[13px] text-[var(--soft-ink-soft)]">Что хочется получить от разбора?</label>
-              <textarea
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder="Понять, почему меня это так задевает. И как ответить, чтобы не было хуже."
-                className="soft-question-input mt-2"
-                rows={3}
-              />
-            </div>
-          </div>
+            <details className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5">
+              <summary className="cursor-pointer select-none text-[13px] font-medium text-[var(--soft-ink-soft)]">
+                Распознанный текст
+              </summary>
+              <p className="mt-2 max-h-36 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-[var(--soft-ink)]">
+                {result.metadata.recognizedText}
+              </p>
+            </details>
+          )}
 
-          {/* #7: the paid order is the single primary action (credits → full
-              разбор in one click). No more always-disabled «Открыть полный
-              разбор» button shown to users who haven't paid. */}
-          {hasEntitlement ? (
-            <Button
-              onClick={generateReport}
-              disabled={status === "loading" || status === "paying"}
-              className="soft-button soft-button-primary mt-6"
-            >
-              <LockKeyhole className="size-4" aria-hidden="true" />
-              Получить полный разбор
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </Button>
-          ) : (
-            <div className="mt-6">
-              <ProductPurchaseControls
-                productKey="chat-analysis"
-                label="Разобрать переписку"
-                checkoutSource="chat-analysis-generate"
-                creditCost={2}
-                onUnlocked={() => {
-                  setHasEntitlement(true);
-                  void generateReport();
-                }}
-              />
+          {/* первый взгляд — тёплая панель-предпросмотр (бывш. «Начало разбора»).
+              Компактная: меньше отступы/кегль, плотные списки — без потери текста. */}
+          {result?.previewText && !result.resultText && (
+            <div className="rounded-[18px] px-4 py-3" style={{ background: "var(--soft-paper-warm)" }}>
+              <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">первый взгляд</p>
+              <div className="mt-1.5 text-[13px] leading-relaxed text-[var(--soft-ink)] [&_p]:m-0 [&_ul]:my-1 [&_ul]:pl-4 [&_li]:my-0">
+                <SoftMarkdown content={result.previewText} />
+              </div>
             </div>
           )}
+
+          {/* карточка-форма сбора контекста — отдельная поверхность, единый заголовок */}
+          <div className="soft-card p-4">
+            <p className="font-heading text-[1.04rem] text-[var(--soft-ink-strong)]">Контекст для точного разбора</p>
+
+            <div className="mt-3.5 flex flex-col gap-3.5">
+              <div>
+                <label className="text-[13px] font-medium text-[var(--soft-ink-soft)]">Кто собеседник?</label>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {CONTACTS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setContact(contact === c ? null : c)}
+                      className={`rounded-full px-2.5 py-1 text-[12.5px] transition ${
+                        contact === c
+                          ? "bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
+                          : "bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)] hover:bg-[var(--soft-paper-edge)]"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[13px] font-medium text-[var(--soft-ink-soft)]">Что вы сейчас чувствуете?</label>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {emotionOptions.map((e) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setEmotion(emotion === e ? null : e)}
+                      className={`rounded-full px-2.5 py-1 text-[12.5px] transition ${
+                        emotion === e
+                          ? "bg-[var(--soft-bordeaux)] text-[#FBF0E1]"
+                          : "bg-[var(--soft-paper-deep)] text-[var(--soft-ink-soft)] hover:bg-[var(--soft-paper-edge)]"
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-[13px] font-medium text-[var(--soft-ink-soft)]">Что хочется получить от разбора?</label>
+                <textarea
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  placeholder="Понять, почему меня это так задевает. И как ответить, чтобы не было хуже."
+                  className="soft-question-input mt-2"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            {/* #7: оплата — единственное основное действие (баллы/карта → полный
+                разбор в один клик). Оплата живёт здесь, внутри итога. */}
+            {hasEntitlement ? (
+              <Button
+                onClick={generateReport}
+                disabled={status === "loading" || status === "paying"}
+                className="soft-button soft-button-primary mt-5 w-full justify-center"
+              >
+                <LockKeyhole className="size-4" aria-hidden="true" />
+                Показать полный разбор
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Button>
+            ) : (
+              <div className="mt-5">
+                <ProductPurchaseControls
+                  productKey="chat-analysis"
+                  label="Открыть полный разбор"
+                  checkoutSource="chat-analysis-generate"
+                  creditCost={2}
+                  onUnlocked={() => {
+                    setHasEntitlement(true);
+                    void generateReport();
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -706,10 +816,7 @@ export function ChatAnalysisActions() {
           {parsed ? (
             <StructuredResult
               data={parsed}
-              result={result}
-              onSave={saveReport}
-              onDelete={deleteReport}
-              onDeleteSource={deleteSource}
+              recommendation={recommendation}
               onStartNew={startNewAnalysis}
               loading={status === "loading"}
             />

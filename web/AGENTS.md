@@ -1,6 +1,8 @@
 # web/
 
-See [`../AGENTS.md`](../AGENTS.md) and the modular agent contract in
-[`../docs/agents/`](../docs/agents/). The Next.js-specific gotchas are covered
-in [`../docs/agents/04-tools-skills-agents.md`](../docs/agents/04-tools-skills-agents.md)
-and [`../docs/agents/05-coding-style.md`](../docs/agents/05-coding-style.md).
+This is a stub. The full, vendor-neutral agent contract lives at the repo root:
+see [`../AGENTS.md`](../AGENTS.md) and the modular contract in
+[`../docs/agents/`](../docs/agents/) (read its `README.md` for the order).
+
+No instructions live here — to avoid drift, this file points only at the root
+entry, never at specific topic files.

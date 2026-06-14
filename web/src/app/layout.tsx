@@ -4,6 +4,7 @@ import { Cormorant_Garamond, Manrope } from "next/font/google";
 import "./globals.css";
 import "./v4-soft.css";
 import { Header } from "@/components/header";
+import { AppMain } from "@/components/app-main";
 import { FooterConditional } from "@/components/footer-conditional";
 import { MiniAppProvider } from "@/components/miniapp-provider";
 import { Providers } from "@/components/providers";
@@ -92,7 +93,7 @@ export default function RootLayout({
             <ReferralTracker />
             <FingerprintBeacon />
             <Header />
-            <main className="flex-1">{children}</main>
+            <AppMain>{children}</AppMain>
             <FooterConditional />
             <CookieBanner />
           </MiniAppProvider>

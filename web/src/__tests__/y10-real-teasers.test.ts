@@ -92,7 +92,8 @@ describe("M24 Z6 real truncated product teasers", () => {
 
     const teaser = buildChatAnalysisTeaser("Анна: ты опять пропал\nЯ: мне важно понять, что происходит", fullAnalysis);
 
-    expect(teaser).toContain("Распознанный фрагмент");
+    // B395/M26: «фрагмент» banned in client UI → teaser header is «Что удалось прочитать».
+    expect(teaser).toContain("Что удалось прочитать");
     expect(teaser).toContain("Собеседник: ты опять пропал");
     expect(teaser).toContain("один инсайт");
     expect(teaser).toContain("быстро уходит в защиту");

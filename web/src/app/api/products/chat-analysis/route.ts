@@ -16,6 +16,7 @@ import {
   extractChatTextFromScreenshot,
   generateChatAnalysis,
   maskChatAnalysisPii,
+  tryParseChatAnalysis,
 } from "@/lib/chat-analysis";
 
 const PRODUCT_KEY = "chat-analysis";
@@ -64,6 +65,7 @@ function serializeResult(result: {
     screenshot?: { stored?: boolean | null } | null;
     screenshotCount?: number | null;
     recognizedScreenshotCount?: number | null;
+    suggestedEmotions?: string[] | null;
   } | null;
   return {
     id: result.id,
@@ -83,6 +85,7 @@ function serializeResult(result: {
       screenshotStored: Boolean(metadata?.screenshot?.stored),
       screenshotCount: metadata?.screenshotCount ?? null,
       recognizedScreenshotCount: metadata?.recognizedScreenshotCount ?? null,
+      suggestedEmotions: Array.isArray(metadata?.suggestedEmotions) ? metadata.suggestedEmotions : null,
     },
   };
 }
@@ -136,7 +139,25 @@ export async function POST(request: NextRequest) {
       requestId: context.requestId,
     });
     const previewText = buildChatAnalysisTeaser(maskedSourceText, generated.text) || buildChatAnalysisPreview(maskedSourceText);
-    
+
+    // B395: динамические эмоции-подсказки для шага «контекст» берём из тонов,
+    // которые ИИ уже считал в диалоге (ваш тон / tonesMe) — без отдельного
+    // AI-вызова. Клиент наполнит ими блок «что вы сейчас чувствуете».
+    const suggestedEmotions = (tryParseChatAnalysis(generated.text)?.tonesMe ?? [])
+      .map((t) => t.label)
+      .filter((label): label is string => Boolean(label && label.trim()))
+      .slice(0, 7);
+
+    const previewMetadata = {
+      sourceKind: "text",
+      sourceText: maskedSourceText,
+      piiMasked: true,
+      sourceRawStored: false,
+      uploadPreviewedAt: new Date().toISOString(),
+      previewGenerationMetadata: generated.metadata,
+      suggestedEmotions,
+    };
+
     // Check if we already have a preview in progress to overwrite or create a new one
     const existing = await db.productResult.findFirst({
       where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
@@ -149,14 +170,7 @@ export async function POST(request: NextRequest) {
           data: {
             title: buildChatAnalysisTitle(input.sourceText),
             previewText,
-            metadata: {
-              sourceKind: "text",
-              sourceText: maskedSourceText,
-              piiMasked: true,
-              sourceRawStored: false,
-              uploadPreviewedAt: new Date().toISOString(),
-              previewGenerationMetadata: generated.metadata,
-            },
+            metadata: previewMetadata,
           },
         })
       : await db.productResult.create({
@@ -166,14 +180,7 @@ export async function POST(request: NextRequest) {
             title: buildChatAnalysisTitle(input.sourceText),
             status: "PREVIEW",
             previewText,
-            metadata: {
-              sourceKind: "text",
-              sourceText: maskedSourceText,
-              piiMasked: true,
-              sourceRawStored: false,
-              uploadPreviewedAt: new Date().toISOString(),
-              previewGenerationMetadata: generated.metadata,
-            },
+            metadata: previewMetadata,
           },
         });
 

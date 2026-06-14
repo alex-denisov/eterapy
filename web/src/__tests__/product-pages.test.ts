@@ -52,25 +52,29 @@ describe("v5 product pages", () => {
     expect(source("lib/v5-products.ts")).not.toContain("joint-session\":");
   });
 
-  it("ports v4.2 product hero and flat page-specific previews instead of sample blocks", () => {
+  it("renders the tool-first product hero (no decorative previews or side panels)", () => {
     const detailPage = source("app/products/[slug]/page.tsx");
     const products = source("lib/v5-products.ts");
 
     expect(detailPage).toContain('data-testid="product-hero"');
-    expect(detailPage).toContain('data-testid="product-hero-preview"');
-    expect(detailPage).toContain("← На главную");
-    expect(detailPage).toContain("product.priceMeta");
+    // B395: tool-first hero — round iOS back arrow + corner ₽ price, the tool
+    // on the first screen. The decorative preview and the «← На главную» text
+    // chip were removed.
+    expect(detailPage).toContain('data-testid="product-hero-back"');
+    expect(detailPage).toContain('data-testid="product-hero-price"');
+    expect(detailPage).toContain("{product.price}");
+    expect(detailPage).not.toContain('data-testid="product-hero-preview"');
+    expect(detailPage).not.toContain("← На главную");
 
-    expect(detailPage).toContain("ETerapy · подробный разбор");
     expect(detailPage).toContain('data-testid="product-service-start"');
     expect(detailPage).not.toContain('data-testid="deep-report-sample-main-fork"');
     expect(detailPage).not.toContain('data-testid="product-example-disclosure"');
 
-    expect(detailPage).toContain('data-testid="product-human-design-preview"');
-
-    expect(detailPage).toContain("<TarotSide");
-    expect(detailPage).toContain("<NatalSide");
-    expect(detailPage).toContain("<NumerologySide");
+    // B395: per-product *Side / preview components removed — the hero renders
+    // the action component directly (symbolic products via SymbolicProductActions).
+    expect(detailPage).not.toContain("<TarotSide");
+    expect(detailPage).not.toContain("<NumerologySide");
+    expect(detailPage).toContain("<SymbolicProductActions");
 
     expect(detailPage).not.toContain("joint-session");
 

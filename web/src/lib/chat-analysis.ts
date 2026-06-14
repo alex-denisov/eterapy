@@ -90,7 +90,7 @@ export function buildChatAnalysisTeaser(sourceText: string, generatedText: strin
   const parsed = tryParseChatAnalysis(generatedText) ?? tryParseChatAnalysis(heuristicChatAnalysis(sourceText).text);
   const topTone = parsed?.tonesThem?.[0];
   return [
-    "Распознанный фрагмент",
+    "Что удалось прочитать",
     anonymizeChatPreview(sourceText),
     sourceText.split("\n").length > 5 ? "..." : "",
     "",
