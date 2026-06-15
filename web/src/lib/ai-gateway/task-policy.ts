@@ -220,14 +220,14 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 1600,
     temperature: 0,
     timeoutMs: 45_000,
-    // INC-020: a single vision OCR call spends far more than the 1600-token
-    // pre-flight estimate (the screenshot image dominates input tokens), so an
-    // 8 000-token per-user DAILY ceiling was exhausted after only ~2–5 images and
-    // the rest of a 10-screenshot batch failed as «OCR_FAILED». The product invites
-    // «до 10 скриншотов»; the real anti-fraud throttle is the IP rate-limit
-    // (15/5 min) + per-image charge, so size this to cover a 10-shot batch with
-    // headroom for a retry and other same-day usage.
-    perUserDailyTokenBudget: 40_000,
+    // INC-026: NO per-user daily token budget. chat-analysis is a paid, per-use-billed
+    // (B408) service that one client legitimately runs many times a day, and an OCR
+    // call's REAL tokens (image-dominated) dwarf the 1600 pre-flight estimate — so any
+    // daily ceiling (8k, then 40k in B406/INC-020) is spent within the first разбор or
+    // two and the next batch fails as «OCR_FAILED» → «(N) скриншотов не распозналось».
+    // Every other paid-product feature carries no per-user budget for the same reason;
+    // OCR now matches them. Abuse stays bounded by auth + IP rate-limit (15/5 min,
+    // batch-aware) + the per-use баллы charge at generate — never a daily token cap.
     fallbackNotes: "Vision-capable providers only (Gemini/OpenAI/Anthropic); image is not persisted after OCR.",
   },
   {

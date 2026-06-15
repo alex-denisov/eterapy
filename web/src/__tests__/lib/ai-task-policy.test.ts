@@ -57,10 +57,14 @@ describe("AI task taxonomy and default routing policy", () => {
     ]);
     expect(chatOcr?.fallbackNotes).toContain("Vision-capable providers only");
     expect(chatOcr?.fallbackNotes).toContain("not persisted");
-    // INC-020: per-user daily token budget must cover a 10-screenshot OCR batch
-    // (each vision call spends far more than the 1600 pre-flight estimate), so the
-    // 8 000 ceiling that cut a batch off after ~2–5 images is raised.
-    expect(chatOcr?.perUserDailyTokenBudget ?? 0).toBeGreaterThanOrEqual(40_000);
+    // INC-026: the paid, per-use-billed OCR feature has NO per-user daily token cap
+    // (a client runs many разборов/day; the cap was misreported as un-recognised
+    // screenshots). It matches every other paid feature — none carry one.
+    expect(chatOcr?.perUserDailyTokenBudget ?? null).toBeNull();
+    // Free-tier features still keep their per-user daily budgets (genuinely free LLM
+    // calls — the cap is the right abuse guard there).
+    expect(getDefaultAIRoutingPolicy("dialogue-primary-answer")?.perUserDailyTokenBudget ?? 0).toBeGreaterThan(0);
+    expect(getDefaultAIRoutingPolicy("daily-practice")?.perUserDailyTokenBudget ?? 0).toBeGreaterThan(0);
   });
 
   it("marks database policies while still showing default taxonomy metadata", () => {

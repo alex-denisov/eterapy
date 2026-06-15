@@ -179,14 +179,18 @@ describe("B087/B088 chat analysis product", () => {
     expect(actions).toContain("<CopyButton text={r.text} />");
   });
 
-  it("B406/INC-020 raises the OCR per-user token budget and adds a step-2 manual-text recovery", () => {
+  it("B409/INC-026 removes the OCR per-user daily token cap and keeps a step-2 manual-text recovery", () => {
     const taskPolicy = source("src/lib/ai-gateway/task-policy.ts");
     const actions = source("src/components/products/chat-analysis-actions.tsx");
 
-    // OCR per-user daily budget no longer caps a 10-screenshot batch at ~8k tokens
-    // (40_000 is unique to the OCR feature; the resolved-policy value is locked in
-    // ai-task-policy.test.ts).
-    expect(taskPolicy).toContain("perUserDailyTokenBudget: 40_000");
+    // INC-026: the OCR feature must NOT carry a per-user daily token budget — a paying
+    // client runs many разборов/day and the cap was silently misreported as un-recognised
+    // screenshots. The resolved-policy value (null) is locked in ai-task-policy.test.ts.
+    const ocrBlock = taskPolicy.slice(
+      taskPolicy.indexOf('feature: "product-chat-analysis-ocr"'),
+      taskPolicy.indexOf('feature: "product-chat-analysis"', taskPolicy.indexOf('feature: "product-chat-analysis-ocr"')),
+    );
+    expect(ocrBlock).not.toContain("perUserDailyTokenBudget");
 
     // Step 2 (Контекст) now has a real «добавить текст вручную» recovery that
     // re-runs the preview — so the failed-OCR message is no longer a false promise.
