@@ -7,7 +7,10 @@ const MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024;
 const CHAT_SCREENSHOT_DATA_URL = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/;
 
 export type ToneEntry = { label: string; pct: number };
-export type ReplyVariant = { style: string; text: string };
+// INC-022: `text` is the literal, ready-to-send message the user copies AS-IS.
+// `hint` is an optional short recommendation (когда/зачем) shown OUTSIDE the
+// copyable text — recommendations must never leak into `text`.
+export type ReplyVariant = { style: string; text: string; hint?: string };
 
 export type ChatAnalysisStructured = {
   insight: string;
@@ -52,50 +55,28 @@ export function buildChatAnalysisTitle(sourceText: string) {
   return `Разбор переписки: ${sourceText.slice(0, 30).replace(/\n/g, " ")}...`;
 }
 
-export function buildChatAnalysisPreview(sourceText: string) {
-  const anonymized = anonymizeChatPreview(sourceText);
-
+// INC-021: the «первый взгляд» preview is an ASSESSMENT, not a reprint of the
+// conversation. Never echo the source transcript here — only what the analysis
+// concluded. (Used only as a fallback; the real preview is the teaser below.)
+export function buildChatAnalysisPreview(_sourceText: string) {
   return [
-    anonymized,
-    sourceText.split("\n").length > 5 ? "..." : "",
-    "",
     "Полный разбор покажет:",
     "- 1. Обзор ситуации и контекст",
     "- 2. Вероятные сценарии (без фатальности)",
     "- 3. Риски в коммуникации",
     "- 4. Рекомендации по ответам",
     "- 5. План действий",
-  ].filter(Boolean).join("\n");
+  ].join("\n");
 }
 
-function anonymizeChatPreview(sourceText: string) {
-  return sourceText
-    .split("\n")
-    .slice(0, 5)
-    .map(line => {
-      // Very basic heuristic for preview only.
-      // E.g., replace leading names: "Анна: привет" -> "Собеседник: привет"
-      // or "Я: привет" stays "Я: привет".
-      const parts = line.split(":");
-      if (parts.length > 1 && parts[0].length < 15) {
-        if (parts[0].toLowerCase().trim() === "я") return line;
-        return `Собеседник: ${parts.slice(1).join(":").trim()}`;
-      }
-      return line;
-    })
-    .join("\n");
-}
-
+// INC-021: assessment-only teaser. The block must contain ONLY the first-look
+// оценка (один инсайт + тон собеседника) — never the recognised transcript.
 export function buildChatAnalysisTeaser(sourceText: string, generatedText: string) {
   const parsed = tryParseChatAnalysis(generatedText) ?? tryParseChatAnalysis(heuristicChatAnalysis(sourceText).text);
   const topTone = parsed?.tonesThem?.[0];
   return [
-    "Что удалось прочитать",
-    anonymizeChatPreview(sourceText),
-    sourceText.split("\n").length > 5 ? "..." : "",
-    "",
-    `один инсайт: ${parsed?.insight ?? "в переписке уже виден повторяющийся сценарий контакта и защиты."}`,
-    topTone ? `тон собеседника: ${topTone.label}${typeof topTone.pct === "number" ? ` (${topTone.pct}%)` : ""}.` : "",
+    `Один инсайт: ${parsed?.insight ?? "в переписке уже виден повторяющийся сценарий контакта и защиты."}`,
+    topTone ? `Тон собеседника: ${topTone.label}${typeof topTone.pct === "number" ? ` (${topTone.pct}%)` : ""}.` : "",
     "",
     "В полном разборе откроются ваш тон, варианты ответа и безопасный следующий шаг.",
   ].filter(Boolean).join("\n");
@@ -231,9 +212,9 @@ export function heuristicChatAnalysis(sourceText: string): { text: string; metad
       { label: "усталый", pct: 28 },
     ],
     replies: [
-      { style: "мягкий", text: "«Слушай, я не хочу спорить. Просто скажи: с тобой сейчас можно поговорить, или это плохой момент?»" },
-      { style: "прямой", text: "«Я замечаю, что разговор уходит в обвинения с обеих сторон. Можем сделать паузу и вернуться вечером?»" },
-      { style: "границы", text: "«Когда я говорю, что мне важно, и слышу «не накручивай» — мне очень одиноко. Я не хочу так больше»." },
+      { style: "мягкий", text: "Слушай, я не хочу спорить. Просто скажи: с тобой сейчас можно поговорить, или это плохой момент?", hint: "Если хочется снизить напряжение и оставить дверь открытой." },
+      { style: "прямой", text: "Я замечаю, что разговор уходит в обвинения с обеих сторон. Можем сделать паузу и вернуться вечером?", hint: "Если разговор по кругу и нужна честная пауза." },
+      { style: "границы", text: "Когда я говорю, что мне важно, и слышу «не накручивай» — мне очень одиноко. Я так больше не хочу.", hint: "Если важно обозначить, что так общаться для вас неприемлемо." },
     ],
     safetyNote: "Если в переписке есть угрозы, давление, унижение или физическая опасность — это уже не тема для разбора, а тема для специалиста.",
   };
@@ -259,9 +240,12 @@ export async function generateChatAnalysis(input: {
     "You MUST respect the relationship label literally. If the context says начальник or коллега, this is a WORKPLACE conversation — do NOT frame it as a romantic or family conflict. If the context says родитель, frame it as parent-child dynamics. If партнёр or бывший(ая), frame it as romantic.",
     "If the user's goal is stated, the insight, tone analysis, and reply variants must all align with that goal.",
     "Return ONLY valid JSON — no markdown, no code fences — with this exact structure:",
-    '{"insight":"one meaningful insight sentence","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"..."},{"style":"прямой","text":"..."},{"style":"границы","text":"..."}],"safetyNote":"..."}',
+    '{"insight":"one meaningful insight sentence","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"...","hint":"..."},{"style":"прямой","text":"...","hint":"..."},{"style":"границы","text":"...","hint":"..."}],"safetyNote":"..."}',
     "Rules: tonesThem and tonesMe each have exactly 4 items with realistic percentages summing to roughly 200%.",
     "replies has exactly 3 items. insight is one sentence. Be warm, non-diagnostic, non-fatalistic. No markdown inside string values.",
+    // INC-022: replies[].text must be a COPY-READY message, not advice.
+    "CRITICAL — replies[].text MUST be the literal message the user can copy and send AS-IS to the other person. Write it in first person («я…»), addressed directly to собеседник, in the user's natural everyday voice, in Russian. It is the reply itself, NOT advice about replying. NEVER put meta-commentary inside text — no «Похоже, что…», «возможно, стоит…», «попробуйте…», «дайте ему время», «рекомендую…», no third-person description of the situation. Do NOT wrap text in quotes («»).",
+    "replies[].hint is a SHORT note FOR THE USER (≤90 chars, Russian) — когда/зачем выбрать этот вариант. Every recommendation, suggestion or situational comment belongs ONLY in hint, never in text.",
     "Do not state the other person's intent as fact. Never state psychological diagnoses as facts. Never label anyone as narcissist or manipulator as fact.",
   ].join(" ");
 

@@ -81,7 +81,7 @@ describe("M24 Z6 real truncated product teasers", () => {
     expect(teaser).not.toContain("Этот раздел должен остаться за стеной");
   });
 
-  it("builds a chat-analysis teaser with recognized text, one insight, and the other person's tone", () => {
+  it("builds an assessment-only chat-analysis teaser (insight + other person's tone, NO transcript)", () => {
     const fullAnalysis = JSON.stringify({
       insight: "В переписке заметна попытка договориться, которая быстро уходит в защиту.",
       tonesThem: [{ label: "защитный", pct: 72 }],
@@ -92,12 +92,14 @@ describe("M24 Z6 real truncated product teasers", () => {
 
     const teaser = buildChatAnalysisTeaser("Анна: ты опять пропал\nЯ: мне важно понять, что происходит", fullAnalysis);
 
-    // B395/M26: «фрагмент» banned in client UI → teaser header is «Что удалось прочитать».
-    expect(teaser).toContain("Что удалось прочитать");
-    expect(teaser).toContain("Собеседник: ты опять пропал");
-    expect(teaser).toContain("один инсайт");
+    // INC-021: «первый взгляд» = оценка only — insight + собеседник tone.
+    expect(teaser).toContain("Один инсайт");
     expect(teaser).toContain("быстро уходит в защиту");
-    expect(teaser).toContain("тон собеседника: защитный");
+    expect(teaser).toContain("Тон собеседника: защитный");
+    // INC-021: it must NOT reprint the conversation transcript.
+    expect(teaser).not.toContain("Что удалось прочитать");
+    expect(teaser).not.toContain("ты опять пропал");
+    expect(teaser).not.toContain("Собеседник:");
     expect(teaser).not.toContain("full paid reply");
   });
 

@@ -12,7 +12,9 @@ import { getNextStepRecommendation, type NextStepRecommendation } from "@/lib/pr
 import { appUrl } from "@/lib/subdomain";
 
 type ToneEntry = { label: string; pct: number };
-type ReplyVariant = { style: string; text: string };
+// INC-022: `text` is the copy-ready message; `hint` is an optional recommendation
+// rendered OUTSIDE the copyable text (and never copied).
+type ReplyVariant = { style: string; text: string; hint?: string };
 
 type ChatAnalysisStructured = {
   insight: string;
@@ -244,13 +246,18 @@ function StructuredResult({ data, recommendation, onStartNew, loading }: {
       {/* что можно ответить — черновики через тонкие разделители + копирование */}
       <div className="soft-card p-5">
         <p className="soft-eyebrow mb-1">что можно ответить</p>
-        <p className="text-xs text-[var(--soft-ink-faint)]">Три тона на выбор — можно скопировать и отправить.</p>
+        <p className="text-xs text-[var(--soft-ink-faint)]">Готовый текст — можно скопировать и отправить как есть.</p>
         <div className="mt-2 flex flex-col">
           {data.replies.map((r, i) => (
             <div key={i} className={`flex items-start gap-3 py-3.5 ${i > 0 ? "border-t border-[var(--soft-paper-edge)]" : ""}`}>
               <div className="min-w-0 flex-1">
                 <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">{r.style}</span>
+                {/* INC-022: copy-ready message (this is what CopyButton copies) */}
                 <p className="mt-1 font-heading text-[1.05rem] italic leading-relaxed text-[var(--soft-ink)]">{r.text}</p>
+                {/* INC-022: recommendation lives OUTSIDE the copyable text */}
+                {r.hint && (
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--soft-ink-faint)]">{r.hint}</p>
+                )}
               </div>
               <CopyButton text={r.text} />
             </div>
@@ -305,6 +312,10 @@ export function ChatAnalysisActions() {
   const [contact, setContact] = useState<string | null>(null);
   const [emotion, setEmotion] = useState<string | null>(null);
   const [goal, setGoal] = useState("");
+  // INC-020: step-2 recovery — when some screenshots fail OCR, the user must be
+  // able to add the missing text by hand right here on «Контекст» (the message
+  // promised it). Merges into the source and re-runs the preview.
+  const [extraText, setExtraText] = useState("");
   const screenshotInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -468,7 +479,7 @@ export function ChatAnalysisActions() {
       setResult(payload.result ?? null);
       setMessage(
         failedNames.length > 0
-          ? `Часть скриншотов (${failedNames.length}) не распозналась — их текст можно добавить вручную на следующем шаге.`
+          ? `Часть скриншотов (${failedNames.length}) не распозналась. Их текст можно добавить вручную на этом шаге — в блоке «Добавить текст вручную» ниже.`
           : null,
       );
       setStatus("idle");
@@ -493,6 +504,38 @@ export function ChatAnalysisActions() {
   function handleAuthSuccess() {
     setShowAuth(false);
     void startAnalysis(true);
+  }
+
+  // INC-020: «добавить текст вручную» on the Контекст step. Merges the pasted text
+  // into the recognised source and re-runs `upload_preview` so the «первый взгляд»
+  // and the server-side source used for generation both pick it up. This is the
+  // real recovery the failed-OCR message points to.
+  async function appendManualText() {
+    const extra = extraText.trim();
+    if (extra.length < 3) return;
+    setStatus("loading");
+    setMessage(null);
+    try {
+      const combined = [sourceText.trim(), extra].filter(Boolean).join("\n\n").trim().slice(0, 10000);
+      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
+        method: "POST",
+        body: JSON.stringify({ sourceText: combined, action: "upload_preview" }),
+      });
+      setHasEntitlement(Boolean(payload.hasEntitlement));
+      setSourceText(combined);
+      setResult(payload.result ?? null);
+      setExtraText("");
+      setStatus("idle");
+    } catch (error) {
+      const typed = error as Error & { status?: number };
+      if (typed.status === 401) {
+        setShowAuth(true);
+        setStatus("idle");
+        return;
+      }
+      setMessage(typed.message || "Не удалось добавить текст");
+      setStatus("error");
+    }
   }
 
   async function generateReport() {
@@ -547,6 +590,7 @@ export function ChatAnalysisActions() {
     setContact(null);
     setEmotion(null);
     setGoal("");
+    setExtraText("");
     setMessage(null);
     setStatus("idle");
     setTab("input");
@@ -794,6 +838,36 @@ export function ChatAnalysisActions() {
                 <SoftMarkdown content={result.previewText} />
               </div>
             </div>
+          )}
+
+          {/* INC-020: «добавить текст вручную» recovery — what the failed-OCR
+              message points to. If a screenshot didn't recognise, the user can
+              paste the missing text here and it merges into the разбор. */}
+          {result && !result.resultText && (
+            <details className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5" data-testid="chat-analysis-context-manual-add">
+              <summary className="flex cursor-pointer select-none items-center gap-1.5 text-[13px] font-medium text-[var(--soft-ink-soft)]">
+                <PenLine className="size-3.5" aria-hidden="true" />
+                Что-то не распозналось? Добавьте текст вручную
+              </summary>
+              <textarea
+                value={extraText}
+                onChange={(e) => setExtraText(e.target.value)}
+                placeholder="Вставьте сюда текст со скриншотов, которые не распознались."
+                className="soft-question-input mt-2.5"
+                rows={3}
+                disabled={status === "loading"}
+                data-testid="chat-analysis-extra-text"
+              />
+              <Button
+                onClick={appendManualText}
+                disabled={status === "loading" || extraText.trim().length < 3}
+                className="soft-button soft-button-soft mt-2.5"
+                style={{ minHeight: "2.25rem", padding: "0 0.9rem" }}
+              >
+                Добавить к разбору
+                {status === "loading" ? <IosSpinner className="size-4" /> : <ArrowRight className="size-4" aria-hidden="true" />}
+              </Button>
+            </details>
           )}
 
           {/* карточка-форма сбора контекста — отдельная поверхность, единый заголовок */}

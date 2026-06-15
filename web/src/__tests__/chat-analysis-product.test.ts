@@ -126,6 +126,48 @@ describe("B087/B088 chat analysis product", () => {
     expect(actions).toContain("chat-analysis-progress");
   });
 
+  it("B406/INC-021 keeps the «первый взгляд» teaser assessment-only (no transcript echo)", () => {
+    const helper = source("src/lib/chat-analysis.ts");
+
+    // The teaser must NOT reprint the conversation: the old transcript heading and
+    // the per-line «Собеседник:» anonymiser are gone.
+    expect(helper).not.toContain("Что удалось прочитать");
+    expect(helper).not.toContain("anonymizeChatPreview");
+    // It still surfaces the оценка (insight + собеседник tone).
+    expect(helper).toContain("Один инсайт:");
+    expect(helper).toContain("Тон собеседника:");
+  });
+
+  it("B406/INC-022 makes reply variants copy-ready and keeps recommendations outside the copyable text", () => {
+    const helper = source("src/lib/chat-analysis.ts");
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    // Schema carries a separate `hint` (recommendation) alongside the copy-ready `text`.
+    expect(helper).toContain("hint?: string");
+    // Prompt forces text to be a literal, sendable message — not advice.
+    expect(helper).toContain("replies[].text MUST be the literal message");
+    expect(helper).toContain("belongs ONLY in hint, never in text");
+    // UI renders the hint OUTSIDE the copyable text; CopyButton still copies only r.text.
+    expect(actions).toContain("{r.hint && (");
+    expect(actions).toContain("<CopyButton text={r.text} />");
+  });
+
+  it("B406/INC-020 raises the OCR per-user token budget and adds a step-2 manual-text recovery", () => {
+    const taskPolicy = source("src/lib/ai-gateway/task-policy.ts");
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    // OCR per-user daily budget no longer caps a 10-screenshot batch at ~8k tokens
+    // (40_000 is unique to the OCR feature; the resolved-policy value is locked in
+    // ai-task-policy.test.ts).
+    expect(taskPolicy).toContain("perUserDailyTokenBudget: 40_000");
+
+    // Step 2 (Контекст) now has a real «добавить текст вручную» recovery that
+    // re-runs the preview — so the failed-OCR message is no longer a false promise.
+    expect(actions).toContain("async function appendManualText");
+    expect(actions).toContain("chat-analysis-context-manual-add");
+    expect(actions).toContain("Добавить текст вручную");
+  });
+
   it("INC-013 gates a guest with the auth modal instead of leaking a raw Unauthorized", () => {
     const actions = source("src/components/products/chat-analysis-actions.tsx");
 

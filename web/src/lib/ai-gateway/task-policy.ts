@@ -220,7 +220,14 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 1600,
     temperature: 0,
     timeoutMs: 45_000,
-    perUserDailyTokenBudget: 8_000,
+    // INC-020: a single vision OCR call spends far more than the 1600-token
+    // pre-flight estimate (the screenshot image dominates input tokens), so an
+    // 8 000-token per-user DAILY ceiling was exhausted after only ~2–5 images and
+    // the rest of a 10-screenshot batch failed as «OCR_FAILED». The product invites
+    // «до 10 скриншотов»; the real anti-fraud throttle is the IP rate-limit
+    // (15/5 min) + per-image charge, so size this to cover a 10-shot batch with
+    // headroom for a retry and other same-day usage.
+    perUserDailyTokenBudget: 40_000,
     fallbackNotes: "Vision-capable providers only (Gemini/OpenAI/Anthropic); image is not persisted after OCR.",
   },
   {
