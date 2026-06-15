@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
-import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { buildPerspectivesPreview, buildPerspectivesTeaser, buildPerspectivesTitle, generatePerspectives } from "@/lib/perspectives";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -169,23 +169,34 @@ export async function POST(request: NextRequest) {
   }
 
   const generated = await generatePerspectives({ dialogue, userId, requestId: context.requestId });
-  const result = existing
-    ? await db.productResult.update({
-      where: { id: existing.id },
-      data: { status: "READY", title, previewText, resultText: generated.text, metadata: generated.metadata },
-    })
-    : await db.productResult.create({
-      data: {
-        userId,
-        dialogueId: dialogue.id,
-        productKey: PRODUCT_KEY,
-        status: "READY",
-        title,
-        previewText,
-        resultText: generated.text,
-        metadata: generated.metadata,
-      },
-    });
+  // INC-025/B408: списываем баллы за КАЖДУЮ полную картину — гасим entitlement в
+  // той же транзакции, что и переход в READY (атомарно: либо разбор + списание,
+  // либо ничего). Подписка (includedProducts) — не ProductEntitlement, поэтому для
+  // подписчиков consume — no-op, доступ остаётся безлимитным.
+  const result = await db.$transaction(async (tx) => {
+    const saved = existing
+      ? await tx.productResult.update({
+        where: { id: existing.id },
+        data: { status: "READY", title, previewText, resultText: generated.text, metadata: generated.metadata },
+      })
+      : await tx.productResult.create({
+        data: {
+          userId,
+          dialogueId: dialogue.id,
+          productKey: PRODUCT_KEY,
+          status: "READY",
+          title,
+          previewText,
+          resultText: generated.text,
+          metadata: generated.metadata,
+        },
+      });
+    await consumeProductEntitlementForUse(tx, userId, PRODUCT_KEY);
+    return saved;
+  });
 
-  return jsonWithRequestContext({ hasEntitlement, result: serializeResult(result), generated: true }, { status: 200 }, context);
+  // Reflect the post-consume state so the client paywalls the NEXT генерацию
+  // (subscribers stay entitled because consume was a no-op for them).
+  const entitledAfter = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  return jsonWithRequestContext({ hasEntitlement: entitledAfter, result: serializeResult(result), generated: true }, { status: 200 }, context);
 }

@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { generateCompatibility } from "@/lib/compatibility";
 import { buildPairTeaser, dialogueToPrivateText } from "@/lib/social-clarity";
 
@@ -91,36 +91,47 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     requestId: context.requestId,
   });
 
-  // Store in ProductResult (so it shares the durable view/export/delete flow)
-  const productResult = await db.productResult.create({
-    data: {
-      userId,
-      productKey: PRODUCT_KEY,
-      title: "Разбор совместимости",
-      status: "READY",
-      previewText: teaserText,
-      resultText: generated.text,
-      metadata: {
-        compatibilityId: compatibility.id,
-        creatorDialogueId: compatibility.creatorDialogueId,
-        partnerDialogueId: compatibility.partnerDialogueId,
-        riskScore: compatibility.riskScore,
-        riskFlags: compatibility.riskFlags,
-        generationMetadata: generated.metadata,
+  // INC-025/B408: списываем баллы за КАЖДЫЙ разбор совместимости — сохранение
+  // результата (durable view/export/delete), перевод записи в READY и гашение
+  // entitlement идут одной транзакцией (атомарно). Доступ мог быть выдан под любым
+  // из ключей (compatibility | pair) — гасим тот, по которому есть прямой
+  // entitlement. Подписка — не ProductEntitlement, поэтому consume — no-op.
+  const updated = await db.$transaction(async (tx) => {
+    const productResult = await tx.productResult.create({
+      data: {
+        userId,
+        productKey: PRODUCT_KEY,
+        title: "Разбор совместимости",
+        status: "READY",
+        previewText: teaserText,
+        resultText: generated.text,
+        metadata: {
+          compatibilityId: compatibility.id,
+          creatorDialogueId: compatibility.creatorDialogueId,
+          partnerDialogueId: compatibility.partnerDialogueId,
+          riskScore: compatibility.riskScore,
+          riskFlags: compatibility.riskFlags,
+          generationMetadata: generated.metadata,
+        },
       },
-    },
+    });
+    const updatedCompatibility = await tx.compatibility.update({
+      where: { id },
+      data: {
+        status: "READY",
+        creatorConsent: true,
+        teaserText,
+        reportId: productResult.id,
+      },
+    });
+    for (const key of PRODUCT_KEYS) {
+      if (await consumeProductEntitlementForUse(tx, userId, key)) break;
+    }
+    return updatedCompatibility;
   });
 
-  // Update compatibility record
-  const updated = await db.compatibility.update({
-    where: { id },
-    data: {
-      status: "READY",
-      creatorConsent: true,
-      teaserText,
-      reportId: productResult.id,
-    },
-  });
-
-  return jsonWithRequestContext({ hasEntitlement, result: updated, generated: true }, { status: 200 }, context);
+  // Reflect the post-consume state so the client paywalls the NEXT разбор.
+  const entitlementChecksAfter = await Promise.all(PRODUCT_KEYS.map((key) => userHasActiveEntitlement(userId, key)));
+  const hasEntitlementAfter = entitlementChecksAfter.some(Boolean);
+  return jsonWithRequestContext({ hasEntitlement: hasEntitlementAfter, result: updated, generated: true }, { status: 200 }, context);
 }

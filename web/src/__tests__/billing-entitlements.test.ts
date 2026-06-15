@@ -490,4 +490,53 @@ describe("INC-025/B408 consumeProductEntitlementForUse (per-use billing)", () =>
     expect(route).toContain("consumeProductEntitlementForUse");
     expect(route).toContain("db.$transaction");
   });
+
+  it("consumes the most-recent ACTIVE direct entitlement (so an older row is never picked first)", async () => {
+    const findFirst = jest.fn().mockResolvedValue({ id: "newest-ent" });
+    const update = jest.fn().mockResolvedValue({});
+    const tx = { productEntitlement: { findFirst, update } } as unknown as TxArg;
+
+    await consumeProductEntitlementForUse(tx, "user-1", "perspectives");
+
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "user-1", productKey: "perspectives", status: "ACTIVE" }),
+      orderBy: { createdAt: "desc" },
+    }));
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "newest-ent" },
+      data: expect.objectContaining({ status: "CONSUMED", consumedAt: expect.any(Date) }),
+    }));
+  });
+
+  // B408 Phase 2: every entitlement-gated paid generate path must consume the
+  // unlock on the paid branch, inside the result-save transaction — so a second
+  // разбор re-charges (digital products are per-use, not buy-once-regenerate-free).
+  it("all entitlement-gated paid generate routes consume on the paid path", () => {
+    const routes = [
+      "src/app/api/products/perspectives/route.ts",
+      "src/app/api/products/deep-report/route.ts",
+      "src/app/api/products/symbolic/route.ts",
+      "src/app/api/products/synastry/route.ts",
+      "src/app/api/products/circle/[id]/generate/route.ts",
+      "src/app/api/products/compatibility/[id]/generate/route.ts",
+    ];
+    for (const rel of routes) {
+      const src = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+      expect(src).toContain("consumeProductEntitlementForUse");
+      expect(src).toContain("db.$transaction");
+    }
+  });
+
+  // The create/invite-only steps never generate a paid result, so they must NOT
+  // consume — consuming there would burn the unlock before the report exists.
+  it("create/invite-only routes never consume an entitlement", () => {
+    const routes = [
+      "src/app/api/products/circle/route.ts",
+      "src/app/api/products/compatibility/route.ts",
+    ];
+    for (const rel of routes) {
+      const src = fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+      expect(src).not.toContain("consumeProductEntitlementForUse");
+    }
+  });
 });

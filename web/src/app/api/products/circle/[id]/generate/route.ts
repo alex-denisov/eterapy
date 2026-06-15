@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { buildCircleReport, buildCircleTeaser } from "@/lib/social-clarity";
 
 const PRODUCT_KEY = "circle";
@@ -71,32 +71,40 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     })),
   });
 
-  const productResult = await db.productResult.create({
-    data: {
-      userId,
-      productKey: PRODUCT_KEY,
-      title: "Круг",
-      status: "READY",
-      previewText: teaserText,
-      resultText: reportText,
-      metadata: {
-        circleId: circle.id,
-        participantCount: eligibleParticipants.length,
-        riskFlags: circle.participants.flatMap((participant) => participant.riskFlags),
-        blockedParticipantCount: circle.participants.length - eligibleParticipants.length,
+  // INC-025/B408: списываем баллы за КАЖДЫЙ разбор круга — сохранение результата,
+  // переход круга в READY и гашение entitlement идут одной транзакцией (атомарно).
+  // Подписка — не ProductEntitlement, поэтому для подписчиков consume — no-op.
+  const updated = await db.$transaction(async (tx) => {
+    const productResult = await tx.productResult.create({
+      data: {
+        userId,
+        productKey: PRODUCT_KEY,
+        title: "Круг",
+        status: "READY",
+        previewText: teaserText,
+        resultText: reportText,
+        metadata: {
+          circleId: circle.id,
+          participantCount: eligibleParticipants.length,
+          riskFlags: circle.participants.flatMap((participant) => participant.riskFlags),
+          blockedParticipantCount: circle.participants.length - eligibleParticipants.length,
+        },
       },
-    },
+    });
+    const updatedCircle = await tx.clarityCircle.update({
+      where: { id },
+      data: {
+        status: "READY",
+        teaserText,
+        reportId: productResult.id,
+      },
+      include: { participants: { where: { status: "SUBMITTED" }, orderBy: { createdAt: "asc" } } },
+    });
+    await consumeProductEntitlementForUse(tx, userId, PRODUCT_KEY);
+    return updatedCircle;
   });
 
-  const updated = await db.clarityCircle.update({
-    where: { id },
-    data: {
-      status: "READY",
-      teaserText,
-      reportId: productResult.id,
-    },
-    include: { participants: { where: { status: "SUBMITTED" }, orderBy: { createdAt: "asc" } } },
-  });
-
-  return jsonWithRequestContext({ hasEntitlement, result: updated, generated: true }, { status: 200 }, context);
+  // Reflect the post-consume state so the client paywalls the NEXT разбор.
+  const entitledAfter = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  return jsonWithRequestContext({ hasEntitlement: entitledAfter, result: updated, generated: true }, { status: 200 }, context);
 }

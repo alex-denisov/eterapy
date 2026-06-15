@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
-import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { buildSynastryTeaser, generateSynastryResult } from "@/lib/synastry";
 
@@ -136,25 +136,34 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const result = await db.productResult.create({
-    data: {
-      userId,
-      productKey: PRODUCT_KEY,
-      title: "Совместимость по звёздам как карта пары",
-      status: "READY",
-      previewText,
-      resultText: generated.text,
-      metadata: {
-        userBirthData: parsed.data.userBirthData,
-        partnerBirthData: parsed.data.partnerBirthData,
-        question: parsed.data.question ?? null,
-        generationMetadata: generated.metadata,
-      } as Prisma.InputJsonObject,
-    },
+  // INC-025/B408: списываем баллы за КАЖДЫЙ платный разбор — гасим entitlement в
+  // той же транзакции, что и сохранение READY (атомарно). Подписка — не
+  // ProductEntitlement, поэтому для подписчиков consume — no-op, доступ безлимитный.
+  const result = await db.$transaction(async (tx) => {
+    const saved = await tx.productResult.create({
+      data: {
+        userId,
+        productKey: PRODUCT_KEY,
+        title: "Совместимость по звёздам как карта пары",
+        status: "READY",
+        previewText,
+        resultText: generated.text,
+        metadata: {
+          userBirthData: parsed.data.userBirthData,
+          partnerBirthData: parsed.data.partnerBirthData,
+          question: parsed.data.question ?? null,
+          generationMetadata: generated.metadata,
+        } as Prisma.InputJsonObject,
+      },
+    });
+    await consumeProductEntitlementForUse(tx, userId, PRODUCT_KEY);
+    return saved;
   });
 
+  // Reflect the post-consume state so the client paywalls the NEXT разбор.
+  const entitledAfter = await userHasActiveEntitlement(userId, PRODUCT_KEY);
   return jsonWithRequestContext(
-    { hasEntitlement, result: serializeResult(result), generated: true },
+    { hasEntitlement: entitledAfter, result: serializeResult(result), generated: true },
     { status: 200 },
     context,
   );
