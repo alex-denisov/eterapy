@@ -72,14 +72,22 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="max-w-sm" showCloseButton={false}>
+      {/* B410: light Soft Clarity treatment so the modal reads as part of the
+          cream product funnel / booking flow instead of the dark Aurora root
+          theme. Overrides applied here only (not in ui/dialog.tsx, shared by
+          other Aurora modals); --soft-* tokens resolve via the :root fallback
+          even though the popup portals to document.body. */}
+      <DialogContent
+        className="max-w-sm rounded-[var(--soft-radius-lg)] bg-[var(--soft-paper-card)] text-[var(--soft-ink)] ring-[var(--soft-paper-edge)] shadow-[var(--soft-shadow-lg)]"
+        showCloseButton={false}
+      >
         <DialogHeader>
           <div className="text-center">
             <p className="text-2xl mb-2">🔐</p>
-            <DialogTitle>
+            <DialogTitle className="text-lg text-[var(--soft-bordeaux)]">
               {mode === "register" ? "Создайте аккаунт" : "Войдите"}
             </DialogTitle>
-            <DialogDescription className="mt-1">
+            <DialogDescription className="mt-1 text-[var(--soft-ink-soft)]">
               {mode === "register"
                 ? toolName === "записи к практику"
                   ? "Создайте аккаунт, чтобы завершить запись и получать уведомления по сессии."
@@ -101,7 +109,7 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ваше имя"
                 required
-                className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+                className="w-full rounded-[var(--soft-radius-md)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-3 py-2.5 text-sm text-[var(--soft-ink)] placeholder:text-[var(--soft-ink-faint)] focus:border-[var(--soft-terracotta)] focus:outline-none"
               />
             </div>
           )}
@@ -115,7 +123,7 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
               placeholder="Email"
               required
               autoComplete="email"
-              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+              className="w-full rounded-[var(--soft-radius-md)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-3 py-2.5 text-sm text-[var(--soft-ink)] placeholder:text-[var(--soft-ink-faint)] focus:border-[var(--soft-terracotta)] focus:outline-none"
             />
           </div>
           <div>
@@ -129,31 +137,31 @@ export function AuthModal({ toolName, onSuccess, onClose, initialMode = "registe
               required
               minLength={8}
               autoComplete={mode === "register" ? "new-password" : "current-password"}
-              className="w-full rounded-lg border border-border/40 bg-card/50 px-3 py-2.5 text-sm focus:border-primary focus:outline-none"
+              className="w-full rounded-[var(--soft-radius-md)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-3 py-2.5 text-sm text-[var(--soft-ink)] placeholder:text-[var(--soft-ink-faint)] focus:border-[var(--soft-terracotta)] focus:outline-none"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-navy transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="soft-button soft-button-primary w-full disabled:opacity-50"
           >
             {loading ? "..." : mode === "register" ? "Создать аккаунт и продолжить" : "Войти и продолжить"}
           </button>
         </form>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center justify-between text-xs text-[var(--soft-ink-faint)]">
           <button
             type="button"
             onClick={() => setMode(mode === "register" ? "login" : "register")}
-            className="text-primary hover:underline"
+            className="font-medium text-[var(--soft-bordeaux)] hover:underline"
           >
             {mode === "register" ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Регистрация"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="hover:text-foreground transition-colors"
+            className="transition-colors hover:text-[var(--soft-ink)]"
           >
             Закрыть
           </button>
