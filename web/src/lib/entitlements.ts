@@ -323,6 +323,37 @@ export async function userHasActiveEntitlement(userId: string, productKey: strin
   return activePlans.some((plan) => plan.includedProducts.includes(productKey as V5ProductSlug));
 }
 
+// INC-025 / B408: consume a digital product's unlock on use, so the NEXT
+// generation requires a fresh баллы spend (the owner's per-use billing model).
+// Marks the most-recent ACTIVE *direct* entitlement CONSUMED. Subscription access
+// is not a ProductEntitlement row, so this is a no-op for subscribers — their
+// `includedProducts` stay unlimited. Returns true iff a direct entitlement was
+// consumed. Call inside the same transaction as the result-save so a generation
+// is never half-charged.
+export async function consumeProductEntitlementForUse(
+  tx: Prisma.TransactionClient,
+  userId: string,
+  productKey: string,
+): Promise<boolean> {
+  const now = new Date();
+  const entitlement = await tx.productEntitlement.findFirst({
+    where: {
+      userId,
+      productKey,
+      status: "ACTIVE",
+      OR: [{ validUntil: null }, { validUntil: { gt: now } }],
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (!entitlement) return false;
+  await tx.productEntitlement.update({
+    where: { id: entitlement.id },
+    data: { status: "CONSUMED", consumedAt: now },
+  });
+  return true;
+}
+
 export async function listUserEntitlements(userId: string) {
   const now = new Date();
   const [entitlements, subscriptions] = await Promise.all([

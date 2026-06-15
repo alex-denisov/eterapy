@@ -28,8 +28,9 @@ import db from "@/lib/db";
 import {
   CREDIT_PACKS,
   V5_BUNDLE_CONTENTS,
-  getProductPriceKopecks,
+  consumeProductEntitlementForUse,
   getProductCreditCost,
+  getProductPriceKopecks,
   getSubscriptionPlan,
   grantEntitlementForTransaction,
   revokeEntitlementsForTransaction,
@@ -442,5 +443,51 @@ describe("v5 billing entitlements", () => {
         transactionId: "tx-pack",
       }),
     }));
+  });
+});
+
+describe("INC-025/B408 consumeProductEntitlementForUse (per-use billing)", () => {
+  type TxArg = Parameters<typeof consumeProductEntitlementForUse>[0];
+
+  it("marks the active direct entitlement CONSUMED so the next разбор re-charges", async () => {
+    const update = jest.fn().mockResolvedValue({});
+    const tx = {
+      productEntitlement: {
+        findFirst: jest.fn().mockResolvedValue({ id: "ent-1" }),
+        update,
+      },
+    } as unknown as TxArg;
+
+    const consumed = await consumeProductEntitlementForUse(tx, "user-1", "chat-analysis");
+
+    expect(consumed).toBe(true);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "ent-1" },
+      data: expect.objectContaining({ status: "CONSUMED" }),
+    }));
+  });
+
+  it("is a no-op for subscription users (no direct entitlement row to consume)", async () => {
+    const update = jest.fn();
+    const tx = {
+      productEntitlement: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update,
+      },
+    } as unknown as TxArg;
+
+    const consumed = await consumeProductEntitlementForUse(tx, "subscriber-1", "perspectives");
+
+    expect(consumed).toBe(false);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("chat-analysis generate consumes the entitlement in the same transaction", () => {
+    const route = fs.readFileSync(
+      path.join(process.cwd(), "src/app/api/products/chat-analysis/route.ts"),
+      "utf8",
+    );
+    expect(route).toContain("consumeProductEntitlementForUse");
+    expect(route).toContain("db.$transaction");
   });
 });

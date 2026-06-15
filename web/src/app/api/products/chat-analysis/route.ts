@@ -6,7 +6,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
-import { userHasActiveEntitlement } from "@/lib/entitlements";
+import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import {
   ChatAnalysisInputError,
   buildChatAnalysisPreview,
@@ -424,23 +424,34 @@ export async function POST(request: NextRequest) {
     // B320: автосохранение в кабинет для залогиненного пользователя — любой
     // готовый разбор сразу попадает в Мою карту. Пользователь всё ещё может
     // отозвать его кнопкой "Удалить разбор".
-    const updated = await db.productResult.update({
-      where: { id: resultRecord.id },
-      data: {
-        status: "READY",
-        resultText: generated.text,
-        savedAt: resultRecord.savedAt ?? new Date(),
-        metadata: {
-          ...(metadata ?? {}),
-          analysisContextNote: input.contextNote ?? null,
-          generationMetadata: generated.metadata,
-          generationConfirmedAt: new Date().toISOString(),
-          autoSavedAt: resultRecord.savedAt ? null : new Date().toISOString(),
+    // INC-025/B408: списываем баллы за КАЖДЫЙ разбор — гасим entitlement в той же
+    // транзакции, что и сохранение результата (атомарно: либо разбор + списание,
+    // либо ничего). Подписка (includedProducts) — не ProductEntitlement, поэтому
+    // для подписчиков consume — no-op, доступ остаётся безлимитным.
+    const updated = await db.$transaction(async (tx) => {
+      const saved = await tx.productResult.update({
+        where: { id: resultRecord.id },
+        data: {
+          status: "READY",
+          resultText: generated.text,
+          savedAt: resultRecord.savedAt ?? new Date(),
+          metadata: {
+            ...(metadata ?? {}),
+            analysisContextNote: input.contextNote ?? null,
+            generationMetadata: generated.metadata,
+            generationConfirmedAt: new Date().toISOString(),
+            autoSavedAt: resultRecord.savedAt ? null : new Date().toISOString(),
+          },
         },
-      },
+      });
+      await consumeProductEntitlementForUse(tx, userId, PRODUCT_KEY);
+      return saved;
     });
 
-    return jsonWithRequestContext({ hasEntitlement, result: serializeResult(updated), generated: true }, { status: 200 }, context);
+    // Reflect the post-consume state so the client paywalls the NEXT разбор
+    // (subscribers stay entitled because consume was a no-op for them).
+    const entitledAfter = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+    return jsonWithRequestContext({ hasEntitlement: entitledAfter, result: serializeResult(updated), generated: true }, { status: 200 }, context);
   }
 
   return errorWithRequestContext("VALIDATION_ERROR", "Unknown action", 400, context);
