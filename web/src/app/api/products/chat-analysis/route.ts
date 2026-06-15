@@ -38,6 +38,16 @@ const postSchema = z.discriminatedUnion("action", [
       fileName: z.string().max(200).optional(),
     })).min(1).max(10),
   }),
+  // B404: lean, single-image OCR. The client uploads screenshots ONE AT A TIME
+  // (sequential), so a 10-image batch never lands in a single oversized body
+  // (INC-018 root cause). Returns only the recognized text — no analysis, no DB
+  // write. OCR is deferred off the free first screen and runs here, authed +
+  // rate-limited, after the user commits with «Начать разбор» (anti-fraud).
+  z.object({
+    action: z.literal("ocr_screenshot"),
+    imageDataUrl: z.string().min(100).max(6_000_000),
+    fileName: z.string().max(200).optional(),
+  }),
   z.object({
     action: z.literal("generate"),
     id: z.string(),
@@ -244,6 +254,36 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       if (error instanceof ChatAnalysisInputError) {
         return errorWithRequestContext(error.code, error.message, 400, context);
+      }
+      throw error;
+    }
+  }
+
+  if (input.action === "ocr_screenshot") {
+    try {
+      const extraction = await extractChatTextFromScreenshot({
+        imageDataUrl: input.imageDataUrl,
+        userId,
+        requestId: context.requestId,
+      });
+      // Mask PII before it leaves the server, so the client (and any text it
+      // later sends back for the preview) never holds raw emails/phones/links.
+      const recognizedText = maskChatAnalysisPii(extraction.recognizedText);
+      return jsonWithRequestContext(
+        { hasEntitlement, ok: true, fileName: input.fileName ?? null, recognizedText },
+        { status: 200 },
+        context,
+      );
+    } catch (error) {
+      if (error instanceof ChatAnalysisInputError) {
+        // Per-file soft failure (unreadable / too short / unsupported): return 200
+        // so the client can keep recognising the rest of the batch and report
+        // exactly which screenshots failed — never a generic «Не удалось…».
+        return jsonWithRequestContext(
+          { hasEntitlement, ok: false, fileName: input.fileName ?? null, code: error.code, error: error.message },
+          { status: 200 },
+          context,
+        );
       }
       throw error;
     }

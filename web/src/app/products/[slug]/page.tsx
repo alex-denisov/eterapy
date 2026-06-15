@@ -4,6 +4,7 @@ import type React from "react";
 import { ChevronLeft, Info, ShieldCheck } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
+import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
@@ -64,13 +65,7 @@ function ProductHero({
             </Link>
             <h1 className="soft-h2 truncate" style={{ margin: 0 }}>{product.name}</h1>
           </div>
-          <span
-            className="shrink-0 rounded-full px-3.5 py-1.5 text-lg font-semibold leading-none text-[var(--soft-bordeaux)]"
-            style={{ background: "var(--soft-apricot)" }}
-            data-testid="product-hero-price"
-          >
-            {product.price}
-          </span>
+          <ProductHeroPrice product={product} />
         </div>
 
         {/* Privacy — highlighted differently from the legal note: warm shield in

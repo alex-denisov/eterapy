@@ -54,15 +54,18 @@ describe("v5 product pages", () => {
 
   it("renders the tool-first product hero (no decorative previews or side panels)", () => {
     const detailPage = source("app/products/[slug]/page.tsx");
+    const priceChip = source("components/products/product-hero-price.tsx");
     const products = source("lib/v5-products.ts");
 
     expect(detailPage).toContain('data-testid="product-hero"');
-    // B395: tool-first hero — round iOS back arrow + corner ₽ price, the tool
+    // B395: tool-first hero — round iOS back arrow + corner price, the tool
     // on the first screen. The decorative preview and the «← На главную» text
     // chip were removed.
     expect(detailPage).toContain('data-testid="product-hero-back"');
-    expect(detailPage).toContain('data-testid="product-hero-price"');
-    expect(detailPage).toContain("{product.price}");
+    // B405: the price chip is a role-aware client component (guest ₽ / authed баллы).
+    expect(detailPage).toContain("<ProductHeroPrice");
+    expect(priceChip).toContain('data-testid="product-hero-price"');
+    expect(priceChip).toContain("{product.price}");
     expect(detailPage).not.toContain('data-testid="product-hero-preview"');
     expect(detailPage).not.toContain("← На главную");
 
@@ -84,6 +87,20 @@ describe("v5 product pages", () => {
     expect(products).toContain("или −3 балла · в Premium входит");
     expect(products).not.toContain("в Plus входит");
     expect(products).toContain("один отчёт на двоих");
+  });
+
+  it("B405 shows guests ₽ and authenticated users баллы-first on the product hero price", () => {
+    const priceChip = source("components/products/product-hero-price.tsx");
+
+    // role-aware: reads the session
+    expect(priceChip).toContain("useSession");
+    expect(priceChip).toContain('status === "authenticated"');
+    // authed → баллы primary (from the catalogue creditCost) + small ₽ secondary
+    expect(priceChip).toContain("formatPoints");
+    expect(priceChip).toContain("product.creditCost");
+    expect(priceChip).toContain("или {product.price}");
+    // guest → ₽ only (the default branch renders the plain price)
+    expect(priceChip).toContain("{product.price}");
   });
 
   it("keeps paid symbolic and map products usable after purchase", () => {

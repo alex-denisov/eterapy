@@ -91,14 +91,52 @@ describe("B087/B088 chat analysis product", () => {
     expect(route).toContain("screenshotCount");
     expect(route).toContain("imageStored: false");
 
-    expect(actions).toContain("action: \"screenshots_preview\"");
-    // B395: upload affordances became icon buttons (with titles), not helper
+    // B395/B404: upload affordances are clear labelled buttons, not helper
     // lines or the «5-10 скриншотов» label.
     expect(actions).toContain("Скриншоты переписки");
     expect(actions).toContain("multiple");
     expect(actions).toContain("Загрузить файл (.txt, экспорт из Telegram)");
 
     expect(combineRecognizedChatTexts(["Анна: привет\n\n", "", " Я: отвечу позже "])).toBe("Анна: привет\n\nЯ: отвечу позже");
+  });
+
+  it("B404 defers OCR off the free first screen and recognises screenshots one by one with progress", () => {
+    const route = source("src/app/api/products/chat-analysis/route.ts");
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    // Server: a lean single-image OCR action exists (sequential uploads avoid the
+    // 10×4 MB oversized-body failure, INC-018) and returns recognised text only.
+    expect(route).toContain("z.literal(\"ocr_screenshot\")");
+    expect(route).toContain("extractChatTextFromScreenshot");
+
+    // Client: attaching a screenshot must NOT call any OCR/preview endpoint — OCR
+    // is deferred to «Начать разбор» (anti-fraud). The attach handler is local.
+    expect(actions).toContain("async function attachScreenshots");
+    expect(actions).toContain("action: \"ocr_screenshot\"");
+    expect(actions).not.toContain("action: \"screenshots_preview\"");
+
+    // Clipboard paste is gone (nobody keeps a chat in the clipboard — it confused
+    // the affordance).
+    expect(actions).not.toContain("pasteFromClipboard");
+    expect(actions).not.toContain("ClipboardPaste");
+    expect(actions).not.toContain("chat-analysis-upload-paste");
+
+    // Labelled progress instead of a bare spinner (INC-019).
+    expect(actions).toContain("Распознаём скриншот");
+    expect(actions).toContain("chat-analysis-progress");
+  });
+
+  it("INC-013 gates a guest with the auth modal instead of leaking a raw Unauthorized", () => {
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    // «Начать разбор» opens the auth modal for a guest (register/login inline),
+    // then resumes the analysis with the same input — never a raw «Unauthorized».
+    expect(actions).toContain("import { AuthModal }");
+    expect(actions).toContain("<AuthModal");
+    expect(actions).toContain("setShowAuth(true)");
+    expect(actions).toContain("authStatus !== \"authenticated\"");
+    // Backstop: a 401 reopens auth rather than surfacing the raw message.
+    expect(actions).toContain("typed.status === 401");
   });
 
   it("validates screenshot data URLs and masks PII before storage", () => {

@@ -3,9 +3,10 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ClipboardPaste, Copy, FileText, ImageIcon, LockKeyhole, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, Check, Copy, FileText, ImageIcon, LockKeyhole, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { AuthModal } from "@/components/auth-modal";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { getNextStepRecommendation, type NextStepRecommendation } from "@/lib/product-recommendations";
 import { appUrl } from "@/lib/subdomain";
@@ -76,7 +77,17 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 // B395: приложенные файлы показываем как мини-вложения (превью + удаление).
-type Attachment = { id: string; name: string; kind: "image" | "text"; url?: string };
+// B404: у скриншотов OCR откладывается до «Начать разбор» — кэшируем
+// распознанный текст на самом вложении, чтобы не распознавать повторно, и
+// помечаем те, что не удалось распознать (per-file feedback вместо общей ошибки).
+type Attachment = {
+  id: string;
+  name: string;
+  kind: "image" | "text";
+  url?: string;
+  recognizedText?: string | null;
+  ocrFailed?: boolean;
+};
 
 // B395: iOS-style activity indicator (rotating «flower» of fading petals). Used
 // inside the primary button so the loading state never shifts layout width.
@@ -279,6 +290,15 @@ export function ChatAnalysisActions() {
   const [tab, setTab] = useState<"input" | "context" | "result">("input");
   const [sourceText, setSourceText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // B404: распознавание скриншотов идёт по одному с понятным прогрессом
+  // («Распознаём скриншот N из M…») — закрывает INC-019 (немая «ромашка»).
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  // B404: большое поле ввода больше не выглядит как «строка для вопроса» —
+  // ручной ввод текста спрятан за тихим переключателем (фолбэк, не основной вход).
+  const [showManualText, setShowManualText] = useState(false);
+  // INC-013: гость, нажавший «Начать разбор», видит окно входа/регистрации
+  // (не сырой Unauthorized); после входа разбор продолжается с тем же вводом.
+  const [showAuth, setShowAuth] = useState(false);
   // B330/Z7: the old ownership gate was removed because chats are multi-party
   // by nature. Privacy is conveyed through the inline notice and delete-source
   // affordance after generation.
@@ -328,60 +348,30 @@ export function ChatAnalysisActions() {
     });
   }
 
-  // Upload one or more screenshots. Each image is OCR'd server-side and the
-  // recognized text is appended to the running sourceText so users can build
-  // up a long conversation across multiple screenshots.
-  async function uploadScreenshots(files: FileList | null) {
+  // B404: приложить скриншоты = сохранить их локально (превью), БЕЗ вызова OCR.
+  // Распознавание стоит ресурсов и было вектором фрода на бесплатном первом
+  // экране, поэтому переехало на шаг «Начать разбор» (только для авторизованного
+  // пользователя). Превью появляется мгновенно — видно, что файл прикрепился.
+  async function attachScreenshots(files: FileList | null) {
     if (!files || files.length === 0) return;
-    setStatus("loading");
     setMessage(null);
-    try {
-      const selectedFiles = Array.from(files).slice(0, 10);
-      const screenshots = await Promise.all(selectedFiles.map(async (file) => ({
-        imageDataUrl: await readAsDataURL(file),
-        fileName: file.name,
-      })));
-      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
-        method: "POST",
-        body: JSON.stringify({ action: "screenshots_preview", screenshots }),
-      });
-      setHasEntitlement(Boolean(payload.hasEntitlement));
-
-      const recognized = payload.result?.metadata?.recognizedText ?? "";
-      const combined = sourceText.trim() && recognized
-        ? `${sourceText.trim()}\n\n${recognized}`
-        : recognized || sourceText.trim();
-      const screenshotCount = payload.result?.metadata?.screenshotCount ?? selectedFiles.length;
-      const recognizedCount = payload.result?.metadata?.recognizedScreenshotCount ?? screenshotCount;
-      const failedCount = Math.max(0, screenshotCount - recognizedCount);
-      setSourceText(combined);
-      setAttachments((prev) => [
-        ...prev,
-        ...screenshots.map((shot) => ({
-          id: crypto.randomUUID(),
-          name: shot.fileName ?? "Скриншот",
-          kind: "image" as const,
-          url: shot.imageDataUrl,
-        })),
-      ]);
-      setResult(payload.result ?? null);
-      if (failedCount > 0) {
-        setMessage(
-          failedCount === screenshotCount
-            ? "Не удалось распознать текст на скриншотах. Попробуйте другие файлы или вставьте текст вручную в поле ниже."
-            : `Часть скриншотов (${failedCount}) не распозналась — добавьте их текст вручную в поле ниже.`,
-        );
-        setStatus("error");
-      } else {
-        setStatus("idle");
-      }
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось распознать скриншот");
-      setStatus("error");
-    }
+    const selected = Array.from(files);
+    const added = await Promise.all(
+      selected.map(async (file) => ({
+        id: crypto.randomUUID(),
+        name: file.name || "Скриншот",
+        kind: "image" as const,
+        url: await readAsDataURL(file),
+        recognizedText: null,
+        ocrFailed: false,
+      })),
+    );
+    setAttachments((prev) => [...prev, ...added].slice(0, 10));
   }
 
-  // Read a .txt or Telegram export file as plain text into the textarea.
+  // Read a .txt or Telegram export file as plain text into the manual-text field
+  // (a local read — no server call). Reveals the manual-text area so the loaded
+  // text is visible and editable.
   async function uploadTextFile(file: File | null) {
     if (!file) return;
     setStatus("loading");
@@ -390,6 +380,7 @@ export function ChatAnalysisActions() {
       const text = await readAsText(file);
       const combined = sourceText.trim() ? `${sourceText.trim()}\n\n${text}` : text;
       setSourceText(combined.slice(0, 10000));
+      setShowManualText(true);
       setAttachments((prev) => [...prev, { id: crypto.randomUUID(), name: file.name, kind: "text" as const }]);
       setStatus("idle");
     } catch (error) {
@@ -399,47 +390,109 @@ export function ChatAnalysisActions() {
   }
 
   // B395: remove an attachment chip. The recognized text already merged into the
-  // textarea stays editable there; this clears the visual attachment + preview.
+  // manual-text field stays editable there; this clears the visual attachment.
   function removeAttachment(id: string) {
     setAttachments((prev) => prev.filter((item) => item.id !== id));
   }
 
-  // Paste from clipboard — works for "Из Telegram" affordance. Browsers
-  // require user gesture, which the chip click provides.
-  async function pasteFromClipboard() {
+  // B404: кэшируем распознанный текст на самом вложении (или метку ошибки), чтобы
+  // не распознавать повторно и показать, какие скриншоты не прочитались.
+  function markAttachmentOcr(id: string, recognizedText: string | null, ocrFailed: boolean) {
+    setAttachments((prev) => prev.map((att) => (att.id === id ? { ...att, recognizedText, ocrFailed } : att)));
+  }
+
+  const imageAttachments = attachments.filter((att) => att.kind === "image" && att.url);
+  const hasInput = imageAttachments.length > 0 || sourceText.trim().length >= 10;
+
+  // B404 + INC-013: «Начать разбор» — единая точка входа в воронку.
+  //  1. Гость → окно входа/регистрации (НИКОГДА сырой «Unauthorized»), потом
+  //     разбор продолжается с тем же вводом (INC-013).
+  //  2. Авторизованный → распознаём скриншоты ПО ОДНОМУ (последовательно, чтобы
+  //     10×4 МБ не ушли одним телом запроса — INC-018), с понятным прогрессом
+  //     (INC-019), объединяем весь текст по порядку, сообщаем какие скриншоты не
+  //     распознались, затем строим предпросмотр и переходим к шагу «Контекст».
+  async function startAnalysis(skipAuthCheck = false) {
+    if (!skipAuthCheck && authStatus !== "authenticated") {
+      setShowAuth(true);
+      return;
+    }
+    if (!hasInput) {
+      setMessage("Добавьте переписку: скриншоты, файл-выгрузку или текст вручную.");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("loading");
     setMessage(null);
+    const ocrTexts: string[] = [];
+    const failedNames: string[] = [];
     try {
-      const text = await navigator.clipboard.readText();
-      if (!text.trim()) {
-        setMessage("В буфере обмена нет текста — скопируйте переписку и нажмите ещё раз.");
+      for (let i = 0; i < imageAttachments.length; i += 1) {
+        const att = imageAttachments[i];
+        setProgress({ current: i + 1, total: imageAttachments.length });
+        if (att.recognizedText) {
+          ocrTexts.push(att.recognizedText);
+          continue;
+        }
+        const res = await jsonRequest<{ ok?: boolean; recognizedText?: string }>("/api/products/chat-analysis", {
+          method: "POST",
+          body: JSON.stringify({ action: "ocr_screenshot", imageDataUrl: att.url, fileName: att.name }),
+        });
+        if (res.ok && res.recognizedText) {
+          ocrTexts.push(res.recognizedText);
+          markAttachmentOcr(att.id, res.recognizedText, false);
+        } else {
+          failedNames.push(att.name);
+          markAttachmentOcr(att.id, null, true);
+        }
+      }
+      setProgress(null);
+
+      const combined = [sourceText.trim(), ...ocrTexts].filter(Boolean).join("\n\n").trim().slice(0, 10000);
+      if (combined.length < 10) {
+        setMessage(
+          failedNames.length > 0
+            ? `Не удалось распознать текст на скриншотах (${failedNames.length}). Попробуйте другие файлы или добавьте текст вручную.`
+            : "Пока мало текста для разбора. Добавьте ещё скриншоты, файл-выгрузку или текст вручную.",
+        );
         setStatus("error");
         return;
       }
-      const combined = sourceText.trim() ? `${sourceText.trim()}\n\n${text}` : text;
-      setSourceText(combined.slice(0, 10000));
-    } catch {
-      setMessage("Браузер не дал доступ к буферу обмена — скопируйте текст в поле руками.");
+
+      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
+        method: "POST",
+        body: JSON.stringify({ sourceText: combined, action: "upload_preview" }),
+      });
+      setHasEntitlement(Boolean(payload.hasEntitlement));
+      setSourceText(combined);
+      setResult(payload.result ?? null);
+      setMessage(
+        failedNames.length > 0
+          ? `Часть скриншотов (${failedNames.length}) не распозналась — их текст можно добавить вручную на следующем шаге.`
+          : null,
+      );
+      setStatus("idle");
+      setTab("context");
+    } catch (error) {
+      setProgress(null);
+      const typed = error as Error & { status?: number };
+      // INC-013 backstop: a raw 401 must never reach the user — re-open auth.
+      if (typed.status === 401) {
+        setShowAuth(true);
+        setStatus("idle");
+        return;
+      }
+      setMessage(typed.message || "Не удалось начать разбор");
       setStatus("error");
     }
   }
 
-  async function proceedToContext() {
-    if (!sourceText.trim()) return;
-    setStatus("loading");
-    setMessage(null);
-    try {
-      const payload = await jsonRequest<ApiPayload>("/api/products/chat-analysis", {
-        method: "POST",
-        body: JSON.stringify({ sourceText: sourceText.trim(), action: "upload_preview" }),
-      });
-      setHasEntitlement(Boolean(payload.hasEntitlement));
-      setResult(payload.result ?? null);
-      setStatus("idle");
-      setTab("context");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось загрузить переписку");
-      setStatus("error");
-    }
+  // INC-013: после входа/регистрации продолжаем разбор с уже введёнными данными.
+  // authStatus может не успеть обновиться в этот тик, поэтому пропускаем повторную
+  // проверку — серверу уже виден свежий сеанс (cookie, выставленный signIn).
+  function handleAuthSuccess() {
+    setShowAuth(false);
+    void startAnalysis(true);
   }
 
   async function generateReport() {
@@ -568,28 +621,68 @@ export function ChatAnalysisActions() {
         </p>
       )}
 
-      {/* tab 1: input — modern «composer» surface (single frame, no card-in-card):
-          textarea + a bottom toolbar with icon attach actions on the left and the
-          primary action on the right, so the CTA always stays on the first screen. */}
+      {/* tab 1: input — B404: the screen reads «give us the conversation»
+          (screenshots OR an export file), not «type a question». OCR is deferred
+          to «Начать разбор». Two clear attach affordances are the primary input;
+          the manual-text field is a quiet fallback behind a toggle. */}
       {tab === "input" && (
         <div data-testid="chat-analysis-input">
           <div className="soft-card overflow-hidden p-0 transition-colors focus-within:border-[var(--soft-bordeaux)]">
-            <textarea
-              value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-              placeholder={"Вставьте переписку или приложите скриншоты — можно частями. Чем больше контекста, тем точнее разбор."}
-              className="soft-question-input"
-              style={{ padding: "1.1rem 1.25rem 0.6rem" }}
-              rows={5}
-              disabled={status === "loading"}
-              data-testid="chat-analysis-textarea"
-            />
+            {/* primary input = two attach affordances, side by side */}
+            <div className="grid grid-cols-2 gap-2.5 p-3">
+              <button
+                type="button"
+                onClick={() => screenshotInputRef.current?.click()}
+                disabled={status === "loading"}
+                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-3 py-5 text-center transition-colors hover:border-[var(--soft-bordeaux)] hover:bg-[var(--soft-paper-deep)] disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="chat-analysis-upload-screenshot"
+              >
+                <ImageIcon className="size-6 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+                <span className="text-[13.5px] font-medium text-[var(--soft-ink)]">Скриншоты переписки</span>
+                <span className="text-[11.5px] leading-snug text-[var(--soft-ink-faint)]">PNG или JPG, можно несколько</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={status === "loading"}
+                title="Загрузить файл (.txt, экспорт из Telegram)"
+                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-3 py-5 text-center transition-colors hover:border-[var(--soft-bordeaux)] hover:bg-[var(--soft-paper-deep)] disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="chat-analysis-upload-file"
+              >
+                <FileText className="size-6 text-[var(--soft-bordeaux)]" aria-hidden="true" />
+                <span className="text-[13.5px] font-medium text-[var(--soft-ink)]">Файл-выгрузка</span>
+                <span className="text-[11.5px] leading-snug text-[var(--soft-ink-faint)]">.txt экспорт из Telegram</span>
+              </button>
+              <input
+                ref={screenshotInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                multiple
+                className="sr-only"
+                disabled={status === "loading"}
+                onChange={(e) => {
+                  void attachScreenshots(e.target.files);
+                  e.currentTarget.value = "";
+                }}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.html,.json,text/plain,text/html,application/json"
+                className="sr-only"
+                disabled={status === "loading"}
+                onChange={(e) => {
+                  void uploadTextFile(e.target.files?.[0] ?? null);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </div>
 
             {/* Attachments as uniform micro-thumbnails (image preview / file chip)
-                with a tappable × to remove. Sized small + names truncated so many
-                files fit; row-gap leaves room for the × when they wrap. */}
+                with a tappable × to remove. A screenshot that failed OCR after
+                «Начать разбор» gets a warm ring so the user sees which to replace. */}
             {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-x-2.5 gap-y-3 px-4 pb-3 pt-1" data-testid="chat-analysis-file-list">
+              <div className="flex flex-wrap gap-x-2.5 gap-y-3 px-4 pb-3 pt-0.5" data-testid="chat-analysis-file-list">
                 {attachments.map((att) => (
                   <div key={att.id} className="relative">
                     {att.kind === "image" && att.url ? (
@@ -597,7 +690,8 @@ export function ChatAnalysisActions() {
                       <img
                         src={att.url}
                         alt={att.name}
-                        className="size-12 rounded-lg border border-[var(--soft-paper-edge)] object-cover"
+                        title={att.ocrFailed ? "Не удалось распознать текст на этом скриншоте" : att.name}
+                        className={`size-12 rounded-lg object-cover ${att.ocrFailed ? "border-2 border-[var(--soft-terracotta-dark)]" : "border border-[var(--soft-paper-edge)]"}`}
                       />
                     ) : (
                       <div className="flex h-12 max-w-[8.5rem] items-center gap-1.5 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5">
@@ -618,71 +712,48 @@ export function ChatAnalysisActions() {
               </div>
             )}
 
-            {/* Toolbar: attach actions (icons) + primary action. Order: screenshots → paste → «Загрузить файл» last. */}
-            <div className="flex items-center justify-between gap-2 border-t border-[var(--soft-paper-edge)] px-2.5 py-2">
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => screenshotInputRef.current?.click()}
+            {/* Manual text — a quiet fallback, not the main affordance. Hidden
+                behind a toggle until the user opts in (or a .txt fills it). */}
+            <div className="border-t border-[var(--soft-paper-edge)] px-3 py-2.5">
+              {showManualText || sourceText.trim() ? (
+                <textarea
+                  value={sourceText}
+                  onChange={(e) => setSourceText(e.target.value)}
+                  placeholder="Можно вставить текст переписки сюда."
+                  className="soft-question-input"
+                  style={{ padding: "0.6rem 0.7rem" }}
+                  rows={4}
                   disabled={status === "loading"}
-                  title="Скриншоты переписки"
-                  aria-label="Загрузить скриншоты"
-                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] disabled:cursor-not-allowed disabled:opacity-40"
-                  data-testid="chat-analysis-upload-screenshot"
-                >
-                  <ImageIcon className="size-[18px]" aria-hidden="true" />
-                </button>
-                <input
-                  ref={screenshotInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  multiple
-                  className="sr-only"
-                  disabled={status === "loading"}
-                  onChange={(e) => {
-                    void uploadScreenshots(e.target.files);
-                    e.currentTarget.value = "";
-                  }}
+                  data-testid="chat-analysis-textarea"
                 />
+              ) : (
                 <button
                   type="button"
-                  onClick={() => void pasteFromClipboard()}
-                  disabled={status === "loading"}
-                  title="Вставить из буфера обмена"
-                  aria-label="Вставить из буфера обмена"
-                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] disabled:cursor-not-allowed disabled:opacity-40"
-                  data-testid="chat-analysis-upload-paste"
+                  onClick={() => setShowManualText(true)}
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--soft-ink-soft)] transition-colors hover:text-[var(--soft-bordeaux)]"
+                  data-testid="chat-analysis-manual-text-toggle"
                 >
-                  <ClipboardPaste className="size-[18px]" aria-hidden="true" />
+                  <PenLine className="size-3.5" aria-hidden="true" />
+                  Добавить текст вручную
                 </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={status === "loading"}
-                  title="Загрузить файл (.txt, экспорт из Telegram)"
-                  aria-label="Загрузить файл"
-                  className="inline-flex size-9 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)] disabled:cursor-not-allowed disabled:opacity-40"
-                  data-testid="chat-analysis-upload-file"
-                >
-                  <FileText className="size-[18px]" aria-hidden="true" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".txt,.html,.json,text/plain,text/html,application/json"
-                  className="sr-only"
-                  disabled={status === "loading"}
-                  onChange={(e) => {
-                    void uploadTextFile(e.target.files?.[0] ?? null);
-                    e.currentTarget.value = "";
-                  }}
-                />
-              </div>
+              )}
+            </div>
 
+            {/* footer row: progress / hint on the left, primary action on the right */}
+            <div className="flex items-center justify-between gap-3 border-t border-[var(--soft-paper-edge)] px-3 py-2.5">
+              <span
+                className={`min-w-0 flex-1 text-[11.5px] leading-snug ${progress ? "font-medium text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"}`}
+                aria-live="polite"
+                data-testid="chat-analysis-progress"
+              >
+                {progress
+                  ? `Распознаём скриншот ${progress.current} из ${progress.total}…`
+                  : "Текст со скриншотов распознаём после «Начать разбор»."}
+              </span>
               <Button
-                onClick={proceedToContext}
-                disabled={status === "loading" || sourceText.trim().length < 10}
-                className="soft-button soft-button-primary"
+                onClick={() => startAnalysis()}
+                disabled={status === "loading" || !hasInput}
+                className="soft-button soft-button-primary shrink-0"
                 style={{ minHeight: "2.5rem", padding: "0 1.1rem" }}
               >
                 Начать разбор
@@ -828,6 +899,16 @@ export function ChatAnalysisActions() {
           )}
         </>
       )}
+
+      {/* INC-013: гость, нажавший «Начать разбор», входит/регистрируется прямо
+          здесь — введённые скриншоты/текст сохраняются, и разбор продолжается. */}
+      <AuthModal
+        toolName="Разбор переписки"
+        open={showAuth}
+        initialMode="register"
+        onSuccess={handleAuthSuccess}
+        onClose={() => setShowAuth(false)}
+      />
     </div>
   );
 }
