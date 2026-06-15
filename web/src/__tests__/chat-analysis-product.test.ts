@@ -2,8 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ChatAnalysisInputError,
+  buildChatAnalysisTeaser,
   combineRecognizedChatTexts,
   maskChatAnalysisPii,
+  tryParseChatAnalysis,
   validateChatScreenshotDataUrl,
 } from "@/lib/chat-analysis";
 
@@ -126,16 +128,41 @@ describe("B087/B088 chat analysis product", () => {
     expect(actions).toContain("chat-analysis-progress");
   });
 
-  it("B406/INC-021 keeps the «первый взгляд» teaser assessment-only (no transcript echo)", () => {
+  it("B407/INC-021+INC-023 keeps «первый взгляд» as the insight only — no transcript, no label, no tone", () => {
     const helper = source("src/lib/chat-analysis.ts");
-
-    // The teaser must NOT reprint the conversation: the old transcript heading and
-    // the per-line «Собеседник:» anonymiser are gone.
+    // INC-021: never reprint the conversation.
     expect(helper).not.toContain("Что удалось прочитать");
     expect(helper).not.toContain("anonymizeChatPreview");
-    // It still surfaces the оценка (insight + собеседник tone).
-    expect(helper).toContain("Один инсайт:");
-    expect(helper).toContain("Тон собеседника:");
+
+    const teaser = buildChatAnalysisTeaser("Анна: ты пропал\nЯ: важно понять", JSON.stringify({
+      insight: "Видна попытка договориться, которая уходит в защиту.",
+      tonesThem: [{ label: "защитный", pct: 72 }],
+      tonesMe: [{ label: "ищущий", pct: 65 }],
+      replies: [{ style: "мягкий", text: "x" }],
+      safetyNote: "y",
+    }));
+    // INC-023: insight sentence only — no «Один инсайт:» label, no собеседник tone.
+    expect(teaser).toContain("уходит в защиту");
+    expect(teaser).not.toContain("Один инсайт");
+    expect(teaser).not.toContain("Тон собеседника");
+    expect(teaser).not.toContain("защитный");
+  });
+
+  it("B407/INC-024 makes replies ALWAYS LLM: no Gemini thinking truncation + fence-tolerant parse", () => {
+    const gemini = source("src/lib/ai-gateway/gemini-adapter.ts");
+    // Gemini-2.5* disables thinking so the budget isn't consumed by thinking tokens
+    // (which truncated the structured JSON → heuristic fallback).
+    expect(gemini).toContain("thinkingConfig: { thinkingBudget: 0 }");
+    expect(gemini).toContain('model.startsWith("gemini-2.5")');
+
+    // tryParseChatAnalysis tolerates ```fences``` and surrounding prose so a valid
+    // LLM answer is used instead of falling back to the static heuristic.
+    const fenced = "```json\n{\"insight\":\"i\",\"tonesThem\":[],\"tonesMe\":[],\"replies\":[{\"style\":\"мягкий\",\"text\":\"привет\"}],\"safetyNote\":\"s\"}\n```";
+    const prose = "Вот результат: {\"insight\":\"i\",\"replies\":[{\"style\":\"прямой\",\"text\":\"ок\"}]} — готово.";
+    expect(tryParseChatAnalysis(fenced)?.replies[0].text).toBe("привет");
+    expect(tryParseChatAnalysis(prose)?.replies[0].text).toBe("ок");
+    // Truncated JSON (no closing brace) still safely yields null (→ heuristic last resort).
+    expect(tryParseChatAnalysis('{"insight":"i","replies":[{"style":"мягкий","text":"при')).toBeNull();
   });
 
   it("B406/INC-022 makes reply variants copy-ready and keeps recommendations outside the copyable text", () => {

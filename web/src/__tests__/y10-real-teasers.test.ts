@@ -92,10 +92,13 @@ describe("M24 Z6 real truncated product teasers", () => {
 
     const teaser = buildChatAnalysisTeaser("Анна: ты опять пропал\nЯ: мне важно понять, что происходит", fullAnalysis);
 
-    // INC-021: «первый взгляд» = оценка only — insight + собеседник tone.
-    expect(teaser).toContain("Один инсайт");
+    // INC-023: «первый взгляд» = the insight sentence ONLY — no «Один инсайт:» label,
+    // no собеседник tone (tone is reserved for the final разбор).
     expect(teaser).toContain("быстро уходит в защиту");
-    expect(teaser).toContain("Тон собеседника: защитный");
+    expect(teaser).not.toContain("Один инсайт");
+    expect(teaser).not.toContain("Тон собеседника");
+    expect(teaser).not.toContain("защитный");
+    expect(teaser).not.toContain("72");
     // INC-021: it must NOT reprint the conversation transcript.
     expect(teaser).not.toContain("Что удалось прочитать");
     expect(teaser).not.toContain("ты опять пропал");

@@ -22,13 +22,31 @@ export type ChatAnalysisStructured = {
 
 export function tryParseChatAnalysis(text: string): ChatAnalysisStructured | null {
   if (!text) return null;
-  try {
-    const raw = JSON.parse(text) as Partial<ChatAnalysisStructured>;
-    if (!raw.insight || !Array.isArray(raw.replies)) return null;
-    return raw as ChatAnalysisStructured;
-  } catch {
-    return null;
+  // INC-024: tolerate JSON wrapped in ```fences``` or surrounded by prose. Try the
+  // raw text first, then the substring from the first «{» to the last «}». This
+  // keeps a valid LLM answer from being thrown away (→ static heuristic fallback)
+  // just because the model added a code fence or a stray sentence.
+  for (const candidate of chatAnalysisJsonCandidates(text)) {
+    try {
+      const raw = JSON.parse(candidate) as Partial<ChatAnalysisStructured>;
+      if (raw.insight && Array.isArray(raw.replies)) return raw as ChatAnalysisStructured;
+    } catch {
+      // try the next candidate
+    }
   }
+  return null;
+}
+
+function chatAnalysisJsonCandidates(text: string): string[] {
+  const trimmed = text.trim();
+  const candidates = [trimmed];
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    const sliced = trimmed.slice(start, end + 1);
+    if (sliced !== trimmed) candidates.push(sliced);
+  }
+  return candidates;
 }
 
 export class ChatAnalysisInputError extends Error {
@@ -69,16 +87,15 @@ export function buildChatAnalysisPreview(_sourceText: string) {
   ].join("\n");
 }
 
-// INC-021: assessment-only teaser. The block must contain ONLY the first-look
-// оценка (один инсайт + тон собеседника) — never the recognised transcript.
+// INC-021 + INC-023: the «первый взгляд» preview is the first-look insight ONLY —
+// never the recognised transcript (INC-021), and without the «Один инсайт:» label
+// or the собеседник tone (INC-023). Tone is reserved for the final разбор.
 export function buildChatAnalysisTeaser(sourceText: string, generatedText: string) {
   const parsed = tryParseChatAnalysis(generatedText) ?? tryParseChatAnalysis(heuristicChatAnalysis(sourceText).text);
-  const topTone = parsed?.tonesThem?.[0];
   return [
-    `Один инсайт: ${parsed?.insight ?? "в переписке уже виден повторяющийся сценарий контакта и защиты."}`,
-    topTone ? `Тон собеседника: ${topTone.label}${typeof topTone.pct === "number" ? ` (${topTone.pct}%)` : ""}.` : "",
+    parsed?.insight ?? "В переписке уже виден повторяющийся сценарий контакта и защиты.",
     "",
-    "В полном разборе откроются ваш тон, варианты ответа и безопасный следующий шаг.",
+    "В полном разборе откроются тон собеседника, ваш тон, варианты ответа и безопасный следующий шаг.",
   ].filter(Boolean).join("\n");
 }
 

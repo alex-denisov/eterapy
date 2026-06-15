@@ -46,7 +46,9 @@ describe("Gemini adapter", () => {
     expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual(expect.objectContaining({
       systemInstruction: { parts: [{ text: "System prompt" }] },
       contents: [{ role: "user", parts: [{ text: "Привет" }] }],
-      generationConfig: { maxOutputTokens: 64, temperature: 0.2 },
+      // INC-024: gemini-2.5* must disable thinking so the budget isn't eaten by
+      // thinking tokens (which truncated structured JSON answers).
+      generationConfig: { maxOutputTokens: 64, temperature: 0.2, thinkingConfig: { thinkingBudget: 0 } },
     }));
     expect(result).toEqual(expect.objectContaining({
       provider: AIProvider.GEMINI,
@@ -56,6 +58,19 @@ describe("Gemini adapter", () => {
       completionTokens: 7,
       totalTokens: 18,
     }));
+  });
+
+  it("does NOT send thinkingConfig for non-2.5 models that would reject it", async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }],
+      usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
+    }), { status: 200 }));
+    const adapter = createGeminiAdapter({ apiKey: "k", defaultModel: "gemini-1.5-flash", fetchImpl });
+
+    await adapter.complete({ feature: "ai-healthcheck", messages: [{ role: "user", content: "ping" }], maxTokens: 32 });
+
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.generationConfig.thinkingConfig).toBeUndefined();
   });
 
   it("inlines system instructions for Cloudflare Google AI Studio gateway", async () => {

@@ -181,6 +181,13 @@ export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AIGatew
             generationConfig: {
               maxOutputTokens: request.maxTokens,
               temperature: request.temperature,
+              // INC-024: gemini-2.5* are *thinking* models and thinking tokens count
+              // toward maxOutputTokens — they were eating the budget and truncating
+              // structured-JSON answers (chat-analysis разбор was cut off mid-JSON →
+              // parse failed → static heuristic fallback). Disable thinking so the
+              // whole budget goes to the actual answer (also faster + cheaper). Only
+              // 2.5* accept thinkingConfig; older models would reject the field.
+              ...(model.startsWith("gemini-2.5") ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
             },
           }),
         }, request.timeoutMs ?? timeoutMs);
