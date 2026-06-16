@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import {
   ArrowRight,
   Bookmark,
-  CheckCircle2,
+  ChevronLeft,
   Compass,
   FileText,
   Heart,
@@ -491,6 +491,7 @@ export default function CheckinPage() {
   return (
     <DialogueShell
       className="soft-clarity-page soft-dialogue-page"
+      hideHeader={phase === "result"}
       title={phase === "result" ? "Ваш первичный ответ" : phase === "safety" ? "Экстренная поддержка" : "Разбор"}
       description={
         phase === "result"
@@ -782,15 +783,27 @@ export default function CheckinPage() {
 
       {phase === "result" && dialogue && safeAnswer && (
         <div className="soft-answer-flow" data-testid="dialogue-result-step">
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <button onClick={reset} className="soft-chip">
-              ← Новый вопрос
-            </button>
-            <span className="soft-badge">
-              <CheckCircle2 className="size-3" aria-hidden="true" />
-              разбор готов
+          {/* iOS-style header: round «back» arrow (= новый разбор) directly left
+              of the title, with a quiet privacy line — mirrors the redesigned
+              product hero (`products/[slug]/page.tsx`). Replaces the old loud
+              status/price badge row. */}
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={reset}
+                aria-label="Новый разбор"
+                data-testid="dialogue-result-back"
+                className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
+              >
+                <ChevronLeft className="size-5" aria-hidden="true" />
+              </button>
+              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Ваш разбор</h1>
+            </div>
+            <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[var(--soft-terracotta-dark)]">
+              <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
+              Приватно
             </span>
-            <span className="soft-badge soft-badge-warm">бесплатно</span>
           </div>
           {/* B411: full dialogue collapsed into «Первичный разбор», ABOVE «что я
               слышу». Collapsed by default, same bubble structure as the live chat. */}
@@ -872,14 +885,14 @@ export default function CheckinPage() {
                   <div>
                     <h3 className="soft-h3">Продолжить разговор в чате</h3>
                     <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                      Живой диалог в своём темпе. Первый мини-диалог — бесплатно.
+                      Живой диалог в своём темпе — 45 минут, чтобы разобрать вопрос глубже.
                     </p>
                   </div>
                 </div>
                 <div className="mt-auto flex items-end justify-between gap-4 pt-5">
                   <div>
-                    <div className="font-heading text-2xl font-semibold leading-none text-[var(--soft-bordeaux)]">Бесплатно</div>
-                    <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">далее 45 мин · 790 ₽ или 4 балла</div>
+                    <div className="font-heading text-2xl font-semibold leading-none text-[var(--soft-bordeaux)]">790 ₽</div>
+                    <div className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">45 мин · или 4 балла</div>
                   </div>
                   <span className="soft-button soft-button-primary text-sm">
                     Начать
@@ -1131,9 +1144,6 @@ export default function CheckinPage() {
             </p>
           )}
           {saveState === "error" && status !== "authenticated" && <p className="mt-3 text-sm text-destructive">Не удалось сохранить. Попробуйте еще раз.</p>}
-          <Disclaimer className="soft-dialogue-disclaimer mt-6" tone="info" title="Ограничение">
-            Первичный ответ помогает увидеть следующий шаг, но не заменяет профильную помощь и не является прогнозом с гарантией.
-          </Disclaimer>
         </div>
       )}
 

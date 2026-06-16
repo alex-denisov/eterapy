@@ -112,9 +112,42 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).not.toContain("рекомендуем именно вам");
     expect(page).toContain('data-testid="continue-in-chat-cta"');
     // chat card carries its price inside the card
-    expect(page).toContain("790 ₽ или 4 балла");
+    expect(page).toContain("790 ₽");
+    expect(page).toContain("или 4 балла");
     // specialist session is elevated above the other formats
     expect(page).toContain("человек рядом");
+  });
+
+  // Subtask (2026-06-17, owner): the «продолжить разговор в чате» service is paid —
+  // no «бесплатно» framing on the chat CTA (the FREE part is the первичный разбор).
+  it("presents the chat continuation as a paid service (no free mention)", () => {
+    const page = source("src/app/checkin/page.tsx");
+    const chatCard = page.slice(
+      page.indexOf('data-testid="continue-in-chat-cta"'),
+      page.indexOf('data-testid="triage-primary-cta"'),
+    );
+    expect(chatCard).not.toContain("Первый мини-диалог");
+    expect(chatCard).not.toContain("Бесплатно");
+    expect(chatCard).not.toContain("бесплатно");
+  });
+
+  // Subtask (2026-06-17, owner): the разбор result header is an iOS-style back
+  // arrow (= новый разбор), not the loud «разбор готов»/«бесплатно» badge row;
+  // the «зашифровано» plate became a quiet shield line; the low-value
+  // «не заменяет профильную помощь» disclaimer is gone.
+  it("uses an iOS-style back-arrow header on the result and drops the noise plates", () => {
+    const page = source("src/app/checkin/page.tsx");
+    const result = page.slice(
+      page.indexOf('data-testid="dialogue-result-step"'),
+      page.indexOf('{error && phase !== "processing"'),
+    );
+    expect(result).toContain('data-testid="dialogue-result-back"');
+    expect(result).toContain("<ChevronLeft");
+    expect(result).not.toContain("разбор готов");
+    expect(result).not.toContain('soft-badge soft-badge-warm">бесплатно');
+    expect(page).not.toContain("не заменяет профильную помощь и не является прогнозом");
+    // result phase suppresses the built-in shell header (single clean header)
+    expect(page).toContain('hideHeader={phase === "result"}');
   });
 
   // B414: icon-only share + auto-save semantics.

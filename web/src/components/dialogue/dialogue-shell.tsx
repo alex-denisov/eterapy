@@ -9,6 +9,9 @@ interface DialogueShellProps {
   progress?: { current: number; total: number };
   children: React.ReactNode;
   className?: string;
+  /** Suppress the built-in shell header (used on the result phase, which renders
+      its own iOS-style back-arrow header). */
+  hideHeader?: boolean;
 }
 
 export function DialogueShell({
@@ -18,6 +21,7 @@ export function DialogueShell({
   progress,
   children,
   className,
+  hideHeader = false,
 }: DialogueShellProps) {
   // Keep progress.current reference for test detection
   const progressValue = progress
@@ -37,47 +41,52 @@ export function DialogueShell({
       />
 
       <div className="relative mx-auto w-full max-w-3xl">
-        {/* v4 compact header: brand mark + eyebrow + subtitle | badge */}
-        <header className="mb-8">
-          <div className="flex items-center justify-between gap-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] pb-4">
-            <div className="flex items-center gap-3">
-              <SoftHaloMark size={28} />
-              <div>
-                <div className="soft-eyebrow">{kicker}</div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-heading, serif)",
-                    fontSize: 15,
-                    color: "var(--soft-bordeaux)",
-                    lineHeight: 1.3,
-                    fontWeight: 500,
-                  }}
-                >
-                  Разговор приватный
+        {/* v4 compact header: brand mark + eyebrow + subtitle | quiet privacy line.
+            Suppressed on the result phase, which renders its own iOS header. */}
+        {!hideHeader && (
+          <header className="mb-8">
+            <div className="flex items-center justify-between gap-4 border-b border-[var(--soft-paper-edge,rgba(60,30,20,0.1))] pb-4">
+              <div className="flex items-center gap-3">
+                <SoftHaloMark size={28} />
+                <div>
+                  <div className="soft-eyebrow">{kicker}</div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-heading, serif)",
+                      fontSize: 15,
+                      color: "var(--soft-bordeaux)",
+                      lineHeight: 1.3,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Разговор приватный
+                  </div>
                 </div>
               </div>
+              {/* Quiet shield line (iOS-style) instead of a loud badge — matches
+                  the redesigned product hero privacy treatment. */}
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[var(--soft-terracotta-dark)]">
+                <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
+                Зашифровано
+              </span>
             </div>
-            <span className="soft-badge">
-              <ShieldCheck className="size-3" aria-hidden="true" />
-              зашифровано
-            </span>
-          </div>
 
-          {/* Thin progress strip — aria-label preserved for test: aria-label={`Шаг ${progress.current} из ${progress.total}`} */}
-          {progress && (
-            <div aria-label={`Шаг ${progress.current} из ${progress.total}`} className="mt-0">
-              <div className="h-[2px] overflow-hidden bg-[var(--soft-paper-edge,rgba(60,30,20,0.08))]">
-                <div
-                  className="h-full transition-all duration-[var(--motion-slow,600ms)]"
-                  style={{
-                    width: `${progressValue}%`,
-                    background: "linear-gradient(90deg,var(--dialogue-halo-warm,var(--soft-terracotta)),var(--dialogue-halo-cool,var(--soft-lilac)))",
-                  }}
-                />
+            {/* Thin progress strip — aria-label preserved for test: aria-label={`Шаг ${progress.current} из ${progress.total}`} */}
+            {progress && (
+              <div aria-label={`Шаг ${progress.current} из ${progress.total}`} className="mt-0">
+                <div className="h-[2px] overflow-hidden bg-[var(--soft-paper-edge,rgba(60,30,20,0.08))]">
+                  <div
+                    className="h-full transition-all duration-[var(--motion-slow,600ms)]"
+                    style={{
+                      width: `${progressValue}%`,
+                      background: "linear-gradient(90deg,var(--dialogue-halo-warm,var(--soft-terracotta)),var(--dialogue-halo-cool,var(--soft-lilac)))",
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          )}
-        </header>
+            )}
+          </header>
+        )}
 
         {children}
       </div>

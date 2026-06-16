@@ -15,6 +15,16 @@ describe("v5 dialogue shell", () => {
     expect(shell).toContain("aria-label={`Шаг ${progress.current} из ${progress.total}`}");
   });
 
+  // Subtask (2026-06-17, owner): the «зашифровано» plate became a quiet shield
+  // line (iOS treatment), and the header can be suppressed on the result phase.
+  it("supports hiding the header and renders a quiet privacy line", () => {
+    const shell = source("src/components/dialogue/dialogue-shell.tsx");
+
+    expect(shell).toContain("hideHeader");
+    expect(shell).toContain("{!hideHeader && (");
+    expect(shell).not.toContain('<span className="soft-badge">');
+  });
+
   it("wraps the current check-in dialogue flow", () => {
     const checkin = source("src/app/checkin/page.tsx");
 
