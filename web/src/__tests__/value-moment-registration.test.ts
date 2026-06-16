@@ -13,10 +13,11 @@ describe("B051 value-moment registration", () => {
 
     expect(page).toContain("saveGuestResultDraft");
     expect(page).toContain("primaryAnswer");
-    expect(page).toContain("save-result-register");
-    expect(page).toContain('href="/register?intent=save-result"');
+    // B414: guests save via the full /login page (AuthModal/register-inline retired);
+    // authed users see the auto-saved note instead of a button.
+    expect(page).toContain("save-result-login");
     expect(page).toContain('href="/login?intent=save-result"');
-    expect(page).toContain("Сохранено в кабинете");
+    expect(page).toContain("Сохранено в вашей карте");
   });
 
   it("makes register and login pages explain the save-result intent", () => {

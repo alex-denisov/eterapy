@@ -12,6 +12,8 @@ interface AIShareButtonProps {
   resultText: string;
   onSaved?: (id: string) => void;
   inline?: boolean;
+  /** B414: render the inline trigger as an icon-only button (no «Поделиться» label). */
+  iconOnly?: boolean;
 }
 
 const TOOL_LABELS: Record<string, string> = {
@@ -65,7 +67,7 @@ function shareLandingUrl(tool: string) {
   return `${appOrigin()}/share?from=${encodeURIComponent(tool.toLowerCase())}&topic=${label}`;
 }
 
-export function AIShareButton({ tool, title, resultText, onSaved, inline }: AIShareButtonProps) {
+export function AIShareButton({ tool, title, resultText, onSaved, inline, iconOnly }: AIShareButtonProps) {
   const [open, setOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [templateIndex, setTemplateIndex] = useState(0);
@@ -185,10 +187,11 @@ export function AIShareButton({ tool, title, resultText, onSaved, inline }: AISh
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="Поделиться обезличенной карточкой разбора"
-        className="soft-button soft-button-primary"
+        title="Поделиться"
+        className={iconOnly ? "soft-button soft-button-ghost soft-icon-button" : "soft-button soft-button-primary"}
       >
-        <Share2 className="h-4 w-4" />
-        Поделиться
+        <Share2 className="lucide lucide-share2 lucide-share-2 h-4 w-4" />
+        {!iconOnly && "Поделиться"}
       </button>
     </>
   );

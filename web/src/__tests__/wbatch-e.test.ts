@@ -11,7 +11,8 @@ describe("W16 — dialogue result actions: rename + calmer hierarchy", () => {
   });
   it("the result cluster has one primary (save) and drops the duplicated upsells", () => {
     const page = read("src/app/checkin/page.tsx");
-    expect(page).toContain('data-testid="save-result-authenticated"');
+    // B414: authed users auto-save (no button) — the action cluster shows the note
+    expect(page).toContain('data-testid="result-autosaved-note"');
     // circle/pair upsells removed from the action cluster (they live in the rail)
     expect(page).not.toContain('data-testid="dialogue-free-circle"');
     expect(page).not.toContain('data-testid="dialogue-free-pair"');

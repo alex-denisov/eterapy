@@ -30,8 +30,9 @@ describe("B071-B074 dialogue flow UI", () => {
     const page = source("src/app/checkin/page.tsx");
 
     expect(page).toContain("<AIShareButton");
-    expect(page).toContain('data-testid="save-result-authenticated"');
-    expect(page).toContain('data-testid="save-result-register"');
+    // B414: authed users no longer get a save button (auto-saved); guests save → /login
+    expect(page).toContain('data-testid="result-autosaved-note"');
+    expect(page).toContain('data-testid="save-result-login"');
     expect(page).toContain('data-testid="dialogue-answer-triage-layout"');
     expect(page).toContain('data-testid="dialogue-triage-rail"');
     expect(page).toContain('data-testid="triage-primary-cta"');
@@ -84,5 +85,53 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain("dialogue_limit_paywall_shown");
     expect(page).toContain("dialogue_limit_register_clicked");
     expect(page).toContain("dialogue_limit_upgrade_clicked");
+  });
+
+  // B411: the primary разбор finalizes on a single screen — no separate
+  // generation page that crops the dialogue to just the first question, and the
+  // full dialogue collapses into an expandable «Первичный разбор».
+  it("B411: kills the cropped generation screen and collapses the dialogue", () => {
+    const page = source("src/app/checkin/page.tsx");
+    const processing = page.slice(
+      page.indexOf('data-testid="dialogue-processing-step"'),
+      page.indexOf('phase === "safety" &&'),
+    );
+    // the processing screen no longer renders the cropped single-question bubble
+    expect(processing).not.toContain("soft-msg-bubble-user");
+    // instead it reuses the result scaffold (the «что я слышу» band)
+    expect(processing).toContain("что я слышу в вашем вопросе");
+    // the dialogue is a collapsible «Первичный разбор» disclosure
+    expect(page).toContain("<details");
+    expect(page).toContain(">первичный разбор<");
+  });
+
+  // B412: recommendation priority + rename + price-in-card + specialist highlight.
+  it("B412: orders recommendations by priority with prices and a specialist highlight", () => {
+    const page = source("src/app/checkin/page.tsx");
+    expect(page).toContain("подобрано для вас");
+    expect(page).not.toContain("рекомендуем именно вам");
+    expect(page).toContain('data-testid="continue-in-chat-cta"');
+    // chat card carries its price inside the card
+    expect(page).toContain("790 ₽ или 4 балла");
+    // specialist session is elevated above the other formats
+    expect(page).toContain("человек рядом");
+  });
+
+  // B414: icon-only share + auto-save semantics.
+  it("B414: share is icon-only and the share button supports iconOnly", () => {
+    const page = source("src/app/checkin/page.tsx");
+    expect(page).toContain("inline iconOnly");
+    const share = source("src/components/ai-share-button.tsx");
+    expect(share).toContain("iconOnly");
+    expect(share).toContain("lucide-share-2");
+  });
+
+  // B416: the limit gate is a blocking popup, never shown during a safety interrupt.
+  it("B416: limit is a blocking popup gated off the safety state", () => {
+    const page = source("src/app/checkin/page.tsx");
+    expect(page).toContain('limitPaywall && phase !== "safety"');
+    expect(page).toContain('role="dialog"');
+    expect(page).toContain("На сегодня — достаточно");
+    expect(page).toContain("Ваш первый разбор готов");
   });
 });
