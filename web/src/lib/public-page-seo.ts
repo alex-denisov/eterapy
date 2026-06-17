@@ -82,6 +82,11 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Приватный анализ переписки с предупреждением о персональных данных, праве использования и удалении исходника.",
     schemaKind: "Product",
   },
+  "/products/chat": {
+    title: "Решить вопрос в чате — ETerapy",
+    description: "Живой диалог 45 минут, чтобы разобрать вопрос в своём темпе. Платная синхронная услуга — продолжение бесплатного первичного разбора.",
+    schemaKind: "Product",
+  },
   "/products/compatibility": {
     title: "Совместимость — ETerapy",
     description: "Парный отчет по совместимости с invite flow, согласием второго участника и приватностью ответов.",

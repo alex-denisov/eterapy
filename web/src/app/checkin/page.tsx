@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { AIShareButton } from "@/components/ai-share-button";
+import { CompanionChatPanel } from "@/components/companion/companion-chat-panel";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/gu
 import { track } from "@/lib/analytics";
 import { pointsWord } from "@/lib/points";
 import { MIN_SESSION_PRICE_RUB, formatSessionFloor } from "@/lib/session-pricing";
+import { loginUrl } from "@/lib/subdomain";
 
 // B319: hard cap on user input length per turn. 1200 characters is roomy
 // for a thoughtful 2-3 paragraph reply while still keeping LLM context
@@ -163,6 +165,11 @@ export default function CheckinPage() {
     if (typeof window === "undefined") return false;
     return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
   });
+  // B413: «Продолжить разговор в чате» continues in place as a paid session.
+  // While active: recs + «что я слышу» hide, the «Первичный разбор» disclosure
+  // expands, and the paid chat runs on the same dialogue thread. On session
+  // end (timer expiry) the chat collapses and the recommendations re-appear.
+  const [showChat, setShowChat] = useState(false);
   const autoStartedRef = useRef(false);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
@@ -791,14 +798,14 @@ export default function CheckinPage() {
             <div className="flex min-w-0 items-center gap-1.5">
               <button
                 type="button"
-                onClick={reset}
-                aria-label="Новый разбор"
+                onClick={() => (showChat ? setShowChat(false) : reset())}
+                aria-label={showChat ? "Вернуться к разбору" : "Новый разбор"}
                 data-testid="dialogue-result-back"
                 className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
               >
                 <ChevronLeft className="size-5" aria-hidden="true" />
               </button>
-              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Ваш разбор</h1>
+              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>{showChat ? "Разговор в чате" : "Ваш разбор"}</h1>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[var(--soft-terracotta-dark)]">
               <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
@@ -813,7 +820,7 @@ export default function CheckinPage() {
             );
             if (thread.length === 0) return null;
             return (
-              <details className="soft-razbor-disclosure mb-4 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="dialogue-history">
+              <details className="soft-razbor-disclosure mb-4 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="dialogue-history" {...(showChat ? { open: true } : {})}>
                 <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
                   <span className="soft-eyebrow">первичный разбор</span>
                   <span className="text-xs text-[var(--soft-ink-faint)]">показать диалог</span>
@@ -839,6 +846,22 @@ export default function CheckinPage() {
             );
           })()}
 
+          {/* B413: in-page paid chat continuation. Mounts under the (expanded)
+              «Первичный разбор», on the same dialogue thread. onSessionEnd fires
+              when the 45-min timer lapses → collapse + re-show the recs. */}
+          {showChat && (
+            <div className="mt-4" data-testid="dialogue-inplace-chat">
+              <CompanionChatPanel
+                inline
+                dialogueId={dialogue.id}
+                onSessionEnd={() => setShowChat(false)}
+                loginNext={`/checkin?dialogueId=${dialogue.id}`}
+              />
+            </div>
+          )}
+
+          {!showChat && (
+           <>
           {/* B411: «что я слышу в вашем вопросе» — horizontal band, full width. */}
           <article
             className="relative overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] p-5 md:p-7"
@@ -864,20 +887,30 @@ export default function CheckinPage() {
           <section className="mt-5" data-testid="dialogue-answer-triage-layout" aria-label="Что можно сделать дальше">
             <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">можно посмотреть глубже</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-stretch" data-testid="dialogue-triage-rail">
-              {/* priority 1: продолжить разговор в чате */}
-              <Link
-                href={`/cabinet/chat?dialogueId=${dialogue.id}`}
-                className="soft-card soft-triage-primary flex flex-col p-5"
+              {/* priority 1: продолжить разговор в чате — B413 continues in place
+                  as a paid session (no bounce to /cabinet/chat). Guests are sent
+                  to the full /login first; authed users open the in-page chat. */}
+              <button
+                type="button"
+                className="soft-card soft-triage-primary flex w-full flex-col p-5 text-left"
                 data-testid="continue-in-chat-cta"
                 data-analytics-surface="checkin_triage"
                 data-analytics-event="triage_primary_clicked"
-                data-analytics-target={`/cabinet/chat?dialogueId=${dialogue.id}`}
+                data-analytics-target="checkin#inplace-chat"
                 data-analytics-product="companion-chat"
                 data-analytics-dialogue-id={dialogue.id}
                 data-analytics-cta-role="primary"
                 data-analytics-offer-id="companion_chat_after_free_answer"
                 data-analytics-offer-reason="live_dialogue_continuation"
-                onClick={() => track({ event: "companion_chat_cta_clicked", surface: "checkin", dialogueId: dialogue.id })}
+                onClick={() => {
+                  track({ event: "companion_chat_cta_clicked", surface: "checkin", dialogueId: dialogue.id });
+                  if (status !== "authenticated") {
+                    const next = `/checkin?dialogueId=${dialogue.id}`;
+                    window.location.href = `${loginUrl()}?next=${encodeURIComponent(next)}`;
+                    return;
+                  }
+                  setShowChat(true);
+                }}
               >
                 <span className="soft-triage-ribbon">продолжить в диалоге</span>
                 <div className="mt-2 flex items-start gap-3">
@@ -899,7 +932,7 @@ export default function CheckinPage() {
                     <ArrowRight className="size-4" aria-hidden="true" />
                   </span>
                 </div>
-              </Link>
+              </button>
 
               {/* priority 2: подобрано для вас (the topic-aware paid format) */}
               {productRecommendation && productRecommendation.slug !== "perspectives" ? (
@@ -1144,6 +1177,8 @@ export default function CheckinPage() {
             </p>
           )}
           {saveState === "error" && status !== "authenticated" && <p className="mt-3 text-sm text-destructive">Не удалось сохранить. Попробуйте еще раз.</p>}
+           </>
+          )}
         </div>
       )}
 

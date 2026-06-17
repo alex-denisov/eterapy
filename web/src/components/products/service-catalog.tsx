@@ -5,6 +5,7 @@ import {
   Bookmark,
   Compass,
   Heart,
+  MessageCircle,
   MessagesSquare,
   Moon,
   Sparkles,
@@ -54,6 +55,9 @@ const GROUPS: ServiceGroup[] = [
       { id: "angles", title: "Полная картина", desc: "Мысли · чувства · скрытый смысл · первый шаг. Первая часть разбора бесплатно.", price: price("perspectives"), kind: "Цифровое", href: "/products/perspectives", icon: Compass },
       { id: "report", title: "Подробный разбор", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: price("deep-report"), kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
       { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: price("chat-analysis"), kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
+      // B417: живой синхронный диалог — мостик между цифровыми форматами и
+      // встречей со специалистом. Платная услуга (бесплатен первичный разбор).
+      { id: "live-chat", title: "Решить вопрос в чате", desc: "Живой диалог 45 минут, чтобы разобрать вопрос в своём темпе. Продолжение разбора, когда хочется проговорить глубже.", price: price("chat-session"), kind: "Живой диалог", href: "/products/chat", icon: MessageCircle },
     ],
   },
   {

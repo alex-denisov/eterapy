@@ -76,17 +76,23 @@ export type PublicSessionState = {
   freeRemaining: number;
   paidActive: boolean;
   minutesRemaining: number;
+  // B417: precise expiry timestamp (ISO) so the client can run a live, to-the-
+  // second countdown timer for the paid session instead of integer minutes.
+  expiresAt: string | null;
   cost: { credits: number; kopecks: number };
 };
 
 function publicState(row: SessionRow, now = new Date()): PublicSessionState {
+  const state = toState(row);
+  const active = isPaidSessionActive(state, now);
   return {
     id: row.id,
     mode: isCompanionMode(row.mode) ? row.mode : "explore",
     messages: toMessages(row.messages),
     freeRemaining: freeMessagesRemaining(row.freeMessagesUsed),
-    paidActive: isPaidSessionActive(toState(row), now),
-    minutesRemaining: paidMinutesRemaining(toState(row), now),
+    paidActive: active,
+    minutesRemaining: paidMinutesRemaining(state, now),
+    expiresAt: active && row.paidExpiresAt ? row.paidExpiresAt.toISOString() : null,
     cost: { credits: CHAT_SESSION_COST_CREDITS, kopecks: CHAT_SESSION_PRICE_KOPECKS },
   };
 }
