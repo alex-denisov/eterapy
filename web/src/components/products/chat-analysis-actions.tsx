@@ -6,10 +6,27 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, ArrowUpRight, BookOpen, Check, Copy, FileText, ImageIcon, LockKeyhole, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
-import { AuthModal } from "@/components/auth-modal";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { getNextStepRecommendation, type NextStepRecommendation } from "@/lib/product-recommendations";
-import { appUrl } from "@/lib/subdomain";
+import { appUrl, loginUrl } from "@/lib/subdomain";
+
+// B415: the login modal was retired platform-wide — the guest gate now routes to
+// the full /login page with a return path. The typed source text is stashed so it
+// isn't lost across the redirect (screenshots are re-attached after login).
+const CHAT_ANALYSIS_RESUME_KEY = "chat-analysis-resume-text";
+
+function redirectToLoginWithReturn(resumeText?: string) {
+  if (typeof window === "undefined") return;
+  try {
+    if (resumeText && resumeText.trim()) {
+      window.sessionStorage.setItem(CHAT_ANALYSIS_RESUME_KEY, resumeText.trim().slice(0, 10000));
+    }
+  } catch {
+    /* sessionStorage unavailable — proceed without preserving the draft */
+  }
+  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.href = `${loginUrl()}?next=${next}`;
+}
 
 type ToneEntry = { label: string; pct: number };
 // INC-022: `text` is the copy-ready message; `hint` is an optional recommendation
@@ -303,9 +320,9 @@ export function ChatAnalysisActions() {
   // B404: большое поле ввода больше не выглядит как «строка для вопроса» —
   // ручной ввод текста спрятан за тихим переключателем (фолбэк, не основной вход).
   const [showManualText, setShowManualText] = useState(false);
-  // INC-013: гость, нажавший «Начать разбор», видит окно входа/регистрации
-  // (не сырой Unauthorized); после входа разбор продолжается с тем же вводом.
-  const [showAuth, setShowAuth] = useState(false);
+  // INC-013 / B415: гость, нажавший «Начать разбор», уходит на полноценную
+  // страницу входа/регистрации (/login, модалка входа убрана как legacy); после
+  // входа возвращается на эту страницу (?next=) с восстановленным текстом.
   // B330/Z7: the old ownership gate was removed because chats are multi-party
   // by nature. Privacy is conveyed through the inline notice and delete-source
   // affordance after generation.
@@ -318,6 +335,29 @@ export function ChatAnalysisActions() {
   const [extraText, setExtraText] = useState("");
   const screenshotInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // B415: after returning from /login, restore the draft text the guest typed
+  // before being sent to register (the screenshots are re-attached). The state is
+  // set in a microtask (not synchronously) to satisfy react-hooks/set-state-in-effect.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let resumed: string | null = null;
+    try {
+      resumed = window.sessionStorage.getItem(CHAT_ANALYSIS_RESUME_KEY);
+      if (resumed) window.sessionStorage.removeItem(CHAT_ANALYSIS_RESUME_KEY);
+    } catch {
+      resumed = null;
+    }
+    if (!resumed) return;
+    const text = resumed;
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      setSourceText(text);
+      setShowManualText(true);
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -424,7 +464,7 @@ export function ChatAnalysisActions() {
   //     распознались, затем строим предпросмотр и переходим к шагу «Контекст».
   async function startAnalysis(skipAuthCheck = false) {
     if (!skipAuthCheck && authStatus !== "authenticated") {
-      setShowAuth(true);
+      redirectToLoginWithReturn(sourceText);
       return;
     }
     if (!hasInput) {
@@ -487,23 +527,15 @@ export function ChatAnalysisActions() {
     } catch (error) {
       setProgress(null);
       const typed = error as Error & { status?: number };
-      // INC-013 backstop: a raw 401 must never reach the user — re-open auth.
+      // INC-013 / B415 backstop: a raw 401 must never reach the user — send them
+      // to the full /login page (preserving the typed draft + return path).
       if (typed.status === 401) {
-        setShowAuth(true);
-        setStatus("idle");
+        redirectToLoginWithReturn(sourceText);
         return;
       }
       setMessage(typed.message || "Не удалось начать разбор");
       setStatus("error");
     }
-  }
-
-  // INC-013: после входа/регистрации продолжаем разбор с уже введёнными данными.
-  // authStatus может не успеть обновиться в этот тик, поэтому пропускаем повторную
-  // проверку — серверу уже виден свежий сеанс (cookie, выставленный signIn).
-  function handleAuthSuccess() {
-    setShowAuth(false);
-    void startAnalysis(true);
   }
 
   // INC-020: «добавить текст вручную» on the Контекст step. Merges the pasted text
@@ -529,8 +561,7 @@ export function ChatAnalysisActions() {
     } catch (error) {
       const typed = error as Error & { status?: number };
       if (typed.status === 401) {
-        setShowAuth(true);
-        setStatus("idle");
+        redirectToLoginWithReturn(sourceText);
         return;
       }
       setMessage(typed.message || "Не удалось добавить текст");
@@ -973,16 +1004,6 @@ export function ChatAnalysisActions() {
           )}
         </>
       )}
-
-      {/* INC-013: гость, нажавший «Начать разбор», входит/регистрируется прямо
-          здесь — введённые скриншоты/текст сохраняются, и разбор продолжается. */}
-      <AuthModal
-        toolName="Разбор переписки"
-        open={showAuth}
-        initialMode="register"
-        onSuccess={handleAuthSuccess}
-        onClose={() => setShowAuth(false)}
-      />
     </div>
   );
 }

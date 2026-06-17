@@ -19,12 +19,18 @@ describe("B055 obsolete auth UI cleanup", () => {
     expect(exists("src/__tests__/lib/session-counter.test.ts")).toBe(false);
   });
 
-  it("keeps auth modal copy value-first instead of result-gating", () => {
-    const modal = source("src/components/auth-modal.tsx");
+  // B415: the login modal (auth-modal.tsx) was retired platform-wide — every gate
+  // now routes to the full /login page. The component must be gone and unreferenced.
+  it("retires the login modal in favour of the full /login page", () => {
+    expect(exists("src/components/auth-modal.tsx")).toBe(false);
 
-    expect(modal).toContain("сохранить результат");
-    expect(modal).not.toContain("Чтобы получить результат");
-    expect(modal).not.toContain("Это займёт 30 секунд");
+    const chatActions = source("src/components/products/chat-analysis-actions.tsx");
+    expect(chatActions).not.toContain("import { AuthModal }");
+    expect(chatActions).toContain("loginUrl()");
+
+    const slotPicker = source("src/app/practitioners/[slug]/slot-picker.tsx");
+    expect(slotPicker).not.toContain("import { AuthModal }");
+    expect(slotPicker).toContain("loginUrl()");
   });
 
   it("updates public help registration guidance to value-moment registration", () => {

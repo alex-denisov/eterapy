@@ -199,16 +199,18 @@ describe("B087/B088 chat analysis product", () => {
     expect(actions).toContain("Добавить текст вручную");
   });
 
-  it("INC-013 gates a guest with the auth modal instead of leaking a raw Unauthorized", () => {
+  it("INC-013/B415 gates a guest to the full /login page instead of leaking a raw Unauthorized", () => {
     const actions = source("src/components/products/chat-analysis-actions.tsx");
 
-    // «Начать разбор» opens the auth modal for a guest (register/login inline),
-    // then resumes the analysis with the same input — never a raw «Unauthorized».
-    expect(actions).toContain("import { AuthModal }");
-    expect(actions).toContain("<AuthModal");
-    expect(actions).toContain("setShowAuth(true)");
+    // «Начать разбор» routes a guest to the full /login page (the login modal was
+    // retired in B415), preserving the typed draft + a return path — never a raw
+    // «Unauthorized». After login they return via ?next= and resume.
+    expect(actions).not.toContain("import { AuthModal }");
+    expect(actions).not.toContain("<AuthModal");
+    expect(actions).toContain("redirectToLoginWithReturn");
+    expect(actions).toContain("loginUrl()");
     expect(actions).toContain("authStatus !== \"authenticated\"");
-    // Backstop: a 401 reopens auth rather than surfacing the raw message.
+    // Backstop: a 401 also routes to /login rather than surfacing the raw message.
     expect(actions).toContain("typed.status === 401");
   });
 

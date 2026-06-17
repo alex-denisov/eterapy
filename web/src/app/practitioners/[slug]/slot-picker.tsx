@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { AuthModal } from "@/components/auth-modal";
-import { appUrl } from "@/lib/subdomain";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
 
 interface PriceRate {
@@ -84,7 +83,6 @@ export function SlotPicker({
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null);
   const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
   const [meetingContext, setMeetingContext] = useState(prefillContext);
 
   useEffect(() => {
@@ -148,7 +146,6 @@ export function SlotPicker({
   async function doBook() {
     if (!selectedSlot || !selectedDuration) return;
     setBooking(true);
-    setShowAuth(false);
 
     const rate = rates.find(r => r.durationMin === selectedDuration);
     try {
@@ -189,7 +186,15 @@ export function SlotPicker({
   function handleBook() {
     if (status === "loading") return;
     if (!selectedSlot) { toast.error("Выберите время"); return; }
-    if (!session) { setShowAuth(true); return; }
+    // B415: the login modal was retired — a guest goes to the full /login page and
+    // returns to this practitioner page (?next=) to pick a slot and book once in.
+    if (!session) {
+      if (typeof window !== "undefined") {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `${loginUrl()}?next=${next}`;
+      }
+      return;
+    }
     doBook();
   }
 
@@ -244,9 +249,6 @@ export function SlotPicker({
   }
 
   return (
-    <>
-      <AuthModal toolName="записи к практику" initialMode="login" open={showAuth} onSuccess={doBook} onClose={() => setShowAuth(false)} />
-
       <div className="mt-4 space-y-5">
         {/* B379: «контекст встречи» — спрашиваем только при первой записи к
             специалисту (askContext). Повторная запись — без повторного запроса. */}
@@ -437,6 +439,5 @@ export function SlotPicker({
             : "Выберите время"}
         </Button>
       </div>
-    </>
   );
 }
