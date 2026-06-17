@@ -161,10 +161,13 @@ export default function CheckinPage() {
   const [productRecommendation, setProductRecommendation] = useState<ProductRecommendation | null>(null);
   const [secondaryProducts, setSecondaryProducts] = useState<SecondaryProduct[]>([]);
   const [subscriptionRec, setSubscriptionRec] = useState<SubscriptionRecommendation | null>(null);
-  const [restoring, setRestoring] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return Boolean(new URLSearchParams(window.location.search).get("dialogueId"));
-  });
+  // Must start `false` so the first client render matches the windowless
+  // server render (which never sees `?dialogueId=`). Reading window here would
+  // make the hydration-time text node diverge from the SSR HTML → React #418
+  // ("Text content does not match server-rendered HTML"). The restore effect
+  // below flips this to `true` synchronously on mount when a dialogueId is in
+  // the URL, so the «Восстанавливаю…» banner still appears after hydration.
+  const [restoring, setRestoring] = useState(false);
   // B413: «Продолжить разговор в чате» continues in place as a paid session.
   // While active: recs + «что я слышу» hide, the «Первичный разбор» disclosure
   // expands, and the paid chat runs on the same dialogue thread. On session
