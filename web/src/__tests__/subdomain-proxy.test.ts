@@ -67,6 +67,9 @@ describe("subdomain proxy rewrites", () => {
     }
     expect(shouldRedirectAppPublicPathToMain("/products/human-design")).toBe(true);
     expect(shouldRedirectAppPublicPathToMain("/products/family-scenarios")).toBe(true);
+    // B417: /products/chat lives on its own static route (not in v5Products) but
+    // must still be recognised as a public product page (else middleware 404s it).
+    expect(shouldRedirectAppPublicPathToMain("/products/chat")).toBe(true);
     // Неизвестный слаг услуги — НЕ публичный (отдаётся 404 отдельной логикой).
     expect(shouldRedirectAppPublicPathToMain("/products/definitely-not-a-product")).toBe(false);
   });

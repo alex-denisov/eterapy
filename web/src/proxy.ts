@@ -137,7 +137,11 @@ export function shouldRedirectAppPublicPathToMain(pathname: string): boolean {
 // HTTP 404. notFound() внутри страницы не выставляет статус, потому что root
 // loading.tsx начинает стримить ответ (200) раньше — поэтому гасим такие пути
 // в middleware, переписывая их на заведомо несуществующий роут.
-const VALID_PRODUCT_SLUGS = new Set<string>(v5Products.map((product) => product.slug));
+// B417: чат-услуга «Решить вопрос в чате» живёт на собственном статическом роуте
+// /products/chat (не через [slug]/v5Products, т.к. это force-dynamic, auth-aware
+// поверхность). Добавляем её слаг вручную — иначе middleware пометит путь как
+// неизвестный (→ 404) и не распознает его как публичную страницу услуги.
+const VALID_PRODUCT_SLUGS = new Set<string>([...v5Products.map((product) => product.slug), "chat"]);
 
 // B373 (M26): любой слаг, которого нет в v5Products, отдаёт честный 404 (без
 // редиректа). Выпиленные услуги и «Круг» (закрыт в B385) убраны из v5Products/
