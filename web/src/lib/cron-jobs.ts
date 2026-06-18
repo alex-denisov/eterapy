@@ -12,7 +12,8 @@ import {
   runStreakAtRiskJob,
 } from "@/lib/reactivation-cron";
 import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
-import { captureGraceExpiredSessions } from "@/lib/session-payment";
+import { cancelSessionHold, captureGraceExpiredSessions } from "@/lib/session-payment";
+import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
@@ -194,13 +195,18 @@ export async function runBookingRemindersJob(job: Job): Promise<JobResult> {
   });
 
   for (const booking of completedBookings) {
-    await db.$transaction([
-      db.booking.update({ where: { id: booking.id }, data: { status: "COMPLETED" } }),
-      db.practitioner.update({
-        where: { id: booking.practitioner.id },
-        data: { sessionCount: { increment: 1 } },
-      }),
-    ]);
+    const completion = await completeBookingAtSessionEnd(booking.id, {
+      userId: "system:cron.booking-reminders",
+      isPractitioner: false,
+    });
+    if (completion.status !== "completed" && completion.status !== "already_completed") {
+      log.warn("cron-booking-auto-complete-skipped", {
+        jobId: job.id,
+        bookingId: booking.id,
+        completion,
+      });
+      continue;
+    }
     const { sendReviewRequestClient } = await import("@/lib/email");
     sendReviewRequestClient({
       bookingId: booking.id,
@@ -240,6 +246,13 @@ export async function runBookingRemindersJob(job: Job): Promise<JobResult> {
 
   for (const booking of expiredBookings) {
     await db.booking.update({ where: { id: booking.id }, data: { status: "EXPIRED" } });
+    await cancelSessionHold(booking.id).catch((err) => {
+      log.error("cron-expired-booking-hold-cancel-failed", {
+        jobId: job.id,
+        bookingId: booking.id,
+        error: serializeError(err),
+      });
+    });
     if (booking.slotId) {
       await db.timeSlot.update({ where: { id: booking.slotId }, data: { available: true } }).catch((err) => {
         log.error("cron-expired-slot-release-failed", {
