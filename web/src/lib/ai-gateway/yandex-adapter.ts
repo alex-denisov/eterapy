@@ -11,7 +11,9 @@ import type { AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
 import { log, serializeError } from "@/lib/logger";
 
 export const YANDEX_FOUNDATION_MODELS_BASE_URL = "https://llm.api.cloud.yandex.net/foundationModels/v1";
+export const YANDEX_OCR_BASE_URL = "https://ocr.api.cloud.yandex.net/ocr/v1";
 export const DEFAULT_YANDEX_MODEL = "yandexgpt/latest";
+export const YANDEX_VISION_OCR_MODEL = "yandex-vision-ocr";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -36,10 +38,22 @@ interface YandexCompletionResponse {
   };
 }
 
+interface YandexOcrResponse {
+  result?: {
+    textAnnotation?: {
+      fullText?: string;
+      blocks?: Array<{
+        lines?: Array<{ text?: string }>;
+      }>;
+    };
+  };
+}
+
 export interface YandexAdapterOptions {
   apiKey?: string;
   folderId?: string;
   baseURL?: string;
+  ocrBaseURL?: string;
   defaultModel?: string;
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
@@ -72,6 +86,48 @@ function textFromContent(content: AIGatewayMessageContent): string {
   return text;
 }
 
+function imageDataUrlFromContent(content: AIGatewayMessageContent): string | null {
+  if (typeof content === "string") return null;
+  for (const block of content) {
+    if (block.type === "image_url") return block.image_url.url;
+  }
+  return null;
+}
+
+function firstImageDataUrl(messages: AIGatewayCompletionRequest["messages"]) {
+  for (const message of messages) {
+    const dataUrl = imageDataUrlFromContent(message.content);
+    if (dataUrl) return dataUrl;
+  }
+  return null;
+}
+
+function parseImageDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:([^;,]+);base64,(.+)$/);
+  if (!match) {
+    throw new AIProviderError("Yandex Vision OCR requires a base64 data URL image", {
+      provider: AIProvider.YANDEX,
+      code: "UNSUPPORTED_CONTENT",
+      retryable: false,
+    });
+  }
+  const mimeType = match[1]?.toLowerCase();
+  const content = match[2];
+  const mimeTypeForYandex = mimeType === "image/png"
+    ? "PNG"
+    : mimeType === "image/jpeg" || mimeType === "image/jpg"
+      ? "JPEG"
+      : null;
+  if (!mimeTypeForYandex || !content) {
+    throw new AIProviderError("Yandex Vision OCR supports PNG and JPEG screenshots only", {
+      provider: AIProvider.YANDEX,
+      code: "UNSUPPORTED_CONTENT",
+      retryable: false,
+    });
+  }
+  return { mimeType: mimeTypeForYandex, content };
+}
+
 function yandexModelUri(folderId: string, model: string) {
   if (model.startsWith("gpt://")) return model;
   return `gpt://${folderId}/${model}`;
@@ -84,6 +140,7 @@ export function createYandexAdapter(options: YandexAdapterOptions = {}): AIGatew
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseURL = trimSlashes(options.baseURL ?? YANDEX_FOUNDATION_MODELS_BASE_URL);
+  const ocrBaseURL = trimSlashes(options.ocrBaseURL ?? YANDEX_OCR_BASE_URL);
 
   function requireConfig() {
     if (!apiKey || !folderId) {
@@ -106,6 +163,76 @@ export function createYandexAdapter(options: YandexAdapterOptions = {}): AIGatew
       const timer = setTimeout(() => controller.abort(), request.timeoutMs ?? timeoutMs);
 
       try {
+        const imageDataUrl = firstImageDataUrl(request.messages);
+        if (imageDataUrl || model === YANDEX_VISION_OCR_MODEL) {
+          const image = imageDataUrl ? parseImageDataUrl(imageDataUrl) : null;
+          if (!image) {
+            throw new AIProviderError("Yandex Vision OCR request is missing image content", {
+              provider: AIProvider.YANDEX,
+              code: "UNSUPPORTED_CONTENT",
+              retryable: false,
+            });
+          }
+
+          const response = await fetchImpl(`${ocrBaseURL}/recognizeText`, {
+            method: "POST",
+            headers: {
+              Authorization: `Api-Key ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              mimeType: image.mimeType,
+              languageCodes: ["ru", "en"],
+              model: "page",
+              content: image.content,
+            }),
+            signal: controller.signal,
+          });
+
+          if (!response.ok) {
+            throw Object.assign(new Error(`Yandex Vision OCR failed with HTTP ${response.status}`), {
+              status: response.status,
+            });
+          }
+
+          const data = await response.json() as YandexOcrResponse;
+          const text = data.result?.textAnnotation?.fullText?.trim()
+            || data.result?.textAnnotation?.blocks
+              ?.flatMap((block) => block.lines ?? [])
+              .map((line) => line.text?.trim())
+              .filter(Boolean)
+              .join("\n")
+              .trim()
+            || "";
+          if (!text) {
+            throw new AIProviderError("Yandex Vision OCR returned empty text", {
+              provider: AIProvider.YANDEX,
+              code: "EMPTY_RESPONSE",
+              retryable: true,
+            });
+          }
+
+          const latencyMs = Date.now() - startedAt;
+          log.info("ai-gateway-yandex-ocr-completed", {
+            requestId: request.requestId,
+            feature: request.feature,
+            provider: AIProvider.YANDEX,
+            model: YANDEX_VISION_OCR_MODEL,
+            latencyMs,
+          });
+
+          return {
+            text,
+            provider: AIProvider.YANDEX,
+            model: YANDEX_VISION_OCR_MODEL,
+            finishReason: "TEXT_DETECTED",
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            latencyMs,
+          };
+        }
+
         const response = await fetchImpl(`${baseURL}/completion`, {
           method: "POST",
           headers: {

@@ -115,6 +115,64 @@ describe("Yandex AI Studio adapter", () => {
     }));
   });
 
+  it("routes image content through Yandex Vision OCR without sending it to text generation", async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({
+      result: {
+        textAnnotation: {
+          fullText: "Клиент: привет\nСобеседник: я рядом",
+        },
+      },
+    }));
+    const adapter = createYandexAdapter({
+      apiKey: "yandex-test-key",
+      folderId: "folder-123",
+      ocrBaseURL: "https://ocr.example.test/ocr/v1",
+      fetchImpl,
+    });
+
+    const response = await adapter.complete({
+      feature: "product-chat-analysis-ocr",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Recognize chat text" },
+            { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
+          ],
+        },
+      ],
+      model: "yandex-vision-ocr",
+      timeoutMs: 1234,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "https://ocr.example.test/ocr/v1/recognizeText",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Api-Key yandex-test-key",
+          "Content-Type": "application/json",
+        }),
+        body: JSON.stringify({
+          mimeType: "PNG",
+          languageCodes: ["ru", "en"],
+          model: "page",
+          content: "aGVsbG8=",
+        }),
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(response).toEqual(expect.objectContaining({
+      text: "Клиент: привет\nСобеседник: я рядом",
+      provider: AIProvider.YANDEX,
+      model: "yandex-vision-ocr",
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    }));
+  });
+
   it("classifies provider HTTP failures without leaking secrets", async () => {
     const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({
       error: { message: "invalid api key" },

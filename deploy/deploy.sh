@@ -68,6 +68,12 @@ ANTHROPIC_API_KEY=
 YANDEX_API_KEY=
 YANDEX_FOLDER_ID=
 YANDEX_API_BASE=https://llm.api.cloud.yandex.net/foundationModels/v1
+YANDEX_OCR_API_BASE=https://ocr.api.cloud.yandex.net/ocr/v1
+LLM_PROVIDER_MODE=YANDEX_ONLY
+YANDEX_PRIMARY_MODEL=yandexgpt-lite/latest
+YANDEX_FALLBACK_MODELS=yandexgpt/latest,yandexgpt-lite/latest
+FOREIGN_LLM_ENABLED=false
+FOREIGN_LLM_FALLBACK_ENABLED=false
 ENVEOF
   log "⚠  Edit $ENV_FILE with real secrets before continuing"
   exit 1

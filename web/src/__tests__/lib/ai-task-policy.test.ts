@@ -31,31 +31,20 @@ describe("AI task taxonomy and default routing policy", () => {
     expect(policies.some((policy) => policy.tier === "compliance")).toBe(true);
   });
 
-  it("keeps sensitive and compliance defaults on direct providers", () => {
+  it("keeps sensitive, compliance, and OCR defaults inside the Yandex provider family", () => {
     const safety = getDefaultAIRoutingPolicy("safety-classification");
     const compliance = getDefaultAIRoutingPolicy("session-compliance");
     const chatOcr = getDefaultAIRoutingPolicy("product-chat-analysis-ocr");
 
-    expect(safety?.providerOrder).not.toContain(AIProvider.OPENROUTER);
-    expect(compliance?.providerOrder).not.toContain(AIProvider.OPENROUTER);
-    expect(chatOcr?.providerOrder).not.toContain(AIProvider.OPENROUTER);
-    expect(safety?.providerOrder).toEqual(expect.arrayContaining([
-      AIProvider.GEMINI,
-      AIProvider.GROQ,
-      AIProvider.MISTRAL,
-      AIProvider.OPENAI,
-      AIProvider.ANTHROPIC,
-    ]));
-    expect(safety?.fallbackNotes).toContain("No OpenRouter");
+    expect(safety?.providerOrder).toEqual([AIProvider.YANDEX]);
+    expect(compliance?.providerOrder).toEqual([AIProvider.YANDEX]);
+    expect(chatOcr?.providerOrder).toEqual([AIProvider.YANDEX]);
+    expect(safety?.modelPreferences).toEqual({ [AIProvider.YANDEX]: "yandexgpt/latest" });
     expect(compliance?.fallbackNotes).toContain("human");
-    // G7: OCR must route only to vision-capable providers (never a text-only
-    // model that would silently drop the image), and never persist the image.
-    expect(chatOcr?.providerOrder).toEqual([
-      AIProvider.GEMINI,
-      AIProvider.OPENAI,
-      AIProvider.ANTHROPIC,
-    ]);
-    expect(chatOcr?.fallbackNotes).toContain("Vision-capable providers only");
+    // OCR must route to Yandex Vision OCR (never a text-only LLM model that
+    // would silently drop the image), and never persist the image.
+    expect(chatOcr?.modelPreferences).toEqual({ [AIProvider.YANDEX]: "yandex-vision-ocr" });
+    expect(chatOcr?.fallbackNotes).toContain("Yandex Vision OCR");
     expect(chatOcr?.fallbackNotes).toContain("not persisted");
     // INC-026: the paid, per-use-billed OCR feature has NO per-user daily token cap
     // (a client runs many разборов/day; the cap was misreported as un-recognised
@@ -65,6 +54,28 @@ describe("AI task taxonomy and default routing policy", () => {
     // calls — the cap is the right abuse guard there).
     expect(getDefaultAIRoutingPolicy("dialogue-primary-answer")?.perUserDailyTokenBudget ?? 0).toBeGreaterThan(0);
     expect(getDefaultAIRoutingPolicy("daily-practice")?.perUserDailyTokenBudget ?? 0).toBeGreaterThan(0);
+  });
+
+  it("defaults every active task to the Yandex provider family", () => {
+    const policies = listDefaultAITaskPolicies();
+
+    for (const policy of policies) {
+      expect(policy.providerOrder).toEqual([AIProvider.YANDEX]);
+      expect(Object.keys(policy.modelPreferences ?? {})).toEqual([AIProvider.YANDEX]);
+    }
+    expect(getDefaultAIRoutingPolicy("dialogue-primary-answer")?.modelPreferences).toEqual({
+      [AIProvider.YANDEX]: "yandexgpt-lite/latest",
+    });
+    expect(getDefaultAIRoutingPolicy("product-deep-report")?.modelPreferences).toEqual({
+      [AIProvider.YANDEX]: "yandexgpt/latest",
+    });
+    expect(getDefaultAIRoutingPolicy("product-chat-analysis-ocr")?.modelPreferences).toEqual({
+      [AIProvider.YANDEX]: "yandex-vision-ocr",
+    });
+    expect(getDefaultAIRoutingPolicy("session-stt")?.modelPreferences).toEqual({
+      [AIProvider.YANDEX]: "speechkit-stt-async",
+    });
+    expect(getDefaultAIRoutingPolicy("session-stt")?.fallbackNotes).toContain("Yandex SpeechKit");
   });
 
   it("marks database policies while still showing default taxonomy metadata", () => {

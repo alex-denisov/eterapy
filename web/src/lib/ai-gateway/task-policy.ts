@@ -15,108 +15,42 @@ export type AdminAITaskPolicy = AITaskPolicyDefinition & {
   source: "default" | "database";
 };
 
-const directPremiumOrder = [
-  AIProvider.OPENROUTER,
-  AIProvider.GROQ,
-  AIProvider.MISTRAL,
-  AIProvider.GEMINI,
-  AIProvider.CEREBRAS,
-  AIProvider.COHERE,
-  AIProvider.OPENAI,
-  AIProvider.ANTHROPIC,
-  AIProvider.FIREWORKS,
-  AIProvider.YANDEX,
-] as const;
-const cheapStructuredOrder = [
-  AIProvider.OPENROUTER,
-  AIProvider.GROQ,
-  AIProvider.MISTRAL,
-  AIProvider.GEMINI,
-  AIProvider.CEREBRAS,
-  AIProvider.COHERE,
-  AIProvider.OPENAI,
-  AIProvider.ANTHROPIC,
-  AIProvider.FIREWORKS,
-  AIProvider.YANDEX,
-] as const;
-const freeOrder = [
-  AIProvider.OPENROUTER,
-  AIProvider.GROQ,
-  AIProvider.MISTRAL,
-  AIProvider.GEMINI,
-  AIProvider.CEREBRAS,
-  AIProvider.COHERE,
-  AIProvider.OPENAI,
-  AIProvider.ANTHROPIC,
-  AIProvider.FIREWORKS,
-  AIProvider.YANDEX,
-] as const;
-const directSensitiveOrder = [
-  AIProvider.GEMINI,
-  AIProvider.OPENAI,
-  AIProvider.ANTHROPIC,
-  AIProvider.MISTRAL,
-  AIProvider.GROQ,
-  AIProvider.COHERE,
-  AIProvider.CEREBRAS,
-  AIProvider.FIREWORKS,
-  AIProvider.YANDEX,
-] as const;
-// G7: OCR sends an actual image. Only these providers' configured models can
-// read pixels — Gemini Flash, OpenAI gpt-4.1-mini and Anthropic Claude 3 Haiku
-// are all multimodal. The other "sensitive" providers (Mistral-small, Groq
-// gpt-oss, Cohere command-r, Cerebras/Fireworks gpt-oss) are TEXT-ONLY: routing
-// a screenshot to them silently drops the image and returns garbage, which is
-// exactly what surfaced to users as "Не удалось распознать скриншот". So the
-// vision pipeline must never fall through to a text-only provider.
-const directVisionOrder = [
-  AIProvider.GEMINI,
-  AIProvider.OPENAI,
-  AIProvider.ANTHROPIC,
-] as const;
+const YANDEX_LITE_MODEL = "yandexgpt-lite/latest";
+const YANDEX_PRO_MODEL = "yandexgpt/latest";
+const YANDEX_VISION_OCR_MODEL = "yandex-vision-ocr";
+const YANDEX_SPEECHKIT_STT_MODEL = "speechkit-stt-async";
+
+const directPremiumOrder = [AIProvider.YANDEX] as const;
+const cheapStructuredOrder = [AIProvider.YANDEX] as const;
+const freeOrder = [AIProvider.YANDEX] as const;
+const directSensitiveOrder = [AIProvider.YANDEX] as const;
+const directVisionOrder = [AIProvider.YANDEX] as const;
+
+const cheapModelPreferences: Partial<Record<AIProvider, string>> = {
+  [AIProvider.YANDEX]: YANDEX_LITE_MODEL,
+};
+
+const premiumModelPreferences: Partial<Record<AIProvider, string>> = {
+  [AIProvider.YANDEX]: YANDEX_PRO_MODEL,
+};
+
+const sensitiveModelPreferences: Partial<Record<AIProvider, string>> = {
+  [AIProvider.YANDEX]: YANDEX_PRO_MODEL,
+};
+
 const visionModelPreferences: Partial<Record<AIProvider, string>> = {
-  [AIProvider.GEMINI]: "gemini-2.5-flash",
-  [AIProvider.OPENAI]: "gpt-4.1-mini",
-  [AIProvider.ANTHROPIC]: "claude-3-haiku-20240307",
+  [AIProvider.YANDEX]: YANDEX_VISION_OCR_MODEL,
 };
 
-const cheapModelPreferences: Record<AIProvider, string> = {
-  [AIProvider.OPENROUTER]: "openrouter/free",
-  [AIProvider.GROQ]: "llama-3.1-8b-instant",
-  [AIProvider.MISTRAL]: "mistral-small-latest",
-  [AIProvider.GEMINI]: "gemini-2.5-flash-lite",
-  [AIProvider.CEREBRAS]: "gpt-oss-120b",
-  [AIProvider.COHERE]: "command-r7b-12-2024",
-  [AIProvider.OPENAI]: "gpt-4.1-mini",
-  [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
-  [AIProvider.FIREWORKS]: "accounts/fireworks/models/qwen3-30b-a3b",
-  [AIProvider.YANDEX]: "yandexgpt-lite/latest",
+const speechModelPreferences: Partial<Record<AIProvider, string>> = {
+  [AIProvider.YANDEX]: YANDEX_SPEECHKIT_STT_MODEL,
 };
 
-const premiumModelPreferences: Record<AIProvider, string> = {
-  [AIProvider.OPENROUTER]: "openrouter/free",
-  [AIProvider.GROQ]: "llama-3.3-70b-versatile",
-  [AIProvider.MISTRAL]: "mistral-small-latest",
-  [AIProvider.GEMINI]: "gemini-2.5-flash",
-  [AIProvider.CEREBRAS]: "gpt-oss-120b",
-  [AIProvider.COHERE]: "command-r",
-  [AIProvider.OPENAI]: "gpt-4.1-mini",
-  [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
-  [AIProvider.FIREWORKS]: "accounts/fireworks/models/gpt-oss-120b",
-  [AIProvider.YANDEX]: "yandexgpt/latest",
-};
-
-const sensitiveModelPreferences: Record<AIProvider, string> = {
-  ...premiumModelPreferences,
-  [AIProvider.GROQ]: "openai/gpt-oss-safeguard-20b",
-  [AIProvider.GEMINI]: "gemini-2.5-flash",
-  [AIProvider.OPENAI]: "gpt-4.1-mini",
-  [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
-};
-
-function defaultModelPreferencesForTier(tier: AITaskTier): Record<AIProvider, string> {
+function defaultModelPreferencesForTier(tier: AITaskTier): Partial<Record<AIProvider, string>> {
   if (tier === "free" || tier === "cheap") return cheapModelPreferences;
-  if (tier === "sensitive" || tier === "vision" || tier === "speech" || tier === "compliance") return sensitiveModelPreferences;
+  if (tier === "vision") return visionModelPreferences;
+  if (tier === "speech") return speechModelPreferences;
+  if (tier === "sensitive" || tier === "compliance") return sensitiveModelPreferences;
   return premiumModelPreferences;
 }
 
@@ -128,7 +62,6 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Free первичный разбор",
     purpose: "Бесплатный вход: короткий первичный разбор и мягкий следующий шаг.",
     providerOrder: [...freeOrder],
-    modelPreferences: { [AIProvider.OPENROUTER]: "openrouter/free" },
     maxTokens: 900,
     temperature: 0.45,
     timeoutMs: 30_000,
@@ -142,12 +75,11 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Уточняющие вопросы",
     purpose: "Персональные уточнения перед первичным ответом — один вопрос за ход.",
     providerOrder: [...cheapStructuredOrder],
-    modelPreferences: { [AIProvider.OPENROUTER]: "meta-llama/llama-3.1-8b-instruct:free" },
     maxTokens: 400,
     temperature: 0.6,
     timeoutMs: 25_000,
     perUserDailyTokenBudget: 8_000,
-    fallbackNotes: "OPENAI/ANTHROPIC первые; OpenRouter llama-3.1-8b как резерв для JSON.",
+    fallbackNotes: "YandexGPT Lite для дешевого JSON; в YANDEX_ONLY routing foreign override игнорируется.",
   },
   {
     feature: "daily-practice",
@@ -156,7 +88,6 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Ежедневная практика (день)",
     purpose: "Ежедневная практика: вопрос дня → взгляд дня → маленький шаг. Бесплатный ритуал самонаблюдения.",
     providerOrder: [...freeOrder],
-    modelPreferences: { [AIProvider.OPENROUTER]: "openrouter/free" },
     maxTokens: 500,
     temperature: 0.8,
     timeoutMs: 25_000,
@@ -234,7 +165,7 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     // Every other paid-product feature carries no per-user budget for the same reason;
     // OCR now matches them. Abuse stays bounded by auth + IP rate-limit (15/5 min,
     // batch-aware) + the per-use баллы charge at generate — never a daily token cap.
-    fallbackNotes: "Vision-capable providers only (Gemini/OpenAI/Anthropic); image is not persisted after OCR.",
+    fallbackNotes: "Yandex Vision OCR only; image is not persisted after OCR.",
   },
   {
     feature: "product-chat-analysis",
@@ -243,6 +174,7 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Разбор переписки",
     purpose: "Text/vision pipeline после PII masking и user confirmation.",
     providerOrder: [...directSensitiveOrder],
+    modelPreferences: { [AIProvider.YANDEX]: YANDEX_PRO_MODEL },
     maxTokens: 2600,
     temperature: 0.3,
     timeoutMs: 60_000,
@@ -415,6 +347,7 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Practitioner Pro session summary",
     purpose: "Саммари встречи после STT/diarization.",
     providerOrder: [...directSensitiveOrder],
+    modelPreferences: { [AIProvider.YANDEX]: YANDEX_PRO_MODEL },
     maxTokens: 1500,
     temperature: 0.25,
     timeoutMs: 45_000,
@@ -427,11 +360,12 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Server STT",
     purpose: "Practitioner Pro+ server-side session transcription from temporary LiveKit audio egress.",
     providerOrder: [...directSensitiveOrder],
+    modelPreferences: { [AIProvider.YANDEX]: YANDEX_SPEECHKIT_STT_MODEL },
     maxTokens: 1200,
     temperature: 0,
     timeoutMs: 60_000,
     perUserDailyTokenBudget: 4000,
-    fallbackNotes: "One queued job per video session; audio is temporary and deleted after transcription.",
+    fallbackNotes: "Yandex SpeechKit async STT only; requires Object Storage handoff before audio is sent.",
   },
 ];
 

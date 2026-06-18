@@ -41,16 +41,16 @@ import {
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
-  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENROUTER], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.GEMINI, enabled: true, priority: 15, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GEMINI], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.GROQ, enabled: true, priority: 18, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GROQ], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.MISTRAL, enabled: true, priority: 19, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.MISTRAL], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.OPENAI, enabled: true, priority: 20, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 30, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.COHERE, enabled: true, priority: 35, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.CEREBRAS, enabled: true, priority: 38, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
-  { provider: AIProvider.YANDEX, enabled: false, priority: 50, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.YANDEX, enabled: true, priority: 10, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENROUTER, enabled: false, priority: 50, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENROUTER], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.GEMINI, enabled: false, priority: 55, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GEMINI], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.GROQ, enabled: false, priority: 58, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GROQ], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.MISTRAL, enabled: false, priority: 59, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.MISTRAL], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.OPENAI, enabled: false, priority: 60, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.ANTHROPIC, enabled: false, priority: 70, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.COHERE, enabled: false, priority: 75, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.CEREBRAS, enabled: false, priority: 78, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.FIREWORKS, enabled: false, priority: 80, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
 
 interface AIRequestOptions {

@@ -138,6 +138,7 @@ export function buildAdapterForCredential(
         apiKey: credential.apiKey || yandexEnv.apiKey,
         folderId: yandexEnv.folderId,
         baseURL: yandexBaseURL,
+        ocrBaseURL: yandexEnv.ocrBaseURL,
         defaultModel: opts.defaultModel ?? DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX],
         ...(providerConfig?.timeoutMs ? { timeoutMs: providerConfig.timeoutMs } : {}),
       });

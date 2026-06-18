@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
+import { isYandexOnlyLLMMode } from "@/lib/env";
 
 export interface SessionSttResult {
   transcriptText: string;
@@ -26,6 +27,10 @@ export async function transcribeSessionAudio(input: {
   requestId?: string;
   userId?: string | null;
 }): Promise<SessionSttResult> {
+  if (isYandexOnlyLLMMode()) {
+    throw new Error("Yandex SpeechKit STT requires Object Storage handoff; server STT is disabled until SpeechKit integration is configured");
+  }
+
   const response = await aiComplete({
     feature: input.feature ?? "session-stt",
     userId: input.userId,

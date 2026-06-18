@@ -91,12 +91,46 @@ export const YANDEX_API_KEY = process.env.YANDEX_API_KEY ?? "";
 export const YANDEX_FOLDER_ID = process.env.YANDEX_FOLDER_ID ?? "";
 export const YANDEX_API_BASE =
   process.env.YANDEX_API_BASE ?? "https://llm.api.cloud.yandex.net/foundationModels/v1";
+export const YANDEX_OCR_API_BASE =
+  process.env.YANDEX_OCR_API_BASE ?? "https://ocr.api.cloud.yandex.net/ocr/v1";
+
+export type LLMProviderMode = "YANDEX_ONLY" | "LEGACY";
+
+export function getLLMProviderMode(): LLMProviderMode {
+  const raw = process.env.LLM_PROVIDER_MODE?.trim().toUpperCase();
+  return raw === "LEGACY" ? "LEGACY" : "YANDEX_ONLY";
+}
+
+export function isYandexOnlyLLMMode() {
+  return getLLMProviderMode() === "YANDEX_ONLY";
+}
+
+export function foreignLLMEnabled() {
+  return !isYandexOnlyLLMMode() && process.env.FOREIGN_LLM_ENABLED === "true";
+}
+
+export function foreignLLMFallbackEnabled() {
+  return foreignLLMEnabled() && process.env.FOREIGN_LLM_FALLBACK_ENABLED === "true";
+}
+
+export function getYandexPrimaryModel() {
+  return process.env.YANDEX_PRIMARY_MODEL?.trim() || "yandexgpt-lite/latest";
+}
+
+export function getYandexFallbackModels() {
+  const raw = process.env.YANDEX_FALLBACK_MODELS?.trim() || "yandexgpt/latest,yandexgpt-lite/latest";
+  return raw
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+}
 
 export function getYandexAIStudioEnv() {
   return {
     apiKey: process.env.YANDEX_API_KEY?.trim() ?? "",
     folderId: process.env.YANDEX_FOLDER_ID?.trim() ?? "",
     baseURL: process.env.YANDEX_API_BASE?.trim() || YANDEX_API_BASE,
+    ocrBaseURL: process.env.YANDEX_OCR_API_BASE?.trim() || YANDEX_OCR_API_BASE,
   };
 }
 

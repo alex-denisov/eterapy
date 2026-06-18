@@ -6,9 +6,15 @@ import {
   type AIGatewayCompletionResponse,
 } from "@/lib/ai-gateway/adapters";
 import { defaultProviderOrder, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
+import {
+  getYandexFallbackModels,
+  getYandexPrimaryModel,
+  isYandexOnlyLLMMode,
+} from "@/lib/env";
 import { log } from "@/lib/logger";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_YANDEX_MODEL = "yandexgpt-lite/latest";
 
 /**
  * Failure-handling decision for a credential attempt:
@@ -110,6 +116,50 @@ function modelPreferenceFor(modelPreferences: unknown, provider: AIProvider) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function uniqueModels(models: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  return models
+    .map((model) => model?.trim())
+    .filter((model): model is string => Boolean(model))
+    .filter((model) => {
+      if (seen.has(model)) return false;
+      seen.add(model);
+      return true;
+    });
+}
+
+function resolveYandexOnlyRoutingPlan(input: {
+  feature: string;
+  providerConfigs: AIRoutingProviderConfig[];
+  policy?: AIRoutingPolicyConfig | null;
+}): AIRoutingPlan {
+  const yandexConfig = input.providerConfigs.find((config) => config.provider === AIProvider.YANDEX);
+  const timeoutMs = input.policy?.timeoutMs ?? yandexConfig?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const maxTokens = input.policy?.maxTokens ?? undefined;
+  const temperature = input.policy?.temperature ?? undefined;
+  const models = uniqueModels([
+    modelPreferenceFor(input.policy?.modelPreferences, AIProvider.YANDEX),
+    getYandexPrimaryModel(),
+    yandexConfig?.defaultModel,
+    ...getYandexFallbackModels(),
+    DEFAULT_YANDEX_MODEL,
+  ]);
+
+  const attempts = models.map((model): AIRoutingAttemptPlan => ({
+    provider: AIProvider.YANDEX,
+    model,
+    timeoutMs,
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
+    ...(temperature !== undefined ? { temperature } : {}),
+  }));
+
+  if (attempts.length === 0) {
+    throw new AIGatewayRoutingError(`No Yandex AI models are configured for ${input.feature}`, "NO_ENABLED_PROVIDERS");
+  }
+
+  return { feature: input.feature, attempts };
+}
+
 export function resolveAIRoutingPlan(input: {
   feature: string;
   providerConfigs: AIRoutingProviderConfig[];
@@ -120,6 +170,14 @@ export function resolveAIRoutingPlan(input: {
 
   if (policy && !policy.enabled) {
     throw new AIGatewayRoutingError(`AI routing policy is disabled for ${feature}`, "POLICY_DISABLED");
+  }
+
+  if (isYandexOnlyLLMMode()) {
+    return resolveYandexOnlyRoutingPlan({
+      feature,
+      providerConfigs: input.providerConfigs,
+      policy,
+    });
   }
 
   const enabledConfigs = new Map(

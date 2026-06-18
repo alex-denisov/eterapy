@@ -46,10 +46,27 @@ describe("aiComplete gateway migration", () => {
     (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValue([
       {
         id: "provider-1",
-        provider: AIProvider.OPENROUTER,
-        displayName: "OpenRouter",
+        provider: AIProvider.YANDEX,
+        displayName: "Yandex AI Studio",
         enabled: true,
         priority: 10,
+        baseUrl: null,
+        defaultModel: "yandexgpt-lite/latest",
+        timeoutMs: 30000,
+        rpmLimit: null,
+        tpmLimit: null,
+        inputTokenCostMicros: 100,
+        outputTokenCostMicros: 300,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: "provider-2",
+        provider: AIProvider.OPENROUTER,
+        displayName: "OpenRouter",
+        enabled: false,
+        priority: 50,
         baseUrl: null,
         defaultModel: "openai/gpt-4o-mini",
         timeoutMs: 30000,
@@ -88,15 +105,15 @@ describe("aiComplete gateway migration", () => {
     mockRunFallback.mockResolvedValue({
       response: {
         text: "Готово",
-        provider: AIProvider.OPENROUTER,
-        model: "openai/gpt-4o-mini",
+        provider: AIProvider.YANDEX,
+        model: "yandexgpt-lite/latest",
         promptTokens: 1000,
         completionTokens: 500,
         totalTokens: 1500,
         latencyMs: 123,
       },
       attempts: [
-        { provider: AIProvider.OPENROUTER, model: "openai/gpt-4o-mini", status: "succeeded" },
+        { provider: AIProvider.YANDEX, model: "yandexgpt-lite/latest", status: "succeeded" },
       ],
     });
   });
@@ -114,19 +131,25 @@ describe("aiComplete gateway migration", () => {
     expect(mockRunFallback).toHaveBeenCalledWith(expect.objectContaining({
       plan: expect.objectContaining({
         feature: "modalities.tarot",
-        attempts: [
+        attempts: expect.arrayContaining([
           expect.objectContaining({
-            provider: AIProvider.OPENROUTER,
+            provider: AIProvider.YANDEX,
+            model: "yandexgpt-lite/latest",
             maxTokens: 2000,
             temperature: 0.2,
           }),
-        ],
+        ]),
       }),
     }));
+    const runInput = mockRunFallback.mock.calls[0]?.[0];
+    expect(runInput?.plan.attempts.map((attempt) => attempt.provider)).toEqual([
+      AIProvider.YANDEX,
+      AIProvider.YANDEX,
+    ]);
     expect(result).toEqual({
       text: "Готово",
-      model: "openai/gpt-4o-mini",
-      provider: "openrouter",
+      model: "yandexgpt-lite/latest",
+      provider: "yandex",
       tokensIn: 1000,
       tokensOut: 500,
       latencyMs: 123,
@@ -140,7 +163,7 @@ describe("aiComplete gateway migration", () => {
         metadata: expect.objectContaining({
           requestId: "req-1",
           responseText: "Готово",
-          responseProvider: AIProvider.OPENROUTER,
+          responseProvider: AIProvider.YANDEX,
           messages: expect.any(Array),
         }),
       }),
@@ -148,7 +171,7 @@ describe("aiComplete gateway migration", () => {
     expect(mockDb.aIAttempt.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         aiRequestId: "ai-request-1",
-        provider: AIProvider.OPENROUTER,
+        provider: AIProvider.YANDEX,
         totalTokens: 1500,
         estimatedCostMicros: 250,
       }),
