@@ -18,6 +18,7 @@ import { markChannelConversion } from "@/lib/channel-attribution";
 import { trackServerEvent } from "@/lib/analytics";
 import { checkStandaloneDialogueDailyLimit } from "@/lib/dialogue-limits";
 import { completeMission } from "@/lib/missions";
+import { buildGuestDialogueRetentionData } from "@/lib/guest-dialogue-retention";
 
 const MAX_DIALOGUES_LIMIT = 50;
 
@@ -56,8 +57,8 @@ export async function GET(request: NextRequest) {
   const lingeringGuestId = readGuestSessionId(request);
   let guestClaimRan = false;
   if (userId && lingeringGuestId) {
-    await claimGuestDialoguesForUser({ userId, guestSessionId: lingeringGuestId });
-    guestClaimRan = true;
+    const claim = await claimGuestDialoguesForUser({ userId, guestSessionId: lingeringGuestId });
+    guestClaimRan = claim.skipped !== "documents_not_accepted";
   }
   const guestSessionId = userId ? null : lingeringGuestId;
   const whereOwner = ownerWhere(userId, guestSessionId);
@@ -263,6 +264,7 @@ export async function POST(request: NextRequest) {
       userId,
       guestSessionId: guest?.id ?? null,
       guestFingerprint: fingerprint,
+      ...buildGuestDialogueRetentionData({ userId }),
       intakeProductKey,
       intakeMode,
       title,

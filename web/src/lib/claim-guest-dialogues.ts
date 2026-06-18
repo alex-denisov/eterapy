@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { ACCOUNT_DIALOGUE_RESIDENCY, GUEST_DIALOGUE_RESIDENCY } from "@/lib/guest-dialogue-retention";
 
 /**
  * B316: claim guest dialogues for a freshly-authenticated user.
@@ -18,20 +19,36 @@ import db from "@/lib/db";
 export async function claimGuestDialoguesForUser(input: {
   userId: string;
   guestSessionId: string;
-}): Promise<{ claimed: number }> {
+  now?: Date;
+}): Promise<{ claimed: number; skipped: "none" | "missing_input" | "documents_not_accepted" }> {
   const { userId, guestSessionId } = input;
-  if (!userId || !guestSessionId) return { claimed: 0 };
+  const now = input.now ?? new Date();
+  if (!userId || !guestSessionId) return { claimed: 0, skipped: "missing_input" };
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { emailVerified: true },
+  });
+  if (!user?.emailVerified) {
+    return { claimed: 0, skipped: "documents_not_accepted" };
+  }
 
   const result = await db.dialogue.updateMany({
     where: {
       guestSessionId,
       userId: null,
+      dataResidency: GUEST_DIALOGUE_RESIDENCY,
+      expiresAt: { gt: now },
     },
     data: {
       userId,
       guestSessionId: null,
+      guestFingerprint: null,
+      dataResidency: ACCOUNT_DIALOGUE_RESIDENCY,
+      expiresAt: null,
+      claimedAt: now,
     },
   });
 
-  return { claimed: result.count };
+  return { claimed: result.count, skipped: "none" };
 }

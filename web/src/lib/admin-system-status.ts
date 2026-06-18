@@ -11,7 +11,7 @@ export const PRODUCT_CRONS = [
   },
   {
     path: "/api/cron/cleanup",
-    purpose: "Удаление soft-deleted клиентов после 10 дней grace + истёкших телеграм-токенов",
+    purpose: "Удаление soft-deleted клиентов после 10 дней grace + истёкших телеграм-токенов + 72ч TTL гостевых диалогов",
     cadence: "1 раз в сутки (00:00)",
   },
   {

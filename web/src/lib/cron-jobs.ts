@@ -11,6 +11,7 @@ import {
   runMomentOfNeedJob,
   runStreakAtRiskJob,
 } from "@/lib/reactivation-cron";
+import { cleanupExpiredGuestDialogues } from "@/lib/guest-dialogue-retention";
 import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
 import { cancelSessionHold, captureGraceExpiredSessions } from "@/lib/session-payment";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
@@ -61,11 +62,13 @@ export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
     deletedCount++;
   }
   const sessionAiCleanup = await cleanupExpiredSessionAiData({ now });
+  const guestDialogueCleanup = await cleanupExpiredGuestDialogues({ now });
 
   log.info("cron-cleanup-users-completed", {
     jobId: job.id,
     deletedCount,
     sessionAiCleanup,
+    guestDialogueCleanup,
     cutoffDate: cutoffDate.toISOString(),
   });
 
@@ -73,6 +76,7 @@ export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
     ok: true,
     deletedCount,
     sessionAiCleanup,
+    guestDialogueCleanup,
     cutoffDate: cutoffDate.toISOString(),
     timestamp: now.toISOString(),
   };

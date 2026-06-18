@@ -180,6 +180,8 @@ describe("v5 dialogue API", () => {
       data: expect.objectContaining({
         userId: null,
         guestSessionId: expect.stringMatching(/^gst_/),
+        dataResidency: "RU_TEMP",
+        expiresAt: expect.any(Date),
         title: "Как выбрать направление?",
         status: "AWAITING_USER",
         topic: "career",
