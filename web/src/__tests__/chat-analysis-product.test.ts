@@ -235,7 +235,8 @@ describe("B087/B088 chat analysis product", () => {
 
   it("Z7/B395 keeps no consent checkbox and no false name-masking claim; privacy cue lives in the hero", () => {
     const actions = source("src/components/products/chat-analysis-actions.tsx");
-    const detailPage = source("src/app/products/[slug]/page.tsx");
+    const shell = source("src/components/products/product-page-shell.tsx");
+    const redesign = source("src/lib/product-page-redesign.ts");
 
     // No legacy consent checkbox.
     expect(actions).not.toContain("checkbox");
@@ -244,6 +245,7 @@ describe("B087/B088 chat analysis product", () => {
     // was FALSE and was removed from the tool. It must not reappear.
     expect(actions).not.toContain("Имена заменяются");
     // Privacy is now a quiet muted cue in the product hero, not a loud notice.
-    expect(detailPage).toContain("Приватно — видно только вам");
+    expect(shell).toContain("spec.trustLine");
+    expect(redesign).toContain("Приватно — видно только вам");
   });
 });

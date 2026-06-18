@@ -27,6 +27,7 @@ describe("Z8 product-local dialogue intake", () => {
   it("uses ProductIntake for dialogue-backed products with the right modes", () => {
     const intake = source("src/components/products/product-intake.tsx");
     const detailPage = source("src/app/products/[slug]/page.tsx");
+    const shell = source("src/components/products/product-page-shell.tsx");
     const deepReport = source("src/components/products/deep-report-actions.tsx");
     const perspectives = source("src/components/products/perspectives-actions.tsx");
     const compatibility = source("src/components/products/compatibility-actions.tsx");
@@ -38,7 +39,7 @@ describe("Z8 product-local dialogue intake", () => {
 
     expect(detailPage).toContain("<ProductActionSurface");
     expect(detailPage).toContain("<PerspectivesActions");
-    expect(detailPage).toContain('data-testid="product-service-start"');
+    expect(shell).toContain('data-testid="product-service-start"');
     expect(deepReport).toContain("<ProductIntake");
     expect(deepReport).toContain('productKey="deep-report"');
     expect(deepReport).toContain('mode="full"');

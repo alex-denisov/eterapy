@@ -78,11 +78,11 @@ describe("B086 perspectives product", () => {
 
   it("starts the standalone product page with the service surface, not a hero purchase button", () => {
     const detailPage = source("src/app/products/[slug]/page.tsx");
+    const shell = source("src/components/products/product-page-shell.tsx");
 
     expect(detailPage).toContain('product.slug === "perspectives"');
     expect(detailPage).toContain("action={<ProductActionSurface");
-    expect(detailPage).toContain('data-testid="product-service-start"');
-    const hero = detailPage.split("function ProductHero")[1]?.split("function DeepReportSide")[0] ?? "";
-    expect(hero).not.toContain("<ProductPurchaseControls");
+    expect(shell).toContain('data-testid="product-service-start"');
+    expect(shell).not.toContain("<ProductPurchaseControls");
   });
 });

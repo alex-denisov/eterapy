@@ -58,12 +58,13 @@ describe("Z14 synastry product", () => {
     const resultPage = source("src/app/cabinet/results/[id]/page.tsx");
     const taskPolicy = source("src/lib/ai-gateway/task-policy.ts");
     const prompts = source("src/lib/ai-gateway/prompts.ts");
+    const shell = source("src/components/products/product-page-shell.tsx");
 
     expect(detailPage).toContain("<SynastryActions");
     expect(detailPage).toContain('product.slug === "synastry"');
     // B395: decorative <SynastrySide> removed — the tool-first hero renders the
     // action component directly, no side preview panel.
-    expect(detailPage).toContain('data-testid="product-service-start"');
+    expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).not.toContain('data-testid="synastry-relationship-map"');
     expect(actions).toContain("/api/products/synastry");
     expect(actions).toContain("<ProductPurchaseControls");

@@ -25,6 +25,7 @@ describe("v5 product pages", () => {
   it("keeps products canonical, flat, and still connected to the free dialogue", () => {
     const indexPage = source("app/products/page.tsx");
     const detailPage = source("app/products/[slug]/page.tsx");
+    const shell = source("components/products/product-page-shell.tsx");
     const purchaseControls = source("components/products/product-purchase-controls.tsx");
     const productActions = [
       "components/products/deep-report-actions.tsx",
@@ -38,7 +39,7 @@ describe("v5 product pages", () => {
     expect(indexPage).toContain('data-testid="products-page"');
     expect(indexPage).toContain('href="/checkin"');
     expect(indexPage).toContain("открыть нужную услугу напрямую");
-    expect(detailPage).toContain('data-testid="product-service-start"');
+    expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).toContain("<ProductActionSurface");
     expect(detailPage).toContain("<PerspectivesActions");
     expect(detailPage).not.toContain("nextProduct=");
@@ -52,24 +53,26 @@ describe("v5 product pages", () => {
     expect(source("lib/v5-products.ts")).not.toContain("joint-session\":");
   });
 
-  it("renders the tool-first product hero (no decorative previews or side panels)", () => {
+  it("renders the B436 product shell with first-screen value, CTA, and preview", () => {
     const detailPage = source("app/products/[slug]/page.tsx");
+    const shell = source("components/products/product-page-shell.tsx");
     const priceChip = source("components/products/product-hero-price.tsx");
     const products = source("lib/v5-products.ts");
 
-    expect(detailPage).toContain('data-testid="product-hero"');
-    // B395: tool-first hero — round iOS back arrow + corner price, the tool
-    // on the first screen. The decorative preview and the «← На главную» text
-    // chip were removed.
-    expect(detailPage).toContain('data-testid="product-hero-back"');
+    expect(detailPage).toContain("<ProductPageShell");
+    expect(shell).toContain('data-testid="product-page-shell"');
+    expect(shell).toContain('data-testid="product-above-fold"');
+    expect(shell).toContain('data-testid="product-primary-cta"');
+    expect(shell).toContain('data-testid="product-hero-preview"');
+    expect(shell).toContain('data-testid="product-hero-back"');
     // B405: the price chip is a role-aware client component (guest ₽ / authed баллы).
-    expect(detailPage).toContain("<ProductHeroPrice");
+    expect(shell).toContain("<ProductHeroPrice");
     expect(priceChip).toContain('data-testid="product-hero-price"');
     expect(priceChip).toContain("{product.price}");
-    expect(detailPage).not.toContain('data-testid="product-hero-preview"');
+    expect(shell).toContain("<ZodiacWheel");
     expect(detailPage).not.toContain("← На главную");
 
-    expect(detailPage).toContain('data-testid="product-service-start"');
+    expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).not.toContain('data-testid="deep-report-sample-main-fork"');
     expect(detailPage).not.toContain('data-testid="product-example-disclosure"');
 

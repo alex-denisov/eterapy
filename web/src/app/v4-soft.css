@@ -1146,6 +1146,109 @@
     padding-bottom: 1rem;
   }
 
+  .soft-product-shell-layout {
+    width: min(100% - 2rem, 74rem);
+    margin-inline: auto;
+    padding-block: clamp(1.25rem, 3vw, 2rem) 2.5rem;
+  }
+
+  .soft-product-shell-above {
+    display: grid;
+    grid-template-columns: minmax(0, 0.98fr) minmax(18rem, 0.72fr);
+    gap: clamp(1rem, 3vw, 2.5rem);
+    align-items: center;
+    min-height: min(42rem, calc(100svh - 8.5rem));
+  }
+
+  .soft-product-shell-copy,
+  .soft-product-shell-preview {
+    min-width: 0;
+  }
+
+  .soft-product-shell-back {
+    display: inline-flex;
+    width: 2.25rem;
+    aspect-ratio: 1;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 999px;
+    background: var(--soft-paper-card);
+    color: var(--soft-ink-soft);
+    transition:
+      border-color var(--motion-base, 160ms ease),
+      color var(--motion-base, 160ms ease),
+      transform var(--motion-base, 160ms ease);
+  }
+
+  .soft-product-shell-back:hover {
+    border-color: var(--soft-terracotta);
+    color: var(--soft-bordeaux);
+    transform: translateX(-1px);
+  }
+
+  .soft-product-detail-page .soft-eyebrow {
+    color: var(--soft-ink-soft);
+  }
+
+  .soft-product-detail-page .soft-button-primary {
+    background: #9d4635 !important;
+    box-shadow: 0 10px 26px -12px rgba(92, 42, 44, 0.6), inset 0 -2px 0 rgba(0, 0, 0, 0.12) !important;
+  }
+
+  .soft-product-detail-page .soft-button-primary:hover {
+    background: var(--soft-bordeaux) !important;
+  }
+
+  .soft-product-shell-preview {
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-lg);
+    background: linear-gradient(145deg, #fffcf5, #f5ead9);
+    box-shadow: var(--soft-shadow-sm);
+    padding: clamp(1rem, 2.2vw, 1.55rem);
+  }
+
+  .soft-product-shell-chart {
+    margin-top: 0.75rem;
+    min-height: 17.5rem;
+  }
+
+  .soft-product-shell-chart .esoteric-wheel svg {
+    max-width: min(100%, 17.5rem);
+  }
+
+  .soft-product-shell-symbol {
+    display: grid;
+    margin-top: 1rem;
+    min-height: 13rem;
+    place-items: center;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-lg);
+    background:
+      linear-gradient(135deg, rgba(255, 252, 245, 0.92), rgba(232, 168, 124, 0.18)),
+      repeating-linear-gradient(90deg, rgba(92, 42, 44, 0.08) 0 1px, transparent 1px 16px);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-product-shell-action {
+    scroll-margin-top: 1.25rem;
+    margin-inline: auto;
+    max-width: 48rem;
+  }
+
+  .soft-product-shell-action > .soft-card,
+  .soft-product-shell-action > .soft-form-panel {
+    margin-top: 0;
+  }
+
+  .soft-product-shell-legal {
+    max-width: 48rem;
+    margin: 1rem auto 0;
+    color: var(--soft-ink-faint);
+    font-size: 0.75rem;
+    line-height: 1.55;
+  }
+
   .soft-product-icon {
     display: grid;
     width: 3.3rem;
@@ -2029,9 +2132,15 @@
     .soft-products-hero,
     .soft-product-detail-hero,
     .soft-product-detail-page .soft-product-detail-hero,
+    .soft-product-shell-above,
     .soft-product-detail-grid,
     .soft-public-hero {
       grid-template-columns: 1fr;
+    }
+
+    .soft-product-shell-above {
+      min-height: auto;
+      align-items: start;
     }
 
     .soft-products-grid,
