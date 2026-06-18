@@ -44,6 +44,10 @@ import {
   combineRoutingProofs,
   enforceYandexOnlyRoutingProof,
 } from "@/lib/ai-gateway/routing-proof";
+import {
+  CrossBorderPolicyError,
+  assertCrossBorderProcessingAllowed,
+} from "@/lib/ai-gateway/cross-border-gate";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
@@ -168,6 +172,10 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     })),
   };
   enforceYandexOnlyRoutingProof({ plan: requestPlan, providerConfigsByName: providerConfigByName });
+  await assertCrossBorderProcessingAllowed({
+    providers: requestPlan.attempts.map((attempt) => attempt.provider),
+    scenario: feature,
+  });
   enforceAIBudget({
     requestedTokens: maxTokens,
     policy,
@@ -405,6 +413,9 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       throw new Error(`AI provider unavailable: ${err.code}`);
     }
     if (err instanceof AIRoutingPolicyViolationError) {
+      throw err;
+    }
+    if (err instanceof CrossBorderPolicyError) {
       throw err;
     }
     throw err;

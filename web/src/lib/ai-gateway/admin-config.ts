@@ -20,6 +20,8 @@ import {
   DIRECT_PROVIDER_BASE_URLS,
   cloudflareGatewayEnabled,
 } from "@/lib/ai-gateway/provider-runtime";
+import { assertForeignProviderAdminChangeAllowed } from "@/lib/ai-gateway/cross-border-gate";
+import { cloudflareAIGatewayEnabledForRU } from "@/lib/env";
 
 export interface AIProviderConfigInput {
   provider: AIProvider;
@@ -46,15 +48,16 @@ export interface AIRoutingPolicyInput {
 }
 
 const DEFAULT_PROVIDER_CONFIGS: AIProviderConfigInput[] = [
-  { provider: AIProvider.OPENROUTER, enabled: true, priority: 10, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENROUTER], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENROUTER], timeoutMs: 30_000, inputTokenCostMicros: 0, outputTokenCostMicros: 0 },
-  { provider: AIProvider.GROQ, enabled: true, priority: 15, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GROQ], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GROQ], timeoutMs: 30_000, inputTokenCostMicros: 50, outputTokenCostMicros: 80 },
-  { provider: AIProvider.MISTRAL, enabled: true, priority: 18, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.MISTRAL], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.MISTRAL], timeoutMs: 30_000, inputTokenCostMicros: 100, outputTokenCostMicros: 300 },
-  { provider: AIProvider.GEMINI, enabled: true, priority: 20, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GEMINI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GEMINI], timeoutMs: 30_000, inputTokenCostMicros: 300, outputTokenCostMicros: 2500 },
-  { provider: AIProvider.CEREBRAS, enabled: true, priority: 25, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.CEREBRAS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000, inputTokenCostMicros: 250, outputTokenCostMicros: 690 },
-  { provider: AIProvider.COHERE, enabled: true, priority: 30, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000, inputTokenCostMicros: 150, outputTokenCostMicros: 600 },
-  { provider: AIProvider.OPENAI, enabled: true, priority: 35, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENAI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000, inputTokenCostMicros: 400, outputTokenCostMicros: 1600 },
-  { provider: AIProvider.ANTHROPIC, enabled: true, priority: 40, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.ANTHROPIC], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000, inputTokenCostMicros: 800, outputTokenCostMicros: 4000 },
-  { provider: AIProvider.FIREWORKS, enabled: true, priority: 45, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: 900, outputTokenCostMicros: 900 },
+  { provider: AIProvider.YANDEX, enabled: true, priority: 10, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.YANDEX], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX], timeoutMs: 30_000, inputTokenCostMicros: 100, outputTokenCostMicros: 300 },
+  { provider: AIProvider.OPENROUTER, enabled: false, priority: 50, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENROUTER], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENROUTER], timeoutMs: 30_000, inputTokenCostMicros: 0, outputTokenCostMicros: 0 },
+  { provider: AIProvider.GROQ, enabled: false, priority: 55, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GROQ], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GROQ], timeoutMs: 30_000, inputTokenCostMicros: 50, outputTokenCostMicros: 80 },
+  { provider: AIProvider.MISTRAL, enabled: false, priority: 58, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.MISTRAL], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.MISTRAL], timeoutMs: 30_000, inputTokenCostMicros: 100, outputTokenCostMicros: 300 },
+  { provider: AIProvider.GEMINI, enabled: false, priority: 60, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.GEMINI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.GEMINI], timeoutMs: 30_000, inputTokenCostMicros: 300, outputTokenCostMicros: 2500 },
+  { provider: AIProvider.CEREBRAS, enabled: false, priority: 65, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.CEREBRAS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000, inputTokenCostMicros: 250, outputTokenCostMicros: 690 },
+  { provider: AIProvider.COHERE, enabled: false, priority: 70, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000, inputTokenCostMicros: 150, outputTokenCostMicros: 600 },
+  { provider: AIProvider.OPENAI, enabled: false, priority: 75, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.OPENAI], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.OPENAI], timeoutMs: 30_000, inputTokenCostMicros: 400, outputTokenCostMicros: 1600 },
+  { provider: AIProvider.ANTHROPIC, enabled: false, priority: 80, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.ANTHROPIC], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.ANTHROPIC], timeoutMs: 30_000, inputTokenCostMicros: 800, outputTokenCostMicros: 4000 },
+  { provider: AIProvider.FIREWORKS, enabled: false, priority: 85, baseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.FIREWORKS], defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: 900, outputTokenCostMicros: 900 },
 ];
 
 export async function getAIControlCenterData(period = aiBudgetPeriod(), options: { includeSecrets?: boolean } = {}) {
@@ -102,7 +105,7 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
 
   const models = Object.fromEntries(modelLists) as Record<AIProvider, Awaited<ReturnType<typeof listCachedModels>>>;
 
-  const cfGateway = getCloudflareGatewayConfig();
+  const cfGateway = cloudflareAIGatewayEnabledForRU() ? getCloudflareGatewayConfig() : null;
   const cloudflareGateway = cfGateway
     ? {
       configured: true as const,
@@ -143,7 +146,9 @@ export async function getAIControlCenterData(period = aiBudgetPeriod(), options:
 }
 
 export async function updateAIProviderConfig(actorId: string, input: AIProviderConfigInput): Promise<AIProviderConfig> {
-  const cfGateway = getCloudflareGatewayConfig();
+  await assertForeignProviderAdminChangeAllowed(actorId, input);
+
+  const cfGateway = cloudflareAIGatewayEnabledForRU() ? getCloudflareGatewayConfig() : null;
   const cfBaseUrl = cfGateway
     ? buildCloudflareGatewayUrlForAIProvider({
       accountId: cfGateway.accountId,

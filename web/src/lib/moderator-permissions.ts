@@ -18,7 +18,7 @@ export const ALL_PERMISSIONS = [
   "dialogues.view", "reports.view", "library.moderate", "safety.review", "antifraud.review",
   "payments.refund", "subscriptions.manage", "notifications.diagnose",
   "practitioner_pro.manage", "content.configure", "seo.manage",
-  "analytics.view", "ai.configure", "system.read", "system.operate",
+  "analytics.view", "ai.configure", "legal.cross_border.manage", "system.read", "system.operate",
 ] as const;
 
 export type Permission = typeof ALL_PERMISSIONS[number];
@@ -28,7 +28,7 @@ export const V5_REQUIRED_PERMISSIONS: Permission[] = [
   "dialogues.view", "reports.view", "library.moderate", "safety.review", "antifraud.review",
   "analytics.view", "payments.refund", "subscriptions.manage",
   "notifications.diagnose", "practitioners.verify", "practitioner_pro.manage",
-  "content.configure", "ai.configure", "seo.manage", "system.read", "system.operate",
+  "content.configure", "ai.configure", "legal.cross_border.manage", "seo.manage", "system.read", "system.operate",
 ];
 
 /** Минимальный набор для ADMIN без явных полномочий */

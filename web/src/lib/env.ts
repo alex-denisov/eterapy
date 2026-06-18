@@ -105,8 +105,25 @@ export function isYandexOnlyLLMMode() {
   return getLLMProviderMode() === "YANDEX_ONLY";
 }
 
+export function crossBorderProcessingEnabled() {
+  return process.env.CROSS_BORDER_PROCESSING_ENABLED === "true";
+}
+
+export function legalCrossBorderReady() {
+  return process.env.LEGAL_CROSS_BORDER_READY === "true";
+}
+
+export function managementSpecialOrderId() {
+  return process.env.MANAGEMENT_SPECIAL_ORDER_ID?.trim() || null;
+}
+
 export function foreignLLMEnabled() {
-  return !isYandexOnlyLLMMode() && process.env.FOREIGN_LLM_ENABLED === "true";
+  return (
+    !isYandexOnlyLLMMode()
+    && process.env.FOREIGN_LLM_ENABLED === "true"
+    && crossBorderProcessingEnabled()
+    && legalCrossBorderReady()
+  );
 }
 
 export function foreignLLMFallbackEnabled() {

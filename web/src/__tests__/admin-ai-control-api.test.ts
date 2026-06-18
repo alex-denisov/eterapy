@@ -25,6 +25,9 @@ jest.mock("@/lib/db", () => ({
     aIRequest: { findMany: jest.fn() },
     aIProviderCredential: { findMany: jest.fn() },
     aIProviderModel: { findMany: jest.fn() },
+    foreignProviderRegistry: { findMany: jest.fn() },
+    managementSpecialOrder: { findFirst: jest.fn() },
+    user: { findUnique: jest.fn() },
     auditLog: { create: jest.fn() },
     $queryRaw: jest.fn(),
   },
@@ -59,21 +62,24 @@ describe("admin AI control API", () => {
     (mockDb.aIRequest.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIProviderCredential.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIProviderModel.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.foreignProviderRegistry.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.managementSpecialOrder.findFirst as jest.Mock).mockResolvedValue(null);
+    (mockDb.user.findUnique as jest.Mock).mockResolvedValue({ id: "admin-1", role: "SUPERADMIN" });
     (mockDb.$queryRaw as jest.Mock).mockResolvedValue([]);
     (mockDb.aIProviderConfig.upsert as jest.Mock).mockResolvedValue({
       id: "provider-config-1",
-      provider: AIProvider.OPENROUTER,
-      displayName: "OpenRouter",
+      provider: AIProvider.YANDEX,
+      displayName: "Yandex AI Studio",
       enabled: true,
       priority: 10,
       baseUrl: null,
-      defaultModel: "openai/gpt-4o-mini",
+      defaultModel: "yandexgpt-lite/latest",
       timeoutMs: 30000,
       rpmLimit: null,
       tpmLimit: null,
       inputTokenCostMicros: null,
       outputTokenCostMicros: null,
-      metadata: { cloudflareGatewayEnabled: true },
+      metadata: { cloudflareGatewayEnabled: false },
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -100,9 +106,10 @@ describe("admin AI control API", () => {
 
     expect(response.status).toBe(200);
     expect(body.requestId).toBe("admin-ai-control-123");
-    expect(body.providers).toHaveLength(9);
+    expect(body.providers).toHaveLength(10);
     expect(body.providers[0]).toEqual(expect.objectContaining({
-      provider: AIProvider.OPENROUTER,
+      provider: AIProvider.YANDEX,
+      enabled: true,
     }));
     expect(body.providers).toEqual(expect.arrayContaining([
       expect.objectContaining({ provider: AIProvider.GEMINI }),
@@ -127,44 +134,32 @@ describe("admin AI control API", () => {
     ]));
   });
 
-  it("updates provider config and writes audit", async () => {
-    // CF Gateway is only marked applied when the gateway env is actually
-    // configured. Set it up so enabling the toggle legitimately routes
-    // OpenRouter through the Cloudflare Gateway URL.
-    const prevAccount = process.env.CF_AI_GATEWAY_ACCOUNT_ID;
-    const prevGateway = process.env.CF_AI_GATEWAY_ID;
-    process.env.CF_AI_GATEWAY_ACCOUNT_ID = "acc-test";
-    process.env.CF_AI_GATEWAY_ID = "eterapy-test";
+  it("updates Yandex provider config and writes audit", async () => {
+    const response = (await PATCH(request({
+      type: "provider",
+      provider: AIProvider.YANDEX,
+      enabled: true,
+      priority: 10,
+      defaultModel: "yandexgpt-lite/latest",
+      timeoutMs: 30000,
+      cloudflareGatewayEnabled: true,
+    })))!;
 
-    try {
-      const response = (await PATCH(request({
-        type: "provider",
-        provider: AIProvider.OPENROUTER,
-        enabled: true,
-        priority: 10,
-        defaultModel: "openai/gpt-4o-mini",
-        timeoutMs: 30000,
-        cloudflareGatewayEnabled: true,
-      })))!;
-
-      expect(response.status).toBe(200);
-      expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalled();
-      expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        create: expect.objectContaining({
-          metadata: { cloudflareGatewayEnabled: true },
-          baseUrl: "https://gateway.ai.cloudflare.com/v1/acc-test/eterapy-test/openrouter",
-        }),
-      }));
-      expect(mockDb.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({
-          action: "AI_PROVIDER_CONFIG_UPDATE",
-          userId: "admin-1",
-        }),
-      }));
-    } finally {
-      process.env.CF_AI_GATEWAY_ACCOUNT_ID = prevAccount;
-      process.env.CF_AI_GATEWAY_ID = prevGateway;
-    }
+    expect(response.status).toBe(200);
+    expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalled();
+    expect(mockDb.aIProviderConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        provider: AIProvider.YANDEX,
+        metadata: { cloudflareGatewayEnabled: false },
+        baseUrl: "https://llm.api.cloud.yandex.net/foundationModels/v1",
+      }),
+    }));
+    expect(mockDb.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: "AI_PROVIDER_CONFIG_UPDATE",
+        userId: "admin-1",
+      }),
+    }));
   });
 
   it("falls back to the direct base URL and clears CF metadata when gateway is not configured", async () => {
@@ -180,7 +175,7 @@ describe("admin AI control API", () => {
       const response = (await PATCH(request({
         type: "provider",
         provider: AIProvider.GROQ,
-        enabled: true,
+        enabled: false,
         priority: 5,
         timeoutMs: 30000,
         cloudflareGatewayEnabled: true,
@@ -197,6 +192,33 @@ describe("admin AI control API", () => {
       process.env.CF_AI_GATEWAY_ACCOUNT_ID = prevAccount;
       process.env.CF_AI_GATEWAY_ID = prevGateway;
     }
+  });
+
+  it("rejects enabling foreign providers without legal cross-border approval", async () => {
+    mockGetUserPermissions
+      .mockResolvedValueOnce(["ai.configure"])
+      .mockResolvedValueOnce(["ai.configure"] as never);
+
+    const response = (await PATCH(request({
+      type: "provider",
+      provider: AIProvider.OPENROUTER,
+      enabled: true,
+      priority: 50,
+      timeoutMs: 30000,
+      cloudflareGatewayEnabled: false,
+    })))!;
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.code).toBe("LEGAL_CROSS_BORDER_FORBIDDEN");
+    expect(mockDb.aIProviderConfig.upsert).not.toHaveBeenCalled();
+    expect(mockDb.auditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        action: "CROSS_BORDER_PROVIDER_ENABLE_DENIED",
+        userId: "admin-1",
+        targetId: AIProvider.OPENROUTER,
+      }),
+    }));
   });
 
   it("updates routing policy and normalizes feature key", async () => {

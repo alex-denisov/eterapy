@@ -8,6 +8,7 @@ import {
   updateAIProviderConfig,
   updateAIRoutingPolicy,
 } from "@/lib/ai-gateway/admin-config";
+import { CrossBorderPolicyError } from "@/lib/ai-gateway/cross-border-gate";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
@@ -73,9 +74,17 @@ export async function PATCH(req: NextRequest) {
     return errorWithRequestContext("BAD_REQUEST", "Invalid AI control payload", 400, access.context);
   }
 
-  const result = parsed.data.type === "provider"
-    ? await updateAIProviderConfig(access.session.user.id, parsed.data)
-    : await updateAIRoutingPolicy(access.session.user.id, parsed.data);
+  let result;
+  try {
+    result = parsed.data.type === "provider"
+      ? await updateAIProviderConfig(access.session.user.id, parsed.data)
+      : await updateAIRoutingPolicy(access.session.user.id, parsed.data);
+  } catch (err) {
+    if (err instanceof CrossBorderPolicyError) {
+      return errorWithRequestContext(err.code, err.message, 403, access.context);
+    }
+    throw err;
+  }
 
   return jsonWithRequestContext({ ok: true, result }, { status: 200 }, access.context);
 }

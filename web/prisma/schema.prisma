@@ -91,6 +91,7 @@ model User {
   supportConversations   SupportConversation[]
   bookingWaitlistEntries BookingWaitlistEntry[]
   companionChatSessions  CompanionChatSession[]
+  approvedManagementSpecialOrders ManagementSpecialOrder[]
 
   @@map("users")
 }
@@ -472,6 +473,65 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([targetId, createdAt])
   @@map("audit_logs")
+}
+
+// ─── Cross-Border AI Legal Controls ──────────────────────────────────────────
+
+model ManagementSpecialOrder {
+  id                 String                       @id @default(cuid())
+  orderNumber        String                       @unique @map("order_number")
+  orderDate          DateTime                     @map("order_date")
+  initiator          String
+  reason             String                       @db.Text
+  legalBasis         String                       @map("legal_basis") @db.Text
+  riskAssessment     String                       @map("risk_assessment") @db.Text
+  allowedProviders   AIProvider[]                 @default([]) @map("allowed_providers")
+  allowedScenarios   String[]                     @default([]) @map("allowed_scenarios")
+  validFrom          DateTime                     @map("valid_from")
+  validTo            DateTime                     @map("valid_to")
+  status             ManagementSpecialOrderStatus @default(DRAFT)
+  approvedById       String?                      @map("approved_by")
+  approvedBy         User?                        @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime                     @default(now()) @map("created_at")
+  updatedAt          DateTime                     @updatedAt @map("updated_at")
+
+  @@index([status, validFrom, validTo])
+  @@map("management_special_orders")
+}
+
+model ForeignProviderRegistry {
+  id                      String                        @id @default(cuid())
+  providerNameInternal    String                        @unique @map("provider_name_internal")
+  providerCategory        String                        @map("provider_category")
+  countryOrRegion         String                        @map("country_or_region")
+  role                    String
+  potentialDataCategories String[]                      @default([]) @map("potential_data_categories")
+  status                  ForeignProviderRegistryStatus @default(INACTIVE_FOR_RU)
+  legalBasis              String?                       @map("legal_basis") @db.Text
+  dpaStatus               String?                       @map("dpa_status")
+  termsReviewStatus       String?                       @map("terms_review_status")
+  rknCrossBorderStatus    String?                       @map("rkn_cross_border_status")
+  lastReviewedAt          DateTime?                     @map("last_reviewed_at")
+  createdAt               DateTime                      @default(now()) @map("created_at")
+  updatedAt               DateTime                      @updatedAt @map("updated_at")
+
+  @@index([status, providerCategory])
+  @@map("foreign_provider_registry")
+}
+
+enum ManagementSpecialOrderStatus {
+  DRAFT
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum ForeignProviderRegistryStatus {
+  ACTIVE
+  INACTIVE_FOR_RU
+  INACTIVE_FOR_RU_PROMPTS
+  BLOCKED
+  FUTURE
 }
 
 // ─── Durable Jobs ────────────────────────────────────────────────────────────

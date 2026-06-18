@@ -14,6 +14,8 @@ jest.mock("@/lib/db", () => ({
     aIAttempt: { create: jest.fn() },
     aIProviderCredential: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn() },
     aIProviderModel: { findUnique: jest.fn() },
+    foreignProviderRegistry: { findMany: jest.fn() },
+    managementSpecialOrder: { findFirst: jest.fn() },
     $executeRaw: jest.fn(),
   },
 }));
@@ -42,6 +44,9 @@ const mockRunFallback = runAIGatewayFallbackWithCredentials as jest.MockedFuncti
 
 describe("aiComplete gateway migration", () => {
   const originalProviderMode = process.env.LLM_PROVIDER_MODE;
+  const originalForeignLLMEnabled = process.env.FOREIGN_LLM_ENABLED;
+  const originalCrossBorderProcessingEnabled = process.env.CROSS_BORDER_PROCESSING_ENABLED;
+  const originalLegalCrossBorderReady = process.env.LEGAL_CROSS_BORDER_READY;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -104,6 +109,8 @@ describe("aiComplete gateway migration", () => {
     (mockDb.aIRequest.update as jest.Mock).mockResolvedValue({});
     (mockDb.aIAttempt.create as jest.Mock).mockResolvedValue({});
     (mockDb.aIProviderModel.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.foreignProviderRegistry.findMany as jest.Mock).mockResolvedValue([]);
+    (mockDb.managementSpecialOrder.findFirst as jest.Mock).mockResolvedValue(null);
     (mockDb.$executeRaw as jest.Mock).mockResolvedValue(1);
     mockRunFallback.mockResolvedValue({
       response: {
@@ -123,6 +130,9 @@ describe("aiComplete gateway migration", () => {
 
   afterEach(() => {
     process.env.LLM_PROVIDER_MODE = originalProviderMode;
+    process.env.FOREIGN_LLM_ENABLED = originalForeignLLMEnabled;
+    process.env.CROSS_BORDER_PROCESSING_ENABLED = originalCrossBorderProcessingEnabled;
+    process.env.LEGAL_CROSS_BORDER_READY = originalLegalCrossBorderReady;
   });
 
   it("keeps the legacy response contract while using gateway audit and usage ledger", async () => {
@@ -225,6 +235,59 @@ describe("aiComplete gateway migration", () => {
       messages: [{ role: "user", content: "hello" }],
     })).rejects.toMatchObject({
       code: "RU_CLOUDFLARE_GATEWAY_BLOCKED",
+    });
+
+    expect(mockRunFallback).not.toHaveBeenCalled();
+    expect(mockDb.aIRequest.create).not.toHaveBeenCalled();
+  });
+
+  it("blocks legacy foreign-provider plans before request persistence without cross-border legal controls", async () => {
+    process.env.LLM_PROVIDER_MODE = "LEGACY";
+    process.env.FOREIGN_LLM_ENABLED = "true";
+    process.env.CROSS_BORDER_PROCESSING_ENABLED = "false";
+    process.env.LEGAL_CROSS_BORDER_READY = "false";
+    (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "provider-openrouter",
+        provider: AIProvider.OPENROUTER,
+        displayName: "OpenRouter",
+        enabled: true,
+        priority: 10,
+        baseUrl: "https://openrouter.ai/api/v1",
+        defaultModel: "openai/gpt-4o-mini",
+        timeoutMs: 30000,
+        rpmLimit: null,
+        tpmLimit: null,
+        inputTokenCostMicros: 100,
+        outputTokenCostMicros: 300,
+        metadata: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    (mockDb.aIRoutingPolicy.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "policy-foreign",
+      feature: "dialogue-clarifier",
+      enabled: true,
+      providerOrder: [AIProvider.OPENROUTER],
+      modelPreferences: null,
+      maxTokens: 1000,
+      temperature: 0.4,
+      timeoutMs: 30000,
+      dailyTokenBudget: null,
+      perUserDailyTokenBudget: null,
+      metadata: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await expect(aiComplete({
+      feature: "dialogue-clarifier",
+      userId: "user-1",
+      requestId: "req-foreign",
+      messages: [{ role: "user", content: "hello" }],
+    })).rejects.toMatchObject({
+      code: "CROSS_BORDER_FLAGS_DISABLED",
     });
 
     expect(mockRunFallback).not.toHaveBeenCalled();
