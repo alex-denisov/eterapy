@@ -26,6 +26,15 @@ interface Practitioner {
   sessionDuration: number;
   commissionPercent: number;
   verified: boolean;
+  agentOfferAcceptedAt: string | null;
+  agentOfferVersion: string | null;
+  taxStatus: string;
+  taxReviewStatus: string;
+  taxStatusVerifiedAt: string | null;
+  taxStatusRejectedReason: string | null;
+  payoutDetailsType: string | null;
+  payoutDetailsInn: string | null;
+  payoutDetailsKycStatus: string | null;
   founding: boolean;
   reviewCount: number;
   sessionCount: number;
@@ -262,6 +271,14 @@ export function PractitionersPanel({
                     <Badge className={`${STATUS_COLORS[p.status] ?? ""} text-xs`}>
                       {STATUS_LABELS[p.status] ?? p.status}
                     </Badge>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <Badge className={`text-[10px] py-0 ${p.agentOfferAcceptedAt ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                        оферта
+                      </Badge>
+                      <Badge className={`text-[10px] py-0 ${p.taxReviewStatus === "VERIFIED" ? "bg-green-500/10 text-green-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                        {p.taxStatus}
+                      </Badge>
+                    </div>
                   </td>
                   <td className="p-3 text-xs text-muted-foreground max-w-[180px]">
                     <p className="truncate">{p.title}</p>

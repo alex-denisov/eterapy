@@ -8,6 +8,8 @@ import { PAYOUT_TZ, formatPayoutDate, nextPayoutDate } from "@/lib/payout-schedu
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
 import { EarningsMovementsTable, type EarningsMovementRow } from "./earnings-movements-table";
 import { PayoutDetailsForm } from "./payout-details-form";
+import { AgentOfferAcceptButton } from "./agent-offer-accept-button";
+import { AGENT_OFFER_VERSION } from "@/lib/practitioner-compliance";
 
 interface Movement {
   id: string;
@@ -29,6 +31,11 @@ export default async function PractitionerEarningsPage() {
     select: {
       id: true,
       commissionPercent: true,
+      agentOfferAcceptedAt: true,
+      agentOfferVersion: true,
+      taxStatus: true,
+      taxReviewStatus: true,
+      taxStatusVerifiedAt: true,
       payoutDetails: {
         select: {
           type: true,
@@ -98,6 +105,9 @@ export default async function PractitionerEarningsPage() {
 
   const now = new Date();
   const nextPayoutOn = nextPayoutDate(now);
+  const agentOfferAccepted = Boolean(
+    practitioner.agentOfferAcceptedAt && practitioner.agentOfferVersion === AGENT_OFFER_VERSION,
+  );
 
   // Текущий месяц
   const monthFormatter = new Intl.DateTimeFormat("ru-RU", {
@@ -227,6 +237,17 @@ export default async function PractitionerEarningsPage() {
       {/* X13: payout requisites mechanic (была отсылка «реквизиты в настройках»,
           но самой механики не было). */}
       <div className="mb-6">
+        <div className="soft-card mb-3 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="soft-eyebrow">агентская оферта</p>
+              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
+                Версия {AGENT_OFFER_VERSION}. Налоговый статус: {practitioner.taxStatus} / {practitioner.taxReviewStatus}.
+              </p>
+            </div>
+            <AgentOfferAcceptButton accepted={agentOfferAccepted} />
+          </div>
+        </div>
         <PayoutDetailsForm initial={practitioner.payoutDetails ?? null} />
       </div>
 
@@ -252,7 +273,7 @@ export default async function PractitionerEarningsPage() {
       <div className="soft-card mb-6 p-4 text-sm text-[var(--soft-ink-soft)]">
         <p className="font-medium text-foreground mb-1">График выплат</p>
         Выплаты начисляются дважды в месяц — <span className="text-foreground">1-го и 15-го числа</span>{" "}
-        по московскому времени. Hold зависит от тарифа: Free 14 дней, Pro 5 дней, Pro+ 2 дня. Жалобы,
+        по московскому времени. Hold зависит от тарифа: Free 7 дней, Pro 3 дня, Pro+ 1 день. Жалобы,
         KYC юр.лица, резерв chargeback и риск-сигналы удерживают сумму до проверки. Следующая дата:{" "}
         <span className="text-foreground">{formatPayoutDate(nextPayoutOn)}</span>.
       </div>

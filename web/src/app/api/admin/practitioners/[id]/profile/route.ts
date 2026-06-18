@@ -44,8 +44,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (commissionPercent !== undefined) {
     const n = Number(commissionPercent);
-    if (!Number.isInteger(n) || n < 0 || n > 100) {
-      return NextResponse.json({ error: "commissionPercent должен быть целым от 0 до 100" }, { status: 400 });
+    if (!Number.isInteger(n) || n < 0 || n > 35) {
+      return NextResponse.json({ error: "commissionPercent должен быть целым от 0 до 35" }, { status: 400 });
     }
   }
 

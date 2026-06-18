@@ -35,7 +35,7 @@ describe("Practitioner verification flow", () => {
     const card = source("src/app/cabinet/practitioner/page.tsx");
     const modal = source("src/app/admin/users/user-edit-modal.tsx");
     // schema + migration add the verifiedAt column
-    expect(schema).toContain("verifiedAt      DateTime?");
+    expect(schema).toMatch(/verifiedAt\s+DateTime\?/);
     expect(fs.existsSync(path.join(process.cwd(), "prisma/migrations/20260601120000_add_practitioner_verified_at/migration.sql"))).toBe(true);
     // practitioner compliance card shows the timestamp when verified
     expect(card).toContain("practitioner.verified && practitioner.verifiedAt");

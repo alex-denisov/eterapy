@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // (деньги не двигаются, запись Payout не создаётся).
   const details = await db.payoutDetails.findUnique({
     where: { practitionerId: id },
-    select: { type: true, accountNumber: true },
+    select: { type: true, accountNumber: true, inn: true },
   });
   if (!details) {
     return NextResponse.json({ error: "У практика не указаны платёжные реквизиты" }, { status: 400 });

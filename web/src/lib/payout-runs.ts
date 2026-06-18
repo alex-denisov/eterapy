@@ -4,9 +4,9 @@ import { emitPayoutScheduled } from "@/lib/payout-notifications";
 import { assertPractitionerPayoutAllowed } from "@/lib/practitioner-antifraud";
 
 export const PAYOUT_HOLD_DAYS_BY_PLAN = {
-  base: 14,
-  practitioner_pro: 5,
-  practitioner_pro_plus: 2,
+  base: 7,
+  practitioner_pro: 3,
+  practitioner_pro_plus: 1,
 } as const;
 
 export type PractitionerPayoutPlanKey = keyof typeof PAYOUT_HOLD_DAYS_BY_PLAN;
@@ -16,7 +16,7 @@ export interface PayoutRunCandidate {
   practitionerId: string;
   amountKopecks: number;
   reserveKopecks: number;
-  payoutDetails: { type: string | null; kycStatus: string | null } | null;
+  payoutDetails: { type: string | null; kycStatus: string | null; inn?: string | null } | null;
   gate: { allowed: boolean; reasons: string[] };
 }
 
@@ -83,6 +83,10 @@ function payoutDetailsMissing(details: PayoutRunCandidate["payoutDetails"]) {
   return !details?.type;
 }
 
+function innMissing(details: PayoutRunCandidate["payoutDetails"]) {
+  return !details?.inn;
+}
+
 export function classifyPayoutRunCandidates(candidates: PayoutRunCandidate[]) {
   const processing: Array<PayoutRunCandidate & { disbursedKopecks: number }> = [];
   const held: Array<{ id: string; holdReason: string; riskFlags: string[] }> = [];
@@ -102,6 +106,15 @@ export function classifyPayoutRunCandidates(candidates: PayoutRunCandidate[]) {
         id: candidate.id,
         holdReason: "payout_details_required",
         riskFlags: ["payout_details_required"],
+      });
+      continue;
+    }
+
+    if (innMissing(candidate.payoutDetails)) {
+      held.push({
+        id: candidate.id,
+        holdReason: "inn_required",
+        riskFlags: ["inn_required"],
       });
       continue;
     }
@@ -186,7 +199,7 @@ export async function runPayoutRun(input: PayoutRunInput): Promise<JobResult> {
       reserveKopecks: true,
       practitioner: {
         select: {
-          payoutDetails: { select: { type: true, kycStatus: true } },
+          payoutDetails: { select: { type: true, inn: true, kycStatus: true } },
         },
       },
     },

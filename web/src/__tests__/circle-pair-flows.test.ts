@@ -13,8 +13,8 @@ describe("B201/B202 Circle and Pair flows", () => {
 
     expect(schema).toContain("model ClarityCircle");
     expect(schema).toContain("model ClarityCircleParticipant");
-    expect(schema).toContain("inviteExpiresAt DateTime");
-    expect(schema).toContain("riskFlags   String[]");
+    expect(schema).toMatch(/inviteExpiresAt\s+DateTime/);
+    expect(schema).toMatch(/riskFlags\s+String\[\]/);
     expect(schema).toContain("creatorDeviceHash");
     expect(schema).toContain("answerHash");
     expect(schema).toContain("reportedReason");

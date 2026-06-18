@@ -91,7 +91,15 @@ describe("admin refactor routes", () => {
     const { mockAuth, mockDb, patchPractitionerStatus } = await loadModules();
     mockAuth.mockResolvedValue({ user: { id: "superadmin-1", role: "SUPERADMIN" } });
     mockDb.practitioner.findUnique.mockResolvedValue({
+      id: "prac-1",
+      status: "ACTIVE",
       verified: true,
+      agentOfferAcceptedAt: new Date("2026-06-18T10:00:00.000Z"),
+      agentOfferVersion: "agent-offer-2026-06-18",
+      taxStatus: "SELF_EMPLOYED",
+      taxReviewStatus: "VERIFIED",
+      taxStatusVerifiedAt: new Date("2026-06-18T10:05:00.000Z"),
+      payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED" },
     });
     mockDb.practitioner.update.mockResolvedValue({
       id: "prac-1",

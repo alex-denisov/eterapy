@@ -15,17 +15,17 @@ function source(relativePath: string) {
 }
 
 describe("Z17 payout holds and payout runs", () => {
-  it("defines the founder-approved payout hold ladder 14/5/2", () => {
+  it("defines the B426 payout hold ladder 7/3/1", () => {
     const now = new Date("2026-06-06T10:00:00.000Z");
 
     expect(PAYOUT_HOLD_DAYS_BY_PLAN).toEqual({
-      base: 14,
-      practitioner_pro: 5,
-      practitioner_pro_plus: 2,
+      base: 7,
+      practitioner_pro: 3,
+      practitioner_pro_plus: 1,
     });
-    expect(payoutAvailableAt("base", now).toISOString()).toBe("2026-06-20T10:00:00.000Z");
-    expect(payoutAvailableAt("practitioner_pro", now).toISOString()).toBe("2026-06-11T10:00:00.000Z");
-    expect(payoutAvailableAt("practitioner_pro_plus", now).toISOString()).toBe("2026-06-08T10:00:00.000Z");
+    expect(payoutAvailableAt("base", now).toISOString()).toBe("2026-06-13T10:00:00.000Z");
+    expect(payoutAvailableAt("practitioner_pro", now).toISOString()).toBe("2026-06-09T10:00:00.000Z");
+    expect(payoutAvailableAt("practitioner_pro_plus", now).toISOString()).toBe("2026-06-07T10:00:00.000Z");
   });
 
   it("keeps chargeback reserve for paid practitioner plans only", () => {
@@ -41,7 +41,7 @@ describe("Z17 payout holds and payout runs", () => {
         practitionerId: "p1",
         amountKopecks: 100_000,
         reserveKopecks: 5_000,
-        payoutDetails: { type: "CARD", kycStatus: null },
+        payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: null },
         gate: { allowed: true, reasons: [] },
       },
       {
@@ -49,7 +49,7 @@ describe("Z17 payout holds and payout runs", () => {
         practitionerId: "p2",
         amountKopecks: 100_000,
         reserveKopecks: 5_000,
-        payoutDetails: { type: "ENTITY", kycStatus: "PENDING" },
+        payoutDetails: { type: "ENTITY", inn: "1234567890", kycStatus: "PENDING" },
         gate: { allowed: true, reasons: [] },
       },
       {
@@ -57,7 +57,7 @@ describe("Z17 payout holds and payout runs", () => {
         practitionerId: "p3",
         amountKopecks: 80_000,
         reserveKopecks: 0,
-        payoutDetails: { type: "SBP", kycStatus: null },
+        payoutDetails: { type: "SBP", inn: "123456789012", kycStatus: null },
         gate: { allowed: false, reasons: ["open_complaints"] },
       },
     ]);

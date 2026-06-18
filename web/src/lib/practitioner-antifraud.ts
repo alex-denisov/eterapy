@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { requestFingerprint } from "@/lib/antifraud";
 import { logFraudEvent } from "@/lib/antifraud";
 import db from "@/lib/db";
+import { evaluatePractitionerCommercialGate, practitionerComplianceSelect } from "@/lib/practitioner-compliance";
 
 export const PRACTITIONER_PAYOUT_HOLD_DAYS = 7;
 export const PRACTITIONER_HIGH_RISK_SCORE = 70;
@@ -214,7 +215,12 @@ export async function assertPractitionerPayoutAllowed(practitionerId: string) {
   const [practitioner, openComplaints, highRiskEvents] = await Promise.all([
     db.practitioner.findUnique({
       where: { id: practitionerId },
-      select: { verified: true, riskScore: true, riskFlags: true },
+      select: {
+        verified: true,
+        riskScore: true,
+        riskFlags: true,
+        ...practitionerComplianceSelect,
+      },
     }),
     db.complaint.count({
       where: {
@@ -241,6 +247,7 @@ export async function assertPractitionerPayoutAllowed(practitionerId: string) {
   if ((practitioner?.riskScore ?? 0) >= PRACTITIONER_HIGH_RISK_SCORE) reasons.push("practitioner_high_risk");
   if (openComplaints > 0) reasons.push("open_complaints");
   if (highRiskEvents > 0) reasons.push("open_high_risk_events");
+  reasons.push(...evaluatePractitionerCommercialGate(practitioner).reasons);
 
-  return { allowed: reasons.length === 0, reasons };
+  return { allowed: reasons.length === 0, reasons: [...new Set(reasons)] };
 }

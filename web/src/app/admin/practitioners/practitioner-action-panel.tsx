@@ -15,6 +15,15 @@ interface Practitioner {
   bio: string;
   experience: string;
   verified: boolean;
+  agentOfferAcceptedAt: string | null;
+  agentOfferVersion: string | null;
+  taxStatus: string;
+  taxReviewStatus: string;
+  taxStatusVerifiedAt: string | null;
+  taxStatusRejectedReason: string | null;
+  payoutDetailsType: string | null;
+  payoutDetailsInn: string | null;
+  payoutDetailsKycStatus: string | null;
   userBlockedAt: string | null;
   commissionPercent: number;
   accruedNet: number;
@@ -61,6 +70,10 @@ export function PractitionerActionPanel({
   const [payingOut, setPayingOut] = useState(false);
   const [commissionInput, setCommissionInput] = useState(String(p.commissionPercent));
   const [savingCommission, setSavingCommission] = useState(false);
+  const [taxStatus, setTaxStatus] = useState(p.taxStatus === "UNKNOWN" ? "SELF_EMPLOYED" : p.taxStatus);
+  const [taxReviewStatus, setTaxReviewStatus] = useState(p.taxReviewStatus);
+  const [taxRejectedReason, setTaxRejectedReason] = useState(p.taxStatusRejectedReason ?? "");
+  const [savingTaxStatus, setSavingTaxStatus] = useState(false);
 
   async function callUserAction(action: string, extra: Record<string, string> = {}) {
     const res = await fetch(`/api/admin/users/${p.userId}`, {
@@ -113,8 +126,8 @@ export function PractitionerActionPanel({
 
   async function saveCommission() {
     const n = parseInt(commissionInput, 10);
-    if (!Number.isFinite(n) || n < 0 || n > 100) {
-      toast.error("Комиссия должна быть от 0 до 100");
+    if (!Number.isFinite(n) || n < 0 || n > 35) {
+      toast.error("Комиссия должна быть от 0 до 35");
       return;
     }
     setSavingCommission(true);
@@ -131,6 +144,28 @@ export function PractitionerActionPanel({
       toast.error(d.error ?? "Ошибка");
     }
     setSavingCommission(false);
+  }
+
+  async function saveTaxStatus() {
+    setSavingTaxStatus(true);
+    const res = await fetch(`/api/admin/practitioners/${p.id}/tax-status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taxStatus, taxReviewStatus, rejectedReason: taxRejectedReason }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      toast.success("Налоговый статус обновлён");
+      onUpdate({
+        taxStatus: d.taxStatus,
+        taxReviewStatus: d.taxReviewStatus,
+        taxStatusVerifiedAt: d.taxStatusVerifiedAt,
+        taxStatusRejectedReason: d.taxStatusRejectedReason,
+      } as Partial<Practitioner>);
+    } else {
+      toast.error(d.error ?? "Ошибка");
+    }
+    setSavingTaxStatus(false);
   }
 
   async function triggerPayout() {
@@ -351,7 +386,7 @@ export function PractitionerActionPanel({
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Комиссия платформы</p>
             {adminRole === "SUPERADMIN" ? (
               <div className="flex items-center gap-2">
-                <Input type="number" min="0" max="100" step="1"
+                <Input type="number" min="0" max="35" step="1"
                   value={commissionInput}
                   onChange={e => setCommissionInput(e.target.value)}
                   className="h-8 w-24 bg-card/50 text-sm" />
@@ -368,6 +403,41 @@ export function PractitionerActionPanel({
               <p className="text-sm font-medium">{p.commissionPercent}%</p>
             )}
           </div>
+
+          {can("practitioners.verify") && (
+            <div className="rounded-lg border border-border/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Налоговый статус и агентский контур</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <select value={taxStatus} onChange={e => setTaxStatus(e.target.value)}
+                  className="h-8 rounded-lg border border-border/40 bg-card/50 px-2 text-xs">
+                  <option value="SELF_EMPLOYED">Самозанятый</option>
+                  <option value="INDIVIDUAL_ENTREPRENEUR">ИП</option>
+                  <option value="LEGAL_ENTITY">ООО</option>
+                </select>
+                <select value={taxReviewStatus} onChange={e => setTaxReviewStatus(e.target.value)}
+                  className="h-8 rounded-lg border border-border/40 bg-card/50 px-2 text-xs">
+                  <option value="PENDING">Ожидает проверки</option>
+                  <option value="VERIFIED">Подтверждён</option>
+                  <option value="REJECTED">Отклонён</option>
+                  <option value="EXPIRED">Истёк</option>
+                </select>
+                <button onClick={saveTaxStatus} disabled={savingTaxStatus}
+                  className="rounded-lg bg-primary/20 px-3 py-1.5 text-xs text-primary hover:bg-primary/30 disabled:opacity-40">
+                  {savingTaxStatus ? "Сохранение…" : "Сохранить статус"}
+                </button>
+              </div>
+              <Input
+                value={taxRejectedReason}
+                onChange={e => setTaxRejectedReason(e.target.value)}
+                placeholder="Причина отказа"
+                className="mt-2 h-8 bg-card/50 text-xs"
+              />
+              <div className="mt-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
+                <p>Оферта: <span className="text-foreground">{p.agentOfferAcceptedAt ? p.agentOfferVersion ?? "принята" : "не принята"}</span></p>
+                <p>Реквизиты: <span className="text-foreground">{p.payoutDetailsType ?? "нет"} · ИНН {p.payoutDetailsInn ?? "—"} · KYC {p.payoutDetailsKycStatus ?? "—"}</span></p>
+              </div>
+            </div>
+          )}
 
           {can("practitioners.payout") && (
             <div>

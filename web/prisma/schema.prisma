@@ -9,160 +9,166 @@ datasource db {
 // ─── Users ────────────────────────────────────────────────────────────────────
 
 model User {
-  id                  String    @id @default(cuid())
-  email               String    @unique
+  id                    String    @id @default(cuid())
+  email                 String    @unique
   // B372 (M26): нормализованный e-mail для антифрода gmail-дублей
   // (точки и +suffix в local part у gmail/googlemail схлопываются).
-  normalizedEmail     String?   @map("normalized_email")
-  name                String
-  password            String
-  role                Role      @default(CLIENT)
-  emailVerified       Boolean   @default(false)
-  avatarUrl           String?
-  deletedAt           DateTime?          // deactivated at this time, purge after 10 days
-  blockedAt           DateTime?          // blocked by admin — cannot login
-  freeToolsLimit      Int?               // null = plan default (3), 0 = unlimited
-  verificationToken   String?   @unique
-  verificationExpires DateTime?
-  resetToken          String?   @unique
-  resetExpires        DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  normalizedEmail       String?   @map("normalized_email")
+  name                  String
+  password              String
+  role                  Role      @default(CLIENT)
+  emailVerified         Boolean   @default(false)
+  avatarUrl             String?
+  deletedAt             DateTime? // deactivated at this time, purge after 10 days
+  blockedAt             DateTime? // blocked by admin — cannot login
+  freeToolsLimit        Int? // null = plan default (3), 0 = unlimited
+  verificationToken     String?   @unique
+  verificationExpires   DateTime?
+  resetToken            String?   @unique
+  resetExpires          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
   practiceStreakCount   Int       @default(0) @map("practice_streak_count")
   practiceStreakLongest Int       @default(0) @map("practice_streak_longest")
   practiceLastDoneDate  DateTime? @map("practice_last_done_date")
 
   // Identity
-  provider            String?   @default("web") // "vk", "google", "web", "mobile_web", "ios", "android", "manual", "telegram", "max"
-  providerId          String?   // ID from provider (e.g., VK user_id, Google sub)
-  registrationChannel String?   // "site", "google", "vk", "telegram", "referral" — откуда пришёл
+  provider            String? @default("web") // "vk", "google", "web", "mobile_web", "ios", "android", "manual", "telegram", "max"
+  providerId          String? // ID from provider (e.g., VK user_id, Google sub)
+  registrationChannel String? // "site", "google", "vk", "telegram", "referral" — откуда пришёл
+
+  // Telegram
+  telegramId       String? @unique // Telegram chat_id (set via bot)
+  telegramUsername String? // @username
+
+  // Extended profile (for AI personalization)
+  birthDate     DateTime?
+  birthTime     String? // "14:30" — for natal chart
+  birthPlace    String? // city name
+  timezone      String? // e.g. "Europe/Moscow"
+  maritalStatus String? // single/married/divorced/etc
+  occupation    String?
+  aiGoals       String[]  @default([]) // career/relationships/selfdev/health/etc
+
+  // Relations
+  practitioner                    Practitioner?
+  bookingsAsClient                Booking[]                  @relation("BookingClient")
+  toolSessions                    ToolSession[]
+  reviewsWritten                  Review[]                   @relation("ReviewAuthor")
+  storedFiles                     StoredFile[]
+  chatMessages                    ChatMessage[]
+  notificationPrefs               NotificationPreference[]
+  notifications                   Notification[]
+  complaints                      Complaint[]                @relation("ComplaintReporter")
+  aiSessionLogs                   AISessionLog[]
+  aiGatewayRequests               AIRequest[]
+  dialogues                       Dialogue[]
+  productResults                  ProductResult[]
+  transactions                    Transaction[]
+  savedCards                      SavedCard[]
+  entitlements                    ProductEntitlement[]
+  subscriptions                   UserSubscription[]
+  creditLedgerEntries             CreditLedgerEntry[]
+  clarityCreditLedgerEntries      ClarityCreditLedgerEntry[]
+  compatibilitiesCreated          Compatibility[]            @relation("CompatibilityCreator")
+  compatibilitiesJoined           Compatibility[]            @relation("CompatibilityPartner")
+  clarityCirclesCreated           ClarityCircle[]            @relation("ClarityCircleCreator")
+  clarityCircleParticipations     ClarityCircleParticipant[]
+  clarityRoutes                   ClarityRoute[]
+  dailyCards                      DailyCard[]
+  missionProgresses               MissionProgress[]
+  shareLinks                      ShareLink[]                @relation("ShareLinkOwner")
+  referralsGiven                  ReferralAttribution[]      @relation("ReferralReferrer")
+  referralsReceived               ReferralAttribution[]      @relation("ReferralReferredUser")
+  clientAttribution               ClientAttribution?
+  byocClientLinks                 ClientPractitionerLink[]   @relation("ClientByocLinks")
+  byocInviteVisits                PractitionerInviteVisit[]
+  channelAttributions             ChannelAttribution[]
+  supportConversations            SupportConversation[]
+  bookingWaitlistEntries          BookingWaitlistEntry[]
+  companionChatSessions           CompanionChatSession[]
+  approvedManagementSpecialOrders ManagementSpecialOrder[]
 
   @@index([provider, providerId])
   @@index([email, provider])
   @@index([normalizedEmail])
-
-  // Telegram
-  telegramId          String?   @unique  // Telegram chat_id (set via bot)
-  telegramUsername    String?             // @username
-
-  // Extended profile (for AI personalization)
-  birthDate           DateTime?
-  birthTime           String?             // "14:30" — for natal chart
-  birthPlace          String?             // city name
-  timezone            String?             // e.g. "Europe/Moscow"
-  maritalStatus       String?             // single/married/divorced/etc
-  occupation          String?
-  aiGoals             String[]  @default([]) // career/relationships/selfdev/health/etc
-
-  // Relations
-  practitioner        Practitioner?
-  bookingsAsClient    Booking[]     @relation("BookingClient")
-  toolSessions        ToolSession[]
-  reviewsWritten      Review[]      @relation("ReviewAuthor")
-  storedFiles         StoredFile[]
-  chatMessages        ChatMessage[]
-  notificationPrefs   NotificationPreference[]
-  notifications       Notification[]
-  complaints          Complaint[]           @relation("ComplaintReporter")
-  aiSessionLogs       AISessionLog[]
-  aiGatewayRequests   AIRequest[]
-  dialogues           Dialogue[]
-  productResults      ProductResult[]
-  transactions        Transaction[]
-  savedCards          SavedCard[]
-  entitlements        ProductEntitlement[]
-  subscriptions       UserSubscription[]
-  creditLedgerEntries CreditLedgerEntry[]
-  clarityCreditLedgerEntries ClarityCreditLedgerEntry[]
-  compatibilitiesCreated Compatibility[] @relation("CompatibilityCreator")
-  compatibilitiesJoined  Compatibility[] @relation("CompatibilityPartner")
-  clarityCirclesCreated ClarityCircle[] @relation("ClarityCircleCreator")
-  clarityCircleParticipations ClarityCircleParticipant[]
-  clarityRoutes          ClarityRoute[]
-  dailyCards             DailyCard[]
-  missionProgresses      MissionProgress[]
-  shareLinks             ShareLink[] @relation("ShareLinkOwner")
-  referralsGiven         ReferralAttribution[] @relation("ReferralReferrer")
-  referralsReceived      ReferralAttribution[] @relation("ReferralReferredUser")
-  clientAttribution      ClientAttribution?
-  byocClientLinks        ClientPractitionerLink[] @relation("ClientByocLinks")
-  byocInviteVisits       PractitionerInviteVisit[]
-  channelAttributions    ChannelAttribution[]
-  supportConversations   SupportConversation[]
-  bookingWaitlistEntries BookingWaitlistEntry[]
-  companionChatSessions  CompanionChatSession[]
-  approvedManagementSpecialOrders ManagementSpecialOrder[]
-
   @@map("users")
 }
 
 enum Role {
   CLIENT
   PRACTITIONER
-  ADMIN        // Базовый администратор: одобрение практиков, работа с жалобами
-  SUPERADMIN   // Полный доступ: система, выплаты, все данные, метрики
+  ADMIN // Базовый администратор: одобрение практиков, работа с жалобами
+  SUPERADMIN // Полный доступ: система, выплаты, все данные, метрики
 }
 
 // ─── Practitioners ────────────────────────────────────────────────────────────
 
 model Practitioner {
-  id              String              @id @default(cuid())
-  slug            String              @unique @default("pending")  // "anna-ivanova", "elena-petrova-2"
-  userId          String              @unique
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  slug   String @unique @default("pending") // "anna-ivanova", "elena-petrova-2"
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  status          PractitionerStatus  @default(PENDING)
-  title           String              // "Таролог · Астролог"
-  bio             String
-  experience      String              // "5 лет"
-  pricePerSession   Int                 // RUB
-  sessionDuration   Int                 @default(60) // минут: 30, 45, 60, 90
-  commissionPercent Int                 @default(35) // effective % комиссии платформы
-  baseCommissionPercent Int             @default(35)
-  commissionOverride Int?
-  commissionSource String               @default("base") // base | subscription_pro | subscription_pro_plus | override
-  commissionSyncedAt DateTime?
-  byocCommissionPercent Int             @default(14)
-  isFoundingCohort Boolean              @default(false)
-  foundingUntil DateTime?
-  languages         String[]            @default(["Русский"])
-  verified        Boolean             @default(false)
-  verifiedAt      DateTime?           // V9: timestamp when verification was approved
-  founding        Boolean             @default(false)
-  riskScore       Int                 @default(0) @map("risk_score")
-  riskFlags       String[]            @default([]) @map("risk_flags")
-  riskReviewedAt  DateTime?           @map("risk_reviewed_at")
-  specialties     Specialty[]
-  categories      String[]            @default([]) // W3: level-1 taxonomy ids (psychology, coaching, legal, finance, esoteric, joint)
-  directions      String[]            @default([]) // W3: level-2 taxonomy ids (cbt, gestalt, family-law, tarot…)
-  tags            String[]            @default([]) // W3: level-3 задачи (тревога, развод, инвестиции…)
+  status                  PractitionerStatus          @default(PENDING)
+  title                   String // "Таролог · Астролог"
+  bio                     String
+  experience              String // "5 лет"
+  pricePerSession         Int // RUB
+  sessionDuration         Int                         @default(60) // минут: 30, 45, 60, 90
+  commissionPercent       Int                         @default(35) // effective % комиссии платформы
+  baseCommissionPercent   Int                         @default(35)
+  commissionOverride      Int?
+  commissionSource        String                      @default("base") // base | subscription_pro | subscription_pro_plus | override
+  commissionSyncedAt      DateTime?
+  byocCommissionPercent   Int                         @default(14)
+  isFoundingCohort        Boolean                     @default(false)
+  foundingUntil           DateTime?
+  languages               String[]                    @default(["Русский"])
+  verified                Boolean                     @default(false)
+  verifiedAt              DateTime? // V9: timestamp when verification was approved
+  agentOfferAcceptedAt    DateTime?                   @map("agent_offer_accepted_at")
+  agentOfferVersion       String?                     @map("agent_offer_version")
+  taxStatus               PractitionerTaxStatus       @default(UNKNOWN) @map("tax_status")
+  taxReviewStatus         PractitionerTaxReviewStatus @default(PENDING) @map("tax_review_status")
+  taxStatusVerifiedAt     DateTime?                   @map("tax_status_verified_at")
+  taxStatusRejectedReason String?                     @map("tax_status_rejected_reason")
+  founding                Boolean                     @default(false)
+  riskScore               Int                         @default(0) @map("risk_score")
+  riskFlags               String[]                    @default([]) @map("risk_flags")
+  riskReviewedAt          DateTime?                   @map("risk_reviewed_at")
+  specialties             Specialty[]
+  categories              String[]                    @default([]) // W3: level-1 taxonomy ids (psychology, coaching, legal, finance, esoteric, joint)
+  directions              String[]                    @default([]) // W3: level-2 taxonomy ids (cbt, gestalt, family-law, tarot…)
+  tags                    String[]                    @default([]) // W3: level-3 задачи (тревога, развод, инвестиции…)
 
   // Рейтинг (денормализован для скорости)
-  ratingSum       Float               @default(0)
-  reviewCount     Int                 @default(0)
-  sessionCount    Int                 @default(0)
+  ratingSum     Float     @default(0)
+  reviewCount   Int       @default(0)
+  sessionCount  Int       @default(0)
   // B359 / Интерфейс 11: when the practitioner last opened /practitioner/reviews.
   // The sidebar «новых отзывов» badge counts reviews created after this, so it
   // resets to 0 once they've been seen (was a rolling 14-day window that never
   // cleared). NULL = never opened → fall back to a 14-day window.
-  reviewsSeenAt   DateTime?
+  reviewsSeenAt DateTime?
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  slots           TimeSlot[]
-  bookings        Booking[]           @relation("BookingPractitioner")
-  reviews         Review[]            @relation("ReviewPractitioner")
-  scheduleRules   ScheduleRule[]
-  blockedSlots    BlockedSlot[]
-  priceRates      PriceRate[]
-  payouts         Payout[]
-  payoutDetails   PayoutDetails?
-  invites         PractitionerInvite[]
-  byocClientLinks ClientPractitionerLink[]
-  clientAttributions ClientAttribution[] @relation("ClientAttributionPractitioner")
-  referredBookings Booking[]            @relation("BookingReferrerPractitioner")
+  slots                  TimeSlot[]
+  bookings               Booking[]                @relation("BookingPractitioner")
+  reviews                Review[]                 @relation("ReviewPractitioner")
+  scheduleRules          ScheduleRule[]
+  blockedSlots           BlockedSlot[]
+  priceRates             PriceRate[]
+  payouts                Payout[]
+  payoutDetails          PayoutDetails?
+  agentReports           AgentReport[]
+  invites                PractitionerInvite[]
+  byocClientLinks        ClientPractitionerLink[]
+  clientAttributions     ClientAttribution[]      @relation("ClientAttributionPractitioner")
+  referredBookings       Booking[]                @relation("BookingReferrerPractitioner")
   bookingWaitlistEntries BookingWaitlistEntry[]
 
   @@map("practitioners")
@@ -172,15 +178,15 @@ model Practitioner {
 
 // Стандартное расписание: когда практик работает по умолчанию
 model ScheduleRule {
-  id              String       @id @default(cuid())
-  practitionerId  String
-  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
-  dayOfWeek       Int          // 0=вс, 1=пн, ... 6=сб
-  startHour       Int          // 0-23
-  startMinute     Int          @default(0)
-  endHour         Int
-  endMinute       Int          @default(0)
-  enabled         Boolean      @default(true)
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int // 0=вс, 1=пн, ... 6=сб
+  startHour      Int // 0-23
+  startMinute    Int          @default(0)
+  endHour        Int
+  endMinute      Int          @default(0)
+  enabled        Boolean      @default(true)
 
   @@unique([practitionerId, dayOfWeek])
   @@index([practitionerId])
@@ -189,11 +195,11 @@ model ScheduleRule {
 
 // Заблокированные слоты (практик закрыл время)
 model BlockedSlot {
-  id              String       @id @default(cuid())
-  practitionerId  String
-  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
-  startAt         DateTime
-  endAt           DateTime
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  startAt        DateTime
+  endAt          DateTime
 
   @@index([practitionerId, startAt])
   @@map("blocked_slots")
@@ -203,12 +209,12 @@ model BlockedSlot {
 
 // Тарифная сетка практика
 model PriceRate {
-  id              String       @id @default(cuid())
-  practitionerId  String
-  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
-  durationMin     Int          // 15, 30, 45, 60, 90, 120
-  priceRub        Int
-  enabled         Boolean      @default(true)
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  durationMin    Int // 15, 30, 45, 60, 90, 120
+  priceRub       Int
+  enabled        Boolean      @default(true)
 
   @@unique([practitionerId, durationMin])
   @@index([practitionerId])
@@ -216,10 +222,24 @@ model PriceRate {
 }
 
 enum PractitionerStatus {
-  PENDING      // Заявка подана
-  ACTIVE       // Активен
-  SUSPENDED    // Приостановлен
-  BLOCKED      // Заблокирован
+  PENDING // Заявка подана
+  ACTIVE // Активен
+  SUSPENDED // Приостановлен
+  BLOCKED // Заблокирован
+}
+
+enum PractitionerTaxStatus {
+  UNKNOWN
+  SELF_EMPLOYED
+  INDIVIDUAL_ENTREPRENEUR
+  LEGAL_ENTITY
+}
+
+enum PractitionerTaxReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
 }
 
 enum Specialty {
@@ -238,13 +258,13 @@ model TimeSlot {
   practitionerId String
   practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
 
-  startAt        DateTime
-  endAt          DateTime
-  available      Boolean      @default(true)
-  visibleFrom    DateTime?    @map("visible_from")
-  earlyAccessFrom DateTime?   @map("early_access_from")
+  startAt         DateTime
+  endAt           DateTime
+  available       Boolean   @default(true)
+  visibleFrom     DateTime? @map("visible_from")
+  earlyAccessFrom DateTime? @map("early_access_from")
 
-  booking        Booking?
+  booking         Booking?
   waitlistEntries BookingWaitlistEntry[]
 
   @@index([practitionerId, startAt])
@@ -255,51 +275,51 @@ model TimeSlot {
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 
 model Booking {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   clientId       String
-  client         User          @relation("BookingClient", fields: [clientId], references: [id])
+  client         User         @relation("BookingClient", fields: [clientId], references: [id])
   practitionerId String
-  practitioner   Practitioner  @relation("BookingPractitioner", fields: [practitionerId], references: [id])
-  slotId         String?       @unique
-  slot           TimeSlot?     @relation(fields: [slotId], references: [id])
+  practitioner   Practitioner @relation("BookingPractitioner", fields: [practitionerId], references: [id])
+  slotId         String?      @unique
+  slot           TimeSlot?    @relation(fields: [slotId], references: [id])
 
-  status         BookingStatus @default(PENDING)
-  priceRub       Int
+  status                   BookingStatus @default(PENDING)
+  priceRub                 Int
   // B379 (M26): «контекст встречи» — с чем клиент хочет разобраться. Задаётся
   // клиентом при первой записи к специалисту (перенос из диалога или ручной
   // ввод); виден только клиенту, назначенному специалисту и админам.
-  meetingContext String?       @map("meeting_context")
-  source         ClientSource  @default(PLATFORM)
-  referrerPractitionerId String?
-  referrerPractitioner   Practitioner? @relation("BookingReferrerPractitioner", fields: [referrerPractitionerId], references: [id])
+  meetingContext           String?       @map("meeting_context")
+  source                   ClientSource  @default(PLATFORM)
+  referrerPractitionerId   String?
+  referrerPractitioner     Practitioner? @relation("BookingReferrerPractitioner", fields: [referrerPractitionerId], references: [id])
   commissionPercentApplied Int?
-  priority       Int           @default(0)
-  paymentId      String?       @unique  // ЮKassa / Stripe payment ID
-  paymentMethod  String?       // "yukassa" | "stripe"
-  ipHash         String?       @map("ip_hash")
-  userAgentHash  String?       @map("user_agent_hash")
-  deviceHash     String?       @map("device_hash")
-  riskScore      Int           @default(0) @map("risk_score")
-  riskFlags      String[]      @default([]) @map("risk_flags")
-  riskReviewedAt DateTime?     @map("risk_reviewed_at")
+  priority                 Int           @default(0)
+  paymentId                String?       @unique // ЮKassa / Stripe payment ID
+  paymentMethod            String? // "yukassa" | "stripe"
+  ipHash                   String?       @map("ip_hash")
+  userAgentHash            String?       @map("user_agent_hash")
+  deviceHash               String?       @map("device_hash")
+  riskScore                Int           @default(0) @map("risk_score")
+  riskFlags                String[]      @default([]) @map("risk_flags")
+  riskReviewedAt           DateTime?     @map("risk_reviewed_at")
 
   // Видеосессия
-  roomId         String?       // LiveKit room ID
-  startedAt      DateTime?
-  endedAt        DateTime?
+  roomId    String? // LiveKit room ID
+  startedAt DateTime?
+  endedAt   DateTime?
 
   // Напоминания (cron)
-  reminder24hSent Boolean      @default(false)
-  reminder1hSent  Boolean      @default(false)
+  reminder24hSent Boolean @default(false)
+  reminder1hSent  Boolean @default(false)
 
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  review         Review?
-  videoSession   VideoSession?
-  complaints     Complaint[]
-  payment        Payment?
-  payouts        Payout[]
+  review                  Review?
+  videoSession            VideoSession?
+  complaints              Complaint[]
+  payment                 Payment?
+  payouts                 Payout[]
   promotedWaitlistEntries BookingWaitlistEntry[] @relation("WaitlistPromotedBooking")
 
   @@index([clientId])
@@ -319,14 +339,14 @@ enum ClientSource {
 }
 
 enum BookingStatus {
-  PENDING      // Ожидает подтверждения
-  CONFIRMED    // Подтверждена
-  IN_PROGRESS  // Сессия идёт
-  COMPLETED    // Завершена, деньги удержаны
-  CANCELLED    // Отменена
-  DISPUTED     // Жалоба подана
-  REFUNDED     // Возврат
-  EXPIRED      // Пропущена (не явился)
+  PENDING // Ожидает подтверждения
+  CONFIRMED // Подтверждена
+  IN_PROGRESS // Сессия идёт
+  COMPLETED // Завершена, деньги удержаны
+  CANCELLED // Отменена
+  DISPUTED // Жалоба подана
+  REFUNDED // Возврат
+  EXPIRED // Пропущена (не явился)
 }
 
 enum WaitlistStatus {
@@ -337,23 +357,23 @@ enum WaitlistStatus {
 }
 
 model BookingWaitlistEntry {
-  id             String         @id @default(cuid())
-  clientId       String
-  client         User           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  practitionerId String
-  practitioner   Practitioner   @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
-  slotId         String?
-  slot           TimeSlot?      @relation(fields: [slotId], references: [id], onDelete: SetNull)
-  startAt        DateTime       @map("start_at")
-  endAt          DateTime       @map("end_at")
-  status         WaitlistStatus @default(ACTIVE)
-  priority       Int            @default(0)
-  planKey        String?        @map("plan_key")
-  promotedBookingId String?     @map("promoted_booking_id")
-  promotedBooking Booking?      @relation("WaitlistPromotedBooking", fields: [promotedBookingId], references: [id], onDelete: SetNull)
-  promotedAt     DateTime?      @map("promoted_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id                String         @id @default(cuid())
+  clientId          String
+  client            User           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  practitionerId    String
+  practitioner      Practitioner   @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  slotId            String?
+  slot              TimeSlot?      @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  startAt           DateTime       @map("start_at")
+  endAt             DateTime       @map("end_at")
+  status            WaitlistStatus @default(ACTIVE)
+  priority          Int            @default(0)
+  planKey           String?        @map("plan_key")
+  promotedBookingId String?        @map("promoted_booking_id")
+  promotedBooking   Booking?       @relation("WaitlistPromotedBooking", fields: [promotedBookingId], references: [id], onDelete: SetNull)
+  promotedAt        DateTime?      @map("promoted_at")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
 
   @@unique([clientId, practitionerId, startAt, endAt, status], map: "booking_waitlist_client_window_status_key")
   @@index([clientId, status, startAt])
@@ -374,13 +394,13 @@ model Review {
   practitionerId String
   practitioner   Practitioner @relation("ReviewPractitioner", fields: [practitionerId], references: [id])
 
-  rating         Int          // 1-5
-  text           String?
-  status         String       @default("PUBLISHED") // PUBLISHED | REVIEW | HIDDEN
-  riskScore      Int          @default(0) @map("risk_score")
-  riskFlags      String[]     @default([]) @map("risk_flags")
-  metadata       Json?
-  createdAt      DateTime     @default(now())
+  rating    Int // 1-5
+  text      String?
+  status    String   @default("PUBLISHED") // PUBLISHED | REVIEW | HIDDEN
+  riskScore Int      @default(0) @map("risk_score")
+  riskFlags String[] @default([]) @map("risk_flags")
+  metadata  Json?
+  createdAt DateTime @default(now())
 
   @@index([practitionerId])
   @@index([status, createdAt])
@@ -391,39 +411,39 @@ model Review {
 // ─── Video Sessions & Chat ────────────────────────────────────────────────────
 
 model VideoSession {
-  id              String        @id @default(cuid())
-  bookingId       String        @unique
-  booking         Booking       @relation(fields: [bookingId], references: [id])
-  roomName        String        @unique  // LiveKit room name
-  status          VideoStatus   @default(WAITING)
-  startedAt       DateTime?
-  endedAt         DateTime?
-  recordingUrl    String?       // path to recording file
-  recordingExpiry DateTime?     // 24h TTL
-  recordingEgressId String?      @map("recording_egress_id")
-  recordingConsentClientAt DateTime? @map("recording_consent_client_at")
-  recordingConsentPractitionerAt DateTime? @map("recording_consent_practitioner_at")
-  serverSttStatus String        @default("not_requested") @map("server_stt_status")
-  serverSttJobId  String?       @map("server_stt_job_id")
-  serverSttEgressId String?     @map("server_stt_egress_id")
-  serverSttAudioUrl String?     @map("server_stt_audio_url")
-  serverSttAudioExpiresAt DateTime? @map("server_stt_audio_expires_at")
-  transcriptText  String?       // full transcript after session
-  summaryText     String?       // AI summary for practitioner
-  clientFollowupDraft String?   @map("client_followup_draft")
-  practitionerNotesText String? @map("practitioner_notes_text")
-  transcriptMetadata Json?      @map("transcript_metadata")
-  summaryMetadata Json?         @map("summary_metadata")
-  transcriptExpiresAt DateTime? @map("transcript_expires_at")
-  summaryExpiresAt DateTime?    @map("summary_expires_at")
-  complianceStatus String       @default("not_reviewed") @map("compliance_status")
-  complianceRiskScore Int       @default(0) @map("compliance_risk_score")
-  complianceEvidence Json?      @map("compliance_evidence")
-  complianceEvidenceExpiresAt DateTime? @map("compliance_evidence_expires_at")
-  complianceReviewedAt DateTime? @map("compliance_reviewed_at")
-  createdAt       DateTime      @default(now())
+  id                             String      @id @default(cuid())
+  bookingId                      String      @unique
+  booking                        Booking     @relation(fields: [bookingId], references: [id])
+  roomName                       String      @unique // LiveKit room name
+  status                         VideoStatus @default(WAITING)
+  startedAt                      DateTime?
+  endedAt                        DateTime?
+  recordingUrl                   String? // path to recording file
+  recordingExpiry                DateTime? // 24h TTL
+  recordingEgressId              String?     @map("recording_egress_id")
+  recordingConsentClientAt       DateTime?   @map("recording_consent_client_at")
+  recordingConsentPractitionerAt DateTime?   @map("recording_consent_practitioner_at")
+  serverSttStatus                String      @default("not_requested") @map("server_stt_status")
+  serverSttJobId                 String?     @map("server_stt_job_id")
+  serverSttEgressId              String?     @map("server_stt_egress_id")
+  serverSttAudioUrl              String?     @map("server_stt_audio_url")
+  serverSttAudioExpiresAt        DateTime?   @map("server_stt_audio_expires_at")
+  transcriptText                 String? // full transcript after session
+  summaryText                    String? // AI summary for practitioner
+  clientFollowupDraft            String?     @map("client_followup_draft")
+  practitionerNotesText          String?     @map("practitioner_notes_text")
+  transcriptMetadata             Json?       @map("transcript_metadata")
+  summaryMetadata                Json?       @map("summary_metadata")
+  transcriptExpiresAt            DateTime?   @map("transcript_expires_at")
+  summaryExpiresAt               DateTime?   @map("summary_expires_at")
+  complianceStatus               String      @default("not_reviewed") @map("compliance_status")
+  complianceRiskScore            Int         @default(0) @map("compliance_risk_score")
+  complianceEvidence             Json?       @map("compliance_evidence")
+  complianceEvidenceExpiresAt    DateTime?   @map("compliance_evidence_expires_at")
+  complianceReviewedAt           DateTime?   @map("compliance_reviewed_at")
+  createdAt                      DateTime    @default(now())
 
-  messages        ChatMessage[]
+  messages ChatMessage[]
 
   @@index([bookingId])
   @@index([recordingEgressId])
@@ -437,23 +457,23 @@ model VideoSession {
 }
 
 enum VideoStatus {
-  WAITING     // room created, not started
-  ACTIVE      // session in progress
-  ENDED       // session finished
-  RECORDING   // post-processing recording
+  WAITING // room created, not started
+  ACTIVE // session in progress
+  ENDED // session finished
+  RECORDING // post-processing recording
 }
 
 model ChatMessage {
-  id            String       @id @default(cuid())
+  id             String       @id @default(cuid())
   videoSessionId String
-  videoSession  VideoSession @relation(fields: [videoSessionId], references: [id], onDelete: Cascade)
-  senderId      String
-  sender        User         @relation(fields: [senderId], references: [id])
-  text          String?
-  fileUrl       String?      // uploaded file path
-  fileName      String?
-  fileMime      String?
-  createdAt     DateTime     @default(now())
+  videoSession   VideoSession @relation(fields: [videoSessionId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  text           String?
+  fileUrl        String? // uploaded file path
+  fileName       String?
+  fileMime       String?
+  createdAt      DateTime     @default(now())
 
   @@index([videoSessionId, createdAt])
   @@map("chat_messages")
@@ -462,13 +482,13 @@ model ChatMessage {
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String                    // actor (who did it)
-  targetId    String?                   // target user id
-  action      String                    // LOGIN, LOGOUT, PROFILE_UPDATE, PASSWORD_RESET, etc.
-  details     String?                   // JSON details
-  ip          String?
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String // actor (who did it)
+  targetId  String? // target user id
+  action    String // LOGIN, LOGOUT, PROFILE_UPDATE, PASSWORD_RESET, etc.
+  details   String? // JSON details
+  ip        String?
+  createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
   @@index([targetId, createdAt])
@@ -478,22 +498,22 @@ model AuditLog {
 // ─── Cross-Border AI Legal Controls ──────────────────────────────────────────
 
 model ManagementSpecialOrder {
-  id                 String                       @id @default(cuid())
-  orderNumber        String                       @unique @map("order_number")
-  orderDate          DateTime                     @map("order_date")
-  initiator          String
-  reason             String                       @db.Text
-  legalBasis         String                       @map("legal_basis") @db.Text
-  riskAssessment     String                       @map("risk_assessment") @db.Text
-  allowedProviders   AIProvider[]                 @default([]) @map("allowed_providers")
-  allowedScenarios   String[]                     @default([]) @map("allowed_scenarios")
-  validFrom          DateTime                     @map("valid_from")
-  validTo            DateTime                     @map("valid_to")
-  status             ManagementSpecialOrderStatus @default(DRAFT)
-  approvedById       String?                      @map("approved_by")
-  approvedBy         User?                        @relation(fields: [approvedById], references: [id], onDelete: SetNull)
-  createdAt          DateTime                     @default(now()) @map("created_at")
-  updatedAt          DateTime                     @updatedAt @map("updated_at")
+  id               String                       @id @default(cuid())
+  orderNumber      String                       @unique @map("order_number")
+  orderDate        DateTime                     @map("order_date")
+  initiator        String
+  reason           String                       @db.Text
+  legalBasis       String                       @map("legal_basis") @db.Text
+  riskAssessment   String                       @map("risk_assessment") @db.Text
+  allowedProviders AIProvider[]                 @default([]) @map("allowed_providers")
+  allowedScenarios String[]                     @default([]) @map("allowed_scenarios")
+  validFrom        DateTime                     @map("valid_from")
+  validTo          DateTime                     @map("valid_to")
+  status           ManagementSpecialOrderStatus @default(DRAFT)
+  approvedById     String?                      @map("approved_by")
+  approvedBy       User?                        @relation(fields: [approvedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime                     @default(now()) @map("created_at")
+  updatedAt        DateTime                     @updatedAt @map("updated_at")
 
   @@index([status, validFrom, validTo])
   @@map("management_special_orders")
@@ -596,10 +616,10 @@ model WebhookEvent {
 // ─── Moderator Permissions ────────────────────────────────────────────────────
 
 model ModeratorPermission {
-  id           String  @id @default(cuid())
-  moderatorId  String
-  permission   String  // e.g. "clients.view", "clients.edit", "practitioners.create"
-  granted      Boolean @default(true)
+  id          String  @id @default(cuid())
+  moderatorId String
+  permission  String // e.g. "clients.view", "clients.edit", "practitioners.create"
+  granted     Boolean @default(true)
 
   @@unique([moderatorId, permission])
   @@map("moderator_permissions")
@@ -633,27 +653,27 @@ model Complaint {
 }
 
 enum ComplaintReason {
-  PRACTITIONER_NO_SHOW     // Практик не явился
-  ETHICAL_VIOLATION        // Нарушение этического кодекса
-  MANIPULATION             // Запугивание/манипуляции
-  TECHNICAL_ISSUE          // Технический сбой
-  EARLY_TERMINATION        // Сессия закончилась раньше времени
-  PAYMENT_ISSUE            // Проблема с оплатой
-  OTHER                    // Другое
+  PRACTITIONER_NO_SHOW // Практик не явился
+  ETHICAL_VIOLATION // Нарушение этического кодекса
+  MANIPULATION // Запугивание/манипуляции
+  TECHNICAL_ISSUE // Технический сбой
+  EARLY_TERMINATION // Сессия закончилась раньше времени
+  PAYMENT_ISSUE // Проблема с оплатой
+  OTHER // Другое
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 
 // Какие уведомления получать и через какой канал
 model NotificationPreference {
-  id          String              @id @default(cuid())
-  userId      String
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  event       NotificationEvent
-  channel     NotificationChannel
-  enabled     Boolean             @default(true)
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event             NotificationEvent
+  channel           NotificationChannel
+  enabled           Boolean             @default(true)
   // Для событий типа "напомни за N часов"
-  remindBeforeHours Int?          // null = нет напоминания, 24 = за сутки, 1 = за час
+  remindBeforeHours Int? // null = нет напоминания, 24 = за сутки, 1 = за час
 
   @@unique([userId, event, channel])
   @@index([userId])
@@ -661,44 +681,44 @@ model NotificationPreference {
 }
 
 enum NotificationEvent {
-  BOOKING_REQUESTED      // Новое бронирование (для практика)
-  BOOKING_CONFIRMED      // Бронирование подтверждено (для клиента)
-  BOOKING_CANCELLED      // Бронирование отменено
-  BOOKING_REMINDER       // Напоминание о предстоящей сессии
-  SESSION_STARTED        // Сессия началась
-  SESSION_COMPLETED      // Сессия завершена
-  REVIEW_REQUESTED       // Просьба оставить отзыв
-  NEW_REVIEW             // Новый отзыв (для практика)
-  PAYMENT_RECEIVED       // Платёж получен
-  PAYOUT_SCHEDULED       // Запланированная выплата практикам (для superadmin)
-  BALANCE_TOPUP          // Пополнение баланса (для клиента/практика)
-  PRODUCT_UNLOCKED       // Платный продукт открыт
-  SUBSCRIPTION_STARTED   // Подписка активирована
-  SUBSCRIPTION_RENEWAL   // Скоро автопродление подписки (за 3 дня)
+  BOOKING_REQUESTED // Новое бронирование (для практика)
+  BOOKING_CONFIRMED // Бронирование подтверждено (для клиента)
+  BOOKING_CANCELLED // Бронирование отменено
+  BOOKING_REMINDER // Напоминание о предстоящей сессии
+  SESSION_STARTED // Сессия началась
+  SESSION_COMPLETED // Сессия завершена
+  REVIEW_REQUESTED // Просьба оставить отзыв
+  NEW_REVIEW // Новый отзыв (для практика)
+  PAYMENT_RECEIVED // Платёж получен
+  PAYOUT_SCHEDULED // Запланированная выплата практикам (для superadmin)
+  BALANCE_TOPUP // Пополнение баланса (для клиента/практика)
+  PRODUCT_UNLOCKED // Платный продукт открыт
+  SUBSCRIPTION_STARTED // Подписка активирована
+  SUBSCRIPTION_RENEWAL // Скоро автопродление подписки (за 3 дня)
   SUBSCRIPTION_CANCELLED // Подписка отменена
   SUBSCRIPTION_PAYMENT_FAILED // Платеж подписки не прошел
-  CARD_LINKED            // Новая карта привязана
-  CARD_REMOVED           // Карта отвязана
-  DAILY_CARD             // Ежедневная карта ясности
-  ABANDONED_CHECKOUT     // Незавершенная оплата
-  REPORT_READY           // Платный отчет готов
-  PARTNER_COMPLETED      // Второй участник завершил свою часть
-  CIRCLE_READY           // Круг ясности готов
-  ROUTE_REMINDER         // Напоминание по маршруту ясности
-  WEEKLY_DIGEST          // Недельный дайджест клиента
-  PRACTITIONER_DIGEST    // Дайджест специалиста
-  COMPLIANCE_ALERT       // Комплаенс-сигнал для админа/модератора
-  CREDITS_EXPIRING       // Кредиты скоро сгорят
-  STREAK_AT_RISK         // Практический стрик под риском
-  MOMENT_OF_NEED         // Мягкое возвращение в момент нужды
-  WELCOME_CREDITS        // Приветственные кредиты начислены
+  CARD_LINKED // Новая карта привязана
+  CARD_REMOVED // Карта отвязана
+  DAILY_CARD // Ежедневная карта ясности
+  ABANDONED_CHECKOUT // Незавершенная оплата
+  REPORT_READY // Платный отчет готов
+  PARTNER_COMPLETED // Второй участник завершил свою часть
+  CIRCLE_READY // Круг ясности готов
+  ROUTE_REMINDER // Напоминание по маршруту ясности
+  WEEKLY_DIGEST // Недельный дайджест клиента
+  PRACTITIONER_DIGEST // Дайджест специалиста
+  COMPLIANCE_ALERT // Комплаенс-сигнал для админа/модератора
+  CREDITS_EXPIRING // Кредиты скоро сгорят
+  STREAK_AT_RISK // Практический стрик под риском
+  MOMENT_OF_NEED // Мягкое возвращение в момент нужды
+  WELCOME_CREDITS // Приветственные кредиты начислены
   WELCOME_CREDITS_REMINDER // Напоминание о приветственных кредитах
 }
 
 enum NotificationChannel {
   EMAIL
   TELEGRAM
-  WEB          // Уведомление в дропдауне кабинета (колокольчик)
+  WEB // Уведомление в дропдауне кабинета (колокольчик)
 }
 
 // Запись событий для WEB-канала: показываются в дропдауне колокольчика.
@@ -709,7 +729,7 @@ model Notification {
   event     NotificationEvent
   title     String
   body      String
-  href      String?           // deep-link
+  href      String? // deep-link
   readAt    DateTime?
   createdAt DateTime          @default(now())
 
@@ -718,19 +738,19 @@ model Notification {
 }
 
 model DailyCard {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cardDate  DateTime @map("card_date")
-  title     String
-  body      String
-  prompt    String
-  metadata  Json?
-  sharedAt  DateTime? @map("shared_at")
-  completedAt DateTime? @map("completed_at")
-  reflectionText String? @map("reflection_text")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String    @id @default(cuid())
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardDate       DateTime  @map("card_date")
+  title          String
+  body           String
+  prompt         String
+  metadata       Json?
+  sharedAt       DateTime? @map("shared_at")
+  completedAt    DateTime? @map("completed_at")
+  reflectionText String?   @map("reflection_text")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@unique([userId, cardDate])
   @@index([userId, createdAt])
@@ -738,23 +758,23 @@ model DailyCard {
 }
 
 model ShareLink {
-  id             String   @id @default(cuid())
-  token          String   @unique
-  ownerUserId    String?  @map("owner_user_id")
-  owner          User?    @relation("ShareLinkOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  sourceType     String   @map("source_type")
-  sourceId       String?  @map("source_id")
-  sourceLabel    String?  @map("source_label")
-  topic          String?
-  previewText    String   @map("preview_text")
-  hideQuestion   Boolean  @default(true) @map("hide_question")
-  showWatermark  Boolean  @default(true) @map("show_watermark")
-  openedCount    Int      @default(0) @map("opened_count")
-  lastOpenedAt   DateTime? @map("last_opened_at")
-  revokedAt      DateTime? @map("revoked_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  referrals      ReferralAttribution[]
+  id            String                @id @default(cuid())
+  token         String                @unique
+  ownerUserId   String?               @map("owner_user_id")
+  owner         User?                 @relation("ShareLinkOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  sourceType    String                @map("source_type")
+  sourceId      String?               @map("source_id")
+  sourceLabel   String?               @map("source_label")
+  topic         String?
+  previewText   String                @map("preview_text")
+  hideQuestion  Boolean               @default(true) @map("hide_question")
+  showWatermark Boolean               @default(true) @map("show_watermark")
+  openedCount   Int                   @default(0) @map("opened_count")
+  lastOpenedAt  DateTime?             @map("last_opened_at")
+  revokedAt     DateTime?             @map("revoked_at")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  updatedAt     DateTime              @updatedAt @map("updated_at")
+  referrals     ReferralAttribution[]
 
   @@index([ownerUserId, createdAt])
   @@index([sourceType, sourceId])
@@ -762,27 +782,27 @@ model ShareLink {
 }
 
 model ReferralAttribution {
-  id                 String   @id @default(cuid())
-  shareLinkId        String?  @map("share_link_id")
+  id                 String     @id @default(cuid())
+  shareLinkId        String?    @map("share_link_id")
   shareLink          ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
-  referrerUserId     String?  @map("referrer_user_id")
-  referrer           User?    @relation("ReferralReferrer", fields: [referrerUserId], references: [id], onDelete: SetNull)
-  referredUserId     String?  @map("referred_user_id")
-  referredUser       User?    @relation("ReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
-  visitorHash        String   @map("visitor_hash")
-  source             String   @default("share")
-  status             String   @default("OPENED") // OPENED | REGISTERED | REWARDED | BLOCKED
-  blockedReason      String?  @map("blocked_reason")
-  riskScore          Int      @default(0) @map("risk_score")
-  riskFlags          String[] @default([]) @map("risk_flags")
-  ipHash             String?  @map("ip_hash")
-  userAgentHash      String?  @map("user_agent_hash")
-  deviceHash         String?  @map("device_hash")
-  meaningfulActionAt DateTime? @map("meaningful_action_at")
-  rewardGrantedAt    DateTime? @map("reward_granted_at")
+  referrerUserId     String?    @map("referrer_user_id")
+  referrer           User?      @relation("ReferralReferrer", fields: [referrerUserId], references: [id], onDelete: SetNull)
+  referredUserId     String?    @map("referred_user_id")
+  referredUser       User?      @relation("ReferralReferredUser", fields: [referredUserId], references: [id], onDelete: SetNull)
+  visitorHash        String     @map("visitor_hash")
+  source             String     @default("share")
+  status             String     @default("OPENED") // OPENED | REGISTERED | REWARDED | BLOCKED
+  blockedReason      String?    @map("blocked_reason")
+  riskScore          Int        @default(0) @map("risk_score")
+  riskFlags          String[]   @default([]) @map("risk_flags")
+  ipHash             String?    @map("ip_hash")
+  userAgentHash      String?    @map("user_agent_hash")
+  deviceHash         String?    @map("device_hash")
+  meaningfulActionAt DateTime?  @map("meaningful_action_at")
+  rewardGrantedAt    DateTime?  @map("reward_granted_at")
   metadata           Json?
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
 
   @@unique([shareLinkId, visitorHash])
   @@index([referrerUserId, status])
@@ -794,20 +814,20 @@ model ReferralAttribution {
 }
 
 model PractitionerInvite {
-  id             String       @id @default(cuid())
-  practitionerId String       @map("practitioner_id")
-  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
-  token          String       @unique
-  label          String       @default("Основная ссылка")
-  freeAiHook     String?      @map("free_ai_hook")
-  status         String       @default("ACTIVE") // ACTIVE | REVOKED | RISK_HELD
-  openedCount    Int          @default(0) @map("opened_count")
-  registeredCount Int         @default(0) @map("registered_count")
-  bookedCount    Int          @default(0) @map("booked_count")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  id              String       @id @default(cuid())
+  practitionerId  String       @map("practitioner_id")
+  practitioner    Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  token           String       @unique
+  label           String       @default("Основная ссылка")
+  freeAiHook      String?      @map("free_ai_hook")
+  status          String       @default("ACTIVE") // ACTIVE | REVOKED | RISK_HELD
+  openedCount     Int          @default(0) @map("opened_count")
+  registeredCount Int          @default(0) @map("registered_count")
+  bookedCount     Int          @default(0) @map("booked_count")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  visits          PractitionerInviteVisit[]
+  visits             PractitionerInviteVisit[]
   clientAttributions ClientAttribution[]
 
   @@index([practitionerId, status])
@@ -815,22 +835,22 @@ model PractitionerInvite {
 }
 
 model PractitionerInviteVisit {
-  id             String       @id @default(cuid())
-  inviteId       String       @map("invite_id")
+  id             String             @id @default(cuid())
+  inviteId       String             @map("invite_id")
   invite         PractitionerInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
-  visitorHash    String       @map("visitor_hash")
-  referredUserId String?      @map("referred_user_id")
-  referredUser   User?        @relation(fields: [referredUserId], references: [id], onDelete: SetNull)
-  status         String       @default("OPENED") // OPENED | REGISTERED | BOOKED | BLOCKED
-  blockedReason  String?      @map("blocked_reason")
-  riskScore      Int          @default(0) @map("risk_score")
-  riskFlags      String[]     @default([]) @map("risk_flags")
-  ipHash         String?      @map("ip_hash")
-  userAgentHash  String?      @map("user_agent_hash")
-  deviceHash     String?      @map("device_hash")
+  visitorHash    String             @map("visitor_hash")
+  referredUserId String?            @map("referred_user_id")
+  referredUser   User?              @relation(fields: [referredUserId], references: [id], onDelete: SetNull)
+  status         String             @default("OPENED") // OPENED | REGISTERED | BOOKED | BLOCKED
+  blockedReason  String?            @map("blocked_reason")
+  riskScore      Int                @default(0) @map("risk_score")
+  riskFlags      String[]           @default([]) @map("risk_flags")
+  ipHash         String?            @map("ip_hash")
+  userAgentHash  String?            @map("user_agent_hash")
+  deviceHash     String?            @map("device_hash")
   metadata       Json?
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   @@unique([inviteId, visitorHash])
   @@index([referredUserId])
@@ -841,18 +861,18 @@ model PractitionerInviteVisit {
 }
 
 model ClientAttribution {
-  id                       String       @id @default(cuid())
-  userId                   String       @unique @map("user_id")
-  user                     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstTouchSource         ClientSource @default(PLATFORM) @map("first_touch_source")
-  firstTouchInviteId       String?      @map("first_touch_invite_id")
+  id                       String              @id @default(cuid())
+  userId                   String              @unique @map("user_id")
+  user                     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstTouchSource         ClientSource        @default(PLATFORM) @map("first_touch_source")
+  firstTouchInviteId       String?             @map("first_touch_invite_id")
   firstTouchInvite         PractitionerInvite? @relation(fields: [firstTouchInviteId], references: [id], onDelete: SetNull)
-  firstTouchPractitionerId String?      @map("first_touch_practitioner_id")
-  firstTouchPractitioner   Practitioner? @relation("ClientAttributionPractitioner", fields: [firstTouchPractitionerId], references: [id], onDelete: SetNull)
-  firstTouchAt             DateTime     @default(now()) @map("first_touch_at")
+  firstTouchPractitionerId String?             @map("first_touch_practitioner_id")
+  firstTouchPractitioner   Practitioner?       @relation("ClientAttributionPractitioner", fields: [firstTouchPractitionerId], references: [id], onDelete: SetNull)
+  firstTouchAt             DateTime            @default(now()) @map("first_touch_at")
   metadata                 Json?
-  createdAt                DateTime     @default(now()) @map("created_at")
-  updatedAt                DateTime     @updatedAt @map("updated_at")
+  createdAt                DateTime            @default(now()) @map("created_at")
+  updatedAt                DateTime            @updatedAt @map("updated_at")
 
   @@index([firstTouchSource, firstTouchAt])
   @@index([firstTouchPractitionerId])
@@ -903,33 +923,33 @@ model FraudEvent {
 }
 
 model ChannelAttribution {
-  id               String   @id @default(cuid())
-  visitorHash      String   @unique @map("visitor_hash")
-  userId           String?  @map("user_id")
-  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  source           String   @default("direct")
-  channel          String   @default("web")
-  utmSource        String?  @map("utm_source")
-  utmMedium        String?  @map("utm_medium")
-  utmCampaign      String?  @map("utm_campaign")
-  utmContent       String?  @map("utm_content")
-  utmTerm          String?  @map("utm_term")
-  referralToken    String?  @map("referral_token")
-  practitionerId   String?  @map("practitioner_id")
-  practitionerSlug String?  @map("practitioner_slug")
-  partnerId        String?  @map("partner_id")
-  widgetId         String?  @map("widget_id")
-  entryProduct     String?  @map("entry_product")
-  firstEntryPath   String   @map("first_entry_path")
-  lastEntryPath    String   @map("last_entry_path")
-  firstTouchAt     DateTime @default(now()) @map("first_touch_at")
-  lastTouchAt      DateTime @default(now()) @map("last_touch_at")
+  id               String    @id @default(cuid())
+  visitorHash      String    @unique @map("visitor_hash")
+  userId           String?   @map("user_id")
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source           String    @default("direct")
+  channel          String    @default("web")
+  utmSource        String?   @map("utm_source")
+  utmMedium        String?   @map("utm_medium")
+  utmCampaign      String?   @map("utm_campaign")
+  utmContent       String?   @map("utm_content")
+  utmTerm          String?   @map("utm_term")
+  referralToken    String?   @map("referral_token")
+  practitionerId   String?   @map("practitioner_id")
+  practitionerSlug String?   @map("practitioner_slug")
+  partnerId        String?   @map("partner_id")
+  widgetId         String?   @map("widget_id")
+  entryProduct     String?   @map("entry_product")
+  firstEntryPath   String    @map("first_entry_path")
+  lastEntryPath    String    @map("last_entry_path")
+  firstTouchAt     DateTime  @default(now()) @map("first_touch_at")
+  lastTouchAt      DateTime  @default(now()) @map("last_touch_at")
   conversionAt     DateTime? @map("conversion_at")
-  conversionType   String?  @map("conversion_type")
-  conversionId     String?  @map("conversion_id")
+  conversionType   String?   @map("conversion_type")
+  conversionId     String?   @map("conversion_id")
   metadata         Json?
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   @@index([userId, lastTouchAt])
   @@index([source, channel, lastTouchAt])
@@ -943,10 +963,10 @@ model ChannelAttribution {
 // ─── Platform Settings ────────────────────────────────────────────────────────
 
 model PlatformSetting {
-  key       String   @id  // e.g. "plan.starter.price", "plan.standard.sessions"
+  key       String   @id // e.g. "plan.starter.price", "plan.standard.sessions"
   value     String
   updatedAt DateTime @updatedAt
-  updatedBy String?  // userId
+  updatedBy String? // userId
 
   @@map("platform_settings")
 }
@@ -954,15 +974,15 @@ model PlatformSetting {
 // ─── File Storage ─────────────────────────────────────────────────────────────
 
 model StoredFile {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind        FileKind
-  path        String   // /uploads/avatars/xxx.jpg  or  /uploads/docs/xxx.pdf
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         FileKind
+  path         String // /uploads/avatars/xxx.jpg  or  /uploads/docs/xxx.pdf
   originalName String
-  mimeType    String
-  sizeBytes   Int
-  createdAt   DateTime @default(now())
+  mimeType     String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
 
   @@index([userId, kind])
   @@map("stored_files")
@@ -970,30 +990,30 @@ model StoredFile {
 
 enum FileKind {
   AVATAR
-  DOCUMENT      // chat attachments
-  REPORT        // AI tool reports (human design, natal, etc.)
+  DOCUMENT // chat attachments
+  REPORT // AI tool reports (human design, natal, etc.)
 }
 
 // ─── Practitioner Applications ───────────────────────────────────────────────
 
 model PractitionerApplication {
-  id          String   @id @default(cuid())
-  name        String
-  email       String
-  telegram    String?
-  specialties String[]
-  experience  String
-  formats     String[]
-  about       String
-  why         String?
-  portfolio   String?
+  id              String    @id @default(cuid())
+  name            String
+  email           String
+  telegram        String?
+  specialties     String[]
+  experience      String
+  formats         String[]
+  about           String
+  why             String?
+  portfolio       String?
   // Y5: uploaded verification documents (StoredFile URLs) + admin review meta.
   attachments     String[]  @default([])
   rejectionReason String?
   reviewedAt      DateTime?
-  status      String   @default("PENDING") // PENDING | REVIEWING | APPROVED | REJECTED
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status          String    @default("PENDING") // PENDING | REVIEWING | APPROVED | REJECTED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([email])
   @@index([status, createdAt])
@@ -1016,19 +1036,19 @@ model TelegramLinkToken {
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
 model Payment {
-  id            String    @id @default(cuid())
-  bookingId     String    @unique
-  booking       Booking   @relation(fields: [bookingId], references: [id])
-  externalId    String?   // ЮKassa payment ID
-  amountKopecks Int       // в копейках
-  currency      String    @default("RUB")
-  status        String    // PENDING / PAID / CANCELLED / REFUNDED
-  paymentDeclineReason String? @map("payment_decline_reason")
-  offerVersion  String?   @map("offer_version")
-  termsVersion  String?   @map("terms_version")
-  consentVersion String?  @map("consent_version")
-  refundedAt    DateTime?
-  createdAt     DateTime  @default(now())
+  id                   String    @id @default(cuid())
+  bookingId            String    @unique
+  booking              Booking   @relation(fields: [bookingId], references: [id])
+  externalId           String? // ЮKassa payment ID
+  amountKopecks        Int // в копейках
+  currency             String    @default("RUB")
+  status               String // PENDING / PAID / CANCELLED / REFUNDED
+  paymentDeclineReason String?   @map("payment_decline_reason")
+  offerVersion         String?   @map("offer_version")
+  termsVersion         String?   @map("terms_version")
+  consentVersion       String?   @map("consent_version")
+  refundedAt           DateTime?
+  createdAt            DateTime  @default(now())
 
   @@map("payments")
 }
@@ -1036,26 +1056,26 @@ model Payment {
 // ─── Payouts ──────────────────────────────────────────────────────────────────
 
 model Payout {
-  id             String       @id @default(cuid())
-  practitionerId String
-  practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
-  bookingId      String?
-  booking        Booking?     @relation(fields: [bookingId], references: [id])
-  amountKopecks  Int
-  status         String       // PENDING / HELD / PROCESSING / DONE / FAILED
-  initiatedBy    String       // adminUserId
-  externalId     String?      // ЮKassa payout ID
-  availableAt    DateTime?    @map("available_at")
-  holdReason     String?      @map("hold_reason")
-  holdDays       Int?         @map("hold_days")
-  planKeyAtPayout String?     @map("plan_key_at_payout")
-  reserveKopecks Int          @default(0) @map("reserve_kopecks")
-  payoutRunId    String?      @map("payout_run_id")
-  payoutRun      PayoutRun?   @relation(fields: [payoutRunId], references: [id])
-  riskScore      Int          @default(0) @map("risk_score")
-  riskFlags      String[]     @default([]) @map("risk_flags")
-  createdAt      DateTime     @default(now())
-  processedAt    DateTime?
+  id              String       @id @default(cuid())
+  practitionerId  String
+  practitioner    Practitioner @relation(fields: [practitionerId], references: [id])
+  bookingId       String?
+  booking         Booking?     @relation(fields: [bookingId], references: [id])
+  amountKopecks   Int
+  status          String // PENDING / HELD / PROCESSING / DONE / FAILED
+  initiatedBy     String // adminUserId
+  externalId      String? // ЮKassa payout ID
+  availableAt     DateTime?    @map("available_at")
+  holdReason      String?      @map("hold_reason")
+  holdDays        Int?         @map("hold_days")
+  planKeyAtPayout String?      @map("plan_key_at_payout")
+  reserveKopecks  Int          @default(0) @map("reserve_kopecks")
+  payoutRunId     String?      @map("payout_run_id")
+  payoutRun       PayoutRun?   @relation(fields: [payoutRunId], references: [id])
+  riskScore       Int          @default(0) @map("risk_score")
+  riskFlags       String[]     @default([]) @map("risk_flags")
+  createdAt       DateTime     @default(now())
+  processedAt     DateTime?
 
   @@index([practitionerId])
   @@index([bookingId])
@@ -1082,7 +1102,7 @@ model PayoutRun {
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime  @updatedAt @map("updated_at")
 
-  payouts               Payout[]
+  payouts Payout[]
 
   @@unique([scheduledFor])
   @@index([status, scheduledFor])
@@ -1093,15 +1113,15 @@ model PayoutDetails {
   id             String       @id @default(cuid())
   practitionerId String       @unique
   practitioner   Practitioner @relation(fields: [practitionerId], references: [id])
-  type           String       // CARD | SBP | ENTITY
-  accountNumber  String       // карта / телефон СБП / расчётный счёт (ENTITY)
+  type           String // CARD | SBP | ENTITY
+  accountNumber  String // карта / телефон СБП / расчётный счёт (ENTITY)
   bankName       String?
   // Y3: реквизиты юридического лица (ИП / ООО) — null для CARD/SBP (самозанятые).
-  legalName      String?      // наименование организации или ИП
+  legalName      String? // наименование организации или ИП
   inn            String?
   kpp            String?
   bik            String?
-  corrAccount    String?      // корреспондентский счёт банка
+  corrAccount    String? // корреспондентский счёт банка
   kycStatus      String       @default("NOT_REQUIRED") @map("kyc_status") // NOT_REQUIRED | PENDING | VERIFIED
   kycVerifiedAt  DateTime?    @map("kyc_verified_at")
   updatedAt      DateTime     @updatedAt
@@ -1109,36 +1129,71 @@ model PayoutDetails {
   @@map("payout_details")
 }
 
+model AgentReport {
+  id                String            @id @default(cuid())
+  practitionerId    String            @map("practitioner_id")
+  practitioner      Practitioner      @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  periodStart       DateTime          @map("period_start")
+  periodEnd         DateTime          @map("period_end")
+  status            AgentReportStatus @default(ISSUED)
+  sessionCount      Int               @default(0) @map("session_count")
+  grossKopecks      Int               @default(0) @map("gross_kopecks")
+  commissionKopecks Int               @default(0) @map("commission_kopecks")
+  refundKopecks     Int               @default(0) @map("refund_kopecks")
+  disputeCount      Int               @default(0) @map("dispute_count")
+  heldKopecks       Int               @default(0) @map("held_kopecks")
+  payoutDueKopecks  Int               @default(0) @map("payout_due_kopecks")
+  payoutStatus      String            @default("PENDING") @map("payout_status")
+  autoAcceptAt      DateTime          @map("auto_accept_at")
+  acceptedAt        DateTime?         @map("accepted_at")
+  objectedAt        DateTime?         @map("objected_at")
+  objectionReason   String?           @map("objection_reason") @db.Text
+  metadata          Json?
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@unique([practitionerId, periodStart, periodEnd])
+  @@index([status, autoAcceptAt])
+  @@index([practitionerId, periodEnd])
+  @@map("agent_reports")
+}
+
+enum AgentReportStatus {
+  ISSUED
+  ACCEPTED
+  OBJECTED
+}
+
 // ─── AI Session Log ───────────────────────────────────────────────────────────
 
 // ─── v5 Dialogues ────────────────────────────────────────────────────────────
 
 model Dialogue {
-  id             String           @id @default(cuid())
-  userId         String?          @map("user_id")
-  user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guestSessionId String?          @map("guest_session_id")
+  id               String         @id @default(cuid())
+  userId           String?        @map("user_id")
+  user             User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guestSessionId   String?        @map("guest_session_id")
   // B372 (M26): лёгкий клиентский отпечаток (sha-256 от UA+canvas+TZ) для
   // гостевого лимита 1 разбор/мес и антифрода. Только для гостевых диалогов.
   guestFingerprint String?        @map("guest_fingerprint")
-  status         DialogueStatus   @default(OPEN)
-  title          String
-  topic          String?
-  difficulty     String?
-  safetyLevel    String?          @map("safety_level")
-  intakeProductKey String?         @map("intake_product_key")
-  intakeMode     String?           @map("intake_mode")
-  metadata       Json?
+  status           DialogueStatus @default(OPEN)
+  title            String
+  topic            String?
+  difficulty       String?
+  safetyLevel      String?        @map("safety_level")
+  intakeProductKey String?        @map("intake_product_key")
+  intakeMode       String?        @map("intake_mode")
+  metadata         Json?
   // B363 / Механика 12: explicit, owner-given consent to publish a question in
   // the public library. NULL libraryStatus = private (the strict default — a
   // question is NEVER published without consent). State machine lives in
   // lib/library-consent.ts.
-  libraryConsentAt DateTime?       @map("library_consent_at")
-  libraryStatus    String?         @map("library_status")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  archivedAt     DateTime?        @map("archived_at")
-  deletedAt      DateTime?        @map("deleted_at")
+  libraryConsentAt DateTime?      @map("library_consent_at")
+  libraryStatus    String?        @map("library_status")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  archivedAt       DateTime?      @map("archived_at")
+  deletedAt        DateTime?      @map("deleted_at")
 
   messages       DialogueMessage[]
   productResults ProductResult[]
@@ -1241,9 +1296,9 @@ model AISessionLog {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tool      ToolType
-  title     String   // Краткий заголовок (генерируется AI или по первому вопросу)
-  prompt    String?  // Входные данные (вопрос, дата рождения и т.д.)
-  result    String   // Текст ответа AI
+  title     String // Краткий заголовок (генерируется AI или по первому вопросу)
+  prompt    String? // Входные данные (вопрос, дата рождения и т.д.)
+  result    String // Текст ответа AI
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -1293,31 +1348,31 @@ model AIRoutingPolicy {
 }
 
 model AIRequest {
-  id                  String          @id @default(cuid())
-  feature             String
-  userId              String?         @map("user_id")
-  user                User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  status              AIRequestStatus @default(PENDING)
-  requestHash         String?         @map("request_hash")
-  promptTokens        Int             @default(0) @map("prompt_tokens")
-  completionTokens    Int             @default(0) @map("completion_tokens")
-  totalTokens         Int             @default(0) @map("total_tokens")
-  estimatedCostMicros Int             @default(0) @map("estimated_cost_micros")
-  providerGroup       String?         @map("provider_group")
-  providerRegion      String?         @map("provider_region")
-  cloudflareAIGatewayUsed Boolean     @default(false) @map("cloudflare_ai_gateway_used")
-  foreignLLMUsed      Boolean         @default(false) @map("foreign_llm_used")
-  crossBorderProcessing Boolean       @default(false) @map("cross_border_processing")
-  fallbackUsed        Boolean         @default(false) @map("fallback_used")
-  fallbackReason      String?         @map("fallback_reason")
-  billingEventId      String?         @map("billing_event_id")
-  metadata            Json?
-  startedAt           DateTime?       @map("started_at")
-  finishedAt          DateTime?       @map("finished_at")
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @updatedAt @map("updated_at")
+  id                      String          @id @default(cuid())
+  feature                 String
+  userId                  String?         @map("user_id")
+  user                    User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status                  AIRequestStatus @default(PENDING)
+  requestHash             String?         @map("request_hash")
+  promptTokens            Int             @default(0) @map("prompt_tokens")
+  completionTokens        Int             @default(0) @map("completion_tokens")
+  totalTokens             Int             @default(0) @map("total_tokens")
+  estimatedCostMicros     Int             @default(0) @map("estimated_cost_micros")
+  providerGroup           String?         @map("provider_group")
+  providerRegion          String?         @map("provider_region")
+  cloudflareAIGatewayUsed Boolean         @default(false) @map("cloudflare_ai_gateway_used")
+  foreignLLMUsed          Boolean         @default(false) @map("foreign_llm_used")
+  crossBorderProcessing   Boolean         @default(false) @map("cross_border_processing")
+  fallbackUsed            Boolean         @default(false) @map("fallback_used")
+  fallbackReason          String?         @map("fallback_reason")
+  billingEventId          String?         @map("billing_event_id")
+  metadata                Json?
+  startedAt               DateTime?       @map("started_at")
+  finishedAt              DateTime?       @map("finished_at")
+  createdAt               DateTime        @default(now()) @map("created_at")
+  updatedAt               DateTime        @updatedAt @map("updated_at")
 
-  attempts            AIAttempt[]
+  attempts AIAttempt[]
 
   @@index([feature, createdAt])
   @@index([userId, createdAt])
@@ -1328,26 +1383,26 @@ model AIRequest {
 }
 
 model AIAttempt {
-  id                  String          @id @default(cuid())
-  aiRequestId         String          @map("ai_request_id")
-  aiRequest           AIRequest       @relation(fields: [aiRequestId], references: [id], onDelete: Cascade)
-  provider            AIProvider
-  model               String
-  status              AIAttemptStatus @default(RUNNING)
-  latencyMs           Int?            @map("latency_ms")
-  promptTokens        Int             @default(0) @map("prompt_tokens")
-  completionTokens    Int             @default(0) @map("completion_tokens")
-  totalTokens         Int             @default(0) @map("total_tokens")
-  estimatedCostMicros Int             @default(0) @map("estimated_cost_micros")
-  providerGroup       String?         @map("provider_group")
-  providerRegion      String?         @map("provider_region")
-  cloudflareAIGatewayUsed Boolean     @default(false) @map("cloudflare_ai_gateway_used")
-  foreignLLMUsed      Boolean         @default(false) @map("foreign_llm_used")
-  crossBorderProcessing Boolean       @default(false) @map("cross_border_processing")
-  errorCode           String?         @map("error_code")
-  errorMessage        String?         @map("error_message")
-  startedAt           DateTime        @default(now()) @map("started_at")
-  finishedAt          DateTime?       @map("finished_at")
+  id                      String          @id @default(cuid())
+  aiRequestId             String          @map("ai_request_id")
+  aiRequest               AIRequest       @relation(fields: [aiRequestId], references: [id], onDelete: Cascade)
+  provider                AIProvider
+  model                   String
+  status                  AIAttemptStatus @default(RUNNING)
+  latencyMs               Int?            @map("latency_ms")
+  promptTokens            Int             @default(0) @map("prompt_tokens")
+  completionTokens        Int             @default(0) @map("completion_tokens")
+  totalTokens             Int             @default(0) @map("total_tokens")
+  estimatedCostMicros     Int             @default(0) @map("estimated_cost_micros")
+  providerGroup           String?         @map("provider_group")
+  providerRegion          String?         @map("provider_region")
+  cloudflareAIGatewayUsed Boolean         @default(false) @map("cloudflare_ai_gateway_used")
+  foreignLLMUsed          Boolean         @default(false) @map("foreign_llm_used")
+  crossBorderProcessing   Boolean         @default(false) @map("cross_border_processing")
+  errorCode               String?         @map("error_code")
+  errorMessage            String?         @map("error_message")
+  startedAt               DateTime        @default(now()) @map("started_at")
+  finishedAt              DateTime?       @map("finished_at")
 
   @@index([aiRequestId, startedAt])
   @@index([provider, status, startedAt])
@@ -1357,15 +1412,15 @@ model AIAttempt {
 }
 
 model AIBudgetLedger {
-  id          String   @id @default(cuid())
-  scopeType   String   @map("scope_type") // global | feature | user | plan
-  scopeKey    String   @map("scope_key")
-  period      String   // YYYY-MM-DD
-  tokens      Int      @default(0)
-  costMicros  Int      @default(0) @map("cost_micros")
-  requestCount Int     @default(0) @map("request_count")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           String   @id @default(cuid())
+  scopeType    String   @map("scope_type") // global | feature | user | plan
+  scopeKey     String   @map("scope_key")
+  period       String // YYYY-MM-DD
+  tokens       Int      @default(0)
+  costMicros   Int      @default(0) @map("cost_micros")
+  requestCount Int      @default(0) @map("request_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@unique([scopeType, scopeKey, period])
   @@index([period, scopeType])
@@ -1373,25 +1428,25 @@ model AIBudgetLedger {
 }
 
 model AIProviderCredential {
-  id                   String     @id @default(cuid())
-  provider             AIProvider
-  label                String
-  encryptedKey         String     @map("encrypted_key")
-  enabled              Boolean    @default(true)
-  priority             Int        @default(100)
-  baseUrlOverride      String?    @map("base_url_override")
-  modelOverride        String?    @map("model_override")
-  lastUsedAt           DateTime?  @map("last_used_at")
-  lastSuccessAt        DateTime?  @map("last_success_at")
-  lastErrorAt          DateTime?  @map("last_error_at")
-  lastErrorCode        String?    @map("last_error_code")
-  lastErrorMessage     String?    @map("last_error_message")
-  consecutiveFailures  Int        @default(0) @map("consecutive_failures")
-  cooldownUntil        DateTime?  @map("cooldown_until")
-  regionBlocked        Boolean    @default(false) @map("region_blocked")
-  metadata             Json?
-  createdAt            DateTime   @default(now()) @map("created_at")
-  updatedAt            DateTime   @updatedAt @map("updated_at")
+  id                  String     @id @default(cuid())
+  provider            AIProvider
+  label               String
+  encryptedKey        String     @map("encrypted_key")
+  enabled             Boolean    @default(true)
+  priority            Int        @default(100)
+  baseUrlOverride     String?    @map("base_url_override")
+  modelOverride       String?    @map("model_override")
+  lastUsedAt          DateTime?  @map("last_used_at")
+  lastSuccessAt       DateTime?  @map("last_success_at")
+  lastErrorAt         DateTime?  @map("last_error_at")
+  lastErrorCode       String?    @map("last_error_code")
+  lastErrorMessage    String?    @map("last_error_message")
+  consecutiveFailures Int        @default(0) @map("consecutive_failures")
+  cooldownUntil       DateTime?  @map("cooldown_until")
+  regionBlocked       Boolean    @default(false) @map("region_blocked")
+  metadata            Json?
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
 
   @@unique([provider, label])
   @@index([provider, enabled, priority])
@@ -1400,18 +1455,18 @@ model AIProviderCredential {
 }
 
 model AIProviderModel {
-  id              String     @id @default(cuid())
-  provider        AIProvider
-  modelId         String     @map("model_id")
-  displayName     String?    @map("display_name")
-  isFree          Boolean    @default(false) @map("is_free")
-  contextWindow   Int?       @map("context_window")
-  inputTokenCostMicros  Int? @map("input_token_cost_micros")
-  outputTokenCostMicros Int? @map("output_token_cost_micros")
-  metadata        Json?
-  fetchedAt       DateTime   @map("fetched_at")
-  createdAt       DateTime   @default(now()) @map("created_at")
-  updatedAt       DateTime   @updatedAt @map("updated_at")
+  id                    String     @id @default(cuid())
+  provider              AIProvider
+  modelId               String     @map("model_id")
+  displayName           String?    @map("display_name")
+  isFree                Boolean    @default(false) @map("is_free")
+  contextWindow         Int?       @map("context_window")
+  inputTokenCostMicros  Int?       @map("input_token_cost_micros")
+  outputTokenCostMicros Int?       @map("output_token_cost_micros")
+  metadata              Json?
+  fetchedAt             DateTime   @map("fetched_at")
+  createdAt             DateTime   @default(now()) @map("created_at")
+  updatedAt             DateTime   @updatedAt @map("updated_at")
 
   @@unique([provider, modelId])
   @@index([provider, isFree])
@@ -1419,15 +1474,15 @@ model AIProviderModel {
 }
 
 model AIPromptConfig {
-  id          String   @id @default(cuid())
-  feature     String   @unique
-  title       String
-  productKey  String?  @map("product_key")
-  promptText  String   @map("prompt_text") @db.Text
-  enabled     Boolean  @default(true)
-  metadata    Json?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(cuid())
+  feature    String   @unique
+  title      String
+  productKey String?  @map("product_key")
+  promptText String   @map("prompt_text") @db.Text
+  enabled    Boolean  @default(true)
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@index([enabled, feature])
   @@index([productKey])
@@ -1471,7 +1526,7 @@ model ToolSession {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   tool      ToolType
-  month     String   // "2026-04"
+  month     String // "2026-04"
   tier      String   @default("quick") // "quick" (бесплатно, 3/мес) или "full" (платно)
   createdAt DateTime @default(now())
 
@@ -1494,12 +1549,12 @@ model SavedCard {
   id              String   @id @default(cuid())
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paymentMethodId String   @unique  // YooKassa payment_method.id
-  last4           String            // last 4 digits
-  brand           String            // "visa", "mastercard", "mir"
-  expiryMonth     String            // "01"–"12"
-  expiryYear      String            // "2026"
-  cardholderName  String?           // optional, from user input
+  paymentMethodId String   @unique // YooKassa payment_method.id
+  last4           String // last 4 digits
+  brand           String // "visa", "mastercard", "mir"
+  expiryMonth     String // "01"–"12"
+  expiryYear      String // "2026"
+  cardholderName  String? // optional, from user input
   isDefault       Boolean  @default(false)
   createdAt       DateTime @default(now())
 
@@ -1510,25 +1565,25 @@ model SavedCard {
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 model Transaction {
-  id          String   @id @default(cuid())
-  userId      String
-  amount      Int                // positive = top-up, negative = charge
-  currency    String   @default("RUB")
-  status      TransactionStatus @default(PENDING)
-  provider    String   @default("yookassa")  // "yookassa", "internal", "manual"
-  providerPaymentId String?    // YooKassa payment ID
-  description String?
-  paymentDeclineReason String? @map("payment_decline_reason")
-  offerVersion String? @map("offer_version")
-  termsVersion String? @map("terms_version")
-  consentVersion String? @map("consent_version")
-  metadata    Json?
-  createdAt   DateTime @default(now())
+  id                   String            @id @default(cuid())
+  userId               String
+  amount               Int // positive = top-up, negative = charge
+  currency             String            @default("RUB")
+  status               TransactionStatus @default(PENDING)
+  provider             String            @default("yookassa") // "yookassa", "internal", "manual"
+  providerPaymentId    String? // YooKassa payment ID
+  description          String?
+  paymentDeclineReason String?           @map("payment_decline_reason")
+  offerVersion         String?           @map("offer_version")
+  termsVersion         String?           @map("terms_version")
+  consentVersion       String?           @map("consent_version")
+  metadata             Json?
+  createdAt            DateTime          @default(now())
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
   @@unique([providerPaymentId])
+  @@index([userId, createdAt])
   @@map("transactions")
 }
 
@@ -1542,20 +1597,20 @@ enum TransactionStatus {
 // ─── v5 Entitlements and Subscriptions ───────────────────────────────────────
 
 model ProductEntitlement {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   productKey    String
-  source        String   @default("purchase") // purchase | subscription | trial | manual | refund_restore
-  status        String   @default("ACTIVE")   // ACTIVE | REVOKED | EXPIRED | REFUNDED
+  source        String    @default("purchase") // purchase | subscription | trial | manual | refund_restore
+  status        String    @default("ACTIVE") // ACTIVE | REVOKED | EXPIRED | REFUNDED
   transactionId String?
-  validFrom     DateTime @default(now())
+  validFrom     DateTime  @default(now())
   validUntil    DateTime?
   consumedAt    DateTime?
   revokedAt     DateTime?
   metadata      Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([userId, status, productKey])
   @@index([transactionId])
@@ -1564,25 +1619,25 @@ model ProductEntitlement {
 }
 
 model UserSubscription {
-  id                     String   @id @default(cuid())
+  id                     String    @id @default(cuid())
   userId                 String
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   planKey                String
-  status                 String   @default("TRIALING") // TRIALING | ACTIVE | PAST_DUE | CANCELLED | EXPIRED
-  provider               String   @default("yookassa")
+  status                 String    @default("TRIALING") // TRIALING | ACTIVE | PAST_DUE | CANCELLED | EXPIRED
+  provider               String    @default("yookassa")
   providerSubscriptionId String?
   trialEndsAt            DateTime?
   currentPeriodStart     DateTime?
   currentPeriodEnd       DateTime?
-  cancelAtPeriodEnd      Boolean  @default(false)
+  cancelAtPeriodEnd      Boolean   @default(false)
   cancelledAt            DateTime?
   // B348 / Механика 1: timestamp of the last 3-day auto-renewal reminder sent
   // for the CURRENT period. Compared against currentPeriodStart so each period
   // is reminded at most once. NULL = not yet reminded this period.
   renewalReminderAt      DateTime?
   metadata               Json?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   @@index([userId, status])
   @@index([planKey, status])
@@ -1598,7 +1653,7 @@ model CreditLedgerEntry {
   amountKopecks       Int
   balanceAfterKopecks Int?
   currency            String   @default("RUB")
-  type                String   // TOPUP | PRODUCT_PURCHASE | SUBSCRIPTION_CHARGE | REFUND | ADJUSTMENT
+  type                String // TOPUP | PRODUCT_PURCHASE | SUBSCRIPTION_CHARGE | REFUND | ADJUSTMENT
   source              String   @default("yookassa")
   transactionId       String?
   description         String?
@@ -1616,8 +1671,8 @@ model ClarityCreditLedgerEntry {
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   amount        Int
   balanceAfter  Int?
-  type          String    // grant | spend | expire | clawback | adjustment
-  source        String    // referral | mission | purchase | subscription | admin | product
+  type          String // grant | spend | expire | clawback | adjustment
+  source        String // referral | mission | purchase | subscription | admin | product
   sourceEventId String?
   status        String    @default("confirmed") // pending | confirmed | revoked | expired
   expiresAt     DateTime?
@@ -1653,37 +1708,37 @@ model MissionProgress {
 // ─── Compatibility ────────────────────────────────────────────────────────────
 
 model Compatibility {
-  id             String    @id @default(cuid())
-  creatorId      String    @map("creator_id")
-  creator        User      @relation("CompatibilityCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  partnerId      String?   @map("partner_id")
-  partner        User?     @relation("CompatibilityPartner", fields: [partnerId], references: [id], onDelete: SetNull)
-  type           String    // romantic | friendship | business | family
-  status         String    @default("CREATED") // CREATED | INVITED | PARTNER_COMPLETED | READY | DELETED
-  inviteToken    String    @unique @default(cuid()) @map("invite_token")
-  inviteExpiresAt DateTime? @map("invite_expires_at")
-  creatorDialogueId String? @map("creator_dialogue_id")
-  partnerDialogueId String? @map("partner_dialogue_id")
-  creatorConsent Boolean   @default(false) @map("creator_consent")
-  partnerConsent Boolean   @default(false) @map("partner_consent")
-  teaserText     String?   @map("teaser_text")
-  riskScore      Int       @default(0) @map("risk_score")
-  riskFlags      String[]  @default([]) @map("risk_flags")
-  creatorIpHash  String?   @map("creator_ip_hash")
-  creatorUserAgentHash String? @map("creator_user_agent_hash")
-  creatorDeviceHash String? @map("creator_device_hash")
-  partnerIpHash  String?   @map("partner_ip_hash")
-  partnerUserAgentHash String? @map("partner_user_agent_hash")
-  partnerDeviceHash String? @map("partner_device_hash")
-  partnerSubmittedAfterMs Int? @map("partner_submitted_after_ms")
-  reportedAt     DateTime? @map("reported_at")
-  reportedReason String?   @map("reported_reason")
-  declinedAt     DateTime? @map("declined_at")
-  metadata       Json?
-  reportId       String?   @unique @map("report_id")
-  report         ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  id                      String         @id @default(cuid())
+  creatorId               String         @map("creator_id")
+  creator                 User           @relation("CompatibilityCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  partnerId               String?        @map("partner_id")
+  partner                 User?          @relation("CompatibilityPartner", fields: [partnerId], references: [id], onDelete: SetNull)
+  type                    String // romantic | friendship | business | family
+  status                  String         @default("CREATED") // CREATED | INVITED | PARTNER_COMPLETED | READY | DELETED
+  inviteToken             String         @unique @default(cuid()) @map("invite_token")
+  inviteExpiresAt         DateTime?      @map("invite_expires_at")
+  creatorDialogueId       String?        @map("creator_dialogue_id")
+  partnerDialogueId       String?        @map("partner_dialogue_id")
+  creatorConsent          Boolean        @default(false) @map("creator_consent")
+  partnerConsent          Boolean        @default(false) @map("partner_consent")
+  teaserText              String?        @map("teaser_text")
+  riskScore               Int            @default(0) @map("risk_score")
+  riskFlags               String[]       @default([]) @map("risk_flags")
+  creatorIpHash           String?        @map("creator_ip_hash")
+  creatorUserAgentHash    String?        @map("creator_user_agent_hash")
+  creatorDeviceHash       String?        @map("creator_device_hash")
+  partnerIpHash           String?        @map("partner_ip_hash")
+  partnerUserAgentHash    String?        @map("partner_user_agent_hash")
+  partnerDeviceHash       String?        @map("partner_device_hash")
+  partnerSubmittedAfterMs Int?           @map("partner_submitted_after_ms")
+  reportedAt              DateTime?      @map("reported_at")
+  reportedReason          String?        @map("reported_reason")
+  declinedAt              DateTime?      @map("declined_at")
+  metadata                Json?
+  reportId                String?        @unique @map("report_id")
+  report                  ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
 
   @@index([creatorId])
   @@index([partnerId])
@@ -1692,27 +1747,27 @@ model Compatibility {
   @@index([creatorDeviceHash, createdAt])
   @@index([partnerDeviceHash, createdAt])
   @@map("compatibilities")
-  }
+}
 
 model ClarityCircle {
-  id              String    @id @default(cuid())
-  creatorId       String    @map("creator_id")
-  creator         User      @relation("ClarityCircleCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-  question        String
-  topic           String?
-  status          String    @default("INVITING") // INVITING | READY | DELETED
-  inviteToken     String    @unique @default(cuid()) @map("invite_token")
-  inviteExpiresAt DateTime  @map("invite_expires_at")
-  teaserText      String?   @map("teaser_text")
-  reportId        String?   @unique @map("report_id")
-  report          ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
-  creatorIpHash   String?   @map("creator_ip_hash")
-  creatorUserAgentHash String? @map("creator_user_agent_hash")
-  creatorDeviceHash String? @map("creator_device_hash")
-  metadata        Json?
-  participants    ClarityCircleParticipant[]
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  id                   String                     @id @default(cuid())
+  creatorId            String                     @map("creator_id")
+  creator              User                       @relation("ClarityCircleCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  question             String
+  topic                String?
+  status               String                     @default("INVITING") // INVITING | READY | DELETED
+  inviteToken          String                     @unique @default(cuid()) @map("invite_token")
+  inviteExpiresAt      DateTime                   @map("invite_expires_at")
+  teaserText           String?                    @map("teaser_text")
+  reportId             String?                    @unique @map("report_id")
+  report               ProductResult?             @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  creatorIpHash        String?                    @map("creator_ip_hash")
+  creatorUserAgentHash String?                    @map("creator_user_agent_hash")
+  creatorDeviceHash    String?                    @map("creator_device_hash")
+  metadata             Json?
+  participants         ClarityCircleParticipant[]
+  createdAt            DateTime                   @default(now()) @map("created_at")
+  updatedAt            DateTime                   @updatedAt @map("updated_at")
 
   @@index([creatorId, status, createdAt])
   @@index([inviteToken])
@@ -1722,27 +1777,27 @@ model ClarityCircle {
 }
 
 model ClarityCircleParticipant {
-  id          String    @id @default(cuid())
-  circleId    String    @map("circle_id")
-  circle      ClarityCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  userId      String?   @map("user_id")
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  displayName String?   @map("display_name")
-  answerText  String    @map("answer_text")
-  consent     Boolean   @default(false)
-  status      String    @default("SUBMITTED") // SUBMITTED | HIDDEN | DELETED
-  riskScore   Int       @default(0) @map("risk_score")
-  riskFlags   String[]  @default([]) @map("risk_flags")
-  ipHash      String?   @map("ip_hash")
-  userAgentHash String? @map("user_agent_hash")
-  deviceHash  String?  @map("device_hash")
-  answerHash  String?  @map("answer_hash")
-  submittedAfterMs Int? @map("submitted_after_ms")
-  reportedAt  DateTime? @map("reported_at")
-  reportedReason String? @map("reported_reason")
-  metadata    Json?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id               String        @id @default(cuid())
+  circleId         String        @map("circle_id")
+  circle           ClarityCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  userId           String?       @map("user_id")
+  user             User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  displayName      String?       @map("display_name")
+  answerText       String        @map("answer_text")
+  consent          Boolean       @default(false)
+  status           String        @default("SUBMITTED") // SUBMITTED | HIDDEN | DELETED
+  riskScore        Int           @default(0) @map("risk_score")
+  riskFlags        String[]      @default([]) @map("risk_flags")
+  ipHash           String?       @map("ip_hash")
+  userAgentHash    String?       @map("user_agent_hash")
+  deviceHash       String?       @map("device_hash")
+  answerHash       String?       @map("answer_hash")
+  submittedAfterMs Int?          @map("submitted_after_ms")
+  reportedAt       DateTime?     @map("reported_at")
+  reportedReason   String?       @map("reported_reason")
+  metadata         Json?
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
 
   @@unique([circleId, userId])
   @@index([circleId, status, createdAt])
@@ -1752,23 +1807,23 @@ model ClarityCircleParticipant {
   @@map("clarity_circle_participants")
 }
 
-  // ─── 7 Days to Clarity ────────────────────────────────────────────────────────
+// ─── 7 Days to Clarity ────────────────────────────────────────────────────────
 
-  model ClarityRoute {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  dialogueId  String?   @map("dialogue_id")
-  dialogue    Dialogue? @relation(fields: [dialogueId], references: [id], onDelete: SetNull)
+model ClarityRoute {
+  id          String         @id @default(cuid())
+  userId      String         @map("user_id")
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dialogueId  String?        @map("dialogue_id")
+  dialogue    Dialogue?      @relation(fields: [dialogueId], references: [id], onDelete: SetNull)
   title       String
-  status      String    @default("ACTIVE") // ACTIVE | PAUSED | COMPLETED | CANCELLED
-  currentDay  Int       @default(1) @map("current_day")
-  reportId    String?   @unique @map("report_id")
+  status      String         @default("ACTIVE") // ACTIVE | PAUSED | COMPLETED | CANCELLED
+  currentDay  Int            @default(1) @map("current_day")
+  reportId    String?        @unique @map("report_id")
   report      ProductResult? @relation(fields: [reportId], references: [id], onDelete: SetNull)
   metadata    Json?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  completedAt DateTime?      @map("completed_at")
 
   @@index([userId])
   @@index([status])
@@ -1778,16 +1833,16 @@ model ClarityCircleParticipant {
 // ─── Analytics Events ─────────────────────────────────────────────────────────
 
 model AnalyticsEvent {
-  id          String    @id @default(cuid())
-  event       String                          // e.g. "home_viewed", "specialist_recommended"
-  userId      String?   @map("user_id")
-  sessionId   String?   @map("session_id")   // guest session or anon fingerprint
-  dialogueId  String?   @map("dialogue_id")
-  surface     String?                         // "public_home", "checkin", "cabinet", etc.
-  properties  Json?                           // arbitrary event properties
-  ipHash      String?   @map("ip_hash")
-  userAgent   String?   @map("user_agent")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id         String   @id @default(cuid())
+  event      String // e.g. "home_viewed", "specialist_recommended"
+  userId     String?  @map("user_id")
+  sessionId  String?  @map("session_id") // guest session or anon fingerprint
+  dialogueId String?  @map("dialogue_id")
+  surface    String? // "public_home", "checkin", "cabinet", etc.
+  properties Json? // arbitrary event properties
+  ipHash     String?  @map("ip_hash")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([event, createdAt])
   @@index([userId, createdAt])
@@ -1805,19 +1860,19 @@ model AnalyticsEvent {
 // the cabinet UI on the next poll (~3s).
 
 model SupportConversation {
-  id              String           @id @default(cuid())
-  userId          String           @map("user_id")
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Telegram group + message metadata for staff↔user routing.
-  telegramChatId  String?          @map("telegram_chat_id")
-  telegramThreadId Int?            @map("telegram_thread_id")
-  status          String           @default("OPEN") // OPEN | CLOSED
-  subject         String?
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt      @map("updated_at")
-  closedAt        DateTime?        @map("closed_at")
+  telegramChatId   String?   @map("telegram_chat_id")
+  telegramThreadId Int?      @map("telegram_thread_id")
+  status           String    @default("OPEN") // OPEN | CLOSED
+  subject          String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  closedAt         DateTime? @map("closed_at")
 
-  messages        SupportMessage[]
+  messages SupportMessage[]
 
   @@index([userId, status])
   @@index([telegramChatId, telegramThreadId])
@@ -1825,15 +1880,15 @@ model SupportConversation {
 }
 
 model SupportMessage {
-  id              String              @id @default(cuid())
-  conversationId  String              @map("conversation_id")
-  conversation    SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role            String              // USER | STAFF | SYSTEM
-  content         String
+  id                String              @id @default(cuid())
+  conversationId    String              @map("conversation_id")
+  conversation      SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role              String // USER | STAFF | SYSTEM
+  content           String
   // For staff messages — the upstream Telegram message id so we can
   // dedupe webhook re-deliveries.
-  telegramMessageId Int?              @map("telegram_message_id")
-  createdAt       DateTime            @default(now()) @map("created_at")
+  telegramMessageId Int?                @map("telegram_message_id")
+  createdAt         DateTime            @default(now()) @map("created_at")
 
   @@index([conversationId, createdAt])
   @@index([telegramMessageId])

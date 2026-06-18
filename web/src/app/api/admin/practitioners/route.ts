@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
+import { evaluatePractitionerCommercialGate, practitionerComplianceSelect } from "@/lib/practitioner-compliance";
 
 function canModeratePractitioners(role: string | undefined) {
   return role === "ADMIN" || role === "SUPERADMIN";
@@ -31,10 +32,17 @@ export async function PATCH(req: NextRequest) {
   if (status === "ACTIVE") {
     const existing = await db.practitioner.findUnique({
       where: { id: practitionerId },
-      select: { verified: true },
+      select: { verified: true, ...practitionerComplianceSelect },
     });
     if (!existing?.verified) {
       return NextResponse.json({ error: "Перед публикацией профиль должен пройти проверку" }, { status: 409 });
+    }
+    const commercialGate = evaluatePractitionerCommercialGate(existing);
+    if (!commercialGate.allowed) {
+      return NextResponse.json(
+        { error: "Перед публикацией примите агентскую оферту и подтвердите налоговый статус/реквизиты", reasons: commercialGate.reasons },
+        { status: 409 },
+      );
     }
   }
 

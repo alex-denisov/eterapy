@@ -131,7 +131,7 @@ describe("completeBookingAtSessionEnd", () => {
         initiatedBy: "uAdmin",
         availableAt: new Date("2026-04-25T12:00:00.000Z"),
         holdReason: "dispute_window",
-        holdDays: 14,
+        holdDays: 7,
         planKeyAtPayout: "base",
         reserveKopecks: 0,
         riskScore: 0,

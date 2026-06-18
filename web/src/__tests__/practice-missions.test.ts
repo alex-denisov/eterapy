@@ -9,8 +9,8 @@ describe("B203 Practice and missions", () => {
     const schema = source("prisma/schema.prisma");
     const migration = source("prisma/migrations/20260512215500_add_daily_practice_completion/migration.sql");
 
-    expect(schema).toContain("completedAt DateTime?");
-    expect(schema).toContain("reflectionText String?");
+    expect(schema).toMatch(/completedAt\s+DateTime\?/);
+    expect(schema).toMatch(/reflectionText\s+String\?/);
     expect(migration).toContain("completed_at");
     expect(migration).toContain("reflection_text");
   });

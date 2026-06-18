@@ -20,6 +20,7 @@ export default async function AdminPractitionersPage() {
     include: {
       user: { select: { id: true, name: true, email: true, avatarUrl: true, blockedAt: true } },
       priceRates: { where: { enabled: true }, orderBy: { durationMin: "asc" }, take: 1 },
+      payoutDetails: { select: { type: true, inn: true, kycStatus: true } },
     },
   });
 
@@ -63,6 +64,15 @@ export default async function AdminPractitionersPage() {
       sessionDuration: p.sessionDuration,
       commissionPercent: p.commissionPercent,
       verified: p.verified,
+      agentOfferAcceptedAt: p.agentOfferAcceptedAt?.toISOString() ?? null,
+      agentOfferVersion: p.agentOfferVersion,
+      taxStatus: p.taxStatus,
+      taxReviewStatus: p.taxReviewStatus,
+      taxStatusVerifiedAt: p.taxStatusVerifiedAt?.toISOString() ?? null,
+      taxStatusRejectedReason: p.taxStatusRejectedReason,
+      payoutDetailsType: p.payoutDetails?.type ?? null,
+      payoutDetailsInn: p.payoutDetails?.inn ?? null,
+      payoutDetailsKycStatus: p.payoutDetails?.kycStatus ?? null,
       founding: p.founding,
       reviewCount: p.reviewCount,
       sessionCount: p.sessionCount,

@@ -53,7 +53,7 @@ export function PayoutDetailsForm({ initial }: { initial: PayoutDetailsInitial |
       const payload =
         type === "ENTITY"
           ? { type, accountNumber: account, bankName, legalName, inn, kpp, bik, corrAccount }
-          : { type, accountNumber: account, bankName };
+          : { type, accountNumber: account, bankName, inn };
       const res = await fetch("/api/practitioner/payout-details", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -67,7 +67,7 @@ export function PayoutDetailsForm({ initial }: { initial: PayoutDetailsInitial |
           accountNumber: account,
           bankName: bankName || null,
           legalName: type === "ENTITY" ? legalName || null : null,
-          inn: type === "ENTITY" ? inn || null : null,
+          inn: inn || null,
           kpp: type === "ENTITY" ? kpp || null : null,
           bik: type === "ENTITY" ? bik || null : null,
           corrAccount: type === "ENTITY" ? corrAccount || null : null,
@@ -128,6 +128,10 @@ export function PayoutDetailsForm({ initial }: { initial: PayoutDetailsInitial |
 
         {type !== "ENTITY" ? (
           <>
+            <div>
+              <label className={labelClass}>ИНН</label>
+              <input value={inn} onChange={(e) => setInn(e.target.value)} inputMode="numeric" placeholder="10 или 12 цифр" className={inputClass} />
+            </div>
             <div>
               <label className={labelClass}>{type === "CARD" ? "Номер карты" : "Номер телефона (СБП)"}</label>
               <input

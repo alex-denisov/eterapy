@@ -14,7 +14,7 @@ describe("B219 practitioner anti-fraud and payout holds", () => {
 
     expect(schema).toContain("riskReviewedAt");
     expect(schema).toContain("ipHash");
-    expect(schema).toContain('status         String       @default("PUBLISHED")');
+    expect(schema).toMatch(/status\s+String\s+@default\("PUBLISHED"\)/);
     expect(schema).toContain("availableAt");
     expect(schema).toContain("holdReason");
     expect(migration).toContain("add_practitioner_antifraud_fields");

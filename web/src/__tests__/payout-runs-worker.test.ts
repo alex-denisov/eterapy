@@ -44,14 +44,14 @@ describe("runPayoutRun worker", () => {
         practitionerId: "practitioner-1",
         amountKopecks: 100_000,
         reserveKopecks: 5_000,
-        practitioner: { payoutDetails: { type: "CARD", kycStatus: "NOT_REQUIRED" } },
+        practitioner: { payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED" } },
       },
       {
         id: "payout-2",
         practitionerId: "practitioner-1",
         amountKopecks: 80_000,
         reserveKopecks: 4_000,
-        practitioner: { payoutDetails: { type: "CARD", kycStatus: "NOT_REQUIRED" } },
+        practitioner: { payoutDetails: { type: "CARD", inn: "123456789012", kycStatus: "NOT_REQUIRED" } },
       },
     ]);
     mockDb.$transaction.mockImplementation(async (callback: (tx: unknown) => Promise<void>) => callback({

@@ -2,8 +2,8 @@
  * X13/Y3: practitioner payout requisites (реквизиты для выплат).
  * GET   — current PayoutDetails for the signed-in practitioner.
  * PATCH — upsert one of three payout methods:
- *   • CARD   — банковская карта (самозанятые): accountNumber = номер карты.
- *   • SBP    — СБП по телефону: accountNumber = номер телефона.
+ *   • CARD   — банковская карта (самозанятые): accountNumber = номер карты + ИНН.
+ *   • SBP    — СБП по телефону: accountNumber = номер телефона + ИНН.
  *   • ENTITY — реквизиты юр. лица (ИП/ООО): расчётный счёт + ИНН/БИК/КПП/банк.
  */
 import { NextRequest, NextResponse } from "next/server";
@@ -58,8 +58,12 @@ export async function PATCH(req: NextRequest) {
 
   const bankName = str(body.bankName, 120);
   const accountNumberRaw = str(body.accountNumber, 64);
+  const inn = str(body.inn, 12).replace(/\D/g, "");
+  if (!/^(\d{10}|\d{12})$/.test(inn)) {
+    return NextResponse.json({ error: "ИНН — 10 цифр (организация) или 12 (ИП/самозанятый)" }, { status: 400 });
+  }
 
-  // CARD / SBP — самозанятые: единственное поле плюс банк.
+  // CARD / SBP — самозанятые: способ выплаты + ИНН для налогового статуса.
   if (type === "CARD" || type === "SBP") {
     const accountNumber = accountNumberRaw.replace(/(?!^\+)[^\d]/g, "");
     if (type === "CARD" && !/^\d{16,19}$/.test(accountNumber)) {
@@ -73,7 +77,7 @@ export async function PATCH(req: NextRequest) {
       accountNumber,
       bankName: bankName || null,
       legalName: null,
-      inn: null,
+      inn,
       kpp: null,
       bik: null,
       corrAccount: null,
@@ -84,7 +88,6 @@ export async function PATCH(req: NextRequest) {
 
   // ENTITY — реквизиты ИП / ООО.
   const legalName = str(body.legalName, 200);
-  const inn = str(body.inn, 12).replace(/\D/g, "");
   const kpp = str(body.kpp, 9).replace(/\D/g, "");
   const bik = str(body.bik, 9).replace(/\D/g, "");
   const account = accountNumberRaw.replace(/\D/g, ""); // расчётный счёт

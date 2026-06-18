@@ -18,6 +18,7 @@ import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
 import { assessBookingRisk } from "@/lib/practitioner-antifraud";
+import { assertPractitionerBookingAllowed } from "@/lib/practitioner-compliance";
 import { finalizeByocBookingAttribution, resolveByocBookingCommission } from "@/lib/byoc";
 import { trackServerEvent } from "@/lib/analytics";
 import { log } from "@/lib/logger";
@@ -139,6 +140,13 @@ export async function POST(req: NextRequest) {
     if (!practitioner) return NextResponse.json({ error: "Практик не найден" }, { status: 404 });
     if (practitioner.status !== "ACTIVE") {
       return NextResponse.json({ error: "Практик временно недоступен" }, { status: 409 });
+    }
+    const commercialGate = await assertPractitionerBookingAllowed(practitionerId);
+    if (!commercialGate.allowed) {
+      return NextResponse.json(
+        { error: "Запись к практику временно недоступна до проверки документов и реквизитов", reasons: commercialGate.reasons },
+        { status: 409 },
+      );
     }
     // Механика 10: an unverified (but ACTIVE) practitioner can still be booked;
     // the profile page surfaces a "не верифицирован" badge so the client knows.
