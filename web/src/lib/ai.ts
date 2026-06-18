@@ -38,6 +38,12 @@ import {
   providerConfigToRouting,
   providerLabel,
 } from "@/lib/ai-gateway/provider-runtime";
+import {
+  AIRoutingPolicyViolationError,
+  attemptRoutingProof,
+  combineRoutingProofs,
+  enforceYandexOnlyRoutingProof,
+} from "@/lib/ai-gateway/routing-proof";
 import { log, serializeError } from "@/lib/logger";
 
 const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
@@ -161,6 +167,7 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       temperature: attempt.temperature ?? temperature,
     })),
   };
+  enforceYandexOnlyRoutingProof({ plan: requestPlan, providerConfigsByName: providerConfigByName });
   enforceAIBudget({
     requestedTokens: maxTokens,
     policy,
@@ -210,14 +217,29 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       promptTokens: response.promptTokens,
       completionTokens: response.completionTokens,
     }, costRate);
+    const attemptProofs = attempts.map((attempt) => ({
+      attempt,
+      proof: attemptRoutingProof({
+        attempt,
+        providerConfig: providerConfigByName.get(attempt.provider) ?? null,
+      }),
+    }));
+    const requestProof = combineRoutingProofs(attemptProofs.map(({ proof }) => proof));
+    const fallbackUsed = attempts.some((attempt) => attempt.status !== "succeeded") || attempts.length > 1;
+    const fallbackReason = attempts.find((attempt) => attempt.status !== "succeeded")?.code ?? null;
 
     await Promise.all([
-      ...attempts.map((attempt) => db.aIAttempt.create({
+      ...attemptProofs.map(({ attempt, proof }) => db.aIAttempt.create({
         data: {
           aiRequestId: aiRequest.id,
           provider: attempt.provider,
           model: attempt.model ?? "unknown",
           status: attemptStatus(attempt),
+          providerGroup: proof.providerGroup,
+          providerRegion: proof.providerRegion,
+          cloudflareAIGatewayUsed: proof.cloudflareAIGatewayUsed,
+          foreignLLMUsed: proof.foreignLLMUsed,
+          crossBorderProcessing: proof.crossBorderProcessing,
           latencyMs: attempt.status === "succeeded" ? response.latencyMs : null,
           promptTokens: attempt.status === "succeeded" ? response.promptTokens : 0,
           completionTokens: attempt.status === "succeeded" ? response.completionTokens : 0,
@@ -231,6 +253,13 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
         where: { id: aiRequest.id },
         data: {
           status: AIRequestStatus.SUCCEEDED,
+          providerGroup: requestProof.providerGroup,
+          providerRegion: requestProof.providerRegion,
+          cloudflareAIGatewayUsed: requestProof.cloudflareAIGatewayUsed,
+          foreignLLMUsed: requestProof.foreignLLMUsed,
+          crossBorderProcessing: requestProof.crossBorderProcessing,
+          fallbackUsed,
+          fallbackReason,
           promptTokens: response.promptTokens,
           completionTokens: response.completionTokens,
           totalTokens: response.totalTokens,
@@ -297,10 +326,25 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
     };
   } catch (err) {
     const failedAttempts = err instanceof AIGatewayRoutingError ? err.attempts ?? [] : [];
+    const failedAttemptProofs = failedAttempts.map((attempt) => ({
+      attempt,
+      proof: attemptRoutingProof({
+        attempt,
+        providerConfig: providerConfigByName.get(attempt.provider) ?? null,
+      }),
+    }));
+    const failedRequestProof = combineRoutingProofs(failedAttemptProofs.map(({ proof }) => proof));
     await db.aIRequest.update({
       where: { id: aiRequest.id },
       data: {
         status: AIRequestStatus.FAILED,
+        providerGroup: failedRequestProof.providerGroup,
+        providerRegion: failedRequestProof.providerRegion,
+        cloudflareAIGatewayUsed: failedRequestProof.cloudflareAIGatewayUsed,
+        foreignLLMUsed: failedRequestProof.foreignLLMUsed,
+        crossBorderProcessing: failedRequestProof.crossBorderProcessing,
+        fallbackUsed: failedAttempts.some((attempt) => attempt.status !== "succeeded") || failedAttempts.length > 1,
+        fallbackReason: failedAttempts.find((attempt) => attempt.status !== "succeeded")?.code ?? null,
         metadata: {
           ...(requestId ? { requestId } : {}),
           messages: adminMessages,
@@ -318,12 +362,17 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
       },
     }).catch(() => undefined);
     await Promise.all([
-      ...failedAttempts.map((attempt) => db.aIAttempt.create({
+      ...failedAttemptProofs.map(({ attempt, proof }) => db.aIAttempt.create({
         data: {
           aiRequestId: aiRequest.id,
           provider: attempt.provider,
           model: attempt.model ?? "unknown",
           status: attemptStatus(attempt),
+          providerGroup: proof.providerGroup,
+          providerRegion: proof.providerRegion,
+          cloudflareAIGatewayUsed: proof.cloudflareAIGatewayUsed,
+          foreignLLMUsed: proof.foreignLLMUsed,
+          crossBorderProcessing: proof.crossBorderProcessing,
           errorCode: attempt.code ?? null,
           finishedAt: new Date(),
         },
@@ -354,6 +403,9 @@ export async function aiComplete(options: AIRequestOptions): Promise<AIResponse>
 
     if (err instanceof AIProviderError) {
       throw new Error(`AI provider unavailable: ${err.code}`);
+    }
+    if (err instanceof AIRoutingPolicyViolationError) {
+      throw err;
     }
     throw err;
   }

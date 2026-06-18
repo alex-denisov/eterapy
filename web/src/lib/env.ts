@@ -113,6 +113,10 @@ export function foreignLLMFallbackEnabled() {
   return foreignLLMEnabled() && process.env.FOREIGN_LLM_FALLBACK_ENABLED === "true";
 }
 
+export function cloudflareAIGatewayEnabledForRU() {
+  return process.env.CLOUDFLARE_AI_GATEWAY_ENABLED_FOR_RU === "true";
+}
+
 export function getYandexPrimaryModel() {
   return process.env.YANDEX_PRIMARY_MODEL?.trim() || "yandexgpt-lite/latest";
 }

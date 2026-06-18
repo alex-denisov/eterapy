@@ -13,7 +13,7 @@ import { createOpenAICompatibleAdapter } from "@/lib/ai-gateway/openai-compatibl
 import { createOpenAIAdapter } from "@/lib/ai-gateway/openai-adapter";
 import { createOpenRouterAdapter } from "@/lib/ai-gateway/openrouter-adapter";
 import { createYandexAdapter, DEFAULT_YANDEX_MODEL, YANDEX_FOUNDATION_MODELS_BASE_URL } from "@/lib/ai-gateway/yandex-adapter";
-import { getYandexAIStudioEnv } from "@/lib/env";
+import { cloudflareAIGatewayEnabledForRU, getYandexAIStudioEnv } from "@/lib/env";
 import type { AIRoutingProviderConfig } from "@/lib/ai-gateway/routing";
 
 export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
@@ -65,10 +65,15 @@ export function resolvedProviderBaseUrl(input: {
   credential?: Pick<DecryptedAICredential, "baseUrlOverride"> | null;
   providerConfig?: Pick<AIRoutingProviderConfig, "provider" | "baseUrl" | "cloudflareGatewayEnabled"> | null;
 }) {
-  if (input.credential?.baseUrlOverride) return input.credential.baseUrlOverride;
+  const cfGatewayEnabled = cloudflareAIGatewayEnabledForRU();
+  if (input.credential?.baseUrlOverride) {
+    if (!isCloudflareAIGatewayUrl(input.credential.baseUrlOverride) || cfGatewayEnabled) {
+      return input.credential.baseUrlOverride;
+    }
+  }
 
   const config = input.providerConfig;
-  const cfEnabled = config?.cloudflareGatewayEnabled === true;
+  const cfEnabled = config?.cloudflareGatewayEnabled === true && cfGatewayEnabled;
   const isYandex = config?.provider === AIProvider.YANDEX;
 
   if (config?.baseUrl) {

@@ -41,8 +41,11 @@ const mockDb = db as jest.Mocked<typeof db>;
 const mockRunFallback = runAIGatewayFallbackWithCredentials as jest.MockedFunction<typeof runAIGatewayFallbackWithCredentials>;
 
 describe("aiComplete gateway migration", () => {
+  const originalProviderMode = process.env.LLM_PROVIDER_MODE;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.LLM_PROVIDER_MODE = "YANDEX_ONLY";
     (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValue([
       {
         id: "provider-1",
@@ -118,6 +121,10 @@ describe("aiComplete gateway migration", () => {
     });
   });
 
+  afterEach(() => {
+    process.env.LLM_PROVIDER_MODE = originalProviderMode;
+  });
+
   it("keeps the legacy response contract while using gateway audit and usage ledger", async () => {
     const result = await aiComplete({
       feature: "modalities.tarot",
@@ -156,11 +163,17 @@ describe("aiComplete gateway migration", () => {
     });
     expect(mockDb.aIRequest.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: "ai-request-1" },
-      data: expect.objectContaining({
-        status: AIRequestStatus.SUCCEEDED,
-        totalTokens: 1500,
-        estimatedCostMicros: 250,
-        metadata: expect.objectContaining({
+        data: expect.objectContaining({
+          status: AIRequestStatus.SUCCEEDED,
+          providerGroup: "yandex",
+          providerRegion: "ru",
+          cloudflareAIGatewayUsed: false,
+          foreignLLMUsed: false,
+          crossBorderProcessing: false,
+          fallbackUsed: false,
+          totalTokens: 1500,
+          estimatedCostMicros: 250,
+          metadata: expect.objectContaining({
           requestId: "req-1",
           responseText: "Готово",
           responseProvider: AIProvider.YANDEX,
@@ -172,10 +185,49 @@ describe("aiComplete gateway migration", () => {
       data: expect.objectContaining({
         aiRequestId: "ai-request-1",
         provider: AIProvider.YANDEX,
+        providerGroup: "yandex",
+        providerRegion: "ru",
+        cloudflareAIGatewayUsed: false,
+        foreignLLMUsed: false,
+        crossBorderProcessing: false,
         totalTokens: 1500,
         estimatedCostMicros: 250,
       }),
     }));
     expect(mockDb.$executeRaw).toHaveBeenCalledTimes(3);
+  });
+
+  it("blocks stale Cloudflare AI Gateway routing for Yandex-only RU calls before a provider request is sent", async () => {
+    (mockDb.aIProviderConfig.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: "provider-yandex-cf",
+        provider: AIProvider.YANDEX,
+        displayName: "Yandex AI Studio",
+        enabled: true,
+        priority: 10,
+        baseUrl: "https://gateway.ai.cloudflare.com/v1/acc/gw/openai",
+        defaultModel: "yandexgpt-lite/latest",
+        timeoutMs: 30000,
+        rpmLimit: null,
+        tpmLimit: null,
+        inputTokenCostMicros: 100,
+        outputTokenCostMicros: 300,
+        metadata: { cloudflareGatewayEnabled: true },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+
+    await expect(aiComplete({
+      feature: "modalities.tarot",
+      userId: "user-1",
+      requestId: "req-cf",
+      messages: [{ role: "user", content: "hello" }],
+    })).rejects.toMatchObject({
+      code: "RU_CLOUDFLARE_GATEWAY_BLOCKED",
+    });
+
+    expect(mockRunFallback).not.toHaveBeenCalled();
+    expect(mockDb.aIRequest.create).not.toHaveBeenCalled();
   });
 });

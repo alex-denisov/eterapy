@@ -74,6 +74,7 @@ YANDEX_PRIMARY_MODEL=yandexgpt-lite/latest
 YANDEX_FALLBACK_MODELS=yandexgpt/latest,yandexgpt-lite/latest
 FOREIGN_LLM_ENABLED=false
 FOREIGN_LLM_FALLBACK_ENABLED=false
+CLOUDFLARE_AI_GATEWAY_ENABLED_FOR_RU=false
 ENVEOF
   log "⚠  Edit $ENV_FILE with real secrets before continuing"
   exit 1

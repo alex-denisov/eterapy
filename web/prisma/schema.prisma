@@ -1239,6 +1239,14 @@ model AIRequest {
   completionTokens    Int             @default(0) @map("completion_tokens")
   totalTokens         Int             @default(0) @map("total_tokens")
   estimatedCostMicros Int             @default(0) @map("estimated_cost_micros")
+  providerGroup       String?         @map("provider_group")
+  providerRegion      String?         @map("provider_region")
+  cloudflareAIGatewayUsed Boolean     @default(false) @map("cloudflare_ai_gateway_used")
+  foreignLLMUsed      Boolean         @default(false) @map("foreign_llm_used")
+  crossBorderProcessing Boolean       @default(false) @map("cross_border_processing")
+  fallbackUsed        Boolean         @default(false) @map("fallback_used")
+  fallbackReason      String?         @map("fallback_reason")
+  billingEventId      String?         @map("billing_event_id")
   metadata            Json?
   startedAt           DateTime?       @map("started_at")
   finishedAt          DateTime?       @map("finished_at")
@@ -1250,6 +1258,8 @@ model AIRequest {
   @@index([feature, createdAt])
   @@index([userId, createdAt])
   @@index([status, createdAt])
+  @@index([providerGroup, createdAt])
+  @@index([foreignLLMUsed, cloudflareAIGatewayUsed, crossBorderProcessing, createdAt])
   @@map("ai_requests")
 }
 
@@ -1265,6 +1275,11 @@ model AIAttempt {
   completionTokens    Int             @default(0) @map("completion_tokens")
   totalTokens         Int             @default(0) @map("total_tokens")
   estimatedCostMicros Int             @default(0) @map("estimated_cost_micros")
+  providerGroup       String?         @map("provider_group")
+  providerRegion      String?         @map("provider_region")
+  cloudflareAIGatewayUsed Boolean     @default(false) @map("cloudflare_ai_gateway_used")
+  foreignLLMUsed      Boolean         @default(false) @map("foreign_llm_used")
+  crossBorderProcessing Boolean       @default(false) @map("cross_border_processing")
   errorCode           String?         @map("error_code")
   errorMessage        String?         @map("error_message")
   startedAt           DateTime        @default(now()) @map("started_at")
@@ -1272,6 +1287,8 @@ model AIAttempt {
 
   @@index([aiRequestId, startedAt])
   @@index([provider, status, startedAt])
+  @@index([providerGroup, startedAt])
+  @@index([foreignLLMUsed, cloudflareAIGatewayUsed, crossBorderProcessing, startedAt])
   @@map("ai_attempts")
 }
 
