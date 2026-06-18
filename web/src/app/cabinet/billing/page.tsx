@@ -411,6 +411,9 @@ export default function BillingPage() {
                 · {plan.includedProductsCount} цифровых продуктов включено
                 {plan.trialDays > 0 ? ` · ${plan.trialDays} дней пробного периода` : ""}
               </p>
+              <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+                Подписочные баллы сгорают в конце периода. Купленные пакеты баллов не сгорают.
+              </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {isCurrent ? (
                   <span className="soft-button soft-button-soft" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>

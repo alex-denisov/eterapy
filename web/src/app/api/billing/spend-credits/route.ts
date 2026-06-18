@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
-import { getSpendableClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
+import { getSpendableClarityCreditBalance, planClarityCreditSpend, recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { V5_BUNDLE_CONTENTS, getProductCreditCost, isKnownBundleProduct, isKnownPaidProduct } from "@/lib/entitlements";
 import { completeMission } from "@/lib/missions";
 import { requestContextFromHeaders } from "@/lib/request-context";
@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
         return { alreadyUnlocked: true, creditCost, balanceAfter: await getSpendableClarityCreditBalance(session.user.id, tx) };
       }
 
-      const balance = await getSpendableClarityCreditBalance(session.user.id, tx);
-      if (balance < creditCost) {
+      const spendPlan = await planClarityCreditSpend(tx, session.user.id, creditCost);
+      if (!spendPlan.ok) {
         throw new Error("Недостаточно баллов");
       }
 
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           productKey,
           checkoutSource: "credits",
+          allocations: spendPlan.allocations,
           ...(isKnownBundleProduct(productKey) ? { bundleKey: productKey, bundleProductKeys } : {}),
         } as Prisma.InputJsonObject,
       });

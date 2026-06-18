@@ -1,5 +1,11 @@
+import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
-import { getClarityCreditBalance } from "@/lib/clarity-credits";
+import {
+  buildOpenClarityCreditLots,
+  classifyClarityCreditSource,
+  CLARITY_CREDIT_POINT_RULES,
+  getClarityCreditBalance,
+} from "@/lib/clarity-credits";
 import { CREDIT_PACKS } from "@/lib/entitlements";
 
 const ACTIVE_STATUSES = ["pending", "confirmed"];
@@ -15,6 +21,10 @@ export const WALLET_SOURCE_LABELS: Record<string, string> = {
   mission: "Миссия",
   admin: "Начисление от команды",
 };
+
+export const WALLET_POINT_TYPE_LABELS = Object.fromEntries(
+  Object.entries(CLARITY_CREDIT_POINT_RULES).map(([key, rule]) => [key, rule.label]),
+) as Record<keyof typeof CLARITY_CREDIT_POINT_RULES, string>;
 
 export const WALLET_TYPE_LABELS: Record<string, string> = {
   grant: "Начисление",
@@ -58,6 +68,9 @@ export type CreditWalletBreakdownItem = {
   key: string;
   source: string;
   label: string;
+  pointType: string;
+  pointTypeLabel: string;
+  expiryRuleLabel: string;
   amount: number;
   expiresAt: Date | null;
   expiryLabel: string;
@@ -90,13 +103,14 @@ function walletPacks(): CreditWalletPack[] {
 }
 
 function buildBreakdown(
-  entries: Array<{ amount: number; source: string; expiresAt: Date | null }>,
+  entries: Array<{ amount: number; source: string; type: string; status: string; expiresAt: Date | null; metadata?: Prisma.JsonValue | null }>,
   now: Date,
 ): CreditWalletBreakdownItem[] {
   const grouped = new Map<string, CreditWalletBreakdownItem>();
 
-  for (const entry of entries) {
-    if (entry.expiresAt && entry.expiresAt <= now) continue;
+  for (const entry of buildOpenClarityCreditLots(entries, now)) {
+    const pointType = classifyClarityCreditSource(entry.source);
+    const rule = CLARITY_CREDIT_POINT_RULES[pointType];
     const key = `${entry.source}:${entry.expiresAt?.toISOString() ?? "no-expiry"}`;
     const current = grouped.get(key);
     if (current) {
@@ -107,6 +121,9 @@ function buildBreakdown(
       key,
       source: entry.source,
       label: WALLET_SOURCE_LABELS[entry.source] ?? entry.source,
+      pointType,
+      pointTypeLabel: rule.label,
+      expiryRuleLabel: rule.expiryRule,
       amount: entry.amount,
       expiresAt: entry.expiresAt,
       expiryLabel: expiryLabel(entry.source, entry.expiresAt, now),
@@ -134,7 +151,7 @@ export async function getCreditWalletSnapshot(userId: string, now = new Date()) 
       },
       orderBy: { createdAt: "desc" },
       take: 500,
-      select: { amount: true, source: true, expiresAt: true },
+      select: { amount: true, source: true, type: true, status: true, expiresAt: true, metadata: true },
     }),
     db.clarityCreditLedgerEntry.findMany({
       where: { userId },

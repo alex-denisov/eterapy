@@ -69,8 +69,9 @@ function WalletBreakdown({ items }: { items: WalletBreakdownItem[] }) {
         ) : items.map((item) => (
           <div key={item.key} className="flex items-center justify-between gap-4 rounded-[var(--soft-radius-md)] border border-[var(--soft-paper-edge)] px-4 py-3">
             <div className="min-w-0">
-              <p className="text-sm font-medium text-[var(--soft-ink)]">{item.label}</p>
-              <p className="text-xs text-[var(--soft-ink-faint)]">{item.expiryLabel}</p>
+              <p className="text-sm font-medium text-[var(--soft-ink)]">{item.pointTypeLabel}</p>
+              <p className="text-xs text-[var(--soft-ink-soft)]">{item.label}</p>
+              <p className="text-xs text-[var(--soft-ink-faint)]">{item.expiryLabel} · {item.expiryRuleLabel}</p>
             </div>
             <span className={item.amount >= 0 ? "soft-badge soft-badge-warm shrink-0" : "soft-badge shrink-0"}>
               {item.amount > 0 ? "+" : ""}{item.amount}
@@ -90,6 +91,9 @@ function SubscriptionCreditsCallout() {
       <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
         Пакеты удобны для разовой дозаправки. Если баллы нужны регулярно, подписка
         даёт месячный кошелёк и открывает якорные форматы без списания.
+      </p>
+      <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+        Подписочные баллы сгорают в конце оплаченного периода. Купленные баллы не сгорают.
       </p>
       <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5">
         Выбрать подписку
