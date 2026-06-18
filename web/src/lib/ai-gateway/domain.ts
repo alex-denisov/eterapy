@@ -10,6 +10,7 @@ export const AI_GATEWAY_PROVIDERS = [
   AIProvider.MISTRAL,
   AIProvider.CEREBRAS,
   AIProvider.COHERE,
+  AIProvider.YANDEX,
 ] as const;
 
 export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
@@ -22,6 +23,7 @@ export const AI_PROVIDER_LABELS: Record<AIProvider, string> = {
   [AIProvider.MISTRAL]: "Mistral AI",
   [AIProvider.CEREBRAS]: "Cerebras",
   [AIProvider.COHERE]: "Cohere",
+  [AIProvider.YANDEX]: "Yandex AI Studio",
 };
 
 export type AIGatewayContentBlock =
@@ -68,5 +70,6 @@ export function defaultProviderOrder(): AIProvider[] {
     AIProvider.COHERE,
     AIProvider.CEREBRAS,
     AIProvider.FIREWORKS,
+    AIProvider.YANDEX,
   ];
 }

@@ -9,6 +9,7 @@ import {
   isAICredentialEncryptionConfigured,
 } from "@/lib/ai-gateway/credentials-crypto";
 import { buildAdapterForCredential, providerConfigToRouting } from "@/lib/ai-gateway/provider-runtime";
+import { getYandexAIStudioEnv } from "@/lib/env";
 import { log } from "@/lib/logger";
 
 export interface DecryptedAICredential {
@@ -24,6 +25,8 @@ export interface DecryptedAICredential {
   cooldownUntil: Date | null;
   regionBlocked: boolean;
 }
+
+const YANDEX_ENV_CREDENTIAL_ID = "env:yandex-ai-studio";
 
 export interface CredentialPublicView {
   id: string;
@@ -337,8 +340,9 @@ interface PickCredentialInput {
 
 export async function listActiveCredentialsForProvider(input: { provider: AIProvider; now?: Date }): Promise<DecryptedAICredential[]> {
   const now = input.now ?? new Date();
+  const envCredential = input.provider === AIProvider.YANDEX ? yandexEnvCredential() : null;
 
-  if (!isAICredentialEncryptionConfigured()) return [];
+  if (!isAICredentialEncryptionConfigured()) return envCredential ? [envCredential] : [];
 
   const rows = await db.aIProviderCredential.findMany({
     where: {
@@ -354,14 +358,18 @@ export async function listActiveCredentialsForProvider(input: { provider: AIProv
     ],
   });
 
-  return rows.map(rowToDecrypted);
+  const credentials = rows.map(rowToDecrypted);
+  return envCredential ? [...credentials, envCredential] : credentials;
 }
 
 export async function pickCredentialForProvider(input: PickCredentialInput): Promise<DecryptedAICredential | null> {
   const now = input.now ?? new Date();
   const excludeIds = input.excludeIds ?? [];
+  const envCredential = input.provider === AIProvider.YANDEX && !excludeIds.includes(YANDEX_ENV_CREDENTIAL_ID)
+    ? yandexEnvCredential()
+    : null;
 
-  if (!isAICredentialEncryptionConfigured()) return null;
+  if (!isAICredentialEncryptionConfigured()) return envCredential;
 
   const rows = await db.aIProviderCredential.findMany({
     where: {
@@ -381,7 +389,25 @@ export async function pickCredentialForProvider(input: PickCredentialInput): Pro
     take: 1,
   });
 
-  return rows[0] ? rowToDecrypted(rows[0]) : null;
+  return rows[0] ? rowToDecrypted(rows[0]) : envCredential;
+}
+
+function yandexEnvCredential(): DecryptedAICredential | null {
+  const env = getYandexAIStudioEnv();
+  if (!env.apiKey || !env.folderId) return null;
+  return {
+    id: YANDEX_ENV_CREDENTIAL_ID,
+    provider: AIProvider.YANDEX,
+    label: "Yandex AI Studio ENV",
+    apiKey: env.apiKey,
+    baseUrlOverride: env.baseURL,
+    modelOverride: null,
+    enabled: true,
+    priority: 1_000_000,
+    consecutiveFailures: 0,
+    cooldownUntil: null,
+    regionBlocked: false,
+  };
 }
 
 interface MarkSuccessInput {
@@ -390,6 +416,7 @@ interface MarkSuccessInput {
 }
 
 export async function markCredentialSuccess(input: MarkSuccessInput): Promise<void> {
+  if (input.credentialId === YANDEX_ENV_CREDENTIAL_ID) return;
   const now = input.now ?? new Date();
   try {
     await db.aIProviderCredential.update({
@@ -422,6 +449,7 @@ interface MarkFailureInput {
 }
 
 export async function markCredentialFailure(input: MarkFailureInput): Promise<void> {
+  if (input.credentialId === YANDEX_ENV_CREDENTIAL_ID) return;
   const now = input.now ?? new Date();
   const cooldownUntil = input.cooldownMs && input.cooldownMs > 0
     ? new Date(now.getTime() + input.cooldownMs)

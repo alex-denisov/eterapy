@@ -36,6 +36,7 @@ const AIProvider = {
   MISTRAL: "MISTRAL",
   CEREBRAS: "CEREBRAS",
   COHERE: "COHERE",
+  YANDEX: "YANDEX",
 } as const;
 
 export type AIProvider = (typeof AIProvider)[keyof typeof AIProvider];
@@ -209,6 +210,7 @@ const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string> = {
   [AIProvider.MISTRAL]: "https://api.mistral.ai/v1",
   [AIProvider.CEREBRAS]: "https://api.cerebras.ai/v1",
   [AIProvider.COHERE]: "https://api.cohere.ai/compatibility/v1",
+  [AIProvider.YANDEX]: "https://llm.api.cloud.yandex.net/foundationModels/v1",
 };
 
 function clampPage(page: number, totalPages: number) {
@@ -428,6 +430,7 @@ const CHEAP_MODEL_CANDIDATES: Record<AIProvider, string[]> = {
   [AIProvider.OPENAI]: ["gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1-nano"],
   [AIProvider.ANTHROPIC]: ["claude-3-5-haiku-20241022", "claude-3-haiku-20240307"],
   [AIProvider.FIREWORKS]: ["accounts/fireworks/models/qwen3-30b-a3b", "accounts/fireworks/models/gpt-oss-120b", "accounts/fireworks/models/llama-v3p1-8b-instruct"],
+  [AIProvider.YANDEX]: ["yandexgpt-lite/latest", "yandexgpt/latest"],
 };
 
 const PREMIUM_MODEL_CANDIDATES: Record<AIProvider, string[]> = {
@@ -440,6 +443,7 @@ const PREMIUM_MODEL_CANDIDATES: Record<AIProvider, string[]> = {
   [AIProvider.OPENAI]: ["gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1"],
   [AIProvider.ANTHROPIC]: ["claude-3-5-haiku-20241022", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
   [AIProvider.FIREWORKS]: ["accounts/fireworks/models/gpt-oss-120b", "accounts/fireworks/models/qwen3-coder-480b-a35b-instruct", "accounts/fireworks/models/kimi-k2p6"],
+  [AIProvider.YANDEX]: ["yandexgpt/latest", "yandexgpt-lite/latest"],
 };
 
 const SENSITIVE_MODEL_CANDIDATES: Record<AIProvider, string[]> = {

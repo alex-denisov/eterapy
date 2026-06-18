@@ -25,6 +25,7 @@ const directPremiumOrder = [
   AIProvider.OPENAI,
   AIProvider.ANTHROPIC,
   AIProvider.FIREWORKS,
+  AIProvider.YANDEX,
 ] as const;
 const cheapStructuredOrder = [
   AIProvider.OPENROUTER,
@@ -36,6 +37,7 @@ const cheapStructuredOrder = [
   AIProvider.OPENAI,
   AIProvider.ANTHROPIC,
   AIProvider.FIREWORKS,
+  AIProvider.YANDEX,
 ] as const;
 const freeOrder = [
   AIProvider.OPENROUTER,
@@ -47,6 +49,7 @@ const freeOrder = [
   AIProvider.OPENAI,
   AIProvider.ANTHROPIC,
   AIProvider.FIREWORKS,
+  AIProvider.YANDEX,
 ] as const;
 const directSensitiveOrder = [
   AIProvider.GEMINI,
@@ -57,6 +60,7 @@ const directSensitiveOrder = [
   AIProvider.COHERE,
   AIProvider.CEREBRAS,
   AIProvider.FIREWORKS,
+  AIProvider.YANDEX,
 ] as const;
 // G7: OCR sends an actual image. Only these providers' configured models can
 // read pixels — Gemini Flash, OpenAI gpt-4.1-mini and Anthropic Claude 3 Haiku
@@ -86,6 +90,7 @@ const cheapModelPreferences: Record<AIProvider, string> = {
   [AIProvider.OPENAI]: "gpt-4.1-mini",
   [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
   [AIProvider.FIREWORKS]: "accounts/fireworks/models/qwen3-30b-a3b",
+  [AIProvider.YANDEX]: "yandexgpt-lite/latest",
 };
 
 const premiumModelPreferences: Record<AIProvider, string> = {
@@ -98,6 +103,7 @@ const premiumModelPreferences: Record<AIProvider, string> = {
   [AIProvider.OPENAI]: "gpt-4.1-mini",
   [AIProvider.ANTHROPIC]: "claude-3-5-haiku-20241022",
   [AIProvider.FIREWORKS]: "accounts/fireworks/models/gpt-oss-120b",
+  [AIProvider.YANDEX]: "yandexgpt/latest",
 };
 
 const sensitiveModelPreferences: Record<AIProvider, string> = {

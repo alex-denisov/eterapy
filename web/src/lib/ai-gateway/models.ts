@@ -71,6 +71,19 @@ const OPENROUTER_META_MODELS: AIModelInfo[] = [
   },
 ];
 
+const YANDEX_TEXT_MODELS: AIModelInfo[] = [
+  {
+    modelId: "yandexgpt/latest",
+    displayName: "YandexGPT Pro",
+    isFree: false,
+  },
+  {
+    modelId: "yandexgpt-lite/latest",
+    displayName: "YandexGPT Lite",
+    isFree: false,
+  },
+];
+
 async function fetchJSON(url: string, init: RequestInit): Promise<unknown> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -277,6 +290,9 @@ export async function fetchModelsFromProvider(input: {
     case AIProvider.COHERE:
       if (!credential) throw new AIModelFetchError("Cohere model list requires a credential");
       return fetchOpenAICompatibleModels({ provider: AIProvider.COHERE, credential, defaultBaseUrl: DIRECT_PROVIDER_BASE_URLS[AIProvider.COHERE]! });
+    case AIProvider.YANDEX:
+      if (!credential) throw new AIModelFetchError("Yandex model list requires a credential");
+      return YANDEX_TEXT_MODELS;
     default: {
       const _exhaustive: never = input.provider;
       throw new AIModelFetchError(`Unknown provider: ${_exhaustive as string}`);

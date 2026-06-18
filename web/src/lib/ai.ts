@@ -50,6 +50,7 @@ const DEFAULT_PROVIDER_CONFIGS: AIRoutingProviderConfig[] = [
   { provider: AIProvider.COHERE, enabled: true, priority: 35, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.COHERE], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.CEREBRAS, enabled: true, priority: 38, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.CEREBRAS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
   { provider: AIProvider.FIREWORKS, enabled: true, priority: 40, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.FIREWORKS], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
+  { provider: AIProvider.YANDEX, enabled: false, priority: 50, defaultModel: DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX], timeoutMs: 30_000, inputTokenCostMicros: null, outputTokenCostMicros: null },
 ];
 
 interface AIRequestOptions {
@@ -64,7 +65,7 @@ interface AIRequestOptions {
 interface AIResponse {
   text: string;
   model: string;
-  provider: "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere";
+  provider: "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere" | "yandex";
   tokensIn: number;
   tokensOut: number;
   latencyMs: number;

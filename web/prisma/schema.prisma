@@ -1363,6 +1363,7 @@ enum AIProvider {
   MISTRAL
   CEREBRAS
   COHERE
+  YANDEX
 }
 
 enum AIRequestStatus {

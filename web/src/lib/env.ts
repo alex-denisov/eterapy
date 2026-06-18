@@ -86,6 +86,20 @@ export const ADMIN_NOTIFICATION_EMAIL =
 export const YUKASSA_API_URL =
   process.env.YUKASSA_API_URL ?? "https://api.yookassa.ru/v3";
 
+// ─── Server-only: Yandex AI Studio ──────────────────────────────────────────
+export const YANDEX_API_KEY = process.env.YANDEX_API_KEY ?? "";
+export const YANDEX_FOLDER_ID = process.env.YANDEX_FOLDER_ID ?? "";
+export const YANDEX_API_BASE =
+  process.env.YANDEX_API_BASE ?? "https://llm.api.cloud.yandex.net/foundationModels/v1";
+
+export function getYandexAIStudioEnv() {
+  return {
+    apiKey: process.env.YANDEX_API_KEY?.trim() ?? "",
+    folderId: process.env.YANDEX_FOLDER_ID?.trim() ?? "",
+    baseURL: process.env.YANDEX_API_BASE?.trim() || YANDEX_API_BASE,
+  };
+}
+
 /**
  * Non-throwing sanity check for server startup / instrumentation. Logs a
  * warning when running under NODE_ENV=production with domain variables left at

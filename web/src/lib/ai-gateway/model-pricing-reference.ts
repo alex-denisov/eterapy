@@ -7,7 +7,8 @@ export type AIProviderName =
   | "GROQ"
   | "MISTRAL"
   | "CEREBRAS"
-  | "COHERE";
+  | "COHERE"
+  | "YANDEX";
 
 export type ModelPricingReference = {
   input: number;

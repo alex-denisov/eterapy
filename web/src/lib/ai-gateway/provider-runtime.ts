@@ -12,6 +12,8 @@ import { createGeminiAdapter } from "@/lib/ai-gateway/gemini-adapter";
 import { createOpenAICompatibleAdapter } from "@/lib/ai-gateway/openai-compatible-adapter";
 import { createOpenAIAdapter } from "@/lib/ai-gateway/openai-adapter";
 import { createOpenRouterAdapter } from "@/lib/ai-gateway/openrouter-adapter";
+import { createYandexAdapter, DEFAULT_YANDEX_MODEL, YANDEX_FOUNDATION_MODELS_BASE_URL } from "@/lib/ai-gateway/yandex-adapter";
+import { getYandexAIStudioEnv } from "@/lib/env";
 import type { AIRoutingProviderConfig } from "@/lib/ai-gateway/routing";
 
 export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
@@ -24,6 +26,7 @@ export const DIRECT_PROVIDER_BASE_URLS: Record<AIProvider, string | null> = {
   [AIProvider.MISTRAL]: "https://api.mistral.ai/v1",
   [AIProvider.CEREBRAS]: "https://api.cerebras.ai/v1",
   [AIProvider.COHERE]: "https://api.cohere.ai/compatibility/v1",
+  [AIProvider.YANDEX]: YANDEX_FOUNDATION_MODELS_BASE_URL,
 };
 
 export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
@@ -36,6 +39,7 @@ export const DEFAULT_PROVIDER_MODELS: Record<AIProvider, string> = {
   [AIProvider.MISTRAL]: "mistral-small-latest",
   [AIProvider.CEREBRAS]: "zai-glm-4.7",
   [AIProvider.COHERE]: "command-r",
+  [AIProvider.YANDEX]: DEFAULT_YANDEX_MODEL,
 };
 
 export function cloudflareGatewayEnabled(metadata: unknown) {
@@ -65,6 +69,7 @@ export function resolvedProviderBaseUrl(input: {
 
   const config = input.providerConfig;
   const cfEnabled = config?.cloudflareGatewayEnabled === true;
+  const isYandex = config?.provider === AIProvider.YANDEX;
 
   if (config?.baseUrl) {
     // Self-heal stale rows: if the gateway is OFF but a Cloudflare Gateway URL
@@ -77,7 +82,7 @@ export function resolvedProviderBaseUrl(input: {
     }
   }
 
-  if (cfEnabled && config) {
+  if (cfEnabled && config && !isYandex) {
     const gateway = getCloudflareGatewayConfig();
     if (gateway) {
       const cfUrl = buildCloudflareGatewayUrlForAIProvider({
@@ -124,6 +129,19 @@ export function buildAdapterForCredential(
       return createFireworksAdapter(opts);
     case AIProvider.GEMINI:
       return createGeminiAdapter(opts);
+    case AIProvider.YANDEX: {
+      const yandexEnv = getYandexAIStudioEnv();
+      const yandexBaseURL = opts.baseURL && !isCloudflareAIGatewayUrl(opts.baseURL)
+        ? opts.baseURL
+        : yandexEnv.baseURL;
+      return createYandexAdapter({
+        apiKey: credential.apiKey || yandexEnv.apiKey,
+        folderId: yandexEnv.folderId,
+        baseURL: yandexBaseURL,
+        defaultModel: opts.defaultModel ?? DEFAULT_PROVIDER_MODELS[AIProvider.YANDEX],
+        ...(providerConfig?.timeoutMs ? { timeoutMs: providerConfig.timeoutMs } : {}),
+      });
+    }
     case AIProvider.GROQ:
       return createOpenAICompatibleAdapter({
         ...opts,
@@ -163,7 +181,7 @@ export function buildAdapterForCredential(
   }
 }
 
-export function providerLabel(provider: AIProvider): "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere" {
+export function providerLabel(provider: AIProvider): "openrouter" | "openai" | "anthropic" | "fireworks" | "gemini" | "groq" | "mistral" | "cerebras" | "cohere" | "yandex" {
   if (provider === AIProvider.OPENROUTER) return "openrouter";
   if (provider === AIProvider.OPENAI) return "openai";
   if (provider === AIProvider.ANTHROPIC) return "anthropic";
@@ -172,5 +190,6 @@ export function providerLabel(provider: AIProvider): "openrouter" | "openai" | "
   if (provider === AIProvider.MISTRAL) return "mistral";
   if (provider === AIProvider.CEREBRAS) return "cerebras";
   if (provider === AIProvider.COHERE) return "cohere";
+  if (provider === AIProvider.YANDEX) return "yandex";
   return "fireworks";
 }

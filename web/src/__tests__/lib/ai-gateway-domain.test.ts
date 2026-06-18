@@ -19,10 +19,12 @@ describe("AI Gateway domain", () => {
       AIProvider.MISTRAL,
       AIProvider.CEREBRAS,
       AIProvider.COHERE,
+      AIProvider.YANDEX,
     ]);
     expect(AI_PROVIDER_LABELS[AIProvider.GEMINI]).toBe("Google Gemini");
     expect(AI_PROVIDER_LABELS[AIProvider.FIREWORKS]).toBe("Fireworks AI");
     expect(AI_PROVIDER_LABELS[AIProvider.GROQ]).toBe("Groq");
+    expect(AI_PROVIDER_LABELS[AIProvider.YANDEX]).toBe("Yandex AI Studio");
   });
 
   it("normalizes feature keys for policy lookup", () => {
@@ -45,6 +47,7 @@ describe("AI Gateway domain", () => {
       AIProvider.COHERE,
       AIProvider.CEREBRAS,
       AIProvider.FIREWORKS,
+      AIProvider.YANDEX,
     ]);
   });
 });

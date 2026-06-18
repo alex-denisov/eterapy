@@ -65,6 +65,9 @@ AUTH_TRUST_HOST=true
 OPENROUTER_API_KEY=REPLACE_ME
 OPENAI_API_KEY=REPLACE_ME
 ANTHROPIC_API_KEY=
+YANDEX_API_KEY=
+YANDEX_FOLDER_ID=
+YANDEX_API_BASE=https://llm.api.cloud.yandex.net/foundationModels/v1
 ENVEOF
   log "⚠  Edit $ENV_FILE with real secrets before continuing"
   exit 1
