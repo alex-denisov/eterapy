@@ -7,6 +7,12 @@ export const ACCOUNT_DIALOGUE_RESIDENCY = "RU_ACCOUNT";
 
 const HOUR_MS = 60 * 60 * 1000;
 
+type RetentionDb = typeof db & {
+  deletionLog: {
+    create: (args: { data: Record<string, unknown> }) => Promise<unknown>;
+  };
+};
+
 export function guestDialogueExpiresAt(now: Date = new Date()) {
   return new Date(now.getTime() + GUEST_DIALOGUE_TTL_HOURS * HOUR_MS);
 }
@@ -71,12 +77,25 @@ export async function cleanupExpiredGuestDialogues(input: { now?: Date; limit?: 
     };
 
     await db.$transaction(async (tx) => {
+      const retentionTx = tx as RetentionDb;
       await tx.auditLog.create({
         data: {
           userId: "system:cron.cleanup-users",
           targetId: dialogue.id,
           action: "GUEST_DIALOGUE_TTL_DELETE",
           details: JSON.stringify(details),
+        },
+      });
+      await retentionTx.deletionLog.create({
+        data: {
+          category: "guest_prompt_result",
+          action: "DELETE",
+          targetType: "Dialogue",
+          targetId: dialogue.id,
+          policy: "guest_prompt_result_72h_delete",
+          reason: "guest_dialogue_ttl_elapsed",
+          metadata: details,
+          occurredAt: now,
         },
       });
       await tx.dialogue.delete({ where: { id: dialogue.id } });

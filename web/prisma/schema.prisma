@@ -19,7 +19,8 @@ model User {
   role                  Role      @default(CLIENT)
   emailVerified         Boolean   @default(false)
   avatarUrl             String?
-  deletedAt             DateTime? // deactivated at this time, purge after 10 days
+  deletedAt             DateTime? // deactivated at this time, anonymize after 7 days
+  retentionAnonymizedAt DateTime? @map("retention_anonymized_at")
   blockedAt             DateTime? // blocked by admin — cannot login
   freeToolsLimit        Int? // null = plan default (3), 0 = unlimited
   verificationToken     String?   @unique
@@ -494,6 +495,22 @@ model AuditLog {
   @@index([userId, createdAt])
   @@index([targetId, createdAt])
   @@map("audit_logs")
+}
+
+model DeletionLog {
+  id         String   @id @default(cuid())
+  category   String
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  policy     String
+  reason     String
+  metadata   Json?
+  occurredAt DateTime @default(now()) @map("occurred_at")
+
+  @@index([category, occurredAt])
+  @@index([targetType, targetId])
+  @@map("deletion_logs")
 }
 
 // ─── Cross-Border AI Legal Controls ──────────────────────────────────────────

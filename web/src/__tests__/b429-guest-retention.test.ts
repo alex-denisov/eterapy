@@ -15,11 +15,13 @@ jest.mock("@/lib/db", () => {
     user: { findUnique: jest.Mock };
     dialogue: { updateMany: jest.Mock; findMany: jest.Mock; delete: jest.Mock };
     auditLog: { create: jest.Mock };
+    deletionLog: { create: jest.Mock };
     $transaction: jest.Mock;
   } = {
     user: { findUnique: jest.fn() },
     dialogue: { updateMany: jest.fn(), findMany: jest.fn(), delete: jest.fn() },
     auditLog: { create: jest.fn() },
+    deletionLog: { create: jest.fn() },
     $transaction: jest.fn(),
   };
   dbMock.$transaction.mockImplementation(async (fn: (tx: typeof dbMock) => unknown) => fn(dbMock));
@@ -30,6 +32,7 @@ const mockDb = db as unknown as {
   user: { findUnique: jest.Mock };
   dialogue: { updateMany: jest.Mock; findMany: jest.Mock; delete: jest.Mock };
   auditLog: { create: jest.Mock };
+  deletionLog: { create: jest.Mock };
   $transaction: jest.Mock;
 };
 
@@ -130,6 +133,15 @@ describe("B429 guest dialogue retention", () => {
         targetId: "dlg-1",
       }),
     });
+    expect(mockDb.deletionLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        category: "guest_prompt_result",
+        action: "DELETE",
+        targetType: "Dialogue",
+        targetId: "dlg-1",
+        policy: "guest_prompt_result_72h_delete",
+      }),
+    });
     const details = JSON.parse(mockDb.auditLog.create.mock.calls[0][0].data.details);
     expect(details).toMatchObject({
       dataResidency: "RU_TEMP",
@@ -145,6 +157,7 @@ describe("B429 guest dialogue retention", () => {
   it("wires guest TTL fields into schema and cleanup monitoring", () => {
     const schema = source("prisma/schema.prisma");
     const cronJobs = source("src/lib/cron-jobs.ts");
+    const dataRetention = source("src/lib/data-retention.ts");
     const status = source("src/lib/admin-system-status.ts");
 
     expect(schema).toContain("dataResidency");
@@ -152,8 +165,9 @@ describe("B429 guest dialogue retention", () => {
     expect(schema).toContain("expiresAt");
     expect(schema).toContain("@map(\"expires_at\")");
     expect(schema).toContain("claimedAt");
-    expect(cronJobs).toContain("cleanupExpiredGuestDialogues");
-    expect(cronJobs).toContain("guestDialogueCleanup");
+    expect(cronJobs).toContain("cleanupRetentionData");
+    expect(dataRetention).toContain("cleanupExpiredGuestDialogues");
+    expect(dataRetention).toContain("guestDialogueCleanup");
     expect(status).toContain("гостевых диалогов");
   });
 });

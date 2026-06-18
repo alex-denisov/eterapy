@@ -11,14 +11,13 @@ import {
   runMomentOfNeedJob,
   runStreakAtRiskJob,
 } from "@/lib/reactivation-cron";
-import { cleanupExpiredGuestDialogues } from "@/lib/guest-dialogue-retention";
+import { cleanupRetentionData } from "@/lib/data-retention";
 import { cleanupExpiredSessionAiData } from "@/lib/server-stt";
 import { cancelSessionHold, captureGraceExpiredSessions } from "@/lib/session-payment";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
-const CLEANUP_GRACE_DAYS = 10;
 // B348: send the auto-renewal reminder when the period ends in ~3 days. A 1-day
 // window absorbs the daily cron cadence so a renewal is never missed nor doubled.
 const RENEWAL_REMINDER_LEAD_DAYS = 3;
@@ -45,39 +44,24 @@ function fmtSlotCron(slot: { startAt: Date; endAt: Date } | null): string {
 
 export async function runCleanupUsersJob(job: Job): Promise<JobResult> {
   const now = jobNow(job);
-  const cutoffDate = new Date(now.getTime() - CLEANUP_GRACE_DAYS * 24 * 60 * 60 * 1000);
-
-  const usersToDelete = await db.user.findMany({
-    where: {
-      deletedAt: {
-        lte: cutoffDate,
-      },
-    },
-    select: { id: true, email: true, deletedAt: true },
-  });
-
-  let deletedCount = 0;
-  for (const user of usersToDelete) {
-    await db.user.delete({ where: { id: user.id } });
-    deletedCount++;
-  }
   const sessionAiCleanup = await cleanupExpiredSessionAiData({ now });
-  const guestDialogueCleanup = await cleanupExpiredGuestDialogues({ now });
+  const retentionCleanup = await cleanupRetentionData({ now });
 
   log.info("cron-cleanup-users-completed", {
     jobId: job.id,
-    deletedCount,
+    usersAnonymized: retentionCleanup.usersAnonymized,
+    guestRoutingLogsDeleted: retentionCleanup.guestRoutingLogsDeleted,
+    securityAuditLogsDeleted: retentionCleanup.securityAuditLogsDeleted,
     sessionAiCleanup,
-    guestDialogueCleanup,
-    cutoffDate: cutoffDate.toISOString(),
+    retentionCleanup,
   });
 
   return {
     ok: true,
-    deletedCount,
+    deletedCount: retentionCleanup.usersAnonymized,
+    usersAnonymized: retentionCleanup.usersAnonymized,
     sessionAiCleanup,
-    guestDialogueCleanup,
-    cutoffDate: cutoffDate.toISOString(),
+    retentionCleanup,
     timestamp: now.toISOString(),
   };
 }
