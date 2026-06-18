@@ -6,15 +6,16 @@
  * `/api/video/session PATCH status=ENDED`).
  *
  * Rules from backlog 11.C.2:
- *   - Practitioner is paid at session end, conditional on:
+ *   - Practitioner payout is created at session end, but held until the
+ *     24h client dispute window expires, conditional on:
  *       · no unresolved complaints on this booking
  *         (complaint status OPEN or REVIEWING at completion time),
  *       · the practitioner did not end the session early
  *         (≥ 75% of the scheduled slot duration must have elapsed
  *         since the session actually started).
- *   - If the conditions fail because of an unresolved complaint,
- *     the payout is still created but with status "HELD" — the
- *     moderator/superadmin decides what to do (see 11.C.3).
+ *   - If the conditions fail because of an unresolved complaint, the payout is
+ *     held with `open_complaint`; otherwise it is held with `dispute_window`
+ *     and released by `cron.session-escrow-capture`.
  *   - If the conditions fail because the practitioner tried to end
  *     the session too early, the COMPLETED transition itself is
  *     blocked. No state changes.
@@ -41,6 +42,7 @@ export const PAYOUT_STATUS_FAILED = "FAILED";
 /** Minimum fraction of the scheduled slot that must pass before a
  *  practitioner-initiated completion counts as "not early". */
 export const EARLY_END_MIN_FRACTION = 0.75;
+export const SESSION_DISPUTE_WINDOW_HOURS = 24;
 
 export type CompletionOutcome =
   | {
@@ -48,8 +50,8 @@ export type CompletionOutcome =
       payout: {
         id: string;
         amountKopecks: number;
-        status: typeof PAYOUT_STATUS_PENDING | typeof PAYOUT_STATUS_HELD;
-        holdReason?: "open_complaint";
+        status: typeof PAYOUT_STATUS_HELD;
+        holdReason: "open_complaint" | "risk_review" | "dispute_window";
       };
     }
   | { status: "already_completed" }
@@ -123,7 +125,13 @@ export async function completeBookingAtSessionEnd(
     riskFlags: booking.riskFlags,
     hasUnresolvedComplaint,
   });
-  const payoutStatus = payoutHold.status === PAYOUT_STATUS_HELD ? PAYOUT_STATUS_HELD : PAYOUT_STATUS_PENDING;
+  const payoutStatus = PAYOUT_STATUS_HELD;
+  const holdReason = hasUnresolvedComplaint
+    ? "open_complaint"
+    : payoutHold.status === PAYOUT_STATUS_HELD
+      ? payoutHold.holdReason
+      : "dispute_window";
+  const disputeWindowEndsAt = new Date(completionNow.getTime() + SESSION_DISPUTE_WINDOW_HOURS * 60 * 60 * 1000);
 
   const payoutRow = await db.$transaction(async (tx) => {
     const flip = await tx.booking.updateMany({
@@ -146,8 +154,8 @@ export async function completeBookingAtSessionEnd(
         amountKopecks,
         status: payoutStatus,
         initiatedBy: actor.userId,
-        availableAt: payoutAvailableAt(planKeyAtPayout, completionNow),
-        holdReason: payoutHold.holdReason,
+        availableAt: holdReason === "dispute_window" ? disputeWindowEndsAt : payoutAvailableAt(planKeyAtPayout, completionNow),
+        holdReason,
         holdDays,
         planKeyAtPayout,
         reserveKopecks,
@@ -167,8 +175,8 @@ export async function completeBookingAtSessionEnd(
     payout: {
       id: payoutRow.id,
       amountKopecks: payoutRow.amountKopecks,
-      status: payoutRow.status as typeof PAYOUT_STATUS_PENDING | typeof PAYOUT_STATUS_HELD,
-      ...(hasUnresolvedComplaint ? { holdReason: "open_complaint" as const } : {}),
+      status: payoutStatus,
+      holdReason: holdReason as "open_complaint" | "risk_review" | "dispute_window",
     },
   };
 }

@@ -4,8 +4,8 @@ import path from "node:path";
 const root = process.cwd();
 const source = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
 
-// B351 / Баг 16 — 24h-grace escrow capture (spec: «после 24ч grace переводится
-// платформе»). Captures held CONFIRMED bookings whose session ended >24h ago.
+// B425 — 24h dispute-window escrow settlement. Captures held COMPLETED bookings
+// whose session ended >24h ago and have no open/reviewing complaint.
 
 jest.mock("@/lib/yukassa", () => ({
   __esModule: true,
@@ -20,6 +20,10 @@ jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: {
     booking: { findMany: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn() },
+    payment: { update: jest.fn() },
+    payout: { updateMany: jest.fn() },
+    transaction: { create: jest.fn() },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -28,33 +32,48 @@ import db from "@/lib/db";
 
 const mockDb = db as unknown as {
   booking: { findMany: jest.Mock; findUnique: jest.Mock; updateMany: jest.Mock };
+  payment: { update: jest.Mock };
+  payout: { updateMany: jest.Mock };
+  transaction: { create: jest.Mock };
+  $transaction: jest.Mock;
 };
 
 const NOW = new Date("2026-06-09T18:00:00.000Z");
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockDb.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
+    cb({
+      payment: { update: mockDb.payment.update },
+      payout: { updateMany: mockDb.payout.updateMany },
+      transaction: { create: mockDb.transaction.create },
+    }),
+  );
+  mockDb.payment.update.mockResolvedValue({});
+  mockDb.payout.updateMany.mockResolvedValue({ count: 1 });
+  mockDb.transaction.create.mockResolvedValue({});
+});
 
 describe("captureGraceExpiredSessions", () => {
-  it("queries CONFIRMED held bookings whose slot ended before now-24h", async () => {
+  it("queries COMPLETED held bookings whose dispute window ended before now-24h", async () => {
     mockDb.booking.findMany.mockResolvedValue([]);
     await captureGraceExpiredSessions(NOW);
 
     const where = mockDb.booking.findMany.mock.calls[0][0].where;
-    expect(where.status).toBe("CONFIRMED");
+    expect(where.status).toBe("COMPLETED");
     expect(where.paymentId).toEqual({ not: null });
-    const cutoff = where.slot.endAt.lte as Date;
+    expect(where.complaints).toEqual({ none: { status: { in: ["OPEN", "REVIEWING"] } } });
+    const cutoff = where.endedAt.lte as Date;
     expect(cutoff.getTime()).toBe(NOW.getTime() - 24 * 60 * 60 * 1000);
   });
 
-  it("captures each due booking (free session → charged) and counts it", async () => {
+  it("captures each due completed booking and counts it", async () => {
     mockDb.booking.findMany.mockResolvedValue([{ id: "bk-1" }, { id: "bk-2" }]);
-    // captureSessionForBooking path: findUnique returns a free CONFIRMED booking,
-    // updateMany flips it → status "charged".
     mockDb.booking.findUnique.mockResolvedValue({
-      id: "bk-1", clientId: "c1", priceRub: 0, status: "CONFIRMED", paymentId: null,
+      id: "bk-1", clientId: "c1", priceRub: 0, status: "COMPLETED", paymentId: "pay-1",
+      payment: { externalId: "pay-1", status: "PENDING" },
       practitioner: { userId: "p1" },
     });
-    mockDb.booking.updateMany.mockResolvedValue({ count: 1 });
 
     const res = await captureGraceExpiredSessions(NOW);
     expect(res.scanned).toBe(2);
@@ -64,7 +83,7 @@ describe("captureGraceExpiredSessions", () => {
   it("honours a custom grace window", async () => {
     mockDb.booking.findMany.mockResolvedValue([]);
     await captureGraceExpiredSessions(NOW, 48);
-    const cutoff = mockDb.booking.findMany.mock.calls[0][0].where.slot.endAt.lte as Date;
+    const cutoff = mockDb.booking.findMany.mock.calls[0][0].where.endedAt.lte as Date;
     expect(cutoff.getTime()).toBe(NOW.getTime() - 48 * 60 * 60 * 1000);
   });
 });

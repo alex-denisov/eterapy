@@ -1,7 +1,7 @@
 /**
  * Unit tests for session-end completion + payout gating (backlog 11.C.2).
  *
- *   - Releases payout (status PENDING) when no unresolved complaint exists.
+ *   - Holds payout (status HELD/dispute_window) until the 24h dispute window expires.
  *   - Holds payout (status HELD) when an OPEN/REVIEWING complaint exists.
  *   - Blocks COMPLETED transition when the practitioner ends < 75% in.
  *   - Idempotent: already-COMPLETED bookings are a no-op.
@@ -102,14 +102,14 @@ describe("completeBookingAtSessionEnd", () => {
     Date.now = realDateNow;
   });
 
-  it("creates a PENDING payout in kopecks when no unresolved complaint exists", async () => {
+  it("creates a HELD payout in kopecks when no unresolved complaint exists", async () => {
     mockDb.booking.findUnique.mockResolvedValueOnce(bookingFixture());
     mockDb.booking.updateMany.mockResolvedValueOnce({ count: 1 });
     mockDb.practitioner.update.mockResolvedValueOnce({});
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po1",
       amountKopecks: 195_000,
-      status: "PENDING",
+      status: "HELD",
     });
 
     const out = await completeBookingAtSessionEnd("b1", {
@@ -119,7 +119,7 @@ describe("completeBookingAtSessionEnd", () => {
 
     expect(out).toEqual({
       status: "completed",
-      payout: { id: "po1", amountKopecks: 195_000, status: PAYOUT_STATUS_PENDING },
+      payout: { id: "po1", amountKopecks: 195_000, status: PAYOUT_STATUS_HELD, holdReason: "dispute_window" },
     });
     // priceRub 3000 * 100 = 300_000 kopecks; minus 35% commission = 195_000.
     expect(mockDb.payout.create).toHaveBeenCalledWith({
@@ -127,10 +127,10 @@ describe("completeBookingAtSessionEnd", () => {
         practitionerId: "p1",
         bookingId: "b1",
         amountKopecks: 195_000,
-        status: PAYOUT_STATUS_PENDING,
+        status: PAYOUT_STATUS_HELD,
         initiatedBy: "uAdmin",
-        availableAt: new Date("2026-05-08T12:00:00.000Z"),
-        holdReason: "payout_delay",
+        availableAt: new Date("2026-04-25T12:00:00.000Z"),
+        holdReason: "dispute_window",
         holdDays: 14,
         planKeyAtPayout: "base",
         reserveKopecks: 0,
@@ -199,7 +199,7 @@ describe("completeBookingAtSessionEnd", () => {
     expect(out.payout.status).toBe(PAYOUT_STATUS_HELD);
   });
 
-  it("does NOT hold when complaints exist but are all RESOLVED/CLOSED", async () => {
+  it("still holds for the dispute window when complaints exist but are all RESOLVED/CLOSED", async () => {
     mockDb.booking.findUnique.mockResolvedValueOnce(
       bookingFixture({
         complaints: [
@@ -213,7 +213,7 @@ describe("completeBookingAtSessionEnd", () => {
     mockDb.payout.create.mockResolvedValueOnce({
       id: "po3",
       amountKopecks: 195_000,
-      status: PAYOUT_STATUS_PENDING,
+      status: PAYOUT_STATUS_HELD,
     });
 
     const out = await completeBookingAtSessionEnd("b1", {
@@ -221,7 +221,8 @@ describe("completeBookingAtSessionEnd", () => {
       isPractitioner: false,
     });
     if (out.status !== "completed") throw new Error("expected completed");
-    expect(out.payout.status).toBe(PAYOUT_STATUS_PENDING);
+    expect(out.payout.status).toBe(PAYOUT_STATUS_HELD);
+    expect(out.payout.holdReason).toBe("dispute_window");
   });
 
   it("blocks early-end when actor is the practitioner and < 75% elapsed", async () => {

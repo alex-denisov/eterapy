@@ -4,13 +4,16 @@
  * Заменяет балансовую оплату (`session-charge.ts`). Жизненный цикл:
  *   1. Бронь создана  → holdSessionForBooking()  → YooKassa hold (capture:false),
  *      клиент авторизует платёж по confirmationUrl. Payment(status=PENDING).
- *   2. Старт сессии (CONFIRMED→IN_PROGRESS) → captureSessionForBooking() →
- *      capture холда, Payment(PAID) + расходная Transaction.
- *   3. Отмена/неявка до capture → cancelSessionHold() → release холда.
- *   4. Возврат по жалобе (после capture) → refundSessionForBooking() → YooKassa refund.
+ *   2. Старт сессии (CONFIRMED→IN_PROGRESS) → startSessionForBooking() →
+ *      без capture: hold остаётся зарезервированным.
+ *   3. Завершение сессии → payout создаётся в HELD на 24h dispute window.
+ *   4. После dispute window без открытого спора → captureSessionForBooking() →
+ *      capture холда, Payment(PAID), расходная Transaction, payout(PENDING).
+ *   5. Отмена/неявка до capture → cancelSessionHold() → release холда.
+ *   6. Возврат по жалобе (после capture) → refundSessionForBooking() → YooKassa refund.
  *
  * NB: карт-холд YooKassa живёт ~7 дней — capture/cancel должны произойти в этом окне
- * (холд создаётся при брони, захватывается при старте сессии; для дальних дат
+ * (холд создаётся при брони, захватывается после 24h dispute window; для дальних дат
  * политику lead-time задаёт вызывающий код).
  */
 import db from "./db";
@@ -136,44 +139,89 @@ export type SessionCaptureOutcome =
   | { status: "hold_missing" }
   | { status: "invalid_status"; currentStatus: string };
 
-/** Захватывает hold при старте сессии (CONFIRMED→IN_PROGRESS). Идемпотентно. */
+export type SessionStartOutcome =
+  | { status: "started" }
+  | { status: "already_started" }
+  | { status: "hold_missing" }
+  | { status: "invalid_status"; currentStatus: string };
+
+/** Начинает сессию (CONFIRMED→IN_PROGRESS), не захватывая card hold. */
+export async function startSessionForBooking(bookingId: string): Promise<SessionStartOutcome> {
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      status: true,
+      priceRub: true,
+      paymentId: true,
+      payment: { select: { externalId: true, status: true } },
+    },
+  });
+  if (!booking) return { status: "invalid_status", currentStatus: "NOT_FOUND" };
+  if (booking.status === "IN_PROGRESS") return { status: "already_started" };
+  if (booking.status !== "CONFIRMED") return { status: "invalid_status", currentStatus: booking.status };
+  if (booking.priceRub > 0 && (!booking.paymentId || !booking.payment?.externalId || booking.payment.status !== "PENDING")) {
+    return { status: "hold_missing" };
+  }
+
+  const startedAt = new Date(Date.now());
+  const flip = await db.booking.updateMany({
+    where: { id: bookingId, status: "CONFIRMED" },
+    data: { status: "IN_PROGRESS", startedAt },
+  });
+  return flip.count === 0 ? { status: "already_started" } : { status: "started" };
+}
+
+/** Захватывает hold после истечения 24h dispute window. Идемпотентно. */
 export async function captureSessionForBooking(bookingId: string): Promise<SessionCaptureOutcome> {
+  return settleSessionAfterDisputeWindow(bookingId);
+}
+
+export async function settleSessionAfterDisputeWindow(
+  bookingId: string,
+  options: { releaseAnyHeldPayout?: boolean } = {},
+): Promise<SessionCaptureOutcome> {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
     select: {
       id: true, clientId: true, priceRub: true, status: true, paymentId: true,
+      payment: { select: { externalId: true, status: true } },
       practitioner: { select: { userId: true } },
     },
   });
   if (!booking) return { status: "invalid_status", currentStatus: "NOT_FOUND" };
-  if (booking.status === "IN_PROGRESS") return { status: "already_charged" };
-  if (booking.status !== "CONFIRMED") return { status: "invalid_status", currentStatus: booking.status };
+  if (booking.status !== "COMPLETED") return { status: "invalid_status", currentStatus: booking.status };
 
   const priceKopecks = booking.priceRub * 100;
   const documentVersions = paymentDocumentVersionData();
+  const heldPayoutWhere = options.releaseAnyHeldPayout
+    ? { bookingId, status: "HELD" as const }
+    : { bookingId, status: "HELD" as const, holdReason: "dispute_window" };
 
-  // Бесплатная сессия (test mode / промо): только меняем статус.
+  // Бесплатная сессия (test mode / промо): только выпускаем payout из dispute hold.
   if (priceKopecks === 0) {
-    const flip = await db.booking.updateMany({
-      where: { id: bookingId, status: "CONFIRMED" },
-      data: { status: "IN_PROGRESS" },
+    await db.payout.updateMany({
+      where: heldPayoutWhere,
+      data: { status: "PENDING", holdReason: "payout_delay" },
     });
-    return flip.count === 0 ? { status: "already_charged" } : { status: "charged", priceKopecks: 0 };
+    return { status: "charged", priceKopecks: 0 };
   }
 
-  if (!booking.paymentId) return { status: "hold_missing" };
+  const providerPaymentId = booking.payment?.externalId ?? booking.paymentId;
+  if (booking.payment?.status === "PAID") {
+    await db.payout.updateMany({
+      where: heldPayoutWhere,
+      data: { status: "PENDING", holdReason: "payout_delay" },
+    });
+    return { status: "already_charged" };
+  }
+  if (!providerPaymentId || booking.payment?.status !== "PENDING") return { status: "hold_missing" };
 
   // Захват холда в YooKassa (идемпотентно по capture-{id}).
-  const captured = await capturePayment(booking.paymentId, priceKopecks);
+  const captured = await capturePayment(providerPaymentId, priceKopecks);
   if (captured.status !== "succeeded") return { status: "hold_missing" };
 
-  const result = await db.$transaction(async (tx) => {
-    const flip = await tx.booking.updateMany({
-      where: { id: bookingId, status: "CONFIRMED" },
-      data: { status: "IN_PROGRESS" },
-    });
-    if (flip.count === 0) return "already_charged" as const;
-
+  await db.$transaction(async (tx) => {
     await tx.payment.update({ where: { bookingId }, data: { status: "PAID" } }).catch(() => {});
     await tx.transaction.create({
       data: {
@@ -182,6 +230,7 @@ export async function captureSessionForBooking(bookingId: string): Promise<Sessi
         currency: "RUB",
         status: "SUCCEEDED",
         provider: "yukassa",
+        providerPaymentId,
         description: `Оплата сессии ${bookingId}`,
         offerVersion: documentVersions.offerVersion,
         termsVersion: documentVersions.termsVersion,
@@ -195,18 +244,21 @@ export async function captureSessionForBooking(bookingId: string): Promise<Sessi
         },
       },
     });
-    return "charged" as const;
+    await tx.payout.updateMany({
+      where: heldPayoutWhere,
+      data: { status: "PENDING", holdReason: "payout_delay" },
+    });
   });
 
   // Баг 16: когда холд захвачен (деньги реально получены) — практик видит, что
   // оплата прошла. Уведомляем его событием PAYMENT_RECEIVED (→ /earnings).
-  if (result === "charged" && booking.practitioner?.userId) {
+  if (booking.practitioner?.userId) {
     notify({ userId: booking.practitioner.userId, event: "PAYMENT_RECEIVED", data: {
       amountRub: booking.priceRub.toLocaleString("ru-RU"), date: new Date().toLocaleDateString("ru-RU"),
     }}).catch((e: unknown) => log.warn("session-payment.capture_notify_failed", { bookingId, err: e }));
   }
 
-  return result === "already_charged" ? { status: "already_charged" } : { status: "charged", priceKopecks };
+  return { status: "charged", priceKopecks };
 }
 
 /** Отменяет hold при отмене брони (если ещё не захвачен). Захваченный платёж не
@@ -249,12 +301,9 @@ export async function refundSessionForBooking(
 }
 
 /**
- * B351 / Баг 16 — 24h-grace auto-capture (spec: «после 24ч grace переводится
- * платформе»). Captures still-held CONFIRMED bookings whose scheduled session
- * end passed more than `graceHours` ago. This is the safety net for the case
- * where a session was never opened (no video room → no capture-at-start): the
- * authorized hold would otherwise expire (~7 days) and the practitioner would
- * never be paid. Idempotent — capture is no-op once already charged.
+ * B425 — 24h dispute-window settlement. Captures still-held COMPLETED bookings
+ * only after the client dispute window has elapsed and no open/reviewing
+ * complaint exists. Idempotent — only PENDING payment rows are scanned.
  */
 export async function captureGraceExpiredSessions(
   now: Date = new Date(),
@@ -263,9 +312,11 @@ export async function captureGraceExpiredSessions(
   const cutoff = new Date(now.getTime() - graceHours * 60 * 60 * 1000);
   const due = await db.booking.findMany({
     where: {
-      status: "CONFIRMED",
+      status: "COMPLETED",
       paymentId: { not: null },
-      slot: { endAt: { lte: cutoff } },
+      endedAt: { lte: cutoff },
+      payment: { status: "PENDING" },
+      complaints: { none: { status: { in: ["OPEN", "REVIEWING"] } } },
     },
     select: { id: true },
     take: 500,
@@ -273,7 +324,7 @@ export async function captureGraceExpiredSessions(
 
   let captured = 0;
   for (const booking of due) {
-    const outcome = await captureSessionForBooking(booking.id).catch((err) => {
+    const outcome = await settleSessionAfterDisputeWindow(booking.id).catch((err) => {
       log.warn("session-payment.grace_capture_failed", { bookingId: booking.id, err });
       return null;
     });

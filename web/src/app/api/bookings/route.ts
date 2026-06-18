@@ -13,7 +13,7 @@ import {
 } from "@/lib/email";
 import { getSetting } from "@/lib/platform-settings";
 import { notify } from "@/lib/notifications";
-import { holdSessionForBooking, captureSessionForBooking, cancelSessionHold } from "@/lib/session-payment";
+import { holdSessionForBooking, startSessionForBooking, cancelSessionHold } from "@/lib/session-payment";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
 import { markChannelConversion } from "@/lib/channel-attribution";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
@@ -357,8 +357,8 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // Z1a: двухстадийный hold оплаты сессии — деньги резервируются на карте при
-    // брони и списываются при старте сессии (captureSessionForBooking). Бесплатная
+    // Z1a/B425: двухстадийный hold оплаты сессии — деньги резервируются на карте при
+    // брони и списываются после сессии + 24h dispute-window. Бесплатная
     // сессия (test mode / priceRub=0) → hold "free", confirmationUrl не нужен.
     let confirmationUrl: string | null = null;
     let heldViaSavedCard = false;
@@ -431,9 +431,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Клиент может только отменить запись" }, { status: 403 });
     }
 
-    // При переходе в IN_PROGRESS — захватываем карт-холд клиента (Z1a)
+    // При переходе в IN_PROGRESS — стартуем сессию без capture; capture будет после 24h dispute-window.
     if (status === "IN_PROGRESS" && booking.status === "CONFIRMED") {
-      const outcome = await captureSessionForBooking(bookingId);
+      const outcome = await startSessionForBooking(bookingId);
       if (outcome.status === "hold_missing") {
         return NextResponse.json(
           { error: "Оплата сессии не подтверждена — авторизуйте платёж по карте." },

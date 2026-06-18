@@ -25,11 +25,12 @@ jest.mock("@/lib/notifications", () => ({
 jest.mock("@/lib/session-payment", () => ({
   __esModule: true,
   refundSessionForBooking: jest.fn().mockResolvedValue({ status: "refunded" }),
+  settleSessionAfterDisputeWindow: jest.fn().mockResolvedValue({ status: "charged", priceKopecks: 300_000 }),
 }));
 
 import db from "@/lib/db";
 import { resolveComplaint } from "@/lib/complaint-resolution";
-import { refundSessionForBooking } from "@/lib/session-payment";
+import { refundSessionForBooking, settleSessionAfterDisputeWindow } from "@/lib/session-payment";
 
 type MockedPrisma = {
   complaint: { findUnique: jest.Mock; update: jest.Mock };
@@ -90,7 +91,7 @@ describe("resolveComplaint", () => {
     expect(mockDb.$transaction).not.toHaveBeenCalled();
   });
 
-  it("releases HELD payout to PENDING when decision=release", async () => {
+  it("captures the hold and releases HELD payout when decision=release", async () => {
     mockDb.complaint.findUnique.mockResolvedValueOnce(COMPLAINT_FIXTURE);
     mockDb.payout.findFirst.mockResolvedValueOnce({ id: "po1", amountKopecks: 225_000 });
     mockDb.payout.updateMany.mockResolvedValueOnce({ count: 1 });
@@ -107,10 +108,7 @@ describe("resolveComplaint", () => {
       payoutAction: "released",
       heldPayoutId: "po1",
     });
-    expect(mockDb.payout.updateMany).toHaveBeenCalledWith({
-      where: { id: "po1", status: "HELD" },
-      data: { status: "PENDING", holdReason: "payout_delay" },
-    });
+    expect(settleSessionAfterDisputeWindow).toHaveBeenCalledWith("b1", { releaseAnyHeldPayout: true });
     expect(mockDb.booking.update).toHaveBeenCalledWith({
       where: { id: "b1" },
       data: { status: "COMPLETED" },

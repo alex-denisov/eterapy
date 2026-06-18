@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { generateToken, makeRoomName } from "@/lib/livekit";
-import { captureSessionForBooking } from "@/lib/session-payment";
+import { startSessionForBooking } from "@/lib/session-payment";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
   const participantName = isClient ? booking.client.name : booking.practitioner.user.name;
   const role = isClient ? "client" : "practitioner";
 
-  // Первый вход: переводим бронирование в IN_PROGRESS и списываем баланс клиента.
-  // Повторные вызовы идемпотентны (status === "already_charged").
+  // Первый вход: переводим бронирование в IN_PROGRESS, не захватывая card hold.
+  // Деньги списывает escrow cron после завершения сессии и 24h dispute-window.
   if (booking.status === "CONFIRMED") {
-    const outcome = await captureSessionForBooking(bookingId);
+    const outcome = await startSessionForBooking(bookingId);
     if (outcome.status === "hold_missing") {
       return NextResponse.json(
         { error: "Оплата сессии не подтверждена — авторизуйте платёж по карте." },

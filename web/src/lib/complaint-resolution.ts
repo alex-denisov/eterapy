@@ -27,8 +27,8 @@
 import db from "./db";
 import { logAudit } from "./audit";
 import { notify } from "./notifications";
-import { PAYOUT_STATUS_HELD, PAYOUT_STATUS_PENDING, PAYOUT_STATUS_FAILED } from "./session-complete";
-import { refundSessionForBooking } from "./session-payment";
+import { PAYOUT_STATUS_HELD, PAYOUT_STATUS_FAILED } from "./session-complete";
+import { refundSessionForBooking, settleSessionAfterDisputeWindow } from "./session-payment";
 import { log } from "./logger";
 
 export type PayoutDecision = "release" | "withhold";
@@ -135,11 +135,6 @@ export async function resolveComplaint(
     }
 
     if (wantRelease) {
-      const flip = await tx.payout.updateMany({
-        where: { id: heldPayout.id, status: PAYOUT_STATUS_HELD },
-        data: { status: PAYOUT_STATUS_PENDING, holdReason: "payout_delay" },
-      });
-      if (flip.count === 0) return { payoutAction: "none" as const };
       await tx.booking.update({
         where: { id: complaint.booking.id },
         data: { status: "COMPLETED" },
@@ -171,6 +166,21 @@ export async function resolveComplaint(
         reason: "Возврат по жалобе",
       },
     }).catch((e) => log.error("complaint_resolution.refund_notify_failed", { err: e }));
+  }
+  if (result.payoutAction === "released") {
+    const settlement = await settleSessionAfterDisputeWindow(complaint.booking.id, { releaseAnyHeldPayout: true })
+      .catch((e) => {
+        log.error("complaint_resolution.release_settlement_failed", { complaintId: complaint.id, err: e });
+        return null;
+      });
+    if (settlement?.status !== "charged" && settlement?.status !== "already_charged") {
+      return {
+        status: "ok",
+        complaintStatus: input.status,
+        payoutAction: "none",
+        ...(heldPayout ? { heldPayoutId: heldPayout.id } : {}),
+      };
+    }
   }
 
   return {
