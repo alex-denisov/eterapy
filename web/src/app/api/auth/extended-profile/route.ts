@@ -15,7 +15,7 @@ export async function GET() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { birthDate: true, birthTime: true, birthPlace: true, timezone: true, maritalStatus: true, occupation: true, aiGoals: true },
+    select: { birthDate: true, birthDateSource: true, birthTime: true, birthPlace: true, timezone: true, maritalStatus: true, occupation: true, aiGoals: true },
   });
 
   // Serialize birthDate as YYYY-MM-DD string instead of full ISO
@@ -71,6 +71,7 @@ export async function PATCH(req: NextRequest) {
       where: { id: session.user.id },
       data: {
         ...(birthDate !== undefined ? { birthDate: utcBirthDate } : {}),
+        ...(birthDate !== undefined ? { birthDateSource: utcBirthDate ? "manual" : null } : {}),
         ...(birthTime !== undefined ? { birthTime } : {}),
         ...(birthPlace !== undefined ? { birthPlace } : {}),
         ...(timezone !== undefined ? { timezone } : {}),
@@ -83,7 +84,10 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Не удалось сохранить профиль" }, { status: 500 });
   }
 
-  await logAudit(session.user.id, "PROFILE_UPDATE", undefined, "Расширенный профиль");
+  await logAudit(session.user.id, "PROFILE_UPDATE", undefined, JSON.stringify({
+    surface: "extended_profile",
+    ...(birthDate !== undefined ? { birthDateSource: utcBirthDate ? "manual" : null } : {}),
+  }));
   void completeMission({
     userId: session.user.id,
     missionKey: "complete_profile",

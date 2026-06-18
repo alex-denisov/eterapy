@@ -134,6 +134,8 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
               role: "CLIENT",
               emailVerified: true, // Google верифицирует email
               avatarUrl: user.image ?? null,
+              provider: "google",
+              providerId: account.providerAccountId,
             },
           });
           const meta = await getRequestMeta();

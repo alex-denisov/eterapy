@@ -18,7 +18,16 @@ interface TelegramStatus {
   username: string | null;
 }
 
-export function SettingsClient({ telegramStatus, hasPassword }: { telegramStatus: TelegramStatus, hasPassword?: boolean }) {
+type LoginProvider = "google" | "vk" | "telegram" | "apple";
+
+const LOGIN_PROVIDER_LABELS: Record<LoginProvider, string> = {
+  google: "Google",
+  vk: "ВКонтакте",
+  telegram: "Telegram",
+  apple: "Apple",
+};
+
+export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = [] }: { telegramStatus: TelegramStatus, hasPassword?: boolean, linkedProviders?: LoginProvider[] }) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -35,6 +44,9 @@ export function SettingsClient({ telegramStatus, hasPassword }: { telegramStatus
   const [newPwd, setNewPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [savingPwd, setSavingPwd] = useState(false);
+  const [requestingSetPassword, setRequestingSetPassword] = useState(false);
+  const [unlinkingProvider, setUnlinkingProvider] = useState<LoginProvider | null>(null);
+  const [connectedProviders, setConnectedProviders] = useState<LoginProvider[]>(linkedProviders);
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteConfirmError, setDeleteConfirmError] = useState<string | null>(null);
@@ -96,6 +108,38 @@ export function SettingsClient({ telegramStatus, hasPassword }: { telegramStatus
       else toast.error(d.error || "Ошибка");
     } catch { toast.error("Ошибка"); }
     finally { setSavingPwd(false); }
+  }
+
+  async function handleSetPasswordRequest() {
+    setRequestingSetPassword(true);
+    try {
+      const res = await fetch("/api/auth/set-password-request", { method: "POST" });
+      const d = await res.json().catch(() => ({ ok: false, error: "Не удалось отправить письмо" }));
+      if (res.ok && d.ok) toast.success("Письмо для назначения пароля отправлено");
+      else toast.error(d.error || "Не удалось отправить письмо");
+    } catch {
+      toast.error("Ошибка сети — попробуйте ещё раз");
+    } finally {
+      setRequestingSetPassword(false);
+    }
+  }
+
+  async function handleUnlinkProvider(provider: LoginProvider) {
+    setUnlinkingProvider(provider);
+    try {
+      const res = await fetch(`/api/auth/social-link/${provider}`, { method: "DELETE" });
+      const d = await res.json().catch(() => ({ ok: false, error: "Не удалось отключить способ входа" }));
+      if (res.ok && d.ok) {
+        setConnectedProviders((prev) => prev.filter((item) => item !== provider));
+        toast.success(`${LOGIN_PROVIDER_LABELS[provider]} отключён`);
+      } else {
+        toast.error(d.error || "Не удалось отключить способ входа");
+      }
+    } catch {
+      toast.error("Ошибка сети — попробуйте ещё раз");
+    } finally {
+      setUnlinkingProvider(null);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -211,11 +255,15 @@ export function SettingsClient({ telegramStatus, hasPassword }: { telegramStatus
 
       {/* Безопасность */}
       {activeTab === "security" && (
-        <div className="soft-card p-6">
-            <h2 className="soft-h3 mb-5">Смена пароля</h2>
+        <div className="soft-card p-6 space-y-6">
+          <section>
+            <h2 className="soft-h3 mb-5">{hasPassword === false ? "Пароль для входа" : "Смена пароля"}</h2>
             {hasPassword === false ? (
-              <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4 text-sm text-[var(--soft-ink-soft)]">
-                Вы вошли через внешний сервис (Google, VK, Telegram и т.д.). Смена пароля недоступна.
+              <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.55)] p-4 text-sm text-[var(--soft-ink-soft)]" data-testid="set-password-panel">
+                <p>Сейчас вход привязан к внешнему сервису. Назначьте пароль по email, чтобы входить напрямую и безопасно отключать соцлогины.</p>
+                <button type="button" onClick={handleSetPasswordRequest} disabled={requestingSetPassword} className="soft-button soft-button-primary mt-4">
+                  {requestingSetPassword ? "Отправляем..." : "Отправить письмо для пароля"}
+                </button>
               </div>
             ) : (
               <form onSubmit={handleSavePassword} className="space-y-4">
@@ -236,6 +284,31 @@ export function SettingsClient({ telegramStatus, hasPassword }: { telegramStatus
                 </button>
               </form>
             )}
+          </section>
+
+          <section data-testid="linked-login-methods">
+            <h2 className="soft-h3 mb-3">Способы входа</h2>
+            <div className="space-y-2">
+              {connectedProviders.length === 0 ? (
+                <p className="text-sm text-[var(--soft-ink-soft)]">Социальные входы не подключены.</p>
+              ) : connectedProviders.map((provider) => (
+                <div key={provider} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--soft-paper-edge)] bg-[rgba(255,255,255,0.45)] px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-[var(--soft-ink)]">{LOGIN_PROVIDER_LABELS[provider]}</p>
+                    <p className="text-xs text-[var(--soft-ink-soft)]">Подключён как способ входа</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleUnlinkProvider(provider)}
+                    disabled={unlinkingProvider === provider}
+                    className="soft-button soft-button-ghost h-9 px-4 text-sm"
+                  >
+                    {unlinkingProvider === provider ? "Отключаем..." : "Отключить"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       )}
 
@@ -449,6 +522,7 @@ function ExtendedProfileTab() {
                 className={`bg-[rgba(255,255,255,0.035)] ${dateError ? "border-destructive" : ""}`}
               />
               {dateError && <p className="text-xs text-destructive mt-1">{dateError}</p>}
+              <p className="text-xs text-[var(--soft-ink-soft)]/50 mt-1">Источник фиксируется в журнале: вручную или из VK.</p>
             </div>
             <div>
               <label className="text-xs text-[var(--soft-ink-soft)] mb-1 block">Время рождения (необязательно)</label>

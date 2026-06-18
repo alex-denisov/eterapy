@@ -8,6 +8,8 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getTelegramLinkUrl } from "@/lib/telegram";
 import { randomBytes } from "crypto";
+import { canUnlinkLoginProvider } from "@/lib/auth-access";
+import { logAudit } from "@/lib/audit";
 
 export async function GET() {
   const session = await auth();
@@ -80,6 +82,20 @@ export async function DELETE() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, password: true, provider: true, providerId: true, telegramId: true, telegramUsername: true },
+  });
+  if (!user) return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+  const guard = canUnlinkLoginProvider(user, "telegram");
+  if (!guard.allowed) {
+    return NextResponse.json({
+      error: guard.reason === "last_login_method"
+        ? "Сначала назначьте пароль или подключите другой способ входа"
+        : "Telegram не подключён",
+      code: guard.reason,
+    }, { status: guard.reason === "last_login_method" ? 409 : 400 });
+  }
 
   await db.telegramLinkToken.deleteMany({ where: { userId } });
 
@@ -87,6 +103,7 @@ export async function DELETE() {
     where: { id: userId },
     data: { telegramId: null, telegramUsername: null },
   });
+  await logAudit(userId, "LOGIN_METHOD_UNLINK", undefined, JSON.stringify({ provider: "telegram" }));
 
   return NextResponse.json({
     ok: true,

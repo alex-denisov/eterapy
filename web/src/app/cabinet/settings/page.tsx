@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { SettingsClient } from "./settings-client";
 import { adminUrl, loginUrl } from "@/lib/subdomain";
+import { hasPasswordLogin, linkedLoginProviders } from "@/lib/auth-access";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -15,14 +16,10 @@ export default async function SettingsPage() {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { telegramId: true, telegramUsername: true, password: true },
+    select: { telegramId: true, telegramUsername: true, password: true, provider: true, providerId: true },
   });
 
-  const hasPassword = !!user?.password && 
-    !user.password.startsWith("oauth:") && 
-    !user.password.startsWith("vk:") && 
-    !user.password.startsWith("tg:") && 
-    !user.password.startsWith("telegram:");
+  const hasPassword = hasPasswordLogin(user?.password);
 
   return (
     <SettingsClient
@@ -31,6 +28,7 @@ export default async function SettingsPage() {
         username: user?.telegramUsername ?? null,
       }}
       hasPassword={hasPassword}
+      linkedProviders={user ? linkedLoginProviders(user) : []}
     />
   );
 }

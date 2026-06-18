@@ -173,6 +173,7 @@ export async function POST(request: NextRequest) {
             const month = parseInt(parts[1], 10) - 1;
             const year = parseInt(parts[2], 10);
             createData.birthDate = new Date(Date.UTC(year, month, day, 23, 59, 59));
+            createData.birthDateSource = "vk";
           }
         } catch { /* ignore */ }
       }
@@ -193,6 +194,7 @@ export async function POST(request: NextRequest) {
             const month = parseInt(parts[1], 10) - 1;
             const year = parseInt(parts[2], 10);
             updateData.birthDate = new Date(Date.UTC(year, month, day, 23, 59, 59));
+            updateData.birthDateSource = "vk";
           }
         } catch { /* ignore */ }
       }

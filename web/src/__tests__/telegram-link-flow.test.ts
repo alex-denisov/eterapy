@@ -24,6 +24,11 @@ jest.mock("@/lib/db", () => ({
   },
 }));
 
+jest.mock("@/lib/audit", () => ({
+  __esModule: true,
+  logAudit: jest.fn(),
+}));
+
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 
 describe("Telegram link flow", () => {
@@ -124,6 +129,14 @@ describe("Telegram link flow", () => {
   });
 
   it("unlinks Telegram and removes any pending link tokens", async () => {
+    (db.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "user-1",
+      password: "$2a$10$hashed",
+      provider: "web",
+      providerId: null,
+      telegramId: "tg-1",
+      telegramUsername: "linked_user",
+    });
     (db.telegramLinkToken.deleteMany as jest.Mock).mockResolvedValueOnce({});
     (db.user.update as jest.Mock).mockResolvedValueOnce({});
 
@@ -144,6 +157,25 @@ describe("Telegram link flow", () => {
       where: { id: "user-1" },
       data: { telegramId: null, telegramUsername: null },
     });
+  });
+
+  it("does not unlink Telegram when it is the last login method", async () => {
+    (db.user.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: "user-1",
+      password: "oauth:telegram:1781780000",
+      provider: "web",
+      providerId: null,
+      telegramId: "tg-1",
+      telegramUsername: "linked_user",
+    });
+
+    const response = await DELETE();
+    const body = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("last_login_method");
+    expect(db.telegramLinkToken.deleteMany).not.toHaveBeenCalled();
+    expect(db.user.update).not.toHaveBeenCalled();
   });
 
   it("keeps explicit pending, manual check, linked, and error UI states in settings", () => {
