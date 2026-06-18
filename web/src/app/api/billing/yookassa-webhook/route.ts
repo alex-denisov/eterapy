@@ -12,12 +12,12 @@
  */
 import { NextRequest } from "next/server";
 import { timingSafeEqual } from "crypto";
-import type { Prisma } from "@prisma/client";
 import { applyPaymentResult, chargebackSucceededTransaction } from "@/lib/billing-credit";
 import { jsonWithRequestContext } from "@/lib/api-response";
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { claimWebhookEvent, completeWebhookEvent, failWebhookEvent } from "@/lib/webhook-idempotency";
+import { sanitizePaymentProviderPayload } from "@/lib/billing-policy";
 
 function safeEqual(a: string, b: string) {
   const left = Buffer.from(a);
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     eventId,
     eventType: event,
     resourceId: payment.id,
-    payload: body as Prisma.InputJsonObject,
+    payload: sanitizePaymentProviderPayload(body),
     requestId: context.requestId,
   });
   if (!claim.claimed || !claim.event) {
@@ -132,6 +132,8 @@ export async function POST(req: NextRequest) {
         id: payment.id,
         status: typeof payment.status === "string" ? payment.status : undefined,
         paid: typeof payment.paid === "boolean" ? payment.paid : undefined,
+        amount: asRecord(payment.amount) as never,
+        cancellation_details: asRecord(payment.cancellation_details) as never,
         payment_method: asRecord(payment.payment_method) as never,
       });
     }

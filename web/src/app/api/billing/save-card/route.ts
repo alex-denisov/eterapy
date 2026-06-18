@@ -12,6 +12,12 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { APP_URL } from "@/lib/env";
+import {
+  assertRubPaymentAmount,
+  paymentDeclineUserMessage,
+  paymentDocumentVersionData,
+  withPaymentPolicyMetadata,
+} from "@/lib/billing-policy";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -28,6 +34,11 @@ export async function POST(req: NextRequest) {
   const baseUrl = APP_URL;
   const returnUrl = `${baseUrl}/cabinet/billing?payment=card-saved`;
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
+  const documentVersions = paymentDocumentVersionData();
+  const policyMetadata = withPaymentPolicyMetadata({
+    purchaseKind: "card_verification",
+    saveMethod: "true",
+  });
 
   try {
     const payment = await yukassaFetch<{
@@ -54,10 +65,16 @@ export async function POST(req: NextRequest) {
         metadata: {
           userId: session.user.id,
           amountKopecks: String(amountKopecks),
-          saveMethod: "true",
+          saveMethod: policyMetadata.saveMethod,
+          currency: policyMetadata.currency,
+          ruOnlyPaymentPolicy: String(policyMetadata.ruOnlyPaymentPolicy),
+          offerVersion: policyMetadata.offerVersion,
+          termsVersion: policyMetadata.termsVersion,
+          consentVersion: policyMetadata.consentVersion,
         },
       },
     });
+    assertRubPaymentAmount(payment);
 
     if (!payment.confirmation?.confirmation_url) {
       throw new Error("ЮKassa не вернула confirmation_url");
@@ -68,10 +85,15 @@ export async function POST(req: NextRequest) {
       data: {
         userId: session.user.id,
         amount: amountKopecks,
+        currency: "RUB",
         status: "PENDING",
         provider: "yookassa",
         providerPaymentId: payment.id,
         description,
+        offerVersion: documentVersions.offerVersion,
+        termsVersion: documentVersions.termsVersion,
+        consentVersion: documentVersions.consentVersion,
+        metadata: policyMetadata,
       },
     });
 
@@ -96,11 +118,9 @@ export async function POST(req: NextRequest) {
       amountKopecks,
       error: serializeError(err),
     });
-    return errorWithRequestContext(
-      "SAVE_CARD_FAILED",
-      err instanceof Error ? err.message : "Ошибка привязки карты",
-      500,
-      context
-    );
+    const message = err instanceof Error && err.message.includes("Unsupported payment currency")
+      ? "Оплата доступна только в рублях."
+      : paymentDeclineUserMessage(null);
+    return errorWithRequestContext("SAVE_CARD_FAILED", message, 500, context);
   }
 }

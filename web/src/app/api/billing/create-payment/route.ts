@@ -16,6 +16,12 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
 import { trackServerEvent } from "@/lib/analytics";
 import { APP_URL } from "@/lib/env";
+import {
+  assertRubPaymentAmount,
+  paymentDeclineUserMessage,
+  paymentDocumentVersionData,
+  withPaymentPolicyMetadata,
+} from "@/lib/billing-policy";
 
 function buildBillingReturnUrl(baseUrl: string, purchase: ResolvedBillingPurchase) {
   const fallbackPath = "/cabinet/billing";
@@ -80,6 +86,8 @@ export async function POST(req: NextRequest) {
   const baseUrl = APP_URL;
   const returnUrl = buildBillingReturnUrl(baseUrl, purchase);
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
+  const documentVersions = paymentDocumentVersionData();
+  const policyMetadata = withPaymentPolicyMetadata(purchase.metadata);
 
   try {
     // Создаём платёж в ЮKassa напрямую через yukassaFetch
@@ -104,15 +112,21 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
           amountKopecks: String(purchase.amountKopecks),
           purchaseKind: purchase.metadata.purchaseKind,
-          productKey: purchase.metadata.productKey,
-          planKey: purchase.metadata.planKey,
-          creditPackKey: purchase.metadata.creditPackKey,
-          creditsAmount: purchase.metadata.creditsAmount ? String(purchase.metadata.creditsAmount) : undefined,
-          checkoutSource: purchase.metadata.checkoutSource,
-          returnPath: purchase.metadata.returnPath,
+          productKey: policyMetadata.productKey,
+          planKey: policyMetadata.planKey,
+          creditPackKey: policyMetadata.creditPackKey,
+          creditsAmount: policyMetadata.creditsAmount ? String(policyMetadata.creditsAmount) : undefined,
+          checkoutSource: policyMetadata.checkoutSource,
+          returnPath: policyMetadata.returnPath,
+          currency: policyMetadata.currency,
+          ruOnlyPaymentPolicy: String(policyMetadata.ruOnlyPaymentPolicy),
+          offerVersion: policyMetadata.offerVersion,
+          termsVersion: policyMetadata.termsVersion,
+          consentVersion: policyMetadata.consentVersion,
         },
       },
     });
+    assertRubPaymentAmount(payment);
 
     if (!payment.confirmation?.confirmation_url) {
       throw new Error("ЮKassa не вернула confirmation_url");
@@ -123,11 +137,15 @@ export async function POST(req: NextRequest) {
       data: {
         userId: session.user.id,
         amount: purchase.amountKopecks,
+        currency: "RUB",
         status: "PENDING",
         provider: "yookassa",
         providerPaymentId: payment.id,
         description: purchase.description,
-        metadata: purchase.metadata,
+        offerVersion: documentVersions.offerVersion,
+        termsVersion: documentVersions.termsVersion,
+        consentVersion: documentVersions.consentVersion,
+        metadata: policyMetadata,
       },
     });
 
@@ -165,6 +183,11 @@ export async function POST(req: NextRequest) {
       error: serializeError(err),
     });
     const message = err instanceof Error ? err.message : "Ошибка создания платежа";
-    return errorWithRequestContext("PAYMENT_CREATE_FAILED", message, 500, context);
+    return errorWithRequestContext(
+      "PAYMENT_CREATE_FAILED",
+      message.includes("Unsupported payment currency") ? "Оплата доступна только в рублях." : paymentDeclineUserMessage(null),
+      500,
+      context,
+    );
   }
 }

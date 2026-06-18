@@ -73,7 +73,16 @@ export function ProductPurchaseControls({
 
       for (let attempt = 0; attempt < 6; attempt += 1) {
         try {
-          await fetch("/api/billing/reconcile", { method: "POST" });
+          const reconcile = await fetch("/api/billing/reconcile", { method: "POST" })
+            .then((response) => response.json())
+            .catch(() => null) as {
+              results?: Array<{ outcome?: string; message?: string | null }>;
+            } | null;
+          const declined = reconcile?.results?.find((result) => result.outcome === "cancelled" && result.message);
+          if (declined?.message) {
+            setMessage(declined.message);
+            return;
+          }
           const entitlement = await fetch(`/api/billing/entitlements?productKey=${encodeURIComponent(productKey)}`)
             .then((response) => response.json())
             .catch(() => null) as { active?: boolean } | null;

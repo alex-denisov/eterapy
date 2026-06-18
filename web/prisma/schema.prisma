@@ -1023,6 +1023,10 @@ model Payment {
   amountKopecks Int       // в копейках
   currency      String    @default("RUB")
   status        String    // PENDING / PAID / CANCELLED / REFUNDED
+  paymentDeclineReason String? @map("payment_decline_reason")
+  offerVersion  String?   @map("offer_version")
+  termsVersion  String?   @map("terms_version")
+  consentVersion String?  @map("consent_version")
   refundedAt    DateTime?
   createdAt     DateTime  @default(now())
 
@@ -1514,6 +1518,10 @@ model Transaction {
   provider    String   @default("yookassa")  // "yookassa", "internal", "manual"
   providerPaymentId String?    // YooKassa payment ID
   description String?
+  paymentDeclineReason String? @map("payment_decline_reason")
+  offerVersion String? @map("offer_version")
+  termsVersion String? @map("terms_version")
+  consentVersion String? @map("consent_version")
   metadata    Json?
   createdAt   DateTime @default(now())
 

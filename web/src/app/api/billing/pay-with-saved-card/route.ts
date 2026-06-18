@@ -13,6 +13,13 @@ import { log, serializeError } from "@/lib/logger";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { resolveBillingPurchase, type ResolvedBillingPurchase } from "@/lib/entitlements";
 import { APP_URL } from "@/lib/env";
+import {
+  assertRubPaymentAmount,
+  normalizePaymentDeclineReason,
+  paymentDeclineUserMessage,
+  paymentDocumentVersionData,
+  withPaymentPolicyMetadata,
+} from "@/lib/billing-policy";
 
 export async function POST(req: NextRequest) {
   const context = requestContextFromHeaders(req.headers);
@@ -52,6 +59,11 @@ export async function POST(req: NextRequest) {
   const baseUrl = APP_URL;
   const returnUrl = `${baseUrl}/cabinet/billing?payment=success`;
   const notificationUrl = `${baseUrl}/api/billing/yookassa-webhook`;
+  const documentVersions = paymentDocumentVersionData();
+  const policyMetadata = withPaymentPolicyMetadata({
+    ...purchase.metadata,
+    cardId,
+  });
 
   try {
     // Создаём платёж с использованием сохранённого payment method
@@ -61,6 +73,8 @@ export async function POST(req: NextRequest) {
       paid: boolean;
       amount: { value: string; currency: string };
       confirmation?: { confirmation_url?: string };
+      cancellation_details?: { party?: string; reason?: string };
+      payment_method?: { card?: { issuer_country?: string } };
     }>("/payments", {
       method: "POST",
       body: {
@@ -81,25 +95,35 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
           amountKopecks: String(purchase.amountKopecks),
           cardId,
-          purchaseKind: purchase.metadata.purchaseKind,
-          productKey: purchase.metadata.productKey,
-          planKey: purchase.metadata.planKey,
-          creditPackKey: purchase.metadata.creditPackKey,
-          creditsAmount: purchase.metadata.creditsAmount ? String(purchase.metadata.creditsAmount) : undefined,
-          checkoutSource: purchase.metadata.checkoutSource,
+          purchaseKind: policyMetadata.purchaseKind,
+          productKey: policyMetadata.productKey,
+          planKey: policyMetadata.planKey,
+          creditPackKey: policyMetadata.creditPackKey,
+          creditsAmount: policyMetadata.creditsAmount ? String(policyMetadata.creditsAmount) : undefined,
+          checkoutSource: policyMetadata.checkoutSource,
+          currency: policyMetadata.currency,
+          ruOnlyPaymentPolicy: String(policyMetadata.ruOnlyPaymentPolicy),
+          offerVersion: policyMetadata.offerVersion,
+          termsVersion: policyMetadata.termsVersion,
+          consentVersion: policyMetadata.consentVersion,
         },
       },
     });
+    assertRubPaymentAmount(payment);
 
     await db.transaction.create({
       data: {
         userId: session.user.id,
         amount: purchase.amountKopecks,
+        currency: "RUB",
         status: "PENDING",
         provider: "yookassa",
         providerPaymentId: payment.id,
         description: purchase.description,
-        metadata: purchase.metadata,
+        offerVersion: documentVersions.offerVersion,
+        termsVersion: documentVersions.termsVersion,
+        consentVersion: documentVersions.consentVersion,
+        metadata: policyMetadata,
       },
     });
 
@@ -107,6 +131,15 @@ export async function POST(req: NextRequest) {
     // waiting for the async webhook — otherwise the UI would show a stale balance.
     // The webhook (when it arrives) becomes an idempotent no-op.
     const outcome = await applyPaymentResult(payment);
+    const declineReason = normalizePaymentDeclineReason(payment);
+    if (outcome === "cancelled") {
+      return errorWithRequestContext(
+        declineReason === "ru_payment_method_required" ? "RU_PAYMENT_METHOD_REQUIRED" : "PAYMENT_DECLINED",
+        paymentDeclineUserMessage(declineReason),
+        402,
+        context,
+      );
+    }
 
     log.info("billing-saved-card-payment-created", {
       requestId: context.requestId,
@@ -136,11 +169,9 @@ export async function POST(req: NextRequest) {
       amountKopecks: purchase?.amountKopecks,
       error: serializeError(err),
     });
-    return errorWithRequestContext(
-      "SAVED_CARD_PAYMENT_FAILED",
-      err instanceof Error ? err.message : "Ошибка платежа",
-      500,
-      context
-    );
+    const message = err instanceof Error && err.message.includes("Unsupported payment currency")
+      ? "Оплата доступна только в рублях."
+      : paymentDeclineUserMessage(null);
+    return errorWithRequestContext("SAVED_CARD_PAYMENT_FAILED", message, 500, context);
   }
 }

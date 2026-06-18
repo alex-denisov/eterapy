@@ -26,15 +26,20 @@ import {
 import { clawbackReferralRewardsForUser } from "./share-referral";
 import { trackServerEvent } from "./analytics";
 import { log } from "./logger";
+import {
+  assertRubPaymentAmount,
+  normalizePaymentDeclineReason,
+} from "@/lib/billing-policy";
 
 interface YookassaCardSnapshot {
-  id: string;
+  id?: string;
   saved?: boolean;
   card?: {
-    last4: string;
-    card_type: string;
-    expiry_month: string;
-    expiry_year: string;
+    last4?: string;
+    card_type?: string;
+    expiry_month?: string;
+    expiry_year?: string;
+    issuer_country?: string;
   };
 }
 
@@ -42,6 +47,11 @@ interface YookassaPaymentLike {
   id: string;
   status?: string;
   paid?: boolean;
+  amount?: { currency?: string | null };
+  cancellation_details?: {
+    party?: string | null;
+    reason?: string | null;
+  };
   payment_method?: YookassaCardSnapshot;
 }
 
@@ -164,14 +174,26 @@ export async function creditSucceededPayment(
 }
 
 /** Flips a PENDING transaction to CANCELLED. No balance change. Idempotent. */
-export async function cancelPendingPayment(providerPaymentId: string): Promise<boolean> {
+export async function cancelPendingPayment(
+  providerPaymentId: string,
+  payment?: YookassaPaymentLike,
+): Promise<boolean> {
   const transaction = await db.transaction.findUnique({
     where: { providerPaymentId },
   });
   if (!transaction || transaction.status !== "PENDING") return false;
+  const metadata = getBillingTransactionMetadata(transaction);
+  const paymentDeclineReason = normalizePaymentDeclineReason(payment ?? { id: providerPaymentId, status: "canceled" }) ?? "provider_payment_canceled";
   await db.transaction.update({
     where: { id: transaction.id },
-    data: { status: "CANCELLED" },
+    data: {
+      status: "CANCELLED",
+      paymentDeclineReason,
+      metadata: {
+        ...metadata,
+        paymentDeclineReason,
+      },
+    },
   });
   return true;
 }
@@ -310,23 +332,26 @@ async function saveCardFromPaymentMethod(
   userId: string,
   pm: YookassaCardSnapshot | undefined,
 ): Promise<{ last4: string; brand: string } | null> {
-  if (!pm?.saved || !pm.card) return null;
+  const card = pm?.card;
+  if (!pm?.saved || !pm.id || !card?.last4 || !card.card_type || !card.expiry_month || !card.expiry_year) {
+    return null;
+  }
   const existing = await tx.savedCard.findUnique({ where: { paymentMethodId: pm.id } });
   if (existing) return null;
   const count = await tx.savedCard.count({ where: { userId } });
-  const brand = normalizeBrand(pm.card.card_type);
+  const brand = normalizeBrand(card.card_type);
   await tx.savedCard.create({
     data: {
       userId,
       paymentMethodId: pm.id,
-      last4: pm.card.last4,
+      last4: card.last4,
       brand,
-      expiryMonth: pm.card.expiry_month,
-      expiryYear: pm.card.expiry_year,
+      expiryMonth: card.expiry_month,
+      expiryYear: card.expiry_year,
       isDefault: count === 0,
     },
   });
-  return { last4: pm.card.last4, brand };
+  return { last4: card.last4, brand };
 }
 
 /**
@@ -374,6 +399,9 @@ export async function verifyCardHold(
 export async function applyPaymentResult(
   payment: YookassaPaymentLike,
 ): Promise<"credited" | "cancelled" | "card_verified" | "noop"> {
+  if (payment.amount) {
+    assertRubPaymentAmount(payment);
+  }
   const s = payment.status?.toLowerCase();
   if (s === "waiting_for_capture") {
     // Card-verification hold (save_payment_method) → save card + release the hold.
@@ -390,7 +418,7 @@ export async function applyPaymentResult(
     return applied ? "credited" : "noop";
   }
   if (s === "canceled" || s === "cancelled") {
-    const applied = await cancelPendingPayment(payment.id);
+    const applied = await cancelPendingPayment(payment.id, payment);
     return applied ? "cancelled" : "noop";
   }
   return "noop";

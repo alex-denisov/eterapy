@@ -24,6 +24,7 @@ import {
   cancelPayment,
   createRefund,
 } from "./yukassa";
+import { paymentDocumentVersionData } from "@/lib/billing-policy";
 
 export type SessionHoldResult =
   | { status: "free" }
@@ -49,6 +50,7 @@ export async function holdSessionForBooking(input: {
 
   const description = input.description ?? `Оплата сессии ${input.bookingId}`;
   const returnUrl = input.returnUrl ?? `${APP_URL}/cabinet/bookings?booking=${input.bookingId}`;
+  const documentVersions = paymentDocumentVersionData();
 
   // 1. Попытка холда по привязанной карте (без редиректа).
   let viaSavedCard = false;
@@ -105,8 +107,18 @@ export async function holdSessionForBooking(input: {
         amountKopecks: priceKopecks,
         currency: "RUB",
         status: "PENDING",
+        offerVersion: documentVersions.offerVersion,
+        termsVersion: documentVersions.termsVersion,
+        consentVersion: documentVersions.consentVersion,
       },
-      update: { externalId: payment!.id, amountKopecks: priceKopecks, status: "PENDING" },
+      update: {
+        externalId: payment!.id,
+        amountKopecks: priceKopecks,
+        status: "PENDING",
+        offerVersion: documentVersions.offerVersion,
+        termsVersion: documentVersions.termsVersion,
+        consentVersion: documentVersions.consentVersion,
+      },
     });
   });
 
@@ -138,6 +150,7 @@ export async function captureSessionForBooking(bookingId: string): Promise<Sessi
   if (booking.status !== "CONFIRMED") return { status: "invalid_status", currentStatus: booking.status };
 
   const priceKopecks = booking.priceRub * 100;
+  const documentVersions = paymentDocumentVersionData();
 
   // Бесплатная сессия (test mode / промо): только меняем статус.
   if (priceKopecks === 0) {
@@ -166,9 +179,20 @@ export async function captureSessionForBooking(bookingId: string): Promise<Sessi
       data: {
         userId: booking.clientId,
         amount: -priceKopecks,
+        currency: "RUB",
         status: "SUCCEEDED",
         provider: "yukassa",
         description: `Оплата сессии ${bookingId}`,
+        offerVersion: documentVersions.offerVersion,
+        termsVersion: documentVersions.termsVersion,
+        consentVersion: documentVersions.consentVersion,
+        metadata: {
+          purchaseKind: "session",
+          bookingId,
+          currency: "RUB",
+          ruOnlyPaymentPolicy: true,
+          ...documentVersions,
+        },
       },
     });
     return "charged" as const;
@@ -198,7 +222,10 @@ export async function cancelSessionHold(
   if (payment.status === "PAID") return { status: "already_captured" };
 
   await cancelPayment(payment.externalId).catch(() => {});
-  await db.payment.update({ where: { bookingId }, data: { status: "CANCELLED" } }).catch(() => {});
+  await db.payment.update({
+    where: { bookingId },
+    data: { status: "CANCELLED", paymentDeclineReason: "provider_payment_canceled" },
+  }).catch(() => {});
   return { status: "cancelled" };
 }
 
