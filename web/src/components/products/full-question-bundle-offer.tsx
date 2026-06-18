@@ -105,9 +105,9 @@ export function FullQuestionBundleOffer({
         <article className="rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
           <p className="soft-eyebrow">подписка</p>
           <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Premium</h4>
-          <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">1 290 ₽</p>
+          <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">1 490 ₽</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            35 баллов в месяц, полная картина и подробный разбор как якорные форматы.
+            20 баллов в месяц, полная картина и подробный разбор как якорные форматы.
           </p>
           <Link href={appUrl("/billing?plan=premium")} className="soft-button soft-button-ghost mt-4">
             Выбрать Premium

@@ -38,24 +38,24 @@ export type SubscriptionPlan = SubscriptionPlanDefinition & { key: string };
 export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> = {
   plus: {
     name: "Plus",
-    amountKopecks: 49000,
+    amountKopecks: 59000,
     trialDays: 7,
-    // X18: «Расширенная карта» (990 ₽) bundled into a 490 ₽ tier meant one included
+    // X18/B433: «Расширенная карта» (990 ₽) bundled into a lower tier meant one included
     // service cost more than the subscription — the founder's exact unit-economics
-    // complaint. Plus now bundles only «perspectives» (299 ₽ < 490 ₽) plus the
+    // complaint. Plus now bundles only «perspectives» (299 ₽ < 590 ₽) plus the
     // monthly credits. (The retired card is gone entirely as of B373.)
     includedProducts: ["perspectives"],
     creditsPerPeriod: 12,
   },
   premium: {
     name: "Premium",
-    amountKopecks: 129000,
+    amountKopecks: 149000,
     trialDays: 7,
     // Z2 (credit-centric): Premium no longer "includes everything" (that made the
-    // 30 credits pointless). It includes only the two daily anchors; the rest of
-    // the premium catalog is paid from the generous monthly credit wallet.
+    // credits pointless). It includes only the two daily anchors; the rest of
+    // the premium catalog is paid from the monthly credit wallet.
     includedProducts: ["perspectives", "deep-report"],
-    creditsPerPeriod: 35,
+    creditsPerPeriod: 20,
   },
   // Deprecated legacy aliases are kept readable so older subscriptions do not
   // lose access abruptly, but new checkout should use plus/premium only.
@@ -109,17 +109,17 @@ export type CreditPack = CreditPackDefinition & { key: string };
 export const CREDIT_PACKS: Record<string, CreditPackDefinition> = {
   "pack-5": {
     credits: 5,
-    amountKopecks: 24900,
+    amountKopecks: 99000,
     label: "5 баллов",
   },
   "pack-10": {
     credits: 10,
-    amountKopecks: 44900,
+    amountKopecks: 179000,
     label: "10 баллов",
   },
   "pack-25": {
     credits: 25,
-    amountKopecks: 99000,
+    amountKopecks: 399000,
     label: "25 баллов",
     badge: "выгодно",
   },

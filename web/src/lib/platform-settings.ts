@@ -28,8 +28,8 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   "product.pair.price":           "790",
 
   // Подписки (v5)
-  "subscription.plus.price":      "490",
-  "subscription.premium.price":   "1290",
+  "subscription.plus.price":      "590",
+  "subscription.premium.price":   "1490",
   "subscription.pro.price":       "1490",
 };
 

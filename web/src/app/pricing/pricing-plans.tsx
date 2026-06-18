@@ -29,7 +29,7 @@ const plans = [
     id: "plus",
     name: "Plus",
     tagline: "Для регулярной практики",
-    monthPrice: 490,
+    monthPrice: 590,
     // X18/Z2: honest perks — Plus bundles only `perspectives`
     // (V5_SUBSCRIPTION_PLANS.plus.includedProducts) + credits. The retired
     // «Расширенная карта» is gone; everything else is a credit/card purchase.
@@ -51,17 +51,17 @@ const plans = [
     id: "premium",
     name: "Premium",
     tagline: "Для глубокой регулярной работы",
-    monthPrice: 1290,
+    monthPrice: 1490,
     // Z2 credit-centric (docs/v5-release/MONETIZATION-STRATEGY-Y10 §3): Premium
-    // includes only two anchors (perspectives + deep-report) + 35 monthly credits;
+    // includes only two anchors (perspectives + deep-report) + 20 monthly credits;
     // the rest of the catalog (chat-analysis, «Вы двое», круг, совместимость по
     // звёздам, …) is paid from the wallet — NOT bundled free. Perks must not
     // claim otherwise.
     perks: [
       "Всё из Plus",
-      "+35 баллов каждый месяц",
+      "+20 баллов каждый месяц",
       "Полная картина + Подробный разбор включены без баллов",
-      "Весь премиальный каталог — из щедрого кошелька баллов",
+      "Весь премиальный каталог — из кошелька баллов",
     ],
     cta: "Подключить Premium",
     href: "/cabinet/billing?plan=premium",

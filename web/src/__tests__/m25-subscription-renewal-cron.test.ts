@@ -74,7 +74,7 @@ describe("runSubscriptionRenewalRemindersJob", () => {
     const call = mockNotify.mock.calls[0][0];
     expect(call.event).toBe("SUBSCRIPTION_RENEWAL");
     expect(call.userId).toBe("user-1");
-    expect(call.data).toMatchObject({ planKey: "plus", planLabel: "Plus", amountRub: "490" });
+    expect(call.data).toMatchObject({ planKey: "plus", planLabel: "Plus", amountRub: "590" });
     expect(mockDb.userSubscription.update).toHaveBeenCalledWith({
       where: { id: "sub-1" },
       data: { renewalReminderAt: new Date(NOW) },

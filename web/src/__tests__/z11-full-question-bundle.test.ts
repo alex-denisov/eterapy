@@ -39,7 +39,7 @@ describe("Z11 — full-question bundle", () => {
     expect(bundleOffer).toContain('data-testid="full-question-bundle-offer"');
     expect(bundleOffer).toContain('getProductPriceLabel("deep-report")');
     expect(bundleOffer).toContain('getProductPriceLabel("full-question")');
-    expect(bundleOffer).toContain("1 290 ₽");
+    expect(bundleOffer).toContain("1 490 ₽");
     expect(bundleOffer).toContain('productKey="full-question"');
     expect(bundleOffer).toContain("creditCost={BUNDLE_COST}");
     expect(bundleOffer).toContain("/api/billing/entitlements?productKey=full-question");

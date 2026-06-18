@@ -55,7 +55,7 @@ describe("design v4.2 rollout", () => {
     expect(catalog).toContain("Поговорить со специалистом");
     expect(catalog).toContain("soft-service-card");
     expect(catalog).not.toContain("var(--paper-card)");
-    expect(pricing).toContain("490");
+    expect(pricing).toContain("590");
     expect(pricing).toContain("Без скидок на встречи");
     // B366: catalog prices derive from the single billing source (no ₽ literals);
     // the live-встреча card uses the single session floor helper.

@@ -16,8 +16,8 @@ import { BillingHistoryTable } from "@/components/cabinet/billing-history-table"
 // Static metadata mirrors V5_SUBSCRIPTION_PLANS so we don't drag the
 // server-only entitlements module (uses prisma) into the client bundle.
 const CLIENT_PLANS: Record<"plus" | "premium", { name: string; amountKopecks: number; trialDays: number; creditsPerPeriod: number; includedProductsCount: number }> = {
-  plus: { name: "Plus", amountKopecks: 49000, trialDays: 7, creditsPerPeriod: 12, includedProductsCount: 1 },
-  premium: { name: "Premium", amountKopecks: 129000, trialDays: 7, creditsPerPeriod: 35, includedProductsCount: 2 },
+  plus: { name: "Plus", amountKopecks: 59000, trialDays: 7, creditsPerPeriod: 12, includedProductsCount: 1 },
+  premium: { name: "Premium", amountKopecks: 149000, trialDays: 7, creditsPerPeriod: 20, includedProductsCount: 2 },
 };
 
 const FEATURES = [

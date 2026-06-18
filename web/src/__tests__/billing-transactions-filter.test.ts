@@ -38,8 +38,8 @@ describe("GET /api/billing/transactions — legacy ₽-balance is hidden", () =>
     mockDb.transaction.findMany.mockResolvedValueOnce([
       { id: "t-balance", amount: 50000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "Пополнение баланса на сайте ETerapy", createdAt: new Date(), metadata: { purchaseKind: "balance" } },
       { id: "t-product", amount: 69000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "ETerapy: deep-report", createdAt: new Date(), metadata: { purchaseKind: "product", productKey: "deep-report" } },
-      { id: "t-sub", amount: 129000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "ETerapy Premium", createdAt: new Date(), metadata: { purchaseKind: "subscription", planKey: "premium" } },
-      { id: "t-credits", amount: 24900, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "5 баллов", createdAt: new Date(), metadata: { purchaseKind: "credits", creditPackKey: "pack-5" } },
+      { id: "t-sub", amount: 149000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "ETerapy Premium", createdAt: new Date(), metadata: { purchaseKind: "subscription", planKey: "premium" } },
+      { id: "t-credits", amount: 99000, currency: "RUB", status: "SUCCEEDED", provider: "yookassa", description: "5 баллов", createdAt: new Date(), metadata: { purchaseKind: "credits", creditPackKey: "pack-5" } },
     ]);
     mockDb.creditLedgerEntry.findMany.mockResolvedValueOnce([]);
 
@@ -57,7 +57,7 @@ describe("GET /api/billing/transactions — legacy ₽-balance is hidden", () =>
       { id: "l-topup", amountKopecks: 50000, balanceAfterKopecks: 50000, type: "TOPUP", source: "yookassa", transactionId: null, description: "Пополнение", createdAt: new Date() },
       { id: "l-refund", amountKopecks: -50000, balanceAfterKopecks: 0, type: "BALANCE_REFUND", source: "yookassa_refund", transactionId: null, description: "Возврат", createdAt: new Date() },
       { id: "l-product", amountKopecks: -69000, balanceAfterKopecks: null, type: "PRODUCT_PURCHASE", source: "yookassa", transactionId: "t-product", description: "deep-report", createdAt: new Date() },
-      { id: "l-sub", amountKopecks: -129000, balanceAfterKopecks: null, type: "SUBSCRIPTION_CHARGE", source: "yookassa", transactionId: "t-sub", description: "Premium", createdAt: new Date() },
+      { id: "l-sub", amountKopecks: -149000, balanceAfterKopecks: null, type: "SUBSCRIPTION_CHARGE", source: "yookassa", transactionId: "t-sub", description: "Premium", createdAt: new Date() },
     ]);
 
     const res = await GET();

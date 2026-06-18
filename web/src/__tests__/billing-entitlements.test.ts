@@ -81,16 +81,45 @@ describe("v5 billing entitlements", () => {
     expect(getProductCreditCost("full-question")).toBe(4);
     expect(V5_BUNDLE_CONTENTS["full-question"]).toEqual(["perspectives", "deep-report"]);
     expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
-      amountKopecks: 49_000,
+      amountKopecks: 59_000,
       creditsPerPeriod: 12,
     }));
     expect(getSubscriptionPlan("premium")).toEqual(expect.objectContaining({
-      amountKopecks: 129_000,
-      creditsPerPeriod: 35,
+      amountKopecks: 149_000,
+      creditsPerPeriod: 20,
     }));
-    expect(CREDIT_PACKS["pack-5"]).toEqual(expect.objectContaining({ amountKopecks: 24_900, credits: 5 }));
-    expect(CREDIT_PACKS["pack-10"]).toEqual(expect.objectContaining({ amountKopecks: 44_900, credits: 10 }));
-    expect(CREDIT_PACKS["pack-25"]).toEqual(expect.objectContaining({ amountKopecks: 99_000, credits: 25 }));
+    expect(CREDIT_PACKS["pack-5"]).toEqual(expect.objectContaining({ amountKopecks: 99_000, credits: 5 }));
+    expect(CREDIT_PACKS["pack-10"]).toEqual(expect.objectContaining({ amountKopecks: 179_000, credits: 10 }));
+    expect(CREDIT_PACKS["pack-25"]).toEqual(expect.objectContaining({ amountKopecks: 399_000, credits: 25 }));
+    expect(Object.values(CREDIT_PACKS).map((pack) => Math.round(pack.amountKopecks / 100 / pack.credits))).toEqual([198, 179, 160]);
+  });
+
+  it("B433 keeps visible pricing mirrors on the rebalanced pack/subscription economics", () => {
+    const entitlements = fs.readFileSync(path.join(process.cwd(), "src/lib/entitlements.ts"), "utf8");
+    const pricingPlans = fs.readFileSync(path.join(process.cwd(), "src/app/pricing/pricing-plans.tsx"), "utf8");
+    const pricingCompare = fs.readFileSync(path.join(process.cwd(), "src/app/pricing/compare/page.tsx"), "utf8");
+    const cabinetBilling = fs.readFileSync(path.join(process.cwd(), "src/app/cabinet/billing/page.tsx"), "utf8");
+    const platformSettings = fs.readFileSync(path.join(process.cwd(), "src/lib/platform-settings.ts"), "utf8");
+    const adminPricing = fs.readFileSync(path.join(process.cwd(), "src/app/admin/pricing/pricing-editor.tsx"), "utf8");
+    const checked = [entitlements, pricingPlans, pricingCompare, cabinetBilling, platformSettings, adminPricing].join("\n");
+
+    expect(entitlements).toContain("amountKopecks: 99000");
+    expect(entitlements).toContain("amountKopecks: 179000");
+    expect(entitlements).toContain("amountKopecks: 399000");
+    expect(pricingPlans).toContain("monthPrice: 590");
+    expect(pricingPlans).toContain("monthPrice: 1490");
+    expect(pricingPlans).toContain("+20 баллов каждый месяц");
+    expect(pricingCompare).toContain('"20 / месяц"');
+    expect(cabinetBilling).toContain("amountKopecks: 149000");
+    expect(cabinetBilling).toContain("creditsPerPeriod: 20");
+    expect(platformSettings).toContain('"subscription.premium.price":   "1490"');
+    expect(adminPricing).toContain("recommended: 1490");
+
+    expect(checked).not.toContain("amountKopecks: 24900");
+    expect(checked).not.toContain("amountKopecks: 44900");
+    expect(checked).not.toContain("amountKopecks: 129000");
+    expect(checked).not.toContain("creditsPerPeriod: 35");
+    expect(checked).not.toContain("+35 баллов");
   });
 
   it("resolves checkout intent server-side for products, subscriptions, and credit packs (no ₽ balance)", () => {
@@ -107,11 +136,11 @@ describe("v5 billing entitlements", () => {
     }));
     expect(resolveBillingPurchase({ planKey: "plus" })).toEqual(expect.objectContaining({
       kind: "subscription",
-      amountKopecks: 49_000,
+      amountKopecks: 59_000,
     }));
     expect(resolveBillingPurchase({ planKey: "premium" })).toEqual(expect.objectContaining({
       kind: "subscription",
-      amountKopecks: 129_000,
+      amountKopecks: 149_000,
     }));
     expect(() => resolveBillingPurchase({ productKey: "deep-report", planKey: "plus" })).toThrow(
       "Нельзя одновременно оплатить несколько типов покупки"
@@ -121,7 +150,7 @@ describe("v5 billing entitlements", () => {
     );
     expect(resolveBillingPurchase({ creditPackKey: "pack-10", returnPath: "/cabinet/wallet" })).toEqual(expect.objectContaining({
       kind: "credits",
-      amountKopecks: 44_900,
+      amountKopecks: 179_000,
       description: "Баллы, 10 шт.",
       metadata: expect.objectContaining({
         purchaseKind: "credits",
@@ -157,7 +186,7 @@ describe("v5 billing entitlements", () => {
     const result = await grantEntitlementForTransaction(mockDb as never, {
       id: "tx-sub",
       userId: "user-1",
-      amount: 49000,
+      amount: 59000,
       description: "ETerapy Plus",
       metadata: { purchaseKind: "subscription", planKey: "plus" },
     });
@@ -189,7 +218,7 @@ describe("v5 billing entitlements", () => {
     const result = await grantEntitlementForTransaction(testTx, {
       id: "tx-pack",
       userId: "user-1",
-      amount: 44900,
+      amount: 179000,
       description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     });
@@ -216,7 +245,7 @@ describe("v5 billing entitlements", () => {
     }));
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: -44900,
+        amountKopecks: -179000,
         type: "CREDIT_PACK_PURCHASE",
         transactionId: "tx-pack",
       }),
@@ -412,7 +441,7 @@ describe("v5 billing entitlements", () => {
     await revokeEntitlementsForTransaction(testTx, {
       id: "tx-pack",
       userId: "user-1",
-      amount: 44900,
+      amount: 179000,
       description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     } as never, "Возврат по обращению клиента");
@@ -437,7 +466,7 @@ describe("v5 billing entitlements", () => {
     }));
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: 44900,
+        amountKopecks: 179000,
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-pack",

@@ -50,8 +50,8 @@ const PRODUCT_PRICE_KEYS: PriceKey[] = [
   { key: "product.compatibility.price", label: "Совместимость", unit: "₽", recommended: 790 },
   { key: "product.daily-practice.price", label: "Расширенный разбор практики", unit: "₽", recommended: 199 },
   { key: "product.map-upgrade.price", label: "Апгрейд карты", unit: "₽", recommended: 990 },
-  { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес", recommended: 490 },
-  { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес", recommended: 1290 },
+  { key: "subscription.plus.price", label: "Plus: подписка клиента", unit: "₽/мес", recommended: 590 },
+  { key: "subscription.premium.price", label: "Premium: подписка клиента", unit: "₽/мес", recommended: 1490 },
   { key: "subscription.practitioner-pro.price", label: "Practitioner Pro: подписка практика", unit: "₽/мес", recommended: 1490 },
   { key: "subscription.practitioner-pro-plus.price", label: "Practitioner Pro+: подписка практика", unit: "₽/мес", recommended: 2990 },
 ];
