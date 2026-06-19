@@ -20,6 +20,9 @@ describe("B362 — per-product AI prompts", () => {
     expect(unique.size).toBe(4);
     // The product-specific instruction is present (not just the shared guardrail).
     expect(tarot).toContain("Таро");
+    expect(tarot).toContain("Прошлое / Настоящее / Будущее");
+    expect(tarot).toContain("химии, физике, математике");
+    expect(tarot).toContain("не отвечай по сути");
     expect(natal).toContain("натальную карту");
     expect(numerology).toContain("числовой портрет");
   });

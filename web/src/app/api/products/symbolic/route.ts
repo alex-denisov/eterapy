@@ -29,6 +29,8 @@ const PRODUCT_KEYS = [
 const postSchema = z.object({
   productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design"]),
   userInput: z.string().max(4000).optional(),
+  tarotSpread: z.enum(["focus", "three", "choice", "relationship", "celtic"]).optional(),
+  tarotTheme: z.string().max(80).optional(),
 });
 
 function serializeResult(result: {
@@ -111,11 +113,17 @@ export async function POST(request: NextRequest) {
   const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
 
   const userInput = parsed.data.userInput?.trim() || definition?.promptLabel || productKey;
+  const tarotRequestMeta: Prisma.InputJsonObject = {
+    ...(productKey === "tarot" && parsed.data.tarotSpread ? { tarotSpread: parsed.data.tarotSpread } : {}),
+    ...(productKey === "tarot" && parsed.data.tarotTheme ? { tarotTheme: parsed.data.tarotTheme } : {}),
+  };
   const generated = await generateSymbolicProductResult({
     productKey,
     userInput,
     userId,
     requestId: context.requestId,
+    tarotSpread: parsed.data.tarotSpread,
+    tarotTheme: parsed.data.tarotTheme,
   });
   const previewText = buildSymbolicProductTeaser({ productKey, userInput, generatedText: generated.text });
 
@@ -133,6 +141,7 @@ export async function POST(request: NextRequest) {
           previewText,
           metadata: {
             userInput,
+            ...tarotRequestMeta,
             previewGenerationMetadata: generated.metadata,
           } as Prisma.InputJsonObject,
         },
@@ -146,6 +155,7 @@ export async function POST(request: NextRequest) {
           previewText,
           metadata: {
             userInput,
+            ...tarotRequestMeta,
             previewGenerationMetadata: generated.metadata,
           } as Prisma.InputJsonObject,
         },
@@ -172,6 +182,7 @@ export async function POST(request: NextRequest) {
         resultText: generated.text,
         metadata: {
           userInput,
+          ...tarotRequestMeta,
           generationMetadata: generated.metadata,
         } as Prisma.InputJsonObject,
       },

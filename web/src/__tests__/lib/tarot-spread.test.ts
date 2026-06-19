@@ -1,6 +1,15 @@
-import { drawTarotSpread } from "@/lib/symbolic-products";
+import { TAROT_DECK, drawTarotSpread } from "@/lib/symbolic-products";
 
 describe("drawTarotSpread — #12 real tarot cards", () => {
+  it("uses a complete 78-card deck with upright and reversed meanings", () => {
+    expect(TAROT_DECK).toHaveLength(78);
+    for (const card of TAROT_DECK) {
+      expect(card.name).toBeTruthy();
+      expect(card.upright).toBeTruthy();
+      expect(card.reversedMeaning).toBeTruthy();
+    }
+  });
+
   it("draws exactly 3 distinct cards in Прошлое/Настоящее/Будущее positions", () => {
     const cards = drawTarotSpread("user-1:что меня ждёт в отношениях");
     expect(cards).toHaveLength(3);
@@ -11,6 +20,8 @@ describe("drawTarotSpread — #12 real tarot cards", () => {
       expect(typeof c.name).toBe("string");
       expect(c.name.length).toBeGreaterThan(0);
       expect(typeof c.meaning).toBe("string");
+      expect(typeof c.uprightMeaning).toBe("string");
+      expect(typeof c.reversedMeaning).toBe("string");
       expect(typeof c.reversed).toBe("boolean");
     });
   });

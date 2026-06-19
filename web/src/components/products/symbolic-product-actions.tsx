@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ArrowRight, Download, LockKeyhole, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { ProductPurchaseControls } from "@/components/products/product-purchase-
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import type { NatalWheel } from "@/lib/esoteric-chart";
+import type { TarotCard, TarotSpreadKey } from "@/lib/symbolic-products";
 
 type SymbolicResult = {
   id: string;
@@ -19,7 +20,37 @@ type SymbolicResult = {
   metadata?: unknown;
 };
 
-type TarotCardView = { position: string; name: string; meaning: string; reversed: boolean };
+type TarotCardView = TarotCard;
+type TarotReadingMeta = { key?: TarotSpreadKey; label?: string; positions?: string[]; theme?: string };
+
+const TAROT_THEMES = [
+  { key: "relationships", label: "Отношения" },
+  { key: "choice", label: "Выбор" },
+  { key: "work", label: "Работа" },
+  { key: "self", label: "Самопознание" },
+  { key: "daily", label: "На сегодня" },
+] as const;
+
+const TAROT_SPREAD_OPTIONS: Array<{
+  key: TarotSpreadKey;
+  label: string;
+  helper: string;
+  positions: string[];
+}> = [
+  { key: "focus", label: "1 карта", helper: "быстрый фокус", positions: ["Фокус"] },
+  { key: "three", label: "3 карты", helper: "прошлое, настоящее, будущее", positions: ["Прошлое", "Настоящее", "Будущее"] },
+  { key: "choice", label: "Выбор", helper: "две дороги", positions: ["Вариант 1", "Вариант 2", "Что важно знать"] },
+  { key: "relationship", label: "Отношения", helper: "5 карт", positions: ["Вы", "Другой человек", "Потенциал связи", "Совет", "Возможный итог"] },
+  { key: "celtic", label: "Кельтский крест", helper: "10 карт", positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"] },
+];
+
+function isTarotSpreadKey(value: unknown): value is TarotSpreadKey {
+  return TAROT_SPREAD_OPTIONS.some((option) => option.key === value);
+}
+
+function isTarotThemeLabel(value: unknown): value is (typeof TAROT_THEMES)[number]["label"] {
+  return TAROT_THEMES.some((theme) => theme.label === value);
+}
 
 // #12: pull the real drawn cards out of the stored generation metadata (the
 // route nests it under generationMetadata / previewGenerationMetadata).
@@ -34,6 +65,21 @@ function extractTarotCards(result: SymbolicResult | null): TarotCardView[] | nul
     (c): c is TarotCardView => !!c && typeof c === "object" && typeof (c as { name?: unknown }).name === "string",
   );
   return cards.length > 0 ? cards : null;
+}
+
+function extractTarotMeta(result: SymbolicResult | null): TarotReadingMeta | null {
+  const md = result?.metadata;
+  if (!md || typeof md !== "object") return null;
+  const meta = md as Record<string, unknown>;
+  const nested = (meta.generationMetadata ?? meta.previewGenerationMetadata) as Record<string, unknown> | undefined;
+  const rawSpread = (nested?.tarotSpread ?? meta.tarotSpread) as Record<string, unknown> | undefined;
+  const rawTheme = (nested?.tarotTheme ?? meta.tarotTheme) as unknown;
+  return {
+    key: isTarotSpreadKey(rawSpread?.key) ? rawSpread.key : undefined,
+    label: typeof rawSpread?.label === "string" ? rawSpread.label : undefined,
+    positions: Array.isArray(rawSpread?.positions) ? rawSpread.positions.filter((item): item is string => typeof item === "string") : undefined,
+    theme: typeof rawTheme === "string" ? rawTheme : undefined,
+  };
 }
 
 // B388: натальное колесо хранится в metadata так же, как карты Таро.
@@ -71,6 +117,41 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
+function TarotDeckPreview({ spread }: { spread: (typeof TAROT_SPREAD_OPTIONS)[number] }) {
+  return (
+    <div className="tarot-deck-preview" data-testid="tarot-deck-preview" aria-label={`Карты расклада: ${spread.label}`}>
+      {spread.positions.map((position, index) => (
+        <div key={`${position}-${index}`} className="tarot-card-back">
+          <span className="tarot-card-back-mark" aria-hidden="true">ET</span>
+          <span className="tarot-card-back-position">{position}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TarotResultSummary({ cards, meta }: { cards: TarotCardView[]; meta: TarotReadingMeta | null }) {
+  const showSpreadLabel = Boolean(meta?.label && meta.label !== meta.theme);
+  return (
+    <div className="tarot-result-summary" data-testid="tarot-result-summary">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
+        {meta?.theme && <span className="tarot-meta-pill">тема: {meta.theme}</span>}
+        {showSpreadLabel && <span className="tarot-meta-pill">расклад: {meta?.label}</span>}
+        <span className="tarot-meta-pill">{cards.length} карт</span>
+      </div>
+      <div className="tarot-card-meaning-list">
+        {cards.map((card) => (
+          <article key={card.position} className="tarot-card-meaning">
+            <p className="tarot-card-meaning-position">{card.position}</p>
+            <h3>{card.name}{card.reversed ? " · перевёрнутая" : ""}</h3>
+            <p>{card.meaning}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SymbolicProductActions({
   productKey,
   title,
@@ -88,8 +169,17 @@ export function SymbolicProductActions({
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [result, setResult] = useState<SymbolicResult | null>(null);
   const [userInput, setUserInput] = useState("");
+  const [tarotTheme, setTarotTheme] = useState<(typeof TAROT_THEMES)[number]["label"]>(TAROT_THEMES[0].label);
+  const [tarotSpread, setTarotSpread] = useState<TarotSpreadKey>("three");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+
+  const syncTarotControlsFromResult = useCallback((nextResult: SymbolicResult | null) => {
+    if (productKey !== "tarot") return;
+    const meta = extractTarotMeta(nextResult);
+    if (meta?.key) setTarotSpread(meta.key);
+    if (isTarotThemeLabel(meta?.theme)) setTarotTheme(meta.theme);
+  }, [productKey]);
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
@@ -97,12 +187,14 @@ export function SymbolicProductActions({
     jsonRequest<ApiPayload>(`/api/products/symbolic?productKey=${productKey}`)
       .then((payload) => {
         if (cancelled) return;
+        const nextResult = payload.results?.[0] ?? null;
         setHasEntitlement(Boolean(payload.hasEntitlement));
-        setResult(payload.results?.[0] ?? null);
+        setResult(nextResult);
+        syncTarotControlsFromResult(nextResult);
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, [authStatus, productKey]);
+  }, [authStatus, productKey, syncTarotControlsFromResult]);
 
   async function generateResult() {
     if (authStatus !== "authenticated") {
@@ -113,14 +205,21 @@ export function SymbolicProductActions({
     setStatus("loading");
     setMessage(null);
     try {
+      const selectedSpread = TAROT_SPREAD_OPTIONS.find((option) => option.key === tarotSpread) ?? TAROT_SPREAD_OPTIONS[1];
       const payload = await jsonRequest<ApiPayload>("/api/products/symbolic", {
         method: "POST",
-        body: JSON.stringify({ productKey, userInput }),
+        body: JSON.stringify({
+          productKey,
+          userInput,
+          ...(productKey === "tarot" ? { tarotSpread: selectedSpread.key, tarotTheme } : {}),
+        }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
-      setResult(payload.result ?? null);
+      const nextResult = payload.result ?? null;
+      setResult(nextResult);
+      syncTarotControlsFromResult(nextResult);
       if (payload.paywalled) {
-        setMessage("Бесплатный фрагмент готов. Полный разбор можно открыть баллами или картой.");
+        setMessage(productKey === "tarot" ? "Откройте доступ баллами или картой, и расклад появится здесь же." : "Бесплатный фрагмент готов. Полный разбор можно открыть баллами или картой.");
       }
       setStatus("idle");
     } catch (error) {
@@ -155,7 +254,149 @@ export function SymbolicProductActions({
   }
 
   const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
+  const tarotMeta = productKey === "tarot" ? extractTarotMeta(result) : null;
   const natalWheel = productKey === "natal-chart" ? extractNatalWheel(result) : null;
+  const selectedTarotSpread = TAROT_SPREAD_OPTIONS.find((option) => option.key === tarotSpread) ?? TAROT_SPREAD_OPTIONS[1];
+
+  if (productKey === "tarot") {
+    return (
+      <div className="soft-card tarot-order-surface" data-testid="tarot-product-actions">
+        <div className="tarot-order-grid" data-testid="symbolic-product-actions-tarot">
+          <div className="tarot-order-panel">
+            <p className="soft-eyebrow">тема и расклад</p>
+            {hasEntitlement && <p className="tarot-access-note">Доступ открыт, можно тянуть карты.</p>}
+
+            {message && (
+              <p className="tarot-order-message">
+                {message}
+              </p>
+            )}
+
+            <div className="tarot-control-group" aria-label="Тема вопроса">
+              {TAROT_THEMES.map((theme) => (
+                <button
+                  key={theme.key}
+                  type="button"
+                  className={theme.label === tarotTheme ? "tarot-choice tarot-choice-active" : "tarot-choice"}
+                  onClick={() => setTarotTheme(theme.label)}
+                  aria-pressed={theme.label === tarotTheme}
+                  disabled={status === "loading"}
+                >
+                  {theme.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="tarot-spread-strip" aria-label="Тип расклада">
+              {TAROT_SPREAD_OPTIONS.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={option.key === tarotSpread ? "tarot-spread-choice tarot-choice-active" : "tarot-spread-choice"}
+                  onClick={() => setTarotSpread(option.key)}
+                  aria-pressed={option.key === tarotSpread}
+                  disabled={status === "loading"}
+                >
+                  <span>{option.label}</span>
+                  <small>{option.helper}</small>
+                </button>
+              ))}
+            </div>
+
+            <label className="soft-eyebrow tarot-question-label" htmlFor="symbolic-input-tarot">{promptLabel}</label>
+            <textarea
+              id="symbolic-input-tarot"
+              value={userInput}
+              onChange={(event) => setUserInput(event.target.value)}
+              placeholder={placeholder}
+              rows={3}
+              className="soft-question-input tarot-question-input"
+              disabled={status === "loading"}
+            />
+
+            <div className="tarot-action-row">
+              {hasEntitlement ? (
+                <Button
+                  type="button"
+                  onClick={generateResult}
+                  disabled={status === "loading"}
+                  className="soft-button soft-button-primary"
+                >
+                  <LockKeyhole className="size-4" aria-hidden="true" />
+                  {status === "loading" ? "Тянем карты" : "Получить полный расклад"}
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </Button>
+              ) : (
+                    <ProductPurchaseControls
+                      productKey={productKey}
+                      label="Открыть расклад"
+                  checkoutSource="tarot-direct"
+                  creditCost={creditCost}
+                  onUnlocked={() => {
+                    setHasEntitlement(true);
+                    if (userInput.trim()) {
+                      void generateResult();
+                    } else {
+                      setMessage("Доступ открыт. Добавьте вопрос, и карты появятся здесь же.");
+                    }
+                  }}
+                  />
+                )}
+            </div>
+          </div>
+
+          <div className="tarot-result-panel">
+            {tarotCards ? <TarotSpreadCards cards={tarotCards} /> : <TarotDeckPreview spread={selectedTarotSpread} />}
+            {result?.resultText ? (
+              <>
+                {tarotCards && <TarotResultSummary cards={tarotCards} meta={tarotMeta} />}
+                <SoftMarkdown
+                  content={result.resultText}
+                  className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
+                />
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    onClick={saveToMap}
+                    disabled={result.saved || status === "loading"}
+                    className="soft-button soft-button-ghost"
+                    data-testid="symbolic-save-tarot"
+                  >
+                    <Save className="size-4" aria-hidden="true" />
+                    {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем..." : "Сохранить"}
+                  </Button>
+                  <a
+                    href={`/products/print/${result.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="soft-button soft-button-ghost"
+                    data-testid="symbolic-pdf-tarot"
+                  >
+                    <Download className="size-4" aria-hidden="true" />
+                    PDF
+                  </a>
+                </div>
+              </>
+            ) : result?.previewText ? (
+              <>
+                <SoftMarkdown
+                  content={result.previewText}
+                  className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
+                />
+                <p className="tarot-preview-note">
+                  Полный расклад откроет все карты, общий смысл и сохранение в Мою карту.
+                </p>
+              </>
+            ) : (
+              <p className="tarot-empty-copy">
+                Выберите тему и расклад. Карты лягут здесь, а текст свяжет символы с вашим вопросом.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="soft-card soft-form-panel mt-8" data-testid={`symbolic-product-actions-${productKey}`}>

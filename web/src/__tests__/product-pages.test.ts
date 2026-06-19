@@ -53,7 +53,7 @@ describe("v5 product pages", () => {
     expect(source("lib/v5-products.ts")).not.toContain("joint-session\":");
   });
 
-  it("renders the B436 product shell with first-screen value, CTA, and preview", () => {
+  it("renders the product shell with first-screen value, CTA, and preview", () => {
     const detailPage = source("app/products/[slug]/page.tsx");
     const shell = source("components/products/product-page-shell.tsx");
     const priceChip = source("components/products/product-hero-price.tsx");
@@ -65,19 +65,19 @@ describe("v5 product pages", () => {
     expect(shell).toContain('data-testid="product-primary-cta"');
     expect(shell).toContain('data-testid="product-hero-preview"');
     expect(shell).toContain('data-testid="product-hero-back"');
+    expect(detailPage).not.toContain("function ProductToolGuide");
+    expect(detailPage).not.toContain('data-testid="product-tool-guide"');
     // B405: the price chip is a role-aware client component (guest ₽ / authed баллы).
     expect(shell).toContain("<ProductHeroPrice");
     expect(priceChip).toContain('data-testid="product-hero-price"');
     expect(priceChip).toContain("{product.price}");
-    expect(shell).toContain("<ZodiacWheel");
     expect(detailPage).not.toContain("← На главную");
 
-    expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).not.toContain('data-testid="deep-report-sample-main-fork"');
     expect(detailPage).not.toContain('data-testid="product-example-disclosure"');
 
-    // B395: per-product *Side / preview components removed — the hero renders
-    // the action component directly (symbolic products via SymbolicProductActions).
+    // B395: per-product *Side components removed — the shell renders the action
+    // component directly (symbolic products via SymbolicProductActions).
     expect(detailPage).not.toContain("<TarotSide");
     expect(detailPage).not.toContain("<NumerologySide");
     expect(detailPage).toContain("<SymbolicProductActions");
@@ -118,10 +118,19 @@ describe("v5 product pages", () => {
 
     expect(actions).toContain("/api/products/symbolic");
     expect(actions).toContain("<ProductPurchaseControls");
+    expect(actions).toContain('data-testid="tarot-product-actions"');
+    expect(actions).toContain('data-testid="tarot-deck-preview"');
+    expect(actions).toContain('data-testid="tarot-result-summary"');
+    expect(actions).toContain("TAROT_SPREAD_OPTIONS");
+    expect(actions).toContain("tarotTheme");
+    expect(actions).toContain("tarotSpread");
+    expect(actions).not.toContain('data-testid="symbolic-free-fragment-tarot"');
     // #7: paid purchase auto-generates the full result once unlocked, once the
     // user has typed their context.
     expect(actions).toContain("if (userInput.trim())");
     expect(route).toContain('productKey: "tarot"');
+    expect(route).toContain("tarotSpread");
+    expect(route).toContain("tarotTheme");
     expect(route).toContain("userHasActiveEntitlement");
     expect(route).toContain("Не авторизован");
   });

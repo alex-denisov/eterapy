@@ -5,7 +5,7 @@ import {
   buildNatalWheel,
   buildSynastryWheel,
 } from "@/lib/esoteric-chart";
-import { drawTarotSpread } from "@/lib/symbolic-products";
+import { TAROT_SPREAD_PRESETS, drawTarotSpread, resolveTarotSpread } from "@/lib/symbolic-products";
 
 describe("B388 esoteric chart — deterministic structure", () => {
   it("has 12 zodiac signs with unique keys and glyphs", () => {
@@ -99,5 +99,20 @@ describe("B388 tarot spread variety", () => {
     const a = drawTarotSpread("user:один и тот же вопрос");
     const b = drawTarotSpread("user:один и тот же вопрос");
     expect(a).toEqual(b);
+  });
+
+  it("supports popular tarot spreads with the selected positions", () => {
+    const focus = drawTarotSpread("user:карта дня", TAROT_SPREAD_PRESETS.focus.positions);
+    const relationship = drawTarotSpread("user:отношения", TAROT_SPREAD_PRESETS.relationship.positions);
+
+    expect(focus).toHaveLength(1);
+    expect(focus[0].position).toBe("Фокус");
+    expect(relationship).toHaveLength(5);
+    expect(relationship.map((card) => card.position)).toEqual(["Вы", "Другой человек", "Потенциал связи", "Совет", "Возможный итог"]);
+    expect(new Set(relationship.map((card) => card.name)).size).toBe(5);
+  });
+
+  it("falls back to the compact three-card spread for unknown choices", () => {
+    expect(resolveTarotSpread("unknown").key).toBe("three");
   });
 });

@@ -116,47 +116,29 @@ export function SynastryWheel({ wheel }: { wheel: SynastryWheel }) {
   );
 }
 
-// Символический глиф для каждого Старшего аркана (без внешних ассетов: чистый SVG/Unicode).
-const ARCANA_GLYPHS: Record<string, string> = {
-  "Шут": "🜁",
-  "Маг": "∞",
-  "Верховная Жрица": "☽",
-  "Императрица": "♀",
-  "Император": "♂",
-  "Иерофант": "⛪",
-  "Влюблённые": "♥",
-  "Колесница": "⚉",
-  "Сила": "∞",
-  "Отшельник": "☖",
-  "Колесо Фортуны": "☸",
-  "Справедливость": "⚖",
-  "Повешенный": "⌖",
-  "Смерть": "⚰",
-  "Умеренность": "⚗",
-  "Дьявол": "⛧",
-  "Башня": "⚡",
-  "Звезда": "✶",
-  "Луна": "☾",
-  "Солнце": "☀",
-  "Суд": "⚞",
-  "Мир": "✪",
-};
-
 function TarotCardFace({ card }: { card: TarotCard }) {
-  const glyph = ARCANA_GLYPHS[card.name] ?? "✶";
+  const glyph = card.glyph ?? (card.arcana === "major" ? "A" : "M");
+  const titleParts = card.name.split(" ");
+  const titleTop = titleParts.slice(0, -1).join(" ") || card.name;
+  const titleBottom = titleParts.length > 1 ? titleParts[titleParts.length - 1] : "";
   return (
     <div className="flex flex-col items-center" data-testid="tarot-card">
-      <svg viewBox="0 0 120 180" className="w-full max-w-[120px]" role="img" aria-label={`${card.position}: ${card.name}${card.reversed ? ", перевёрнутая" : ""}`}>
-        <rect x={3} y={3} width={114} height={174} rx={10} fill="#2A2240" stroke="#C9A24A" strokeWidth={1.5} />
-        <rect x={9} y={9} width={102} height={162} rx={7} fill="none" stroke="#C9A24A" strokeWidth={0.8} opacity={0.6} />
+      <svg viewBox="0 0 120 180" className="tarot-card-face-svg w-full max-w-[120px]" role="img" aria-label={`${card.position}: ${card.name}${card.reversed ? ", перевёрнутая" : ""}`}>
+        <rect x={3} y={3} width={114} height={174} rx={10} fill="#4A3E5E" stroke="#D6B779" strokeWidth={1.4} />
+        <rect x={9} y={9} width={102} height={162} rx={7} fill="#5B4D72" stroke="#F1DFB9" strokeWidth={0.75} opacity={0.74} />
         <g transform={card.reversed ? "rotate(180 60 90)" : undefined}>
-          <text x={60} y={92} textAnchor="middle" dominantBaseline="central" fontSize="44" fill="#E9D9A8">
+          <text x={60} y={34} textAnchor="middle" fontSize="13" fill="#F1DFB9" letterSpacing="0">
+            {card.arcana === "major" ? "СТАРШИЙ АРКАН" : card.suit?.toUpperCase()}
+          </text>
+          <text x={60} y={93} textAnchor="middle" dominantBaseline="central" fontSize={card.arcana === "major" ? "34" : "42"} fill="#F7EFE5">
             {glyph}
           </text>
+          <path d="M30 118 C42 111, 78 111, 90 118" fill="none" stroke="#F1DFB9" strokeWidth="0.9" opacity="0.7" />
         </g>
-        <text x={60} y={158} textAnchor="middle" fontSize="9.5" fill="#DBD3EA" fontStyle="italic">
-          {card.name}
+        <text x={60} y={144} textAnchor="middle" fontSize="9.5" fill="#F7EFE5">
+          {titleTop}
         </text>
+        {titleBottom && <text x={60} y={157} textAnchor="middle" fontSize="9.5" fill="#F7EFE5">{titleBottom}</text>}
       </svg>
       <p className="mt-1 text-[10px] uppercase tracking-widest text-[var(--soft-muted,#7a7068)]">{card.position}</p>
       {card.reversed && <p className="text-[10px] text-[var(--soft-muted,#7a7068)]">перевёрнутая</p>}
@@ -165,8 +147,13 @@ function TarotCardFace({ card }: { card: TarotCard }) {
 }
 
 export function TarotSpreadCards({ cards }: { cards: TarotCard[] }) {
+  const count = Math.min(cards.length, 10);
   return (
-    <div className="mt-3 grid grid-cols-3 gap-3" data-testid="tarot-spread">
+    <div
+      className="tarot-spread-grid mt-3 grid gap-3"
+      data-card-count={count}
+      data-testid="tarot-spread"
+    >
       {cards.map((card) => (
         <TarotCardFace key={card.position} card={card} />
       ))}
