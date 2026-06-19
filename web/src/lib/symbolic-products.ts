@@ -126,7 +126,7 @@ const TAROT_MAJOR_ARCANA: TarotDeckCard[] = [
   { code: "major-06", name: "Влюблённые", arcana: "major", glyph: "VI", upright: "выбор сердца и ценностей", reversedMeaning: "расхождение ценностей, избегание выбора" },
   { code: "major-07", name: "Колесница", arcana: "major", glyph: "VII", upright: "движение к цели, собранность", reversedMeaning: "рывок без направления, усталость от контроля" },
   { code: "major-08", name: "Сила", arcana: "major", glyph: "VIII", upright: "мягкая стойкость", reversedMeaning: "самодавление, сила без нежности" },
-  { code: "major-09", name: "Отшельник", arcana: "major", glyph: "IX", upright: "пауза, поиск ответа внутри", reversedMeaning: "изоляция, одиночество вместо ясности" },
+  { code: "major-09", name: "Отшельник", arcana: "major", glyph: "IX", upright: "пауза, поиск ответа внутри", reversedMeaning: "изоляция, одиночество вместо ответа" },
   { code: "major-10", name: "Колесо Фортуны", arcana: "major", glyph: "X", upright: "перемена, новый цикл", reversedMeaning: "сопротивление перемене, повтор старого круга" },
   { code: "major-11", name: "Справедливость", arcana: "major", glyph: "XI", upright: "честность и последствия", reversedMeaning: "искажение баланса, уход от ответственности" },
   { code: "major-12", name: "Повешенный", arcana: "major", glyph: "XII", upright: "смена угла зрения", reversedMeaning: "застревание, ожидание без смысла" },
@@ -144,7 +144,7 @@ const TAROT_MAJOR_ARCANA: TarotDeckCard[] = [
 const TAROT_MINOR_SUITS: Array<{ suit: string; glyph: string; theme: string }> = [
   { suit: "Жезлы", glyph: "Ж", theme: "действие, импульс, направление" },
   { suit: "Кубки", glyph: "К", theme: "чувства, связь, внутренний отклик" },
-  { suit: "Мечи", glyph: "М", theme: "мысль, слова, ясность и конфликт" },
+  { suit: "Мечи", glyph: "М", theme: "мысль, слова, различение и конфликт" },
   { suit: "Пентакли", glyph: "П", theme: "тело, быт, деньги и устойчивость" },
 ];
 
