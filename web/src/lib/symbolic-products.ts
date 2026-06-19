@@ -515,7 +515,7 @@ export async function generateSymbolicProductResult(input: {
     const feature = `product-${input.productKey}`;
     const baseSystemPrompt = defaultPromptTextForFeature(feature);
     const tarotCardsNote = cards
-      ? `\n\nЭто расклад "${tarotSpread?.label ?? "Таро"}" из ${cards.length} карт (${cards.map((card) => card.position).join(" / ")}). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте вопроса${tarotTheme ? ` и темы "${tarotTheme}"` : ""}.`
+      ? `\n\nЭто расклад "${tarotSpread?.label ?? "Таро"}" из ${cards.length} карт (${cards.map((card) => card.position).join(" / ")}). Интерпретируй ИМЕННО выпавшие карты ниже, по одной секции на карту, в контексте реального вопроса пользователя${tarotTheme ? ` (мягкий фокус-оттенок: "${tarotTheme}" — не ограничение сферы вопроса)` : ""}.`
       : "";
     const hdNote = hdChart ? `\n\n${humanDesignFactsForAI(hdChart)}` : "";
     const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory)}` : "";
@@ -536,7 +536,7 @@ export async function generateSymbolicProductResult(input: {
           content: [
             `Product: ${definition?.title ?? input.productKey}`,
             tarotSpread ? `Расклад: ${tarotSpread.label}.` : "",
-            tarotTheme ? `Тема вопроса: ${tarotTheme}.` : "",
+            tarotTheme ? `Мягкий фокус-оттенок (не ограничение сферы вопроса): ${tarotTheme}.` : "",
             cards ? `Выпавшие карты: ${cards.map((c) => `${c.position} — ${c.name}${c.reversed ? " (перевёрнутая)" : ""}`).join("; ")}.` : "",
             `User input: ${normalize(input.userInput) || "Пользователь хочет бережный символический разбор."}`,
           ].filter(Boolean).join("\n"),
