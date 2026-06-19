@@ -26,14 +26,19 @@ describe("B436 product page redesign shell", () => {
     }
   });
 
-  it("moves product details into a reusable ProductPageShell with a first-screen promise, price, CTA, and preview", () => {
+  it("keeps the ProductPageShell for not-yet-reworked pages while chat-analysis is restored to the compact hero", () => {
     const route = source("src/app/products/[slug]/page.tsx");
     const shell = source("src/components/products/product-page-shell.tsx");
     const css = source("src/app/v4-soft.css");
 
+    // B436 shell still serves products not yet reworked page-by-page…
     expect(route).toContain("<ProductPageShell");
-    expect(route).toContain("action={<ProductActionSurface");
-    expect(route).not.toContain("function ProductHero");
+    expect(route).toContain("<ProductActionSurface");
+    // …but the compact tool-first hero (B395) is restored and chat-analysis is
+    // routed back through it — the generic B436 shell regressed that page.
+    expect(route).toContain("function ProductHero");
+    expect(route).toContain("COMPACT_HERO_SLUGS");
+    expect(route).toContain('"chat-analysis"');
 
     expect(shell).toContain('data-testid="product-page-shell"');
     expect(shell).toContain('data-testid="product-above-fold"');
