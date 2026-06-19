@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Download, LockKeyhole, Save } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Download, LockKeyhole, RotateCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
+import { appUrl } from "@/lib/subdomain";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import type { TarotCard, TarotSpreadKey } from "@/lib/symbolic-products";
 
@@ -115,6 +116,65 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
     throw error;
   }
   return payload as T;
+}
+
+// #2: горизонтально прокручиваемая лента выбора с кликабельными стрелками по
+// краям. Стрелка появляется только если есть куда скроллить в эту сторону;
+// клик плавно сдвигает ленту в сторону нажатой стрелки.
+function ScrollStrip({ children, ariaLabel }: { children: ReactNode; ariaLabel: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const update = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 2);
+    setCanRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [update]);
+
+  function scrollByDir(direction: 1 | -1) {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.7, behavior: "smooth" });
+  }
+
+  return (
+    <div className="tarot-strip">
+      {canLeft && (
+        <button
+          type="button"
+          className="tarot-strip-arrow tarot-strip-arrow-left"
+          onClick={() => scrollByDir(-1)}
+          aria-label="Прокрутить влево"
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+        </button>
+      )}
+      <div ref={ref} className="tarot-strip-track" role="group" aria-label={ariaLabel} onScroll={update}>
+        {children}
+      </div>
+      {canRight && (
+        <button
+          type="button"
+          className="tarot-strip-arrow tarot-strip-arrow-right"
+          onClick={() => scrollByDir(1)}
+          aria-label="Прокрутить вправо"
+        >
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
 }
 
 function TarotDeckPreview({ spread }: { spread: (typeof TAROT_SPREAD_OPTIONS)[number] }) {
@@ -253,118 +313,158 @@ export function SymbolicProductActions({
     }
   }
 
+  // #5: «Новый расклад» — очищаем текущий результат, чтобы вернуться к форме и
+  // пройти механику заново. Каждый новый расклад снова списывает баллы (или
+  // оплачивается), т.к. entitlement гасится на каждой генерации (INC-025).
+  function resetReading() {
+    setResult(null);
+    setMessage(null);
+    setStatus("idle");
+    setUserInput("");
+  }
+
   const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
   const tarotMeta = productKey === "tarot" ? extractTarotMeta(result) : null;
   const natalWheel = productKey === "natal-chart" ? extractNatalWheel(result) : null;
   const selectedTarotSpread = TAROT_SPREAD_OPTIONS.find((option) => option.key === tarotSpread) ?? TAROT_SPREAD_OPTIONS[1];
 
   if (productKey === "tarot") {
+    const hasReading = Boolean(result?.resultText && tarotCards);
+
+    // Блок управления: тема → расклад (компактная прокручиваемая лента, #2) →
+    // вопрос → действие. После расклада он сворачивается в раскрываемый элемент.
+    const controls = (
+      <div className="tarot-controls">
+        <div className="tarot-control-group" aria-label="Тема вопроса">
+          {TAROT_THEMES.map((theme) => (
+            <button
+              key={theme.key}
+              type="button"
+              className={theme.label === tarotTheme ? "tarot-choice tarot-choice-active" : "tarot-choice"}
+              onClick={() => setTarotTheme(theme.label)}
+              aria-pressed={theme.label === tarotTheme}
+              disabled={status === "loading"}
+            >
+              {theme.label}
+            </button>
+          ))}
+        </div>
+
+        <ScrollStrip ariaLabel="Тип расклада">
+          {TAROT_SPREAD_OPTIONS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              className={option.key === tarotSpread ? "tarot-spread-choice tarot-choice-active" : "tarot-spread-choice"}
+              onClick={() => setTarotSpread(option.key)}
+              aria-pressed={option.key === tarotSpread}
+              title={option.helper}
+              disabled={status === "loading"}
+            >
+              {option.label}
+            </button>
+          ))}
+        </ScrollStrip>
+
+        <label className="soft-eyebrow tarot-question-label" htmlFor="symbolic-input-tarot">{promptLabel}</label>
+        <textarea
+          id="symbolic-input-tarot"
+          value={userInput}
+          onChange={(event) => setUserInput(event.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className="soft-question-input tarot-question-input"
+          disabled={status === "loading"}
+        />
+
+        <div className="tarot-action-row">
+          {hasEntitlement ? (
+            <Button
+              type="button"
+              onClick={generateResult}
+              disabled={status === "loading"}
+              className="soft-button soft-button-primary"
+            >
+              <LockKeyhole className="size-4" aria-hidden="true" />
+              {status === "loading" ? "Тянем карты" : "Получить полный расклад"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
+          ) : (
+            <ProductPurchaseControls
+              productKey={productKey}
+              label="Открыть расклад"
+              checkoutSource="tarot-direct"
+              creditCost={creditCost}
+              onUnlocked={() => {
+                setHasEntitlement(true);
+                if (userInput.trim()) {
+                  void generateResult();
+                } else {
+                  setMessage("Доступ открыт. Добавьте вопрос, и карты появятся здесь же.");
+                }
+              }}
+            />
+          )}
+        </div>
+      </div>
+    );
+
     return (
       <div className="soft-card tarot-order-surface" data-testid="tarot-product-actions">
-        <div className="tarot-order-grid" data-testid="symbolic-product-actions-tarot">
-          <div className="tarot-order-panel">
+        <div data-testid="symbolic-product-actions-tarot">
+          <div className="tarot-head">
             <p className="soft-eyebrow">тема и расклад</p>
-            {hasEntitlement && <p className="tarot-access-note">Доступ открыт, можно тянуть карты.</p>}
-
-            {message && (
-              <p className="tarot-order-message">
-                {message}
-              </p>
-            )}
-
-            <div className="tarot-control-group" aria-label="Тема вопроса">
-              {TAROT_THEMES.map((theme) => (
-                <button
-                  key={theme.key}
-                  type="button"
-                  className={theme.label === tarotTheme ? "tarot-choice tarot-choice-active" : "tarot-choice"}
-                  onClick={() => setTarotTheme(theme.label)}
-                  aria-pressed={theme.label === tarotTheme}
-                  disabled={status === "loading"}
-                >
-                  {theme.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="tarot-spread-strip" aria-label="Тип расклада">
-              {TAROT_SPREAD_OPTIONS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={option.key === tarotSpread ? "tarot-spread-choice tarot-choice-active" : "tarot-spread-choice"}
-                  onClick={() => setTarotSpread(option.key)}
-                  aria-pressed={option.key === tarotSpread}
-                  disabled={status === "loading"}
-                >
-                  <span>{option.label}</span>
-                  <small>{option.helper}</small>
-                </button>
-              ))}
-            </div>
-
-            <label className="soft-eyebrow tarot-question-label" htmlFor="symbolic-input-tarot">{promptLabel}</label>
-            <textarea
-              id="symbolic-input-tarot"
-              value={userInput}
-              onChange={(event) => setUserInput(event.target.value)}
-              placeholder={placeholder}
-              rows={3}
-              className="soft-question-input tarot-question-input"
-              disabled={status === "loading"}
-            />
-
-            <div className="tarot-action-row">
-              {hasEntitlement ? (
-                <Button
-                  type="button"
-                  onClick={generateResult}
-                  disabled={status === "loading"}
-                  className="soft-button soft-button-primary"
-                >
-                  <LockKeyhole className="size-4" aria-hidden="true" />
-                  {status === "loading" ? "Тянем карты" : "Получить полный расклад"}
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Button>
-              ) : (
-                    <ProductPurchaseControls
-                      productKey={productKey}
-                      label="Открыть расклад"
-                  checkoutSource="tarot-direct"
-                  creditCost={creditCost}
-                  onUnlocked={() => {
-                    setHasEntitlement(true);
-                    if (userInput.trim()) {
-                      void generateResult();
-                    } else {
-                      setMessage("Доступ открыт. Добавьте вопрос, и карты появятся здесь же.");
-                    }
-                  }}
-                  />
-                )}
-            </div>
+            {hasEntitlement && !hasReading && <p className="tarot-access-note">Доступ открыт, можно тянуть карты.</p>}
           </div>
 
-          <div className="tarot-result-panel">
+          {message && <p className="tarot-order-message">{message}</p>}
+
+          {/* #4: после открытия карт блок выбора сворачивается в раскрываемый
+              элемент, а карты и трактовка показываются ниже — в этом же окне. */}
+          {hasReading ? (
+            <details className="tarot-controls-collapsed">
+              <summary>
+                <span className="tarot-collapsed-q">
+                  {userInput.trim() ? `Вопрос: ${userInput.trim()}` : "Тема, расклад и вопрос"}
+                </span>
+                <span className="tarot-collapsed-hint">изменить</span>
+              </summary>
+              {controls}
+            </details>
+          ) : (
+            controls
+          )}
+
+          <div className="tarot-reveal" data-testid="tarot-reveal">
             {tarotCards ? <TarotSpreadCards cards={tarotCards} /> : <TarotDeckPreview spread={selectedTarotSpread} />}
-            {result?.resultText ? (
+
+            {result?.resultText && tarotCards ? (
               <>
-                {tarotCards && <TarotResultSummary cards={tarotCards} meta={tarotMeta} />}
+                <TarotResultSummary cards={tarotCards} meta={tarotMeta} />
                 <SoftMarkdown
                   content={result.resultText}
                   className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
                 />
-                <div className="mt-4 flex flex-wrap gap-3">
+                <div className="tarot-result-actions">
+                  {/* #5: вернуться к форме и пройти механику заново. */}
                   <Button
                     type="button"
-                    onClick={saveToMap}
-                    disabled={result.saved || status === "loading"}
+                    onClick={resetReading}
+                    className="soft-button soft-button-primary"
+                    data-testid="tarot-new-reading"
+                  >
+                    <RotateCcw className="size-4" aria-hidden="true" />
+                    Новый расклад
+                  </Button>
+                  {/* #6: расклад вместе с вопросом уже сохранён в Дневник автоматически. */}
+                  <a
+                    href={appUrl("/cabinet/diary")}
                     className="soft-button soft-button-ghost"
-                    data-testid="symbolic-save-tarot"
+                    data-testid="tarot-open-diary"
                   >
                     <Save className="size-4" aria-hidden="true" />
-                    {result.saved ? "Сохранено в Мою карту" : status === "loading" ? "Сохраняем..." : "Сохранить"}
-                  </Button>
+                    {result.saved ? "В Дневнике" : "Сохранить в Дневник"}
+                  </a>
                   <a
                     href={`/products/print/${result.id}`}
                     target="_blank"
@@ -384,7 +484,7 @@ export function SymbolicProductActions({
                   className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
                 />
                 <p className="tarot-preview-note">
-                  Полный расклад откроет все карты, общий смысл и сохранение в Мою карту.
+                  Полный расклад откроет все карты, общий смысл и сохранение в Дневник.
                 </p>
               </>
             ) : (

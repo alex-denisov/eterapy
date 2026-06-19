@@ -180,6 +180,10 @@ export async function POST(request: NextRequest) {
         status: "READY",
         previewText,
         resultText: generated.text,
+        // #6: расклад Таро вместе с вопросом сохраняется в Дневник автоматически
+        // (savedAt → попадает в фид diary.ts). Остальные символические продукты
+        // сохраняются вручную кнопкой, как и раньше.
+        ...(productKey === "tarot" ? { savedAt: new Date() } : {}),
         metadata: {
           userInput,
           ...tarotRequestMeta,

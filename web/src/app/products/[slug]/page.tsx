@@ -122,7 +122,7 @@ function ProductActionSurface({
 // Услуги, уже вернувшиеся на компактный tool-first hero (B395). Остальные пока
 // остаются на ProductPageShell (B436), пока до них не дойдёт постраничная
 // переработка. «Разбор переписки» — первая возвращённая страница.
-const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis"]);
+const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot"]);
 
 export default async function ProductPage({
   params,

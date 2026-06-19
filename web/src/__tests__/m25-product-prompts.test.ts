@@ -21,8 +21,14 @@ describe("B362 — per-product AI prompts", () => {
     // The product-specific instruction is present (not just the shared guardrail).
     expect(tarot).toContain("Таро");
     expect(tarot).toContain("Прошлое / Настоящее / Будущее");
-    expect(tarot).toContain("химии, физике, математике");
-    expect(tarot).toContain("не отвечай по сути");
+    // #7: расклад Таро отвечает только на личный жизненный вопрос и отказывается
+    // от тем вне рефлексии (математика, программирование, код, кулинария и т.п.).
+    expect(tarot).toContain("математику");
+    expect(tarot).toContain("программирование");
+    expect(tarot).toContain("кулинарию");
+    expect(tarot).toContain("выполняй задачу");
+    // Интерпретирует строго переданные карты, без подмены выпавших.
+    expect(tarot).toContain("которые переданы в запросе");
     expect(natal).toContain("натальную карту");
     expect(numerology).toContain("числовой портрет");
   });
