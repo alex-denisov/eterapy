@@ -136,15 +136,19 @@ export default async function ProductPage({
   const product = getV5Product(slug);
   if (!product) notFound();
 
-  const action = <ProductActionSurface product={product} search={search} />;
-
   return (
     <main className="soft-clarity-page soft-product-detail-page" data-testid={`product-page-${product.slug}`}>
       <PublicJsonLd route={product.route as PublicSeoRoute} />
       {COMPACT_HERO_SLUGS.has(product.slug) ? (
-        <ProductHero product={product} action={action} />
+        <ProductHero
+          product={product}
+          action={<ProductActionSurface product={product} search={search} />}
+        />
       ) : (
-        <ProductPageShell product={product} action={action} />
+        <ProductPageShell
+          product={product}
+          action={<ProductActionSurface product={product} search={search} />}
+        />
       )}
     </main>
   );
