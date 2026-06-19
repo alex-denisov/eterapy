@@ -1217,6 +1217,118 @@
     max-width: min(100%, 17.5rem);
   }
 
+  .soft-product-shell-tarot {
+    margin-top: 0.85rem;
+  }
+
+  .soft-product-shell-tarot [data-testid="tarot-spread"] {
+    gap: 0.55rem;
+  }
+
+  .soft-product-shell-tarot [data-testid="tarot-card"] svg {
+    max-width: min(100%, 5.6rem);
+  }
+
+  .soft-product-shell-tarot [data-testid="tarot-card"] p {
+    letter-spacing: 0.08em;
+  }
+
+  .soft-product-shell-hd {
+    margin-top: 0.75rem;
+  }
+
+  .soft-product-shell-hd .hd-bodygraph svg {
+    max-width: min(100%, 11.5rem);
+  }
+
+  .soft-product-shell-number,
+  .soft-product-shell-lineage,
+  .soft-product-shell-family {
+    margin-top: 1rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: var(--soft-radius-lg);
+    background:
+      linear-gradient(145deg, rgba(255, 252, 245, 0.94), rgba(246, 224, 196, 0.58)),
+      repeating-linear-gradient(90deg, rgba(92, 42, 44, 0.06) 0 1px, transparent 1px 18px);
+    color: var(--soft-ink-soft);
+    overflow: hidden;
+    padding: 1rem;
+  }
+
+  .soft-product-shell-number p,
+  .soft-product-shell-lineage p,
+  .soft-product-shell-family p {
+    margin-top: 0.55rem;
+    text-align: center;
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .soft-product-shell-number-orbit {
+    position: relative;
+    display: grid;
+    width: min(100%, 15.5rem);
+    aspect-ratio: 1;
+    margin-inline: auto;
+    place-items: center;
+  }
+
+  .soft-product-shell-number-orbit::before,
+  .soft-product-shell-number-orbit::after {
+    content: "";
+    position: absolute;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 999px;
+  }
+
+  .soft-product-shell-number-orbit::before {
+    inset: 0.75rem;
+  }
+
+  .soft-product-shell-number-orbit::after {
+    inset: 3.1rem;
+    border-style: dashed;
+  }
+
+  .soft-product-shell-number-orbit > span {
+    z-index: 1;
+    display: grid;
+    width: 5rem;
+    aspect-ratio: 1;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--soft-bordeaux);
+    color: #fff8f1;
+    font-family: var(--font-heading);
+    font-size: 2.75rem;
+    line-height: 1;
+  }
+
+  .soft-product-shell-number-orbit > i {
+    --angle: calc(var(--i) * 90deg - 35deg);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    display: grid;
+    width: 2.1rem;
+    aspect-ratio: 1;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--soft-paper-card);
+    color: var(--soft-bordeaux);
+    font-style: normal;
+    font-weight: 700;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-6.45rem) rotate(calc(-1 * var(--angle)));
+  }
+
+  .soft-product-shell-lineage svg,
+  .soft-product-shell-family svg {
+    display: block;
+    width: 100%;
+    max-width: 20rem;
+    margin-inline: auto;
+  }
+
   .soft-product-shell-symbol {
     display: grid;
     margin-top: 1rem;

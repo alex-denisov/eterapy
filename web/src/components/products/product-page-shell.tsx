@@ -1,15 +1,93 @@
 import Link from "next/link";
 import type React from "react";
 import { ArrowRight, ChevronLeft, FileText, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
-import { ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
+import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
+import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { buildNatalWheel } from "@/lib/esoteric-chart";
+import { computeHumanDesign } from "@/lib/human-design";
 import { getProductPageSpec, PRODUCT_PAGE_FAMILY_SPECS } from "@/lib/product-page-redesign";
+import { drawTarotSpread } from "@/lib/symbolic-products";
 import type { V5Product } from "@/lib/v5-products";
 
 const PROTOTYPE_NATAL_WHEEL = buildNatalWheel("12.04.1992, 14:35, Москва");
+const PROTOTYPE_TAROT_SPREAD = drawTarotSpread("b437:tarot-product-hero");
+const PROTOTYPE_HD_CHART = computeHumanDesign(new Date(Date.UTC(1990, 4, 15, 7, 30, 0)));
+
+function NumerologyPreview() {
+  return (
+    <div className="soft-product-shell-number" data-testid="product-numerology-preview" aria-label="Превью числового портрета">
+      <div className="soft-product-shell-number-orbit">
+        <span>7</span>
+        <i style={{ "--i": 0 } as React.CSSProperties}>1</i>
+        <i style={{ "--i": 1 } as React.CSSProperties}>2</i>
+        <i style={{ "--i": 2 } as React.CSSProperties}>5</i>
+        <i style={{ "--i": 3 } as React.CSSProperties}>9</i>
+      </div>
+      <p>ключевое число · цикл года · сильная сторона</p>
+    </div>
+  );
+}
+
+function SurnamePreview() {
+  return (
+    <div className="soft-product-shell-lineage" data-testid="product-surname-preview" aria-label="Превью истории фамилии">
+      <svg viewBox="0 0 320 190" role="img" aria-label="Карта происхождения фамилии">
+        <path d="M54 142 C98 78, 137 76, 160 42 C185 77, 224 78, 266 142" fill="none" stroke="var(--soft-terracotta-dark)" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M160 42 L160 152" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="4 5" />
+        {[
+          [54, 142, "корень"],
+          [160, 42, "фамилия"],
+          [266, 142, "тема"],
+          [160, 152, "род"],
+        ].map(([x, y, label]) => (
+          <g key={label}>
+            <circle cx={x} cy={y} r="22" fill="var(--soft-paper-card)" stroke="var(--soft-terracotta-dark)" strokeWidth="1.5" />
+            <text x={x} y={Number(y) + 4} textAnchor="middle" fontSize="10" fill="var(--soft-bordeaux)">{label}</text>
+          </g>
+        ))}
+      </svg>
+      <p>происхождение · география формы · мягкая родовая тема</p>
+    </div>
+  );
+}
+
+function FamilyPreview() {
+  return (
+    <div className="soft-product-shell-family" data-testid="product-family-preview" aria-label="Превью семейных сценариев">
+      <svg viewBox="0 0 320 210" role="img" aria-label="Карта семейных повторов">
+        <path d="M160 34 L90 94 L160 94 L230 94 L160 34 Z" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" />
+        <path d="M90 94 L68 164 M160 94 L160 164 M230 94 L252 164" stroke="var(--soft-paper-edge)" strokeWidth="1.4" />
+        <path d="M70 164 C102 132, 130 132, 160 164 C190 132, 220 132, 252 164" fill="none" stroke="var(--soft-terracotta-dark)" strokeWidth="2.4" strokeLinecap="round" />
+        {[
+          [160, 34, "правило"],
+          [90, 94, "роль"],
+          [160, 94, "повтор"],
+          [230, 94, "граница"],
+          [68, 164, "вы"],
+          [160, 164, "выбор"],
+          [252, 164, "шаг"],
+        ].map(([x, y, label]) => (
+          <g key={label}>
+            <circle cx={x} cy={y} r="18" fill="var(--soft-paper-card)" stroke="var(--soft-terracotta-dark)" strokeWidth="1.3" />
+            <text x={x} y={Number(y) + 4} textAnchor="middle" fontSize="9" fill="var(--soft-bordeaux)">{label}</text>
+          </g>
+        ))}
+      </svg>
+      <p>что повторяется · что уже не ваше · где появляется выбор</p>
+    </div>
+  );
+}
 
 function PreviewGlyph({ product }: { product: V5Product }) {
+  if (product.slug === "tarot") {
+    return (
+      <div className="soft-product-shell-tarot" data-testid="product-tarot-preview">
+        <TarotSpreadCards cards={PROTOTYPE_TAROT_SPREAD} />
+      </div>
+    );
+  }
+
   if (product.slug === "natal-chart") {
     return (
       <div className="soft-product-shell-chart" data-testid="product-natal-preview">
@@ -17,6 +95,20 @@ function PreviewGlyph({ product }: { product: V5Product }) {
       </div>
     );
   }
+
+  if (product.slug === "numerology") return <NumerologyPreview />;
+
+  if (product.slug === "human-design") {
+    return (
+      <div className="soft-product-shell-hd" data-testid="product-human-design-preview">
+        <HumanDesignBodygraph chart={PROTOTYPE_HD_CHART} />
+      </div>
+    );
+  }
+
+  if (product.slug === "surname-story") return <SurnamePreview />;
+
+  if (product.slug === "family-scenarios") return <FamilyPreview />;
 
   return (
     <div className="soft-product-shell-symbol" aria-hidden="true">
