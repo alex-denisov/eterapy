@@ -23,6 +23,9 @@ export default function RegisterPage() {
   const [registered, setRegistered] = useState(false);
   const [guestResultSaved, setGuestResultSaved] = useState(false);
   const [duplicateEmail, setDuplicateEmail] = useState(false);
+  const [acceptContract, setAcceptContract] = useState(false);
+  const [acceptPdn, setAcceptPdn] = useState(false);
+  const consentGiven = acceptContract && acceptPdn;
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const intent = searchParams.get("intent");
@@ -45,6 +48,10 @@ export default function RegisterPage() {
     const eErr = getEmailError(email);
     setEmailError(eErr);
     if (eErr) { toast.error(eErr); return; }
+    if (!consentGiven) {
+      toast.error("Отметьте оба согласия, чтобы зарегистрироваться");
+      return;
+    }
     setDuplicateEmail(false);
 
     setLoading(true);
@@ -53,7 +60,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email, password, name, acceptContract, acceptPdn }),
       });
       const data = await res.json();
 
@@ -179,13 +186,42 @@ export default function RegisterPage() {
               className="soft-input"
             />
             </div>
+            {/* B427 (M28): exactly two separate, non-pre-checked consent checkboxes. */}
             <label className="flex items-start gap-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-              <input type="checkbox" defaultChecked className="mt-1 accent-[var(--soft-terracotta)]" />
+              <input
+                type="checkbox"
+                checked={acceptContract}
+                onChange={(e) => setAcceptContract(e.target.checked)}
+                className="mt-1 accent-[var(--soft-terracotta)]"
+                data-testid="consent-contract"
+              />
               <span>
-                Я согласен(на) с условиями, этическим кодексом и понимаю, что ETerapy не заменяет психолога или врача.
+                Я принимаю{" "}
+                <Link href="/legal/terms" target="_blank" rel="noopener" className="underline">Пользовательское соглашение</Link>,{" "}
+                <Link href="/legal/offer" target="_blank" rel="noopener" className="underline">Публичную оферту</Link>,{" "}
+                <Link href="/legal/subscriptions" target="_blank" rel="noopener" className="underline">Правила подписок</Link>,{" "}
+                <Link href="/legal/points" target="_blank" rel="noopener" className="underline">Правила баллов ясности</Link>,{" "}
+                <Link href="/legal/sessions" target="_blank" rel="noopener" className="underline">Правила сессий со специалистами</Link>,{" "}
+                <Link href="/legal/disclaimer" target="_blank" rel="noopener" className="underline">Дисклеймер</Link>{" "}
+                и подтверждаю, что мне исполнилось 18 лет.
               </span>
             </label>
-            <Button type="submit" className="soft-button soft-button-primary w-full justify-center" disabled={loading}>
+            <label className="flex items-start gap-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+              <input
+                type="checkbox"
+                checked={acceptPdn}
+                onChange={(e) => setAcceptPdn(e.target.checked)}
+                className="mt-1 accent-[var(--soft-terracotta)]"
+                data-testid="consent-pdn"
+              />
+              <span>
+                Я даю согласие на обработку моих персональных данных в соответствии с{" "}
+                <Link href="/legal/consent" target="_blank" rel="noopener" className="underline">Согласием на обработку персональных данных</Link>{" "}
+                и{" "}
+                <Link href="/legal/privacy" target="_blank" rel="noopener" className="underline">Политикой обработки персональных данных</Link>.
+              </span>
+            </label>
+            <Button type="submit" className="soft-button soft-button-primary w-full justify-center" disabled={loading || !consentGiven}>
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
@@ -214,15 +250,20 @@ export default function RegisterPage() {
               (web/src/lib/auth.ts) — здесь убрана только кнопка.
             */}
             <div className="grid gap-2">
-              <VKIDButton />
+              <VKIDButton
+                disabled={!consentGiven}
+                onBeforeAuth={() => {
+                  // B427: mark consent so the VK callback can log it for the new account.
+                  document.cookie = "vk_consent=1; path=/; max-age=900; SameSite=Lax; Secure";
+                }}
+              />
             </div>
+            {!consentGiven && (
+              <p className="mt-2 text-center text-xs text-[var(--soft-ink-faint)]">
+                Отметьте оба согласия выше, чтобы продолжить.
+              </p>
+            )}
           </div>
-          <p className="mt-3 text-center text-xs text-[var(--soft-ink-faint)]">
-            Регистрируясь, вы соглашаетесь с{" "}
-            <Link href="/legal/offer" className="hover:underline">офертой</Link>
-            {" "}и{" "}
-            <Link href="/legal/privacy" className="hover:underline">политикой конфиденциальности</Link>
-          </p>
         </CardContent>
       </Card>
       </div>

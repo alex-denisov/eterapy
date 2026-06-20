@@ -60,6 +60,8 @@ describe("B052 auth states", () => {
       name: "Мария",
       email: "used@example.com",
       password: "password123",
+      acceptContract: true,
+      acceptPdn: true,
     }));
     const body = await response.json();
 

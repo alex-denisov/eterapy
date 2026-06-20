@@ -13,6 +13,7 @@ import { normalizeEmailForFraud } from "@/lib/email-normalize";
 import { readClientFingerprint } from "@/lib/guest-fingerprint";
 import db from "@/lib/db";
 import { logFraudEvent, requestFingerprint } from "@/lib/antifraud";
+import { recordRegistrationConsent } from "@/lib/legal/consent";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,10 +23,21 @@ export async function POST(req: NextRequest) {
     const dailyIpLimit = checkRequestAuthRateLimit(req, "register:daily:ip", 3, 24 * 60 * 60_000);
     if (!dailyIpLimit.allowed) return authRateLimitResponse(dailyIpLimit);
 
-    const { email, password, name } = await req.json();
+    const { email, password, name, acceptContract, acceptPdn } = await req.json();
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: "Заполните все поля" }, { status: 400 });
+    }
+    // B427 (M28): registration requires both checkboxes — the contract package
+    // and the separate personal-data consent. Neither is pre-checked in the UI.
+    if (acceptContract !== true || acceptPdn !== true) {
+      return NextResponse.json(
+        {
+          error: "Для регистрации нужно принять документы платформы и согласие на обработку персональных данных",
+          code: "CONSENT_REQUIRED",
+        },
+        { status: 400 },
+      );
     }
     if (!validateName(name)) {
       return NextResponse.json({ error: "Имя может содержать только буквы, пробелы и дефисы (макс. 50 символов)" }, { status: 400 });
@@ -43,6 +55,19 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await usersDb.create({ email, name, password });
+
+    // B427 (M28): log the two registration consents (contract + ПДн) with the
+    // accepted document versions, IP and user-agent. Best-effort — the UI already
+    // gated submission on both checkboxes, so a log failure never blocks signup.
+    try {
+      const consentMeta = await getRequestMeta();
+      await recordRegistrationConsent(db.consentLog, user.id, {
+        ipAddress: consentMeta.ip ?? null,
+        userAgent: req.headers.get("user-agent"),
+      });
+    } catch (consentErr) {
+      log.error("register.consent_log_failed", { err: consentErr });
+    }
 
     // B372 (M26): gmail-дубль через точки/+suffix — risk-флаг в антифрод-журнал
     // (регистрацию не блокируем: алиасы легальны, но велосити по ним — сигнал).

@@ -37,6 +37,11 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   allowedDevOrigins: ["eterapy.com", "www.eterapy.com"],
   outputFileTracingRoot: path.join(process.cwd(), ".."),
+  // B431: the legal pages render from this Markdown pack at request time; make sure
+  // it is always traced/included alongside the route.
+  outputFileTracingIncludes: {
+    "/legal/[doc]": ["./src/content/legal-pack.md"],
+  },
   turbopack: {
     root: path.join(process.cwd(), ".."),
   },

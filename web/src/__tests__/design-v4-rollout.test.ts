@@ -39,7 +39,7 @@ describe("design v4 rollout", () => {
     expect(header).toContain("<UserMenu session={session}");
     expect(header).toContain("Дневник");
     expect(header).toContain('data-testid="header-dialogue-cta"');
-    expect(register).toContain("<VKIDButton />");
+    expect(register).toContain("<VKIDButton");
     expect(vkButton).toContain('fill="currentColor"');
     expect(vkButton).toContain("soft-social-button");
     expect(softCss).toContain(".soft-products-preview");

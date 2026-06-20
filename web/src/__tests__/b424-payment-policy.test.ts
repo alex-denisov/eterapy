@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { NextRequest } from "next/server";
+import { currentLegalDocumentVersionSnapshot } from "@/lib/legal-documents";
+
+const docVersions = currentLegalDocumentVersionSnapshot();
 
 jest.mock("@/lib/auth", () => ({
   __esModule: true,
@@ -117,18 +120,18 @@ describe("B424 payment policy", () => {
         metadata: expect.objectContaining({
           currency: "RUB",
           ruOnlyPaymentPolicy: "true",
-          offerVersion: "offer-2026-05-16",
-          termsVersion: "offer-2026-05-16",
-          consentVersion: "payment-consent-2026-06-18",
+          offerVersion: docVersions.offerVersion,
+          termsVersion: docVersions.termsVersion,
+          consentVersion: docVersions.consentVersion,
         }),
       }),
     }));
     expect(mockDb.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         currency: "RUB",
-        offerVersion: "offer-2026-05-16",
-        termsVersion: "offer-2026-05-16",
-        consentVersion: "payment-consent-2026-06-18",
+        offerVersion: docVersions.offerVersion,
+        termsVersion: docVersions.termsVersion,
+        consentVersion: docVersions.consentVersion,
         metadata: expect.objectContaining({
           ruOnlyPaymentPolicy: true,
           currency: "RUB",

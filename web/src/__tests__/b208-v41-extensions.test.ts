@@ -23,7 +23,9 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     expect(source("src/lib/auth.ts")).toContain("Google(");
     expect(register).toContain('data-testid="auth-v41-register"');
     expect(register).toContain("личное пространство для своих вопросов");
-    expect(register).toContain("не заменяет психолога или врача");
+    // B427 (M28): the inline disclaimer line was replaced by the two consent
+    // checkboxes; the disclaimer is now linked from the contract checkbox.
+    expect(register).toContain("/legal/disclaimer");
     expect(register).toContain("Без рекламы и продажи данных");
   });
 

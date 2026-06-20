@@ -3,20 +3,19 @@ import path from "node:path";
 
 const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
-const LEGAL_PAGES = [
-  "src/app/legal/privacy/page.tsx",
-  "src/app/legal/cookies/page.tsx",
-  "src/app/legal/disclaimer/page.tsx",
-  "src/app/legal/ethics/page.tsx",
-  "src/app/legal/offer/page.tsx",
+// B431 (M28): the per-document pages were consolidated into one dynamic route +
+// a shared Markdown renderer. Design parity now applies to those sources.
+const LEGAL_SOURCES = [
+  "src/app/legal/[doc]/page.tsx",
+  "src/components/legal/legal-markdown.tsx",
 ];
 
 describe("legal + about pages — Soft Clarity design parity", () => {
-  it("drops the dark-theme prose variant on every legal document", () => {
-    for (const page of LEGAL_PAGES) {
-      const content = source(page);
-      expect(content).not.toContain("prose-invert");
-      expect(content).toContain('className="legal-prose"');
+  it("renders legal documents inside .legal-prose without the dark prose variant", () => {
+    const route = source("src/app/legal/[doc]/page.tsx");
+    expect(route).toContain('className="legal-prose"');
+    for (const file of LEGAL_SOURCES) {
+      expect(source(file)).not.toContain("prose-invert");
     }
   });
 
@@ -31,8 +30,8 @@ describe("legal + about pages — Soft Clarity design parity", () => {
   });
 
   it("removes generic shadcn tokens from legal docs", () => {
-    for (const page of LEGAL_PAGES) {
-      const content = source(page);
+    for (const file of LEGAL_SOURCES) {
+      const content = source(file);
       expect(content).not.toContain("text-muted-foreground");
       expect(content).not.toContain("bg-card/");
       expect(content).not.toContain("bg-primary/");
@@ -51,7 +50,7 @@ describe("legal + about pages — Soft Clarity design parity", () => {
     expect(about).toContain('href="/checkin"');
   });
 
-  it("defines the legal-prose typography in the Soft Clarity stylesheet", () => {
+  it("defines the legal typography in the Soft Clarity stylesheet", () => {
     const css = source("src/app/v4-soft.css");
     expect(css).toContain(".legal-prose");
     expect(css).toContain(".legal-meta");

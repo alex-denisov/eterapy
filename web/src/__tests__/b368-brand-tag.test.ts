@@ -20,7 +20,11 @@ describe("B368 (M26) — «ясность» только как бренд-те�
   it("«ясност*» встречается < 10 раз и только в осознанных бренд-местах", () => {
     const hits: Array<{ file: string; count: number }> = [];
     for (const file of collectSources(path.join(root, "src"))) {
-      const count = (fs.readFileSync(file, "utf8").match(/ясност/gi) ?? []).length;
+      // B431 (M28): «баллы/баллов ясности» is the formal product name used in the
+      // legal documents and the registration consent links (e.g. «Правила баллов
+      // ясности») — not generic brand copy. Strip it before counting.
+      const text = fs.readFileSync(file, "utf8").replace(/балл[а-яё]*\s+ясност[а-яё]*/gi, "");
+      const count = (text.match(/ясност/gi) ?? []).length;
       if (count > 0) hits.push({ file: path.relative(root, file), count });
     }
     const total = hits.reduce((sum, h) => sum + h.count, 0);

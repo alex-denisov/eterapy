@@ -15,6 +15,7 @@ import { APP_URL } from "@/lib/env";
  * We read code_verifier from a cookie set by the VK button.
  */
 import { getRequestMeta } from "@/lib/request-meta";
+import { recordRegistrationConsent } from "@/lib/legal/consent";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
@@ -157,6 +158,15 @@ export async function GET(request: NextRequest) {
       const meta = await getRequestMeta();
       const details = JSON.stringify({ method: "OAuth: vk", device: meta.device ?? null });
       await logAudit(dbUser.id, "REGISTER", undefined, details, meta.ip ?? undefined);
+      // B427 (M28): every new account, incl. VK onboarding, gets versioned consent records.
+      try {
+        await recordRegistrationConsent(db.consentLog, dbUser.id, {
+          ipAddress: meta.ip ?? null,
+          userAgent: request.headers.get("user-agent"),
+        });
+      } catch (consentErr) {
+        log.error("vk_exchange.consent_log_failed", { err: serializeError(consentErr) });
+      }
     } else if (dbUser.blockedAt) {
       return NextResponse.redirect(new URL(`${loginUrl()}?error=blocked`, request.url));
     } else {

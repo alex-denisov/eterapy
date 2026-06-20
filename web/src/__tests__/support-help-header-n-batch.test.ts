@@ -87,20 +87,23 @@ describe("B380 — /help opens with curated top questions", () => {
   });
 });
 
-describe("B380 — /legal/privacy human-readable summary", () => {
-  const privacy = source("src/app/legal/privacy/page.tsx");
+describe("B380 / B431 — /legal/privacy human-readable summary", () => {
+  // B431 (M28): privacy now renders via the dynamic /legal/[doc] route; the
+  // plain-language summary is preserved as a registry intro shown above the text.
+  const route = source("src/app/legal/[doc]/page.tsx");
+  const registry = source("src/lib/legal/registry.ts");
+  const pack = source("src/content/legal-pack.md");
 
-  it("places a plain-language summary above the legal text", () => {
-    expect(privacy).toContain('data-testid="privacy-summary"');
-    expect(privacy).toContain("Коротко и по-человечески");
-    // The summary must precede the first numbered legal section.
-    expect(privacy.indexOf("privacy-summary")).toBeLessThan(
-      privacy.indexOf("1. Какие данные мы собираем"),
-    );
+  it("renders a plain-language summary above the legal text", () => {
+    expect(registry).toContain("Коротко и по-человечески");
+    expect(route).toContain("LEGAL_DOC_INTROS");
+    expect(route).toContain("legal-summary");
+    // The summary block renders before the document body.
+    expect(route.indexOf("legal-summary")).toBeLessThan(route.indexOf("<LegalMarkdown"));
   });
 
-  it("drops removed M26 products from the data-retention list", () => {
-    expect(privacy).not.toContain("Круг близких");
-    expect(privacy).not.toContain("Моя карта");
+  it("keeps removed M26 products out of the legal pack", () => {
+    expect(pack).not.toContain("Круг близких");
+    expect(pack).not.toContain("Моя карта");
   });
 });

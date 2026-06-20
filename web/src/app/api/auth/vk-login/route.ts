@@ -9,6 +9,7 @@ import { homePathForRole } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
 import { getRequestMeta } from "@/lib/request-meta";
+import { recordRegistrationConsent } from "@/lib/legal/consent";
 
 interface VKTokenData {
   access_token: string;
@@ -180,6 +181,15 @@ export async function POST(request: NextRequest) {
       dbUser = await db.user.create({ data: createData });
       const details = JSON.stringify({ method: "OAuth: vk", device: meta.device ?? null });
       await logAudit(dbUser.id, "REGISTER", undefined, details, meta.ip ?? undefined);
+      // B427 (M28): every new account, incl. VK onboarding, gets versioned consent records.
+      try {
+        await recordRegistrationConsent(db.consentLog, dbUser.id, {
+          ipAddress: meta.ip ?? null,
+          userAgent: request.headers.get("user-agent"),
+        });
+      } catch (consentErr) {
+        log.error("vk_login.consent_log_failed", { err: serializeError(consentErr) });
+      }
     } else if (dbUser.blockedAt) {
       return NextResponse.json({ error: "Account blocked" }, { status: 403 });
     } else {

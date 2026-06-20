@@ -90,6 +90,7 @@ model User {
   bookingWaitlistEntries          BookingWaitlistEntry[]
   companionChatSessions           CompanionChatSession[]
   approvedManagementSpecialOrders ManagementSpecialOrder[]
+  consentLogs                     ConsentLog[]
 
   @@index([provider, providerId])
   @@index([email, provider])
@@ -102,6 +103,29 @@ enum Role {
   PRACTITIONER
   ADMIN // Базовый администратор: одобрение практиков, работа с жалобами
   SUPERADMIN // Полный доступ: система, выплаты, все данные, метрики
+}
+
+// B427 (M28): explicit, versioned consent capture at registration. Two separate
+// checkboxes (contract package + personal-data consent) are logged as distinct
+// records with the document versions, consent version, IP and user-agent.
+enum ConsentCheckboxType {
+  CONTRACT
+  PDN
+}
+
+model ConsentLog {
+  id               String              @id @default(cuid())
+  userId           String
+  checkboxType     ConsentCheckboxType
+  documentVersions Json
+  consentVersion   String
+  ipAddress        String?
+  userAgent        String?
+  createdAt        DateTime            @default(now())
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("consent_logs")
 }
 
 // ─── Practitioners ────────────────────────────────────────────────────────────
