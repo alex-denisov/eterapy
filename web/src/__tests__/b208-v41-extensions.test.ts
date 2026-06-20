@@ -12,8 +12,15 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     expect(login).toContain('data-testid="auth-v41-login"');
     expect(login).toContain("С возвращением.");
     expect(login).toContain("Ваша карта");
-    expect(login).toContain("Войти через Telegram");
+    // RU-запуск: Telegram-вход удалён полностью; Google-вход скрыт из UI, но его
+    // механика сохранена в next-auth. В UI логина остаются VK и email/пароль.
+    expect(login).not.toContain("Войти через Telegram");
+    expect(login).not.toContain('signIn("telegram"');
+    expect(login).not.toContain("Войти через Google");
+    expect(login).toContain("VKIDButton");
     expect(login).toContain("Запомнить устройство");
+    // Google OAuth provider mechanic must stay wired for later re-enable.
+    expect(source("src/lib/auth.ts")).toContain("Google(");
     expect(register).toContain('data-testid="auth-v41-register"');
     expect(register).toContain("личное пространство для своих вопросов");
     expect(register).toContain("не заменяет психолога или врача");

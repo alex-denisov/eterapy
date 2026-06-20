@@ -115,27 +115,15 @@ export default function LoginPage() {
                 </p>
               </div>
 
+              {/*
+                Вход через Telegram и Google скрыт из UI для RU-запуска:
+                Telegram-вход не реализован и недоступен в РФ; Google-вход недоступен в РФ.
+                Механика Google-входа намеренно сохранена в next-auth (web/src/lib/auth.ts)
+                на случай повторного включения — здесь убрана только кнопка.
+                «Забыли пароль?» доступно ссылкой внутри формы ниже.
+              */}
               <div className="mb-5 grid gap-2">
-                <button
-                  type="button"
-                  onClick={() => signIn("telegram", { callbackUrl: nextPath ?? homePathForRole("CLIENT") })}
-                  className="soft-button soft-button-ghost w-full justify-center"
-                >
-                  Войти через Telegram
-                </button>
-                <button
-                  type="button"
-                  onClick={() => signIn("google", { callbackUrl: nextPath ?? homePathForRole("CLIENT") })}
-                  className="soft-button soft-button-ghost w-full justify-center"
-                >
-                  Войти через Google
-                </button>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <VKIDButton />
-                  <Link href="/auth/forgot-password" className="soft-button soft-button-ghost justify-center">
-                    Забыл пароль
-                  </Link>
-                </div>
+                <VKIDButton />
               </div>
 
               <div className="relative mb-5 flex items-center">
