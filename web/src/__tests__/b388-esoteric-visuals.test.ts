@@ -101,15 +101,18 @@ describe("B388 tarot spread variety", () => {
     expect(a).toEqual(b);
   });
 
-  it("supports popular tarot spreads with the selected positions", () => {
-    const focus = drawTarotSpread("user:карта дня", TAROT_SPREAD_PRESETS.focus.positions);
-    const relationship = drawTarotSpread("user:отношения", TAROT_SPREAD_PRESETS.relationship.positions);
+  it("offers the canonical named spreads (depth), with no topic words in the labels", () => {
+    const one = drawTarotSpread("user:карта дня", TAROT_SPREAD_PRESETS.one.positions);
+    const celtic = drawTarotSpread("user:вопрос", TAROT_SPREAD_PRESETS.celtic.positions);
 
-    expect(focus).toHaveLength(1);
-    expect(focus[0].position).toBe("Фокус");
-    expect(relationship).toHaveLength(5);
-    expect(relationship.map((card) => card.position)).toEqual(["Вы", "Другой человек", "Потенциал связи", "Совет", "Возможный итог"]);
-    expect(new Set(relationship.map((card) => card.name)).size).toBe(5);
+    // canonical trio: one card / three cards / celtic cross — no arbitrary counts
+    expect(Object.keys(TAROT_SPREAD_PRESETS).sort()).toEqual(["celtic", "one", "three"]);
+    expect(one).toHaveLength(1);
+    expect(one[0].position).toBe("Совет");
+    expect(celtic).toHaveLength(10);
+    // spread labels are depth/layout, never topic words (those belong to themes)
+    const labels = Object.values(TAROT_SPREAD_PRESETS).map((s) => s.label).join(" ");
+    expect(labels).not.toMatch(/Отношени|Выбор/);
   });
 
   it("falls back to the compact three-card spread for unknown choices", () => {

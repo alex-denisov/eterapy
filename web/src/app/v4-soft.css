@@ -1626,6 +1626,13 @@
     display: none;
   }
 
+  /* Любые кнопки выбора внутри ленты не сжимаются и не переносятся — лента
+     прокручивается по горизонтали (и темы, и расклады). */
+  .tarot-strip-track > button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
   .tarot-strip-arrow {
     position: absolute;
     top: 50%;

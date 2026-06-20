@@ -29,7 +29,7 @@ const PRODUCT_KEYS = [
 const postSchema = z.object({
   productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design"]),
   userInput: z.string().max(4000).optional(),
-  tarotSpread: z.enum(["focus", "three", "choice", "relationship", "celtic"]).optional(),
+  tarotSpread: z.enum(["one", "three", "celtic"]).optional(),
   tarotTheme: z.string().max(80).optional(),
 });
 

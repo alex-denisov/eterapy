@@ -42,6 +42,20 @@ describe("B437 tarot refinements", () => {
     expect(actions).toContain('appUrl("/cabinet/diary")');
   });
 
+  it("#10/#11 scrolls both selectors and separates themes (domains) from spreads (layouts)", () => {
+    // both the category (theme) and the card-count (spread) selectors scroll
+    expect((actions.match(/<ScrollStrip/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    // spreads are named depth layouts — no topic-named spreads that collide with themes
+    expect(actions).toContain('key: "one"');
+    expect(actions).toContain('key: "celtic"');
+    expect(actions).not.toContain('key: "choice"');
+    expect(actions).not.toContain('key: "relationship"');
+    expect(actions).not.toContain('key: "five"');
+    // themes are life domains
+    expect(actions).toContain("Любовь и отношения");
+    expect(actions).toContain("Деньги и быт");
+  });
+
   it("keeps the pinned product-page testids intact", () => {
     expect(actions).toContain('data-testid="tarot-product-actions"');
     expect(actions).toContain('data-testid="tarot-deck-preview"');

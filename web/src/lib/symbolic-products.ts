@@ -82,32 +82,27 @@ export type TarotCard = TarotDeckCard & {
   reversedMeaning: string;
   reversed: boolean;
 };
-export type TarotSpreadKey = "focus" | "three" | "choice" | "relationship" | "celtic";
+// Расклад — это выбор ГЛУБИНЫ/формата (число карт и позиции), а не темы вопроса.
+// Пользователь выбирает не «сколько карт», а named-расклад по глубине — как у
+// Labyrinthos/Biddy. Каноничная тройка (см. docs/Design/tarot-domain-research.md):
+// одна карта (быстрый ответ), три карты (Прошлое/Настоящее/Будущее), Кельтский
+// крест (10) из «Pictorial Key» Уэйта.
+export type TarotSpreadKey = "one" | "three" | "celtic";
 
 export const TAROT_SPREAD_PRESETS: Record<TarotSpreadKey, {
   key: TarotSpreadKey;
   label: string;
   positions: readonly string[];
 }> = {
-  focus: {
-    key: "focus",
-    label: "1 карта",
-    positions: ["Фокус"],
+  one: {
+    key: "one",
+    label: "Одна карта",
+    positions: ["Совет"],
   },
   three: {
     key: "three",
-    label: "3 карты",
+    label: "Три карты",
     positions: ["Прошлое", "Настоящее", "Будущее"],
-  },
-  choice: {
-    key: "choice",
-    label: "Выбор",
-    positions: ["Вариант 1", "Вариант 2", "Что важно знать"],
-  },
-  relationship: {
-    key: "relationship",
-    label: "Отношения",
-    positions: ["Вы", "Другой человек", "Потенциал связи", "Совет", "Возможный итог"],
   },
   celtic: {
     key: "celtic",

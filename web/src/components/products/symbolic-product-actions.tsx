@@ -24,25 +24,30 @@ type SymbolicResult = {
 type TarotCardView = TarotCard;
 type TarotReadingMeta = { key?: TarotSpreadKey; label?: string; positions?: string[]; theme?: string };
 
+// Темы = сфера жизни (о ЧЁМ вопрос). Отдельная ось от расклада (СКОЛЬКО карт),
+// чтобы не было пересечений вроде «Отношения» и там и там. Список сфер — по
+// практике Таро (см. docs/Design/tarot-domain-research.md).
 const TAROT_THEMES = [
-  { key: "relationships", label: "Отношения" },
-  { key: "choice", label: "Выбор" },
-  { key: "work", label: "Работа" },
+  { key: "love", label: "Любовь и отношения" },
+  { key: "work", label: "Работа и призвание" },
+  { key: "money", label: "Деньги и быт" },
+  { key: "family", label: "Семья и дом" },
   { key: "self", label: "Самопознание" },
+  { key: "change", label: "Перемены и выбор" },
   { key: "daily", label: "На сегодня" },
 ] as const;
 
+// Расклад = выбор глубины (named-раскладка), а не «сколько карт». Каноничная
+// тройка: одна карта / три карты / Кельтский крест.
 const TAROT_SPREAD_OPTIONS: Array<{
   key: TarotSpreadKey;
   label: string;
   helper: string;
   positions: string[];
 }> = [
-  { key: "focus", label: "1 карта", helper: "быстрый фокус", positions: ["Фокус"] },
-  { key: "three", label: "3 карты", helper: "прошлое, настоящее, будущее", positions: ["Прошлое", "Настоящее", "Будущее"] },
-  { key: "choice", label: "Выбор", helper: "две дороги", positions: ["Вариант 1", "Вариант 2", "Что важно знать"] },
-  { key: "relationship", label: "Отношения", helper: "5 карт", positions: ["Вы", "Другой человек", "Потенциал связи", "Совет", "Возможный итог"] },
-  { key: "celtic", label: "Кельтский крест", helper: "10 карт", positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"] },
+  { key: "one", label: "Одна карта", helper: "быстрый ответ одной картой", positions: ["Совет"] },
+  { key: "three", label: "Три карты", helper: "прошлое · настоящее · будущее", positions: ["Прошлое", "Настоящее", "Будущее"] },
+  { key: "celtic", label: "Кельтский крест", helper: "полный разбор, 10 карт", positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"] },
 ];
 
 function isTarotSpreadKey(value: unknown): value is TarotSpreadKey {
@@ -335,7 +340,7 @@ export function SymbolicProductActions({
     // вопрос → действие. После расклада он сворачивается в раскрываемый элемент.
     const controls = (
       <div className="tarot-controls">
-        <div className="tarot-control-group" aria-label="Тема вопроса">
+        <ScrollStrip ariaLabel="Категория вопроса">
           {TAROT_THEMES.map((theme) => (
             <button
               key={theme.key}
@@ -348,7 +353,7 @@ export function SymbolicProductActions({
               {theme.label}
             </button>
           ))}
-        </div>
+        </ScrollStrip>
 
         <ScrollStrip ariaLabel="Тип расклада">
           {TAROT_SPREAD_OPTIONS.map((option) => (
