@@ -2,12 +2,12 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ChevronLeft, ChevronRight, Download, LockKeyhole, RotateCcw, Save } from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Download, Heart, LockKeyhole, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
-import { appUrl } from "@/lib/subdomain";
+import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
 import type { TarotCard, TarotSpreadKey } from "@/lib/symbolic-products";
 
@@ -23,6 +23,11 @@ type SymbolicResult = {
 
 type TarotCardView = TarotCard;
 type TarotReadingMeta = { key?: TarotSpreadKey; label?: string; positions?: string[]; theme?: string };
+type TarotRecs = {
+  repeatCta: string;
+  otherProduct: { slug: string; name: string; href: string } | null;
+  specialist: { slug: string; name: string; title: string; pricePerSession: number; rationale: string } | null;
+};
 
 // Темы = сфера жизни (о ЧЁМ вопрос). Отдельная ось от расклада (СКОЛЬКО карт),
 // чтобы не было пересечений вроде «Отношения» и там и там. Список сфер — по
@@ -49,6 +54,19 @@ const TAROT_SPREAD_OPTIONS: Array<{
   { key: "three", label: "Три карты", helper: "прошлое · настоящее · будущее", positions: ["Прошлое", "Настоящее", "Будущее"] },
   { key: "celtic", label: "Кельтский крест", helper: "полный разбор, 10 карт", positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"] },
 ];
+
+// #2/#5: вместо отдельных полей «о ком расклад» подсказываем это прямо в
+// примерах вопроса. Примеры сменяются автоматически (как живая подсказка) и
+// каждый начинается с «Про…», мягко предлагая указать, на кого расклад и что
+// хочется понять — и про себя, и про другого человека.
+const TAROT_QUESTION_EXAMPLES = [
+  "Про нас с партнёром: вместе три года, появилась дистанция — что между нами происходит?",
+  "Про сестру (28): часто ссоримся — как нам стать ближе?",
+  "Про меня: думаю сменить работу, но боюсь потерять опору — на что обратить внимание?",
+  "Про маму: тревожусь за неё — как поддержать мягче?",
+  "Про меня и нового знакомого: стоит ли двигаться дальше?",
+  "Про деньги: тревожно из-за расходов — что поможет почувствовать устойчивость?",
+] as const;
 
 function isTarotSpreadKey(value: unknown): value is TarotSpreadKey {
   return TAROT_SPREAD_OPTIONS.some((option) => option.key === value);
@@ -184,7 +202,7 @@ function ScrollStrip({ children, ariaLabel }: { children: ReactNode; ariaLabel: 
 
 function TarotDeckPreview({ spread }: { spread: (typeof TAROT_SPREAD_OPTIONS)[number] }) {
   return (
-    <div className="tarot-deck-preview" data-testid="tarot-deck-preview" aria-label={`Карты расклада: ${spread.label}`}>
+    <div className="tarot-deck-preview" data-card-count={Math.min(spread.positions.length, 10)} data-testid="tarot-deck-preview" aria-label={`Карты расклада: ${spread.label}`}>
       {spread.positions.map((position, index) => (
         <div key={`${position}-${index}`} className="tarot-card-back">
           <span className="tarot-card-back-mark" aria-hidden="true">ET</span>
@@ -238,6 +256,9 @@ export function SymbolicProductActions({
   const [tarotSpread, setTarotSpread] = useState<TarotSpreadKey>("three");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [exampleIdx, setExampleIdx] = useState(0);
+  const [tarotRecs, setTarotRecs] = useState<TarotRecs | null>(null);
+  const draftKey = `symbolic:${productKey}`;
 
   const syncTarotControlsFromResult = useCallback((nextResult: SymbolicResult | null) => {
     if (productKey !== "tarot") return;
@@ -261,6 +282,47 @@ export function SymbolicProductActions({
     return () => { cancelled = true; };
   }, [authStatus, productKey, syncTarotControlsFromResult]);
 
+  // #2: примеры вопроса для Таро сменяются автоматически — живая подсказка,
+  // как на /checkin. Только для Таро.
+  useEffect(() => {
+    if (productKey !== "tarot") return;
+    const id = window.setInterval(() => {
+      setExampleIdx((index) => (index + 1) % TAROT_QUESTION_EXAMPLES.length);
+    }, 3600);
+    return () => window.clearInterval(id);
+  }, [productKey]);
+
+  // #3: ввод переживает переход на /login — восстанавливаем при возврате и
+  // сохраняем по мере заполнения (общий хук для всех услуг). active=!result,
+  // чтобы готовый результат не перезаписывал черновик.
+  const { clear: clearDraft } = useInputDraft(
+    draftKey,
+    productKey === "tarot" ? { userInput, tarotTheme, tarotSpread } : { userInput },
+    (draft) => {
+      if (typeof draft.userInput === "string") setUserInput(draft.userInput);
+      if (productKey === "tarot") {
+        if (isTarotThemeLabel(draft.tarotTheme)) setTarotTheme(draft.tarotTheme);
+        if (isTarotSpreadKey(draft.tarotSpread)) setTarotSpread(draft.tarotSpread);
+      }
+    },
+    { active: !result },
+  );
+
+  // #6: после готового расклада подтягиваем рекомендации (повтор услуги под тему
+  // + смежная услуга + специалист-эзотерик). Best-effort; setState только из
+  // колбэков (then/микротаск), чтобы не дёргать рендер синхронно из эффекта.
+  useEffect(() => {
+    let cancelled = false;
+    if (productKey !== "tarot" || !result?.id || !result.resultText) {
+      void Promise.resolve().then(() => { if (!cancelled) setTarotRecs(null); });
+      return () => { cancelled = true; };
+    }
+    jsonRequest<TarotRecs>(`/api/products/symbolic/${result.id}/recommendations`)
+      .then((data) => { if (!cancelled) setTarotRecs(data); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [productKey, result?.id, result?.resultText]);
+
   async function generateResult() {
     if (authStatus !== "authenticated") {
       setMessage("Войдите, чтобы открыть продукт и сохранить результат в кабинете.");
@@ -283,6 +345,8 @@ export function SymbolicProductActions({
       const nextResult = payload.result ?? null;
       setResult(nextResult);
       syncTarotControlsFromResult(nextResult);
+      // #3: получили результат — черновик ввода больше не нужен.
+      if (!payload.paywalled) clearDraft();
       if (payload.paywalled) {
         setMessage(productKey === "tarot" ? "Откройте доступ баллами или картой, и расклад появится здесь же." : "Бесплатный фрагмент готов. Полный разбор можно открыть баллами или картой.");
       }
@@ -318,14 +382,16 @@ export function SymbolicProductActions({
     }
   }
 
-  // #5: «Новый расклад» — очищаем текущий результат, чтобы вернуться к форме и
-  // пройти механику заново. Каждый новый расклад снова списывает баллы (или
-  // оплачивается), т.к. entitlement гасится на каждой генерации (INC-025).
+  // #5/#6: повтор расклада — очищаем текущий результат, чтобы вернуться к форме
+  // и пройти механику заново (текст кнопки-CTA подбирается под тему вопроса).
+  // Каждый новый расклад снова списывает баллы (или оплачивается), т.к.
+  // entitlement гасится на каждой генерации (INC-025).
   function resetReading() {
     setResult(null);
     setMessage(null);
     setStatus("idle");
     setUserInput("");
+    clearDraft();
   }
 
   const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
@@ -376,7 +442,7 @@ export function SymbolicProductActions({
           id="symbolic-input-tarot"
           value={userInput}
           onChange={(event) => setUserInput(event.target.value)}
-          placeholder={placeholder}
+          placeholder={TAROT_QUESTION_EXAMPLES[exampleIdx]}
           rows={3}
           className="soft-question-input tarot-question-input"
           disabled={status === "loading"}
@@ -450,36 +516,57 @@ export function SymbolicProductActions({
                   content={result.resultText}
                   className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
                 />
-                <div className="tarot-result-actions">
-                  {/* #5: вернуться к форме и пройти механику заново. */}
-                  <Button
-                    type="button"
-                    onClick={resetReading}
-                    className="soft-button soft-button-primary"
-                    data-testid="tarot-new-reading"
-                  >
-                    <RotateCcw className="size-4" aria-hidden="true" />
-                    Новый расклад
-                  </Button>
-                  {/* #6: расклад вместе с вопросом уже сохранён в Дневник автоматически. */}
-                  <a
-                    href={appUrl("/cabinet/diary")}
-                    className="soft-button soft-button-ghost"
-                    data-testid="tarot-open-diary"
-                  >
-                    <Save className="size-4" aria-hidden="true" />
-                    {result.saved ? "В Дневнике" : "Сохранить в Дневник"}
-                  </a>
-                  <a
-                    href={`/products/print/${result.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="soft-button soft-button-ghost"
-                    data-testid="symbolic-pdf-tarot"
-                  >
-                    <Download className="size-4" aria-hidden="true" />
-                    PDF
-                  </a>
+                {/* #6: расклад уже сохранён в Дневник автоматически (savedAt в API),
+                    отдельной кнопки и экспорта в PDF тут нет — человек читает весь
+                    разбор на странице. Вместо «Нового расклада» — блок «что дальше». */}
+                <div className="tarot-followup" data-testid="tarot-followup">
+                  <p className="tarot-autosaved-note" data-testid="tarot-autosaved">
+                    <Check className="size-3.5" aria-hidden="true" />
+                    Сохранено в Дневнике автоматически
+                  </p>
+                  <p className="soft-eyebrow">что дальше</p>
+                  <div className="tarot-followup-row">
+                    <Button
+                      type="button"
+                      onClick={resetReading}
+                      className="soft-button soft-button-primary tarot-followup-primary"
+                      data-testid="tarot-new-reading"
+                    >
+                      <Sparkles className="size-4" aria-hidden="true" />
+                      {tarotRecs?.repeatCta ?? "Задать картам новый вопрос"}
+                    </Button>
+                    {tarotRecs?.otherProduct && (
+                      <a
+                        href={tarotRecs.otherProduct.href}
+                        className="soft-button soft-button-ghost tarot-followup-other"
+                        data-testid="tarot-other-product"
+                      >
+                        {tarotRecs.otherProduct.name}
+                        <ArrowRight className="size-4" aria-hidden="true" />
+                      </a>
+                    )}
+                  </div>
+                  {tarotRecs?.specialist && (
+                    <a
+                      href={`/practitioners/${tarotRecs.specialist.slug}`}
+                      className="tarot-specialist-rec"
+                      data-testid="tarot-specialist-rec"
+                    >
+                      <span className="tarot-specialist-avatar" aria-hidden="true">
+                        <Heart className="size-4" />
+                      </span>
+                      <span className="tarot-specialist-body">
+                        <span className="tarot-specialist-name">
+                          {tarotRecs.specialist.name} · {tarotRecs.specialist.title}
+                          <span className="tarot-specialist-tag">человек рядом</span>
+                        </span>
+                        <span className="tarot-specialist-rationale">{tarotRecs.specialist.rationale}</span>
+                      </span>
+                      <span className="tarot-specialist-price">
+                        от {tarotRecs.specialist.pricePerSession.toLocaleString("ru-RU")} ₽
+                      </span>
+                    </a>
+                  )}
                 </div>
               </>
             ) : result?.previewText ? (

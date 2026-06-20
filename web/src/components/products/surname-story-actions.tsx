@@ -7,6 +7,7 @@ import { ArrowRight, Compass, Download, LockKeyhole, Save, Share2, Sparkles, Tre
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { useInputDraft } from "@/lib/use-input-draft";
 import type { SurnameStory } from "@/lib/surname-story";
 import { track } from "@/lib/analytics";
 import { SHARE_EVENTS, withReferral } from "@/lib/share";
@@ -104,6 +105,14 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [reading, setReading] = useState<SymbolicResult | null>(null);
   const [readingStatus, setReadingStatus] = useState<"idle" | "loading" | "error">("idle");
+
+  // #3: фамилия сохраняется при переходе на /login и восстанавливается после.
+  useInputDraft(
+    "surname-story",
+    { surname },
+    (draft) => { if (typeof draft.surname === "string") setSurname(draft.surname); },
+    { active: !reading },
+  );
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;

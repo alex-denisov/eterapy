@@ -1714,6 +1714,110 @@
     margin-top: 1rem;
   }
 
+  /* #6: блок «что дальше» после расклада — повтор услуги (CTA под тему) +
+     смежная услуга в одну линию, ниже карточка специалиста-эзотерика. */
+  .tarot-followup {
+    margin-top: 1.1rem;
+    border-top: 1px solid var(--soft-paper-edge);
+    padding-top: 0.9rem;
+  }
+
+  .tarot-autosaved-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.7rem;
+    color: var(--soft-sage, #4f7a53);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .tarot-followup-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.5rem;
+  }
+
+  .tarot-followup-primary {
+    flex: 1 1 16rem;
+    justify-content: flex-start;
+    min-height: 2.9rem;
+    text-align: left;
+  }
+
+  .tarot-followup-other {
+    flex: 1 1 11rem;
+    justify-content: space-between;
+    min-height: 2.9rem;
+  }
+
+  .tarot-specialist-rec {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-top: 0.6rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 0.9rem;
+    background: var(--soft-paper-card);
+    padding: 0.7rem 0.85rem;
+    text-decoration: none;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--soft-terracotta-dark) 22%, transparent);
+  }
+
+  .tarot-specialist-avatar {
+    display: grid;
+    width: 2.2rem;
+    height: 2.2rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--soft-terracotta) 18%, var(--soft-paper-deep));
+    color: var(--soft-terracotta-dark);
+  }
+
+  .tarot-specialist-body {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .tarot-specialist-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--soft-ink);
+    font-size: 0.9rem;
+    font-weight: 650;
+  }
+
+  .tarot-specialist-tag {
+    border-radius: 999px;
+    background: var(--soft-terracotta-dark);
+    padding: 0.05rem 0.42rem;
+    color: #fbf0e1;
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .tarot-specialist-rationale {
+    color: var(--soft-ink-faint);
+    font-size: 0.76rem;
+  }
+
+  .tarot-specialist-price {
+    flex-shrink: 0;
+    color: var(--soft-bordeaux);
+    font-family: var(--font-heading);
+    font-weight: 650;
+    white-space: nowrap;
+  }
+
   .tarot-question-label {
     display: block;
     margin-top: 0.9rem;
@@ -1767,12 +1871,44 @@
     line-height: 1.45;
   }
 
-  .tarot-deck-preview {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(4.2rem, 1fr));
-    gap: 0.52rem;
-    align-items: end;
+  /* Единый блок карт (#1/#6): один «холст» для 1 / 3 / 10 карт. Высота
+     зарезервирована (min-height), карты центрируются и масштабируются по их
+     числу — смена расклада не дёргает layout, а 10 карт не нагромождаются.
+     Один и тот же футпринт у превью-рубашек и у раскрытого расклада. */
+  .tarot-deck-preview,
+  .tarot-spread {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: center;
+    justify-content: center;
+    gap: 0.55rem;
+    min-height: 13rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--soft-paper-card) 52%, transparent);
+    padding: 0.85rem 0.7rem;
   }
+
+  .tarot-deck-preview > *,
+  .tarot-spread > * {
+    flex: 0 0 auto;
+    width: 5.2rem;
+    margin: 0;
+  }
+
+  .tarot-deck-preview[data-card-count="1"] > *,
+  .tarot-spread[data-card-count="1"] > * { width: 6.8rem; }
+
+  .tarot-deck-preview[data-card-count="2"] > *,
+  .tarot-spread[data-card-count="2"] > * { width: 6rem; }
+
+  .tarot-deck-preview[data-card-count="3"] > *,
+  .tarot-spread[data-card-count="3"] > * { width: 5.4rem; }
+
+  .tarot-deck-preview[data-card-count="9"] > *,
+  .tarot-deck-preview[data-card-count="10"] > *,
+  .tarot-spread[data-card-count="9"] > *,
+  .tarot-spread[data-card-count="10"] > * { width: 3rem; }
 
   .tarot-card-back {
     position: relative;
@@ -1817,17 +1953,19 @@
     text-align: center;
   }
 
-  /* B437-fix: настоящие карты Райдера—Уэйта—Смит (public-domain сканы). */
-  .tarot-spread {
+  /* Рубашка для неизвестной/битой карты (legacy-данные без code) — рисуем
+     вместо <img>, чтобы страница никогда не падала. */
+  .tarot-card-photo-fallback {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(4.6rem, 1fr));
-    gap: 0.7rem 0.6rem;
-    align-items: start;
-  }
-
-  .tarot-spread[data-card-count="1"] {
-    grid-template-columns: minmax(0, 11rem);
-    justify-content: center;
+    width: 100%;
+    aspect-ratio: 600 / 1024;
+    place-items: center;
+    background: linear-gradient(145deg, #4a3e5e, #6b5c82);
+    color: #f3ead9;
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    line-height: 1;
+    letter-spacing: 0.02em;
   }
 
   .tarot-card-face {
@@ -2039,9 +2177,26 @@
       padding: 0.58rem;
     }
 
-    .tarot-deck-preview {
-      grid-template-columns: repeat(auto-fit, minmax(3.7rem, 1fr));
+    .tarot-deck-preview,
+    .tarot-spread {
+      min-height: 11rem;
+      gap: 0.45rem;
+      padding: 0.7rem 0.6rem;
     }
+
+    .tarot-deck-preview[data-card-count="1"] > *,
+    .tarot-spread[data-card-count="1"] > * { width: 5.8rem; }
+
+    .tarot-deck-preview[data-card-count="2"] > *,
+    .tarot-spread[data-card-count="2"] > * { width: 5.2rem; }
+
+    .tarot-deck-preview[data-card-count="3"] > *,
+    .tarot-spread[data-card-count="3"] > * { width: 4.7rem; }
+
+    .tarot-deck-preview[data-card-count="9"] > *,
+    .tarot-deck-preview[data-card-count="10"] > *,
+    .tarot-spread[data-card-count="9"] > *,
+    .tarot-spread[data-card-count="10"] > * { width: 2.7rem; }
 
     .tarot-card-back {
       min-height: 0;

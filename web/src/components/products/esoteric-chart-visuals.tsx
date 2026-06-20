@@ -4,7 +4,7 @@
 // версии (PDF-маршрут), и на странице услуги.
 
 import { ZODIAC_SIGNS, type NatalWheel, type SynastryWheel, type ChartPlacement } from "@/lib/esoteric-chart";
-import type { TarotCard } from "@/lib/symbolic-products";
+import { tarotDeckCardByName, type TarotCard } from "@/lib/tarot-deck";
 
 const TWO_PI = Math.PI * 2;
 
@@ -129,29 +129,55 @@ const TAROT_MINOR_SUIT_FOLDER: Record<string, string> = {
 // колоды (lib/symbolic-products): старшие арканы — /tarot/major-NN.jpg, младшие —
 // /tarot/<масть>-NN.jpg (01 = Туз … 11 = Паж, 12 = Рыцарь, 13 = Королева,
 // 14 = Король). Файлы скачиваются скриптом scripts/fetch-tarot-rws.py.
-function tarotCardImageSrc(card: TarotCard): string {
-  if (card.arcana === "major") return `/tarot/${card.code}.jpg`;
-  const [, glyph, rank] = card.code.split("-");
+// Total function — MUST never throw. Legacy stored cards (pre-B437) have no
+// `code`/`arcana`; we recover them from the card name via the deck. If the name
+// is also unknown, return null and let the caller render a card-back fallback
+// instead of crashing the whole page (was: card.code.split on undefined → the
+// "This page couldn't load" screen for any user with a legacy расклад).
+function tarotCardImageSrc(card: TarotCard): string | null {
+  let code = typeof card.code === "string" ? card.code : "";
+  let arcana: TarotCard["arcana"] | undefined = card.arcana;
+  if (!code) {
+    const deck = tarotDeckCardByName(card.name);
+    if (deck) {
+      code = deck.code;
+      arcana = deck.arcana;
+    }
+  }
+  if (!code) return null;
+  if (arcana === "major" || code.startsWith("major")) return `/tarot/${code}.jpg`;
+  const parts = code.split("-");
+  const glyph = parts[1] ?? "";
+  const rank = parts[2] ?? "1";
   const suit = TAROT_MINOR_SUIT_FOLDER[glyph] ?? "wands";
   const num = String(Number(rank) || 1).padStart(2, "0");
   return `/tarot/${suit}-${num}.jpg`;
 }
 
 function TarotCardFace({ card }: { card: TarotCard }) {
+  const src = tarotCardImageSrc(card);
   return (
     <figure className="tarot-card-face" data-testid="tarot-card">
       <div className="tarot-card-photo">
-        {/* Обычный <img>, а не next/image: тот же компонент рендерится в печатной
-            версии (PDF-маршрут /products/print) вне next/image-рантайма. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={tarotCardImageSrc(card)}
-          alt={`${card.position}: ${card.name}${card.reversed ? ", перевёрнутая" : ""}`}
-          loading="lazy"
-          decoding="async"
-          className={card.reversed ? "tarot-card-reversed" : undefined}
-        />
-        {card.reversed && <span className="tarot-card-rev-flag">перевёрнутая</span>}
+        {src ? (
+          <>
+            {/* Обычный <img>, а не next/image: тот же компонент рендерится в печатной
+                версии (PDF-маршрут /products/print) вне next/image-рантайма. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={`${card.position}: ${card.name}${card.reversed ? ", перевёрнутая" : ""}`}
+              loading="lazy"
+              decoding="async"
+              className={card.reversed ? "tarot-card-reversed" : undefined}
+            />
+            {card.reversed && <span className="tarot-card-rev-flag">перевёрнутая</span>}
+          </>
+        ) : (
+          // Неизвестная карта (битые/очень старые данные) — рисуем рубашку
+          // вместо падения, имя всё равно показано в подписи ниже.
+          <span className="tarot-card-photo-fallback" aria-hidden="true">ET</span>
+        )}
       </div>
       <figcaption className="tarot-card-caption">
         <span className="tarot-card-position">{card.position}</span>

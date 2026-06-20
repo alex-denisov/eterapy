@@ -29,17 +29,25 @@ describe("B437 tarot refinements", () => {
     expect(actions).toContain('data-testid="tarot-reveal"');
   });
 
-  it("#5 offers a 'Новый расклад' reset action", () => {
+  it("#5 replaces the static 'Новый расклад' with a result-aware repeat CTA", () => {
     expect(actions).toContain('data-testid="tarot-new-reading"');
-    expect(actions).toContain("Новый расклад");
     expect(actions).toContain("function resetReading");
+    // CTA text is generated from the reading (theme-aware), with a sensible fallback
+    expect(actions).toContain("tarotRecs?.repeatCta");
+    expect(actions).toContain("Задать картам новый вопрос");
+    // the old static label is gone
+    expect(actions).not.toContain("Новый расклад");
   });
 
-  it("#6 auto-saves tarot readings (with the question) to the Дневник", () => {
+  it("#6 auto-saves tarot readings, shows a quiet note, and drops the PDF/diary buttons", () => {
     expect(route).toContain('productKey === "tarot" ? { savedAt: new Date() }');
     // the question (userInput) is persisted in metadata
     expect(route).toContain("userInput");
-    expect(actions).toContain('appUrl("/cabinet/diary")');
+    // the result page shows an auto-saved note instead of a save button or PDF export
+    expect(actions).toContain('data-testid="tarot-autosaved"');
+    expect(actions).toContain("Сохранено в Дневнике автоматически");
+    expect(actions).not.toContain('data-testid="symbolic-pdf-tarot"');
+    expect(actions).not.toContain('data-testid="tarot-open-diary"');
   });
 
   it("#10/#11 scrolls both selectors and separates themes (domains) from spreads (layouts)", () => {

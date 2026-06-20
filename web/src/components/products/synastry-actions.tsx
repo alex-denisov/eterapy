@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { SynastryWheel } from "@/components/products/esoteric-chart-visuals";
+import { useInputDraft } from "@/lib/use-input-draft";
 import type { SynastryWheel as SynastryWheelData } from "@/lib/esoteric-chart";
 
 type SynastryResult = {
@@ -62,6 +63,18 @@ export function SynastryActions() {
   const [question, setQuestion] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
+
+  // #3: сохранить введённые данные при переходе на /login и восстановить после.
+  useInputDraft(
+    "synastry",
+    { userBirthData, partnerBirthData, question },
+    (draft) => {
+      if (typeof draft.userBirthData === "string") setUserBirthData(draft.userBirthData);
+      if (typeof draft.partnerBirthData === "string") setPartnerBirthData(draft.partnerBirthData);
+      if (typeof draft.question === "string") setQuestion(draft.question);
+    },
+    { active: !result },
+  );
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;

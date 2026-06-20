@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
+import { useInputDraft } from "@/lib/use-input-draft";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { track } from "@/lib/analytics";
 import { SHARE_EVENTS, withReferral } from "@/lib/share";
@@ -111,6 +112,14 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
   const [hasEntitlement, setHasEntitlement] = useState(false);
   const [reading, setReading] = useState<SymbolicResult | null>(null);
   const [readingStatus, setReadingStatus] = useState<"idle" | "loading" | "error">("idle");
+
+  // #3: данные рождения сохраняются при переходе на /login и восстанавливаются.
+  useInputDraft(
+    "human-design",
+    { birth },
+    (draft) => { if (typeof draft.birth === "string") setBirth(draft.birth); },
+    { active: !reading },
+  );
 
   useEffect(() => {
     if (authStatus !== "authenticated") return;
