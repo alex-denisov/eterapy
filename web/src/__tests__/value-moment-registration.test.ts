@@ -17,7 +17,8 @@ describe("B051 value-moment registration", () => {
     // authed users see the auto-saved note instead of a button.
     expect(page).toContain("save-result-login");
     expect(page).toContain('href="/login?intent=save-result"');
-    expect(page).toContain("Сохранено в вашей карте");
+    // #10: authed users see the shared auto-saved note (same element as tarot).
+    expect(page).toContain('testId="result-autosaved-note"');
   });
 
   it("makes register and login pages explain the save-result intent", () => {

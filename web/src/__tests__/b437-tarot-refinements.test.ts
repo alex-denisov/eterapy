@@ -44,8 +44,9 @@ describe("B437 tarot refinements", () => {
     // the question (userInput) is persisted in metadata
     expect(route).toContain("userInput");
     // the result page shows an auto-saved note instead of a save button or PDF export
-    expect(actions).toContain('data-testid="tarot-autosaved"');
-    expect(actions).toContain("Сохранено в Дневнике автоматически");
+    expect(actions).toContain("AutosavedNote");
+    expect(actions).toContain('testId="tarot-autosaved"');
+    expect(source("src/components/ui/autosaved-note.tsx")).toContain("Сохранено в Дневнике автоматически");
     expect(actions).not.toContain('data-testid="symbolic-pdf-tarot"');
     expect(actions).not.toContain('data-testid="tarot-open-diary"');
   });

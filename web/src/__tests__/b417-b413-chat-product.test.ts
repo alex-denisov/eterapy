@@ -86,8 +86,8 @@ describe("B413 — in-page paid chat continuation", () => {
 
   it("expands «Первичный разбор» and hides the recs while the chat is open", () => {
     const page = source("src/app/checkin/page.tsx");
-    // disclosure forced open in chat mode
-    expect(page).toContain("showChat ? { open: true }");
+    // disclosure forced open in chat mode (#9: controlled open state)
+    expect(page).toContain("open={historyOpen || showChat}");
     // recs/band wrapped behind !showChat
     expect(page).toContain("{!showChat && (");
   });

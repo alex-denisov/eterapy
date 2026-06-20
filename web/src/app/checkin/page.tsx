@@ -18,9 +18,10 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { AIShareButton } from "@/components/ai-share-button";
 import { CompanionChatPanel } from "@/components/companion/companion-chat-panel";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
+import { DialogueThread } from "@/components/dialogue/dialogue-thread";
+import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/ui/disclaimer";
@@ -173,6 +174,9 @@ export default function CheckinPage() {
   // expands, and the paid chat runs on the same dialogue thread. On session
   // end (timer expiry) the chat collapses and the recommendations re-appear.
   const [showChat, setShowChat] = useState(false);
+  // #9: controlled «первичный разбор» disclosure so the summary label can flip
+  // between «показать диалог» / «скрыть диалог».
+  const [historyOpen, setHistoryOpen] = useState(false);
   const autoStartedRef = useRef(false);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
@@ -715,24 +719,8 @@ export default function CheckinPage() {
                 <span className="soft-eyebrow">первичный разбор</span>
                 <span className="text-xs text-[var(--soft-ink-faint)]">показать диалог</span>
               </summary>
-              <div className="mt-3 flex flex-col gap-2.5">
-                {(dialogue?.messages ?? [])
-                  .filter((m) => m.role !== "SYSTEM" && m.content.trim())
-                  .map((m) => (
-                    <div key={m.id} className={m.role === "USER" ? "max-w-[88%] self-end" : "max-w-[88%] self-start"}>
-                      <p className="mb-0.5 text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">
-                        {m.role === "USER" ? "вы" : "ETerapy"}
-                      </p>
-                      <div
-                        className="whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed"
-                        style={m.role === "USER"
-                          ? { background: "var(--soft-bordeaux)", color: "#FBF0E1" }
-                          : { background: "var(--soft-paper-deep)", color: "var(--soft-ink)" }}
-                      >
-                        {m.content}
-                      </div>
-                    </div>
-                  ))}
+              <div className="mt-3">
+                <DialogueThread messages={dialogue?.messages ?? []} />
               </div>
             </details>
           )}
@@ -823,27 +811,18 @@ export default function CheckinPage() {
             );
             if (thread.length === 0) return null;
             return (
-              <details className="soft-razbor-disclosure mb-4 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="dialogue-history" {...(showChat ? { open: true } : {})}>
+              <details
+                className="soft-razbor-disclosure mb-4 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4"
+                data-testid="dialogue-history"
+                open={historyOpen || showChat}
+                onToggle={(event) => setHistoryOpen((event.currentTarget as HTMLDetailsElement).open)}
+              >
                 <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
                   <span className="soft-eyebrow">первичный разбор</span>
-                  <span className="text-xs text-[var(--soft-ink-faint)]">показать диалог</span>
+                  <span className="text-xs text-[var(--soft-ink-faint)]">{(historyOpen || showChat) ? "скрыть диалог" : "показать диалог"}</span>
                 </summary>
-                <div className="mt-3 flex flex-col gap-2.5">
-                  {thread.map((m) => (
-                    <div key={m.id} className={m.role === "USER" ? "max-w-[88%] self-end" : "max-w-[88%] self-start"}>
-                      <p className="mb-0.5 text-[10px] uppercase tracking-wide text-[var(--soft-ink-faint)]">
-                        {m.role === "USER" ? "вы" : "ETerapy"}
-                      </p>
-                      <div
-                        className="whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed"
-                        style={m.role === "USER"
-                          ? { background: "var(--soft-bordeaux)", color: "#FBF0E1" }
-                          : { background: "var(--soft-paper-deep)", color: "var(--soft-ink)" }}
-                      >
-                        {m.content}
-                      </div>
-                    </div>
-                  ))}
+                <div className="mt-3">
+                  <DialogueThread messages={thread} />
                 </div>
               </details>
             );
@@ -1153,10 +1132,10 @@ export default function CheckinPage() {
                   Сохранить в карту
                 </button>
               ) : (
-                <span className="soft-badge soft-badge-warm" data-testid="result-autosaved-note">
-                  <Bookmark className="size-3.5" aria-hidden="true" />
-                  {saveState === "saving" ? "Сохраняем в карту…" : "Сохранено в вашей карте"}
-                </span>
+                <AutosavedNote
+                  testId="result-autosaved-note"
+                  label={saveState === "saving" ? "Сохраняем в карту…" : "Сохранено в Дневнике автоматически"}
+                />
               )
             ) : (
               <Link href="/login?intent=save-result" className="soft-button soft-button-primary" data-testid="save-result-login">
@@ -1164,11 +1143,6 @@ export default function CheckinPage() {
                 Сохранить в карту
               </Link>
             )}
-            <AIShareButton tool="CHECKIN" title="Первичный ответ ETerapy" resultText={safeAnswer} inline iconOnly />
-            <Button onClick={reset} className="soft-button soft-button-ghost" data-testid="dialogue-reset">
-              <RotateCcw className="size-4" aria-hidden="true" />
-              Новый вопрос
-            </Button>
           </div>
 
           {status !== "authenticated" && (

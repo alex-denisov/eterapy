@@ -86,17 +86,17 @@ export const TAROT_SPREAD_PRESETS: Record<TarotSpreadKey, {
 }> = {
   one: {
     key: "one",
-    label: "Одна карта",
+    label: "1 карта",
     positions: ["Совет"],
   },
   three: {
     key: "three",
-    label: "Три карты",
+    label: "3 карты",
     positions: ["Прошлое", "Настоящее", "Будущее"],
   },
   celtic: {
     key: "celtic",
-    label: "Кельтский крест",
+    label: "Кельтский крест · 10",
     positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"],
   },
 };

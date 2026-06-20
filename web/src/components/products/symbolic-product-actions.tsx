@@ -2,10 +2,11 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Check, ChevronLeft, ChevronRight, Download, Heart, LockKeyhole, Save, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Download, Heart, LockKeyhole, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
@@ -50,23 +51,51 @@ const TAROT_SPREAD_OPTIONS: Array<{
   helper: string;
   positions: string[];
 }> = [
-  { key: "one", label: "Одна карта", helper: "быстрый ответ одной картой", positions: ["Совет"] },
-  { key: "three", label: "Три карты", helper: "прошлое · настоящее · будущее", positions: ["Прошлое", "Настоящее", "Будущее"] },
-  { key: "celtic", label: "Кельтский крест", helper: "полный разбор, 10 карт", positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"] },
+  { key: "one", label: "1 карта", helper: "быстрый ответ одной картой", positions: ["Совет"] },
+  { key: "three", label: "3 карты", helper: "прошлое · настоящее · будущее", positions: ["Прошлое", "Настоящее", "Будущее"] },
+  { key: "celtic", label: "Кельтский крест · 10", helper: "полный разбор, 10 карт", positions: ["Сейчас", "Вызов", "Прошлое", "Будущее", "Цель", "Основа", "Совет", "Внешнее", "Надежды и страхи", "Итог"] },
 ];
 
-// #2/#5: вместо отдельных полей «о ком расклад» подсказываем это прямо в
-// примерах вопроса. Примеры сменяются автоматически (как живая подсказка) и
-// каждый начинается с «Про…», мягко предлагая указать, на кого расклад и что
-// хочется понять — и про себя, и про другого человека.
-const TAROT_QUESTION_EXAMPLES = [
-  "Про нас с партнёром: вместе три года, появилась дистанция — что между нами происходит?",
-  "Про сестру (28): часто ссоримся — как нам стать ближе?",
-  "Про меня: думаю сменить работу, но боюсь потерять опору — на что обратить внимание?",
-  "Про маму: тревожусь за неё — как поддержать мягче?",
-  "Про меня и нового знакомого: стоит ли двигаться дальше?",
-  "Про деньги: тревожно из-за расходов — что поможет почувствовать устойчивость?",
-] as const;
+// #5: подсказки в поле вопроса зависят от выбранной темы и настойчиво просят
+// указать имя и ПОЛНУЮ дату рождения людей, по которым делается расклад — это
+// нужно, чтобы расклад был персональным. Примеры сменяются автоматически.
+const TAROT_EXAMPLES_BY_THEME: Record<string, string[]> = {
+  "Любовь и отношения": [
+    "Анна, 14.03.1992 и Игорь, 02.07.1989 — вместе 3 года, появилась дистанция. Что между нами?",
+    "Мария, 21.11.1990 — стоит ли давать шанс отношениям с Олегом, 05.09.1987?",
+  ],
+  "Работа и призвание": [
+    "Дмитрий, 09.05.1988 — менять работу или остаться? Внутри много сомнений.",
+    "Ольга, 30.01.1995 — куда расти дальше в карьере?",
+  ],
+  "Деньги и быт": [
+    "Сергей, 17.08.1986 — тревожно из-за денег. На что опереться в ближайшие месяцы?",
+    "Анна, 03.04.1991 — стоит ли сейчас брать ипотеку?",
+  ],
+  "Семья и дом": [
+    "Елена, 03.12.1991 — напряжение с мамой (Нина, 25.06.1963). Как стать ближе?",
+    "Игорь, 22.10.1984 — как не разрываться между родителями и своей семьёй?",
+  ],
+  "Самопознание": [
+    "Игорь, 11.04.1993 — хочу понять свой повторяющийся сценарий. С чего начать?",
+    "Мария, 28.07.1996 — что мешает мне почувствовать опору в себе?",
+  ],
+  "Перемены и выбор": [
+    "Анна, 28.09.1990 — переезд в другой город: решиться или подождать?",
+    "Павел, 16.02.1987 — два пути передо мной, как выбрать честно?",
+  ],
+  "На сегодня": [
+    "Мария, 05.02.1994 — что важно увидеть в сегодняшнем дне?",
+    "Дмитрий, 19.06.1990 — на что обратить внимание сегодня?",
+  ],
+};
+const TAROT_EXAMPLES_DEFAULT = [
+  "Укажите имя и полную дату рождения (напр. Анна, 14.03.1992) и ваш вопрос.",
+  "О ком расклад? Имя и полная дата рождения каждого человека + что хотите понять.",
+];
+function tarotExamplesForTheme(theme: string): string[] {
+  return TAROT_EXAMPLES_BY_THEME[theme] ?? TAROT_EXAMPLES_DEFAULT;
+}
 
 function isTarotSpreadKey(value: unknown): value is TarotSpreadKey {
   return TAROT_SPREAD_OPTIONS.some((option) => option.key === value);
@@ -213,15 +242,11 @@ function TarotDeckPreview({ spread }: { spread: (typeof TAROT_SPREAD_OPTIONS)[nu
   );
 }
 
-function TarotResultSummary({ cards, meta }: { cards: TarotCardView[]; meta: TarotReadingMeta | null }) {
-  const showSpreadLabel = Boolean(meta?.label && meta.label !== meta.theme);
+function TarotResultSummary({ cards }: { cards: TarotCardView[] }) {
+  // #7: тема/расклад больше НЕ дублируются здесь — они показаны в раскрываемом
+  // элементе «Тема, вопрос и расклад» над раскладом. Тут только трактовки карт.
   return (
     <div className="tarot-result-summary" data-testid="tarot-result-summary">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
-        {meta?.theme && <span className="tarot-meta-pill">тема: {meta.theme}</span>}
-        {showSpreadLabel && <span className="tarot-meta-pill">расклад: {meta?.label}</span>}
-        <span className="tarot-meta-pill">{cards.length} карт</span>
-      </div>
       <div className="tarot-card-meaning-list">
         {cards.map((card) => (
           <article key={card.position} className="tarot-card-meaning">
@@ -258,6 +283,8 @@ export function SymbolicProductActions({
   const [message, setMessage] = useState<string | null>(null);
   const [exampleIdx, setExampleIdx] = useState(0);
   const [tarotRecs, setTarotRecs] = useState<TarotRecs | null>(null);
+  // #2: read-only «Тема, вопрос и расклад» disclosure on the result.
+  const [recapOpen, setRecapOpen] = useState(false);
   const draftKey = `symbolic:${productKey}`;
 
   const syncTarotControlsFromResult = useCallback((nextResult: SymbolicResult | null) => {
@@ -273,22 +300,46 @@ export function SymbolicProductActions({
     jsonRequest<ApiPayload>(`/api/products/symbolic?productKey=${productKey}`)
       .then((payload) => {
         if (cancelled) return;
-        const nextResult = payload.results?.[0] ?? null;
         setHasEntitlement(Boolean(payload.hasEntitlement));
-        setResult(nextResult);
-        syncTarotControlsFromResult(nextResult);
+        // #1: the tarot reading is session-scoped — it is restored from the
+        // ?reading=<id> URL param (effect below), NOT auto-loaded from the last
+        // DB result. So a fresh visit / refresh of the bare page starts over.
+        // Other symbolic products keep showing the last result on revisit.
+        if (productKey !== "tarot") {
+          const nextResult = payload.results?.[0] ?? null;
+          setResult(nextResult);
+          syncTarotControlsFromResult(nextResult);
+        }
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, [authStatus, productKey, syncTarotControlsFromResult]);
 
+  // #1: restore a tarot reading from ?reading=<id> (browser back/forward and a
+  // same-tab refresh of that URL keep the result). A fresh visit to the bare
+  // /products/tarot has no param → starts a new session.
+  useEffect(() => {
+    if (productKey !== "tarot" || authStatus !== "authenticated" || typeof window === "undefined") return;
+    const readingId = new URLSearchParams(window.location.search).get("reading");
+    if (!readingId) return;
+    let cancelled = false;
+    jsonRequest<{ result?: SymbolicResult }>(`/api/products/symbolic/${readingId}`)
+      .then((payload) => {
+        if (cancelled || !payload.result) return;
+        setResult(payload.result);
+        syncTarotControlsFromResult(payload.result);
+        const md = payload.result.metadata as { userInput?: unknown } | undefined;
+        if (md && typeof md.userInput === "string") setUserInput(md.userInput);
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [productKey, authStatus, syncTarotControlsFromResult]);
+
   // #2: примеры вопроса для Таро сменяются автоматически — живая подсказка,
   // как на /checkin. Только для Таро.
   useEffect(() => {
     if (productKey !== "tarot") return;
-    const id = window.setInterval(() => {
-      setExampleIdx((index) => (index + 1) % TAROT_QUESTION_EXAMPLES.length);
-    }, 3600);
+    const id = window.setInterval(() => setExampleIdx((index) => index + 1), 3600);
     return () => window.clearInterval(id);
   }, [productKey]);
 
@@ -347,6 +398,13 @@ export function SymbolicProductActions({
       syncTarotControlsFromResult(nextResult);
       // #3: получили результат — черновик ввода больше не нужен.
       if (!payload.paywalled) clearDraft();
+      // #1: привязываем расклад к URL ?reading=<id>, чтобы он восстанавливался
+      // по назад/вперёд, но не «прилипал» при свежем заходе на страницу.
+      if (productKey === "tarot" && nextResult?.id && nextResult.resultText && typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("reading", nextResult.id);
+        window.history.replaceState(null, "", url.toString());
+      }
       if (payload.paywalled) {
         setMessage(productKey === "tarot" ? "Откройте доступ баллами или картой, и расклад появится здесь же." : "Бесплатный фрагмент готов. Полный разбор можно открыть баллами или картой.");
       }
@@ -392,6 +450,11 @@ export function SymbolicProductActions({
     setStatus("idle");
     setUserInput("");
     clearDraft();
+    if (productKey === "tarot" && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("reading");
+      window.history.replaceState(null, "", url.toString());
+    }
   }
 
   const tarotCards = productKey === "tarot" ? extractTarotCards(result) : null;
@@ -401,6 +464,9 @@ export function SymbolicProductActions({
 
   if (productKey === "tarot") {
     const hasReading = Boolean(result?.resultText && tarotCards);
+    // #5: подсказка зависит от выбранной темы; сменяется по таймеру.
+    const themeExamples = tarotExamplesForTheme(tarotTheme);
+    const tarotPlaceholder = themeExamples[exampleIdx % themeExamples.length];
 
     // Блок управления: тема → расклад (компактная прокручиваемая лента, #2) →
     // вопрос → действие. После расклада он сворачивается в раскрываемый элемент.
@@ -412,7 +478,7 @@ export function SymbolicProductActions({
               key={theme.key}
               type="button"
               className={theme.label === tarotTheme ? "tarot-choice tarot-choice-active" : "tarot-choice"}
-              onClick={() => setTarotTheme(theme.label)}
+              onClick={() => { setTarotTheme(theme.label); setExampleIdx(0); }}
               aria-pressed={theme.label === tarotTheme}
               disabled={status === "loading"}
             >
@@ -442,7 +508,7 @@ export function SymbolicProductActions({
           id="symbolic-input-tarot"
           value={userInput}
           onChange={(event) => setUserInput(event.target.value)}
-          placeholder={TAROT_QUESTION_EXAMPLES[exampleIdx]}
+          placeholder={tarotPlaceholder}
           rows={3}
           className="soft-question-input tarot-question-input"
           disabled={status === "loading"}
@@ -490,17 +556,37 @@ export function SymbolicProductActions({
 
           {message && <p className="tarot-order-message">{message}</p>}
 
-          {/* #4: после открытия карт блок выбора сворачивается в раскрываемый
-              элемент, а карты и трактовка показываются ниже — в этом же окне. */}
+          {/* #2: после получения расклада исходные данные показываются только для
+              чтения (показать/скрыть) — изменить их уже нельзя, услуга заказана. */}
           {hasReading ? (
-            <details className="tarot-controls-collapsed">
+            <details
+              className="tarot-controls-collapsed"
+              data-testid="tarot-recap"
+              open={recapOpen}
+              onToggle={(event) => setRecapOpen((event.currentTarget as HTMLDetailsElement).open)}
+            >
               <summary>
                 <span className="tarot-collapsed-q">
-                  {userInput.trim() ? `Вопрос: ${userInput.trim()}` : "Тема, расклад и вопрос"}
+                  {userInput.trim() ? `Вопрос: ${userInput.trim()}` : "Тема, вопрос и расклад"}
                 </span>
-                <span className="tarot-collapsed-hint">изменить</span>
+                <span className="tarot-collapsed-hint">{recapOpen ? "скрыть" : "показать"}</span>
               </summary>
-              {controls}
+              <dl className="tarot-recap">
+                <div>
+                  <dt>Тема</dt>
+                  <dd>{tarotMeta?.theme ?? tarotTheme}</dd>
+                </div>
+                <div>
+                  <dt>Расклад</dt>
+                  <dd>{tarotMeta?.label ?? selectedTarotSpread.label}</dd>
+                </div>
+                {userInput.trim() && (
+                  <div>
+                    <dt>Вопрос</dt>
+                    <dd>{userInput.trim()}</dd>
+                  </div>
+                )}
+              </dl>
             </details>
           ) : (
             controls
@@ -511,7 +597,7 @@ export function SymbolicProductActions({
 
             {result?.resultText && tarotCards ? (
               <>
-                <TarotResultSummary cards={tarotCards} meta={tarotMeta} />
+                <TarotResultSummary cards={tarotCards} />
                 <SoftMarkdown
                   content={result.resultText}
                   className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
@@ -520,10 +606,7 @@ export function SymbolicProductActions({
                     отдельной кнопки и экспорта в PDF тут нет — человек читает весь
                     разбор на странице. Вместо «Нового расклада» — блок «что дальше». */}
                 <div className="tarot-followup" data-testid="tarot-followup">
-                  <p className="tarot-autosaved-note" data-testid="tarot-autosaved">
-                    <Check className="size-3.5" aria-hidden="true" />
-                    Сохранено в Дневнике автоматически
-                  </p>
+                  <AutosavedNote testId="tarot-autosaved" />
                   <p className="soft-eyebrow">что дальше</p>
                   <div className="tarot-followup-row">
                     <Button

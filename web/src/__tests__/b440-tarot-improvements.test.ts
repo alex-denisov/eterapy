@@ -45,11 +45,13 @@ describe("B440 tarot page fixes (#1–#6)", () => {
     });
   });
 
-  describe("#2/#5 rotating, person-aware question examples (no extra fields)", () => {
-    it("rotates the placeholder through person-aware examples", () => {
-      expect(actions).toContain("TAROT_QUESTION_EXAMPLES");
-      expect(actions).toContain("placeholder={TAROT_QUESTION_EXAMPLES[exampleIdx]}");
-      expect(actions).toContain("Про нас с партнёром");
+  describe("#5 theme-specific hints requiring name + full DOB", () => {
+    it("rotates per-theme placeholders that ask for name and full date of birth", () => {
+      expect(actions).toContain("TAROT_EXAMPLES_BY_THEME");
+      expect(actions).toContain("tarotExamplesForTheme(tarotTheme)");
+      expect(actions).toContain("placeholder={tarotPlaceholder}");
+      // examples carry a name + full DD.MM.YYYY date of birth
+      expect(actions).toMatch(/\d{2}\.\d{2}\.\d{4}/);
     });
   });
 

@@ -26,12 +26,14 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('data-testid="dialogue-retry-answer"');
   });
 
-  it("offers save, share, and v4.2 triage actions after the primary answer", () => {
+  it("offers save and v4.2 triage actions after the primary answer", () => {
     const page = source("src/app/checkin/page.tsx");
 
-    expect(page).toContain("<AIShareButton");
-    // B414: authed users no longer get a save button (auto-saved); guests save → /login
-    expect(page).toContain('data-testid="result-autosaved-note"');
+    // #10: share + «новый вопрос» removed; authed users see the shared auto-saved
+    // note (same as tarot), guests get the save→/login action.
+    expect(page).not.toContain("<AIShareButton");
+    expect(page).not.toContain("Новый вопрос");
+    expect(page).toContain('testId="result-autosaved-note"');
     expect(page).toContain('data-testid="save-result-login"');
     expect(page).toContain('data-testid="dialogue-answer-triage-layout"');
     expect(page).toContain('data-testid="dialogue-triage-rail"');
@@ -150,10 +152,11 @@ describe("B071-B074 dialogue flow UI", () => {
     expect(page).toContain('hideHeader={phase === "result"}');
   });
 
-  // B414: icon-only share + auto-save semantics.
-  it("B414: share is icon-only and the share button supports iconOnly", () => {
+  // #10: the checkin result no longer shows a share button; the AIShareButton
+  // component still supports iconOnly for other surfaces.
+  it("checkin result has no share button; AIShareButton still supports iconOnly", () => {
     const page = source("src/app/checkin/page.tsx");
-    expect(page).toContain("inline iconOnly");
+    expect(page).not.toContain("AIShareButton");
     const share = source("src/components/ai-share-button.tsx");
     expect(share).toContain("iconOnly");
     expect(share).toContain("lucide-share-2");

@@ -108,7 +108,7 @@ describe("dialogue-clarifier", () => {
     expect(result.chips.length).toBe(result.questions.length);
   });
 
-  it("returns ready when the LLM gateway is unavailable (B302: no scripted fallback)", async () => {
+  it("asks a heuristic clarifying question on the FIRST turn when the LLM is down (never silent-skips)", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueConversationalTurn({
@@ -120,11 +120,13 @@ describe("dialogue-clarifier", () => {
       requestId: "req-live-fallback",
     });
 
-    // B302: instead of emitting a CONTEXT_MARKERS-based scripted question,
-    // we short-circuit to "ready" so the API moves to PROCESSING and the
-    // primary answer is generated from whatever context already exists.
-    expect(result.type).toBe("ready");
+    // #9: on the FIRST turn we must NEVER silently skip the whole clarifying
+    // conversation. If the gateway is down (or the user's AI budget is
+    // exhausted), fall back to ONE topic-aware heuristic question so the разбор
+    // still opens with a real dialogue. Later turns may still go "ready".
+    expect(result.type).toBe("question");
     expect(result.source).toBe("heuristic");
+    expect((result.question ?? "").length).toBeGreaterThan(8);
   });
 
   it("returns ready (not a recycled template) even with prior turns when the LLM is down", async () => {

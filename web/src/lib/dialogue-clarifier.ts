@@ -373,7 +373,23 @@ export async function generateDialogueConversationalTurn(input: {
 
   const originalQuestion = input.originalQuestion ?? input.question ?? "";
   const previousPairs = input.previousPairs.map(normalizePair);
-  const fallback = buildContextualFallback({ originalQuestion, previousPairs });
+  // On the FIRST turn we must NEVER silently skip the whole clarifying
+  // conversation: if the LLM produced nothing (outage, parse fail, or the
+  // user's AI daily-budget is exhausted), ask one topic-aware heuristic
+  // question so the разбор always opens with a real dialogue. Later turns may
+  // still end gracefully ("ready") when the LLM is unavailable. This fixes the
+  // «диалог сразу прыгает на результат» regression seen when the gateway fails.
+  const firstTurnHeuristic = (): ConversationalTurnResult => {
+    const heuristic = heuristicClarifyingQuestions({
+      question: originalQuestion,
+      topic: input.topic,
+      difficulty: input.difficulty,
+    });
+    return { type: "question", question: heuristic.questions[0], chips: heuristic.chips[0] ?? [], source: "heuristic" };
+  };
+  const fallback: ConversationalTurnResult = input.previousPairs.length === 0
+    ? firstTurnHeuristic()
+    : buildContextualFallback({ originalQuestion, previousPairs });
 
   const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
 

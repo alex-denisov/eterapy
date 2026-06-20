@@ -35,6 +35,37 @@ function serialize(result: {
   };
 }
 
+// #1: fetch ONE result by id (with metadata) — used to restore a tarot reading
+// from the ?reading=<id> URL param so the session is scoped to that URL (back/
+// forward restore it) instead of auto-loading the last DB result forever.
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+  const { id } = await params;
+  const result = await db.productResult.findFirst({
+    where: { id, userId, productKey: { in: [...SYMBOLIC_PRODUCT_KEYS] }, deletedAt: null },
+  });
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
+  return jsonWithRequestContext(
+    {
+      result: {
+        id: result.id,
+        productKey: result.productKey,
+        status: result.status,
+        title: result.title,
+        previewText: result.previewText,
+        resultText: result.resultText,
+        saved: Boolean(result.savedAt),
+        metadata: result.metadata,
+      },
+    },
+    { status: 200 },
+    context,
+  );
+}
+
 // B308: PATCH /api/products/symbolic/[id] — "save to diary" affordance for
 // tarot / natal-chart / numerology. Spec (04_UI_UX_Mechanics §10) requires
 // every symbolic result to be saveable into the user's personal diary.
