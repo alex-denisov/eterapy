@@ -4,7 +4,6 @@ import type React from "react";
 import { ChevronLeft, Info, ShieldCheck } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
-import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
 import { SynastryActions } from "@/components/products/synastry-actions";
@@ -96,7 +95,6 @@ function ProductActionSurface({
   if (product.slug === "deep-report") return <DeepReportActions dialogueId={search?.dialogueId ?? null} />;
   if (product.slug === "perspectives") return <PerspectivesActions dialogueId={search?.dialogueId ?? null} />;
   if (product.slug === "chat-analysis") return <ChatAnalysisActions />;
-  if (product.slug === "compatibility") return <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={search?.invite ?? null} />;
   if (product.slug === "tarot") {
     return <SymbolicProductActions productKey="tarot" title="Расклад Таро" promptLabel="Вопрос для расклада" placeholder="Например: стоит ли мне сейчас менять работу, если внутри много сомнений?" creditCost={2} />;
   }

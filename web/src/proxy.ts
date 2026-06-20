@@ -107,7 +107,6 @@ const APP_PUBLIC_MAIN_PATHS = [
   "/products/pair",
   "/pricing",
   "/products/chat-analysis",
-  "/products/compatibility",
   "/products/deep-report",
   "/products/natal-chart",
   "/products/synastry",

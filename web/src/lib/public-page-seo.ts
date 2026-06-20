@@ -87,11 +87,6 @@ export const publicPageSeo: Record<PublicSeoRoute, PublicPageSeo> = {
     description: "Живой диалог 45 минут, чтобы разобрать вопрос в своём темпе. Платная синхронная услуга — продолжение бесплатного первичного разбора.",
     schemaKind: "Product",
   },
-  "/products/compatibility": {
-    title: "Совместимость — ETerapy",
-    description: "Парный отчет по совместимости с invite flow, согласием второго участника и приватностью ответов.",
-    schemaKind: "Product",
-  },
   "/products/tarot": {
     title: "Расклад Таро — продукт ETerapy",
     description: "Цифровой расклад Таро как язык метафор: без обещаний будущего, с приватным вопросом и практичным следующим шагом.",

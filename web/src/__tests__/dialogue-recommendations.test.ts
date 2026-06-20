@@ -9,7 +9,8 @@ import {
 
 describe("W17 dialogue recommendation engine", () => {
   it("maps each topic to a distinct, catalog-backed primary product", () => {
-    expect(recommendPrimaryProduct("relationships").slug).toBe("compatibility");
+    // «Совместимость» слита в «Вместе» (pair) → relationships рекомендует «Вместе».
+    expect(recommendPrimaryProduct("relationships").slug).toBe("pair");
     expect(recommendPrimaryProduct("money").slug).toBe("deep-report");
     // B373 (M26): выпиленные услуги remapped на живые продукты.
     expect(recommendPrimaryProduct("anxiety").slug).toBe("deep-report");

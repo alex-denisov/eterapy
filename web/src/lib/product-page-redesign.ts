@@ -53,14 +53,6 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["тон собеседника", "ваши эмоции", "бережные варианты ответа"],
     trustLine: "Приватно — видно только вам. Источник можно удалить после разбора.",
   },
-  compatibility: {
-    family: "relationship",
-    primaryPromise: "Увидите, где вы совпадаете и где разные ритмы.",
-    heroVisual: "relationship-map",
-    previewTitle: "Карта совместимости",
-    previewBullets: ["сильные стороны", "зоны различий", "вопросы для разговора"],
-    trustLine: "Ответы партнёра открываются только по согласию.",
-  },
   pair: {
     family: "relationship",
     primaryPromise: "Соберёте несколько взглядов на один общий вопрос.",

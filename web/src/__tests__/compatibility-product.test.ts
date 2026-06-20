@@ -8,8 +8,10 @@ function source(relativePath: string) {
 }
 
 describe("B089/B090 compatibility product", () => {
-  it("wires the CompatibilityActions component into the product detail page", () => {
-    const page = source("src/app/products/[slug]/page.tsx");
+  it("wires the CompatibilityActions component into the «Вместе» surface", () => {
+    // «Совместимость» как отдельная услуга снята — движок совместимости теперь
+    // живёт сценарием внутри «Вместе» (/products/pair?scenario=compare).
+    const page = source("src/app/products/pair/page.tsx");
     const actions = source("src/components/products/compatibility-actions.tsx");
 
     expect(page).toContain("<CompatibilityActions");

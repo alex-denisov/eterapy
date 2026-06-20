@@ -71,14 +71,14 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "compatibility", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["perspectives", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   practitioner_pro: {

@@ -16,7 +16,7 @@ describe("B436 product page redesign shell", () => {
       family: "symbolic",
       heroVisual: "interactive-chart",
     });
-    expect(getProductPageSpec("compatibility")).toMatchObject({ family: "relationship" });
+    expect(getProductPageSpec("pair")).toMatchObject({ family: "relationship" });
     expect(getProductPageSpec("deep-report")).toMatchObject({ family: "synthesis" });
 
     for (const spec of Object.values(PRODUCT_PAGE_FAMILY_SPECS)) {

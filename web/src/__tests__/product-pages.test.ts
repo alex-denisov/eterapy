@@ -89,7 +89,8 @@ describe("v5 product pages", () => {
     // perspectives), so the copy must say Premium, not Plus.
     expect(products).toContain("или −3 балла · в Premium входит");
     expect(products).not.toContain("в Plus входит");
-    expect(products).toContain("один отчёт на двоих");
+    // «Совместимость» теперь сценарий внутри «Вместе», не отдельная услуга.
+    expect(products).toContain("посмотреть на совместимость");
   });
 
   it("B405 shows guests ₽ and authenticated users баллы-first on the product hero price", () => {
@@ -141,9 +142,10 @@ describe("v5 product pages", () => {
     // B330: chat-analysis lost the "предупреждение о персональных данных"
     // mechanic copy when the misleading consent checkbox was removed. The
     // remaining privacy primitives (delete source, partner consent for
-    // compatibility) are still required.
+    // «Вместе») are still required. («Совместимость» как отдельная услуга снята —
+    // совместимость теперь сценарий внутри «Вместе» с согласием участников.)
     expect(products).toContain("удаление источника");
-    expect(products).toContain("согласие партнёра");
+    expect(products).toContain("согласие участников");
     // B373: «пауза и продолжение» и «сохранить, скрыть или удалить» ушли вместе
     // с выпиленными услугами (маршрут и расширенная карта).
     expect(products).toContain("открытие через entitlement");

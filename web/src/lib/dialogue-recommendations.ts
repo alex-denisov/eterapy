@@ -43,7 +43,8 @@ const TOPICS: DialogueTopic[] = ["relationships", "family", "career", "money", "
 // B373 (M26): выпиленные услуги убраны из рекомендаций — воронка ведёт только на
 // живые продукты, чтобы не упереться в 404.
 const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
-  relationships: "compatibility",
+  // Совместимость теперь сценарий внутри «Вместе» (pair) — рекомендуем «Вместе».
+  relationships: "pair",
   family: "pair",
   career: "perspectives",
   money: "deep-report",
@@ -54,8 +55,8 @@ const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
 
 /** Topic → adjacent products (variety pool; the primary is filtered out). */
 const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
-  relationships: ["pair", "chat-analysis", "compatibility", "tarot"],
-  family: ["compatibility", "chat-analysis", "pair", "family-scenarios"],
+  relationships: ["pair", "chat-analysis", "perspectives", "tarot"],
+  family: ["perspectives", "chat-analysis", "pair", "family-scenarios"],
   career: ["perspectives", "deep-report", "numerology", "tarot"],
   money: ["deep-report", "perspectives", "numerology", "tarot"],
   anxiety: ["deep-report", "perspectives", "tarot", "natal-chart"],
