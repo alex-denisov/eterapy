@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
-import { ChevronLeft, Info, ShieldCheck } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
+import { ProductDisclaimer, ProductPrivacyBadge } from "@/components/products/product-legal";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
 import { PerspectivesActions } from "@/components/products/perspectives-actions";
@@ -65,21 +66,13 @@ function ProductHero({
           <ProductHeroPrice product={product} />
         </div>
 
-        {product.tone !== "free" && (
-          <p className="mt-2.5 inline-flex items-center gap-1.5 pl-7 text-xs font-medium text-[var(--soft-terracotta-dark)]">
-            <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
-            {product.tone === "private" ? "Приватно — видно только вам" : "Новый формат"}
-          </p>
-        )}
+        {product.tone !== "free" && <ProductPrivacyBadge />}
 
         <div className="mt-5" data-testid="product-service-start">
           {action}
         </div>
 
-        <p className="mt-4 flex items-start gap-1.5 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">
-          <Info className="mt-px size-3 shrink-0" aria-hidden="true" />
-          <span>Результат носит информационно-рефлексивный характер и не заменяет консультацию специалиста.</span>
-        </p>
+        <ProductDisclaimer />
       </div>
     </section>
   );

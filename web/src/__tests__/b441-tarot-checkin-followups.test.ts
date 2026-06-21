@@ -50,12 +50,14 @@ describe("B441 tarot + checkin follow-ups", () => {
   });
 
   describe("#9 checkin dialogue restored + robust", () => {
-    it("clarifier asks heuristic questions to reach the 3–5 floor (never one-and-done)", () => {
-      // Task 5: below MIN_CLARIFYING_TURNS, a failed/early turn must come back with
-      // another heuristic question instead of jumping straight to the разбор.
-      expect(clarifier).toContain("heuristicTurnAt");
+    it("keeps the clarifier always-LLM with a 3–5 floor (no scripted/heuristic questions)", () => {
+      // Issue #3: the floor is enforced by the LLM's own ready-gating
+      // (canBeReady ↔ MIN_CLARIFYING_TURNS), NOT by injecting scripted heuristic
+      // questions. On failure the turn resolves to ready, never a preset question.
       expect(clarifier).toContain("MIN_CLARIFYING_TURNS");
       expect(clarifier).toContain("canBeReady");
+      expect(clarifier).not.toContain("heuristicTurnAt");
+      expect(clarifier).toContain("READY_TURN");
     });
     it("renders the original dialogue design via DialogueThread", () => {
       expect(checkin).toContain("DialogueThread");

@@ -317,11 +317,13 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
   },
   {
     // B386 (M26): чат-компаньон. Короткие реплики (человеческий ритм), премиум-тон.
+    // Issue #8: title/purpose name the catalog service so it's findable in
+    // orchestration as the /products/chat «Решить вопрос в чате» service.
     feature: "companion-chat",
     enabled: true,
     tier: "premium",
-    title: "Чат-компаньон",
-    purpose: "Бережный собеседник в человеческом ритме; короткие реплики, предохранители, без раскрытия природы.",
+    title: "Чат-компаньон · «Решить вопрос в чате» (/products/chat)",
+    purpose: "Услуга «Решить вопрос в чате» (/products/chat): бережный собеседник в человеческом ритме; короткие реплики, предохранители, без раскрытия природы.",
     providerOrder: [...directPremiumOrder],
     maxTokens: 320,
     temperature: 0.6,

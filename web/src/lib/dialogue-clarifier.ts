@@ -169,20 +169,12 @@ function isDuplicateAssistantTurn(
   });
 }
 
-// B302: the heuristic fallback path is *off*. When the LLM gateway
-// fails (timeout, missing credentials, parse error), we head straight
-// to "ready" so the API moves to PROCESSING and produces the primary
-// answer from the user's first message. We do NOT emit a scripted
-// CONTEXT_MARKERS question pretending to be "live LLM" — that was
-// the source of the "это явно сценарные ответы" complaint.
-function buildContextualFallback(input: {
-  originalQuestion?: string;
-  question?: string;
-  previousPairs: Array<{ question?: string; answer?: string; assistant?: string; user?: string }>;
-}): ConversationalTurnResult {
-  void input;
-  return { type: "ready", source: "heuristic" };
-}
+// Issue #3 (RU launch): the clarifying dialogue is ALWAYS LLM-driven. There is
+// no scripted/heuristic question pool. When the model cannot produce a valid
+// turn (after same-provider multi-model retries), we resolve to "ready" so the
+// flow proceeds to the разбор (itself LLM-written) — never to a preset question
+// pretending to be "live LLM" (the "это явно сценарные ответы" complaint).
+const READY_TURN: ConversationalTurnResult = { type: "ready", source: "ai" };
 
 export function parseConversationalTurnResponse(text: string): ConversationalTurnResult | null {
   // Try JSON first — that's our preferred contract.
@@ -376,25 +368,12 @@ export async function generateDialogueConversationalTurn(input: {
 
   const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
 
-  // The разбор must NEVER form after a single question (the «выдал только один
-  // вопрос» bug): the структура requires 3–5 meaningful exchanges. So below
-  // MIN_CLARIFYING_TURNS we must always come back with another question — even
-  // when the LLM is down, returns garbage, or tries to wrap up too early. We ask
-  // the next topic-aware heuristic question (one per remaining floor turn) so the
-  // floor is reached. Only once the floor is met may a failed/early turn resolve
-  // to "ready" (then the API produces the primary answer from what context exists).
-  const heuristicTurnAt = (index: number): ConversationalTurnResult => {
-    const heuristic = heuristicClarifyingQuestions({
-      question: originalQuestion,
-      topic: input.topic,
-      difficulty: input.difficulty,
-    });
-    const i = Math.min(Math.max(index, 0), heuristic.questions.length - 1);
-    return { type: "question", question: heuristic.questions[i], chips: heuristic.chips[i] ?? [], source: "heuristic" };
-  };
-  const fallback: ConversationalTurnResult = canBeReady
-    ? buildContextualFallback({ originalQuestion, previousPairs })
-    : heuristicTurnAt(input.previousPairs.length);
+  // Issue #3: no scripted questions, ever. `canBeReady` still gates the LLM's
+  // own ready-signal (a healthy model keeps asking until the 3-turn floor), but
+  // when the model genuinely can't produce a valid turn we resolve to "ready"
+  // and let the (LLM-written) разбор take over — we never fabricate a preset
+  // question to pad the floor.
+  const fallback: ConversationalTurnResult = READY_TURN;
 
   // Try LLM up to twice before falling back. The second attempt uses a
   // higher temperature and an explicit "your previous answer was
@@ -430,7 +409,7 @@ export async function generateDialogueConversationalTurn(input: {
       return { ...second.result, provider: second.provider, model: second.model };
     }
 
-    log.warn("dialogue-clarifier-heuristic-fallback-after-retries", {
+    log.warn("dialogue-clarifier-ready-fallback-after-retries", {
       requestId: input.requestId,
       previousPairCount: previousPairs.length,
     });

@@ -3,7 +3,7 @@ import { log, serializeError } from "@/lib/logger";
 
 export interface DialoguePrimaryAnswerResult {
   text: string;
-  source: "ai" | "heuristic";
+  source: "ai";
   provider?: string;
   model?: string;
   tokensIn?: number;
@@ -14,6 +14,18 @@ export interface DialoguePrimaryAnswerResult {
 export interface DialoguePrimaryAnswerMessage {
   role: "USER" | "ASSISTANT" | "SYSTEM";
   content: string;
+}
+
+// Issue #3: the «первичный разбор» is ALWAYS produced by the LLM. When the
+// single active provider can't answer (after same-provider multi-model retries
+// inside aiComplete), we throw this so the API surfaces an honest retry instead
+// of falling back to a scripted/heuristic answer with no relation to the
+// question. The UI already has a «Попробовать ещё раз» affordance.
+export class DialoguePrimaryAnswerUnavailableError extends Error {
+  constructor(message = "Primary answer LLM unavailable") {
+    super(message);
+    this.name = "DialoguePrimaryAnswerUnavailableError";
+  }
 }
 
 function compactMessages(messages: DialoguePrimaryAnswerMessage[]) {
@@ -28,41 +40,6 @@ function normalizeAnswer(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000);
 }
 
-export function heuristicPrimaryAnswer(input: {
-  topic?: string | null;
-  difficulty?: string | null;
-  messages: DialoguePrimaryAnswerMessage[];
-}): DialoguePrimaryAnswerResult {
-  const firstUserMessage = input.messages.find((message) => message.role === "USER")?.content ?? "ваш вопрос";
-  const lastUserMessage = [...input.messages].reverse().find((message) => message.role === "USER")?.content;
-  const contextLine = lastUserMessage && lastUserMessage !== firstUserMessage
-    ? `С учетом вашего уточнения: ${lastUserMessage}`
-    : `Ваш вопрос: ${firstUserMessage}`;
-  const topicHint =
-    input.topic === "relationships" ? "в отношениях сейчас важнее смотреть на повторяющийся сценарий, а не только на один эпизод" :
-    input.topic === "career" ? "в выборе направления сейчас полезно сравнить не только выгоду, но и устойчивость" :
-    input.topic === "money" ? "в финансовой теме лучше отделить тревогу от конкретного следующего решения" :
-    input.topic === "family" ? "в семейной теме стоит отделить свои границы от ожиданий других людей" :
-    input.topic === "anxiety" ? "при тревоге особенно важны мягкий темп и опора на факты настоящего момента" :
-    "здесь полезно начать с самого живого вопроса, а не пытаться решить все сразу";
-
-  return {
-    source: "heuristic",
-    text: normalizeAnswer([
-      "Короткий ответ",
-      `${contextLine}. По текущему контексту видно, что ${topicHint}.`,
-      "",
-      "Что кажется важным",
-      "Не пытайтесь сразу найти окончательный знак или единственно правильный вариант. Сначала отметьте, где в ситуации больше спокойствия, понимания и уважения к вашим границам.",
-      "",
-      "Мягкий следующий шаг",
-      "Запишите два варианта развития событий и рядом с каждым: что вы получаете, что теряете, и какой маленький шаг можно сделать без резкого решения.",
-      "",
-      "Важно: это не медицинская, юридическая или финансовая рекомендация. Если в ситуации есть риск для безопасности, здоровья или денег, подключите профильного специалиста.",
-    ].join("\n")),
-  };
-}
-
 export async function generateDialoguePrimaryAnswer(input: {
   topic?: string | null;
   difficulty?: string | null;
@@ -71,8 +48,6 @@ export async function generateDialoguePrimaryAnswer(input: {
   userId?: string | null;
   requestId?: string;
 }): Promise<DialoguePrimaryAnswerResult> {
-  const fallback = heuristicPrimaryAnswer(input);
-
   try {
     const response = await aiComplete({
       feature: "dialogue-primary-answer",
@@ -84,12 +59,13 @@ export async function generateDialoguePrimaryAnswer(input: {
         {
           role: "system",
           content: [
-            "You write ETerapy's free primary answer after clarifying questions.",
-            "Write in Russian. Be warm, specific, and concise.",
-            "Use short sections: Короткий ответ, Что кажется важным, Мягкий следующий шаг.",
-            "Do NOT recommend any paid product, format, service, specialist, or a «Если хочется глубже» section inside the answer — recommendations are shown to the user in a separate block after the answer. End with meaning and a gentle next step.",
-            "Do not hard-sell, pressure, diagnose, predict guaranteed outcomes, manipulate, or shame.",
-            "For medical, legal, financial, emergency, or safety topics, include safe redirect copy.",
+            "Ты пишешь бесплатный «первичный разбор» ETerapy после короткого уточняющего диалога.",
+            "Пиши по-русски. Тепло, конкретно, по-человечески — обращайся ИМЕННО к ситуации этого человека, отзеркаливай его собственные слова и детали, которыми он поделился. Никаких общих, обезличенных формулировок.",
+            "Структура — короткие разделы: «Короткий ответ», «Что кажется важным», «Мягкий следующий шаг». В каждом разделе несколько живых предложений (а не одна холодная строка) — будь содержательным.",
+            "Начни «Короткий ответ» с того, что ты реально услышал в вопросе и уточнениях, чтобы было очевидно: разбор про его случай, а не шаблон.",
+            "НЕ рекомендуй платные продукты, форматы, услуги, специалистов и не добавляй раздел «Если хочется глубже» — рекомендации показываются отдельным блоком после ответа.",
+            "НЕ добавляй дисклеймеры и оговорки вида «это не медицинская/юридическая/финансовая рекомендация» — стандартный дисклеймер показывает интерфейс.",
+            "Не продавливай, не дави, не ставь диагнозов, не обещай гарантированный исход, не манипулируй и не стыди.",
           ].join(" "),
         },
         {
@@ -106,7 +82,17 @@ export async function generateDialoguePrimaryAnswer(input: {
     });
 
     const text = normalizeAnswer(response.text);
-    if (text.length < 120) return fallback;
+    // Too short to be a real разбор → treat as a provider miss and let the
+    // caller retry, rather than persisting a one-line placeholder.
+    if (text.length < 120) {
+      log.warn("dialogue-primary-answer-too-short", {
+        requestId: input.requestId,
+        length: text.length,
+        provider: response.provider,
+        model: response.model,
+      });
+      throw new DialoguePrimaryAnswerUnavailableError("Primary answer too short");
+    }
 
     return {
       text,
@@ -118,10 +104,11 @@ export async function generateDialoguePrimaryAnswer(input: {
       latencyMs: response.latencyMs,
     };
   } catch (error) {
-    log.warn("dialogue-primary-answer-fallback", {
+    if (error instanceof DialoguePrimaryAnswerUnavailableError) throw error;
+    log.warn("dialogue-primary-answer-unavailable", {
       requestId: input.requestId,
       error: serializeError(error),
     });
-    return fallback;
+    throw new DialoguePrimaryAnswerUnavailableError();
   }
 }

@@ -108,7 +108,7 @@ describe("dialogue-clarifier", () => {
     expect(result.chips.length).toBe(result.questions.length);
   });
 
-  it("asks a heuristic clarifying question on the FIRST turn when the LLM is down (never silent-skips)", async () => {
+  it("never emits a scripted question on the FIRST turn when the LLM is down (resolves to ready)", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueConversationalTurn({
@@ -120,22 +120,16 @@ describe("dialogue-clarifier", () => {
       requestId: "req-live-fallback",
     });
 
-    // #9: on the FIRST turn we must NEVER silently skip the whole clarifying
-    // conversation. If the gateway is down (or the user's AI budget is
-    // exhausted), fall back to ONE topic-aware heuristic question so the разбор
-    // still opens with a real dialogue. Later turns may still go "ready".
-    expect(result.type).toBe("question");
-    expect(result.source).toBe("heuristic");
-    expect((result.question ?? "").length).toBeGreaterThan(8);
+    // Issue #3: the clarifying dialogue is ALWAYS LLM-driven — we never fabricate
+    // a preset/scripted question to pad the floor. When the gateway is down we
+    // resolve to "ready"; the (also LLM-written) разбор then either generates or
+    // surfaces an honest retry, but the user never sees a scripted question.
+    expect(result).toEqual({ type: "ready", source: "ai" });
   });
 
-  it("keeps asking a heuristic question below MIN turns when the LLM is down (min 3 questions)", async () => {
+  it("resolves to ready (never a scripted question) below MIN turns when the LLM is down", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
-    // Only ONE pair so far → below MIN_CLARIFYING_TURNS. The разбор must NOT be
-    // produced after a single question (the «выдал только один вопрос» bug):
-    // when the LLM is unavailable we fall back to the NEXT heuristic question so
-    // the conversation reaches at least 3 meaningful exchanges.
     const result = await generateDialogueConversationalTurn({
       question: "Стоит ли уходить с работы, если руководитель обесценивает мои идеи?",
       topic: "career",
@@ -150,12 +144,10 @@ describe("dialogue-clarifier", () => {
       requestId: "req-min-turns-fallback",
     });
 
-    expect(result.type).toBe("question");
-    expect(result.source).toBe("heuristic");
-    expect((result.question ?? "").length).toBeGreaterThan(8);
+    expect(result).toEqual({ type: "ready", source: "ai" });
   });
 
-  it("only signals ready on LLM failure once MIN_CLARIFYING_TURNS pairs are reached", async () => {
+  it("signals ready on LLM failure once MIN_CLARIFYING_TURNS pairs are reached", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
     const result = await generateDialogueConversationalTurn({
@@ -171,7 +163,7 @@ describe("dialogue-clarifier", () => {
       requestId: "req-ready-after-min",
     });
 
-    expect(result).toEqual({ type: "ready", source: "heuristic" });
+    expect(result).toEqual({ type: "ready", source: "ai" });
   });
 
   it("signals ready after MAX_CLARIFYING_TURNS pairs without calling the LLM", async () => {
@@ -203,14 +195,16 @@ describe("dialogue-clarifier", () => {
     expect(mockAiComplete).not.toHaveBeenCalled();
   });
 
-  it("turns a premature LLM ready before MIN_CLARIFYING_TURNS into another question", async () => {
+  it("rejects a premature LLM ready below MIN_CLARIFYING_TURNS (a healthy model keeps asking)", async () => {
     // The LLM tries to wrap up after a single exchange (the prod «один вопрос»
-    // bug). Below MIN_CLARIFYING_TURNS the premature ready must be converted into
-    // the next heuristic clarifying question instead of jumping to the разбор.
+    // bug). Below MIN_CLARIFYING_TURNS the premature ready is rejected on every
+    // attempt; with no scripted fallback (issue #3) a model stuck on "ready"
+    // resolves to ready, but the rejection is what makes a HEALTHY model ask
+    // again on the retry instead of producing a 1-turn разбор.
     mockAiComplete.mockResolvedValue({
       text: '{"q":"","c":[]}',
-      provider: "openai",
-      model: "gpt-test",
+      provider: "yandex",
+      model: "yandexgpt/latest",
       tokensIn: 1,
       tokensOut: 1,
       latencyMs: 10,
@@ -227,9 +221,10 @@ describe("dialogue-clarifier", () => {
       requestId: "req-premature-ready",
     });
 
-    expect(result.type).toBe("question");
-    expect(result.source).toBe("heuristic");
-    expect((result.question ?? "").length).toBeGreaterThan(8);
+    expect(result).toEqual({ type: "ready", source: "ai" });
+    // Both attempts (initial + retry) were made before giving up — the retry is
+    // where a healthy model would have produced a real question.
+    expect(mockAiComplete).toHaveBeenCalledTimes(2);
   });
 
   it("returns an AI conversational turn with provider metadata when the gateway answers", async () => {

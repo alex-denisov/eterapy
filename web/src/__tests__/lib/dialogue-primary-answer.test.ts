@@ -1,6 +1,6 @@
 import {
+  DialoguePrimaryAnswerUnavailableError,
   generateDialoguePrimaryAnswer,
-  heuristicPrimaryAnswer,
 } from "@/lib/dialogue-primary-answer";
 import { aiComplete } from "@/lib/ai";
 
@@ -33,8 +33,8 @@ describe("dialogue-primary-answer", () => {
         "Мягкий следующий шаг",
         "Запишите по одному маленькому действию для каждого варианта и выберите самое спокойное.",
       ].join("\n"),
-      provider: "openrouter",
-      model: "openrouter/free",
+      provider: "yandex",
+      model: "yandexgpt/latest",
       tokensIn: 100,
       tokensOut: 160,
       latencyMs: 1200,
@@ -54,7 +54,7 @@ describe("dialogue-primary-answer", () => {
     });
 
     expect(result.source).toBe("ai");
-    expect(result.provider).toBe("openrouter");
+    expect(result.provider).toBe("yandex");
     expect(result.text).toContain("Короткий ответ");
     expect(mockAiComplete).toHaveBeenCalledWith(expect.objectContaining({
       feature: "dialogue-primary-answer",
@@ -64,37 +64,48 @@ describe("dialogue-primary-answer", () => {
     }));
     const request = mockAiComplete.mock.calls[0]?.[0];
     // Task 6: the разбор must NOT recommend paid products inside the prose — a
-    // dedicated «можно посмотреть глубже» block does that. So the prompt must
-    // forbid (not request) a «Если хочется глубже» section.
-    expect(request?.messages[0]?.content).toContain("Do NOT recommend any paid product");
+    // dedicated «можно посмотреть глубже» block does that. So the prompt forbids
+    // (not requests) a «Если хочется глубже» section.
+    expect(request?.messages[0]?.content).toContain("НЕ рекомендуй платные продукты");
+    // Issue #9: the prompt must forbid inline medical/legal/financial caveats —
+    // the standard disclaimer is a UI element, not part of the answer prose.
+    expect(request?.messages[0]?.content).toContain("НЕ добавляй дисклеймеры");
     expect(result.text).not.toContain("Если хочется глубже");
   });
 
-  it("falls back to a safe heuristic answer if all providers fail", async () => {
+  // Issue #3: the разбор is ALWAYS LLM-generated. When the single active provider
+  // can't answer (after same-provider multi-model retries) we throw so the API
+  // can surface an honest retry — we never fall back to a scripted heuristic.
+  it("throws when the provider is unavailable", async () => {
     mockAiComplete.mockRejectedValue(new Error("all providers failed"));
 
-    const result = await generateDialoguePrimaryAnswer({
-      topic: "anxiety",
-      difficulty: "high",
-      safetyLevel: "sensitive",
-      requestId: "req-1",
-      messages: [{ role: "USER", content: "Я тревожусь перед разговором" }],
-    });
-
-    expect(result.source).toBe("heuristic");
-    expect(result.text).toContain("Короткий ответ");
-    // Task 6: no in-prose product recommendation section anymore.
-    expect(result.text).not.toContain("Если хочется глубже");
-    expect(result.text).toContain("Важно: это не медицинская");
+    await expect(
+      generateDialoguePrimaryAnswer({
+        topic: "anxiety",
+        difficulty: "high",
+        safetyLevel: "sensitive",
+        requestId: "req-1",
+        messages: [{ role: "USER", content: "Я тревожусь перед разговором" }],
+      }),
+    ).rejects.toBeInstanceOf(DialoguePrimaryAnswerUnavailableError);
   });
 
-  it("creates topic-aware heuristic answers", () => {
-    const result = heuristicPrimaryAnswer({
-      topic: "relationships",
-      difficulty: "medium",
-      messages: [{ role: "USER", content: "Что делать в отношениях?" }],
+  it("throws when the model returns a too-short answer", async () => {
+    mockAiComplete.mockResolvedValue({
+      text: "Ок.",
+      provider: "yandex",
+      model: "yandexgpt/latest",
+      tokensIn: 10,
+      tokensOut: 2,
+      latencyMs: 200,
     });
 
-    expect(result.text).toContain("повторяющийся сценарий");
+    await expect(
+      generateDialoguePrimaryAnswer({
+        topic: "career",
+        requestId: "req-2",
+        messages: [{ role: "USER", content: "Что делать?" }],
+      }),
+    ).rejects.toBeInstanceOf(DialoguePrimaryAnswerUnavailableError);
   });
 });

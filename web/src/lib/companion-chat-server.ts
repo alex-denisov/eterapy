@@ -5,6 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import db from "@/lib/db";
+import { tryParseChatAnalysis } from "@/lib/chat-analysis";
 import { stripDeepeningSection } from "@/lib/dialogue-answer-format";
 import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
 import { spendClarityCreditsForProduct } from "@/lib/clarity-credits";
@@ -125,28 +126,61 @@ async function buildSeedMessagesFromDialogue(userId: string, dialogueId: string)
   }
 }
 
+// Issue #7: seed a companion chat continued from a chat-analysis разбор with the
+// platform's read («главное» = insight + assessment), so the chat «просто
+// продолжается» from that conclusion instead of opening blank or, worse, on the
+// user's unrelated standalone session.
+async function buildSeedMessagesFromAnalysis(userId: string, analysisId: string): Promise<CompanionMessage[]> {
+  try {
+    const result = await db.productResult.findFirst({
+      where: { id: analysisId, userId, productKey: "chat-analysis", deletedAt: null },
+      select: { resultText: true },
+    });
+    if (!result?.resultText) return [];
+    const parsed = tryParseChatAnalysis(result.resultText);
+    if (!parsed) return [];
+    const summary = [parsed.insight, parsed.assessment]
+      .filter((part): part is string => Boolean(part && part.trim()))
+      .join("\n\n")
+      .slice(0, MAX_MESSAGE_CHARS);
+    if (!summary.trim()) return [];
+    return [{ role: "companion", text: summary, at: new Date().toISOString() }];
+  } catch {
+    return [];
+  }
+}
+
 export async function getOrCreateSession(input: {
   userId: string;
   sourceDialogueId?: string | null;
+  sourceAnalysisId?: string | null;
   mode?: string | null;
 }): Promise<SessionRow> {
   const mode = isCompanionMode(input.mode) ? input.mode : "explore";
   const sourceDialogueId = input.sourceDialogueId ?? null;
-  // Task 7: the session is keyed to its source dialogue (or to the standalone
-  // /products/chat when null), so continuing a specific разбор always reuses /
-  // creates its OWN chat — not the user's latest unrelated chat.
+  const sourceAnalysisId = input.sourceAnalysisId ?? null;
+  // Task 7: the session is keyed to its source — a specific разбор (dialogue), a
+  // specific chat-analysis, or the standalone /products/chat (both null) — so
+  // continuing a given context always reuses / creates its OWN chat, never the
+  // user's latest unrelated conversation.
+  const where = sourceAnalysisId
+    ? { userId: input.userId, sourceAnalysisId }
+    : { userId: input.userId, sourceDialogueId, sourceAnalysisId: null };
   const existing = await db.companionChatSession.findFirst({
-    where: { userId: input.userId, sourceDialogueId },
+    where,
     orderBy: { updatedAt: "desc" },
   });
   if (existing) return existing as SessionRow;
-  const seededMessages = sourceDialogueId
-    ? await buildSeedMessagesFromDialogue(input.userId, sourceDialogueId)
-    : [];
+  const seededMessages = sourceAnalysisId
+    ? await buildSeedMessagesFromAnalysis(input.userId, sourceAnalysisId)
+    : sourceDialogueId
+      ? await buildSeedMessagesFromDialogue(input.userId, sourceDialogueId)
+      : [];
   const created = await db.companionChatSession.create({
     data: {
       userId: input.userId,
       sourceDialogueId,
+      sourceAnalysisId,
       mode,
       ...(seededMessages.length > 0
         ? { messages: seededMessages as unknown as Prisma.InputJsonValue }
@@ -352,11 +386,11 @@ export async function extendPaidSession(input: { userId: string; sessionId: stri
   return { ok: true, includedByPremium: row.premiumIncluded, state: publicState(updated as SessionRow, now) };
 }
 
-export async function getSessionState(input: { userId: string; sessionId?: string | null; sourceDialogueId?: string | null }): Promise<PublicSessionState> {
+export async function getSessionState(input: { userId: string; sessionId?: string | null; sourceDialogueId?: string | null; sourceAnalysisId?: string | null }): Promise<PublicSessionState> {
   const row = input.sessionId
     ? await loadSession(input.userId, input.sessionId)
     : null;
-  const session = row ?? (await getOrCreateSession({ userId: input.userId, sourceDialogueId: input.sourceDialogueId }));
+  const session = row ?? (await getOrCreateSession({ userId: input.userId, sourceDialogueId: input.sourceDialogueId, sourceAnalysisId: input.sourceAnalysisId }));
   return publicState(session);
 }
 

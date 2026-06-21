@@ -1294,6 +1294,10 @@ model CompanionChatSession {
   userId           String    @map("user_id")
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sourceDialogueId String?   @map("source_dialogue_id")
+  // Issue #7: «продолжить разговор в чате» from a chat-analysis разбор keys its
+  // own session to that analysis (seeded with its read) instead of falling back
+  // to the user's latest unrelated standalone chat (the «чей-то диалог» bug).
+  sourceAnalysisId String?   @map("source_analysis_id")
   mode             String    @default("explore")
   status           String    @default("free")
   freeMessagesUsed Int       @default(0) @map("free_messages_used")
@@ -1306,6 +1310,7 @@ model CompanionChatSession {
 
   @@index([userId, updatedAt], map: "companion_chat_user_updated_idx")
   @@index([userId, premiumIncluded, paidStartedAt], map: "companion_chat_premium_quota_idx")
+  @@index([userId, sourceAnalysisId], map: "companion_chat_source_analysis_idx")
   @@map("companion_chat_sessions")
 }
 

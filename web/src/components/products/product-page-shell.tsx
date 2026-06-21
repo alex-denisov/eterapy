@@ -7,6 +7,7 @@ import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { buildNatalWheel } from "@/lib/esoteric-chart";
 import { computeHumanDesign } from "@/lib/human-design";
 import { getProductPageSpec, PRODUCT_PAGE_FAMILY_SPECS } from "@/lib/product-page-redesign";
+import { ProductDisclaimer } from "@/components/products/product-legal";
 import { drawTarotSpread } from "@/lib/symbolic-products";
 import type { V5Product } from "@/lib/v5-products";
 
@@ -206,9 +207,7 @@ export function ProductPageShell({
         {action}
       </div>
 
-      <p className="soft-product-shell-legal">
-        Результат носит информационно-рефлексивный характер и не заменяет консультацию специалиста.
-      </p>
+      <ProductDisclaimer className="soft-product-shell-legal mt-0 flex items-start gap-1.5 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]" />
     </section>
   );
 }

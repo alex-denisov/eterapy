@@ -18,6 +18,9 @@ const postSchema = z.object({
   sessionId: z.string().min(1).nullish(),
   sourceDialogueId: z.string().min(1).max(64).nullish(),
   dialogueId: z.string().min(1).max(64).nullish(),
+  // Issue #7: a chat continued from a chat-analysis разбор is keyed to that analysis.
+  sourceAnalysisId: z.string().min(1).max(64).nullish(),
+  analysisId: z.string().min(1).max(64).nullish(),
   message: z.string().min(1).max(2000),
   mode: z.enum(["stay", "explore", "question"]).nullish(),
 });
@@ -30,7 +33,8 @@ export async function GET(request: NextRequest) {
 
   const sessionId = request.nextUrl.searchParams.get("sessionId");
   const dialogueId = request.nextUrl.searchParams.get("dialogueId");
-  const state = await getSessionState({ userId, sessionId, sourceDialogueId: dialogueId });
+  const analysisId = request.nextUrl.searchParams.get("analysisId");
+  const state = await getSessionState({ userId, sessionId, sourceDialogueId: dialogueId, sourceAnalysisId: analysisId });
   return jsonWithRequestContext({ state }, { status: 200 }, context);
 }
 
@@ -53,7 +57,12 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Неверные данные", 400, context);
 
   const sessionId = parsed.data.sessionId
-    ?? (await getOrCreateSession({ userId, sourceDialogueId: parsed.data.sourceDialogueId, mode: parsed.data.mode })).id;
+    ?? (await getOrCreateSession({
+      userId,
+      sourceDialogueId: parsed.data.sourceDialogueId,
+      sourceAnalysisId: parsed.data.sourceAnalysisId ?? parsed.data.analysisId,
+      mode: parsed.data.mode,
+    })).id;
 
   const result = await sendCompanionMessage({
     userId,

@@ -5,9 +5,10 @@
 // синхронная услуга: бесплатного входа здесь НЕТ (бесплатен первичный разбор).
 
 import Link from "next/link";
-import { ChevronLeft, Info, ShieldCheck } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { CompanionChatPanel } from "@/components/companion/companion-chat-panel";
+import { ProductDisclaimer, ProductPrivacyBadge } from "@/components/products/product-legal";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
 import { formatPoints } from "@/lib/points";
@@ -48,11 +49,25 @@ function ChatHeroPrice({ authed }: { authed: boolean }) {
 export default async function ProductChatPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ dialogueId?: string }>;
+  searchParams?: Promise<{ dialogueId?: string; analysisId?: string; start?: string }>;
 }) {
   const session = await auth();
   const authed = Boolean(session?.user?.id);
   const sp = await searchParams;
+  const dialogueId = sp?.dialogueId ?? null;
+  const analysisId = sp?.analysisId ?? null;
+  // Issue #5/#7: «продолжить разговор в чате» arrives with ?start=1 to open the
+  // paid session in one click. We preserve the session key (+ start) across the
+  // guest → /login round-trip so the conversation resumes seeded and in context.
+  const autoStart = sp?.start === "1";
+  const loginNext = (() => {
+    const params = new URLSearchParams();
+    if (dialogueId) params.set("dialogueId", dialogueId);
+    if (analysisId) params.set("analysisId", analysisId);
+    if (autoStart) params.set("start", "1");
+    const qs = params.toString();
+    return qs ? `/products/chat?${qs}` : "/products/chat";
+  })();
 
   return (
     <main className="soft-clarity-page soft-product-detail-page" data-testid="product-page-chat">
@@ -74,19 +89,13 @@ export default async function ProductChatPage({
             <ChatHeroPrice authed={authed} />
           </div>
 
-          <p className="mt-2.5 inline-flex items-center gap-1.5 pl-7 text-xs font-medium text-[var(--soft-terracotta-dark)]">
-            <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
-            Приватно — видно только вам
-          </p>
+          <ProductPrivacyBadge />
 
           <div className="mt-5" data-testid="product-service-start">
-            <CompanionChatPanel dialogueId={sp?.dialogueId ?? null} loginNext={sp?.dialogueId ? `/products/chat?dialogueId=${sp.dialogueId}` : "/products/chat"} />
+            <CompanionChatPanel dialogueId={dialogueId} analysisId={analysisId} autoStart={autoStart} loginNext={loginNext} />
           </div>
 
-          <p className="mt-4 flex items-start gap-1.5 text-[11px] leading-relaxed text-[var(--soft-ink-faint)]">
-            <Info className="mt-px size-3 shrink-0" aria-hidden="true" />
-            <span>Это поддержка для размышления, а не медицинская или экстренная помощь. Результат носит информационно-рефлексивный характер и не заменяет консультацию специалиста.</span>
-          </p>
+          <ProductDisclaimer />
         </div>
       </section>
     </main>

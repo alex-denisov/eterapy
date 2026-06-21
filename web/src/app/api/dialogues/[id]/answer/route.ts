@@ -130,17 +130,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return errorWithRequestContext("CONFLICT", "Dialogue is not ready for primary answer", 409, context);
   }
 
-  const answer = await generateDialoguePrimaryAnswer({
-    topic: dialogue.topic,
-    difficulty: dialogue.difficulty,
-    safetyLevel: dialogue.safetyLevel,
-    userId,
-    requestId: context.requestId,
-    messages: dialogue.messages.map((message) => ({
-      role: message.role as "USER" | "ASSISTANT" | "SYSTEM",
-      content: message.content,
-    })),
-  });
+  // Issue #3: the разбор is always LLM-generated. If the provider can't answer
+  // (after same-provider multi-model retries), surface an honest retry — the
+  // dialogue stays PROCESSING so the next POST re-attempts — instead of saving a
+  // scripted placeholder.
+  let answer;
+  try {
+    answer = await generateDialoguePrimaryAnswer({
+      topic: dialogue.topic,
+      difficulty: dialogue.difficulty,
+      safetyLevel: dialogue.safetyLevel,
+      userId,
+      requestId: context.requestId,
+      messages: dialogue.messages.map((message) => ({
+        role: message.role as "USER" | "ASSISTANT" | "SYSTEM",
+        content: message.content,
+      })),
+    });
+  } catch {
+    return errorWithRequestContext(
+      "AI_UNAVAILABLE",
+      "Не удалось подготовить разбор. Попробуйте ещё раз.",
+      503,
+      context,
+    );
+  }
 
   const updated = await db.dialogue.update({
     where: { id: dialogue.id },

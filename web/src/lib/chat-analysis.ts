@@ -14,6 +14,12 @@ export type ReplyVariant = { style: string; text: string; hint?: string };
 
 export type ChatAnalysisStructured = {
   insight: string;
+  // Issue #6: «главное» was a single cold sentence. `assessment` is the fuller
+  // read the client actually came for — a direct, warm answer to their question
+  // plus the platform's evaluation of the situation (2–4 живых предложения, may
+  // span two short paragraphs). Optional for backward-compat with разборы saved
+  // before this field existed.
+  assessment?: string;
   tonesThem: ToneEntry[];
   tonesMe: ToneEntry[];
   replies: ReplyVariant[];
@@ -216,6 +222,10 @@ export async function extractChatTextFromScreenshot(input: {
 export function heuristicChatAnalysis(sourceText: string): { text: string; metadata: Prisma.InputJsonObject } {
   const structured: ChatAnalysisStructured = {
     insight: "В этой переписке просматривается знакомый сценарий: попытка близости упирается в защитную реакцию — и оба собеседника остаются с ощущением, что их не слышат.",
+    assessment: [
+      "Судя по переписке, вы тянетесь к контакту и хотите быть услышанным, а в ответ получаете защиту и отстранение — и каждый виток разговора только укрепляет это кольцо. Дело не в том, что один из вас «неправ»: вы говорите из разных состояний, поэтому слова бьют мимо.",
+      "Это значит, что спорить по содержанию почти бесполезно — сначала нужно снизить напряжение и обозначить, что для вас важно, без обвинения. Тогда у собеседника появляется шанс выйти из обороны, а у вас — перестать платить за разговор тревогой.",
+    ].join("\n\n"),
     tonesThem: [
       { label: "защитный", pct: 72 },
       { label: "отстранённый", pct: 48 },
@@ -257,9 +267,12 @@ export async function generateChatAnalysis(input: {
     "You MUST respect the relationship label literally. If the context says начальник or коллега, this is a WORKPLACE conversation — do NOT frame it as a romantic or family conflict. If the context says родитель, frame it as parent-child dynamics. If партнёр or бывший(ая), frame it as romantic.",
     "If the user's goal is stated, the insight, tone analysis, and reply variants must all align with that goal.",
     "Return ONLY valid JSON — no markdown, no code fences — with this exact structure:",
-    '{"insight":"one meaningful insight sentence","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"...","hint":"..."},{"style":"прямой","text":"...","hint":"..."},{"style":"границы","text":"...","hint":"..."}],"safetyNote":"..."}',
+    '{"insight":"one meaningful insight sentence","assessment":"a fuller, warm assessment in Russian","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"...","hint":"..."},{"style":"прямой","text":"...","hint":"..."},{"style":"границы","text":"...","hint":"..."}],"safetyNote":"..."}',
     "Rules: tonesThem and tonesMe each have exactly 4 items with realistic percentages summing to roughly 200%.",
-    "replies has exactly 3 items. insight is one sentence. Be warm, non-diagnostic, non-fatalistic. No markdown inside string values.",
+    "replies has exactly 3 items. insight is ONE crisp sentence (the emotional crux).",
+    // Issue #6: «главное» must actually answer the user — not one cold neutral line.
+    "assessment is the heart of «главное»: 3–6 живых предложений на русском (можно двумя короткими абзацами, разделёнными пустой строкой) — это прямой, тёплый ответ на вопрос/цель пользователя из CONTEXT и оценка ситуации платформой. Объясни, что, судя по переписке, на самом деле происходит между этими людьми, почему так выходит, что это значит для пользователя и на что опереться дальше. Опирайся на конкретные детали переписки. Не пересказывай переписку и не повторяй insight дословно — добавляй смысл, а не воду.",
+    "Be warm, non-diagnostic, non-fatalistic. No markdown inside string values (plain text; separate paragraphs in assessment with a blank line).",
     // INC-022: replies[].text must be a COPY-READY message, not advice.
     "CRITICAL — replies[].text MUST be the literal message the user can copy and send AS-IS to the other person. Write it in first person («я…»), addressed directly to собеседник, in the user's natural everyday voice, in Russian. It is the reply itself, NOT advice about replying. NEVER put meta-commentary inside text — no «Похоже, что…», «возможно, стоит…», «попробуйте…», «дайте ему время», «рекомендую…», no third-person description of the situation. Do NOT wrap text in quotes («»).",
     "replies[].hint is a SHORT note FOR THE USER (≤90 chars, Russian) — когда/зачем выбрать этот вариант. Every recommendation, suggestion or situational comment belongs ONLY in hint, never in text.",
@@ -271,7 +284,7 @@ export async function generateChatAnalysis(input: {
       feature: "product-chat-analysis",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 1500,
+      maxTokens: 2000,
       temperature: 0.5,
       messages: [
         { role: "system", content: systemPrompt },

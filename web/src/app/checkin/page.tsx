@@ -18,13 +18,13 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { CompanionChatPanel } from "@/components/companion/companion-chat-panel";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { DialogueThread } from "@/components/dialogue/dialogue-thread";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/ui/disclaimer";
+import { ProductDisclaimer } from "@/components/products/product-legal";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
 import { stripDeepeningSection } from "@/lib/dialogue-answer-format";
@@ -170,14 +170,16 @@ export default function CheckinPage() {
   // below flips this to `true` synchronously on mount when a dialogueId is in
   // the URL, so the «Восстанавливаю…» banner still appears after hydration.
   const [restoring, setRestoring] = useState(false);
-  // B413: «Продолжить разговор в чате» continues in place as a paid session.
-  // While active: recs + «что я слышу» hide, the «Первичный разбор» disclosure
-  // expands, and the paid chat runs on the same dialogue thread. On session
-  // end (timer expiry) the chat collapses and the recommendations re-appear.
-  const [showChat, setShowChat] = useState(false);
   // #9: controlled «первичный разбор» disclosure so the summary label can flip
   // between «показать диалог» / «скрыть диалог».
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Issue #1: `processing` is used both while we CREATE the dialogue (→ goes to
+  // clarifying) and while we GENERATE the final разбор. Only the latter should
+  // show the «что я слышу в вашем вопросе» band — otherwise it flashes for a beat
+  // right after the first question before the clarifying chat appears. We track
+  // which kind of processing is in flight so dialogue-creation shows the live
+  // chat (the user's question + typing) immediately instead.
+  const [processingKind, setProcessingKind] = useState<"dialogue" | "answer">("answer");
   const autoStartedRef = useRef(false);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
@@ -301,6 +303,7 @@ export default function CheckinPage() {
     if (!question.trim()) return;
     setError("");
     setLimitPaywall(null);
+    setProcessingKind("dialogue");
     setPhase("processing");
     setDialogue(null);
     setClarification("");
@@ -364,6 +367,7 @@ export default function CheckinPage() {
   async function generateAnswer(dialogueId: string) {
     setError("");
     setRetrying(false);
+    setProcessingKind("answer");
     setPhase("processing");
 
     try {
@@ -383,6 +387,7 @@ export default function CheckinPage() {
   async function submitClarification(message: string, skipAll = false) {
     if (!dialogue) return;
     setError("");
+    setProcessingKind("answer");
     setPhase("processing");
 
     try {
@@ -445,6 +450,7 @@ export default function CheckinPage() {
       } else {
         setDialogue(data.dialogue);
         setAwaitingAssistant(false);
+        setProcessingKind("answer");
         setPhase("processing");
         await generateAnswer(data.dialogue.id);
       }
@@ -711,7 +717,27 @@ export default function CheckinPage() {
         </div>
       )}
 
-      {phase === "processing" && (
+      {/* Issue #1: dialogue-creation processing — show the live chat immediately
+          (the user's question + a typing indicator) so «сразу после вопроса
+          появляется диалог», never the «что я слышу» band that belongs to the
+          final разбор. The clarifying phase takes over the moment the first
+          question arrives. */}
+      {phase === "processing" && processingKind === "dialogue" && (
+        <div className="soft-dialogue-chat" data-testid="dialogue-starting-step">
+          <div className="soft-msg-row soft-msg-row-user">
+            <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+            <div className="soft-msg-bubble soft-msg-bubble-user">{question}</div>
+          </div>
+          <div className="soft-msg-row soft-msg-row-assistant" data-testid="dialogue-typing-indicator">
+            <div className="soft-msg-avatar" aria-hidden="true" />
+            <div className="soft-msg-bubble soft-msg-bubble-assistant">
+              <div className="soft-typing"><span /><span /><span /></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phase === "processing" && processingKind === "answer" && (
         // B411: no separate "generation page" that crops the dialogue down to
         // the first question. While the разбор is being written we render the
         // SAME single-screen scaffold as the result — the full dialogue stays
@@ -794,14 +820,14 @@ export default function CheckinPage() {
             <div className="flex min-w-0 items-center gap-1.5">
               <button
                 type="button"
-                onClick={() => (showChat ? setShowChat(false) : reset())}
-                aria-label={showChat ? "Вернуться к разбору" : "Новый разбор"}
+                onClick={reset}
+                aria-label="Новый разбор"
                 data-testid="dialogue-result-back"
                 className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
               >
                 <ChevronLeft className="size-5" aria-hidden="true" />
               </button>
-              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>{showChat ? "Разговор в чате" : "Ваш разбор"}</h1>
+              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Ваш разбор</h1>
             </div>
             <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-[var(--soft-terracotta-dark)]">
               <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
@@ -812,7 +838,7 @@ export default function CheckinPage() {
               слышу». Collapsed by default, same bubble structure as the live chat.
               Task 7: hidden while the chat continuation is open — the chat itself
               is seeded with the разбор + thread, so showing it twice is noise. */}
-          {!showChat && (() => {
+          {(() => {
             const thread = (dialogue.messages ?? []).filter(
               (m) => m.role !== "SYSTEM" && m.content.trim() && m.content !== primaryAnswer,
             );
@@ -835,25 +861,6 @@ export default function CheckinPage() {
             );
           })()}
 
-          {/* B413/Task 7: in-page paid chat continuation. The companion session is
-              keyed to this dialogue and seeded with the разбор + thread (server),
-              so the chat «просто продолжается». autoStart opens the paid session
-              on mount → the credits/₽ are charged on the «Продолжить в чате» click.
-              onSessionEnd fires when the 45-min timer lapses → re-show the recs. */}
-          {showChat && (
-            <div className="mt-4" data-testid="dialogue-inplace-chat">
-              <CompanionChatPanel
-                inline
-                autoStart
-                dialogueId={dialogue.id}
-                onSessionEnd={() => setShowChat(false)}
-                loginNext={`/checkin?dialogueId=${dialogue.id}`}
-              />
-            </div>
-          )}
-
-          {!showChat && (
-           <>
           {/* B411: «что я слышу в вашем вопросе» — horizontal band, full width. */}
           <article
             className="relative overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] p-5 md:p-7"
@@ -879,16 +886,17 @@ export default function CheckinPage() {
           <section className="mt-5" data-testid="dialogue-answer-triage-layout" aria-label="Что можно сделать дальше">
             <p className="soft-eyebrow text-[var(--soft-terracotta-dark)]">можно посмотреть глубже</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 sm:items-stretch" data-testid="dialogue-triage-rail">
-              {/* priority 1: продолжить разговор в чате — B413 continues in place
-                  as a paid session (no bounce to /cabinet/chat). Guests are sent
-                  to the full /login first; authed users open the in-page chat. */}
+              {/* priority 1: продолжить разговор в чате — issue #5: opens the /chat
+                  SERVICE keyed to this dialogue (?dialogueId=…&start=1) so the URL
+                  reflects the service + session and a refresh restores the chat.
+                  Guests pass through /login first; authed users go straight in. */}
               <button
                 type="button"
                 className="soft-card soft-triage-primary flex w-full flex-col p-5 text-left"
                 data-testid="continue-in-chat-cta"
                 data-analytics-surface="checkin_triage"
                 data-analytics-event="triage_primary_clicked"
-                data-analytics-target="checkin#inplace-chat"
+                data-analytics-target={`/products/chat?dialogueId=${dialogue.id}`}
                 data-analytics-product="companion-chat"
                 data-analytics-dialogue-id={dialogue.id}
                 data-analytics-cta-role="primary"
@@ -896,12 +904,12 @@ export default function CheckinPage() {
                 data-analytics-offer-reason="live_dialogue_continuation"
                 onClick={() => {
                   track({ event: "companion_chat_cta_clicked", surface: "checkin", dialogueId: dialogue.id });
+                  const next = `/products/chat?dialogueId=${dialogue.id}&start=1`;
                   if (status !== "authenticated") {
-                    const next = `/checkin?dialogueId=${dialogue.id}`;
                     window.location.href = `${loginUrl()}?next=${encodeURIComponent(next)}`;
                     return;
                   }
-                  setShowChat(true);
+                  window.location.href = next;
                 }}
               >
                 <span className="soft-triage-ribbon">продолжить в диалоге</span>
@@ -1164,8 +1172,11 @@ export default function CheckinPage() {
             </p>
           )}
           {saveState === "error" && status !== "authenticated" && <p className="mt-3 text-sm text-destructive">Не удалось сохранить. Попробуйте еще раз.</p>}
-           </>
-          )}
+
+          {/* Issue #9: one universal reflective-use disclaimer, same wording and
+              placement as every other digital service (replaces the old «Важно:
+              это не медицинская…» paragraph that used to live inside the разбор). */}
+          <ProductDisclaimer />
         </div>
       )}
 

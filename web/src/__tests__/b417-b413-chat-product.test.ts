@@ -67,32 +67,37 @@ describe("paid-only companion panel", () => {
   });
 });
 
-// B413 — «Продолжить разговор в чате» continues in place as a paid session
-// (no bounce to /cabinet/chat), with the «Первичный разбор» expanded and the
-// recs hidden while the timer runs.
-describe("B413 — in-page paid chat continuation", () => {
-  it("replaces the /cabinet/chat bounce with an in-page chat panel", () => {
+// Issue #5 — «Продолжить разговор в чате» now opens the /chat SERVICE keyed to
+// the dialogue (URL changes → refresh restores the chat), replacing the earlier
+// in-place (B413) continuation that never changed the address bar.
+describe("issue #5 — checkin continues into the /chat service", () => {
+  it("routes the chat CTA to /products/chat keyed to the dialogue (not an in-place toggle)", () => {
     const page = source("src/app/checkin/page.tsx");
-    // the old external link target is gone
+    // the old external cabinet link is gone
     expect(page).not.toContain("/cabinet/chat?dialogueId=");
-    // the chat CTA toggles in-page state (or sends guests to /login)
-    expect(page).toContain("setShowChat(true)");
+    // the CTA routes to the /chat service with the dialogue as the session key
+    // and a one-click paid start (?start=1)
+    expect(page).toContain("/products/chat?dialogueId=${dialogue.id}&start=1");
+    // guests pass through /login first
     expect(page).toContain("loginUrl()");
-    // the panel mounts inline on the same dialogue, with a collapse callback
-    expect(page).toContain('data-testid="dialogue-inplace-chat"');
-    expect(page).toContain("onSessionEnd={() => setShowChat(false)}");
-    expect(page).toContain("inline");
+    // no more in-place toggle / inline panel hiding the разбор
+    expect(page).not.toContain("setShowChat");
+    expect(page).not.toContain("showChat");
+    expect(page).not.toContain('data-testid="dialogue-inplace-chat"');
+    // the back arrow simply starts a new разбор now
+    expect(page).toContain('aria-label="Новый разбор"');
   });
 
-  it("hides «Первичный разбор» + recs while the chat is open and auto-starts the paid session", () => {
-    const page = source("src/app/checkin/page.tsx");
-    // Task 7: the disclosure is hidden during chat — the companion session is
-    // seeded with the разбор + thread, so it isn't shown twice.
-    expect(page).toContain("{!showChat && (() => {");
-    expect(page).not.toContain("open={historyOpen || showChat}");
-    // recs/band wrapped behind !showChat
-    expect(page).toContain("{!showChat && (");
-    // the chat continuation charges on the CTA click (one click → paid session)
-    expect(page).toContain("autoStart");
+  it("opens the paid session in one click on the /chat page and accepts an analysis key", () => {
+    const chatPage = source("src/app/products/chat/page.tsx");
+    // ?start=1 → autoStart the paid session; ?analysisId=… seeds from a разбор
+    expect(chatPage).toContain("autoStart");
+    expect(chatPage).toContain("analysisId");
+    const panel = source("src/components/companion/companion-chat-panel.tsx");
+    // the panel charges → header balance refreshes live (no reload needed)
+    expect(panel).toContain("dispatchBalanceChanged");
+    // and scrolls WITHIN the list container (not the page) so the frame stays put
+    expect(panel).toContain("el.scrollTop = el.scrollHeight");
+    expect(panel).not.toMatch(/\.scrollIntoView\(/);
   });
 });

@@ -37,6 +37,9 @@ type ReplyVariant = { style: string; text: string; hint?: string };
 
 type ChatAnalysisStructured = {
   insight: string;
+  // Issue #6: fuller «главное» — a direct answer + situation read. Optional so
+  // разборы saved before this field still render (insight-only).
+  assessment?: string;
   tonesThem: ToneEntry[];
   tonesMe: ToneEntry[];
   replies: ReplyVariant[];
@@ -230,12 +233,21 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
 }) {
   return (
     <div className="mt-4 flex flex-col gap-3.5" data-testid="chat-analysis-result">
-      {/* главное — один спокойный тёплый блок (без двухцветного градиента) */}
+      {/* главное — один спокойный тёплый блок. Issue #6: insight = крупная мысль,
+          под ней развёрнутая оценка ситуации (ответ на вопрос клиента), а не одна
+          холодная строка. assessment может быть в два коротких абзаца. */}
       <div className="rounded-[20px] px-6 py-5" style={{ background: "var(--soft-paper-warm)" }}>
         <p className="soft-eyebrow">главное</p>
         <p className="mt-2.5 font-heading text-[1.45rem] italic leading-snug text-[var(--soft-bordeaux)]">
           {data.insight}
         </p>
+        {data.assessment && (
+          <div className="mt-3.5 flex flex-col gap-2.5 text-[14.5px] leading-relaxed text-[var(--soft-ink)]" data-testid="chat-analysis-assessment">
+            {data.assessment.split(/\n{2,}/).map((para, i) => (
+              <p key={i}>{para.trim()}</p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* тон разговора — один блок, две ленты, две приглушённые гаммы */}
@@ -674,7 +686,9 @@ export function ChatAnalysisActions() {
       priceMain: "790 ₽",
       priceSub: "45 мин · или 4 балла",
       ctaLabel: "Начать",
-      href: "/products/chat",
+      // Issue #7: open a chat session keyed to THIS разбор (seeded with its read)
+      // and start it in one click — never the user's unrelated standalone chat.
+      href: result?.id ? `/products/chat?analysisId=${result.id}&start=1` : "/products/chat",
     },
   ];
   const triageSecondary: TriageProduct[] = recommendSecondaryProducts("relationships", chatPrimaryRec.slug, 4)

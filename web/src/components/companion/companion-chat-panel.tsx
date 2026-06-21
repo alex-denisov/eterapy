@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Clock, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { COMPANION_MODES, type CompanionMode } from "@/lib/companion-chat";
+import { dispatchBalanceChanged } from "@/lib/balance-events";
 import { loginUrl } from "@/lib/subdomain";
 
 type Msg = { role: "user" | "companion"; text: string; at: string };
@@ -61,10 +62,10 @@ function formatRemaining(ms: number): string {
 
 export type CompanionChatPanelProps = {
   dialogueId?: string | null;
-  // B413: slimmer styling so the panel can live inside the «разбор» result.
-  inline?: boolean;
-  // B413: notified when the paid window expires → parent collapses the chat and
-  // re-shows the recommendations.
+  // Issue #7: continue a chat-analysis разбор in its own seeded session, keyed to
+  // the analysis (so it never lands on the user's unrelated standalone chat).
+  analysisId?: string | null;
+  // Notified when the paid window expires (e.g. to refresh surrounding UI).
   onSessionEnd?: () => void;
   // Return path for the full /login redirect (defaults to the current URL).
   loginNext?: string;
@@ -74,7 +75,7 @@ export type CompanionChatPanelProps = {
   autoStart?: boolean;
 };
 
-export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, loginNext, autoStart = false }: CompanionChatPanelProps) {
+export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, loginNext, autoStart = false }: CompanionChatPanelProps) {
   const { status: authStatus } = useSession();
   const authed = authStatus === "authenticated";
   const [state, setState] = useState<State | null>(null);
@@ -89,14 +90,17 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
   const [ended, setEnded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number>(0);
-  const endRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const endedNotifiedRef = useRef(false);
   const autoStartAttemptedRef = useRef(false);
 
   // Load the current session only for authed users (the GET requires auth).
   useEffect(() => {
     if (!authed) return;
-    const qs = dialogueId ? `?dialogueId=${encodeURIComponent(dialogueId)}` : "";
+    const params = new URLSearchParams();
+    if (dialogueId) params.set("dialogueId", dialogueId);
+    if (analysisId) params.set("analysisId", analysisId);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     api<{ state: State }>(`/api/companion-chat${qs}`)
       .then(({ state: s }) => {
         setState(s);
@@ -104,11 +108,27 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
         setMode(s.mode);
       })
       .catch(() => setNotice("Не удалось загрузить диалог. Обновите страницу."));
-  }, [authed, dialogueId]);
+  }, [authed, dialogueId, analysisId]);
 
+  // Issue #7: keep the conversation pinned to the bottom by scrolling INSIDE the
+  // messages list only — never element.scrollIntoView, which also scrolls the
+  // page/window and yanked the whole chat frame upward on every send.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [messages, typing]);
+
+  // Issue #5: «продолжить разговор в чате» lands here with ?start=1 to open the
+  // paid session in one click (autoStart). Drop that one-shot flag from the URL
+  // on mount so a later refresh restores the chat WITHOUT re-charging a session.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("start")) {
+      url.searchParams.delete("start");
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, []);
 
   const paidActive = Boolean(state?.paidActive) && !ended;
 
@@ -152,6 +172,9 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
       endedNotifiedRef.current = false;
       setState(res.state);
       setNotice(res.includedByPremium ? "Сессия открыта по подписке Premium." : null);
+      // Issue #5: a paid start just spent баллы — tell the header pill to re-fetch
+      // immediately instead of waiting for a page reload to show the new balance.
+      if (!res.includedByPremium) dispatchBalanceChanged();
     } catch (error) {
       const e = error as Error & { status?: number };
       if (e.status === 402) {
@@ -198,7 +221,7 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
     try {
       const { result } = await api<{ result: SendResult }>("/api/companion-chat", {
         method: "POST",
-        body: JSON.stringify({ sessionId: state.id, dialogueId, message: text, mode, sourceDialogueId: dialogueId }),
+        body: JSON.stringify({ sessionId: state.id, dialogueId, sourceDialogueId: dialogueId, analysisId, sourceAnalysisId: analysisId, message: text, mode }),
       });
       setState(result.state);
       if (result.kind === "paywalled") {
@@ -225,6 +248,7 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
       });
       setState(res.state);
       setNotice("Сессия продлена на 30 минут.");
+      dispatchBalanceChanged();
     } catch (error) {
       const e = error as Error & { status?: number };
       setNotice(e.status === 402 ? "Недостаточно баллов для продления." : (e.message || "Не удалось продлить"));
@@ -232,10 +256,6 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
       setSending(false);
     }
   }
-
-  const containerClass = inline
-    ? "soft-card flex h-[58vh] max-h-[560px] flex-col p-4"
-    : "soft-card soft-form-panel flex h-[70vh] max-h-[680px] flex-col";
 
   // ── Start gate (paid-only): shown until a paid window is active. ────────────
   const startGate = (
@@ -272,54 +292,47 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
   );
 
   return (
-    <div className={containerClass} data-testid="companion-chat-panel">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--soft-paper-edge)] pb-4">
-        {/* Inline (B413) lives under the result's own «Разговор в чате» header,
-            so the panel skips its title there and keeps only the timer. */}
-        {inline ? (
-          <p className="soft-eyebrow">живой диалог</p>
-        ) : (
-          <div>
-            <p className="soft-eyebrow">разговор в чате</p>
-            <h2 className="soft-h3 mt-1">Поговорим о том, что вас волнует</h2>
-          </div>
-        )}
-        {paidActive && (
-          <span className="soft-badge soft-badge-warm inline-flex items-center gap-1.5" data-testid="companion-timer">
-            <Clock className="size-3.5" aria-hidden="true" />
-            {formatRemaining(remainingMs)}
-          </span>
-        )}
-      </div>
-
+    <div className="flex flex-col" data-testid="companion-chat-panel">
       {!paidActive ? (
-        <div className="flex flex-1 flex-col">{startGate}</div>
+        // Paywall gate (unique to the paid chat) — kept in a soft-ask-card so it
+        // sits in the same surface language as the /checkin ask card.
+        <div className="soft-ask-card flex min-h-[52vh] flex-col p-6">{startGate}</div>
       ) : (
         <>
-          {!inline && (
-            <div className="mt-3 flex flex-wrap gap-2" data-testid="companion-modes">
-              {(Object.keys(COMPANION_MODES) as CompanionMode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMode(m)}
-                  className={`soft-chip text-xs ${mode === m ? "bg-[var(--soft-bordeaux)] text-[var(--soft-paper)]" : ""}`}
-                  title={COMPANION_MODES[m].hint}
-                >
-                  {COMPANION_MODES[m].label}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Issue #4: slim header — only the live timer. The product hero already
+              titles the service, so we no longer repeat «Поговорим о том…» (the
+              duplicate header that made /chat look unlike /checkin). */}
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="soft-eyebrow">живой диалог</p>
+            <span className="soft-badge soft-badge-warm inline-flex items-center gap-1.5" data-testid="companion-timer">
+              <Clock className="size-3.5" aria-hidden="true" />
+              {formatRemaining(remainingMs)}
+            </span>
+          </div>
 
-          <div className="mt-4 flex-1 space-y-3 overflow-y-auto pr-1" data-testid="companion-messages">
+          <div className="mb-3 flex flex-wrap gap-2" data-testid="companion-modes">
+            {(Object.keys(COMPANION_MODES) as CompanionMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={`soft-chip text-xs ${mode === m ? "bg-[var(--soft-bordeaux)] text-[var(--soft-paper)]" : ""}`}
+                title={COMPANION_MODES[m].hint}
+              >
+                {COMPANION_MODES[m].label}
+              </button>
+            ))}
+          </div>
+
+          {/* Issue #4: identical bubble thread to /checkin (soft-dialogue-chat).
+              Issue #7: bounded height + internal scroll keeps the chat frame on
+              the first screen instead of pushing the page up on every send. */}
+          <div ref={listRef} className="soft-dialogue-chat max-h-[56vh] overflow-y-auto pr-1" data-testid="companion-messages">
             {messages.length === 0 && (
               <p className="font-heading text-lg italic leading-relaxed text-[var(--soft-ink-soft)]">
                 Напишите, что сейчас занимает вас больше всего. Можно начать с малого.
               </p>
             )}
-            {/* Task 7: same dialogue design as /checkin — avatar + bubble rows,
-                so continuing «в чате» feels like the same conversation. */}
             {messages.map((m, i) => {
               const isUser = m.role === "user";
               return (
@@ -342,7 +355,6 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
                 </div>
               );
             })}
-            {/* Task 7: «…» typing dots (same as checkin) while the platform writes. */}
             {typing && (
               <div className="soft-msg-row soft-msg-row-assistant" data-testid="companion-typing">
                 <div className="soft-msg-avatar" aria-hidden="true" />
@@ -351,7 +363,6 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
                 </div>
               </div>
             )}
-            <div ref={endRef} />
           </div>
 
           {notice && <p className="mt-2 rounded-[14px] bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{notice}</p>}
@@ -363,8 +374,11 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
             </Link>
           )}
 
-          <div className="mt-3 flex items-end gap-2">
+          {/* Issue #4: composer in the same soft-ask-card surface as /checkin. */}
+          <div className="soft-ask-card soft-dialogue-composer mt-3">
+            <label htmlFor="companion-input" className="sr-only">Сообщение</label>
             <textarea
+              id="companion-input"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -373,21 +387,29 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
                   void send();
                 }
               }}
-              rows={2}
+              rows={3}
               placeholder="Напишите сообщение…"
-              className="soft-question-input flex-1"
+              className="soft-question-input soft-dialogue-composer-input"
               disabled={sending}
               data-testid="companion-input"
             />
-            <Button type="button" onClick={send} disabled={sending || !input.trim()} className="soft-button soft-button-primary" data-testid="companion-send">
-              <Send className="size-4" aria-hidden="true" />
-            </Button>
+            <div className="soft-ask-foot">
+              <button
+                type="button"
+                onClick={extendSession}
+                disabled={sending}
+                className="soft-button soft-button-soft"
+                data-testid="companion-extend"
+              >
+                <Clock className="size-4" aria-hidden="true" />
+                Продлить на 30 минут (2 балла)
+              </button>
+              <Button type="button" onClick={send} disabled={sending || !input.trim()} className="soft-button soft-button-primary" data-testid="companion-send">
+                Отправить
+                <Send className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
-
-          <button type="button" onClick={extendSession} disabled={sending} className="mt-2 self-end text-xs font-medium text-[var(--soft-bordeaux)] underline underline-offset-4" data-testid="companion-extend">
-            <Clock className="mr-1 inline size-3.5" aria-hidden="true" />
-            Продлить на 30 минут (2 балла)
-          </button>
         </>
       )}
     </div>
