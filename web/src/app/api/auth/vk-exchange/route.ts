@@ -4,7 +4,7 @@ import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import { encode as jwtEncode } from "next-auth/jwt";
 import { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN } from "@/lib/auth.config";
-import { homeUrlForRole, loginUrl } from "@/lib/subdomain";
+import { homeUrlForRole, loginUrl, registerUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
 
@@ -28,6 +28,11 @@ export async function GET(request: NextRequest) {
 
   // Read code_verifier from cookie (set by VKIDButton)
   const codeVerifier = request.cookies.get("vk_code_verifier")?.value || "";
+  // #13: VK may CREATE an account only from the registration flow, where the
+  // user actively ticked both consent checkboxes (which set vk_consent=1). A new
+  // VK identity coming from the /login button (no active consent) must not be
+  // silently created — it is bounced to /register to collect consent first.
+  const vkConsentGiven = request.cookies.get("vk_consent")?.value === "1";
 
   try {
     // Exchange code for token
@@ -134,6 +139,11 @@ export async function GET(request: NextRequest) {
     let dbUser = await db.user.findUnique({ where: { email } });
 
     if (!dbUser) {
+      // #13: no active consent → don't create the account from a login click;
+      // send the new VK user to registration to tick both consent boxes.
+      if (!vkConsentGiven) {
+        return NextResponse.redirect(new URL(`${registerUrl()}?vk=consent`, request.url));
+      }
       const createData: any = {
         email,
         name,

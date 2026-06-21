@@ -38,6 +38,14 @@ export default function RegisterPage() {
     }
   }, [session?.user?.role, status]);
 
+  // #13: пришли сюда после клика «Войти через ВКонтакте» для нового аккаунта —
+  // через ВКонтакте регистрация возможна только с активным согласием.
+  useEffect(() => {
+    if (searchParams.get("vk") === "consent") {
+      toast("Чтобы создать аккаунт через ВКонтакте, отметьте оба согласия ниже.");
+    }
+  }, [searchParams]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
