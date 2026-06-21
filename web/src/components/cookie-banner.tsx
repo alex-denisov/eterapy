@@ -7,15 +7,54 @@ const CONSENT_KEY = "eterapy_cookie_consent";
 
 export type CookieConsent = "all" | "necessary" | null;
 
+// #12: the consent is stored in a cookie on the REGISTRABLE domain (e.g.
+// `.eterapy.com`) so it is shared across the landing (eterapy.com) and the
+// cabinet (app.eterapy.com). localStorage was per-origin, which is why the
+// banner appeared again in the cabinet. localStorage is kept as a same-origin
+// fallback + migration source so already-consented users aren't re-prompted.
+function consentCookieDomain(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const host = window.location.hostname;
+  if (host === "localhost" || /^[0-9.]+$/.test(host)) return undefined;
+  const parts = host.split(".");
+  if (parts.length < 2) return undefined;
+  return `.${parts.slice(-2).join(".")}`;
+}
+
+function readConsentCookie(): CookieConsent {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)eterapy_cookie_consent=(all|necessary)/);
+  return match ? (match[1] as CookieConsent) : null;
+}
+
+function writeConsentCookie(value: "all" | "necessary") {
+  if (typeof document === "undefined") return;
+  const domain = consentCookieDomain();
+  const maxAge = 60 * 60 * 24 * 365;
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${CONSENT_KEY}=${value}; path=/; max-age=${maxAge}; samesite=lax${domain ? `; domain=${domain}` : ""}${secure}`;
+}
+
 export function getCookieConsent(): CookieConsent {
   if (typeof window === "undefined") return null;
-  const val = localStorage.getItem(CONSENT_KEY);
-  if (val === "all" || val === "necessary") return val;
+  const cookie = readConsentCookie();
+  if (cookie) return cookie;
+  try {
+    const val = localStorage.getItem(CONSENT_KEY);
+    if (val === "all" || val === "necessary") return val;
+  } catch {
+    // private mode — ignore
+  }
   return null;
 }
 
 export function setCookieConsent(value: "all" | "necessary") {
-  localStorage.setItem(CONSENT_KEY, value);
+  writeConsentCookie(value);
+  try {
+    localStorage.setItem(CONSENT_KEY, value);
+  } catch {
+    // private mode — cookie is enough
+  }
 }
 
 function subscribeToCookieConsent(callback: () => void) {
@@ -36,6 +75,16 @@ export function CookieBanner() {
   const consent = useSyncExternalStore(subscribeToCookieConsent, getCookieConsentSnapshot, () => "pending");
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
+    // #12: migrate a legacy per-origin localStorage consent into the shared
+    // parent-domain cookie, so the banner doesn't reappear on the app subdomain.
+    if (!readConsentCookie()) {
+      try {
+        const legacy = localStorage.getItem(CONSENT_KEY);
+        if (legacy === "all" || legacy === "necessary") writeConsentCookie(legacy);
+      } catch {
+        // private mode — ignore
+      }
+    }
     // Intentional post-mount toggle — defers the banner to after
     // hydration so server (`pending`/null) and the first client render
     // emit the same tree. The single cascading render is required and
