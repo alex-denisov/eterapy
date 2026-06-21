@@ -6,7 +6,7 @@ const publicRoutes = [
   "/products",
   "/products/deep-report",
   "/products/chat-analysis",
-  "/products/compatibility",
+  "/products/pair",
   "/products/surname-story",
   "/pricing",
   "/library",

@@ -8,6 +8,7 @@ import { ArrowRight, Coins, CreditCard, Loader2 } from "lucide-react";
 import { appUrl } from "@/lib/subdomain";
 import { cn } from "@/lib/utils";
 import { pointsWord } from "@/lib/points";
+import { dispatchBalanceChanged } from "@/lib/balance-events";
 
 type ProductPurchaseControlsProps = {
   productKey: string;
@@ -116,6 +117,8 @@ export function ProductPurchaseControls({
     setMessage(null);
     try {
       await jsonRequest("/api/billing/spend-credits", { productKey });
+      // #3: header credit pill updates immediately after the spend.
+      dispatchBalanceChanged();
       onUnlocked?.();
       setMessage("Доступ открыт за баллы.");
     } catch (error) {

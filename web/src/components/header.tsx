@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
 import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
 import { formatPoints } from "@/lib/points";
+import { BALANCE_CHANGED_EVENT } from "@/lib/balance-events";
 import { NotificationBell } from "@/components/notification-bell";
 import { useMiniApp } from "@/components/miniapp-provider";
 import {
@@ -19,7 +20,6 @@ import {
   CircleHelp,
   CreditCard,
   LayoutDashboard,
-  Leaf,
   Lock,
   LogOut,
   MessageCircle,
@@ -74,15 +74,11 @@ function usePractitionerBalance(userId: string | null | undefined, enabled: bool
 function useClarityCreditBalance(userId: string | null | undefined, enabled = true) {
   const [credits, setCredits] = useState(0);
 
-  useEffect(() => {
-    if (!userId || !enabled) {
-      return;
-    }
-    let cancelled = false;
+  const refresh = useCallback(() => {
+    if (!userId || !enabled) return;
     fetch("/api/billing/transactions")
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (cancelled) return;
         const balance = Array.isArray(d?.clarityCredits)
           ? d.clarityCredits
               .filter((entry: { status?: string }) => entry.status === "confirmed")
@@ -91,8 +87,16 @@ function useClarityCreditBalance(userId: string | null | undefined, enabled = tr
         setCredits(Math.max(0, balance));
       })
       .catch(() => {});
-    return () => { cancelled = true; };
   }, [enabled, userId]);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  useEffect(() => {
+    if (!userId || !enabled || typeof window === "undefined") return;
+    const handler = () => refresh();
+    window.addEventListener(BALANCE_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(BALANCE_CHANGED_EVENT, handler);
+  }, [refresh, userId, enabled]);
 
   return userId && enabled ? credits : 0;
 }

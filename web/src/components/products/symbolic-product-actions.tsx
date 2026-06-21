@@ -233,10 +233,15 @@ function TarotDeckPreview({ spread }: { spread: (typeof TAROT_SPREAD_OPTIONS)[nu
   return (
     <div className="tarot-deck-preview" data-card-count={Math.min(spread.positions.length, 10)} data-testid="tarot-deck-preview" aria-label={`Карты расклада: ${spread.label}`}>
       {spread.positions.map((position, index) => (
-        <div key={`${position}-${index}`} className="tarot-card-back">
-          <span className="tarot-card-back-mark" aria-hidden="true">ET</span>
-          <span className="tarot-card-back-position">{position}</span>
-        </div>
+        <figure key={`${position}-${index}`} className="tarot-card-cell">
+          <div className="tarot-card-back">
+            <span className="tarot-card-back-mark" aria-hidden="true">ET</span>
+          </div>
+          {/* #6: подпись позиции — СНАРУЖИ карты (снизу), а не поверх неё. */}
+          <figcaption className="tarot-card-caption">
+            <span className="tarot-card-position">{position}</span>
+          </figcaption>
+        </figure>
       ))}
     </div>
   );
