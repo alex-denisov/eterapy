@@ -2,11 +2,13 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ChevronLeft, ChevronRight, Download, Heart, LockKeyhole, Save, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Download, LockKeyhole, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
+import { ServiceTriage } from "@/components/products/service-triage";
+import { pointsWord } from "@/lib/points";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
@@ -27,6 +29,7 @@ type TarotReadingMeta = { key?: TarotSpreadKey; label?: string; positions?: stri
 type TarotRecs = {
   repeatCta: string;
   otherProduct: { slug: string; name: string; href: string } | null;
+  secondaryProducts?: Array<{ slug: string; name: string; href: string; price?: string | null; creditCost?: number | null }>;
   specialist: { slug: string; name: string; title: string; pricePerSession: number; rationale: string } | null;
 };
 
@@ -612,49 +615,32 @@ export function SymbolicProductActions({
                     разбор на странице. Вместо «Нового расклада» — блок «что дальше». */}
                 <div className="tarot-followup" data-testid="tarot-followup">
                   <AutosavedNote testId="tarot-autosaved" />
-                  <p className="soft-eyebrow">что дальше</p>
-                  <div className="tarot-followup-row">
-                    <Button
-                      type="button"
-                      onClick={resetReading}
-                      className="soft-button soft-button-primary tarot-followup-primary"
-                      data-testid="tarot-new-reading"
-                    >
-                      <Sparkles className="size-4" aria-hidden="true" />
-                      {tarotRecs?.repeatCta ?? "Задать картам новый вопрос"}
-                    </Button>
-                    {tarotRecs?.otherProduct && (
-                      <a
-                        href={tarotRecs.otherProduct.href}
-                        className="soft-button soft-button-ghost tarot-followup-other"
-                        data-testid="tarot-other-product"
-                      >
-                        {tarotRecs.otherProduct.name}
-                        <ArrowRight className="size-4" aria-hidden="true" />
-                      </a>
-                    )}
-                  </div>
-                  {tarotRecs?.specialist && (
-                    <a
-                      href={`/practitioners/${tarotRecs.specialist.slug}`}
-                      className="tarot-specialist-rec"
-                      data-testid="tarot-specialist-rec"
-                    >
-                      <span className="tarot-specialist-avatar" aria-hidden="true">
-                        <Heart className="size-4" />
-                      </span>
-                      <span className="tarot-specialist-body">
-                        <span className="tarot-specialist-name">
-                          {tarotRecs.specialist.name} · {tarotRecs.specialist.title}
-                          <span className="tarot-specialist-tag">человек рядом</span>
-                        </span>
-                        <span className="tarot-specialist-rationale">{tarotRecs.specialist.rationale}</span>
-                      </span>
-                      <span className="tarot-specialist-price">
-                        от {tarotRecs.specialist.pricePerSession.toLocaleString("ru-RU")} ₽
-                      </span>
-                    </a>
-                  )}
+                  {/* #4: блок «что дальше» в дизайне triage как у checkin —
+                      карточка-повтор + «другие форматы» + специалист-эзотерик. */}
+                  <ServiceTriage
+                    eyebrow="что дальше"
+                    testId="tarot-followup-triage"
+                    primary={[{
+                      key: "repeat",
+                      testId: "tarot-new-reading",
+                      ribbon: "спросить ещё",
+                      icon: Sparkles,
+                      title: tarotRecs?.repeatCta ?? "Задать картам новый вопрос",
+                      description: "Свежий расклад по вашему вопросу — карты лягут заново.",
+                      priceSub: `${creditCost} ${pointsWord(creditCost)} за расклад`,
+                      ctaLabel: "Задать вопрос",
+                      onClick: resetReading,
+                    }]}
+                    secondary={tarotRecs?.secondaryProducts ?? []}
+                    specialist={tarotRecs?.specialist ? {
+                      name: tarotRecs.specialist.title
+                        ? `${tarotRecs.specialist.name} · ${tarotRecs.specialist.title}`
+                        : tarotRecs.specialist.name,
+                      rationale: tarotRecs.specialist.rationale,
+                      pricePerSession: tarotRecs.specialist.pricePerSession,
+                      href: `/practitioners/${tarotRecs.specialist.slug}`,
+                    } : null}
+                  />
                 </div>
               </>
             ) : result?.previewText ? (

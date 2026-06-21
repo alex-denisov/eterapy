@@ -6,20 +6,21 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { effectiveCategories } from "@/lib/practitioner-taxonomy";
 import { getV5Product } from "@/lib/v5-products";
+import { recommendSecondaryProducts } from "@/lib/dialogue-recommendations";
 
-// #6: после расклада предлагаем (1) тот же сервис с CTA под тему вопроса,
-// (2) одну смежную услугу и (3) специалиста-эзотерика. Текст основной кнопки
-// подбирается под тему расклада, чтобы он не выглядел шаблонным.
-const TAROT_THEME_FOLLOWUP: Record<string, { cta: string; other: string }> = {
-  "Любовь и отношения": { cta: "Узнать, что ещё карты говорят об отношениях", other: "synastry" },
-  "Работа и призвание": { cta: "Спросить карты про работу и призвание", other: "perspectives" },
-  "Деньги и быт": { cta: "Спросить карты про деньги и опору", other: "perspectives" },
-  "Семья и дом": { cta: "Спросить карты про семью и дом", other: "natal-chart" },
-  "Самопознание": { cta: "Задать картам новый вопрос о себе", other: "natal-chart" },
-  "Перемены и выбор": { cta: "Спросить карты про выбор и перемены", other: "perspectives" },
-  "На сегодня": { cta: "Вытянуть карту на сегодня ещё раз", other: "numerology" },
+// #6/#4: после расклада предлагаем (1) тот же сервис с CTA под тему вопроса,
+// (2) смежные услуги «другие форматы» и (3) специалиста-эзотерика. Текст основной
+// кнопки подбирается под тему расклада, чтобы он не выглядел шаблонным.
+const TAROT_THEME_FOLLOWUP: Record<string, { cta: string; other: string; topic: string }> = {
+  "Любовь и отношения": { cta: "Узнать, что ещё карты говорят об отношениях", other: "synastry", topic: "relationships" },
+  "Работа и призвание": { cta: "Спросить карты про работу и призвание", other: "perspectives", topic: "career" },
+  "Деньги и быт": { cta: "Спросить карты про деньги и опору", other: "perspectives", topic: "money" },
+  "Семья и дом": { cta: "Спросить карты про семью и дом", other: "natal-chart", topic: "family" },
+  "Самопознание": { cta: "Задать картам новый вопрос о себе", other: "natal-chart", topic: "self" },
+  "Перемены и выбор": { cta: "Спросить карты про выбор и перемены", other: "perspectives", topic: "other" },
+  "На сегодня": { cta: "Вытянуть карту на сегодня ещё раз", other: "numerology", topic: "other" },
 };
-const DEFAULT_FOLLOWUP = { cta: "Задать картам новый вопрос", other: "natal-chart" };
+const DEFAULT_FOLLOWUP = { cta: "Задать картам новый вопрос", other: "natal-chart", topic: "other" };
 
 function readTarotTheme(metadata: unknown): string | null {
   if (!metadata || typeof metadata !== "object") return null;
@@ -55,6 +56,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const otherProduct = otherDef
     ? { slug: otherDef.slug, name: otherDef.name, href: `/products/${otherDef.slug}` }
     : null;
+
+  // #4: «другие форматы» — смежные услуги по теме расклада (исключая само Таро).
+  const secondaryProducts = recommendSecondaryProducts(followup.topic, "tarot", 3).map((item) => ({
+    slug: item.slug,
+    name: item.name,
+    href: item.href,
+    price: item.price,
+    creditCost: item.creditCost,
+  }));
 
   // Специалист-эзотерик: приоритет тарологам, затем рейтинг; вариативность по
   // id результата, чтобы при разных раскладах подсвечивались разные люди.
@@ -106,7 +116,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     : null;
 
   return jsonWithRequestContext(
-    { repeatCta: followup.cta, otherProduct, specialist },
+    { repeatCta: followup.cta, otherProduct, secondaryProducts, specialist },
     undefined,
     context,
   );

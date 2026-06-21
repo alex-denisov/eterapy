@@ -14,21 +14,18 @@
  * deterministic per-dialogue rotation), but the topic→category map is here so
  * both layers share one source of truth.
  */
-import { getV5Product, type V5ProductSlug } from "@/lib/v5-products";
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
 import type { CategoryId } from "@/lib/practitioner-taxonomy";
+import type { DialogueTopic } from "@/lib/product-format-recommendations";
 
-export type DialogueTopic =
-  | "relationships" | "family" | "career" | "money" | "anxiety" | "self" | "other";
-
-export interface ProductRecommendation {
-  slug: string;
-  name: string;
-  href: string;
-  reason: string;
-  price: string;
-  creditCost: number | null;
-}
+// Product recommendations live in the client-safe module (no entitlements/db);
+// re-export them so existing importers of this module keep working.
+export {
+  normalizeTopic,
+  recommendPrimaryProduct,
+  recommendSecondaryProducts,
+} from "@/lib/product-format-recommendations";
+export type { DialogueTopic, ProductRecommendation } from "@/lib/product-format-recommendations";
 
 export interface SubscriptionRecommendation {
   tier: "plus" | "premium";
@@ -36,44 +33,6 @@ export interface SubscriptionRecommendation {
   priceRub: number;
   reason: string;
 }
-
-const TOPICS: DialogueTopic[] = ["relationships", "family", "career", "money", "anxiety", "self", "other"];
-
-/** Topic → the single most relevant next product. */
-// B373 (M26): выпиленные услуги убраны из рекомендаций — воронка ведёт только на
-// живые продукты, чтобы не упереться в 404.
-const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
-  // Совместимость теперь сценарий внутри «Вместе» (pair) — рекомендуем «Вместе».
-  relationships: "pair",
-  family: "pair",
-  career: "perspectives",
-  money: "deep-report",
-  anxiety: "deep-report",
-  self: "perspectives",
-  other: "perspectives",
-};
-
-/** Topic → adjacent products (variety pool; the primary is filtered out). */
-const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
-  relationships: ["pair", "chat-analysis", "perspectives", "tarot"],
-  family: ["perspectives", "chat-analysis", "pair", "family-scenarios"],
-  career: ["perspectives", "deep-report", "numerology", "tarot"],
-  money: ["deep-report", "perspectives", "numerology", "tarot"],
-  anxiety: ["deep-report", "perspectives", "tarot", "natal-chart"],
-  self: ["perspectives", "natal-chart", "human-design", "tarot"],
-  other: ["perspectives", "deep-report", "tarot", "numerology"],
-};
-
-/** Topic → reason copy shown on the primary product card. */
-const PRIMARY_REASON: Record<DialogueTopic, string> = {
-  relationships: "Вы можете отдельно сравнить взгляды друг друга — общий итог откроется по согласию.",
-  family: "Бережный групповой формат, чтобы услышать близких без давления и спора.",
-  career: "Разложим ваше решение на разум, чувства, символ и действие — где ответ уже виден.",
-  money: "Структурируем варианты, риски и безопасные шаги в подробный документ-разбор.",
-  anxiety: "Структурируем тревожную ситуацию: что здесь факт, а что страх, и какие шаги безопасны.",
-  self: "Посмотрим на вас с четырёх сторон сразу: мысли, чувства, скрытый смысл и первый шаг.",
-  other: "Универсальное углубление: посмотрим на ситуацию с четырёх сторон сразу.",
-};
 
 /**
  * Topic → practitioner specializations (W3 categories) used to score humans.
@@ -89,63 +48,6 @@ export const TOPIC_CATEGORIES: Record<DialogueTopic, CategoryId[]> = {
   self: ["psychology", "coaching", "esoteric"],
   other: ["psychology"],
 };
-
-export function normalizeTopic(topic: string | null | undefined): DialogueTopic {
-  if (topic && (TOPICS as string[]).includes(topic)) return topic as DialogueTopic;
-  return "other";
-}
-
-function toRecommendation(slug: V5ProductSlug, reason: string): ProductRecommendation | null {
-  const product = getV5Product(slug);
-  if (!product) return null;
-  return {
-    slug: product.slug,
-    name: product.name,
-    href: product.route,
-    reason,
-    price: product.price,
-    creditCost: product.creditCost,
-  };
-}
-
-export function recommendPrimaryProduct(topic: string | null | undefined): ProductRecommendation {
-  const t = normalizeTopic(topic);
-  const rec = toRecommendation(PRIMARY_PRODUCT[t], PRIMARY_REASON[t]);
-  // perspectives always resolves, so the non-null assertion is safe; keep a
-  // defensive fallback anyway.
-  return rec ?? {
-    slug: "perspectives",
-    name: "Полная картина",
-    href: "/products/perspectives",
-    reason: PRIMARY_REASON.other,
-    price: "299 ₽",
-    creditCost: 1,
-  };
-}
-
-export function recommendSecondaryProducts(
-  topic: string | null | undefined,
-  excludeSlug: string,
-  limit = 3,
-): ProductRecommendation[] {
-  const t = normalizeTopic(topic);
-  const out: ProductRecommendation[] = [];
-  for (const slug of ADJACENT_PRODUCTS[t]) {
-    if (slug === excludeSlug) continue;
-    const product = getV5Product(slug);
-    if (!product) continue;
-    out.push({
-      slug: product.slug,
-      name: product.name,
-      href: product.route,
-      reason: product.summary,
-      price: product.price,
-      creditCost: product.creditCost,
-    });
-    if (out.length >= limit) break;
-  }
-  return out;
-}
 
 /**
  * Choose which subscription tier (if any) to surface as a calm bundle note.

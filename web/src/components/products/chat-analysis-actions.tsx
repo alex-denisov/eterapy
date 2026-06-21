@@ -3,11 +3,13 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ArrowUpRight, BookOpen, Check, Copy, FileText, ImageIcon, LockKeyhole, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Compass, Copy, FileText, ImageIcon, LockKeyhole, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { getNextStepRecommendation, type NextStepRecommendation } from "@/lib/product-recommendations";
+import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
+import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
+import { pointsWord } from "@/lib/points";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 
 // B415: the login modal was retired platform-wide — the guest gate now routes to
@@ -187,45 +189,30 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-// B395: «следующий шаг» — единственный насыщенный (бордовый) акцент экрана.
-// Карточка-рекомендация следующей услуги, к которой ВИЗУАЛЬНО ПРИСОЕДИНЕНА
-// кнопка «Начать новый разбор» (одна поверхность, разделённая тонкой линией).
-function NextStepCard({ rec, onStartNew, loading }: {
-  rec: NextStepRecommendation | null;
+// #11: «следующий шаг» заменён на рекомендации в дизайне triage как у checkin —
+// блок «что вам подойдет» + «другие форматы». «Начать новый разбор» остаётся
+// тихой ghost-кнопкой под рекомендациями.
+function NextStepCard({ primary, secondary, onStartNew, loading }: {
+  primary: TriagePrimary[];
+  secondary: TriageProduct[];
   onStartNew: () => void;
   loading: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-[20px]" style={{ background: "var(--soft-bordeaux)" }}>
-      {rec && (
-        <div className="p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#E9B59B" }}>
-            {rec.eyebrow}
-          </p>
-          <p className="mt-2 font-heading text-[1.3rem] leading-snug" style={{ color: "#FFF4E8" }}>{rec.name}</p>
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: "rgba(251,240,225,0.82)" }}>{rec.reason}</p>
-          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Link
-              href={rec.href}
-              data-testid="chat-analysis-next-step"
-              className="inline-flex items-center gap-2 rounded-full bg-[#FBF0E1] px-5 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition hover:brightness-[1.04]"
-            >
-              {rec.cta}
-              <ArrowUpRight className="size-4" aria-hidden="true" />
-            </Link>
-            <span className="text-sm" style={{ color: "rgba(251,240,225,0.66)" }}>{rec.price}</span>
-          </div>
-        </div>
-      )}
+    <div>
+      <ServiceTriage
+        eyebrow="что вам подойдет"
+        testId="chat-analysis-triage"
+        primary={primary}
+        secondary={secondary}
+        specialistHref="/practitioners"
+      />
       <button
         type="button"
         onClick={onStartNew}
         disabled={loading}
         data-testid="chat-analysis-start-new"
-        className="flex w-full items-center justify-center gap-2 px-6 py-3.5 text-sm font-medium transition hover:bg-[rgba(255,255,255,0.06)] disabled:opacity-50"
-        style={rec
-          ? { borderTop: "1px solid rgba(251,240,225,0.16)", color: "rgba(251,240,225,0.9)" }
-          : { color: "rgba(251,240,225,0.9)" }}
+        className="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--soft-paper-edge)] px-5 py-2.5 text-sm font-medium text-[var(--soft-ink-soft)] transition hover:bg-[var(--soft-paper-card)] disabled:opacity-50"
       >
         <RotateCcw className="size-4" aria-hidden="true" />
         Начать новый разбор
@@ -234,9 +221,10 @@ function NextStepCard({ rec, onStartNew, loading }: {
   );
 }
 
-function StructuredResult({ data, recommendation, onStartNew, loading }: {
+function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, loading }: {
   data: ChatAnalysisStructured;
-  recommendation: NextStepRecommendation | null;
+  triagePrimary: TriagePrimary[];
+  triageSecondary: TriageProduct[];
   onStartNew: () => void;
   loading: boolean;
 }) {
@@ -291,7 +279,7 @@ function StructuredResult({ data, recommendation, onStartNew, loading }: {
       )}
 
       {/* следующий шаг (CTA) + «начать новый разбор» — одна поверхность */}
-      <NextStepCard rec={recommendation} onStartNew={onStartNew} loading={loading} />
+      <NextStepCard primary={triagePrimary} secondary={triageSecondary} onStartNew={onStartNew} loading={loading} />
 
       {/* разбор уже в дневнике — тихая строка-напоминание (вместо кнопок) */}
       <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
@@ -631,9 +619,25 @@ export function ChatAnalysisActions() {
     ? tryParseChatAnalysis(result.resultText)
     : null;
 
-  // B395: рекомендация следующего шага зависит от собранного контекста
-  // (кто собеседник / что чувствуете). Считается единой системой рекомендаций.
-  const recommendation = getNextStepRecommendation("chat-analysis", { contact, emotion });
+  // #11: рекомендации следующего шага в дизайне triage как у checkin
+  // («что вам подойдет» + «другие форматы»). Тема разбора переписки — отношения.
+  const chatPrimaryRec = recommendPrimaryProduct("relationships");
+  const triagePrimary: TriagePrimary[] = [{
+    key: chatPrimaryRec.slug,
+    testId: "chat-analysis-next-step",
+    ribbon: "подобрано для вас",
+    icon: Compass,
+    title: chatPrimaryRec.name,
+    description: chatPrimaryRec.reason,
+    priceMain: chatPrimaryRec.price,
+    priceSub: chatPrimaryRec.creditCost != null ? `или ${chatPrimaryRec.creditCost} ${pointsWord(chatPrimaryRec.creditCost)}` : null,
+    ctaLabel: "Открыть",
+    href: chatPrimaryRec.href,
+  }];
+  const triageSecondary: TriageProduct[] = recommendSecondaryProducts("relationships", chatPrimaryRec.slug, 4)
+    .filter((item) => item.slug !== "chat-analysis")
+    .slice(0, 3)
+    .map((item) => ({ slug: item.slug, name: item.name, href: item.href, price: item.price, creditCost: item.creditCost }));
 
   // B395: кнопки «что вы сейчас чувствуете» наполняются динамически — из тонов,
   // которые ИИ считал в диалоге (ваш тон, приходит в metadata.suggestedEmotions
@@ -992,7 +996,8 @@ export function ChatAnalysisActions() {
           {parsed ? (
             <StructuredResult
               data={parsed}
-              recommendation={recommendation}
+              triagePrimary={triagePrimary}
+              triageSecondary={triageSecondary}
               onStartNew={startNewAnalysis}
               loading={status === "loading"}
             />

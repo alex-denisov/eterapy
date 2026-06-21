@@ -30,7 +30,7 @@ describe("B437 tarot refinements", () => {
   });
 
   it("#5 replaces the static 'Новый расклад' with a result-aware repeat CTA", () => {
-    expect(actions).toContain('data-testid="tarot-new-reading"');
+    expect(actions).toContain('tarot-new-reading');
     expect(actions).toContain("function resetReading");
     // CTA text is generated from the reading (theme-aware), with a sensible fallback
     expect(actions).toContain("tarotRecs?.repeatCta");
