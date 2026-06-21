@@ -1,6 +1,5 @@
 import { aiComplete } from "@/lib/ai";
 import { log, serializeError } from "@/lib/logger";
-import { recommendPrimaryProduct } from "@/lib/dialogue-recommendations";
 
 export interface DialoguePrimaryAnswerResult {
   text: string;
@@ -27,14 +26,6 @@ function compactMessages(messages: DialoguePrimaryAnswerMessage[]) {
 
 function normalizeAnswer(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 6000);
-}
-
-// X17: the prose «Если хочется глубже» must name the SAME product the triage
-// rail recommends ("можно посмотреть глубже"). Both now derive from
-// recommendPrimaryProduct(topic) so they can never disagree.
-function depthRecommendation(topic?: string | null) {
-  const rec = recommendPrimaryProduct(topic);
-  return `Если захочется глубже, подойдёт «${rec.name}»: ${rec.reason}`;
 }
 
 export function heuristicPrimaryAnswer(input: {
@@ -67,9 +58,6 @@ export function heuristicPrimaryAnswer(input: {
       "Мягкий следующий шаг",
       "Запишите два варианта развития событий и рядом с каждым: что вы получаете, что теряете, и какой маленький шаг можно сделать без резкого решения.",
       "",
-      "Если хочется глубже",
-      depthRecommendation(input.topic),
-      "",
       "Важно: это не медицинская, юридическая или финансовая рекомендация. Если в ситуации есть риск для безопасности, здоровья или денег, подключите профильного специалиста.",
     ].join("\n")),
   };
@@ -84,8 +72,6 @@ export async function generateDialoguePrimaryAnswer(input: {
   requestId?: string;
 }): Promise<DialoguePrimaryAnswerResult> {
   const fallback = heuristicPrimaryAnswer(input);
-  // X17: the live answer must recommend the exact product the triage rail shows.
-  const deepening = recommendPrimaryProduct(input.topic);
 
   try {
     const response = await aiComplete({
@@ -100,8 +86,8 @@ export async function generateDialoguePrimaryAnswer(input: {
           content: [
             "You write ETerapy's free primary answer after clarifying questions.",
             "Write in Russian. Be warm, specific, and concise.",
-            "Use short sections: Короткий ответ, Что кажется важным, Мягкий следующий шаг, Если хочется глубже.",
-            `In «Если хочется глубже», recommend EXACTLY one deepening — «${deepening.name}» — as the optional next layer, and do not name a different product (this must match what the interface offers): ${deepening.reason}`,
+            "Use short sections: Короткий ответ, Что кажется важным, Мягкий следующий шаг.",
+            "Do NOT recommend any paid product, format, service, specialist, or a «Если хочется глубже» section inside the answer — recommendations are shown to the user in a separate block after the answer. End with meaning and a gentle next step.",
             "Do not hard-sell, pressure, diagnose, predict guaranteed outcomes, manipulate, or shame.",
             "For medical, legal, financial, emergency, or safety topics, include safe redirect copy.",
           ].join(" "),

@@ -84,11 +84,15 @@ describe("B413 — in-page paid chat continuation", () => {
     expect(page).toContain("inline");
   });
 
-  it("expands «Первичный разбор» and hides the recs while the chat is open", () => {
+  it("hides «Первичный разбор» + recs while the chat is open and auto-starts the paid session", () => {
     const page = source("src/app/checkin/page.tsx");
-    // disclosure forced open in chat mode (#9: controlled open state)
-    expect(page).toContain("open={historyOpen || showChat}");
+    // Task 7: the disclosure is hidden during chat — the companion session is
+    // seeded with the разбор + thread, so it isn't shown twice.
+    expect(page).toContain("{!showChat && (() => {");
+    expect(page).not.toContain("open={historyOpen || showChat}");
     // recs/band wrapped behind !showChat
     expect(page).toContain("{!showChat && (");
+    // the chat continuation charges on the CTA click (one click → paid session)
+    expect(page).toContain("autoStart");
   });
 });

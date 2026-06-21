@@ -5,6 +5,7 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import db from "@/lib/db";
+import { stripDeepeningSection } from "@/lib/dialogue-answer-format";
 import { classifyDialogueSafety, shouldInterruptDialogue } from "@/lib/dialogue-safety";
 import { spendClarityCreditsForProduct } from "@/lib/clarity-credits";
 import { getUserActivePlan } from "@/lib/entitlements";
@@ -97,22 +98,59 @@ function publicState(row: SessionRow, now = new Date()): PublicSessionState {
   };
 }
 
+// Task 7: when «Продолжить разговор в чате» continues a checkin разбор, the chat
+// must «просто продолжиться» — the первичный разбор and the clarifying dialogue
+// belong in the chat history so it does not feel like a different conversation.
+// We seed the new session with the dialogue thread (mapped to chat roles).
+async function buildSeedMessagesFromDialogue(userId: string, dialogueId: string): Promise<CompanionMessage[]> {
+  try {
+    const dialogue = await db.dialogue.findFirst({
+      where: { id: dialogueId, userId, deletedAt: null },
+      select: { messages: { orderBy: { createdAt: "asc" }, select: { role: true, content: true } } },
+    });
+    if (!dialogue) return [];
+    const at = new Date().toISOString();
+    return dialogue.messages
+      .filter((message) => message.role !== "SYSTEM" && message.content.trim())
+      .map((message) => ({
+        role: message.role === "USER" ? ("user" as const) : ("companion" as const),
+        // Drop the legacy «Если хочется глубже» recommendation from the seeded
+        // разбор (recommendations live outside the chat) — no-op for other turns.
+        text: stripDeepeningSection(message.content).slice(0, MAX_MESSAGE_CHARS),
+        at,
+      }))
+      .filter((message) => message.text.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
 export async function getOrCreateSession(input: {
   userId: string;
   sourceDialogueId?: string | null;
   mode?: string | null;
 }): Promise<SessionRow> {
   const mode = isCompanionMode(input.mode) ? input.mode : "explore";
+  const sourceDialogueId = input.sourceDialogueId ?? null;
+  // Task 7: the session is keyed to its source dialogue (or to the standalone
+  // /products/chat when null), so continuing a specific разбор always reuses /
+  // creates its OWN chat — not the user's latest unrelated chat.
   const existing = await db.companionChatSession.findFirst({
-    where: { userId: input.userId },
+    where: { userId: input.userId, sourceDialogueId },
     orderBy: { updatedAt: "desc" },
   });
   if (existing) return existing as SessionRow;
+  const seededMessages = sourceDialogueId
+    ? await buildSeedMessagesFromDialogue(input.userId, sourceDialogueId)
+    : [];
   const created = await db.companionChatSession.create({
     data: {
       userId: input.userId,
-      sourceDialogueId: input.sourceDialogueId ?? null,
+      sourceDialogueId,
       mode,
+      ...(seededMessages.length > 0
+        ? { messages: seededMessages as unknown as Prisma.InputJsonValue }
+        : {}),
     },
   });
   return created as SessionRow;

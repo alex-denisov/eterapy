@@ -50,9 +50,12 @@ describe("B441 tarot + checkin follow-ups", () => {
   });
 
   describe("#9 checkin dialogue restored + robust", () => {
-    it("first-turn clarifier falls back to a heuristic question (never a silent skip)", () => {
-      expect(clarifier).toContain("firstTurnHeuristic");
-      expect(clarifier).toContain("input.previousPairs.length === 0");
+    it("clarifier asks heuristic questions to reach the 3–5 floor (never one-and-done)", () => {
+      // Task 5: below MIN_CLARIFYING_TURNS, a failed/early turn must come back with
+      // another heuristic question instead of jumping straight to the разбор.
+      expect(clarifier).toContain("heuristicTurnAt");
+      expect(clarifier).toContain("MIN_CLARIFYING_TURNS");
+      expect(clarifier).toContain("canBeReady");
     });
     it("renders the original dialogue design via DialogueThread", () => {
       expect(checkin).toContain("DialogueThread");

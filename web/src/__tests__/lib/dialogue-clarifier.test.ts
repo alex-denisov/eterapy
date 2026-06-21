@@ -129,9 +129,13 @@ describe("dialogue-clarifier", () => {
     expect((result.question ?? "").length).toBeGreaterThan(8);
   });
 
-  it("returns ready (not a recycled template) even with prior turns when the LLM is down", async () => {
+  it("keeps asking a heuristic question below MIN turns when the LLM is down (min 3 questions)", async () => {
     mockAiComplete.mockRejectedValue(new Error("provider down"));
 
+    // Only ONE pair so far → below MIN_CLARIFYING_TURNS. The разбор must NOT be
+    // produced after a single question (the «выдал только один вопрос» bug):
+    // when the LLM is unavailable we fall back to the NEXT heuristic question so
+    // the conversation reaches at least 3 meaningful exchanges.
     const result = await generateDialogueConversationalTurn({
       question: "Стоит ли уходить с работы, если руководитель обесценивает мои идеи?",
       topic: "career",
@@ -143,7 +147,28 @@ describe("dialogue-clarifier", () => {
           user: "Страх оценки и ощущение, что меня всё равно не услышат.",
         },
       ],
-      requestId: "req-no-repeat-fallback",
+      requestId: "req-min-turns-fallback",
+    });
+
+    expect(result.type).toBe("question");
+    expect(result.source).toBe("heuristic");
+    expect((result.question ?? "").length).toBeGreaterThan(8);
+  });
+
+  it("only signals ready on LLM failure once MIN_CLARIFYING_TURNS pairs are reached", async () => {
+    mockAiComplete.mockRejectedValue(new Error("provider down"));
+
+    const result = await generateDialogueConversationalTurn({
+      question: "Стоит ли уходить с работы?",
+      topic: "career",
+      difficulty: "medium",
+      safetyLevel: "normal",
+      previousPairs: [
+        { assistant: "Q1", user: "A1" },
+        { assistant: "Q2", user: "A2" },
+        { assistant: "Q3", user: "A3" },
+      ],
+      requestId: "req-ready-after-min",
     });
 
     expect(result).toEqual({ type: "ready", source: "heuristic" });
@@ -178,7 +203,10 @@ describe("dialogue-clarifier", () => {
     expect(mockAiComplete).not.toHaveBeenCalled();
   });
 
-  it("guards against premature LLM ready before MIN_CLARIFYING_TURNS", async () => {
+  it("turns a premature LLM ready before MIN_CLARIFYING_TURNS into another question", async () => {
+    // The LLM tries to wrap up after a single exchange (the prod «один вопрос»
+    // bug). Below MIN_CLARIFYING_TURNS the premature ready must be converted into
+    // the next heuristic clarifying question instead of jumping to the разбор.
     mockAiComplete.mockResolvedValue({
       text: '{"q":"","c":[]}',
       provider: "openai",
@@ -199,11 +227,9 @@ describe("dialogue-clarifier", () => {
       requestId: "req-premature-ready",
     });
 
-    // B302: with the heuristic question pool removed, the premature-ready
-    // guard now falls all the way through to ready (the API will then
-    // produce the primary answer from what context exists).
-    expect(result.type).toBe("ready");
+    expect(result.type).toBe("question");
     expect(result.source).toBe("heuristic");
+    expect((result.question ?? "").length).toBeGreaterThan(8);
   });
 
   it("returns an AI conversational turn with provider metadata when the gateway answers", async () => {

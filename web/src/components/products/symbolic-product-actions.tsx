@@ -2,13 +2,14 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, ChevronLeft, ChevronRight, Download, LockKeyhole, Save, Sparkles } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Download, LockKeyhole, MessageSquareText, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
-import { ServiceTriage } from "@/components/products/service-triage";
+import { ServiceTriage, type TriagePrimary } from "@/components/products/service-triage";
 import { pointsWord } from "@/lib/points";
+import { sanitizeTarotReading } from "@/lib/tarot-reading-format";
 import { TarotSpreadCards, ZodiacWheel } from "@/components/products/esoteric-chart-visuals";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { NatalWheel } from "@/lib/esoteric-chart";
@@ -250,24 +251,6 @@ function TarotDeckPreview({ spread }: { spread: (typeof TAROT_SPREAD_OPTIONS)[nu
   );
 }
 
-function TarotResultSummary({ cards }: { cards: TarotCardView[] }) {
-  // #7: тема/расклад больше НЕ дублируются здесь — они показаны в раскрываемом
-  // элементе «Тема, вопрос и расклад» над раскладом. Тут только трактовки карт.
-  return (
-    <div className="tarot-result-summary" data-testid="tarot-result-summary">
-      <div className="tarot-card-meaning-list">
-        {cards.map((card) => (
-          <article key={card.position} className="tarot-card-meaning">
-            <p className="tarot-card-meaning-position">{card.position}</p>
-            <h3>{card.name}{card.reversed ? " · перевёрнутая" : ""}</h3>
-            <p>{card.meaning}</p>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function SymbolicProductActions({
   productKey,
   title,
@@ -476,6 +459,35 @@ export function SymbolicProductActions({
     const themeExamples = tarotExamplesForTheme(tarotTheme);
     const tarotPlaceholder = themeExamples[exampleIdx % themeExamples.length];
 
+    // #2/#4: два основных CTA в блоке «что дальше» (как у /checkin): повторить
+    // расклад (одно слово на кнопке) + продолжить разговор в чате. Рекомендуемый
+    // продукт и специалист идут ниже, в «других форматах».
+    const tarotPrimaryCtas: TriagePrimary[] = [
+      {
+        key: "repeat",
+        testId: "tarot-new-reading",
+        ribbon: "спросить ещё",
+        icon: Sparkles,
+        title: tarotRecs?.repeatCta ?? "Задать картам новый вопрос",
+        description: "Свежий расклад по вашему вопросу — карты лягут заново.",
+        priceSub: `${creditCost} ${pointsWord(creditCost)} за расклад`,
+        ctaLabel: "Спросить",
+        onClick: resetReading,
+      },
+      {
+        key: "chat",
+        testId: "tarot-continue-chat",
+        ribbon: "продолжить в диалоге",
+        icon: MessageSquareText,
+        title: "Продолжить разговор в чате",
+        description: "Живой диалог в своём темпе — 45 минут, чтобы разобрать вопрос глубже.",
+        priceMain: "790 ₽",
+        priceSub: "45 мин · или 4 балла",
+        ctaLabel: "Начать",
+        href: "/products/chat",
+      },
+    ];
+
     // Блок управления: тема → расклад (компактная прокручиваемая лента, #2) →
     // вопрос → действие. После расклада он сворачивается в раскрываемый элемент.
     const controls = (
@@ -605,9 +617,11 @@ export function SymbolicProductActions({
 
             {result?.resultText && tarotCards ? (
               <>
-                <TarotResultSummary cards={tarotCards} />
+                {/* #1: только связный разбор по картам (карты с позициями уже
+                    показаны выше). sanitize убирает у старых раскладов дубль
+                    «прямое/перевёрнутое положение» строкой и вопросы к себе. */}
                 <SoftMarkdown
-                  content={result.resultText}
+                  content={sanitizeTarotReading(result.resultText)}
                   className="mt-3 font-heading text-[1.02rem] text-[var(--soft-ink)]"
                 />
                 {/* #6: расклад уже сохранён в Дневник автоматически (savedAt в API),
@@ -615,22 +629,13 @@ export function SymbolicProductActions({
                     разбор на странице. Вместо «Нового расклада» — блок «что дальше». */}
                 <div className="tarot-followup" data-testid="tarot-followup">
                   <AutosavedNote testId="tarot-autosaved" />
-                  {/* #4: блок «что дальше» в дизайне triage как у checkin —
-                      карточка-повтор + «другие форматы» + специалист-эзотерик. */}
+                  {/* #2/#4: блок «что дальше» в дизайне triage как у checkin — ДВА
+                      основных CTA (повторить расклад одним словом + продолжить в
+                      чате), затем «другие форматы» + специалист-эзотерик. */}
                   <ServiceTriage
                     eyebrow="что дальше"
                     testId="tarot-followup-triage"
-                    primary={[{
-                      key: "repeat",
-                      testId: "tarot-new-reading",
-                      ribbon: "спросить ещё",
-                      icon: Sparkles,
-                      title: tarotRecs?.repeatCta ?? "Задать картам новый вопрос",
-                      description: "Свежий расклад по вашему вопросу — карты лягут заново.",
-                      priceSub: `${creditCost} ${pointsWord(creditCost)} за расклад`,
-                      ctaLabel: "Задать вопрос",
-                      onClick: resetReading,
-                    }]}
+                    primary={tarotPrimaryCtas}
                     secondary={tarotRecs?.secondaryProducts ?? []}
                     specialist={tarotRecs?.specialist ? {
                       name: tarotRecs.specialist.title

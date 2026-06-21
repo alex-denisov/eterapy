@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, BookOpen, Check, Compass, Copy, FileText, ImageIcon, LockKeyhole, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Compass, Copy, FileText, ImageIcon, LockKeyhole, MessageSquareText, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -347,6 +347,10 @@ export function ChatAnalysisActions() {
     return () => { active = false; };
   }, []);
 
+  // Task 3: session-scoped like tarot. The result is restored ONLY from the
+  // ?analysis=<id> URL param (effect below), never auto-loaded from the last DB
+  // result — so a bare visit / refresh of /products/chat-analysis starts fresh.
+  // We still read hasEntitlement here so the buy/generate gate stays correct.
   useEffect(() => {
     if (authStatus !== "authenticated") return;
     let cancelled = false;
@@ -354,16 +358,25 @@ export function ChatAnalysisActions() {
       .then((payload) => {
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
-        const existing = payload.results?.[0] ?? null;
-        // B330: do NOT auto-restore an already-saved analysis on mount.
-        // A saved record lives in Мою карту; re-entering /products/chat-analysis
-        // should start fresh so the user can buy and run another analysis.
-        // We still surface an unsaved preview so an in-progress upload isn't
-        // lost on refresh.
-        if (existing && !existing.saved) {
-          setResult(existing);
-          if (existing.resultText) setTab("result");
-        }
+      })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [authStatus]);
+
+  // Task 3: restore an analysis from ?analysis=<id> (refresh / back-forward keep
+  // the result, exactly like the tarot reading session). No param → fresh start.
+  useEffect(() => {
+    if (authStatus !== "authenticated" || typeof window === "undefined") return;
+    const analysisId = new URLSearchParams(window.location.search).get("analysis");
+    if (!analysisId) return;
+    let cancelled = false;
+    jsonRequest<{ result?: ChatAnalysisResult }>(`/api/products/chat-analysis/${analysisId}`)
+      .then((payload) => {
+        if (cancelled || !payload.result) return;
+        setResult(payload.result);
+        const restoredSource = payload.result.metadata?.sourceText;
+        if (typeof restoredSource === "string") setSourceText(restoredSource);
+        setTab(payload.result.resultText ? "result" : "context");
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -443,6 +456,16 @@ export function ChatAnalysisActions() {
   const imageAttachments = attachments.filter((att) => att.kind === "image" && att.url);
   const hasInput = imageAttachments.length > 0 || sourceText.trim().length >= 10;
 
+  // Task 3: bind the analysis to ?analysis=<id> so refresh / back-forward restore
+  // it, but a fresh visit to the bare page starts over (mirrors tarot ?reading=).
+  function setAnalysisParam(id: string | null) {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("analysis", id);
+    else url.searchParams.delete("analysis");
+    window.history.replaceState(null, "", url.toString());
+  }
+
   // B404 + INC-013: «Начать разбор» — единая точка входа в воронку.
   //  1. Гость → окно входа/регистрации (НИКОГДА сырой «Unauthorized»), потом
   //     разбор продолжается с тем же вводом (INC-013).
@@ -505,6 +528,7 @@ export function ChatAnalysisActions() {
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setSourceText(combined);
       setResult(payload.result ?? null);
+      setAnalysisParam(payload.result?.id ?? null);
       setMessage(
         failedNames.length > 0
           ? `Часть скриншотов (${failedNames.length}) не распозналась. Их текст можно добавить вручную на этом шаге — в блоке «Добавить текст вручную» ниже.`
@@ -544,6 +568,7 @@ export function ChatAnalysisActions() {
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setSourceText(combined);
       setResult(payload.result ?? null);
+      setAnalysisParam(payload.result?.id ?? null);
       setExtraText("");
       setStatus("idle");
     } catch (error) {
@@ -578,6 +603,7 @@ export function ChatAnalysisActions() {
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
+      setAnalysisParam(payload.result?.id ?? null);
       setStatus("idle");
       setTab("result");
     } catch (error) {
@@ -613,6 +639,7 @@ export function ChatAnalysisActions() {
     setMessage(null);
     setStatus("idle");
     setTab("input");
+    setAnalysisParam(null);
   }
 
   const parsed: ChatAnalysisStructured | null = result?.resultText
@@ -622,18 +649,34 @@ export function ChatAnalysisActions() {
   // #11: рекомендации следующего шага в дизайне triage как у checkin
   // («что вам подойдет» + «другие форматы»). Тема разбора переписки — отношения.
   const chatPrimaryRec = recommendPrimaryProduct("relationships");
-  const triagePrimary: TriagePrimary[] = [{
-    key: chatPrimaryRec.slug,
-    testId: "chat-analysis-next-step",
-    ribbon: "подобрано для вас",
-    icon: Compass,
-    title: chatPrimaryRec.name,
-    description: chatPrimaryRec.reason,
-    priceMain: chatPrimaryRec.price,
-    priceSub: chatPrimaryRec.creditCost != null ? `или ${chatPrimaryRec.creditCost} ${pointsWord(chatPrimaryRec.creditCost)}` : null,
-    ctaLabel: "Открыть",
-    href: chatPrimaryRec.href,
-  }];
+  // #2: два основных CTA (как у /checkin) — рекомендованный формат + продолжить
+  // разговор в чате.
+  const triagePrimary: TriagePrimary[] = [
+    {
+      key: chatPrimaryRec.slug,
+      testId: "chat-analysis-next-step",
+      ribbon: "подобрано для вас",
+      icon: Compass,
+      title: chatPrimaryRec.name,
+      description: chatPrimaryRec.reason,
+      priceMain: chatPrimaryRec.price,
+      priceSub: chatPrimaryRec.creditCost != null ? `или ${chatPrimaryRec.creditCost} ${pointsWord(chatPrimaryRec.creditCost)}` : null,
+      ctaLabel: "Открыть",
+      href: chatPrimaryRec.href,
+    },
+    {
+      key: "chat",
+      testId: "chat-analysis-continue-chat",
+      ribbon: "продолжить в диалоге",
+      icon: MessageSquareText,
+      title: "Продолжить разговор в чате",
+      description: "Живой диалог в своём темпе — 45 минут, чтобы разобрать ситуацию глубже.",
+      priceMain: "790 ₽",
+      priceSub: "45 мин · или 4 балла",
+      ctaLabel: "Начать",
+      href: "/products/chat",
+    },
+  ];
   const triageSecondary: TriageProduct[] = recommendSecondaryProducts("relationships", chatPrimaryRec.slug, 4)
     .filter((item) => item.slug !== "chat-analysis")
     .slice(0, 3)

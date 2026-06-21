@@ -68,9 +68,13 @@ export type CompanionChatPanelProps = {
   onSessionEnd?: () => void;
   // Return path for the full /login redirect (defaults to the current URL).
   loginNext?: string;
+  // Task 7: when the user already chose «Продолжить разговор в чате» (a paid CTA
+  // that shows the price), open the paid session immediately on mount — one click
+  // charges and starts the conversation, instead of a second in-panel start gate.
+  autoStart?: boolean;
 };
 
-export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, loginNext }: CompanionChatPanelProps) {
+export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, loginNext, autoStart = false }: CompanionChatPanelProps) {
   const { status: authStatus } = useSession();
   const authed = authStatus === "authenticated";
   const [state, setState] = useState<State | null>(null);
@@ -87,6 +91,7 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
   const [remainingMs, setRemainingMs] = useState<number>(0);
   const endRef = useRef<HTMLDivElement>(null);
   const endedNotifiedRef = useRef(false);
+  const autoStartAttemptedRef = useRef(false);
 
   // Load the current session only for authed users (the GET requires auth).
   useEffect(() => {
@@ -158,6 +163,20 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
       setStarting(false);
     }
   }, [authed, state, loginNext]);
+
+  // Task 7: auto-open the paid session once (after the session state loads) when
+  // the panel was launched from the «Продолжить разговор в чате» CTA. This is what
+  // makes the credits/₽ actually get charged on that click. startPaidSession is
+  // idempotent (no double charge if already active); 402 surfaces needs-credits.
+  useEffect(() => {
+    if (!autoStart || !authed || !state) return;
+    if (autoStartAttemptedRef.current) return;
+    if (state.paidActive || ended || needsCredits) return;
+    autoStartAttemptedRef.current = true;
+    // Defer out of the effect body so startSession's setState isn't synchronous
+    // within the effect (react-hooks/set-state-in-effect). The ref guards re-runs.
+    void Promise.resolve().then(() => { void startSession(); });
+  }, [autoStart, authed, state, ended, needsCredits, startSession]);
 
   const revealReply = useCallback(async (chunks: string[], delays: number[]) => {
     for (let i = 0; i < chunks.length; i += 1) {
@@ -262,13 +281,13 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
         ) : (
           <div>
             <p className="soft-eyebrow">разговор в чате</p>
-            <h2 className="soft-h3 mt-1">Разобраться вместе, спокойно</h2>
+            <h2 className="soft-h3 mt-1">Поговорим о том, что вас волнует</h2>
           </div>
         )}
         {paidActive && (
           <span className="soft-badge soft-badge-warm inline-flex items-center gap-1.5" data-testid="companion-timer">
             <Clock className="size-3.5" aria-hidden="true" />
-            ещё {formatRemaining(remainingMs)}
+            {formatRemaining(remainingMs)}
           </span>
         )}
       </div>
@@ -299,22 +318,37 @@ export function CompanionChatPanel({ dialogueId, inline = false, onSessionEnd, l
                 Напишите, что сейчас занимает вас больше всего. Можно начать с малого.
               </p>
             )}
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`max-w-[82%] rounded-[16px] px-3.5 py-2.5 text-sm leading-relaxed ${
-                  m.role === "user"
-                    ? "ml-auto bg-[var(--soft-bordeaux)] text-[var(--soft-paper)]"
-                    : "mr-auto bg-[var(--soft-paper-deep)] text-[var(--soft-ink)]"
-                }`}
-                data-role={m.role}
-              >
-                {m.text}
-              </div>
-            ))}
+            {/* Task 7: same dialogue design as /checkin — avatar + bubble rows,
+                so continuing «в чате» feels like the same conversation. */}
+            {messages.map((m, i) => {
+              const isUser = m.role === "user";
+              return (
+                <div
+                  key={i}
+                  className={`soft-msg-row ${isUser ? "soft-msg-row-user" : "soft-msg-row-assistant"}`}
+                  data-role={m.role}
+                >
+                  {isUser ? (
+                    <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+                  ) : (
+                    <div className="soft-msg-avatar" aria-hidden="true" />
+                  )}
+                  <div
+                    className={`soft-msg-bubble ${isUser ? "soft-msg-bubble-user" : "soft-msg-bubble-assistant"}`}
+                    style={{ whiteSpace: "pre-wrap" }}
+                  >
+                    {m.text}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Task 7: «…» typing dots (same as checkin) while the platform writes. */}
             {typing && (
-              <div className="mr-auto max-w-[60%] rounded-[16px] bg-[var(--soft-paper-deep)] px-4 py-3 text-sm text-[var(--soft-ink-soft)]" data-testid="companion-typing">
-                печатает…
+              <div className="soft-msg-row soft-msg-row-assistant" data-testid="companion-typing">
+                <div className="soft-msg-avatar" aria-hidden="true" />
+                <div className="soft-msg-bubble soft-msg-bubble-assistant">
+                  <div className="soft-typing"><span /><span /><span /></div>
+                </div>
               </div>
             )}
             <div ref={endRef} />

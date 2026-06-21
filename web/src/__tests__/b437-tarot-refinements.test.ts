@@ -68,6 +68,9 @@ describe("B437 tarot refinements", () => {
   it("keeps the pinned product-page testids intact", () => {
     expect(actions).toContain('data-testid="tarot-product-actions"');
     expect(actions).toContain('data-testid="tarot-deck-preview"');
-    expect(actions).toContain('data-testid="tarot-result-summary"');
+    // B440-followup (Task 1): the separate per-card summary block was removed —
+    // its position/short meaning duplicated the cards + the reading. The cards
+    // and the reading reveal remain pinned.
+    expect(actions).toContain('data-testid="tarot-reveal"');
   });
 });

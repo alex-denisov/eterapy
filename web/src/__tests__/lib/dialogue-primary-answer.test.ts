@@ -63,7 +63,11 @@ describe("dialogue-primary-answer", () => {
       maxTokens: 900,
     }));
     const request = mockAiComplete.mock.calls[0]?.[0];
-    expect(request?.messages[0]?.content).toContain("Если хочется глубже");
+    // Task 6: the разбор must NOT recommend paid products inside the prose — a
+    // dedicated «можно посмотреть глубже» block does that. So the prompt must
+    // forbid (not request) a «Если хочется глубже» section.
+    expect(request?.messages[0]?.content).toContain("Do NOT recommend any paid product");
+    expect(result.text).not.toContain("Если хочется глубже");
   });
 
   it("falls back to a safe heuristic answer if all providers fail", async () => {
@@ -79,7 +83,8 @@ describe("dialogue-primary-answer", () => {
 
     expect(result.source).toBe("heuristic");
     expect(result.text).toContain("Короткий ответ");
-    expect(result.text).toContain("Если хочется глубже");
+    // Task 6: no in-prose product recommendation section anymore.
+    expect(result.text).not.toContain("Если хочется глубже");
     expect(result.text).toContain("Важно: это не медицинская");
   });
 

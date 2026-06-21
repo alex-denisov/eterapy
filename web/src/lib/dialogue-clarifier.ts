@@ -373,25 +373,28 @@ export async function generateDialogueConversationalTurn(input: {
 
   const originalQuestion = input.originalQuestion ?? input.question ?? "";
   const previousPairs = input.previousPairs.map(normalizePair);
-  // On the FIRST turn we must NEVER silently skip the whole clarifying
-  // conversation: if the LLM produced nothing (outage, parse fail, or the
-  // user's AI daily-budget is exhausted), ask one topic-aware heuristic
-  // question so the разбор always opens with a real dialogue. Later turns may
-  // still end gracefully ("ready") when the LLM is unavailable. This fixes the
-  // «диалог сразу прыгает на результат» regression seen when the gateway fails.
-  const firstTurnHeuristic = (): ConversationalTurnResult => {
+
+  const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
+
+  // The разбор must NEVER form after a single question (the «выдал только один
+  // вопрос» bug): the структура requires 3–5 meaningful exchanges. So below
+  // MIN_CLARIFYING_TURNS we must always come back with another question — even
+  // when the LLM is down, returns garbage, or tries to wrap up too early. We ask
+  // the next topic-aware heuristic question (one per remaining floor turn) so the
+  // floor is reached. Only once the floor is met may a failed/early turn resolve
+  // to "ready" (then the API produces the primary answer from what context exists).
+  const heuristicTurnAt = (index: number): ConversationalTurnResult => {
     const heuristic = heuristicClarifyingQuestions({
       question: originalQuestion,
       topic: input.topic,
       difficulty: input.difficulty,
     });
-    return { type: "question", question: heuristic.questions[0], chips: heuristic.chips[0] ?? [], source: "heuristic" };
+    const i = Math.min(Math.max(index, 0), heuristic.questions.length - 1);
+    return { type: "question", question: heuristic.questions[i], chips: heuristic.chips[i] ?? [], source: "heuristic" };
   };
-  const fallback: ConversationalTurnResult = input.previousPairs.length === 0
-    ? firstTurnHeuristic()
-    : buildContextualFallback({ originalQuestion, previousPairs });
-
-  const canBeReady = input.previousPairs.length >= MIN_CLARIFYING_TURNS;
+  const fallback: ConversationalTurnResult = canBeReady
+    ? buildContextualFallback({ originalQuestion, previousPairs })
+    : heuristicTurnAt(input.previousPairs.length);
 
   // Try LLM up to twice before falling back. The second attempt uses a
   // higher temperature and an explicit "your previous answer was

@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { persistGuestResultDraftToAccount, saveGuestResultDraft } from "@/lib/guest-result-cache";
+import { stripDeepeningSection } from "@/lib/dialogue-answer-format";
 import { track } from "@/lib/analytics";
 import { pointsWord } from "@/lib/points";
 import { MIN_SESSION_PRICE_RUB, formatSessionFloor } from "@/lib/session-pricing";
@@ -183,6 +184,10 @@ export default function CheckinPage() {
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
     ?? "";
   const safeAnswer = useMemo(() => cleanAnswer(primaryAnswer), [primaryAnswer]);
+  // Task 6: «Если хочется глубже» recommendation prose is removed from the разбор —
+  // recommendations live in the dedicated «можно посмотреть глубже» block below.
+  // Strip it on display for разборы persisted before the prompt change.
+  const displayAnswer = useMemo(() => stripDeepeningSection(primaryAnswer), [primaryAnswer]);
   const clarifyingQuestions = useMemo(() => {
     const questions = (dialogue?.clarifyingQuestions ?? []).filter((item) => item.question.trim());
     return questions;
@@ -366,7 +371,7 @@ export default function CheckinPage() {
         method: "POST",
       });
       setDialogue(data.dialogue);
-      const answer = data.dialogue.primaryAnswer?.content ?? "";
+      const answer = stripDeepeningSection(data.dialogue.primaryAnswer?.content ?? "");
       if (answer) saveDraft(answer, data.dialogue);
       setPhase("result");
     } catch (err) {
@@ -804,8 +809,10 @@ export default function CheckinPage() {
             </span>
           </div>
           {/* B411: full dialogue collapsed into «Первичный разбор», ABOVE «что я
-              слышу». Collapsed by default, same bubble structure as the live chat. */}
-          {(() => {
+              слышу». Collapsed by default, same bubble structure as the live chat.
+              Task 7: hidden while the chat continuation is open — the chat itself
+              is seeded with the разбор + thread, so showing it twice is noise. */}
+          {!showChat && (() => {
             const thread = (dialogue.messages ?? []).filter(
               (m) => m.role !== "SYSTEM" && m.content.trim() && m.content !== primaryAnswer,
             );
@@ -814,12 +821,12 @@ export default function CheckinPage() {
               <details
                 className="soft-razbor-disclosure mb-4 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4"
                 data-testid="dialogue-history"
-                open={historyOpen || showChat}
+                open={historyOpen}
                 onToggle={(event) => setHistoryOpen((event.currentTarget as HTMLDetailsElement).open)}
               >
                 <summary className="flex cursor-pointer select-none list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
                   <span className="soft-eyebrow">первичный разбор</span>
-                  <span className="text-xs text-[var(--soft-ink-faint)]">{(historyOpen || showChat) ? "скрыть диалог" : "показать диалог"}</span>
+                  <span className="text-xs text-[var(--soft-ink-faint)]">{historyOpen ? "скрыть диалог" : "показать диалог"}</span>
                 </summary>
                 <div className="mt-3">
                   <DialogueThread messages={thread} />
@@ -828,13 +835,16 @@ export default function CheckinPage() {
             );
           })()}
 
-          {/* B413: in-page paid chat continuation. Mounts under the (expanded)
-              «Первичный разбор», on the same dialogue thread. onSessionEnd fires
-              when the 45-min timer lapses → collapse + re-show the recs. */}
+          {/* B413/Task 7: in-page paid chat continuation. The companion session is
+              keyed to this dialogue and seeded with the разбор + thread (server),
+              so the chat «просто продолжается». autoStart opens the paid session
+              on mount → the credits/₽ are charged on the «Продолжить в чате» click.
+              onSessionEnd fires when the 45-min timer lapses → re-show the recs. */}
           {showChat && (
             <div className="mt-4" data-testid="dialogue-inplace-chat">
               <CompanionChatPanel
                 inline
+                autoStart
                 dialogueId={dialogue.id}
                 onSessionEnd={() => setShowChat(false)}
                 loginNext={`/checkin?dialogueId=${dialogue.id}`}
@@ -856,7 +866,7 @@ export default function CheckinPage() {
             </div>
             <div data-testid="dialogue-primary-answer">
               <SoftMarkdown
-                content={primaryAnswer}
+                content={displayAnswer}
                 className="mt-3 font-heading text-[19px] text-[var(--soft-ink)] [&_p]:leading-relaxed"
               />
             </div>

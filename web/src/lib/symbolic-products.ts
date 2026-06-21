@@ -156,7 +156,10 @@ function tarotReadingFromCards(cards: TarotCard[], userInput: string, spreadLabe
   ].filter(Boolean).join(" ");
   const lines = cards.map((card) => {
     const orientation = card.reversed ? " (перевёрнутая)" : "";
-    return `## ${card.position}: ${card.name}${orientation}\n${card.reversed ? "Энергия карты приглушена или обращена внутрь: " : ""}${card.meaning}. Что из этого откликается в вашей ситуации прямо сейчас?`;
+    // #1: положение карты — только в заголовке секции (на карте оно тоже видно),
+    // без отдельной строки-дубля; и без вопроса к себе в конце — дальнейшие шаги
+    // и рекомендации идут отдельным блоком после расклада.
+    return `## ${card.position}: ${card.name}${orientation}\n${card.reversed ? "В перевёрнутом положении энергия карты приглушена или обращена внутрь. " : ""}${card.meaning}. В позиции «${card.position}» это подсказывает, на что бережно опереться в вашей ситуации.`;
   });
   // #6: разбор заканчивается СМЫСЛОМ расклада, без шаблонного «следующего шага» —
   // дальнейшие действия предлагаются отдельным блоком рекомендаций после расклада.
@@ -444,9 +447,10 @@ export async function generateSymbolicProductResult(input: {
       feature,
       userId: input.userId,
       requestId: input.requestId,
-      // #6: расклад Таро должен быть полноценным — на странице нет PDF, человек
-      // читает весь разбор тут же, поэтому даём больше места под текст.
-      maxTokens: input.productKey === "tarot" ? 2200 : 1400,
+      // #6/#1: расклад Таро должен быть полноценным — на странице нет PDF, человек
+      // читает весь разбор тут же. Даём больше места: 3-5 предложений на каждую
+      // карту (до 10 карт в Кельтском кресте) + «Общий смысл».
+      maxTokens: input.productKey === "tarot" ? 3200 : 1400,
       temperature: 0.5,
       messages: [
         {

@@ -121,7 +121,7 @@ describe("v5 product pages", () => {
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain('data-testid="tarot-product-actions"');
     expect(actions).toContain('data-testid="tarot-deck-preview"');
-    expect(actions).toContain('data-testid="tarot-result-summary"');
+    expect(actions).toContain('data-testid="tarot-reveal"');
     expect(actions).toContain("TAROT_SPREAD_OPTIONS");
     expect(actions).toContain("tarotTheme");
     expect(actions).toContain("tarotSpread");

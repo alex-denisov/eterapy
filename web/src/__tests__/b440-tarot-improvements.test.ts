@@ -72,7 +72,7 @@ describe("B440 tarot page fixes (#1–#6)", () => {
 
     it("raises the tarot token budget for a fuller reading", () => {
       const lib = source("src/lib/symbolic-products.ts");
-      expect(lib).toContain('input.productKey === "tarot" ? 2200 : 1400');
+      expect(lib).toContain('input.productKey === "tarot" ? 3200 : 1400');
     });
 
     it("the recommendations endpoint returns repeat CTA + other service + esoteric specialist", () => {
