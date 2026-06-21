@@ -50,10 +50,15 @@ describe("AI task taxonomy and default routing policy", () => {
     // (a client runs many разборов/day; the cap was misreported as un-recognised
     // screenshots). It matches every other paid feature — none carry one.
     expect(chatOcr?.perUserDailyTokenBudget ?? null).toBeNull();
-    // Free-tier features still keep their per-user daily budgets (genuinely free LLM
-    // calls — the cap is the right abuse guard there).
-    expect(getDefaultAIRoutingPolicy("dialogue-primary-answer")?.perUserDailyTokenBudget ?? 0).toBeGreaterThan(0);
-    expect(getDefaultAIRoutingPolicy("daily-practice")?.perUserDailyTokenBudget ?? 0).toBeGreaterThan(0);
+    // Issue #2/#3: the checkin dialogue flow must ALWAYS be LLM-written — never
+    // silently degraded to scripted content when a user (or a founder testing)
+    // exhausts a per-user token cap. Abuse is bounded by the 3-разбора/day COUNT
+    // limit, so these features carry NO per-user daily token budget.
+    for (const feature of ["dialogue-primary-answer", "dialogue-clarifier", "dialogue-router", "safety-classification", "daily-practice"]) {
+      expect(getDefaultAIRoutingPolicy(feature)?.perUserDailyTokenBudget ?? null).toBeNull();
+    }
+    // STT stays capped — it's expensive audio transcription, not the free flow.
+    expect((getDefaultAIRoutingPolicy("session-stt")?.perUserDailyTokenBudget ?? 0)).toBeGreaterThan(0);
   });
 
   it("defaults every active task to the Yandex provider family", () => {

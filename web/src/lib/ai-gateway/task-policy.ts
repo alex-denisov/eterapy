@@ -65,8 +65,11 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 900,
     temperature: 0.45,
     timeoutMs: 30_000,
-    perUserDailyTokenBudget: 12_000,
-    fallbackNotes: "OpenRouter/free для объема; direct OpenAI только как резерв.",
+    // Issue #2/#3: no per-user daily TOKEN cap — the free разбор must ALWAYS be
+    // LLM-written, never silently degraded to scripted content when a user (or a
+    // founder testing) burns tokens. Abuse is bounded by the 3-разбора/day COUNT
+    // limit (checkStandaloneDialogueDailyLimit), not by starving the model.
+    fallbackNotes: "Yandex-only; всегда LLM, без per-user token cap (лимит — по числу разборов).",
   },
   {
     feature: "dialogue-clarifier",
@@ -78,8 +81,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 400,
     temperature: 0.6,
     timeoutMs: 25_000,
-    perUserDailyTokenBudget: 8_000,
-    fallbackNotes: "YandexGPT Lite для дешевого JSON; в YANDEX_ONLY routing foreign override игнорируется.",
+    // Issue #3: no per-user token cap — clarifying questions are always LLM.
+    fallbackNotes: "YandexGPT Lite для дешевого JSON; всегда LLM, без per-user token cap.",
   },
   {
     feature: "daily-practice",
@@ -91,7 +94,6 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 500,
     temperature: 0.8,
     timeoutMs: 25_000,
-    perUserDailyTokenBudget: 4_000,
     fallbackNotes: "Free-тир; при сбое — детерминированный шаблон, чтобы ритуал не ломался.",
   },
   {
@@ -104,8 +106,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 350,
     temperature: 0,
     timeoutMs: 20_000,
-    perUserDailyTokenBudget: 4_000,
-    fallbackNotes: "Structured direct mini/haiku first; OpenRouter only for low-risk fallback.",
+    // Issue #3: routing must run for every разбор so the topic/triage is real.
+    fallbackNotes: "Structured direct mini/haiku first; всегда LLM, без per-user token cap.",
   },
   {
     feature: "safety-classification",
@@ -117,8 +119,9 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     maxTokens: 450,
     temperature: 0,
     timeoutMs: 25_000,
-    perUserDailyTokenBudget: 6_000,
-    fallbackNotes: "No OpenRouter: direct providers and human review boundary for high risk.",
+    // Safety triage must NEVER be budget-blocked — crisis detection can't be
+    // skipped because a user has used many tokens today.
+    fallbackNotes: "No OpenRouter: direct providers and human review boundary for high risk; без per-user token cap.",
   },
   {
     feature: "product-perspectives",
