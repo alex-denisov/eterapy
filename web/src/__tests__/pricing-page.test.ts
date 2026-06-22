@@ -24,9 +24,9 @@ describe("v5 pricing page", () => {
 
     expect(page).toContain('data-testid="pricing-page"');
     expect(combined).toContain("Первичный");
-    expect(combined).toContain("Полная картина");
+    expect(combined).toContain("Переосмысление");
     // B366: prices derive from the single billing source instead of ₽ literals.
-    expect(combined).toContain('price("perspectives")');
+    expect(combined).toContain('price("reframe")');
     expect(combined).toContain("getProductPriceLabel");
     // B348/Механика 1: подписки только месячные — годовых планов и тумблера «на год» нет.
     expect(combined).toContain("590");

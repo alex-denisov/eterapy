@@ -117,12 +117,12 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     previewBullets: ["корень формы", "география", "родовая тема"],
     trustLine: "Фамилия не публикуется без вашего согласия.",
   },
-  perspectives: {
+  reframe: {
     family: "synthesis",
-    primaryPromise: "Разложите один вопрос на мысли, чувства и первый шаг.",
+    primaryPromise: "Увидьте ситуацию иначе: мысли, чувства, другой взгляд и шаг.",
     heroVisual: "document-outline",
-    previewTitle: "Фрагмент до оплаты",
-    previewBullets: ["что видно сейчас", "что может быть скрыто", "первый бережный шаг"],
+    previewTitle: "Первый угол до оплаты",
+    previewBullets: ["что я себе говорю", "что подсказывает чувство", "другой, более честный взгляд"],
     trustLine: "Работает от вашего контекста, без публичной публикации.",
   },
   "deep-report": {

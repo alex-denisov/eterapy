@@ -13,11 +13,11 @@ import { recommendSecondaryProducts } from "@/lib/dialogue-recommendations";
 // кнопки подбирается под тему расклада, чтобы он не выглядел шаблонным.
 const TAROT_THEME_FOLLOWUP: Record<string, { cta: string; other: string; topic: string }> = {
   "Любовь и отношения": { cta: "Узнать, что ещё карты говорят об отношениях", other: "synastry", topic: "relationships" },
-  "Работа и призвание": { cta: "Спросить карты про работу и призвание", other: "perspectives", topic: "career" },
-  "Деньги и быт": { cta: "Спросить карты про деньги и опору", other: "perspectives", topic: "money" },
+  "Работа и призвание": { cta: "Спросить карты про работу и призвание", other: "reframe", topic: "career" },
+  "Деньги и быт": { cta: "Спросить карты про деньги и опору", other: "reframe", topic: "money" },
   "Семья и дом": { cta: "Спросить карты про семью и дом", other: "natal-chart", topic: "family" },
   "Самопознание": { cta: "Задать картам новый вопрос о себе", other: "natal-chart", topic: "self" },
-  "Перемены и выбор": { cta: "Спросить карты про выбор и перемены", other: "perspectives", topic: "other" },
+  "Перемены и выбор": { cta: "Спросить карты про выбор и перемены", other: "reframe", topic: "other" },
   "На сегодня": { cta: "Вытянуть карту на сегодня ещё раз", other: "numerology", topic: "other" },
 };
 const DEFAULT_FOLLOWUP = { cta: "Задать картам новый вопрос", other: "natal-chart", topic: "other" };

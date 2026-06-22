@@ -22,9 +22,10 @@ export function FullQuestionBundleOffer({
 }) {
   const { status } = useSession();
   const [bundleActive, setBundleActive] = useState(false);
-  const perspectivesHref = dialogueId
-    ? `/products/perspectives?dialogueId=${encodeURIComponent(dialogueId)}`
-    : "/products/perspectives";
+  // B441/B442: услуги самодостаточны — dialogueId больше не нужен; ссылка ведёт
+  // прямо на «Переосмысление» (бывш. perspectives).
+  void dialogueId;
+  const reframeHref = "/products/reframe";
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -82,7 +83,7 @@ export function FullQuestionBundleOffer({
           <h4 className="mt-2 font-heading text-lg font-semibold text-[var(--soft-ink)]">Полный разбор</h4>
           <p className="mt-2 font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">{getProductPriceLabel("full-question")}</p>
           <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Полная картина сначала, затем подробный разбор по тому же вопросу.
+            Переосмысление сначала, затем подробный разбор по той же ситуации.
           </p>
           <div className="mt-3 flex items-center gap-2 text-xs text-[var(--soft-ink-faint)]">
             <CheckCircle2 className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
@@ -96,8 +97,8 @@ export function FullQuestionBundleOffer({
             onUnlocked={onUnlocked}
             className="mt-4"
           />
-          <Link href={perspectivesHref} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-bordeaux)] underline">
-            Сначала открыть полную картину
+          <Link href={reframeHref} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-bordeaux)] underline">
+            Сначала открыть переосмысление
             <ArrowRight className="size-3.5" aria-hidden="true" />
           </Link>
         </article>

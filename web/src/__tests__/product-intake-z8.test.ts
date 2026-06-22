@@ -14,7 +14,7 @@ describe("Z8 product-local dialogue intake", () => {
     const productPage = source("src/app/products/[slug]/page.tsx");
     const productActions = [
       "src/components/products/deep-report-actions.tsx",
-      "src/components/products/perspectives-actions.tsx",
+      "src/components/products/reframe-actions.tsx",
       "src/components/products/compatibility-actions.tsx",
     ].map(source).join("\n");
 
@@ -24,28 +24,33 @@ describe("Z8 product-local dialogue intake", () => {
     expect(productActions).not.toContain("nextProduct=");
   });
 
-  it("uses ProductIntake for dialogue-backed products with the right modes", () => {
+  // B441/B442 (M28): «Переосмысление» и «Подробный разбор» больше НЕ используют
+  // ProductIntake/первичный диалог — контекст собирается внутри услуги. ProductIntake
+  // остаётся только у диалог-зависимых форматов («Совместимость»/«Вместе»).
+  it("makes reframe & deep-report self-contained, keeping ProductIntake only for dialogue-backed products", () => {
     const intake = source("src/components/products/product-intake.tsx");
     const detailPage = source("src/app/products/[slug]/page.tsx");
     const shell = source("src/components/products/product-page-shell.tsx");
     const deepReport = source("src/components/products/deep-report-actions.tsx");
-    const perspectives = source("src/components/products/perspectives-actions.tsx");
+    const reframe = source("src/components/products/reframe-actions.tsx");
     const compatibility = source("src/components/products/compatibility-actions.tsx");
 
     expect(intake).toContain('testId = "product-intake"');
     expect(intake).toContain("intakeProductKey");
-    expect(intake).toContain("intakeMode");
-    expect(intake).toContain("router.replace");
 
     expect(detailPage).toContain("<ProductActionSurface");
-    expect(detailPage).toContain("<PerspectivesActions");
+    expect(detailPage).toContain("<ReframeActions");
     expect(shell).toContain('data-testid="product-service-start"');
-    expect(deepReport).toContain("<ProductIntake");
+
+    // self-contained: no checkin/ProductIntake, own sourceText intake
+    expect(deepReport).not.toContain("ProductIntake");
     expect(deepReport).toContain('productKey="deep-report"');
-    expect(deepReport).toContain('mode="full"');
-    expect(perspectives).toContain("<ProductIntake");
-    expect(perspectives).toContain('productKey="perspectives"');
-    expect(perspectives).toContain('mode="full"');
+    expect(deepReport).toContain("sourceText");
+    expect(reframe).not.toContain("ProductIntake");
+    expect(reframe).toContain('productKey="reframe"');
+    expect(reframe).toContain("sourceText");
+
+    // dialogue-backed product still uses ProductIntake
     expect(compatibility).toContain('mode="light"');
     expect(compatibility).toContain('productKey={productKey}');
   });

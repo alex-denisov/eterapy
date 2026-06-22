@@ -126,11 +126,11 @@ describe("Y10 Z5 welcome credits", () => {
     }));
   });
 
-  it("surfaces a cabinet card that guides welcome credits to 4 perspectives", () => {
+  it("surfaces a cabinet card that guides welcome credits to 4 reframe", () => {
     const page = fs.readFileSync(path.join(root, "src/app/cabinet/wallet/page.tsx"), "utf8");
 
     expect(page).toContain("welcome-credits-card");
-    expect(page).toContain("welcome_credits_open_perspectives_clicked");
-    expect(page).toContain("/products/perspectives");
+    expect(page).toContain("welcome_credits_open_reframe_clicked");
+    expect(page).toContain("/products/reframe");
   });
 });

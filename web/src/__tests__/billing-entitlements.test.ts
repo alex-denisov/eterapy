@@ -69,7 +69,7 @@ describe("v5 billing entitlements", () => {
 
   it("keeps product prices server-side", () => {
     // B366: consistent ~297 ₽/балл ladder (1=299·2=590·3=890·4=1090 ₽ bundle).
-    expect(getProductPriceKopecks("perspectives")).toBe(29900);
+    expect(getProductPriceKopecks("reframe")).toBe(29900);
     expect(getProductPriceKopecks("deep-report")).toBe(89000);
     expect(getProductPriceKopecks("full-question")).toBe(109000);
     expect(getProductPriceKopecks("chat-analysis")).toBe(59000);
@@ -79,7 +79,7 @@ describe("v5 billing entitlements", () => {
     expect(getProductPriceKopecks("unknown-slug")).toBeNull();
     expect(getProductCreditCost("deep-report")).toBe(3);
     expect(getProductCreditCost("full-question")).toBe(4);
-    expect(V5_BUNDLE_CONTENTS["full-question"]).toEqual(["perspectives", "deep-report"]);
+    expect(V5_BUNDLE_CONTENTS["full-question"]).toEqual(["reframe", "deep-report"]);
     expect(getSubscriptionPlan("plus")).toEqual(expect.objectContaining({
       amountKopecks: 59_000,
       creditsPerPeriod: 12,
@@ -275,7 +275,7 @@ describe("v5 billing entitlements", () => {
     }));
   });
 
-  it("expands the full-question bundle into perspectives and deep-report entitlements", async () => {
+  it("expands the full-question bundle into reframe and deep-report entitlements", async () => {
     mockDb.productEntitlement.findFirst.mockResolvedValue(null);
     const ledgerCreate = jest.fn();
     const testTx = {
@@ -296,13 +296,13 @@ describe("v5 billing entitlements", () => {
     expect(result).toEqual({
       kind: "bundle",
       bundleKey: "full-question",
-      productKeys: ["perspectives", "deep-report"],
+      productKeys: ["reframe", "deep-report"],
     });
     expect(mockDb.productEntitlement.create).toHaveBeenCalledTimes(2);
     expect(mockDb.productEntitlement.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
         userId: "user-1",
-        productKey: "perspectives",
+        productKey: "reframe",
         source: "bundle",
         transactionId: "tx-bundle",
       }),
@@ -328,7 +328,7 @@ describe("v5 billing entitlements", () => {
     mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
     mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "plus" }]);
 
-    await expect(userHasActiveEntitlement("user-1", "perspectives")).resolves.toBe(true);
+    await expect(userHasActiveEntitlement("user-1", "reframe")).resolves.toBe(true);
 
     mockDb.productEntitlement.findFirst.mockResolvedValueOnce(null);
     mockDb.userSubscription.findMany.mockResolvedValueOnce([{ planKey: "plus" }]);
@@ -403,7 +403,7 @@ describe("v5 billing entitlements", () => {
     expect(mockDb.productEntitlement.updateMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
         userId: "user-1",
-        productKey: "perspectives",
+        productKey: "reframe",
         transactionId: "tx-bundle",
         status: "ACTIVE",
       }),
@@ -505,7 +505,7 @@ describe("INC-025/B408 consumeProductEntitlementForUse (per-use billing)", () =>
       },
     } as unknown as TxArg;
 
-    const consumed = await consumeProductEntitlementForUse(tx, "subscriber-1", "perspectives");
+    const consumed = await consumeProductEntitlementForUse(tx, "subscriber-1", "reframe");
 
     expect(consumed).toBe(false);
     expect(update).not.toHaveBeenCalled();
@@ -525,10 +525,10 @@ describe("INC-025/B408 consumeProductEntitlementForUse (per-use billing)", () =>
     const update = jest.fn().mockResolvedValue({});
     const tx = { productEntitlement: { findFirst, update } } as unknown as TxArg;
 
-    await consumeProductEntitlementForUse(tx, "user-1", "perspectives");
+    await consumeProductEntitlementForUse(tx, "user-1", "reframe");
 
     expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ userId: "user-1", productKey: "perspectives", status: "ACTIVE" }),
+      where: expect.objectContaining({ userId: "user-1", productKey: "reframe", status: "ACTIVE" }),
       orderBy: { createdAt: "desc" },
     }));
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
@@ -542,7 +542,7 @@ describe("INC-025/B408 consumeProductEntitlementForUse (per-use billing)", () =>
   // разбор re-charges (digital products are per-use, not buy-once-regenerate-free).
   it("all entitlement-gated paid generate routes consume on the paid path", () => {
     const routes = [
-      "src/app/api/products/perspectives/route.ts",
+      "src/app/api/products/reframe/route.ts",
       "src/app/api/products/deep-report/route.ts",
       "src/app/api/products/symbolic/route.ts",
       "src/app/api/products/synastry/route.ts",

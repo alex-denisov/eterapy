@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { buildChatAnalysisTeaser } from "@/lib/chat-analysis";
 import { buildDeepReportTeaser } from "@/lib/deep-report";
-import { buildPerspectivesTeaser } from "@/lib/perspectives";
+import { buildReframeTeaser } from "@/lib/reframe";
 import { buildCircleTeaser, buildPairTeaser } from "@/lib/social-clarity";
 import { buildSymbolicProductTeaser } from "@/lib/symbolic-products";
 
@@ -12,72 +12,51 @@ function source(relativePath: string) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-const dialogue = {
-  id: "dlg-z6",
-  title: "Стоит ли менять работу",
-  topic: "career",
-  difficulty: "medium",
-  safetyLevel: "normal",
-  messages: [
-    { role: "USER", content: "Стоит ли менять работу сейчас?" },
-    { role: "ASSISTANT", content: "Что в текущей работе сильнее всего истощает?" },
-    { role: "USER", content: "Нет ощущения роста, но страшно потерять стабильность." },
-  ],
-};
-
 describe("M24 Z6 real truncated product teasers", () => {
-  it("turns a full perspectives result into 1 opened angle plus 3 locked angle titles", () => {
+  it("turns a full reframe result into 1 opened lens plus 3 locked lens titles", () => {
     const fullResult = JSON.stringify({
       angles: [
         {
-          id: "mind",
-          title: "Разум",
-          subtitle: "факты и неизвестное",
-          facts: ["Вы хотите роста, но стабильность остаётся важной опорой."],
-          unknowns: ["Какой риск действительно непереносим?"],
-          options: ["Собрать факты по рынку до увольнения."],
-          ask: "Что вы уже знаете наверняка?",
-          step: "Сравните текущую работу и две вакансии по трём фактам.",
+          id: "thoughts",
+          title: "Мысли",
+          subtitle: "факты и оценка",
+          facts: ["Вы решили, что вас уволят, хотя это пока вывод, а не факт."],
+          unknowns: ["Что руководитель сказал дословно?"],
+          options: ["Выписать факты отдельно от выводов."],
+          ask: "Что здесь факт, а что догадка?",
+          step: "Запишите одно проверяемое «я точно знаю…».",
         },
-        { id: "feeling", title: "Чувства", subtitle: "", facts: [], unknowns: [], options: [], ask: "", step: "" },
-        { id: "symbol", title: "Символ", subtitle: "", facts: [], unknowns: [], options: [], ask: "", step: "" },
-        { id: "action", title: "Действие", subtitle: "", facts: [], unknowns: [], options: [], ask: "", step: "" },
+        { id: "feelings", title: "Чувства", subtitle: "", facts: [], unknowns: [], options: [], ask: "", step: "" },
+        { id: "reframe", title: "Другой взгляд", subtitle: "", facts: [], unknowns: [], options: [], ask: "", step: "" },
+        { id: "step", title: "Шаг", subtitle: "", facts: [], unknowns: [], options: [], ask: "", step: "" },
       ],
     });
 
-    const teaser = buildPerspectivesTeaser(dialogue, fullResult);
+    const teaser = buildReframeTeaser("Меня раскритиковали при всех, боюсь увольнения", fullResult);
 
-    expect(teaser).toContain("Бесплатная часть");
-    expect(teaser).toContain("Вы хотите роста");
-    expect(teaser).toContain("Что вы уже знаете наверняка?");
-    expect(teaser).toContain("Еще внутри полного результата");
-    expect(teaser).toContain("Чувства");
-    expect(teaser).toContain("Символ");
-    expect(teaser).toContain("Действие");
-    expect(teaser).not.toContain("Полный результат раскроет");
+    expect(teaser).toContain("Бесплатный разворот");
+    expect(teaser).toContain("это пока вывод");
+    expect(teaser).toContain("Что здесь факт, а что догадка?");
+    expect(teaser).toContain("Ещё внутри полного переосмысления");
+    expect(teaser).toContain("Другой взгляд");
+    expect(teaser).toContain("Шаг");
   });
 
-  it("builds a deep-report teaser with personalized TOC and the first two report blocks", () => {
+  it("builds a deep-report teaser with the case-formulation TOC and the first opened block", () => {
     const fullReport = [
-      "Подробный разбор",
-      "",
-      "1. Что я слышу",
+      "## Что происходит",
       "Вы хотите не просто сменить работу, а вернуть ощущение роста без резкого обрыва стабильности.",
       "",
-      "2. Главная развилка",
-      "Развилка между терпеть знакомое и проверить новый маршрут маленьким шагом.",
-      "",
-      "3. Сценарии",
+      "## Как это могло сложиться",
       "Этот раздел должен остаться за стеной.",
     ].join("\n");
 
-    const teaser = buildDeepReportTeaser(dialogue, fullReport);
+    const teaser = buildDeepReportTeaser("Стоит ли менять работу", fullReport);
 
-    expect(teaser).toContain("Персональное оглавление");
-    expect(teaser).toContain("Что я слышу");
-    expect(teaser).toContain("Главная развилка");
+    expect(teaser).toContain("Оглавление подробного разбора");
+    expect(teaser).toContain("Что происходит");
     expect(teaser).toContain("вернуть ощущение роста");
-    expect(teaser).toContain("маленьким шагом");
+    expect(teaser).toContain("Остальные разделы откроются после оплаты");
     expect(teaser).not.toContain("Этот раздел должен остаться за стеной");
   });
 

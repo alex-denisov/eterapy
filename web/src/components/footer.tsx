@@ -19,7 +19,7 @@ export function Footer({ variant = "soft", compact = false }: { variant?: "dark"
       title: "Разборы",
       links: [
         [mainUrl("/"), "Разобрать бесплатно"],
-        [mainUrl("/products/perspectives"), "Полная картина"],
+        [mainUrl("/products/reframe"), "Переосмысление"],
         [mainUrl("/products/deep-report"), "Подробный разбор"],
         [mainUrl("/products/chat-analysis"), "Разбор переписки"],
         [mainUrl("/products/pair"), "Вместе"],

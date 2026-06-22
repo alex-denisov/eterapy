@@ -12,9 +12,10 @@
 // membership discount and is NOT governed by this per-product ladder.
 
 export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
-  "perspectives": 29900,
+  // B441 (M28): «perspectives» renamed → «reframe» (Переосмысление, CBT-рефрейминг).
+  "reframe": 29900,
   "deep-report": 89000,
-  // Z11/B366: packaging SKU = perspectives + deep-report (1 + 3 = 4 балла). Priced
+  // Z11/B366: packaging SKU = reframe + deep-report (1 + 3 = 4 балла). Priced
   // 1090 ₽ — a genuine discount vs buying separately (299 + 890 = 1189 ₽) so the
   // «выгоднее» badge is honest. Not a public product page. (272 ₽/балл, in band.)
   "full-question": 109000,
@@ -42,7 +43,7 @@ export const V5_PRODUCT_PRICES_KOPECKS: Record<string, number> = {
 };
 
 export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
-  "perspectives": 1,
+  "reframe": 1,
   "deep-report": 3,
   "full-question": 4,
   "chat-analysis": 2,
@@ -64,7 +65,7 @@ export const V5_PRODUCT_CREDIT_COSTS: Record<string, number> = {
 // Active (non-deprecated) priced products whose ₽/балл must stay in the 250–300
 // band. (Retired services were fully removed in B373.)
 export const V5_LADDER_ACTIVE_PRODUCTS = [
-  "perspectives", "deep-report", "full-question", "chat-analysis",
+  "reframe", "deep-report", "full-question", "chat-analysis",
   "compatibility", "circle", "pair", "tarot", "natal-chart", "synastry", "numerology",
   "family-scenarios", "human-design", "surname-story",
 ] as const;

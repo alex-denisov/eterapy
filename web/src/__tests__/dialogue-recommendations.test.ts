@@ -14,16 +14,16 @@ describe("W17 dialogue recommendation engine", () => {
     expect(recommendPrimaryProduct("money").slug).toBe("deep-report");
     // B373 (M26): выпиленные услуги remapped на живые продукты.
     expect(recommendPrimaryProduct("anxiety").slug).toBe("deep-report");
-    expect(recommendPrimaryProduct("self").slug).toBe("perspectives");
+    expect(recommendPrimaryProduct("self").slug).toBe("reframe");
     // catalog metadata is attached (fixes the "card doesn't match" drift)
     const money = recommendPrimaryProduct("money");
     expect(money.name).toBe("Подробный разбор");
     expect(money.price).toMatch(/₽/);
   });
 
-  it("falls back to perspectives for unknown/other topics", () => {
-    expect(recommendPrimaryProduct(null).slug).toBe("perspectives");
-    expect(recommendPrimaryProduct("nonsense").slug).toBe("perspectives");
+  it("falls back to reframe for unknown/other topics", () => {
+    expect(recommendPrimaryProduct(null).slug).toBe("reframe");
+    expect(recommendPrimaryProduct("nonsense").slug).toBe("reframe");
     expect(normalizeTopic("nonsense")).toBe("other");
   });
 
@@ -42,8 +42,8 @@ describe("W17 dialogue recommendation engine", () => {
   });
 
   it("chooses the subscription tier by product fit, not always Plus", () => {
-    // perspectives is in the Plus bundle
-    expect(recommendSubscription("perspectives", false)?.tier).toBe("plus");
+    // reframe is in the Plus bundle
+    expect(recommendSubscription("reframe", false)?.tier).toBe("plus");
     // deep-report is Premium-only
     expect(recommendSubscription("deep-report", false)?.tier).toBe("premium");
     // X17: free/unmatched products surface Plus as the calm entry tier (the

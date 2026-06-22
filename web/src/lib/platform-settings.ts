@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   "tools.default_limit":     "3",
 
   // Цены цифровых продуктов (копейки/рубли)
-  "product.perspectives.price":   "299",
+  "product.reframe.price":   "299",
   "product.deep-report.price":    "590",
   "product.chat-analysis.price":  "390",
   "product.circle.price":         "790",

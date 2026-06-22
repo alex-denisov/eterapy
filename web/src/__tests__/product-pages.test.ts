@@ -29,7 +29,7 @@ describe("v5 product pages", () => {
     const purchaseControls = source("components/products/product-purchase-controls.tsx");
     const productActions = [
       "components/products/deep-report-actions.tsx",
-      "components/products/perspectives-actions.tsx",
+      "components/products/reframe-actions.tsx",
       "components/products/chat-analysis-actions.tsx",
       "components/products/compatibility-actions.tsx",
       "components/products/symbolic-product-actions.tsx",
@@ -41,7 +41,7 @@ describe("v5 product pages", () => {
     expect(indexPage).toContain("открыть нужную услугу напрямую");
     expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).toContain("<ProductActionSurface");
-    expect(detailPage).toContain("<PerspectivesActions");
+    expect(detailPage).toContain("<ReframeActions");
     expect(detailPage).not.toContain("nextProduct=");
     expect(detailPage).not.toContain("<ProductPurchaseControls");
     expect(productActions).toContain("<ProductPurchaseControls");
@@ -86,7 +86,7 @@ describe("v5 product pages", () => {
 
     expect(products).toContain("Подробный разбор");
     // Z2 credit-centric: deep-report is a PREMIUM anchor (Plus includes only
-    // perspectives), so the copy must say Premium, not Plus.
+    // reframe), so the copy must say Premium, not Plus.
     expect(products).toContain("или −3 балла · в Premium входит");
     expect(products).not.toContain("в Plus входит");
     // «Совместимость» теперь сценарий внутри «Вместе», не отдельная услуга.

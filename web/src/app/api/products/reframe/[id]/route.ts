@@ -41,8 +41,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   const { id } = await params;
-  const result = await db.productResult.findFirst({ where: { id, userId, productKey: "perspectives", deletedAt: null } });
-  if (!result) return errorWithRequestContext("NOT_FOUND", "Perspectives not found", 404, context);
+  const result = await db.productResult.findFirst({ where: { id, userId, productKey: "reframe", deletedAt: null } });
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Reframe not found", 404, context);
   return jsonWithRequestContext({ result: serialize(result) }, { status: 200 }, context);
 }
 
@@ -55,10 +55,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid action", 400, context);
   const { id } = await params;
   const result = await db.productResult.findFirst({
-    where: { id, userId, productKey: "perspectives", deletedAt: null },
+    where: { id, userId, productKey: "reframe", deletedAt: null },
     select: { id: true, status: true },
   });
-  if (!result) return errorWithRequestContext("NOT_FOUND", "Perspectives not found", 404, context);
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Reframe not found", 404, context);
   if (result.status !== "READY") return errorWithRequestContext("CONFLICT", "Можно сохранить только готовый результат", 409, context);
   const updated = await db.productResult.update({ where: { id }, data: { savedAt: new Date() } });
   return jsonWithRequestContext({ result: serialize(updated) }, { status: 200 }, context);
@@ -71,10 +71,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   const { id } = await params;
   const result = await db.productResult.findFirst({
-    where: { id, userId, productKey: "perspectives", deletedAt: null },
+    where: { id, userId, productKey: "reframe", deletedAt: null },
     select: { id: true },
   });
-  if (!result) return errorWithRequestContext("NOT_FOUND", "Perspectives not found", 404, context);
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Reframe not found", 404, context);
   await db.productResult.update({ where: { id }, data: { status: "DELETED", deletedAt: new Date() } });
   return jsonWithRequestContext({ ok: true }, { status: 200 }, context);
 }

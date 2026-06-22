@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { buildDeepReportPreview, heuristicDeepReport } from "@/lib/deep-report";
+import { buildDeepReportPreview, heuristicDeepReport, DEEP_REPORT_SECTIONS } from "@/lib/deep-report";
 
 const root = process.cwd();
 
@@ -8,74 +8,66 @@ function source(relativePath: string) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
-describe("B085 deep report product", () => {
-  const dialogue = {
-    id: "dlg-1",
-    title: "Стоит ли менять работу",
-    topic: "career",
-    difficulty: "medium",
-    safetyLevel: "normal",
-    messages: [
-      { role: "USER", content: "Стоит ли менять работу сейчас?" },
-      { role: "ASSISTANT", content: "Что в текущей работе сильнее всего истощает?" },
-      { role: "USER", content: "Нет ощущения роста, но страшно потерять стабильность." },
-    ],
-  };
+// B442 (M28): «Подробный разбор» — самодостаточная услуга на методе клинической
+// формулировки случая (5P + problem-solving). Контекст собирается ВНУТРИ услуги
+// (sourceText), без первичного диалога; результат — документ 6–10 страниц; автосейв.
+describe("B442 deep report product (Подробный разбор)", () => {
+  const sourceText = "Стоит ли менять работу сейчас? Нет ощущения роста, но страшно потерять стабильность.";
 
-  it("creates a meaningful preview and safe fallback report from dialogue context", () => {
-    const preview = buildDeepReportPreview(dialogue);
-    const report = heuristicDeepReport(dialogue);
+  it("builds a self-contained preview and case-formulation fallback from free-text input", () => {
+    const preview = buildDeepReportPreview(sourceText);
+    const report = heuristicDeepReport(sourceText);
 
-    expect(preview).toContain("Предпросмотр подробного разбора");
+    expect(preview).toContain("Оглавление подробного разбора");
     expect(preview).toContain("Стоит ли менять работу");
-    expect(report).toContain("Подробный разбор");
-    expect(report).toContain("План на 24-72 часа");
+    // все 7 секций формулировки случая
+    for (const sectionTitle of DEEP_REPORT_SECTIONS) {
+      expect(report).toContain(sectionTitle);
+    }
     expect(report).not.toContain("гарантированно");
   });
 
-  it("adds a durable ProductResult model for paid outputs", () => {
+  it("keeps a durable ProductResult model for paid outputs", () => {
     const schema = source("prisma/schema.prisma");
-    const migration = source("prisma/migrations/20260506042000_add_product_results/migration.sql");
-
     expect(schema).toContain("model ProductResult");
     expect(schema).toContain('@@map("product_results")');
-    expect(migration).toContain('CREATE TABLE "product_results"');
-    expect(migration).toContain('"result_text" TEXT');
   });
 
-  it("implements owner-scoped preview, entitlement gate, generation, save, export and delete routes", () => {
+  it("route is self-contained (sourceText, no dialogue) with autosave + per-use consume", () => {
     const route = source("src/app/api/products/deep-report/route.ts");
     const itemRoute = source("src/app/api/products/deep-report/[id]/route.ts");
     const exportRoute = source("src/app/api/products/deep-report/[id]/export/route.ts");
 
-    expect(route).toContain('action: z.enum(["preview", "generate"])');
-    expect(route).toContain('productKey: PRODUCT_KEY');
-    expect(route).toContain("userHasActiveEntitlement(userId, PRODUCT_KEY)");
-    expect(route).toContain('code: "PAYMENT_REQUIRED"');
+    expect(route).toContain('z.literal("preview")');
+    expect(route).toContain('z.literal("generate")');
+    expect(route).toContain("sourceText");
+    expect(route).not.toContain("db.dialogue");
     expect(route).toContain("generateDeepReport");
+    expect(route).toContain("consumeProductEntitlementForUse");
+    expect(route).toContain('code: "PAYMENT_REQUIRED"');
+    expect(route).toContain("savedAt: resultRecord.savedAt ?? new Date()");
     expect(itemRoute).toContain('action: z.enum(["save"])');
-    expect(itemRoute).toContain('status: "DELETED"');
-    expect(exportRoute).toContain('Content-Disposition');
-    expect(`${route}\n${itemRoute}\n${exportRoute}`).toContain("userId");
+    expect(exportRoute).toContain("Content-Disposition");
   });
 
-  it("wires the product detail page and dialogue result into the deep report flow", () => {
+  it("raises the token budget so the document can really be 6–10 pages", () => {
+    const lib = source("src/lib/deep-report.ts");
+    const policy = source("src/lib/ai-gateway/task-policy.ts");
+    expect(lib).toContain("maxTokens: 7000");
+    // policy entry for product-deep-report also lifted
+    expect(policy).toContain("maxTokens: 7000");
+  });
+
+  it("wires a self-contained product surface (no checkin/ProductIntake) into the deep-report flow", () => {
     const detailPage = source("src/app/products/[slug]/page.tsx");
     const actions = source("src/components/products/deep-report-actions.tsx");
-    const dialoguePage = source("src/app/checkin/page.tsx");
 
     expect(detailPage).toContain("<DeepReportActions");
     expect(actions).toContain('data-testid="deep-report-actions"');
-    expect(actions).toContain("<ProductIntake");
-    expect(actions).toContain('productKey="deep-report"');
-    expect(actions).toContain('mode="full"');
+    expect(actions).not.toContain("ProductIntake");
     expect(actions).toContain("/api/products/deep-report");
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain('checkoutSource="deep-report-generate"');
-    expect(actions).toContain("Сохранить в Мою карту");
-    // W17: dialogue-result deepening links (incl. deep-report) are now rendered
-    // dynamically from the topic-driven recommendation API, not a static array.
-    expect(dialoguePage).toContain("secondaryProducts.map(");
-    expect(dialoguePage).toContain("${item.href}?dialogueId=${dialogue.id}");
+    expect(actions).toContain("NextStepCard");
   });
 });

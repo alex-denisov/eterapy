@@ -26,24 +26,25 @@ describe("B367 (M26) — переименования услуг и выпил �
     expect(offenders).toEqual([]);
   });
 
-  it("продукты называются по решениям M26", () => {
+  it("продукты называются по решениям M26/M28", () => {
     const products = source("src/lib/v5-products.ts");
-    expect(products).toContain('name: "Полная картина"');
+    // B441 (M28): «Полная картина» → «Переосмысление» (когнитивный рефрейминг).
+    expect(products).toContain('name: "Переосмысление"');
     expect(products).toContain('name: "Подробный разбор"');
     expect(products).toContain('name: "Совместимость по звёздам"');
     expect(products).not.toContain("joint-session\":");
 
     const labels = source("src/lib/billing-labels.ts");
-    expect(labels).toContain('perspectives: "Полная картина"');
+    expect(labels).toContain('reframe: "Переосмысление"');
     expect(labels).toContain('"deep-report": "Подробный разбор"');
   });
 
-  it("углы «Полной картины» — мысли · чувства · скрытый смысл · первый шаг", () => {
-    const perspectives = source("src/lib/perspectives.ts");
-    expect(perspectives).toContain('title: "Мысли"');
-    expect(perspectives).toContain('title: "Чувства"');
-    expect(perspectives).toContain('title: "Скрытый смысл"');
-    expect(perspectives).toContain('title: "Первый шаг"');
+  it("линзы «Переосмысления» — мысли · чувства · другой взгляд · шаг (CBT-рефрейминг)", () => {
+    const reframe = source("src/lib/reframe.ts");
+    expect(reframe).toContain('title: "Мысли"');
+    expect(reframe).toContain('title: "Чувства"');
+    expect(reframe).toContain('title: "Другой взгляд"');
+    expect(reframe).toContain('title: "Шаг"');
   });
 
   it("joint-session выпилен: нет роутов, sitemap и упоминаний в каталоге", () => {

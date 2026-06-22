@@ -111,7 +111,7 @@ const APP_PUBLIC_MAIN_PATHS = [
   "/products/natal-chart",
   "/products/synastry",
   "/products/numerology",
-  "/products/perspectives",
+  "/products/reframe",
   "/products/tarot",
   "/register",
   "/share",
@@ -165,6 +165,18 @@ export default async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   const host = (request.headers.get("host") ?? request.headers.get("x-forwarded-host") ?? "").split(":")[0].toLowerCase();
   const pathname = request.nextUrl.pathname;
+
+  // B441 (M28): «perspectives» услуга переименована в «reframe» (Переосмысление).
+  // Постоянный (308) редирект со старого слага — фиксируется ДО проверки
+  // unknownProductSlug (иначе старый URL отдал бы 404).
+  if (pathname === "/products/perspectives" || pathname.startsWith("/products/perspectives/")) {
+    const target = pathname.replace("/products/perspectives", "/products/reframe");
+    return applyRobotsPolicy(
+      withRequestContext(NextResponse.redirect(new URL(target + request.nextUrl.search, request.url), 308), context),
+      host,
+      pathname,
+    );
+  }
 
   if (unknownProductSlug(pathname) || isRemovedPath(pathname)) {
     return applyRobotsPolicy(

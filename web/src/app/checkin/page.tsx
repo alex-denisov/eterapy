@@ -44,7 +44,7 @@ const DIALOGUE_INPUT_MAX_CHARS = 1200;
 
 // W17: icon per product slug for the dynamic "другие форматы" list.
 const PRODUCT_ICONS: Record<string, typeof Compass> = {
-  perspectives: Compass,
+  reframe: Compass,
   "deep-report": FileText,
   "chat-analysis": MessageSquareText,
   compatibility: Users,
@@ -955,7 +955,7 @@ export default function CheckinPage() {
               </button>
 
               {/* priority 2: подобрано для вас (the topic-aware paid format) */}
-              {productRecommendation && productRecommendation.slug !== "perspectives" ? (
+              {productRecommendation && productRecommendation.slug !== "reframe" ? (
                 <Link
                   href={`${productRecommendation.href}?dialogueId=${dialogue.id}`}
                   className="soft-card soft-triage-primary flex flex-col p-5"
@@ -994,27 +994,27 @@ export default function CheckinPage() {
                 </Link>
               ) : (
                 <Link
-                  href={`/products/perspectives?dialogueId=${dialogue.id}`}
+                  href="/products/reframe"
                   className="soft-card soft-triage-primary flex flex-col p-5"
                   data-testid="triage-primary-cta"
                   data-analytics-surface="checkin_triage"
                   data-analytics-event="triage_primary_clicked"
-                  data-analytics-target={`/products/perspectives?dialogueId=${dialogue.id}`}
-                  data-analytics-product="perspectives"
+                  data-analytics-target="/products/reframe"
+                  data-analytics-product="reframe"
                   data-analytics-dialogue-id={dialogue.id}
                   data-analytics-cta-role="primary"
-                  data-analytics-offer-id="perspectives_first_paid_step"
+                  data-analytics-offer-id="reframe_first_paid_step"
                   data-analytics-offer-reason="decision_request_after_free_answer"
                   data-analytics-price-rub="299"
-                  data-analytics-credit-cost="2"
+                  data-analytics-credit-cost="1"
                 >
                   <span className="soft-triage-ribbon">подобрано для вас</span>
                   <div className="mt-2 flex items-start gap-3">
                     <Compass className="mt-1 size-6 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
                     <div>
-                      <h3 className="soft-h3">Полная картина</h3>
+                      <h3 className="soft-h3">Переосмысление</h3>
                       <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                        {productRecommendation?.reason ?? "Похоже на запрос про решение. Разложим ситуацию на разум, чувства, символ и действие."}
+                        {productRecommendation?.reason ?? "Похоже на запрос про решение. Метод когнитивного рефрейминга поможет увидеть ситуацию иначе: мысли, чувства, другой взгляд и шаг."}
                       </p>
                     </div>
                   </div>

@@ -5,7 +5,7 @@ import {
 } from "@/lib/product-prices";
 
 export type V5ProductSlug =
-  | "perspectives"
+  | "reframe"
   | "deep-report"
   | "chat-analysis"
   | "pair"
@@ -50,24 +50,28 @@ const RAW_V5_PRODUCTS: V5Product[] = [
   // AI-роутинга; публичные страницы отдают честный 404 (не в v5Products →
   // unknownProductSlug), их нет в sitemap/каталоге/рекомендациях.
   {
-    slug: "perspectives",
-    route: "/products/perspectives",
-    name: "Полная картина",
-    eyebrow: "углубление",
-    summary: "Один вопрос целиком: мысли, чувства, скрытый смысл и первый шаг. Первая часть разбора бесплатно.",
-    // B322: aligned with docs/ETerapy_v5_Product_Package/13_Prices_Breakdown.md §5 —
-    // 299 ₽ или 1 балл (was 2).
+    // B441 (M28): «Переосмысление» — услуга на методе когнитивного рефрейминга
+    // (CBT cognitive reframing / restructuring + perspective-taking). Контекст
+    // собирается ВНУТРИ услуги (без первичного диалога/checkin). slug `reframe`
+    // = en-соответствие имени; productKey тоже `reframe` (полный rename, без
+    // slug≠key индирекции). 301 со старого `/products/perspectives`.
+    slug: "reframe",
+    route: "/products/reframe",
+    name: "Переосмысление",
+    eyebrow: "когнитивный рефрейминг",
+    summary: "Ситуация, которая не отпускает, — под четырьмя углами: мысли, чувства, другой взгляд и первый шаг. Метод когнитивного рефрейминга помогает увидеть её иначе. Первый разворот бесплатно.",
+    // B322/B366: 299 ₽ или 1 балл.
     price: "299 ₽",
     priceMeta: "или −1 балл",
     creditPrice: "или −1 балл",
     creditCost: 1,
     tone: "paid",
-    cta: "Увидеть полную картину",
-    directCta: "Открыть полную картину",
-    productKey: "perspectives",
-    mechanics: ["мысли", "чувства", "скрытый смысл без фатальности", "первый шаг"],
-    privacy: "Работает от контекста диалога; приватные данные не публикуются.",
-    result: "Ситуация целиком — с четырёх сторон — и итог, который можно сохранить в Моей карте.",
+    cta: "Посмотреть иначе",
+    directCta: "Переосмыслить ситуацию",
+    productKey: "reframe",
+    mechanics: ["мысли против фактов", "что подсказывает чувство", "другой, более честный взгляд", "первый маленький шаг"],
+    privacy: "Описанная ситуация остаётся в вашем аккаунте и не публикуется.",
+    result: "Ваша ситуация под четырьмя углами и один шаг, который можно сохранить в Дневник.",
   },
   {
     slug: "deep-report",

@@ -4,7 +4,7 @@ import db from "@/lib/db";
 import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import { stripMarkdown } from "@/lib/markdown";
 import { tryParseChatAnalysis } from "@/lib/chat-analysis";
-import { tryParsePerspectives } from "@/lib/perspectives";
+import { tryParseReframe } from "@/lib/reframe";
 
 // B373 (M26): «Моя карта» → Дневник. Этот слой собирает личную историю
 // пользователя (диалоги, сохранённые результаты, маршруты) для страницы Дневника.
@@ -36,7 +36,7 @@ export type DiaryItem = {
 
 const PRODUCT_LABELS: Record<string, string> = {
   "deep-report": "Подробный разбор",
-  perspectives: "Полная картина",
+  reframe: "Переосмысление",
   "chat-analysis": "Разбор переписки",
   compatibility: "Совместимость",
   synastry: "Совместимость по звёздам",
@@ -101,8 +101,8 @@ function readableProductBody(
     }
   }
 
-  if (productKey === "perspectives") {
-    const parsed = tryParsePerspectives(raw) ?? tryParsePerspectives((previewText ?? "").trim());
+  if (productKey === "reframe") {
+    const parsed = tryParseReframe(raw) ?? tryParseReframe((previewText ?? "").trim());
     if (parsed) {
       const body = parsed.angles
         .map((angle) => `**${angle.title}.** ${angle.ask || angle.step || (angle.options[0] ?? "")}`.trim())

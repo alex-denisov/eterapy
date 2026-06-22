@@ -61,8 +61,8 @@ describe("B382 — topic→service CTA funnel", () => {
   });
 
   it("teaser microcopy follows the «первая часть бесплатно · полный за N баллов» pattern", () => {
-    const cta = resolveLibraryCta({ topic: "Хожу по кругу" }); // → Полная картина, 1 балл, 299 ₽
-    expect(cta.product).toBe("Полная картина");
+    const cta = resolveLibraryCta({ topic: "Хожу по кругу" }); // → Переосмысление, 1 балл, 299 ₽
+    expect(cta.product).toBe("Переосмысление");
     expect(cta.teaserNote).toBe("первая часть разбора бесплатно · полный — за 1 балл (299 ₽)");
   });
 

@@ -44,19 +44,20 @@ describe("B071-B074 dialogue flow UI", () => {
     // W17: "другие форматы" is now topic-driven from the API, not a static array
     expect(page).toContain("secondaryProducts.map(");
     expect(page).toContain("${item.href}?dialogueId=${dialogue.id}");
-    expect(page).toContain('href={`/products/perspectives?dialogueId=${dialogue.id}`}');
+    // B441: reframe is self-contained — the checkin fallback links to it without ?dialogueId.
+    expect(page).toContain('href="/products/reframe"');
     expect(page).toContain('data-analytics-event="triage_primary_clicked"');
     expect(page).toContain('data-analytics-event="triage_secondary_clicked"');
     expect(page).toContain('data-analytics-event="triage_subscription_clicked"');
     // Two branches share the testid: dynamic recommendation (topic-aware)
-    // vs. the perspectives fallback. Only one renders at runtime.
+    // vs. the reframe fallback. Only one renders at runtime.
     expect(page.match(/data-testid="triage-primary-cta"/g)?.length).toBe(2);
     expect(page).toContain('data-analytics-surface="checkin_triage"');
     expect(page).toContain('data-analytics-cta-role="primary"');
-    expect(page).toContain('data-analytics-offer-id="perspectives_first_paid_step"');
+    expect(page).toContain('data-analytics-offer-id="reframe_first_paid_step"');
     expect(page).toContain('data-analytics-offer-reason="decision_request_after_free_answer"');
     expect(page).toContain('data-analytics-price-rub="299"');
-    expect(page).toContain('data-analytics-credit-cost="2"');
+    expect(page).toContain('data-analytics-credit-cost="1"');
     expect(page).toContain("ETerapy не будет предлагать платные продукты");
   });
 

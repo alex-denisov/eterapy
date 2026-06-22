@@ -49,7 +49,7 @@ describe("B366 price ladder", () => {
   const norm = (s: string): string => s.replace(/\s+/g, " ");
 
   it("spot-checks the settled ladder numbers", () => {
-    expect(getProductPriceLabel("perspectives")).toBe("299 ₽");
+    expect(getProductPriceLabel("reframe")).toBe("299 ₽");
     expect(getProductPriceLabel("chat-analysis")).toBe("590 ₽");
     expect(getProductPriceLabel("deep-report")).toBe("890 ₽");
     expect(getProductPriceLabel("synastry")).toBe("890 ₽");

@@ -23,31 +23,31 @@ const TOPICS: DialogueTopic[] = ["relationships", "family", "career", "money", "
 const PRIMARY_PRODUCT: Record<DialogueTopic, V5ProductSlug> = {
   relationships: "pair",
   family: "pair",
-  career: "perspectives",
+  career: "reframe",
   money: "deep-report",
   anxiety: "deep-report",
-  self: "perspectives",
-  other: "perspectives",
+  self: "reframe",
+  other: "reframe",
 };
 
 const ADJACENT_PRODUCTS: Record<DialogueTopic, V5ProductSlug[]> = {
-  relationships: ["pair", "chat-analysis", "perspectives", "tarot"],
-  family: ["perspectives", "chat-analysis", "pair", "family-scenarios"],
-  career: ["perspectives", "deep-report", "numerology", "tarot"],
-  money: ["deep-report", "perspectives", "numerology", "tarot"],
-  anxiety: ["deep-report", "perspectives", "tarot", "natal-chart"],
-  self: ["perspectives", "natal-chart", "human-design", "tarot"],
-  other: ["perspectives", "deep-report", "tarot", "numerology"],
+  relationships: ["pair", "chat-analysis", "reframe", "tarot"],
+  family: ["reframe", "chat-analysis", "pair", "family-scenarios"],
+  career: ["reframe", "deep-report", "numerology", "tarot"],
+  money: ["deep-report", "reframe", "numerology", "tarot"],
+  anxiety: ["deep-report", "reframe", "tarot", "natal-chart"],
+  self: ["reframe", "natal-chart", "human-design", "tarot"],
+  other: ["reframe", "deep-report", "tarot", "numerology"],
 };
 
 const PRIMARY_REASON: Record<DialogueTopic, string> = {
   relationships: "Вы можете отдельно сравнить взгляды друг друга — общий итог откроется по согласию.",
   family: "Бережный групповой формат, чтобы услышать близких без давления и спора.",
-  career: "Разложим ваше решение на разум, чувства, символ и действие — где ответ уже виден.",
+  career: "Переосмыслим решение: мысли против фактов, чувства, другой взгляд и первый шаг.",
   money: "Структурируем варианты, риски и безопасные шаги в подробный документ-разбор.",
   anxiety: "Структурируем тревожную ситуацию: что здесь факт, а что страх, и какие шаги безопасны.",
-  self: "Посмотрим на вас с четырёх сторон сразу: мысли, чувства, скрытый смысл и первый шаг.",
-  other: "Универсальное углубление: посмотрим на ситуацию с четырёх сторон сразу.",
+  self: "Посмотрим на ситуацию иначе — мысли, чувства, другой взгляд и первый шаг.",
+  other: "Метод когнитивного рефрейминга: увидеть ситуацию под четырьмя углами сразу.",
 };
 
 export function normalizeTopic(topic: string | null | undefined): DialogueTopic {
@@ -72,9 +72,9 @@ export function recommendPrimaryProduct(topic: string | null | undefined): Produ
   const t = normalizeTopic(topic);
   const rec = toRecommendation(PRIMARY_PRODUCT[t], PRIMARY_REASON[t]);
   return rec ?? {
-    slug: "perspectives",
-    name: "Полная картина",
-    href: "/products/perspectives",
+    slug: "reframe",
+    name: "Переосмысление",
+    href: "/products/reframe",
     reason: PRIMARY_REASON.other,
     price: "299 ₽",
     creditCost: 1,

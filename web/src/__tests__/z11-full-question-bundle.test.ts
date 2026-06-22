@@ -25,7 +25,7 @@ describe("Z11 — full-question bundle", () => {
     expect(entitlements).toContain("V5_BUNDLE_CONTENTS");
     expect(entitlements).toContain("isKnownBundleProduct");
     expect(entitlements).toContain("bundleProductKeys.every");
-    expect(entitlements).toContain('"perspectives"');
+    expect(entitlements).toContain('"reframe"');
     expect(entitlements).toContain('"deep-report"');
   });
 

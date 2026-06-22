@@ -52,7 +52,7 @@ const GROUPS: ServiceGroup[] = [
     id: "solo",
     title: "Самостоятельные разборы",
     cards: [
-      { id: "angles", title: "Полная картина", desc: "Мысли · чувства · скрытый смысл · первый шаг. Первая часть разбора бесплатно.", price: price("perspectives"), kind: "Цифровое", href: "/products/perspectives", icon: Compass },
+      { id: "angles", title: "Переосмысление", desc: "Мысли · чувства · другой взгляд · первый шаг. Когнитивный рефрейминг одной ситуации. Первый угол бесплатно.", price: price("reframe"), kind: "Цифровое", href: "/products/reframe", icon: Compass },
       { id: "report", title: "Подробный разбор", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: price("deep-report"), kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
       { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: price("chat-analysis"), kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
       // B417: живой синхронный диалог — мостик между цифровыми форматами и

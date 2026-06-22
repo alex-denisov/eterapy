@@ -18,7 +18,7 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
 
 // Russian display names, aligned with the public catalog (lib/v5-products.ts).
 export const PRODUCT_LABELS: Record<string, string> = {
-  perspectives: "Полная картина",
+  reframe: "Переосмысление",
   "deep-report": "Подробный разбор",
   "full-question": "Полный разбор вопроса",
   "chat-analysis": "Разбор переписки",

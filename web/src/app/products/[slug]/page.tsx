@@ -6,7 +6,7 @@ import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { ProductDisclaimer, ProductPrivacyBadge } from "@/components/products/product-legal";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import { DeepReportActions } from "@/components/products/deep-report-actions";
-import { PerspectivesActions } from "@/components/products/perspectives-actions";
+import { ReframeActions } from "@/components/products/reframe-actions";
 import { SynastryActions } from "@/components/products/synastry-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
 import { HumanDesignActions } from "@/components/products/human-design-actions";
@@ -83,10 +83,12 @@ function ProductActionSurface({
   search,
 }: {
   product: V5Product;
-  search?: { dialogueId?: string; invite?: string };
+  search?: { dialogueId?: string; invite?: string; resultId?: string };
 }) {
-  if (product.slug === "deep-report") return <DeepReportActions dialogueId={search?.dialogueId ?? null} />;
-  if (product.slug === "perspectives") return <PerspectivesActions dialogueId={search?.dialogueId ?? null} />;
+  // B442: deep-report is now self-contained too (no dialogueId); it reopens a
+  // saved разбор via ?resultId=. B441: reframe is fully self-contained.
+  if (product.slug === "deep-report") return <DeepReportActions resultId={search?.resultId ?? null} />;
+  if (product.slug === "reframe") return <ReframeActions resultId={search?.resultId ?? null} />;
   if (product.slug === "chat-analysis") return <ChatAnalysisActions />;
   if (product.slug === "tarot") {
     return <SymbolicProductActions productKey="tarot" title="Расклад Таро" promptLabel="Вопрос для расклада" placeholder="Например: стоит ли мне сейчас менять работу, если внутри много сомнений?" creditCost={2} />;
@@ -113,14 +115,17 @@ function ProductActionSurface({
 // Услуги, уже вернувшиеся на компактный tool-first hero (B395). Остальные пока
 // остаются на ProductPageShell (B436), пока до них не дойдёт постраничная
 // переработка. «Разбор переписки» — первая возвращённая страница.
-const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot"]);
+// B441/B442 (M28): «Переосмысление» и «Подробный разбор» переработаны под этот же
+// компактный hero (CTA + инструмент на первом экране, переиспользуют ценник/
+// дисклеймер/приватность), как просил владелец — тот же метод, что у chat-analysis/tarot.
+const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report"]);
 
 export default async function ProductPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ dialogueId?: string; invite?: string }>;
+  searchParams?: Promise<{ dialogueId?: string; invite?: string; resultId?: string }>;
 }) {
   const { slug } = await params;
   const search = await searchParams;

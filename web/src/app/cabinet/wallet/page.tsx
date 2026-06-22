@@ -215,18 +215,18 @@ export default async function CabinetWalletPage() {
               <h2 className="soft-h3 mt-2">3 приветственных балла на первые разборы</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 Они действуют ещё {daysUntil(welcomeGrant.expiresAt, now)} дн. Этого хватит,
-                чтобы открыть «Полную картину» и попробовать один следующий формат за баллы.
+                чтобы открыть «Переосмысление» и попробовать один следующий формат за баллы.
               </p>
             </div>
             <Link
-              href={appUrl("/products/perspectives")}
+              href={appUrl("/products/reframe")}
               className="soft-button soft-button-primary shrink-0 self-start sm:self-center"
-              data-analytics-event="welcome_credits_open_perspectives_clicked"
+              data-analytics-event="welcome_credits_open_reframe_clicked"
               data-analytics-surface="cabinet_wallet"
-              data-analytics-target="/products/perspectives"
-              data-analytics-product="perspectives"
+              data-analytics-target="/products/reframe"
+              data-analytics-product="reframe"
             >
-              Открыть полную картину
+              Переосмыслить ситуацию
               <ArrowRight className="size-4" aria-hidden="true" />
             </Link>
           </div>

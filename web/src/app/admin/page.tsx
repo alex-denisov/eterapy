@@ -12,7 +12,7 @@ import { AdminActions } from "./admin-actions";
 import { DeepMetrics } from "./deep-metrics";
 
 const PRODUCT_PRICES_RUB: Record<string, number> = {
-  perspectives: 299,
+  reframe: 299,
   "deep-report": 590,
   "chat-analysis": 390,
   compatibility: 590,
@@ -21,7 +21,7 @@ const PRODUCT_PRICES_RUB: Record<string, number> = {
 };
 
 const PRODUCT_NAMES: Record<string, string> = {
-  perspectives: "Полная картина",
+  reframe: "Переосмысление",
   "deep-report": "Подробный разбор",
   "chat-analysis": "Анализ переписки",
   compatibility: "Совместимость",

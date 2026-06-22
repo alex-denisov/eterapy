@@ -5,21 +5,22 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
-import { buildDeepReportPreview, buildDeepReportTeaser, buildDeepReportTitle, generateDeepReport } from "@/lib/deep-report";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
+import { buildReframePreview, buildReframeTeaser, buildReframeTitle, generateReframe } from "@/lib/reframe";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
-const PRODUCT_KEY = "deep-report";
+const PRODUCT_KEY = "reframe";
 
-// B442 (M28): «Подробный разбор» self-contained — контекст собирается ВНУТРИ
-// услуги (sourceText + опц. заметка из чипов), без первичного диалога/checkin.
-//   preview  → бесплатно: полная генерация, возвращаем тизер (оглавление + 1 блок).
-//   generate → платно: раскрываем уже сгенерированный документ (reuse из metadata,
-//              без второго AI-вызова), автосейв в Дневник + списание в транзакции.
+// B441 (M28): «Переосмысление» self-contained — контекст собирается ВНУТРИ услуги
+// (sourceText + опц. заметка из чипов), без первичного диалога/checkin.
+//   preview  → бесплатно: полная генерация, но возвращаем тизер 1-й линзы.
+//   generate → платно: раскрываем уже сгенерированный полный результат
+//              (переиспользуем из metadata, без второго AI-вызова), автосейв в
+//              Дневник + списание баллов в одной транзакции.
 const postSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("preview"),
-    sourceText: z.string().min(10).max(8000),
+    sourceText: z.string().min(10).max(6000),
     contextNote: z.string().max(600).optional(),
   }),
   z.object({
@@ -81,7 +82,10 @@ export async function GET(request: NextRequest) {
   });
 
   return jsonWithRequestContext(
-    { hasEntitlement: await userHasActiveEntitlement(userId, PRODUCT_KEY), results: results.map(serializeResult) },
+    {
+      hasEntitlement: await userHasActiveEntitlement(userId, PRODUCT_KEY),
+      results: results.map(serializeResult),
+    },
     { status: 200 },
     context,
   );
@@ -89,10 +93,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
-  const ipLimit = checkRequestAuthRateLimit(request, "product:deep-report", 20, 5 * 60_000);
+  const ipLimit = checkRequestAuthRateLimit(request, "product:reframe", 25, 5 * 60_000);
   if (!ipLimit.allowed) {
     return jsonWithRequestContext(
-      { error: "Too many deep report requests", code: "RATE_LIMITED" },
+      { error: "Too many reframe requests", code: "RATE_LIMITED" },
       { status: 429, headers: { "Retry-After": String(ipLimit.retryAfterSeconds) } },
       context,
     );
@@ -103,22 +107,25 @@ export async function POST(request: NextRequest) {
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
 
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid deep report payload", 400, context);
+  if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid reframe payload", 400, context);
 
   if (parsed.data.action === "preview") {
     const { sourceText, contextNote } = parsed.data;
-    const generated = await generateDeepReport({ sourceText, contextNote, userId, requestId: context.requestId });
-    const teaserText = buildDeepReportTeaser(sourceText, generated.text);
-    const title = buildDeepReportTitle(sourceText);
+    const generated = await generateReframe({ sourceText, contextNote, userId, requestId: context.requestId });
+    const teaserText = buildReframeTeaser(sourceText, generated.text);
+    const title = buildReframeTitle(sourceText);
 
     const previewMetadata: Prisma.InputJsonObject = {
       source: "preview",
       sourceText,
       contextNote: contextNote ?? null,
+      // Сохраняем полную генерацию, чтобы платный generate не вызывал AI повторно.
       fullGeneration: generated.text,
       previewGenerationMetadata: generated.metadata,
     };
 
+    // Перезаписываем последний незавершённый PREVIEW этого пользователя (как chat-analysis),
+    // чтобы повторные правки на первом экране не плодили записи.
     const existing = await db.productResult.findFirst({
       where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
       orderBy: { updatedAt: "desc" },
@@ -130,7 +137,14 @@ export async function POST(request: NextRequest) {
           data: { title, previewText: teaserText, metadata: previewMetadata },
         })
       : await db.productResult.create({
-          data: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", title, previewText: teaserText, metadata: previewMetadata },
+          data: {
+            userId,
+            productKey: PRODUCT_KEY,
+            status: "PREVIEW",
+            title,
+            previewText: teaserText,
+            metadata: previewMetadata,
+          },
         });
 
     return jsonWithRequestContext(
@@ -145,14 +159,14 @@ export async function POST(request: NextRequest) {
   const resultRecord = await db.productResult.findFirst({
     where: { id: parsed.data.id, userId, productKey: PRODUCT_KEY, deletedAt: null },
   });
-  if (!resultRecord) return errorWithRequestContext("NOT_FOUND", "Deep report not found", 404, context);
+  if (!resultRecord) return errorWithRequestContext("NOT_FOUND", "Reframe not found", 404, context);
 
   if (!hasEntitlement) {
     return jsonWithRequestContext(
       {
-        error: "Для полного разбора нужна оплата или активная подписка",
+        error: "Чтобы открыть полное переосмысление, нужна оплата или активная подписка",
         code: "PAYMENT_REQUIRED",
-        checkout: { productKey: PRODUCT_KEY, checkoutSource: "deep-report-generate" },
+        checkout: { productKey: PRODUCT_KEY, checkoutSource: "reframe-generate" },
       },
       { status: 402 },
       context,
@@ -169,20 +183,22 @@ export async function POST(request: NextRequest) {
     fullGeneration?: string | null;
   };
   const sourceText = metadata.sourceText;
-  if (!sourceText) return errorWithRequestContext("VALIDATION_ERROR", "No source text to analyze", 400, context);
+  if (!sourceText) return errorWithRequestContext("VALIDATION_ERROR", "No source text to reframe", 400, context);
 
+  // Переиспользуем полную генерацию из предпросмотра (без второго AI-вызова);
+  // если её нет (старая запись) — генерируем заново.
   const full = metadata.fullGeneration
     ? { text: metadata.fullGeneration, metadata: { source: "preview-reuse" } as Prisma.InputJsonObject }
-    : await generateDeepReport({ sourceText, contextNote: metadata.contextNote ?? undefined, userId, requestId: context.requestId });
+    : await generateReframe({ sourceText, contextNote: metadata.contextNote ?? undefined, userId, requestId: context.requestId });
 
-  // INC-025/B408 pattern: списываем баллы за КАЖДЫЙ разбор и автосохраняем в Дневник
-  // в той же транзакции, что и переход в READY (атомарно).
+  // INC-025/B408 pattern: списываем баллы за КАЖДОЕ переосмысление и автосохраняем
+  // в Дневник в той же транзакции, что и переход в READY (атомарно).
   const result = await db.$transaction(async (tx) => {
     const saved = await tx.productResult.update({
       where: { id: resultRecord.id },
       data: {
         status: "READY",
-        previewText: buildDeepReportPreview(sourceText),
+        previewText: buildReframePreview(sourceText),
         resultText: full.text,
         savedAt: resultRecord.savedAt ?? new Date(),
         metadata: {

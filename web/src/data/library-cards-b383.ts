@@ -557,7 +557,7 @@ export const b383LibraryCards: AnonymousLibraryEntry[] = [
     reactions: 211,
     status: "approved",
     indexable: true,
-    ctaProduct: "Полная картина",
+    ctaProduct: "Переосмысление",
     mainFork: { title: "Главное — дать себе право на горе, не торопя себя возвращаться к норме." },
     freeFragment: "Если тяжело, рядом всегда могут быть люди и службы поддержки — позволить себе обратиться не слабость.",
     seo: {

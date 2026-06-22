@@ -109,7 +109,7 @@ describe("B424 payment policy", () => {
       confirmation: { confirmation_url: "https://yookassa.example/pay-1" },
     });
 
-    const response = await createPayment(request({ productKey: "perspectives", checkoutSource: "test" }));
+    const response = await createPayment(request({ productKey: "reframe", checkoutSource: "test" }));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -149,7 +149,7 @@ describe("B424 payment policy", () => {
       confirmation: { confirmation_url: "https://yookassa.example/pay-usd" },
     });
 
-    const response = await createPayment(request({ productKey: "perspectives" }));
+    const response = await createPayment(request({ productKey: "reframe" }));
     const body = await response.json();
 
     expect(response.status).toBe(500);
@@ -163,7 +163,7 @@ describe("B424 payment policy", () => {
       userId: "user-1",
       status: "PENDING",
       providerPaymentId: "pay-cancel",
-      metadata: { purchaseKind: "product", productKey: "perspectives" },
+      metadata: { purchaseKind: "product", productKey: "reframe" },
     });
 
     const payment = {

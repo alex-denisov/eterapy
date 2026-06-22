@@ -18,10 +18,10 @@ describe("getNextStepRecommendation — chat-analysis resolver", () => {
     expect(getNextStepRecommendation("chat-analysis", { contact: "начальник" })?.slug).toBe("deep-report");
   });
 
-  it("falls back to «Полная картина» for ex / friend / empty context", () => {
-    expect(getNextStepRecommendation("chat-analysis", { contact: "бывший(ая)" })?.slug).toBe("perspectives");
-    expect(getNextStepRecommendation("chat-analysis", { contact: "друг" })?.slug).toBe("perspectives");
-    expect(getNextStepRecommendation("chat-analysis")?.slug).toBe("perspectives");
+  it("falls back to «Переосмысление» for ex / friend / empty context", () => {
+    expect(getNextStepRecommendation("chat-analysis", { contact: "бывший(ая)" })?.slug).toBe("reframe");
+    expect(getNextStepRecommendation("chat-analysis", { contact: "друг" })?.slug).toBe("reframe");
+    expect(getNextStepRecommendation("chat-analysis")?.slug).toBe("reframe");
   });
 });
 
@@ -36,8 +36,8 @@ describe("getNextStepRecommendation — catalog consistency", () => {
   });
 
   it("never recommends the same service it was given", () => {
-    // perspectives default → deep-report, but a self-loop must never surface.
-    const all = ["chat-analysis", "perspectives", "deep-report", "pair", "tarot", "natal-chart", "human-design"];
+    // reframe default → deep-report, but a self-loop must never surface.
+    const all = ["chat-analysis", "reframe", "deep-report", "pair", "tarot", "natal-chart", "human-design"];
     for (const key of all) {
       expect(getNextStepRecommendation(key)?.slug).not.toBe(key);
     }
@@ -46,7 +46,7 @@ describe("getNextStepRecommendation — catalog consistency", () => {
 
 describe("getNextStepRecommendation — defaults & unknowns", () => {
   it("gives every catalogued product without a resolver a sensible default", () => {
-    expect(getNextStepRecommendation("perspectives")?.slug).toBe("deep-report");
+    expect(getNextStepRecommendation("reframe")?.slug).toBe("deep-report");
     expect(getNextStepRecommendation("surname-story")?.slug).toBe("family-scenarios");
     expect(getNextStepRecommendation("numerology")?.slug).toBe("natal-chart");
   });

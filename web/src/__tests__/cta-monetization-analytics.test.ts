@@ -15,7 +15,7 @@ describe("B230 v4.2 CTA monetization analytics", () => {
     expect(analytics).toContain("analyticsCtaRole");
     expect(analytics).toContain("analyticsOfferId");
     expect(analytics).toContain("analyticsOfferReason");
-    expect(checkin).toContain('data-analytics-offer-id="perspectives_first_paid_step"');
+    expect(checkin).toContain('data-analytics-offer-id="reframe_first_paid_step"');
     expect(checkin).toContain('data-analytics-offer-reason="decision_request_after_free_answer"');
     expect(checkin).toContain('data-analytics-cta-role="secondary"');
     expect(checkin).toContain('data-analytics-cta-role="bundle"');

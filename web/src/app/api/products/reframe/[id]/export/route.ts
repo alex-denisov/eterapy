@@ -8,15 +8,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!userId) return new Response("Unauthorized", { status: 401 });
   const { id } = await params;
   const result = await db.productResult.findFirst({
-    where: { id, userId, productKey: "perspectives", status: "READY", deletedAt: null },
+    where: { id, userId, productKey: "reframe", status: "READY", deletedAt: null },
   });
-  if (!result?.resultText) return new Response("Perspectives not found", { status: 404 });
+  if (!result?.resultText) return new Response("Reframe not found", { status: 404 });
   await db.productResult.update({ where: { id: result.id }, data: { exportedAt: new Date() } });
   return new Response(`${result.title}\n\n${result.resultText}`, {
     status: 200,
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": `attachment; filename="eterapy-perspectives-${result.id}.txt"`,
+      "Content-Disposition": `attachment; filename="eterapy-reframe-${result.id}.txt"`,
       "Cache-Control": "no-store",
     },
   });

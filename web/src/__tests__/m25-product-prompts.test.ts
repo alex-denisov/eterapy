@@ -15,8 +15,8 @@ describe("B362 — per-product AI prompts", () => {
     const tarot = defaultPromptTextForFeature("product-tarot");
     const natal = defaultPromptTextForFeature("product-natal-chart");
     const numerology = defaultPromptTextForFeature("product-numerology");
-    const perspectives = defaultPromptTextForFeature("product-perspectives");
-    const unique = new Set([tarot, natal, numerology, perspectives]);
+    const reframe = defaultPromptTextForFeature("product-reframe");
+    const unique = new Set([tarot, natal, numerology, reframe]);
     expect(unique.size).toBe(4);
     // The product-specific instruction is present (not just the shared guardrail).
     expect(tarot).toContain("Таро");

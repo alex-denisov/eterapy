@@ -33,13 +33,13 @@ export function isLibraryTopic(value: string): value is LibraryTopic {
 export type LibraryCtaProduct =
   | "Разбор переписки"
   | "Вместе"
-  | "Полная картина"
+  | "Переосмысление"
   | "Подробный разбор";
 
 const PRODUCT_SLUG: Record<LibraryCtaProduct, string> = {
   "Разбор переписки": "chat-analysis",
   "Вместе": "pair",
-  "Полная картина": "perspectives",
+  "Переосмысление": "reframe",
   "Подробный разбор": "deep-report",
 };
 
@@ -48,9 +48,9 @@ const PRODUCT_SLUG: Record<LibraryCtaProduct, string> = {
 const TOPIC_DEFAULT_PRODUCT: Record<LibraryTopic, LibraryCtaProduct> = {
   "Отношения": "Разбор переписки",
   "Одиночество": "Вместе",
-  "Хожу по кругу": "Полная картина",
-  "Про себя": "Полная картина",
-  "Тревога и состояние": "Полная картина",
+  "Хожу по кругу": "Переосмысление",
+  "Про себя": "Переосмысление",
+  "Тревога и состояние": "Переосмысление",
   "Работа и деньги": "Подробный разбор",
   "Выбор и решения": "Подробный разбор",
 };

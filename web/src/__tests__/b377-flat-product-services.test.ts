@@ -40,7 +40,7 @@ describe("B377 flat product service pages", () => {
     const productPage = source("src/app/products/[slug]/page.tsx");
     const actionFiles = [
       "src/components/products/deep-report-actions.tsx",
-      "src/components/products/perspectives-actions.tsx",
+      "src/components/products/reframe-actions.tsx",
       "src/components/products/chat-analysis-actions.tsx",
       "src/components/products/compatibility-actions.tsx",
       "src/components/products/symbolic-product-actions.tsx",

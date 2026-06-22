@@ -9,7 +9,7 @@ import { loginUrl, appUrl } from "@/lib/subdomain";
 
 const PRODUCT_LABELS: Record<string, string> = {
   "deep-report": "Подробный разбор",
-  "perspectives": "Полная картина",
+  "reframe": "Переосмысление",
   "compatibility": "Совместимость",
   "tarot": "Расклад Таро",
   "natal-chart": "Натальная карта",

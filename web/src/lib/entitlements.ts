@@ -22,7 +22,7 @@ export {
 import { V5_PRODUCT_PRICES_KOPECKS, getProductPriceKopecks } from "@/lib/product-prices";
 
 export const V5_BUNDLE_CONTENTS: Record<BundleProductKey, V5ProductSlug[]> = {
-  "full-question": ["perspectives", "deep-report"],
+  "full-question": ["reframe", "deep-report"],
 };
 
 type SubscriptionPlanDefinition = {
@@ -42,9 +42,9 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     trialDays: 7,
     // X18/B433: «Расширенная карта» (990 ₽) bundled into a lower tier meant one included
     // service cost more than the subscription — the founder's exact unit-economics
-    // complaint. Plus now bundles only «perspectives» (299 ₽ < 590 ₽) plus the
+    // complaint. Plus now bundles only «reframe» (299 ₽ < 590 ₽) plus the
     // monthly credits. (The retired card is gone entirely as of B373.)
-    includedProducts: ["perspectives"],
+    includedProducts: ["reframe"],
     creditsPerPeriod: 12,
   },
   premium: {
@@ -54,7 +54,7 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     // Z2 (credit-centric): Premium no longer "includes everything" (that made the
     // credits pointless). It includes only the two daily anchors; the rest of
     // the premium catalog is paid from the monthly credit wallet.
-    includedProducts: ["perspectives", "deep-report"],
+    includedProducts: ["reframe", "deep-report"],
     creditsPerPeriod: 20,
   },
   // Deprecated legacy aliases are kept readable so older subscriptions do not
@@ -71,14 +71,14 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     name: "Legacy Deep",
     amountKopecks: 699000,
     trialDays: 7,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   accompaniment: {
     name: "Legacy Accompaniment",
     amountKopecks: 1299000,
     trialDays: 0,
-    includedProducts: ["perspectives", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
+    includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
   practitioner_pro: {
