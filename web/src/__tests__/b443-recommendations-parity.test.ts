@@ -8,6 +8,8 @@ describe("B443 recommendations parity (#4 tarot, #11 chat-analysis)", () => {
   const triage = source("src/components/products/service-triage.tsx");
   const tarot = source("src/components/products/symbolic-product-actions.tsx");
   const chat = source("src/components/products/chat-analysis-actions.tsx");
+  const reframe = source("src/components/products/reframe-actions.tsx");
+  const deepReport = source("src/components/products/deep-report-actions.tsx");
 
   it("shared ServiceTriage uses the checkin card design + другие форматы", () => {
     expect(triage).toContain("soft-triage-primary");
@@ -33,5 +35,29 @@ describe("B443 recommendations parity (#4 tarot, #11 chat-analysis)", () => {
     expect(chat).toContain("recommendSecondaryProducts");
     // the old bordeaux single-rec card copy is gone
     expect(chat).not.toContain("getNextStepRecommendation");
+  });
+
+  it("reframe «что вам подойдет» renders through ServiceTriage (no bordeaux NextStepCard)", () => {
+    expect(reframe).toContain("<ServiceTriage");
+    expect(reframe).toContain('eyebrow="что вам подойдет"');
+    expect(reframe).toContain("recommendSecondaryProducts");
+    expect(reframe).toContain("dialogueTopicFromChip");
+    expect(reframe).not.toContain("getNextStepRecommendation");
+    expect(reframe).not.toContain("next-step-card");
+  });
+
+  it("deep-report «что вам подойдет» renders through ServiceTriage (no bordeaux NextStepCard)", () => {
+    expect(deepReport).toContain("<ServiceTriage");
+    expect(deepReport).toContain('eyebrow="что вам подойдет"');
+    expect(deepReport).toContain("recommendSecondaryProducts");
+    expect(deepReport).toContain("dialogueTopicFromChip");
+    expect(deepReport).not.toContain("getNextStepRecommendation");
+    expect(deepReport).not.toContain("next-step-card");
+  });
+
+  it("shared product-format-recommendations exposes the chip→topic + exclude helpers", () => {
+    const lib = source("src/lib/product-format-recommendations.ts");
+    expect(lib).toContain("export function dialogueTopicFromChip");
+    expect(lib).toContain("export function recommendPrimaryProductExcluding");
   });
 });

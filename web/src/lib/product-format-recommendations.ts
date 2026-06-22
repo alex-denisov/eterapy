@@ -55,6 +55,24 @@ export function normalizeTopic(topic: string | null | undefined): DialogueTopic 
   return "other";
 }
 
+// B443: самодостаточные услуги (reframe, deep-report) собирают контекст RU-чипами
+// (работа/отношения/семья/…). Маппинг на канонические DialogueTopic, чтобы воронка
+// «что вам подойдет» подбирала продукт по теме. Незнакомый чип → normalizeTopic.
+const RU_CHIP_TO_TOPIC: Record<string, DialogueTopic> = {
+  "работа": "career",
+  "отношения": "relationships",
+  "семья": "family",
+  "сам(а) с собой": "self",
+  "здоровье": "anxiety",
+  "деньги": "money",
+  "другое": "other",
+};
+
+export function dialogueTopicFromChip(chip: string | null | undefined): DialogueTopic {
+  if (!chip) return "other";
+  return RU_CHIP_TO_TOPIC[chip] ?? normalizeTopic(chip);
+}
+
 function toRecommendation(slug: V5ProductSlug, reason: string): ProductRecommendation | null {
   const product = getV5Product(slug);
   if (!product) return null;
@@ -79,6 +97,19 @@ export function recommendPrimaryProduct(topic: string | null | undefined): Produ
     price: "299 ₽",
     creditCost: 1,
   };
+}
+
+// B443: «что вам подойдет» на экране результата услуги не должна рекомендовать ту
+// же услугу, которую человек только что прошёл. Если основной продукт темы
+// совпал с текущим — берём первый смежный формат как primary.
+export function recommendPrimaryProductExcluding(
+  topic: string | null | undefined,
+  excludeSlug: string,
+): ProductRecommendation {
+  const primary = recommendPrimaryProduct(topic);
+  if (primary.slug !== excludeSlug) return primary;
+  const [fallback] = recommendSecondaryProducts(topic, excludeSlug, 1);
+  return fallback ?? primary;
 }
 
 export function recommendSecondaryProducts(

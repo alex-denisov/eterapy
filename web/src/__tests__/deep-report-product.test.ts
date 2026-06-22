@@ -68,6 +68,10 @@ describe("B442 deep report product (Подробный разбор)", () => {
     expect(actions).toContain("/api/products/deep-report");
     expect(actions).toContain("<ProductPurchaseControls");
     expect(actions).toContain('checkoutSource="deep-report-generate"');
-    expect(actions).toContain("NextStepCard");
+    // B443: воронка унифицирована на общий ServiceTriage (как chat-analysis/tarot)
+    expect(actions).toContain("<ServiceTriage");
+    expect(actions).toContain("recommendSecondaryProducts");
+    expect(actions).not.toContain("getNextStepRecommendation");
+    expect(actions).not.toContain("next-step-card");
   });
 });

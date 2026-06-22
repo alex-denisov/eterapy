@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, ArrowRight, BookOpen, Download, LockKeyhole, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Compass, Download, LockKeyhole, MessageSquareText, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { NextStepCard } from "@/components/products/next-step-card";
+import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
-import { getNextStepRecommendation } from "@/lib/product-recommendations";
+import { dialogueTopicFromChip, recommendPrimaryProductExcluding, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
+import { pointsWord } from "@/lib/points";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 
 // B441 (M28): «Переосмысление» — самодостаточная услуга (когнитивный рефрейминг).
@@ -309,7 +310,42 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
 
   const parsed = result?.resultText ? tryParseReframe(result.resultText) : null;
   const angles = parsed?.angles ?? [];
-  const recommendation = getNextStepRecommendation("reframe", { contact: topic, emotion: feeling });
+
+  // B443: единая воронка «что вам подойдет» (как chat-analysis/tarot) — рекомендация
+  // по теме из чипа + продолжить в живом чате; «другие форматы» + специалист идут
+  // ниже внутри ServiceTriage. reframe-сервис никогда не рекомендует сам себя.
+  const topicKey = dialogueTopicFromChip(topic);
+  const primaryRec = recommendPrimaryProductExcluding(topicKey, "reframe");
+  const triagePrimary: TriagePrimary[] = [
+    {
+      key: primaryRec.slug,
+      testId: "reframe-next-step",
+      ribbon: "подобрано для вас",
+      icon: Compass,
+      title: primaryRec.name,
+      description: primaryRec.reason,
+      priceMain: primaryRec.price,
+      priceSub: primaryRec.creditCost != null ? `или ${primaryRec.creditCost} ${pointsWord(primaryRec.creditCost)}` : null,
+      ctaLabel: "Открыть",
+      href: primaryRec.href,
+    },
+    {
+      key: "chat",
+      testId: "reframe-continue-chat",
+      ribbon: "продолжить в диалоге",
+      icon: MessageSquareText,
+      title: "Продолжить разговор в чате",
+      description: "Живой диалог в своём темпе — 45 минут, чтобы разобрать ситуацию глубже.",
+      priceMain: "790 ₽",
+      priceSub: "45 мин · или 4 балла",
+      ctaLabel: "Начать",
+      href: "/products/chat",
+    },
+  ];
+  const triageSecondary: TriageProduct[] = recommendSecondaryProducts(topicKey, primaryRec.slug, 4)
+    .filter((item) => item.slug !== "reframe")
+    .slice(0, 3)
+    .map((item) => ({ slug: item.slug, name: item.name, href: item.href, price: item.price, creditCost: item.creditCost }));
 
   // ── Result view: 4 lenses + funnel ──────────────────────────────────────
   if (angles.length > 0) {
@@ -349,9 +385,23 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
           </a>
         </div>
 
-        <div className="mt-4">
-          <NextStepCard rec={recommendation} onStartNew={startNew} loading={status === "loading"} testIdPrefix="reframe" />
-        </div>
+        <ServiceTriage
+          eyebrow="что вам подойдет"
+          testId="reframe-triage"
+          primary={triagePrimary}
+          secondary={triageSecondary}
+          specialistHref="/practitioners"
+        />
+        <button
+          type="button"
+          onClick={startNew}
+          disabled={status === "loading"}
+          data-testid="reframe-start-new"
+          className="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--soft-paper-edge)] px-5 py-2.5 text-sm font-medium text-[var(--soft-ink-soft)] transition hover:bg-[var(--soft-paper-card)] disabled:opacity-50"
+        >
+          <RotateCcw className="size-4" aria-hidden="true" />
+          Начать новый разбор
+        </button>
 
         <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
           <BookOpen className="size-3.5" aria-hidden="true" />

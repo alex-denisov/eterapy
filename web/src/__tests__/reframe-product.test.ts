@@ -63,7 +63,11 @@ describe("B441 reframe product (Переосмысление)", () => {
     expect(actions).not.toContain("ProductIntake");
     expect(actions).toContain('productKey="reframe"');
     expect(actions).toContain("/api/products/reframe");
-    expect(actions).toContain("NextStepCard");
+    // B443: воронка унифицирована на общий ServiceTriage (как chat-analysis/tarot)
+    expect(actions).toContain("<ServiceTriage");
+    expect(actions).toContain("recommendSecondaryProducts");
+    expect(actions).not.toContain("getNextStepRecommendation");
+    expect(actions).not.toContain("next-step-card");
     expect(actions).toContain("дневник");
   });
 });
