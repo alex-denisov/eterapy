@@ -18,6 +18,7 @@ import {
   paidMinutesRemaining,
   sessionWindowOnStart,
   sessionWindowOnExtend,
+  canExtendSession,
   canUsePremiumIncludedSession,
   premiumIncludedRemaining,
   CHAT_SESSION_COST_CREDITS,
@@ -140,6 +141,20 @@ describe("тарификация чат-сеанса", () => {
     // продление от конца текущего окна (12:45) + 30 мин = 13:15
     expect(extended.expiresAt.getTime() - expiresAt.getTime()).toBe(30 * 60_000);
     expect(CHAT_EXTENSION_COST_CREDITS).toBe(2);
+  });
+
+  it("issue #6: продлить можно начатую сессию даже после 00:00, но не НЕ начатую", () => {
+    const now = new Date("2026-06-22T12:00:00Z");
+    const fresh: ChatSessionState = { freeMessagesUsed: 0, paidStartedAt: null, paidExpiresAt: null };
+    // никогда не стартовавшая сессия — продление запрещено (обход полного старта)
+    expect(canExtendSession(fresh)).toBe(false);
+    // активная сессия — продление доступно
+    const active: ChatSessionState = { freeMessagesUsed: 0, paidStartedAt: now, paidExpiresAt: new Date(now.getTime() + 60_000) };
+    expect(canExtendSession(active)).toBe(true);
+    // истёкшая, но когда-то начатая (таймер на 00:00) — продление ВСЁ ЕЩЁ доступно
+    const lapsed: ChatSessionState = { freeMessagesUsed: 0, paidStartedAt: now, paidExpiresAt: new Date(now.getTime() - 60_000) };
+    expect(isPaidSessionActive(lapsed, new Date(now.getTime() + 5_000))).toBe(false);
+    expect(canExtendSession(lapsed)).toBe(true);
   });
 
   it("Premium: 2 включённых сеанса в месяц без списания баллов", () => {

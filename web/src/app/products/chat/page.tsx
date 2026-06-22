@@ -8,10 +8,10 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { CompanionChatPanel } from "@/components/companion/companion-chat-panel";
+import { ChatHeroPrice } from "@/components/companion/chat-hero-price";
 import { ProductDisclaimer, ProductPrivacyBadge } from "@/components/products/product-legal";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
-import { formatPoints } from "@/lib/points";
 import { getProductPriceLabel } from "@/lib/product-prices";
 import { CHAT_SESSION_COST_CREDITS } from "@/lib/chat-session";
 
@@ -19,32 +19,6 @@ export const dynamic = "force-dynamic";
 export const metadata = createPublicPageMetadata("/products/chat");
 
 const PRICE_LABEL = getProductPriceLabel("chat-session") ?? "790 ₽";
-
-// Ценовая плашка в одном стиле с ProductHeroPrice: авторизованному показываем
-// крупно стоимость в баллах, гостю — цену в ₽ (он ещё не тратит баллы).
-function ChatHeroPrice({ authed }: { authed: boolean }) {
-  if (authed) {
-    return (
-      <span
-        className="flex shrink-0 flex-col items-end rounded-2xl px-3.5 py-1.5 leading-none text-[var(--soft-bordeaux)]"
-        style={{ background: "var(--soft-apricot)" }}
-        data-testid="product-hero-price"
-      >
-        <span className="text-lg font-semibold">{formatPoints(CHAT_SESSION_COST_CREDITS)}</span>
-        <span className="mt-0.5 text-[10.5px] font-medium opacity-65">или {PRICE_LABEL}</span>
-      </span>
-    );
-  }
-  return (
-    <span
-      className="shrink-0 rounded-full px-3.5 py-1.5 text-lg font-semibold leading-none text-[var(--soft-bordeaux)]"
-      style={{ background: "var(--soft-apricot)" }}
-      data-testid="product-hero-price"
-    >
-      {PRICE_LABEL}
-    </span>
-  );
-}
 
 export default async function ProductChatPage({
   searchParams,
@@ -86,7 +60,7 @@ export default async function ProductChatPage({
               </Link>
               <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Решить вопрос в чате</h1>
             </div>
-            <ChatHeroPrice authed={authed} />
+            <ChatHeroPrice authed={authed} priceLabel={PRICE_LABEL} costCredits={CHAT_SESSION_COST_CREDITS} />
           </div>
 
           <ProductPrivacyBadge />

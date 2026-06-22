@@ -26,6 +26,7 @@ import {
   CHAT_SESSION_COST_CREDITS,
   CHAT_SESSION_PRICE_KOPECKS,
   CHAT_SESSION_PRODUCT_KEY,
+  canExtendSession,
   canUsePremiumIncludedSession,
   decideChatSend,
   freeMessagesRemaining,
@@ -76,6 +77,10 @@ export type PublicSessionState = {
   mode: CompanionMode;
   messages: CompanionMessage[];
   freeRemaining: number;
+  // Issue #5/#6: a paid window has been opened on this session at least once
+  // (paidStartedAt set). Lets the client keep the chat + «Продлить» on screen
+  // after the window lapses, instead of dropping back to the start gate.
+  started: boolean;
   paidActive: boolean;
   minutesRemaining: number;
   // B417: precise expiry timestamp (ISO) so the client can run a live, to-the-
@@ -92,6 +97,7 @@ function publicState(row: SessionRow, now = new Date()): PublicSessionState {
     mode: isCompanionMode(row.mode) ? row.mode : "explore",
     messages: toMessages(row.messages),
     freeRemaining: freeMessagesRemaining(row.freeMessagesUsed),
+    started: row.paidStartedAt != null,
     paidActive: active,
     minutesRemaining: paidMinutesRemaining(state, now),
     expiresAt: active && row.paidExpiresAt ? row.paidExpiresAt.toISOString() : null,
@@ -361,9 +367,9 @@ export async function extendPaidSession(input: { userId: string; sessionId: stri
   const row = await loadSession(input.userId, input.sessionId);
   if (!row) return { ok: false, reason: "not_found" };
   const now = new Date();
-  // Продление возможно только при активном оплаченном сеансе — иначе это был бы
-  // способ получить 30 минут за 2 балла в обход полноценного старта (4 балла).
-  if (!isPaidSessionActive(toState(row), now)) {
+  // Issue #6: продление доступно, пока сессия была начата (даже если окно уже
+  // истекло — таймер на 00:00), но не для НЕ начатой сессии (обход старта).
+  if (!canExtendSession(toState(row))) {
     return { ok: false, reason: "needs_active_session" };
   }
 

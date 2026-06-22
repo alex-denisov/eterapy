@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { DialogueThread } from "@/components/dialogue/dialogue-thread";
+import { UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { Button } from "@/components/ui/button";
@@ -181,6 +182,9 @@ export default function CheckinPage() {
   // chat (the user's question + typing) immediately instead.
   const [processingKind, setProcessingKind] = useState<"dialogue" | "answer">("answer");
   const autoStartedRef = useRef(false);
+  // Issue #3: the clarifying chat scrolls inside its own bounded frame
+  // (Telegram-like) instead of growing the page — keep it pinned to the bottom.
+  const clarifyThreadRef = useRef<HTMLDivElement>(null);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
@@ -201,6 +205,13 @@ export default function CheckinPage() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [phase]);
+
+  // Issue #3: keep the clarifying thread pinned to the bottom on each new turn by
+  // scrolling INSIDE the bounded frame (never the page), so the composer stays put.
+  useEffect(() => {
+    const el = clarifyThreadRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [clarifyingAnswers.length, awaitingAssistant, currentClarifyingQuestion?.question, phase]);
 
   useEffect(() => {
     if (phase !== "result" || !dialogue?.id) return;
@@ -589,9 +600,12 @@ export default function CheckinPage() {
       )}
 
       {phase === "clarifying" && dialogue && (
-        <div className="soft-dialogue-chat" data-testid="dialogue-clarifying-step">
+        // Issue #3: Telegram-like — the thread scrolls inside a bounded frame and
+        // the composer is pinned at the bottom of the first screen.
+        <div className="soft-chat-screen" data-testid="dialogue-clarifying-step">
+          <div ref={clarifyThreadRef} className="soft-dialogue-chat soft-chat-thread">
           <div className="soft-msg-row soft-msg-row-user">
-            <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+            <UserMsgAvatar />
             <div className="soft-msg-bubble soft-msg-bubble-user">
               {question || dialogue.title}
             </div>
@@ -610,7 +624,7 @@ export default function CheckinPage() {
                 </div>
               </div>
               <div className="soft-msg-row soft-msg-row-user">
-                <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+                <UserMsgAvatar />
                 <div className="soft-msg-bubble soft-msg-bubble-user" data-testid="dialogue-clarifying-answer">
                   {answer}
                 </div>
@@ -660,9 +674,11 @@ export default function CheckinPage() {
             </div>
           )}
 
+          </div>{/* /soft-chat-thread */}
+
           {/* B318: the composer stays visible at all times; we just lock it
               while we wait for the next turn so the user can see exactly
-              where their next reply will go. */}
+              where their next reply will go. Pinned at the bottom of the frame. */}
           <div className="soft-ask-card soft-dialogue-composer">
             <label htmlFor="dialogue-clarification" className="sr-only">Ответ на уточнение</label>
             <textarea
@@ -725,7 +741,7 @@ export default function CheckinPage() {
       {phase === "processing" && processingKind === "dialogue" && (
         <div className="soft-dialogue-chat" data-testid="dialogue-starting-step">
           <div className="soft-msg-row soft-msg-row-user">
-            <div className="soft-msg-avatar soft-msg-avatar-user" aria-hidden="true">В</div>
+            <UserMsgAvatar />
             <div className="soft-msg-bubble soft-msg-bubble-user">{question}</div>
           </div>
           <div className="soft-msg-row soft-msg-row-assistant" data-testid="dialogue-typing-indicator">

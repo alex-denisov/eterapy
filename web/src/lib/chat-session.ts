@@ -67,6 +67,14 @@ export function sessionWindowOnStart(now: Date = new Date()): { startedAt: Date;
   return { startedAt: now, expiresAt: new Date(now.getTime() + CHAT_SESSION_MINUTES * 60_000) };
 }
 
+// Issue #6: продлевать сессию можно, пока она была начата (paidStartedAt задан) —
+// даже если окно уже истекло (таймер дошёл до 00:00). Это закрывает кейс «продлить
+// на отметке 00:00». Запрещаем продление только НЕ начатой сессии — иначе это был
+// бы способ получить 30 минут за 2 балла в обход полноценного старта (4 балла).
+export function canExtendSession(session: ChatSessionState): boolean {
+  return session.paidStartedAt != null;
+}
+
 export function sessionWindowOnExtend(session: ChatSessionState, now: Date = new Date()): { expiresAt: Date } {
   // Продлеваем от конца активного окна, либо от «сейчас», если уже истекло.
   const base = isPaidSessionActive(session, now) && session.paidExpiresAt

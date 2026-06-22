@@ -16,10 +16,15 @@ describe("B417 — chat as a catalog service (/products/chat)", () => {
     expect(page).toContain('data-testid="product-page-chat"');
     // product-hero parity: round back arrow + price pill + title
     expect(page).toContain('data-testid="product-hero-back"');
-    expect(page).toContain('data-testid="product-hero-price"');
+    expect(page).toContain("ChatHeroPrice");
     expect(page).toContain("Решить вопрос в чате");
     // SEO + JSON-LD for the new route
     expect(page).toContain('route="/products/chat"');
+    // Issue #5: the price pill itself lives in the live hero component, which
+    // swaps it for the running session timer once оказание услуги starts.
+    const heroPrice = source("src/components/companion/chat-hero-price.tsx");
+    expect(heroPrice).toContain('data-testid="product-hero-price"');
+    expect(heroPrice).toContain('data-testid="companion-timer"');
   });
 
   it("redirects the old /cabinet/chat to /products/chat (preserving dialogueId)", () => {
@@ -59,11 +64,35 @@ describe("paid-only companion panel", () => {
     const panel = source("src/components/companion/companion-chat-panel.tsx");
     // no «бесплатно · осталось N» plate carried over from the free companion chat
     expect(panel).not.toContain("осталось ");
-    // paid-only start gate + live countdown timer
+    // paid-only start gate; the live countdown timer now lives in the hero pill
     expect(panel).toContain('data-testid="companion-start-gate"');
-    expect(panel).toContain('data-testid="companion-timer"');
+    expect(panel).toContain("dispatchCompanionSession");
     // guests routed to the full /login page (B415), not an inline notice
     expect(panel).toContain("loginUrl()");
+  });
+
+  // Issues #4/#8 — one human chat: no «живой диалог» eyebrow and no companion-mode
+  // chips (the platform reads the mood itself, it is not chosen with buttons).
+  it("drops the live-dialogue eyebrow and the companion-mode chips", () => {
+    const panel = source("src/components/companion/companion-chat-panel.tsx");
+    expect(panel).not.toContain("живой диалог");
+    expect(panel).not.toContain('data-testid="companion-modes"');
+    expect(panel).not.toContain("COMPANION_MODES");
+  });
+
+  // Issue #6 — «Продлить» replaces «Отправить» only once the timer hits 00:00.
+  it("swaps Отправить for Продлить only when the session window has lapsed", () => {
+    const panel = source("src/components/companion/companion-chat-panel.tsx");
+    expect(panel).toContain("expired ? (");
+    expect(panel).toContain('data-testid="companion-extend"');
+    expect(panel).toContain('data-testid="companion-char-counter"');
+  });
+
+  // Issue #1 — a standalone chat start also carries a session id in the URL so a
+  // refresh restores it (parity with the checkin ?dialogueId= restore).
+  it("pins the session id into the URL for refresh restore", () => {
+    const panel = source("src/components/companion/companion-chat-panel.tsx");
+    expect(panel).toContain('url.searchParams.set("sessionId"');
   });
 });
 

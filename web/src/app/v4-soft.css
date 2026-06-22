@@ -860,6 +860,50 @@
     font-size: clamp(1.05rem, 1.8vw, 1.25rem);
   }
 
+  /* Issue #9: photo avatar variant — the user's cabinet avatar fills the bubble
+     avatar slot (object-fit cover, circular). Falls back to the lettered avatar
+     when there is no image (see UserMsgAvatar). */
+  .soft-msg-avatar-photo {
+    overflow: hidden;
+    padding: 0;
+    background: var(--soft-lilac-soft);
+  }
+
+  .soft-msg-avatar-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    object-fit: cover;
+  }
+
+  /* Issue #2/#3: Telegram-like chat surface. The message thread scrolls inside a
+     bounded frame while the composer stays pinned at the bottom, so the chat
+     fits one screen instead of growing the page with every new message. The dvh
+     offset reserves room for the header/hero above and a short disclaimer below;
+     min/max keep it usable on very short and very tall viewports. */
+  .soft-chat-screen {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 224px);
+    min-height: 360px;
+    max-height: 720px;
+  }
+
+  .soft-chat-thread {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.35rem;
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+  }
+
+  .soft-chat-screen .soft-dialogue-composer {
+    flex: 0 0 auto;
+    margin-top: 0.75rem;
+  }
+
   .soft-processing-card {
     display: flex;
     min-height: 19rem;
