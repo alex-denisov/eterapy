@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { ArrowRight, Clock, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
+import { useAutoGrowTextarea } from "@/lib/use-autogrow-textarea";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
 import { dispatchCompanionSession } from "@/lib/companion-session-events";
 import { loginUrl } from "@/lib/subdomain";
@@ -93,6 +94,8 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
   const listRef = useRef<HTMLDivElement>(null);
   const endedNotifiedRef = useRef(false);
   const autoStartAttemptedRef = useRef(false);
+  // Telegram-like composer: 1 line → grows to 4 → scrolls.
+  const { ref: inputRef } = useAutoGrowTextarea(input);
 
   // Issue #5: broadcast the session snapshot so the hero price pill swaps to the
   // live timer (and parks at 00:00 until an extend supplies a fresh expiresAt).
@@ -388,6 +391,7 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
         <label htmlFor="companion-input" className="sr-only">Сообщение</label>
         <textarea
           id="companion-input"
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value.slice(0, CHAT_INPUT_MAX_CHARS))}
           onKeyDown={(e) => {
@@ -396,7 +400,7 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
               void send();
             }
           }}
-          rows={2}
+          rows={1}
           maxLength={CHAT_INPUT_MAX_CHARS}
           placeholder={expired ? "Время сессии истекло — продлите, чтобы продолжить…" : "Напишите сообщение…"}
           className="soft-question-input soft-dialogue-composer-input"
@@ -411,10 +415,10 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
               type="button"
               onClick={extendSession}
               disabled={sending}
-              className="soft-button soft-button-primary w-full justify-center"
+              className="soft-button soft-button-primary ml-auto"
               data-testid="companion-extend"
             >
-              <Clock className="size-4" aria-hidden="true" />
+              <Clock className="size-3.5" aria-hidden="true" />
               Продлить на 30 минут (2 балла)
             </Button>
           ) : (

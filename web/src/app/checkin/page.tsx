@@ -21,6 +21,7 @@ import {
 import { DialogueShell } from "@/components/dialogue/dialogue-shell";
 import { DialogueThread } from "@/components/dialogue/dialogue-thread";
 import { UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
+import { useAutoGrowTextarea } from "@/lib/use-autogrow-textarea";
 import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { Button } from "@/components/ui/button";
@@ -185,6 +186,8 @@ export default function CheckinPage() {
   // Issue #3: the clarifying chat scrolls inside its own bounded frame
   // (Telegram-like) instead of growing the page — keep it pinned to the bottom.
   const clarifyThreadRef = useRef<HTMLDivElement>(null);
+  // Telegram-like composer: 1 line → grows to 4 → scrolls.
+  const { ref: clarificationRef } = useAutoGrowTextarea(clarification);
 
   const primaryAnswer = dialogue?.primaryAnswer?.content
     ?? [...(dialogue?.messages ?? [])].reverse().find((message) => message.role === "ASSISTANT" && dialogue?.status === "ANSWERED")?.content
@@ -683,13 +686,14 @@ export default function CheckinPage() {
             <label htmlFor="dialogue-clarification" className="sr-only">Ответ на уточнение</label>
             <textarea
               id="dialogue-clarification"
+              ref={clarificationRef}
               value={clarification}
               onChange={(event) => setClarification(event.target.value.slice(0, DIALOGUE_INPUT_MAX_CHARS))}
               placeholder={awaitingAssistant
                 ? "Подождите, платформа сейчас сформулирует следующий вопрос…"
                 : "Ответьте своими словами или выберите вариант выше…"}
               className="soft-question-input soft-dialogue-composer-input"
-              rows={4}
+              rows={1}
               maxLength={DIALOGUE_INPUT_MAX_CHARS}
               disabled={awaitingAssistant}
               data-testid="dialogue-clarification-input"
