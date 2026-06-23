@@ -68,7 +68,17 @@ type DeepReportResult = {
   previewText: string | null;
   resultText: string | null;
   saved: boolean;
+  metadata?: { sourceText?: string | null; contextNote?: string | null };
 };
+
+// Разбираем заметку контекста («О чём: …\nЦель разбора: …») обратно в чипы, чтобы
+// recap корректно показывал тему/цель у восстановленного по ?resultId= разбора.
+function parseContextNote(note?: string | null): { topic: string | null; goal: string | null } {
+  if (!note) return { topic: null, goal: null };
+  const topic = note.match(/О чём:\s*(.+)/)?.[1]?.trim() ?? null;
+  const goal = note.match(/Цель разбора:\s*(.+)/)?.[1]?.trim() ?? null;
+  return { topic, goal };
+}
 
 type ApiPayload = {
   hasEntitlement?: boolean;
@@ -194,7 +204,13 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
       .then((payload) => {
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
-        setResult(payload.results?.[0] ?? null);
+        const restored = payload.results?.[0] ?? null;
+        setResult(restored);
+        // Восстанавливаем вопрос и категории, чтобы recap был полным после возврата.
+        if (restored?.metadata?.sourceText) setSourceText(restored.metadata.sourceText);
+        const ctx = parseContextNote(restored?.metadata?.contextNote);
+        if (ctx.topic) setTopic(ctx.topic);
+        if (ctx.goal) setGoal(ctx.goal);
       })
       .catch(() => undefined);
     return () => { cancelled = true; };

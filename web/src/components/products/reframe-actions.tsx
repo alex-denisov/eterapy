@@ -45,7 +45,17 @@ type ReframeResult = {
   previewText: string | null;
   resultText: string | null;
   saved: boolean;
+  metadata?: { sourceText?: string | null; contextNote?: string | null };
 };
+
+// Разбираем заметку контекста («О чём: …\nЧто сильнее: …») обратно в чипы, чтобы
+// recap корректно показывал тему/категорию у восстановленного по ?resultId= разбора.
+function parseContextNote(note?: string | null): { topic: string | null; feeling: string | null } {
+  if (!note) return { topic: null, feeling: null };
+  const topic = note.match(/О чём:\s*(.+)/)?.[1]?.trim() ?? null;
+  const feeling = note.match(/Что сильнее:\s*(.+)/)?.[1]?.trim() ?? null;
+  return { topic, feeling };
+}
 
 type ApiPayload = {
   hasEntitlement?: boolean;
@@ -282,8 +292,14 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
       .then((payload) => {
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
-        setResult(payload.results?.[0] ?? null);
+        const restored = payload.results?.[0] ?? null;
+        setResult(restored);
         setActiveAngle(0);
+        // Восстанавливаем вопрос и категории, чтобы recap был полным после возврата.
+        if (restored?.metadata?.sourceText) setSourceText(restored.metadata.sourceText);
+        const ctx = parseContextNote(restored?.metadata?.contextNote);
+        if (ctx.topic) setTopic(ctx.topic);
+        if (ctx.feeling) setFeeling(ctx.feeling);
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
