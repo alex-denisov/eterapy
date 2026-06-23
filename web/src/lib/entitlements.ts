@@ -106,24 +106,31 @@ export type CreditPackDefinition = {
 
 export type CreditPack = CreditPackDefinition & { key: string };
 
+// B447: пакеты баллов снижены 990/1790/3990 → 790/1390/2990 ₽ (158/139/120 ₽/балл),
+// чтобы пакеты были осмысленным топ-апом, а не дороже подписки (решение владельца).
 export const CREDIT_PACKS: Record<string, CreditPackDefinition> = {
   "pack-5": {
     credits: 5,
-    amountKopecks: 99000,
+    amountKopecks: 79000,
     label: "5 баллов",
   },
   "pack-10": {
     credits: 10,
-    amountKopecks: 179000,
+    amountKopecks: 139000,
     label: "10 баллов",
   },
   "pack-25": {
     credits: 25,
-    amountKopecks: 399000,
+    amountKopecks: 299000,
     label: "25 баллов",
     badge: "выгодно",
   },
 };
+
+// B447: купленные баллы теперь действуют ограниченный срок (оферта п. 5.4).
+// Баланс считается лениво (getActiveClarityCreditBalance исключает истёкшие),
+// поэтому отдельный крон для корректности баланса не нужен.
+export const PURCHASED_CREDIT_VALIDITY_MONTHS = 12;
 
 // Z1-Ф1: the client ₽ balance rail is removed — a paid purchase is always a
 // product (digital), a subscription, or a clarity-credit pack. "balance" top-ups
@@ -493,6 +500,8 @@ async function recordPurchasedClarityCreditGrant(
   if (existing) return null;
 
   const balanceBefore = await getActiveClarityCreditBalance(tx, input.userId);
+  const expiresAt = new Date();
+  expiresAt.setMonth(expiresAt.getMonth() + PURCHASED_CREDIT_VALIDITY_MONTHS);
   return tx.clarityCreditLedgerEntry.create({
     data: {
       userId: input.userId,
@@ -502,7 +511,7 @@ async function recordPurchasedClarityCreditGrant(
       source: "purchase",
       sourceEventId: input.transactionId,
       status: "confirmed",
-      expiresAt: null,
+      expiresAt,
       metadata: {
         ...input.metadata,
         creditPackKey: input.pack.key,

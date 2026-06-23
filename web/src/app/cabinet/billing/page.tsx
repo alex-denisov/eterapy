@@ -412,7 +412,7 @@ export default function BillingPage() {
                 {plan.trialDays > 0 ? ` · ${plan.trialDays} дней пробного периода` : ""}
               </p>
               <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-                Подписочные баллы сгорают в конце периода. Купленные пакеты баллов не сгорают.
+                Подписочные баллы сгорают в конце периода. Купленные пакеты баллов действуют 12 месяцев.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {isCurrent ? (
@@ -455,7 +455,7 @@ export default function BillingPage() {
             </div>
             <p className="mt-1 max-w-xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
               Разовая дозаправка кошелька — открывайте полную картину, разборы, Таро и маршруты
-              без ежемесячной подписки. Купленные баллы не сгорают.
+              без ежемесячной подписки. Купленные баллы действуют 12 месяцев.
             </p>
           </div>
           <span className="soft-button soft-button-primary shrink-0" style={{ minHeight: "2.5rem" }}>

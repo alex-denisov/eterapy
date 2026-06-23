@@ -93,7 +93,7 @@ function SubscriptionCreditsCallout() {
         даёт месячный кошелёк и открывает якорные форматы без списания.
       </p>
       <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-        Подписочные баллы сгорают в конце оплаченного периода. Купленные баллы не сгорают.
+        Подписочные баллы сгорают в конце оплаченного периода. Купленные баллы действуют 12 месяцев с даты покупки.
       </p>
       <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5">
         Выбрать подписку
@@ -112,7 +112,7 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
           <h2 className="soft-h2 mt-1">Дозаправить кошелёк</h2>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
-          Купленные баллы не сгорают. Ими можно открыть цифровые продукты, но не живые сессии.
+          Купленные баллы действуют 12 месяцев с даты покупки. Ими можно открыть цифровые продукты, но не живые сессии.
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">

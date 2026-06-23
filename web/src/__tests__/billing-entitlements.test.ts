@@ -88,10 +88,11 @@ describe("v5 billing entitlements", () => {
       amountKopecks: 149_000,
       creditsPerPeriod: 20,
     }));
-    expect(CREDIT_PACKS["pack-5"]).toEqual(expect.objectContaining({ amountKopecks: 99_000, credits: 5 }));
-    expect(CREDIT_PACKS["pack-10"]).toEqual(expect.objectContaining({ amountKopecks: 179_000, credits: 10 }));
-    expect(CREDIT_PACKS["pack-25"]).toEqual(expect.objectContaining({ amountKopecks: 399_000, credits: 25 }));
-    expect(Object.values(CREDIT_PACKS).map((pack) => Math.round(pack.amountKopecks / 100 / pack.credits))).toEqual([198, 179, 160]);
+    expect(CREDIT_PACKS["pack-5"]).toEqual(expect.objectContaining({ amountKopecks: 79_000, credits: 5 }));
+    expect(CREDIT_PACKS["pack-10"]).toEqual(expect.objectContaining({ amountKopecks: 139_000, credits: 10 }));
+    expect(CREDIT_PACKS["pack-25"]).toEqual(expect.objectContaining({ amountKopecks: 299_000, credits: 25 }));
+    // B447: ₽/балл снижен (158/139/120) — пакеты как осмысленный топ-ап
+    expect(Object.values(CREDIT_PACKS).map((pack) => Math.round(pack.amountKopecks / 100 / pack.credits))).toEqual([158, 139, 120]);
   });
 
   it("B433 keeps visible pricing mirrors on the rebalanced pack/subscription economics", () => {
@@ -103,9 +104,10 @@ describe("v5 billing entitlements", () => {
     const adminPricing = fs.readFileSync(path.join(process.cwd(), "src/app/admin/pricing/pricing-editor.tsx"), "utf8");
     const checked = [entitlements, pricingPlans, pricingCompare, cabinetBilling, platformSettings, adminPricing].join("\n");
 
-    expect(entitlements).toContain("amountKopecks: 99000");
-    expect(entitlements).toContain("amountKopecks: 179000");
-    expect(entitlements).toContain("amountKopecks: 399000");
+    // B447: пакеты 790/1390/2990 ₽
+    expect(entitlements).toContain("amountKopecks: 79000");
+    expect(entitlements).toContain("amountKopecks: 139000");
+    expect(entitlements).toContain("amountKopecks: 299000");
     expect(pricingPlans).toContain("monthPrice: 590");
     expect(pricingPlans).toContain("monthPrice: 1490");
     expect(pricingPlans).toContain("+20 баллов каждый месяц");
@@ -150,7 +152,7 @@ describe("v5 billing entitlements", () => {
     );
     expect(resolveBillingPurchase({ creditPackKey: "pack-10", returnPath: "/cabinet/wallet" })).toEqual(expect.objectContaining({
       kind: "credits",
-      amountKopecks: 179_000,
+      amountKopecks: 139_000,
       description: "Баллы, 10 шт.",
       metadata: expect.objectContaining({
         purchaseKind: "credits",
@@ -218,7 +220,7 @@ describe("v5 billing entitlements", () => {
     const result = await grantEntitlementForTransaction(testTx, {
       id: "tx-pack",
       userId: "user-1",
-      amount: 179000,
+      amount: 139000,
       description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     });
@@ -240,12 +242,18 @@ describe("v5 billing entitlements", () => {
         source: "purchase",
         sourceEventId: "tx-pack",
         status: "confirmed",
-        expiresAt: null,
+        // B447: купленные баллы теперь сгорают (раньше было null)
+        expiresAt: expect.any(Date),
       }),
     }));
+    // B447: срок действия ≈ 12 месяцев от покупки
+    const grantArg = (mockDb.clarityCreditLedgerEntry.create as jest.Mock).mock.calls.at(-1)?.[0]?.data;
+    const daysAhead = (grantArg.expiresAt.getTime() - Date.now()) / 86_400_000;
+    expect(daysAhead).toBeGreaterThan(360);
+    expect(daysAhead).toBeLessThan(370);
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: -179000,
+        amountKopecks: -139000,
         type: "CREDIT_PACK_PURCHASE",
         transactionId: "tx-pack",
       }),
@@ -441,7 +449,7 @@ describe("v5 billing entitlements", () => {
     await revokeEntitlementsForTransaction(testTx, {
       id: "tx-pack",
       userId: "user-1",
-      amount: 179000,
+      amount: 139000,
       description: "Баллы, 10 шт.",
       metadata: { purchaseKind: "credits", creditPackKey: "pack-10", creditsAmount: 10 },
     } as never, "Возврат по обращению клиента");
@@ -466,7 +474,7 @@ describe("v5 billing entitlements", () => {
     }));
     expect(ledgerCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({
-        amountKopecks: 179000,
+        amountKopecks: 139000,
         type: "REFUND",
         source: "yookassa_refund",
         transactionId: "tx-pack",
