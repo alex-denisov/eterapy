@@ -51,12 +51,13 @@ describe("B442 deep report product (Подробный разбор)", () => {
     expect(exportRoute).toContain("Content-Disposition");
   });
 
-  it("raises the token budget so the document can really be 6–10 pages", () => {
+  it("raises the token budget so the document can really be 8–12 pages", () => {
     const lib = source("src/lib/deep-report.ts");
     const policy = source("src/lib/ai-gateway/task-policy.ts");
-    expect(lib).toContain("maxTokens: 9000");
-    // policy entry for product-deep-report also lifted
-    expect(policy).toContain("maxTokens: 9000");
+    // B446: bumped 9000 → 11000 for a richer (≥3500-word) document
+    expect(lib).toContain("maxTokens: 11000");
+    // policy entry wins over the call value, so it must be lifted too
+    expect(policy).toContain("maxTokens: 11000");
   });
 
   it("wires a self-contained product surface (no checkin/ProductIntake) into the deep-report flow", () => {

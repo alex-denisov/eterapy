@@ -326,7 +326,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="deep-report-actions">
         <div className="tarot-head">
-          <p className="soft-eyebrow">клиническая формулировка случая</p>
+          <p className="soft-eyebrow">структурный разбор ситуации</p>
         </div>
         <h2 className="soft-h3 mt-1">Ваш подробный разбор</h2>
 
@@ -394,15 +394,10 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
   const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
 
   return (
-    <div className="soft-card tarot-order-surface mt-8" data-testid="deep-report-actions">
+    <div className="soft-card tarot-order-surface" data-testid="deep-report-actions">
       <div className="tarot-head">
         <p className="soft-eyebrow">структурный разбор · 6–10 страниц</p>
-        {hasEntitlement && <p className="tarot-access-note">Доступ открыт, можно собрать разбор.</p>}
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-        Полноценный документ по методу клинической формулировки: что происходит, что удерживает,
-        на что опереться и маршрут небольших шагов. Опишите ситуацию подробно — чем больше деталей, тем точнее разбор.
-      </p>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
@@ -431,7 +426,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value.slice(0, 8000))}
           placeholder={placeholder}
-          rows={5}
+          rows={3}
           className="soft-question-input tarot-question-input"
           disabled={status === "loading"}
           data-testid="deep-report-input"

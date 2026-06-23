@@ -512,15 +512,10 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
   const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
 
   return (
-    <div className="soft-card tarot-order-surface mt-8" data-testid="reframe-actions">
+    <div className="soft-card tarot-order-surface" data-testid="reframe-actions">
       <div className="tarot-head">
         <p className="soft-eyebrow">когнитивный рефрейминг</p>
-        {hasEntitlement && <p className="tarot-access-note">Доступ открыт, можно переосмыслить.</p>}
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-        Опишите, что не отпускает. Метод рефрейминга разложит это на мысли, чувства, другой взгляд и шаг.
-        Попробуйте посмотреть на ситуацию иначе.
-      </p>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
@@ -549,7 +544,7 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
           value={sourceText}
           onChange={(e) => setSourceText(e.target.value.slice(0, 6000))}
           placeholder={placeholder}
-          rows={4}
+          rows={3}
           className="soft-question-input tarot-question-input"
           disabled={status === "loading"}
           data-testid="reframe-input"
@@ -558,7 +553,7 @@ export function ReframeActions({ resultId }: { resultId?: string | null }) {
         <div className="tarot-action-row">
           {hasEntitlement ? (
             <Button onClick={generateReport} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="reframe-start">
-              {status === "loading" ? "Переосмысляем…" : "Переосмыслить ситуацию"}
+              {status === "loading" ? "Анализируем…" : "Провести анализ"}
               <ArrowRight className="size-4" aria-hidden="true" />
             </Button>
           ) : (

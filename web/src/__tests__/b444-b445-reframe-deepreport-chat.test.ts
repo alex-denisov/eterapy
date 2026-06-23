@@ -55,9 +55,11 @@ describe("B444 reframe/deep-report self-contained, tarot-style intake", () => {
     expect(reframe).not.toContain('action: "preview"');
     expect(reframe).not.toContain("Скачать PDF");
     expect(reframe).not.toContain("soft-badge");
-    // заголовок интейка убран, текст оставлен
-    expect(reframe).not.toContain("Посмотреть на ситуацию иначе");
-    expect(reframe).toContain("Попробуйте посмотреть на ситуацию иначе");
+    // B446: интейк выровнен по tarot — описательный абзац и плашка доступа убраны
+    expect(reframe).not.toContain("Попробуйте посмотреть на ситуацию иначе");
+    expect(reframe).not.toContain("Доступ открыт, можно переосмыслить");
+    // CTA переименован по решению владельца
+    expect(reframe).toContain("Провести анализ");
     // свёрнутый блок с вопросом/категориями (как у Таро)
     expect(reframe).toContain('data-testid="reframe-recap"');
   });
@@ -70,8 +72,10 @@ describe("B444 reframe/deep-report self-contained, tarot-style intake", () => {
     expect(deep).not.toContain("soft-badge");
     expect(deep).toContain('data-testid="deep-report-accordion"');
     expect(deep).toContain('data-testid="deep-report-recap"');
-    // заголовок результата по образцу «когнитивный рефрейминг»
-    expect(deep).toContain("клиническая формулировка случая");
+    // B446: заголовок результата без «клинического» (понятнее клиенту), плашка доступа убрана
+    expect(deep).not.toContain("клиническая формулировка случая");
+    expect(deep).toContain("структурный разбор ситуации");
+    expect(deep).not.toContain("Доступ открыт, можно собрать разбор");
   });
 });
 

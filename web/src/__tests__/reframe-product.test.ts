@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { buildReframePreview, heuristicReframe } from "@/lib/reframe";
+import { buildReframePreview, heuristicReframe, tryParseReframe, REFRAME_SYSTEM_PROMPT } from "@/lib/reframe";
 
 const root = process.cwd();
 
@@ -25,6 +25,36 @@ describe("B441 reframe product (Переосмысление)", () => {
     expect(reportJson.angles).toHaveLength(4);
     expect(reportJson.angles.map((a) => a.id)).toEqual(["thoughts", "feelings", "reframe", "step"]);
     expect(reportJson.angles[2].title).toBe("Другой взгляд");
+  });
+
+  // B446: раньше валидный ответ модели выбрасывался при малейшей обёртке (```fence```
+  // или фраза до/после JSON) → срабатывал статический фолбэк, который лишь копировал
+  // текст пользователя в «Мысли», а остальные углы были общими. Парсер теперь
+  // вынимает JSON-объект из мусора, как chat-analysis.
+  const fourAngles = JSON.stringify({
+    angles: [
+      { id: "thoughts", title: "Мысли", subtitle: "", facts: ["a"], unknowns: [], options: [], ask: "", step: "x" },
+      { id: "feelings", title: "Чувства", subtitle: "", facts: ["b"], unknowns: [], options: [], ask: "", step: "y" },
+      { id: "reframe", title: "Другой взгляд", subtitle: "", facts: ["c"], unknowns: [], options: [], ask: "", step: "z" },
+      { id: "step", title: "Шаг", subtitle: "", facts: ["d"], unknowns: [], options: [], ask: "", step: "w" },
+    ],
+  });
+
+  it("parses LLM JSON even when wrapped in code fences or surrounded by prose", () => {
+    expect(tryParseReframe(fourAngles)?.angles).toHaveLength(4);
+    expect(tryParseReframe("```json\n" + fourAngles + "\n```")?.angles).toHaveLength(4);
+    expect(tryParseReframe("Конечно, вот разбор:\n" + fourAngles + "\nНадеюсь, помогло.")?.angles).toHaveLength(4);
+    // мусор и неполный набор углов всё ещё отвергаются (→ честный фолбэк)
+    expect(tryParseReframe("просто текст без json")).toBeNull();
+    expect(tryParseReframe('{"angles":[{"id":"thoughts"}]}')).toBeNull();
+  });
+
+  it("uses a professional psychotherapist persona and forbids fences/echoing", () => {
+    expect(REFRAME_SYSTEM_PROMPT).toContain("психотерапевт");
+    expect(REFRAME_SYSTEM_PROMPT).toContain("клиническая психология");
+    // запрет на обёртки (источник фолбэка) и на простое копирование запроса
+    expect(REFRAME_SYSTEM_PROMPT).toContain("ТОЛЬКО валидный JSON");
+    expect(REFRAME_SYSTEM_PROMPT).toMatch(/копировать его текст|пересказывать/);
   });
 
   it("keeps a durable ProductResult model for paid outputs", () => {
