@@ -80,6 +80,15 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Данные рождения неполны", 400, context);
 
   const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
+  // B451: платный-только — без доступа сразу 402, без генерации бесплатного фрагмента.
+  if (!hasEntitlement) {
+    return errorWithRequestContext(
+      "PAYMENT_REQUIRED",
+      "Откройте разбор баллами или картой — результат появится здесь же.",
+      402,
+      context,
+    );
+  }
   const generated = await generateSynastryResult({
     userBirthData: parsed.data.userBirthData,
     partnerBirthData: parsed.data.partnerBirthData,
@@ -93,45 +102,12 @@ export async function POST(request: NextRequest) {
     generatedText: generated.text,
   });
 
-  if (!hasEntitlement) {
-    const existingPreview = await db.productResult.findFirst({
-      where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const result = existingPreview
-      ? await db.productResult.update({
-          where: { id: existingPreview.id },
-          data: {
-            title: "Совместимость по звёздам как карта пары",
-            previewText,
-            metadata: {
-              userBirthData: parsed.data.userBirthData,
-              partnerBirthData: parsed.data.partnerBirthData,
-              question: parsed.data.question ?? null,
-              previewGenerationMetadata: generated.metadata,
-            } as Prisma.InputJsonObject,
-          },
-        })
-      : await db.productResult.create({
-          data: {
-            userId,
-            productKey: PRODUCT_KEY,
-            title: "Совместимость по звёздам как карта пары",
-            status: "PREVIEW",
-            previewText,
-            metadata: {
-              userBirthData: parsed.data.userBirthData,
-              partnerBirthData: parsed.data.partnerBirthData,
-              question: parsed.data.question ?? null,
-              previewGenerationMetadata: generated.metadata,
-            } as Prisma.InputJsonObject,
-          },
-        });
-
-    return jsonWithRequestContext(
-      { hasEntitlement, result: serializeResult(result), generated: false, paywalled: true },
-      { status: 200 },
+  // B451: mandatory-LLM — эвристику не сохраняем и не списываем, просим повторить.
+  if ((generated.metadata as { source?: string }).source !== "ai") {
+    return errorWithRequestContext(
+      "AI_UNAVAILABLE",
+      "Не получилось собрать разбор — попробуйте ещё раз. Баллы не списаны.",
+      503,
       context,
     );
   }
@@ -148,6 +124,7 @@ export async function POST(request: NextRequest) {
         status: "READY",
         previewText,
         resultText: generated.text,
+        savedAt: new Date(),
         metadata: {
           userBirthData: parsed.data.userBirthData,
           partnerBirthData: parsed.data.partnerBirthData,

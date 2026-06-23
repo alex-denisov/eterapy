@@ -11,6 +11,9 @@ import { SynastryActions } from "@/components/products/synastry-actions";
 import { SymbolicProductActions } from "@/components/products/symbolic-product-actions";
 import { HumanDesignActions } from "@/components/products/human-design-actions";
 import { SurnameStoryActions } from "@/components/products/surname-story-actions";
+import { NatalChartActions } from "@/components/products/natal-chart-actions";
+import { NumerologyActions } from "@/components/products/numerology-actions";
+import { FamilyScenariosActions } from "@/components/products/family-scenarios-actions";
 import { ProductHeroPrice } from "@/components/products/product-hero-price";
 import { ProductPageShell } from "@/components/products/product-page-shell";
 import { createPublicPageMetadata, type PublicSeoRoute } from "@/lib/public-page-seo";
@@ -94,14 +97,14 @@ function ProductActionSurface({
     return <SymbolicProductActions productKey="tarot" title="Расклад Таро" promptLabel="Вопрос для расклада" placeholder="Например: стоит ли мне сейчас менять работу, если внутри много сомнений?" creditCost={2} />;
   }
   if (product.slug === "natal-chart") {
-    return <SymbolicProductActions productKey="natal-chart" title="Натальная карта" promptLabel="Дата, время и место рождения" placeholder="12.04.1992, 14:35, Москва. Вопрос: что сейчас важно понять про работу?" creditCost={2} />;
+    return <NatalChartActions creditCost={product.creditCost ?? 2} />;
   }
-  if (product.slug === "synastry") return <SynastryActions />;
+  if (product.slug === "synastry") return <SynastryActions creditCost={product.creditCost ?? 3} />;
   if (product.slug === "numerology") {
-    return <SymbolicProductActions productKey="numerology" title="Числовой портрет" promptLabel="Имя и дата рождения" placeholder="Анна, 12.04.1992. Хочу понять повторяющийся сценарий в отношениях." creditCost={2} />;
+    return <NumerologyActions creditCost={product.creditCost ?? 2} />;
   }
   if (product.slug === "family-scenarios") {
-    return <SymbolicProductActions productKey="family-scenarios" title="Семейные сценарии" promptLabel="Что повторяется в вашей семье и роду" placeholder="Например: в семье по женской линии все рано брали ответственность за других и не умели просить помощи. Я ловлю себя на том же." creditCost={4} />;
+    return <FamilyScenariosActions creditCost={product.creditCost ?? 4} />;
   }
   if (product.slug === "human-design") {
     return <HumanDesignActions creditCost={product.creditCost ?? 2} />;
@@ -118,7 +121,7 @@ function ProductActionSurface({
 // B441/B442 (M28): «Переосмысление» и «Подробный разбор» переработаны под этот же
 // компактный hero (CTA + инструмент на первом экране, переиспользуют ценник/
 // дисклеймер/приватность), как просил владелец — тот же метод, что у chat-analysis/tarot.
-const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report"]);
+const COMPACT_HERO_SLUGS = new Set<string>(["chat-analysis", "tarot", "reframe", "deep-report", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios", "synastry"]);
 
 export default async function ProductPage({
   params,

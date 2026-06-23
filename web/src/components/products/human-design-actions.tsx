@@ -1,61 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import { ArrowRight, Compass, Download, LockKeyhole, Save, Share2, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
+import { SymbolicResultScaffold } from "@/components/products/symbolic-result-scaffold";
 import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
+import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
 import type { HumanDesignChart } from "@/lib/human-design-data";
-import { track } from "@/lib/analytics";
-import { SHARE_EVENTS, withReferral } from "@/lib/share";
 
-type SymbolicResult = {
-  id: string;
-  status: string;
-  title: string;
-  previewText: string | null;
-  resultText: string | null;
-  saved: boolean;
-  metadata?: unknown;
+// B451: «Дизайн человека» — самодостаточная услуга по паттерну Таро/reframe.
+// Бодиграф/тип считаются детерминированно (server, по данным рождения), разбор
+// опирается на них; нет бесплатного расчёта-тизера — один платный шаг даёт бодиграф +
+// многоглавный разбор; автосейв; сессии по ?reading=.
+
+export type HumanDesignResult = SymbolicResult;
+
+const TOPICS = ["самопознание", "работа", "отношения", "энергия", "решения", "отдых", "перемены", "предназначение"];
+
+const EXAMPLES_BY_TOPIC: Record<string, string[]> = {
+  "самопознание": ["Хочу понять, как устроен я и почему действую именно так."],
+  "работа": ["Как мне работать по своей природе, а не на износ?"],
+  "отношения": ["Как я вхожу в близость и что мне в ней важно?"],
+  "энергия": ["Почему я быстро выгораю — как восполнять силы?"],
+  "решения": ["Как мне принимать решения, чтобы потом не жалеть?"],
+  "отдых": ["Как я по-настоящему восстанавливаюсь?"],
+  "перемены": ["Сейчас момент действовать или ждать приглашения?"],
+  "предназначение": ["В чём моя естественная роль и сила?"],
 };
-
-type FreePayload = {
-  ok?: boolean;
-  needsBirthData?: boolean;
-  message?: string;
-  chart?: HumanDesignChart;
-  display?: string;
-  hasExactTime?: boolean;
-};
-
-type ApiPayload = {
-  hasEntitlement?: boolean;
-  result?: SymbolicResult;
-  results?: SymbolicResult[];
-  paywalled?: boolean;
-  error?: string;
-};
-
-async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error((payload as ApiPayload).error ?? "Не удалось выполнить действие");
-    (error as Error & { status?: number }).status = response.status;
-    throw error;
-  }
-  return payload as T;
+const EXAMPLES_DEFAULT = [
+  "Например: как мне жить и решать по своей природе?",
+  "Опишите, что хотите прояснить — разбор свяжет ваш дизайн с вопросом.",
+];
+function examplesForTopic(topic: string | null): string[] {
+  return (topic && EXAMPLES_BY_TOPIC[topic]) || EXAMPLES_DEFAULT;
 }
 
-const PLACEHOLDER = "Например: 15.05.1990, 10:30, Москва. Точное время и город важны для верного расчёта.";
-
-function chartFromResultMetadata(result: SymbolicResult | null): HumanDesignChart | null {
+export function extractHumanDesignChart(result: SymbolicResult | null): HumanDesignChart | null {
   const md = result?.metadata;
   if (!md || typeof md !== "object") return null;
   const meta = md as Record<string, unknown>;
@@ -67,33 +50,49 @@ function chartFromResultMetadata(result: SymbolicResult | null): HumanDesignChar
   return raw as HumanDesignChart;
 }
 
-function TypeBadge({ chart }: { chart: HumanDesignChart }) {
+function composeUserInput(birth: string, question: string, topic: string | null): string {
+  return [
+    `Данные рождения: ${birth.trim()}`,
+    question.trim() ? `Вопрос: ${question.trim()}` : "",
+    topic ? `Сфера: ${topic}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function parseInput(userInput?: string | null): { birth: string; question: string; topic: string | null } {
+  if (!userInput) return { birth: "", question: "", topic: null };
+  return {
+    birth: userInput.match(/Данные рождения:\s*(.+)/)?.[1]?.trim() ?? userInput.split("\n")[0]?.trim() ?? "",
+    question: userInput.match(/Вопрос:\s*(.+)/)?.[1]?.trim() ?? "",
+    topic: userInput.match(/Сфера:\s*(.+)/)?.[1]?.trim() ?? null,
+  };
+}
+
+function HumanDesignVisual({ result }: { result: SymbolicResult }) {
+  const chart = extractHumanDesignChart(result);
+  if (!chart) return null;
   return (
-    <div className="rounded-[20px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5" data-testid="hd-type-card">
-      <p className="soft-eyebrow">ваш тип</p>
-      <h3 className="mt-1 font-heading text-[1.7rem] italic leading-tight text-[var(--soft-bordeaux)]">{chart.typeName}</h3>
-      <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">«{chart.shareLine}»</p>
-      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-        <div>
+    <div>
+      <HumanDesignBodygraph chart={chart} />
+      <div className="mt-3 grid grid-cols-2 gap-2.5" data-testid="hd-facts">
+        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
+          <p className="soft-eyebrow text-[0.6rem]">тип</p>
+          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.typeName}</p>
+        </div>
+        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
           <p className="soft-eyebrow text-[0.6rem]">стратегия</p>
-          <p className="mt-0.5 text-[var(--soft-ink)]">{chart.strategy}</p>
+          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.strategy}</p>
         </div>
-        <div>
-          <p className="soft-eyebrow text-[0.6rem]">внутренний авторитет</p>
-          <p className="mt-0.5 text-[var(--soft-ink)]">{chart.authorityName}</p>
+        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
+          <p className="soft-eyebrow text-[0.6rem]">авторитет</p>
+          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.authorityName}</p>
         </div>
-        <div>
+        <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
           <p className="soft-eyebrow text-[0.6rem]">профиль</p>
-          <p className="mt-0.5 text-[var(--soft-ink)]">{chart.profile} · {chart.profileName}</p>
-        </div>
-        <div>
-          <p className="soft-eyebrow text-[0.6rem]">подпись / не-я</p>
-          <p className="mt-0.5 text-[var(--soft-ink)]">{chart.signature} · не {chart.notSelf.toLowerCase()}</p>
+          <p className="mt-0.5 text-[0.95rem] text-[var(--soft-ink)]">{chart.profile} · {chart.profileName}</p>
         </div>
       </div>
-      <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{chart.typeSummary}</p>
       {!chart.hasExactTime && (
-        <p className="mt-3 rounded-[14px] bg-[var(--soft-paper-deep)] p-3 text-xs leading-relaxed text-[var(--soft-bordeaux)]">
+        <p className="mt-3 rounded-[12px] bg-[var(--soft-paper-deep)] p-3 text-xs leading-relaxed text-[var(--soft-bordeaux)]">
           Время рождения не указано — тип посчитан на полдень. Для точного результата добавьте точное время и город.
         </p>
       )}
@@ -101,278 +100,187 @@ function TypeBadge({ chart }: { chart: HumanDesignChart }) {
   );
 }
 
+function BodygraphTeaser() {
+  return (
+    <div
+      className="rounded-[16px] border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-center"
+      data-testid="hd-teaser"
+      aria-hidden="true"
+    >
+      <svg viewBox="0 0 120 150" className="mx-auto block w-[110px]">
+        {[[60, 18], [60, 48], [38, 80], [82, 80], [60, 104], [60, 132]].map(([x, y], i) => (
+          <rect key={i} x={Number(x) - 14} y={Number(y) - 10} width="28" height="20" rx="4" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="3 4" />
+        ))}
+        <text x="60" y="78" textAnchor="middle" dominantBaseline="central" fontSize="22" fill="var(--soft-ink-faint)">?</text>
+      </svg>
+      <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">ваш бодиграф появится здесь после оплаты</p>
+    </div>
+  );
+}
+
+export function HumanDesignResultView({
+  result,
+  recap,
+  onStartNew,
+  creditCost,
+}: {
+  result: SymbolicResult;
+  recap: { birth: string; question: string; topic: string | null };
+  onStartNew: () => void;
+  creditCost: number;
+}) {
+  const recapRows = [
+    recap.birth.trim() ? { label: "Данные рождения", value: recap.birth.trim() } : null,
+    recap.question.trim() ? { label: "Вопрос", value: recap.question.trim() } : null,
+    recap.topic ? { label: "Сфера", value: recap.topic } : null,
+  ].filter((r): r is { label: string; value: string } => r !== null);
+
+  return (
+    <SymbolicResultScaffold
+      productKey="human-design"
+      eyebrow="дизайн человека"
+      heading="Ваш дизайн человека"
+      recapSummary={recap.question.trim() ? `Вопрос: ${recap.question.trim()}` : "Ваши данные и вопрос"}
+      recapRows={recapRows}
+      visual={<HumanDesignVisual result={result} />}
+      resultText={result.resultText ?? ""}
+      topic={recap.topic}
+      creditCost={creditCost}
+      repeat={{ ribbon: "разобрать ещё", title: "Сделать новый разбор", description: "Свежий разбор дизайна по новым данным или вопросу.", ctaLabel: "Начать" }}
+      onStartNew={onStartNew}
+    />
+  );
+}
+
 export function HumanDesignActions({ creditCost }: { creditCost: number }) {
-  const { status: authStatus } = useSession();
   const [birth, setBirth] = useState("");
-  const [chart, setChart] = useState<HumanDesignChart | null>(null);
-  const [freeStatus, setFreeStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [message, setMessage] = useState<string | null>(null);
-  const [shareNote, setShareNote] = useState<string | null>(null);
+  const [question, setQuestion] = useState("");
+  const [topic, setTopic] = useState<string | null>(null);
+  const [exampleIdx, setExampleIdx] = useState(0);
 
-  const [hasEntitlement, setHasEntitlement] = useState(false);
-  const [reading, setReading] = useState<SymbolicResult | null>(null);
-  const [readingStatus, setReadingStatus] = useState<"idle" | "loading" | "error">("idle");
+  const { hasEntitlement, setHasEntitlement, result, status, message, setMessage, generate, reset } =
+    useSymbolicService("human-design", (userInput) => {
+      const parsed = parseInput(userInput);
+      setBirth(parsed.birth);
+      setQuestion(parsed.question);
+      setTopic(parsed.topic);
+    });
 
-  // #3: данные рождения сохраняются при переходе на /login и восстанавливаются.
-  useInputDraft(
+  // #3: ввод переживает переход на /login.
+  const { clear: clearDraft } = useInputDraft(
     "human-design",
-    { birth },
-    (draft) => { if (typeof draft.birth === "string") setBirth(draft.birth); },
-    { active: !reading },
+    { birth, question, topic },
+    (draft) => {
+      if (typeof draft.birth === "string") setBirth(draft.birth);
+      if (typeof draft.question === "string") setQuestion(draft.question);
+      if (typeof draft.topic === "string") setTopic(draft.topic);
+    },
+    { active: !result },
   );
 
   useEffect(() => {
-    if (authStatus !== "authenticated") return;
-    let cancelled = false;
-    jsonRequest<ApiPayload>("/api/products/symbolic?productKey=human-design")
-      .then((payload) => {
-        if (cancelled) return;
-        setHasEntitlement(Boolean(payload.hasEntitlement));
-        const last = payload.results?.[0] ?? null;
-        setReading(last);
-        const stored = chartFromResultMetadata(last);
-        if (stored) setChart((current) => current ?? stored);
-      })
-      .catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [authStatus]);
+    if (result) return;
+    const id = window.setInterval(() => setExampleIdx((i) => i + 1), 3600);
+    return () => window.clearInterval(id);
+  }, [result]);
 
-  async function computeFreeType() {
-    if (!birth.trim()) {
-      setMessage("Введите дату рождения (а лучше — время и город).");
-      setFreeStatus("error");
+  function handleGenerate() {
+    if (birth.trim().length < 4) {
+      setMessage("Укажите дату рождения (а лучше — точное время и город), чтобы рассчитать бодиграф.");
       return;
     }
-    setFreeStatus("loading");
-    setMessage(null);
-    setShareNote(null);
-    try {
-      const payload = await jsonRequest<FreePayload>("/api/products/human-design", {
-        method: "POST",
-        body: JSON.stringify({ birth }),
-      });
-      if (!payload.ok || !payload.chart) {
-        setChart(null);
-        setMessage(payload.message ?? "Не удалось определить тип. Проверьте дату рождения.");
-        setFreeStatus("idle");
-        return;
-      }
-      setChart(payload.chart);
-      setFreeStatus("idle");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось определить тип");
-      setFreeStatus("error");
-    }
+    void generate(composeUserInput(birth, question, topic));
   }
 
-  async function generateReading() {
-    if (authStatus !== "authenticated") {
-      setMessage("Войдите, чтобы открыть полный разбор и сохранить его в кабинете.");
-      return;
-    }
-    if (!birth.trim()) {
-      setMessage("Сначала укажите данные рождения и рассчитайте тип.");
-      return;
-    }
-    setReadingStatus("loading");
-    setMessage(null);
-    try {
-      const payload = await jsonRequest<ApiPayload>("/api/products/symbolic", {
-        method: "POST",
-        body: JSON.stringify({ productKey: "human-design", userInput: birth }),
-      });
-      setHasEntitlement(Boolean(payload.hasEntitlement));
-      setReading(payload.result ?? null);
-      const stored = chartFromResultMetadata(payload.result ?? null);
-      if (stored) setChart(stored);
-      if (payload.paywalled) {
-        setMessage("Бесплатный фрагмент разбора готов. Полный разбор откроется баллами или картой здесь же.");
-      }
-      setReadingStatus("idle");
-    } catch (error) {
-      const typed = error as Error & { status?: number };
-      setMessage(typed.status === 402
-        ? "Откройте полный разбор баллами или картой — он появится здесь же."
-        : typed.message || "Не удалось собрать разбор");
-      setReadingStatus("error");
-    }
+  function startNew() {
+    reset();
+    clearDraft();
+    setBirth("");
+    setQuestion("");
+    setTopic(null);
   }
 
-  async function saveReading() {
-    if (!reading) return;
-    setReadingStatus("loading");
-    try {
-      const payload = await jsonRequest<ApiPayload>(`/api/products/symbolic/${reading.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ action: "save" }),
-      });
-      setReading(payload.result ?? reading);
-      setReadingStatus("idle");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Не удалось сохранить");
-      setReadingStatus("error");
-    }
+  if (result?.resultText) {
+    return (
+      <HumanDesignResultView
+        result={result}
+        recap={{ birth, question, topic }}
+        onStartNew={startNew}
+        creditCost={creditCost}
+      />
+    );
   }
 
-  async function shareType() {
-    if (!chart) return;
-    track({ event: SHARE_EVENTS.generated, surface: "human-design", properties: { kind: "human-design", type: chart.type } });
-    const base = typeof window !== "undefined" ? `${window.location.origin}/products/human-design` : "";
-    const url = withReferral(base, "hd-type");
-    const text = `Мой тип в Дизайне человека — ${chart.typeName} (${chart.profile}). Стратегия: ${chart.strategy.toLowerCase()}. Узнать свой тип:`;
-    try {
-      if (typeof navigator !== "undefined" && navigator.share) {
-        await navigator.share({ title: "Мой Дизайн человека", text, url });
-        return;
-      }
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(`${text} ${url}`);
-        setShareNote("Скопировано — можно вставить в чат или сторис.");
-      }
-    } catch {
-      setShareNote(null);
-    }
-  }
+  const placeholderExamples = examplesForTopic(topic);
+  const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
 
   return (
-    <div className="soft-card soft-form-panel mt-8" data-testid="human-design-actions">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="soft-eyebrow">узнать бесплатно</p>
-          <h2 className="soft-h3 mt-2">Ваш тип в Дизайне человека</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Тип, стратегия, авторитет и бодиграф считаются по реальным данным рождения — бесплатно. Полный разбор с расшифровкой каналов и линий открывается баллами или картой.
-          </p>
-        </div>
-        <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "разбор открыт" : "тип бесплатно"}
-        </span>
+    <div className="soft-card tarot-order-surface" data-testid="human-design-actions">
+      <div className="tarot-head">
+        <p className="soft-eyebrow">дизайн человека · язык природы</p>
       </div>
 
-      {message && (
-        <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>
-      )}
+      {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)]">
-        <div className="soft-card-flat p-5">
-          <label className="soft-eyebrow" htmlFor="hd-birth-input">Дата, время и место рождения</label>
-          <textarea
-            id="hd-birth-input"
-            value={birth}
-            onChange={(event) => setBirth(event.target.value)}
-            placeholder={PLACEHOLDER}
-            rows={4}
-            className="soft-question-input mt-3"
-            disabled={freeStatus === "loading"}
-          />
-          <Button
-            type="button"
-            onClick={computeFreeType}
-            disabled={freeStatus === "loading"}
-            className="soft-button soft-button-primary mt-4 w-full"
-            data-testid="hd-compute"
-          >
-            <Sparkles className="size-4" aria-hidden="true" />
-            {freeStatus === "loading" ? "Считаем бодиграф" : "Рассчитать тип бесплатно"}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Button>
+      <div className="tarot-controls">
+        <OptionScrollStrip ariaLabel="О чём хотите понять">
+          {TOPICS.map((t) => (
+            <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
+              onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
+              {t}
+            </OptionChoice>
+          ))}
+        </OptionScrollStrip>
 
-          {chart && (
-            <div className="mt-5">
-              <p className="soft-eyebrow">активные ворота</p>
-              <div className="mt-2 flex flex-wrap gap-1.5" data-testid="hd-active-gates">
-                {chart.activeGates.map((gate) => (
-                  <span key={gate} className="soft-chip text-[0.7rem]">{gate}</span>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button type="button" onClick={shareType} className="soft-button soft-button-ghost" data-testid="hd-share">
-                  <Share2 className="size-4" aria-hidden="true" />
-                  Поделиться типом
-                </Button>
-              </div>
-              {shareNote && <p className="mt-2 text-xs text-[var(--soft-ink-soft)]">{shareNote}</p>}
-            </div>
-          )}
+        <label className="soft-eyebrow tarot-question-label" htmlFor="hd-birth-input">дата, время и место рождения</label>
+        <textarea
+          id="hd-birth-input"
+          value={birth}
+          onChange={(e) => setBirth(e.target.value.slice(0, 400))}
+          placeholder="15.05.1990, 10:30, Москва. Точное время и город важны для верного расчёта."
+          rows={2}
+          className="soft-question-input tarot-question-input"
+          disabled={status === "loading"}
+          data-testid="hd-birth-input"
+        />
+
+        <label className="soft-eyebrow tarot-question-label" htmlFor="hd-question-input">ваш вопрос (необязательно)</label>
+        <textarea
+          id="hd-question-input"
+          value={question}
+          onChange={(e) => setQuestion(e.target.value.slice(0, 2000))}
+          placeholder={placeholder}
+          rows={2}
+          className="soft-question-input tarot-question-input"
+          disabled={status === "loading"}
+          data-testid="hd-question-input"
+        />
+
+        <div className="mt-1">
+          <BodygraphTeaser />
         </div>
 
-        <div className="soft-card p-5">
-          {chart ? (
-            <div className="grid gap-5">
-              <HumanDesignBodygraph chart={chart} />
-              <TypeBadge chart={chart} />
-
-              <div className="border-t border-[var(--soft-paper-edge)] pt-5">
-                <p className="soft-eyebrow">полный разбор</p>
-                {reading?.resultText ? (
-                  <>
-                    <SoftMarkdown content={reading.resultText} className="mt-3 font-heading text-[1.05rem] text-[var(--soft-ink)]" />
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Button type="button" onClick={saveReading} disabled={reading.saved || readingStatus === "loading"} className="soft-button soft-button-ghost" data-testid="hd-save">
-                        <Save className="size-4" aria-hidden="true" />
-                        {reading.saved ? "Сохранено в Дневник" : "Сохранить в Дневник"}
-                      </Button>
-                      <a href={`/products/print/${reading.id}`} target="_blank" rel="noopener noreferrer" className="soft-button soft-button-ghost" data-testid="hd-pdf">
-                        <Download className="size-4" aria-hidden="true" />
-                        Скачать PDF
-                      </a>
-                    </div>
-                  </>
-                ) : reading?.previewText ? (
-                  <>
-                    <SoftMarkdown content={reading.previewText} className="mt-3 font-heading text-[1.05rem] text-[var(--soft-ink)]" />
-                    <p className="mt-3 rounded-[14px] bg-[var(--soft-paper-deep)] p-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                      Это бесплатный фрагмент. Полный разбор раскроет каналы, линии профиля и практический маршрут.
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                    Полный разбор объяснит ваши каналы, профиль и как мягко жить по своей стратегии и авторитету.
-                  </p>
-                )}
-
-                <div className="mt-4 flex flex-col gap-3">
-                  {hasEntitlement ? (
-                    <Button type="button" onClick={generateReading} disabled={readingStatus === "loading"} className="soft-button soft-button-primary" data-testid="hd-generate">
-                      <LockKeyhole className="size-4" aria-hidden="true" />
-                      {readingStatus === "loading" ? "Собираем разбор" : "Получить полный разбор"}
-                      <ArrowRight className="size-4" aria-hidden="true" />
-                    </Button>
-                  ) : (
-                    <>
-                      <ProductPurchaseControls
-                        productKey="human-design"
-                        label="Открыть полный разбор"
-                        checkoutSource="human-design-direct"
-                        creditCost={creditCost}
-                        onUnlocked={() => {
-                          setHasEntitlement(true);
-                          void generateReading();
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={generateReading}
-                        disabled={readingStatus === "loading"}
-                        className="self-start text-sm font-medium text-[var(--soft-bordeaux)] underline underline-offset-4 disabled:opacity-50"
-                        data-testid="hd-free-fragment"
-                      >
-                        {readingStatus === "loading" ? "Собираем фрагмент…" : "Сначала бесплатный фрагмент"}
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
+        <div className="tarot-action-row">
+          {hasEntitlement ? (
+            <Button onClick={handleGenerate} disabled={status === "loading"} className="soft-button soft-button-primary" data-testid="hd-start">
+              {status === "loading" ? "Считаем бодиграф…" : "Открыть дизайн человека"}
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Button>
           ) : (
-            <div className="grid min-h-[18rem] place-items-center text-center">
-              <div>
-                <Compass className="mx-auto size-10 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                <p className="mt-3 font-heading text-xl italic leading-relaxed text-[var(--soft-ink-soft)]">
-                  Введите данные рождения — здесь появится ваш бодиграф и тип.
-                </p>
-              </div>
-            </div>
+            <ProductPurchaseControls
+              productKey="human-design"
+              label="Открыть дизайн человека"
+              checkoutSource="human-design-direct"
+              creditCost={creditCost}
+              onUnlocked={() => {
+                setHasEntitlement(true);
+                if (birth.trim()) {
+                  handleGenerate();
+                } else {
+                  setMessage("Доступ открыт. Добавьте данные рождения — и бодиграф появится здесь же.");
+                }
+              }}
+            />
           )}
         </div>
       </div>

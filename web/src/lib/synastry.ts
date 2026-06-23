@@ -1,7 +1,21 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
-import { buildSynastryWheel } from "@/lib/esoteric-chart";
+import { buildSynastryWheel, type SynastryWheel } from "@/lib/esoteric-chart";
+import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { log, serializeError } from "@/lib/logger";
+
+// B451: факты пары для AI — реальные знаки Солнца обоих + баланс течения/трения,
+// чтобы разбор опирался на них и совпадал с колесом совместимости.
+function synastryFactsForAI(wheel: SynastryWheel): string {
+  const flow = wheel.aspects.filter((a) => a.harmony === "flow").length;
+  const tension = wheel.aspects.filter((a) => a.harmony === "tension").length;
+  return [
+    "ТОЧНО ПОСЧИТАНО (символическая схема, не эфемериды — не выдумывай иных точных позиций):",
+    `Солнце первого человека: ${wheel.a.sunSign.name}. Солнце второго: ${wheel.b.sunSign.name}.`,
+    `Связей «где течёт»: ${flow}; «где трение»: ${tension}.`,
+    "Опирайся на знаки Солнца обоих и баланс течения/трения; точные Луны/дома требуют времени рождения — не утверждай их как факт.",
+  ].join("\n");
+}
 
 function normalize(text: string) {
   return text.replace(/\n{3,}/g, "\n\n").trim().slice(0, 7000);
@@ -64,29 +78,25 @@ export async function generateSynastryResult(input: {
   const wheelMeta: Prisma.InputJsonObject = { wheel: wheel as unknown as Prisma.InputJsonValue };
 
   try {
+    // B451: тот же экспертный промпт, что виден/редактируется в /admin/ai
+    // (product-synastry), + посчитанные факты пары; полный многоглавный разбор.
     const response = await aiComplete({
       feature: "product-synastry",
       userId: input.userId,
       requestId: input.requestId,
-      // B388: ограничиваем объём до ≤2 страниц A4 (человеческий текст, не простыня).
-      maxTokens: 1300,
+      maxTokens: 6500,
       temperature: 0.45,
       messages: [
         {
           role: "system",
-          content: [
-            "Write an ETerapy synastry result in Russian.",
-            "Treat astrology as symbolic language, not fate, diagnosis, or proof.",
-            "Do not say whether people must stay together or separate.",
-            "Use sections: shared resource, different rhythms, tension pattern, question connection, conversation prompts, safe next step.",
-          ].join(" "),
+          content: `${defaultPromptTextForFeature("product-synastry")}\n\n${synastryFactsForAI(wheel)}`,
         },
         {
           role: "user",
           content: [
-            `User birth data: ${normalize(input.userBirthData)}`,
-            `Partner birth data: ${normalize(input.partnerBirthData)}`,
-            `Question: ${normalize(input.question ?? "") || "Пользователь хочет понять динамику пары бережно и без фатальности."}`,
+            `Данные первого человека: ${normalize(input.userBirthData)}`,
+            `Данные второго человека: ${normalize(input.partnerBirthData)}`,
+            `Вопрос пары: ${normalize(input.question ?? "") || "Пара хочет понять динамику бережно и без фатальности."}`,
           ].join("\n"),
         },
       ],

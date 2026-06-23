@@ -22,16 +22,24 @@ const PRODUCT_KEYS = [
   { productKey: "numerology" },
   { productKey: "family-scenarios" },
   { productKey: "human-design" },
+  { productKey: "surname-story" },
 ] as const;
 
 // B387/B389: family-scenarios и human-design тоже идут через этот эндпоинт.
 // Раньше их не было в enum — генерация платного разбора падала на валидации.
 const postSchema = z.object({
-  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design"]),
+  productKey: z.enum(["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story"]),
   userInput: z.string().max(4000).optional(),
   tarotSpread: z.enum(["one", "three", "celtic"]).optional(),
   tarotTheme: z.string().max(80).optional(),
 });
+
+// B450: натальная карта переведена на платный-только флоу (нет бесплатного
+// фрагмента), с автосейвом результата в Дневник и обязательным LLM-результатом.
+// Наборы расширяются по мере миграции остальных символических услуг на паттерн Таро.
+const PAYWALL_ONLY_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
+const AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
+const MANDATORY_LLM_PRODUCTS = new Set<SymbolicProductKey>(["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]);
 
 function serializeResult(result: {
   id: string;
@@ -112,6 +120,17 @@ export async function POST(request: NextRequest) {
   const definition = getSymbolicProductDefinition(productKey);
   const hasEntitlement = await userHasActiveEntitlement(userId, productKey);
 
+  // B450: платный-только продукт без доступа — сразу 402, без генерации бесплатного
+  // фрагмента. Один платный шаг даёт полный результат (как у Таро/reframe).
+  if (PAYWALL_ONLY_PRODUCTS.has(productKey) && !hasEntitlement) {
+    return errorWithRequestContext(
+      "PAYMENT_REQUIRED",
+      "Откройте разбор баллами или картой — результат появится здесь же.",
+      402,
+      context,
+    );
+  }
+
   const userInput = parsed.data.userInput?.trim() || definition?.promptLabel || productKey;
   const tarotRequestMeta: Prisma.InputJsonObject = {
     ...(productKey === "tarot" && parsed.data.tarotSpread ? { tarotSpread: parsed.data.tarotSpread } : {}),
@@ -126,6 +145,18 @@ export async function POST(request: NextRequest) {
     tarotTheme: parsed.data.tarotTheme,
   });
   const previewText = buildSymbolicProductTeaser({ productKey, userInput, generatedText: generated.text });
+
+  // B450: для услуг с обязательным LLM-результатом (нет осмысленного
+  // детерминированного фолбэка) не сохраняем и не списываем эвристику —
+  // просим повторить, баллы не списаны.
+  if (MANDATORY_LLM_PRODUCTS.has(productKey) && (generated.metadata as { source?: string }).source !== "ai") {
+    return errorWithRequestContext(
+      "AI_UNAVAILABLE",
+      "Не получилось собрать разбор — попробуйте ещё раз. Баллы не списаны.",
+      503,
+      context,
+    );
+  }
 
   if (!hasEntitlement) {
     const existingPreview = await db.productResult.findFirst({
@@ -180,10 +211,9 @@ export async function POST(request: NextRequest) {
         status: "READY",
         previewText,
         resultText: generated.text,
-        // #6: расклад Таро вместе с вопросом сохраняется в Дневник автоматически
-        // (savedAt → попадает в фид diary.ts). Остальные символические продукты
-        // сохраняются вручную кнопкой, как и раньше.
-        ...(productKey === "tarot" ? { savedAt: new Date() } : {}),
+        // #6/B450: автосейв в Дневник (savedAt → попадает в фид diary.ts) для услуг
+        // из AUTOSAVE_PRODUCTS (tarot, natal-chart, …). Остальные пока — вручную.
+        ...(AUTOSAVE_PRODUCTS.has(productKey) ? { savedAt: new Date() } : {}),
         metadata: {
           userInput,
           ...tarotRequestMeta,

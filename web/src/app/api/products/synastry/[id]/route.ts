@@ -33,6 +33,37 @@ function serialize(result: {
   };
 }
 
+// B451: восстановление конкретного разбора по ?reading=<id> (сессионность как у Таро).
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const context = requestContextFromHeaders(request.headers);
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
+
+  const { id } = await params;
+  const result = await db.productResult.findFirst({
+    where: { id, userId, productKey: "synastry", deletedAt: null },
+  });
+  if (!result) return errorWithRequestContext("NOT_FOUND", "Result not found", 404, context);
+
+  return jsonWithRequestContext(
+    {
+      result: {
+        id: result.id,
+        productKey: result.productKey,
+        status: result.status,
+        title: result.title,
+        previewText: result.previewText,
+        resultText: result.resultText,
+        saved: Boolean(result.savedAt),
+        metadata: result.metadata,
+      },
+    },
+    { status: 200 },
+    context,
+  );
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const context = requestContextFromHeaders(request.headers);
   const session = await auth();

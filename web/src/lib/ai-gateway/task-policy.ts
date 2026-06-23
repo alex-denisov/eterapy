@@ -250,7 +250,9 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Натальная карта",
     purpose: "Астрологический язык тем без фатальности и без утверждений судьбы.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 1900,
+    // B450: полноценный многоглавный разбор (Солнце/Луна/Асцендент/акценты/рост/шаги)
+    // без системного кап-лимита — как у deep-report. Эффективный кап (routing.ts:138).
+    maxTokens: 7000,
     temperature: 0.45,
     timeoutMs: 45_000,
     fallbackNotes: "Если время рождения неизвестно, модель не утверждает дома/ASC как факт.",
@@ -262,7 +264,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Совместимость по звёздам",
     purpose: "Сравнение двух натальных карт как символического языка динамики пары.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 1900,
+    // B451: полный многоглавный разбор пары по реальным знакам Солнца обоих.
+    maxTokens: 6500,
     temperature: 0.45,
     timeoutMs: 45_000,
     fallbackNotes: "Не выносит verdict по отношениям; показывает ресурсы, различия и вопросы для разговора.",
@@ -274,7 +277,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Числовой портрет",
     purpose: "Нумерологический язык повторов и личного ритма как метафора.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 1700,
+    // B451: полный многоглавный разбор по реальным ядровым числам.
+    maxTokens: 6000,
     temperature: 0.45,
     timeoutMs: 45_000,
     fallbackNotes: "Числа интерпретируются бережно, без предсказаний и давления.",
@@ -287,7 +291,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Семейные сценарии",
     purpose: "Genogram-язык повторов рода без фатальности и обвинения семьи.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 1600,
+    // B451: полный многоглавный genogram-разбор.
+    maxTokens: 6500,
     temperature: 0.45,
     timeoutMs: 45_000,
     fallbackNotes: "Никаких диагнозов рода и приговоров; только повторы и бережный шаг.",
@@ -300,7 +305,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "Дизайн человека",
     purpose: "Человеческий разбор рассчитанного типа/стратегии/авторитета/каналов без фатализма.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 1700,
+    // B451: полный многоглавный разбор по рассчитанному бодиграфу.
+    maxTokens: 6500,
     temperature: 0.45,
     timeoutMs: 45_000,
     fallbackNotes: "Опирается на детерминированно посчитанный чарт; не выдумывает тип и числа.",
@@ -313,7 +319,8 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     title: "История фамилии",
     purpose: "Тёплый родовой разбор по форме фамилии без фатализма и приговоров рода.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 1500,
+    // B451: полный многоглавный родовой разбор.
+    maxTokens: 6000,
     temperature: 0.5,
     timeoutMs: 45_000,
     fallbackNotes: "Опирается на распознанную форму фамилии; род — тема для размышления, не судьба.",

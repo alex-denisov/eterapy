@@ -1,7 +1,8 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
-import { buildNatalWheel } from "@/lib/esoteric-chart";
+import { buildNatalWheel, type NatalWheel } from "@/lib/esoteric-chart";
+import { computeNumerology, numerologyFactsForAI } from "@/lib/numerology";
 import { computeHumanDesignFromText } from "@/lib/human-design";
 import type { HumanDesignChart } from "@/lib/human-design-data";
 import { analyzeSurname, surnameFactsForAI, type SurnameStory } from "@/lib/surname-story";
@@ -386,6 +387,41 @@ function surnameStoryFallback(story: SurnameStory | null): string {
   ].filter(Boolean).join("\n");
 }
 
+// B450: факты натальной карты для AI — твёрдый знак Солнца + стихия/модальность
+// (по дате), чтобы разбор совпадал с колесом и опирался на реальное Солнце, а не
+// выдумывал символические Луну/Асцендент как факт.
+function natalFactsForAI(wheel: NatalWheel, userInput: string): string {
+  const MODALITY_BY_KEY: Record<string, string> = {
+    aries: "кардинальный", cancer: "кардинальный", libra: "кардинальный", capricorn: "кардинальный",
+    taurus: "фиксированный", leo: "фиксированный", scorpio: "фиксированный", aquarius: "фиксированный",
+    gemini: "мутабельный", virgo: "мутабельный", sagittarius: "мутабельный", pisces: "мутабельный",
+  };
+  const modality = MODALITY_BY_KEY[wheel.sunSign.key] ?? "—";
+  const polarity = wheel.sunSign.element === "огонь" || wheel.sunSign.element === "воздух"
+    ? "активная (ян)"
+    : "воспринимающая (инь)";
+  const hasTime = /\b\d{1,2}[:.]\d{2}\b/.test(userInput);
+  return [
+    "ТОЧНО ПОСЧИТАНО ПО ДАТЕ РОЖДЕНИЯ (не меняй эти факты):",
+    `Солнце в знаке ${wheel.sunSign.name} (${wheel.sunSign.glyph}). Стихия: ${wheel.sunSign.element}. Модальность: ${modality}. Полярность: ${polarity}.`,
+    hasTime
+      ? "Время рождения в запросе есть — про восходящий знак можно сказать аккуратнее, но всё равно как про ориентир (символический разбор, не эфемериды)."
+      : "Точное время рождения НЕ указано: Луну и Восходящий знак раскрывай как темы, не называя конкретный знак фактом; мягко предложи уточнить время и место для точного расчёта.",
+    "Колесо на странице — символическая схема тем, а не астрономический прогноз. Опирайся на знак Солнца, стихию и модальность как на каркас и обязательно свяжи разбор с реальным вопросом и сферой человека.",
+  ].join("\n");
+}
+
+// B450/B451: бюджет токенов на услугу для запроса в шлюз. Эффективный кап всё равно
+// задаёт task-policy (routing.ts:138), но держим запрос крупным для полного разбора.
+const SYMBOLIC_MAX_TOKENS: Partial<Record<SymbolicProductKey, number>> = {
+  tarot: 3200,
+  "natal-chart": 7000,
+  numerology: 6000,
+  "human-design": 6500,
+  "surname-story": 6000,
+  "family-scenarios": 6500,
+};
+
 export async function generateSymbolicProductResult(input: {
   productKey: SymbolicProductKey;
   userInput: string;
@@ -411,6 +447,8 @@ export async function generateSymbolicProductResult(input: {
   // B391: распознанная форма фамилии — детерминированно; храним в metadata (для
   // страницы/PDF) и передаём в AI как факты, чтобы разбор не выдумывал этимологию.
   const surnameStory = input.productKey === "surname-story" ? analyzeSurname(input.userInput) : null;
+  // B451: числовой портрет — детерминированные ядровые числа (для визуала и фактов AI).
+  const numerology = input.productKey === "numerology" ? computeNumerology(input.userInput) : null;
   const visualMeta: Prisma.InputJsonObject = {
     ...(cards ? { cards: cards as unknown as Prisma.InputJsonValue } : {}),
     ...(tarotSpread ? { tarotSpread: { key: tarotSpread.key, label: tarotSpread.label, positions: [...tarotSpread.positions] } } : {}),
@@ -418,6 +456,7 @@ export async function generateSymbolicProductResult(input: {
     ...(wheel ? { wheel: wheel as unknown as Prisma.InputJsonValue } : {}),
     ...(hdChart ? { chart: hdChart as unknown as Prisma.InputJsonValue } : {}),
     ...(surnameStory ? { surname: surnameStory as unknown as Prisma.InputJsonValue } : {}),
+    ...(numerology ? { numerology: numerology as unknown as Prisma.InputJsonValue } : {}),
   };
   const cardsMeta = visualMeta;
   const fallback = cards
@@ -442,6 +481,8 @@ export async function generateSymbolicProductResult(input: {
       : "";
     const hdNote = hdChart ? `\n\n${humanDesignFactsForAI(hdChart)}` : "";
     const surnameNote = surnameStory ? `\n\n${surnameFactsForAI(surnameStory)}` : "";
+    const natalNote = wheel ? `\n\n${natalFactsForAI(wheel, normalize(input.userInput))}` : "";
+    const numeroNote = numerology ? `\n\n${numerologyFactsForAI(numerology)}` : "";
 
     const response = await aiComplete({
       feature,
@@ -450,12 +491,12 @@ export async function generateSymbolicProductResult(input: {
       // #6/#1: расклад Таро должен быть полноценным — на странице нет PDF, человек
       // читает весь разбор тут же. Даём больше места: 3-5 предложений на каждую
       // карту (до 10 карт в Кельтском кресте) + «Общий смысл».
-      maxTokens: input.productKey === "tarot" ? 3200 : 1400,
+      maxTokens: SYMBOLIC_MAX_TOKENS[input.productKey] ?? 1400,
       temperature: 0.5,
       messages: [
         {
           role: "system",
-          content: baseSystemPrompt + tarotCardsNote + hdNote + surnameNote,
+          content: baseSystemPrompt + tarotCardsNote + hdNote + surnameNote + natalNote + numeroNote,
         },
         {
           role: "user",

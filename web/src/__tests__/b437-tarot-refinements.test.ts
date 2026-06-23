@@ -40,7 +40,9 @@ describe("B437 tarot refinements", () => {
   });
 
   it("#6 auto-saves tarot readings, shows a quiet note, and drops the PDF/diary buttons", () => {
-    expect(route).toContain('productKey === "tarot" ? { savedAt: new Date() }');
+    // B450: автосейв обобщён на набор AUTOSAVE_PRODUCTS (включает tarot).
+    expect(route).toContain('AUTOSAVE_PRODUCTS = new Set<SymbolicProductKey>(["tarot", "natal-chart"');
+    expect(route).toContain("AUTOSAVE_PRODUCTS.has(productKey) ? { savedAt: new Date() }");
     // the question (userInput) is persisted in metadata
     expect(route).toContain("userInput");
     // the result page shows an auto-saved note instead of a save button or PDF export

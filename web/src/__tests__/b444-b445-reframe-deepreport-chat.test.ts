@@ -70,7 +70,7 @@ describe("B444 reframe/deep-report self-contained, tarot-style intake", () => {
     expect(deep).not.toContain("оглавление полного разбора");
     expect(deep).not.toContain("Скачать PDF");
     expect(deep).not.toContain("soft-badge");
-    expect(deep).toContain('data-testid="deep-report-accordion"');
+    expect(deep).toContain('testId="deep-report-accordion"');
     expect(deep).toContain('data-testid="deep-report-recap"');
     // B446: заголовок результата без «клинического» (понятнее клиенту), плашка доступа убрана
     expect(deep).not.toContain("клиническая формулировка случая");
