@@ -39,15 +39,16 @@ describe("B441 reframe product (Переосмысление)", () => {
     const exportRoute = source("src/app/api/products/reframe/[id]/export/route.ts");
 
     expect(route).toContain('PRODUCT_KEY = "reframe"');
-    expect(route).toContain('z.literal("preview")');
+    // B444: бесплатного предпросмотра больше нет — единственное действие generate.
     expect(route).toContain('z.literal("generate")');
+    expect(route).not.toContain('z.literal("preview")');
     expect(route).toContain("sourceText");
     expect(route).not.toContain("dialogueId");
     expect(route).toContain("generateReframe");
     expect(route).toContain("consumeProductEntitlementForUse");
     expect(route).toContain('code: "PAYMENT_REQUIRED"');
     // автосейв в Дневник на генерации
-    expect(route).toContain("savedAt: resultRecord.savedAt ?? new Date()");
+    expect(route).toContain("savedAt: new Date()");
     expect(itemRoute).toContain('action: z.enum(["save"])');
     expect(itemRoute).toContain('productKey: "reframe"');
     expect(exportRoute).toContain("Content-Disposition");

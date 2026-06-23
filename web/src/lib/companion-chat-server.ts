@@ -26,16 +26,17 @@ import {
   CHAT_SESSION_COST_CREDITS,
   CHAT_SESSION_PRICE_KOPECKS,
   CHAT_SESSION_PRODUCT_KEY,
-  canExtendSession,
   canUsePremiumIncludedSession,
   decideChatSend,
   freeMessagesRemaining,
   isPaidSessionActive,
+  isWithinExtendGrace,
   paidMinutesRemaining,
   premiumIncludedRemaining,
   sessionWindowOnExtend,
   sessionWindowOnStart,
   startOfMonth,
+  FREE_CHAT_MESSAGE_LIMIT,
   type ChatSessionState,
 } from "@/lib/chat-session";
 
@@ -86,6 +87,9 @@ export type PublicSessionState = {
   // B417: precise expiry timestamp (ISO) so the client can run a live, to-the-
   // second countdown timer for the paid session instead of integer minutes.
   expiresAt: string | null;
+  // B445: окончание оплаченного окна (ISO), даже если оно уже в прошлом — клиент
+  // считает от него «окно решения» (grace) о продлении и блокирует чат по истечении.
+  windowExpiresAt: string | null;
   cost: { credits: number; kopecks: number };
 };
 
@@ -101,6 +105,25 @@ function publicState(row: SessionRow, now = new Date()): PublicSessionState {
     paidActive: active,
     minutesRemaining: paidMinutesRemaining(state, now),
     expiresAt: active && row.paidExpiresAt ? row.paidExpiresAt.toISOString() : null,
+    windowExpiresAt: row.paidExpiresAt ? row.paidExpiresAt.toISOString() : null,
+    cost: { credits: CHAT_SESSION_COST_CREDITS, kopecks: CHAT_SESSION_PRICE_KOPECKS },
+  };
+}
+
+// B445: «виртуальное» состояние для свежего захода на /products/chat без сессии.
+// Реальная строка companionChatSession создаётся только при нажатии «Начать диалог»,
+// поэтому простой просмотр страницы больше не плодит пустые сессии в БД.
+function virtualSessionState(): PublicSessionState {
+  return {
+    id: "",
+    mode: "explore",
+    messages: [],
+    freeRemaining: FREE_CHAT_MESSAGE_LIMIT,
+    started: false,
+    paidActive: false,
+    minutesRemaining: 0,
+    expiresAt: null,
+    windowExpiresAt: null,
     cost: { credits: CHAT_SESSION_COST_CREDITS, kopecks: CHAT_SESSION_PRICE_KOPECKS },
   };
 }
@@ -315,11 +338,24 @@ async function generateCompanionReply(input: {
 
 export type StartSessionResult =
   | { ok: true; includedByPremium: boolean; state: PublicSessionState }
-  | { ok: false; reason: "insufficient_credits" | "not_found" | "needs_active_session" };
+  | { ok: false; reason: "insufficient_credits" | "not_found" | "needs_active_session" | "grace_expired" };
 
 // Старт оплаченного сеанса: сперва квота Premium (2/мес), иначе списание 4 баллов.
-export async function startPaidSession(input: { userId: string; sessionId: string }): Promise<StartSessionResult> {
-  const row = await loadSession(input.userId, input.sessionId);
+// B445: строка сессии создаётся ИМЕННО здесь (при «Начать диалог»), а не на заходе
+// на страницу — если sessionId не передан, создаём/находим её под нужный источник.
+export async function startPaidSession(input: {
+  userId: string;
+  sessionId?: string | null;
+  sourceDialogueId?: string | null;
+  sourceAnalysisId?: string | null;
+}): Promise<StartSessionResult> {
+  const row = input.sessionId
+    ? await loadSession(input.userId, input.sessionId)
+    : await getOrCreateSession({
+        userId: input.userId,
+        sourceDialogueId: input.sourceDialogueId,
+        sourceAnalysisId: input.sourceAnalysisId,
+      });
   if (!row) return { ok: false, reason: "not_found" };
   const now = new Date();
   // Защита от двойного списания: если оплаченный сеанс уже активен — не списываем
@@ -367,10 +403,14 @@ export async function extendPaidSession(input: { userId: string; sessionId: stri
   const row = await loadSession(input.userId, input.sessionId);
   if (!row) return { ok: false, reason: "not_found" };
   const now = new Date();
-  // Issue #6: продление доступно, пока сессия была начата (даже если окно уже
-  // истекло — таймер на 00:00), но не для НЕ начатой сессии (обход старта).
-  if (!canExtendSession(toState(row))) {
+  // B445: продлить можно, пока сессия активна ИЛИ пока не истекло «окно решения»
+  // (grace) после 00:00. Не начатую сессию продлевать нельзя (обход старта), и
+  // после grace — тоже (сессия закрыта, в неё уже нельзя зайти для продолжения).
+  if (toState(row).paidStartedAt == null) {
     return { ok: false, reason: "needs_active_session" };
+  }
+  if (!isWithinExtendGrace(toState(row), now)) {
+    return { ok: false, reason: "grace_expired" };
   }
 
   try {
@@ -393,11 +433,28 @@ export async function extendPaidSession(input: { userId: string; sessionId: stri
 }
 
 export async function getSessionState(input: { userId: string; sessionId?: string | null; sourceDialogueId?: string | null; sourceAnalysisId?: string | null }): Promise<PublicSessionState> {
-  const row = input.sessionId
-    ? await loadSession(input.userId, input.sessionId)
-    : null;
-  const session = row ?? (await getOrCreateSession({ userId: input.userId, sourceDialogueId: input.sourceDialogueId, sourceAnalysisId: input.sourceAnalysisId }));
-  return publicState(session);
+  // Закреплённая сессия по id — всегда загружаем как есть.
+  if (input.sessionId) {
+    const row = await loadSession(input.userId, input.sessionId);
+    if (row) return publicState(row);
+  }
+  // Продолжение разбора (dialogue/analysis) приходит с явным намерением общаться —
+  // get-or-create, чтобы засеять историю из источника.
+  if (input.sourceDialogueId || input.sourceAnalysisId) {
+    const seeded = await getOrCreateSession({
+      userId: input.userId,
+      sourceDialogueId: input.sourceDialogueId,
+      sourceAnalysisId: input.sourceAnalysisId,
+    });
+    return publicState(seeded);
+  }
+  // Standalone /products/chat: переиспользуем последнюю самостоятельную сессию,
+  // если она уже была начата; иначе — виртуальное состояние БЕЗ создания строки.
+  const existing = await db.companionChatSession.findFirst({
+    where: { userId: input.userId, sourceDialogueId: null, sourceAnalysisId: null },
+    orderBy: { updatedAt: "desc" },
+  });
+  return existing ? publicState(existing as SessionRow) : virtualSessionState();
 }
 
 export { premiumIncludedRemaining };

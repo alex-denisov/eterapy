@@ -6,28 +6,21 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
-import { buildReframePreview, buildReframeTeaser, buildReframeTitle, generateReframe } from "@/lib/reframe";
+import { buildReframePreview, buildReframeTitle, generateReframe } from "@/lib/reframe";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 const PRODUCT_KEY = "reframe";
 
-// B441 (M28): «Переосмысление» self-contained — контекст собирается ВНУТРИ услуги
-// (sourceText + опц. заметка из чипов), без первичного диалога/checkin.
-//   preview  → бесплатно: полная генерация, но возвращаем тизер 1-й линзы.
-//   generate → платно: раскрываем уже сгенерированный полный результат
-//              (переиспользуем из metadata, без второго AI-вызова), автосейв в
-//              Дневник + списание баллов в одной транзакции.
-const postSchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("preview"),
-    sourceText: z.string().min(10).max(6000),
-    contextNote: z.string().max(600).optional(),
-  }),
-  z.object({
-    action: z.literal("generate"),
-    id: z.string().min(1),
-  }),
-]);
+// B444 (M28): «Переосмысление» self-contained — контекст собирается ВНУТРИ услуги
+// (sourceText + опц. заметка из чипов), без первичного диалога/checkin. Бесплатного
+// предпросмотра БОЛЬШЕ НЕТ — один платный шаг: проверяем доступ → ОДНА полноценная
+// генерация (все четыре угла обязательно через LLM) → READY + списание + автосейв в
+// Дневник в одной транзакции. Сессионность: GET по ?resultId=.
+const postSchema = z.object({
+  action: z.literal("generate"),
+  sourceText: z.string().min(10).max(6000),
+  contextNote: z.string().max(600).optional(),
+});
 
 function serializeResult(result: {
   id: string;
@@ -109,62 +102,15 @@ export async function POST(request: NextRequest) {
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid reframe payload", 400, context);
 
-  if (parsed.data.action === "preview") {
-    const { sourceText, contextNote } = parsed.data;
-    const generated = await generateReframe({ sourceText, contextNote, userId, requestId: context.requestId });
-    const teaserText = buildReframeTeaser(sourceText, generated.text);
-    const title = buildReframeTitle(sourceText);
+  const { sourceText, contextNote } = parsed.data;
 
-    const previewMetadata: Prisma.InputJsonObject = {
-      source: "preview",
-      sourceText,
-      contextNote: contextNote ?? null,
-      // Сохраняем полную генерацию, чтобы платный generate не вызывал AI повторно.
-      fullGeneration: generated.text,
-      previewGenerationMetadata: generated.metadata,
-    };
-
-    // Перезаписываем последний незавершённый PREVIEW этого пользователя (как chat-analysis),
-    // чтобы повторные правки на первом экране не плодили записи.
-    const existing = await db.productResult.findFirst({
-      where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    const result = existing
-      ? await db.productResult.update({
-          where: { id: existing.id },
-          data: { title, previewText: teaserText, metadata: previewMetadata },
-        })
-      : await db.productResult.create({
-          data: {
-            userId,
-            productKey: PRODUCT_KEY,
-            status: "PREVIEW",
-            title,
-            previewText: teaserText,
-            metadata: previewMetadata,
-          },
-        });
-
-    return jsonWithRequestContext(
-      { hasEntitlement: await userHasActiveEntitlement(userId, PRODUCT_KEY), result: serializeResult(result) },
-      { status: 200 },
-      context,
-    );
-  }
-
-  // action === "generate"
+  // Платный шаг: без активного доступа сразу 402 (AI не вызываем) — оплата/подписка
+  // открывается на странице услуги, потом клиент повторяет generate.
   const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
-  const resultRecord = await db.productResult.findFirst({
-    where: { id: parsed.data.id, userId, productKey: PRODUCT_KEY, deletedAt: null },
-  });
-  if (!resultRecord) return errorWithRequestContext("NOT_FOUND", "Reframe not found", 404, context);
-
   if (!hasEntitlement) {
     return jsonWithRequestContext(
       {
-        error: "Чтобы открыть полное переосмысление, нужна оплата или активная подписка",
+        error: "Чтобы получить переосмысление, нужна оплата или активная подписка",
         code: "PAYMENT_REQUIRED",
         checkout: { productKey: PRODUCT_KEY, checkoutSource: "reframe-generate" },
       },
@@ -173,43 +119,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (resultRecord.status === "READY" && resultRecord.resultText) {
-    return jsonWithRequestContext({ hasEntitlement, result: serializeResult(resultRecord), generated: false }, { status: 200 }, context);
-  }
-
-  const metadata = (resultRecord.metadata ?? {}) as {
-    sourceText?: string | null;
-    contextNote?: string | null;
-    fullGeneration?: string | null;
+  // Одна полноценная генерация: все четыре угла обязательно через LLM, на полном
+  // тексте ситуации и заметке темы/категории (видно в суперадминке как один вызов).
+  const full = await generateReframe({ sourceText, contextNote, userId, requestId: context.requestId });
+  const title = buildReframeTitle(sourceText);
+  const baseMetadata: Prisma.InputJsonObject = {
+    source: "generate",
+    sourceText,
+    contextNote: contextNote ?? null,
   };
-  const sourceText = metadata.sourceText;
-  if (!sourceText) return errorWithRequestContext("VALIDATION_ERROR", "No source text to reframe", 400, context);
 
-  // Переиспользуем полную генерацию из предпросмотра (без второго AI-вызова);
-  // если её нет (старая запись) — генерируем заново.
-  const full = metadata.fullGeneration
-    ? { text: metadata.fullGeneration, metadata: { source: "preview-reuse" } as Prisma.InputJsonObject }
-    : await generateReframe({ sourceText, contextNote: metadata.contextNote ?? undefined, userId, requestId: context.requestId });
-
-  // INC-025/B408 pattern: списываем баллы за КАЖДОЕ переосмысление и автосохраняем
-  // в Дневник в той же транзакции, что и переход в READY (атомарно).
+  // INC-025/B408 pattern: запись создаём, наполняем и списываем баллы + автосейв в
+  // Дневник в одной транзакции (атомарно), чтобы не было «полусохранённых» разборов.
   const result = await db.$transaction(async (tx) => {
-    const saved = await tx.productResult.update({
-      where: { id: resultRecord.id },
+    const created = await tx.productResult.create({
       data: {
+        userId,
+        productKey: PRODUCT_KEY,
         status: "READY",
+        title,
         previewText: buildReframePreview(sourceText),
         resultText: full.text,
-        savedAt: resultRecord.savedAt ?? new Date(),
+        savedAt: new Date(),
         metadata: {
-          ...metadata,
+          ...baseMetadata,
           generationMetadata: full.metadata,
-          autoSavedAt: resultRecord.savedAt ? null : new Date().toISOString(),
+          autoSavedAt: new Date().toISOString(),
         },
       },
     });
     await consumeProductEntitlementForUse(tx, userId, PRODUCT_KEY);
-    return saved;
+    return created;
   });
 
   const entitledAfter = await userHasActiveEntitlement(userId, PRODUCT_KEY);

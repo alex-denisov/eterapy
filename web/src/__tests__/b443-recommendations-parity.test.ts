@@ -37,18 +37,18 @@ describe("B443 recommendations parity (#4 tarot, #11 chat-analysis)", () => {
     expect(chat).not.toContain("getNextStepRecommendation");
   });
 
-  it("reframe «что вам подойдет» renders through ServiceTriage (no bordeaux NextStepCard)", () => {
+  it("reframe «что дальше» renders through ServiceTriage like tarot (repeat + chat primaries)", () => {
     expect(reframe).toContain("<ServiceTriage");
-    expect(reframe).toContain('eyebrow="что вам подойдет"');
+    expect(reframe).toContain('eyebrow="что дальше"');
     expect(reframe).toContain("recommendSecondaryProducts");
     expect(reframe).toContain("dialogueTopicFromChip");
     expect(reframe).not.toContain("getNextStepRecommendation");
     expect(reframe).not.toContain("next-step-card");
   });
 
-  it("deep-report «что вам подойдет» renders through ServiceTriage (no bordeaux NextStepCard)", () => {
+  it("deep-report «что дальше» renders through ServiceTriage like tarot (repeat + chat primaries)", () => {
     expect(deepReport).toContain("<ServiceTriage");
-    expect(deepReport).toContain('eyebrow="что вам подойдет"');
+    expect(deepReport).toContain('eyebrow="что дальше"');
     expect(deepReport).toContain("recommendSecondaryProducts");
     expect(deepReport).toContain("dialogueTopicFromChip");
     expect(deepReport).not.toContain("getNextStepRecommendation");

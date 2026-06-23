@@ -15,6 +15,11 @@ export const CHAT_SESSION_MINUTES = 45;
 export const CHAT_EXTENSION_COST_CREDITS = 2;
 export const CHAT_EXTENSION_MINUTES = 30;
 
+// B445 (M28): после того как оплаченное окно дошло до 00:00, у клиента есть
+// фиксированное «окно решения» о продлении. Если в течение этого времени продления
+// не случилось — сессия закрывается и в неё нельзя зайти для продолжения диалога.
+export const CHAT_SESSION_GRACE_MINUTES = 5;
+
 export const PREMIUM_INCLUDED_SESSIONS_PER_MONTH = 2;
 
 export const FREE_CHAT_MESSAGE_LIMIT = 10;
@@ -73,6 +78,16 @@ export function sessionWindowOnStart(now: Date = new Date()): { startedAt: Date;
 // бы способ получить 30 минут за 2 балла в обход полноценного старта (4 балла).
 export function canExtendSession(session: ChatSessionState): boolean {
   return session.paidStartedAt != null;
+}
+
+// B445: продлить можно, пока сессия активна ИЛИ пока не прошло «окно решения»
+// (GRACE) после окончания оплаченного окна. По истечении grace сессия закрыта —
+// ни продлить, ни продолжить уже нельзя.
+export function isWithinExtendGrace(session: ChatSessionState, now: Date = new Date()): boolean {
+  if (session.paidStartedAt == null) return false;
+  if (isPaidSessionActive(session, now)) return true;
+  if (!session.paidExpiresAt) return false;
+  return now.getTime() - session.paidExpiresAt.getTime() <= CHAT_SESSION_GRACE_MINUTES * 60_000;
 }
 
 export function sessionWindowOnExtend(session: ChatSessionState, now: Date = new Date()): { expiresAt: Date } {

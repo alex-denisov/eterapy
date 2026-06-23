@@ -22,6 +22,9 @@ type State = {
   paidActive: boolean;
   minutesRemaining: number;
   expiresAt: string | null;
+  // B445: окончание оплаченного окна (даже в прошлом) — от него считаем 5-минутное
+  // «окно решения» о продлении и блокируем чат по его истечении.
+  windowExpiresAt: string | null;
   cost: { credits: number; kopecks: number };
 };
 
@@ -52,6 +55,17 @@ const SESSION_PRICE_LINE = "45 минут · 4 балла или 790 ₽";
 // Issue #7: same input cap as the /checkin clarifying composer (B319) — roomy for
 // a thoughtful reply while keeping the LLM context bounded.
 const CHAT_INPUT_MAX_CHARS = 1200;
+
+// B445: «окно решения» о продлении после 00:00 (мс). Должно совпадать с
+// CHAT_SESSION_GRACE_MINUTES на сервере (5 минут).
+const GRACE_WINDOW_MS = 5 * 60_000;
+
+function formatClock(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${mm.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`;
+}
 
 function redirectToLogin(next?: string) {
   if (typeof window === "undefined") return;
@@ -91,6 +105,9 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
   const [sessionOpen, setSessionOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState<number>(0);
+  // B445: остаток «окна решения» о продлении после 00:00 и флаг блокировки чата.
+  const [graceMs, setGraceMs] = useState<number>(GRACE_WINDOW_MS);
+  const [locked, setLocked] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const endedNotifiedRef = useRef(false);
   const autoStartAttemptedRef = useRef(false);
@@ -190,6 +207,28 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
   const active = Boolean(state?.paidActive) && remainingMs > 0;
   const expired = sessionOpen && !active;
 
+  // B445: пока окно активно — grace сброшен. Как только окно дошло до 00:00,
+  // отсчитываем 5 минут «окна решения» от конца оплаченного окна (это переживает
+  // перезагрузку: дедлайн берётся из windowExpiresAt сервера). По истечении —
+  // locked: композер и кнопка «Продлить» блокируются, в сессию уже не зайти.
+  const windowExpiresAt = state?.windowExpiresAt ?? null;
+  useEffect(() => {
+    const compute = () => {
+      if (!expired) {
+        setGraceMs(GRACE_WINDOW_MS);
+        setLocked(false);
+        return;
+      }
+      const base = windowExpiresAt ? new Date(windowExpiresAt).getTime() : Date.now();
+      const left = base + GRACE_WINDOW_MS - Date.now();
+      setGraceMs(Math.max(0, left));
+      setLocked(left <= 0);
+    };
+    compute();
+    const id = setInterval(compute, 1000);
+    return () => clearInterval(id);
+  }, [expired, windowExpiresAt]);
+
   const startSession = useCallback(async () => {
     if (!authed) {
       redirectToLogin(loginNext);
@@ -202,7 +241,14 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
     try {
       const res = await api<{ ok: boolean; includedByPremium: boolean; state: State }>("/api/companion-chat/session", {
         method: "POST",
-        body: JSON.stringify({ sessionId: state.id, action: "start" }),
+        // B445: на свежем экране сессии ещё нет (state.id === "") — сервер создаёт
+        // строку именно сейчас, под нужный источник, и только тогда списывает.
+        body: JSON.stringify({
+          sessionId: state.id || undefined,
+          action: "start",
+          sourceDialogueId: dialogueId,
+          sourceAnalysisId: analysisId,
+        }),
       });
       endedNotifiedRef.current = false;
       applySession(res.state);
@@ -220,7 +266,7 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
     } finally {
       setStarting(false);
     }
-  }, [authed, state, loginNext, applySession]);
+  }, [authed, state, loginNext, applySession, dialogueId, analysisId]);
 
   // Task 7: auto-open the paid session once (after the session state loads) when
   // the panel was launched from the «Продолжить разговор в чате» CTA. This is what
@@ -287,7 +333,15 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
       dispatchBalanceChanged();
     } catch (error) {
       const e = error as Error & { status?: number };
-      setNotice(e.status === 402 ? "Недостаточно баллов для продления." : (e.message || "Не удалось продлить"));
+      if (e.status === 402) {
+        setNotice("Недостаточно баллов для продления.");
+      } else if (e.status === 409) {
+        // Grace истёк — сессия закрыта на сервере; фиксируем блокировку и на клиенте.
+        setLocked(true);
+        setNotice(e.message || "Сессия завершена — начните новый диалог.");
+      } else {
+        setNotice(e.message || "Не удалось продлить");
+      }
     } finally {
       setSending(false);
     }
@@ -386,8 +440,16 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
         </Link>
       )}
 
-      {/* Composer in the same soft-ask-card surface as /checkin. */}
-      <div className="soft-ask-card soft-dialogue-composer">
+      {/* Composer in the same soft-ask-card surface as /checkin. B445: после
+          истечения «окна решения» весь блок блокируется (pointer-events: none) и
+          защищён от ввода/нажатия — в сессию уже нельзя зайти для продолжения. */}
+      <div
+        className="soft-ask-card soft-dialogue-composer"
+        data-testid="companion-composer"
+        data-locked={locked}
+        aria-disabled={locked}
+        style={locked ? { opacity: 0.55, pointerEvents: "none" } : undefined}
+      >
         <label htmlFor="companion-input" className="sr-only">Сообщение</label>
         <textarea
           id="companion-input"
@@ -402,25 +464,37 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
           }}
           rows={1}
           maxLength={CHAT_INPUT_MAX_CHARS}
-          placeholder={expired ? "Время сессии истекло — продлите, чтобы продолжить…" : "Напишите сообщение…"}
+          placeholder={expired ? (locked ? "Сессия завершена." : "Время сессии истекло — продлите, чтобы продолжить…") : "Напишите сообщение…"}
           className="soft-question-input soft-dialogue-composer-input"
-          disabled={sending || expired}
+          disabled={sending || expired || locked}
           data-testid="companion-input"
         />
         <div className="soft-ask-foot">
-          {/* Issue #6: «Продлить» appears ONLY at 00:00 — and in place of «Отправить»,
-              not alongside it for the whole session. */}
+          {/* Issue #6 / B445: «Продлить» появляется только на 00:00 и стоит вместе с
+              дисклеймером об автозавершении сессии при бездействии (таймер 5 минут). */}
           {expired ? (
-            <Button
-              type="button"
-              onClick={extendSession}
-              disabled={sending}
-              className="soft-button soft-button-primary ml-auto"
-              data-testid="companion-extend"
-            >
-              <Clock className="size-3.5" aria-hidden="true" />
-              Продлить на 30 минут (2 балла)
-            </Button>
+            <div className="flex w-full flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-[var(--soft-ink-faint)]" data-testid="companion-grace" aria-live="polite">
+                {locked ? (
+                  <span className="font-medium text-[var(--soft-bordeaux)]">Сессия завершена</span>
+                ) : (
+                  <>
+                    При бездействии сессия завершится через{" "}
+                    <span className="tabular-nums font-semibold text-[var(--soft-bordeaux)]">{formatClock(graceMs)}</span>
+                  </>
+                )}
+              </span>
+              <Button
+                type="button"
+                onClick={extendSession}
+                disabled={sending || locked}
+                className="soft-button soft-button-primary"
+                data-testid="companion-extend"
+              >
+                <Clock className="size-3.5" aria-hidden="true" />
+                Продлить на 30 минут (2 балла)
+              </Button>
+            </div>
           ) : (
             <>
               {/* Issue #7: char counter — amber from -200, bordeaux from -50 (как в checkin). */}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { reframeToMarkdown } from "@/lib/reframe-format";
 import { PrintTrigger } from "@/components/products/print-trigger";
 import { TarotSpreadCards, ZodiacWheel, SynastryWheel } from "@/components/products/esoteric-chart-visuals";
 import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
@@ -72,7 +73,9 @@ export default async function PrintProductResultPage({ params }: { params: Promi
   });
   if (!result) notFound();
 
-  const body = result.resultText ?? result.previewText ?? "";
+  const rawBody = result.resultText ?? result.previewText ?? "";
+  // «Переосмысление» хранит JSON углов — для печати/PDF переводим в markdown.
+  const body = result.productKey === "reframe" ? reframeToMarkdown(rawBody) : rawBody;
   const cards = readCards(result.metadata);
   const wheel = readWheel(result.metadata);
   const humanDesign = readHumanDesign(result.metadata);

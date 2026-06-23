@@ -5,28 +5,22 @@ import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
-import { buildDeepReportPreview, buildDeepReportTeaser, buildDeepReportTitle, generateDeepReport } from "@/lib/deep-report";
+import { buildDeepReportPreview, buildDeepReportTitle, generateDeepReport } from "@/lib/deep-report";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 const PRODUCT_KEY = "deep-report";
 
-// B442 (M28): «Подробный разбор» self-contained — контекст собирается ВНУТРИ
-// услуги (sourceText + опц. заметка из чипов), без первичного диалога/checkin.
-//   preview  → бесплатно: полная генерация, возвращаем тизер (оглавление + 1 блок).
-//   generate → платно: раскрываем уже сгенерированный документ (reuse из metadata,
-//              без второго AI-вызова), автосейв в Дневник + списание в транзакции.
-const postSchema = z.discriminatedUnion("action", [
-  z.object({
-    action: z.literal("preview"),
-    sourceText: z.string().min(10).max(8000),
-    contextNote: z.string().max(600).optional(),
-  }),
-  z.object({
-    action: z.literal("generate"),
-    id: z.string().min(1),
-  }),
-]);
+// B444 (M28): «Подробный разбор» self-contained — контекст собирается ВНУТРИ услуги
+// (sourceText + опц. заметка из чипов), без первичного диалога/checkin. Бесплатного
+// предпросмотра/оглавления БОЛЬШЕ НЕТ — один платный шаг: проверяем доступ → ОДНА
+// полноценная генерация документа 6–10 страниц → READY + списание + автосейв в
+// Дневник в одной транзакции. Сессионность: GET по ?resultId=.
+const postSchema = z.object({
+  action: z.literal("generate"),
+  sourceText: z.string().min(10).max(8000),
+  contextNote: z.string().max(600).optional(),
+});
 
 function serializeResult(result: {
   id: string;
@@ -105,52 +99,14 @@ export async function POST(request: NextRequest) {
   const parsed = postSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return errorWithRequestContext("VALIDATION_ERROR", "Invalid deep report payload", 400, context);
 
-  if (parsed.data.action === "preview") {
-    const { sourceText, contextNote } = parsed.data;
-    const generated = await generateDeepReport({ sourceText, contextNote, userId, requestId: context.requestId });
-    const teaserText = buildDeepReportTeaser(sourceText, generated.text);
-    const title = buildDeepReportTitle(sourceText);
+  const { sourceText, contextNote } = parsed.data;
 
-    const previewMetadata: Prisma.InputJsonObject = {
-      source: "preview",
-      sourceText,
-      contextNote: contextNote ?? null,
-      fullGeneration: generated.text,
-      previewGenerationMetadata: generated.metadata,
-    };
-
-    const existing = await db.productResult.findFirst({
-      where: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", deletedAt: null },
-      orderBy: { updatedAt: "desc" },
-    });
-
-    const result = existing
-      ? await db.productResult.update({
-          where: { id: existing.id },
-          data: { title, previewText: teaserText, metadata: previewMetadata },
-        })
-      : await db.productResult.create({
-          data: { userId, productKey: PRODUCT_KEY, status: "PREVIEW", title, previewText: teaserText, metadata: previewMetadata },
-        });
-
-    return jsonWithRequestContext(
-      { hasEntitlement: await userHasActiveEntitlement(userId, PRODUCT_KEY), result: serializeResult(result) },
-      { status: 200 },
-      context,
-    );
-  }
-
-  // action === "generate"
+  // Платный шаг: без активного доступа сразу 402 (AI не вызываем).
   const hasEntitlement = await userHasActiveEntitlement(userId, PRODUCT_KEY);
-  const resultRecord = await db.productResult.findFirst({
-    where: { id: parsed.data.id, userId, productKey: PRODUCT_KEY, deletedAt: null },
-  });
-  if (!resultRecord) return errorWithRequestContext("NOT_FOUND", "Deep report not found", 404, context);
-
   if (!hasEntitlement) {
     return jsonWithRequestContext(
       {
-        error: "Для полного разбора нужна оплата или активная подписка",
+        error: "Для подробного разбора нужна оплата или активная подписка",
         code: "PAYMENT_REQUIRED",
         checkout: { productKey: PRODUCT_KEY, checkoutSource: "deep-report-generate" },
       },
@@ -159,41 +115,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (resultRecord.status === "READY" && resultRecord.resultText) {
-    return jsonWithRequestContext({ hasEntitlement, result: serializeResult(resultRecord), generated: false }, { status: 200 }, context);
-  }
-
-  const metadata = (resultRecord.metadata ?? {}) as {
-    sourceText?: string | null;
-    contextNote?: string | null;
-    fullGeneration?: string | null;
+  // Одна полноценная генерация документа 6–10 страниц на полном тексте ситуации
+  // и заметке темы/цели (виден в суперадминке как один LLM-вызов).
+  const full = await generateDeepReport({ sourceText, contextNote, userId, requestId: context.requestId });
+  const title = buildDeepReportTitle(sourceText);
+  const baseMetadata: Prisma.InputJsonObject = {
+    source: "generate",
+    sourceText,
+    contextNote: contextNote ?? null,
   };
-  const sourceText = metadata.sourceText;
-  if (!sourceText) return errorWithRequestContext("VALIDATION_ERROR", "No source text to analyze", 400, context);
 
-  const full = metadata.fullGeneration
-    ? { text: metadata.fullGeneration, metadata: { source: "preview-reuse" } as Prisma.InputJsonObject }
-    : await generateDeepReport({ sourceText, contextNote: metadata.contextNote ?? undefined, userId, requestId: context.requestId });
-
-  // INC-025/B408 pattern: списываем баллы за КАЖДЫЙ разбор и автосохраняем в Дневник
-  // в той же транзакции, что и переход в READY (атомарно).
+  // INC-025/B408 pattern: создаём запись, наполняем и списываем баллы + автосейв в
+  // Дневник в одной транзакции (атомарно).
   const result = await db.$transaction(async (tx) => {
-    const saved = await tx.productResult.update({
-      where: { id: resultRecord.id },
+    const created = await tx.productResult.create({
       data: {
+        userId,
+        productKey: PRODUCT_KEY,
         status: "READY",
+        title,
         previewText: buildDeepReportPreview(sourceText),
         resultText: full.text,
-        savedAt: resultRecord.savedAt ?? new Date(),
+        savedAt: new Date(),
         metadata: {
-          ...metadata,
+          ...baseMetadata,
           generationMetadata: full.metadata,
-          autoSavedAt: resultRecord.savedAt ? null : new Date().toISOString(),
+          autoSavedAt: new Date().toISOString(),
         },
       },
     });
     await consumeProductEntitlementForUse(tx, userId, PRODUCT_KEY);
-    return saved;
+    return created;
   });
 
   const entitledAfter = await userHasActiveEntitlement(userId, PRODUCT_KEY);

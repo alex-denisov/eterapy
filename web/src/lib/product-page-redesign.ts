@@ -121,17 +121,17 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     family: "synthesis",
     primaryPromise: "Увидьте ситуацию иначе: мысли, чувства, другой взгляд и шаг.",
     heroVisual: "document-outline",
-    previewTitle: "Первый угол до оплаты",
+    previewTitle: "Четыре угла под ваш запрос",
     previewBullets: ["что я себе говорю", "что подсказывает чувство", "другой, более честный взгляд"],
     trustLine: "Работает от вашего контекста, без публичной публикации.",
   },
   "deep-report": {
     family: "synthesis",
-    primaryPromise: "Получите структурный отчёт с выводами и PDF.",
+    primaryPromise: "Получите структурный разбор-документ на 6–10 страниц.",
     heroVisual: "document-outline",
-    previewTitle: "Оглавление отчёта",
-    previewBullets: ["карта ситуации", "риски и возможности", "рекомендации и PDF"],
-    trustLine: "Отчёт виден только владельцу.",
+    previewTitle: "Документ 6–10 страниц",
+    previewBullets: ["карта ситуации", "что удерживает и опоры", "сценарии и маршрут шагов"],
+    trustLine: "Разбор виден только владельцу, PDF — в кабинете.",
   },
 };
 

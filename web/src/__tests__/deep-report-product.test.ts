@@ -38,14 +38,15 @@ describe("B442 deep report product (Подробный разбор)", () => {
     const itemRoute = source("src/app/api/products/deep-report/[id]/route.ts");
     const exportRoute = source("src/app/api/products/deep-report/[id]/export/route.ts");
 
-    expect(route).toContain('z.literal("preview")');
+    // B444: бесплатного предпросмотра/оглавления больше нет — только generate.
     expect(route).toContain('z.literal("generate")');
+    expect(route).not.toContain('z.literal("preview")');
     expect(route).toContain("sourceText");
     expect(route).not.toContain("db.dialogue");
     expect(route).toContain("generateDeepReport");
     expect(route).toContain("consumeProductEntitlementForUse");
     expect(route).toContain('code: "PAYMENT_REQUIRED"');
-    expect(route).toContain("savedAt: resultRecord.savedAt ?? new Date()");
+    expect(route).toContain("savedAt: new Date()");
     expect(itemRoute).toContain('action: z.enum(["save"])');
     expect(exportRoute).toContain("Content-Disposition");
   });
@@ -53,9 +54,9 @@ describe("B442 deep report product (Подробный разбор)", () => {
   it("raises the token budget so the document can really be 6–10 pages", () => {
     const lib = source("src/lib/deep-report.ts");
     const policy = source("src/lib/ai-gateway/task-policy.ts");
-    expect(lib).toContain("maxTokens: 7000");
+    expect(lib).toContain("maxTokens: 9000");
     // policy entry for product-deep-report also lifted
-    expect(policy).toContain("maxTokens: 7000");
+    expect(policy).toContain("maxTokens: 9000");
   });
 
   it("wires a self-contained product surface (no checkin/ProductIntake) into the deep-report flow", () => {

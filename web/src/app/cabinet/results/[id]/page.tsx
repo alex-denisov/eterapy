@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { PageContainer } from "@/components/ui/page-container";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { reframeToMarkdown } from "@/lib/reframe-format";
 import { loginUrl, appUrl } from "@/lib/subdomain";
 
 const PRODUCT_LABELS: Record<string, string> = {
@@ -39,7 +40,10 @@ export default async function CabinetResultPage({
 
   const productLabel = PRODUCT_LABELS[result.productKey] ?? "Результат разбора";
   const isReady = result.status === "READY";
-  const body = result.resultText ?? result.previewText ?? "";
+  const rawBody = result.resultText ?? result.previewText ?? "";
+  // «Переосмысление» хранится как JSON углов — переводим в markdown, иначе на
+  // экране кабинета рендерится сырой JSON (и страница выглядит пустой/сломанной).
+  const body = result.productKey === "reframe" ? reframeToMarkdown(rawBody) : rawBody;
   const updatedLabel = new Date(result.updatedAt).toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
@@ -101,6 +105,18 @@ export default async function CabinetResultPage({
             <Sparkles className="size-4" aria-hidden="true" />
             Сохранить в Мою карту
           </Link>
+          {/* PDF доступен из кабинета для любого готового результата (на самих
+              страницах услуг кнопку «Скачать PDF» убрали — скачивание живёт здесь). */}
+          <a
+            href={`/products/print/${result.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="soft-button soft-button-ghost inline-flex"
+            data-testid="cabinet-result-pdf"
+          >
+            <Download className="size-4" aria-hidden="true" />
+            Скачать PDF
+          </a>
           <a
             href={`data:text/plain;charset=utf-8,${encodeURIComponent(`${result.title}\n\n${body}`)}`}
             download={`${result.title}.txt`}
