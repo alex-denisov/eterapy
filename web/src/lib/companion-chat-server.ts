@@ -448,13 +448,20 @@ export async function getSessionState(input: { userId: string; sessionId?: strin
     });
     return publicState(seeded);
   }
-  // Standalone /products/chat: переиспользуем последнюю самостоятельную сессию,
-  // если она уже была начата; иначе — виртуальное состояние БЕЗ создания строки.
+  // Standalone /products/chat: по умолчанию зовём начать НОВУЮ сессию (виртуальное
+  // состояние без создания строки). Прошлую самостоятельную сессию переиспользуем
+  // ТОЛЬКО пока её оплаченное окно ещё активно (таймер идёт) — чтобы не выбрасывать
+  // человека из диалога, за который он платит. Завершённую/истёкшую сессию не
+  // подхватываем: заход на страницу открывает приглашение к новой сессии, а не
+  // старый (уже закрытый) чат. B449.
   const existing = await db.companionChatSession.findFirst({
     where: { userId: input.userId, sourceDialogueId: null, sourceAnalysisId: null },
     orderBy: { updatedAt: "desc" },
   });
-  return existing ? publicState(existing as SessionRow) : virtualSessionState();
+  if (existing && isPaidSessionActive(toState(existing as SessionRow))) {
+    return publicState(existing as SessionRow);
+  }
+  return virtualSessionState();
 }
 
 export { premiumIncludedRemaining };

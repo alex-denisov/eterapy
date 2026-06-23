@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Clock, Send, Sparkles } from "lucide-react";
+import { ArrowRight, Clock, Compass, MessageSquareText, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserMsgAvatar } from "@/components/dialogue/user-msg-avatar";
+import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { useAutoGrowTextarea } from "@/lib/use-autogrow-textarea";
 import { dispatchBalanceChanged } from "@/lib/balance-events";
 import { dispatchCompanionSession } from "@/lib/companion-session-events";
+import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
+import { pointsWord } from "@/lib/points";
+import { CHAT_SESSION_COST_CREDITS, CHAT_SESSION_PRICE_KOPECKS, FREE_CHAT_MESSAGE_LIMIT } from "@/lib/chat-session";
 import { loginUrl } from "@/lib/subdomain";
 
 type Msg = { role: "user" | "companion"; text: string; at: string };
@@ -347,6 +351,40 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
     }
   }
 
+  // B449: «Начать новый диалог» с экрана завершённой сессии — мягкий сброс к
+  // стартовому гейту (приглашению), БЕЗ немедленного списания. Чистим sessionId из
+  // URL и возвращаем виртуальное состояние; оплата произойдёт уже по «Начать диалог».
+  const startNewSession = useCallback(() => {
+    endedNotifiedRef.current = false;
+    autoStartAttemptedRef.current = false;
+    setSessionOpen(false);
+    setMessages([]);
+    setInput("");
+    setLocked(false);
+    setNeedsCredits(false);
+    setCrisis(false);
+    setNotice(null);
+    setRemainingMs(0);
+    setGraceMs(GRACE_WINDOW_MS);
+    setState({
+      id: "",
+      messages: [],
+      freeRemaining: FREE_CHAT_MESSAGE_LIMIT,
+      started: false,
+      paidActive: false,
+      minutesRemaining: 0,
+      expiresAt: null,
+      windowExpiresAt: null,
+      cost: { credits: CHAT_SESSION_COST_CREDITS, kopecks: CHAT_SESSION_PRICE_KOPECKS },
+    });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("sessionId");
+      window.history.replaceState(null, "", url.toString());
+    }
+    dispatchCompanionSession({ started: false, expiresAt: null });
+  }, []);
+
   // ── Start gate (paid-only): shown until a paid window is active. ────────────
   const startGate = (
     <div className="m-auto w-full max-w-md text-center" data-testid="companion-start-gate">
@@ -390,6 +428,42 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
       </div>
     );
   }
+
+  // B449: когда сессия завершена (locked) — под композером показываем рекомендательный
+  // блок услуг в дизайне Таро/checkin: «что дальше» = начать новый диалог + подобранный
+  // формат, затем «другие форматы» и карточка специалиста. Тема диалога заранее не
+  // известна → берём общий подбор ("other"), как делает chat-analysis.
+  const followupRec = recommendPrimaryProduct("other");
+  const followupPrimary: TriagePrimary[] = [
+    {
+      key: "new-dialog",
+      testId: "companion-new-dialog",
+      ribbon: "новая сессия",
+      icon: MessageSquareText,
+      title: "Начать новый диалог",
+      description: "Свежий разговор в своём темпе — 45 минут, чтобы разобрать новый вопрос.",
+      priceMain: "790 ₽",
+      priceSub: "45 мин · или 4 балла",
+      ctaLabel: "Начать",
+      onClick: startNewSession,
+    },
+    {
+      key: followupRec.slug,
+      testId: "companion-next-step",
+      ribbon: "подобрано для вас",
+      icon: Compass,
+      title: followupRec.name,
+      description: followupRec.reason,
+      priceMain: followupRec.price,
+      priceSub: followupRec.creditCost != null ? `или ${followupRec.creditCost} ${pointsWord(followupRec.creditCost)}` : null,
+      ctaLabel: "Открыть",
+      href: followupRec.href,
+    },
+  ];
+  const followupSecondary: TriageProduct[] = recommendSecondaryProducts("other", followupRec.slug, 4)
+    .filter((item) => item.slug !== "chat-analysis" && item.slug !== "chat-session")
+    .slice(0, 3)
+    .map((item) => ({ slug: item.slug, name: item.name, href: item.href, price: item.price, creditCost: item.creditCost }));
 
   return (
     // Issue #2/#3: Telegram-like surface — bounded height, the thread scrolls and
@@ -469,56 +543,69 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
           disabled={sending || expired || locked}
           data-testid="companion-input"
         />
-        <div className="soft-ask-foot">
-          {/* Issue #6 / B445: «Продлить» появляется только на 00:00 и стоит вместе с
-              дисклеймером об автозавершении сессии при бездействии (таймер 5 минут). */}
-          {expired ? (
-            <div className="flex w-full flex-wrap items-center justify-between gap-2">
-              <span className="text-xs text-[var(--soft-ink-faint)]" data-testid="companion-grace" aria-live="polite">
-                {locked ? (
-                  <span className="font-medium text-[var(--soft-bordeaux)]">Сессия завершена</span>
-                ) : (
-                  <>
-                    При бездействии сессия завершится через{" "}
-                    <span className="tabular-nums font-semibold text-[var(--soft-bordeaux)]">{formatClock(graceMs)}</span>
-                  </>
-                )}
-              </span>
-              <Button
-                type="button"
-                onClick={extendSession}
-                disabled={sending || locked}
-                className="soft-button soft-button-primary"
-                data-testid="companion-extend"
-              >
-                <Clock className="size-3.5" aria-hidden="true" />
-                Продлить на 30 минут (2 балла)
-              </Button>
-            </div>
-          ) : (
-            <>
-              {/* Issue #7: char counter — amber from -200, bordeaux from -50 (как в checkin). */}
-              <span
-                className={`text-xs tabular-nums ${
-                  input.length >= CHAT_INPUT_MAX_CHARS - 50
-                    ? "text-[var(--soft-bordeaux)] font-semibold"
-                    : input.length >= CHAT_INPUT_MAX_CHARS - 200
-                      ? "text-[var(--soft-terracotta-dark)]"
-                      : "text-[var(--soft-ink-faint)]"
-                }`}
-                data-testid="companion-char-counter"
-                aria-live="polite"
-              >
-                {input.length}/{CHAT_INPUT_MAX_CHARS}
-              </span>
-              <Button type="button" onClick={send} disabled={sending || !input.trim()} className="soft-button soft-button-primary" data-testid="companion-send">
-                Отправить
-                <Send className="size-4" aria-hidden="true" />
-              </Button>
-            </>
-          )}
-        </div>
+        {/* B449: когда сессия завершена (locked) — низ композера не показываем
+            вовсе: дубль «Сессия завершена» убран (он остаётся плейсхолдером инпута),
+            а мёртвая кнопка «Продлить» бессмысленна (продление уже невозможно). Дальше
+            под композером идёт рекомендательный блок «что дальше». */}
+        {!locked && (
+          <div className="soft-ask-foot">
+            {/* Issue #6 / B445: «Продлить» появляется только на 00:00 и стоит вместе с
+                дисклеймером об автозавершении сессии при бездействии (таймер 5 минут). */}
+            {expired ? (
+              <div className="flex w-full flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-[var(--soft-ink-faint)]" data-testid="companion-grace" aria-live="polite">
+                  При бездействии сессия завершится через{" "}
+                  <span className="tabular-nums font-semibold text-[var(--soft-bordeaux)]">{formatClock(graceMs)}</span>
+                </span>
+                <Button
+                  type="button"
+                  onClick={extendSession}
+                  disabled={sending}
+                  className="soft-button soft-button-primary"
+                  data-testid="companion-extend"
+                >
+                  <Clock className="size-3.5" aria-hidden="true" />
+                  Продлить на 30 минут (2 балла)
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Issue #7: char counter — amber from -200, bordeaux from -50 (как в checkin). */}
+                <span
+                  className={`text-xs tabular-nums ${
+                    input.length >= CHAT_INPUT_MAX_CHARS - 50
+                      ? "text-[var(--soft-bordeaux)] font-semibold"
+                      : input.length >= CHAT_INPUT_MAX_CHARS - 200
+                        ? "text-[var(--soft-terracotta-dark)]"
+                        : "text-[var(--soft-ink-faint)]"
+                  }`}
+                  data-testid="companion-char-counter"
+                  aria-live="polite"
+                >
+                  {input.length}/{CHAT_INPUT_MAX_CHARS}
+                </span>
+                <Button type="button" onClick={send} disabled={sending || !input.trim()} className="soft-button soft-button-primary" data-testid="companion-send">
+                  Отправить
+                  <Send className="size-4" aria-hidden="true" />
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* B449: сессия завершена — рекомендательный блок услуг как в Таро: начать
+          новый диалог + подобранный формат, «другие форматы» и карточка специалиста.
+          Стоит ниже композера и остаётся интерактивным (композер выше — приглушён). */}
+      {locked && (
+        <ServiceTriage
+          eyebrow="что дальше"
+          testId="companion-followup-triage"
+          primary={followupPrimary}
+          secondary={followupSecondary}
+          specialistHref="/practitioners"
+        />
+      )}
     </div>
   );
 }
