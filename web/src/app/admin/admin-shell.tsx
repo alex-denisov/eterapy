@@ -25,6 +25,11 @@ import {
   FileText,
   ListTodo,
   ServerCog,
+  BarChart3,
+  ReceiptText,
+  Landmark,
+  FileSpreadsheet,
+  Coins,
 } from "lucide-react";
 import type { Permission } from "@/lib/moderator-permissions";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
@@ -55,20 +60,31 @@ type NavEntry = NavItem | NavGroup;
 const NAV_ITEMS: NavEntry[] = [
   { type: "group", key: "workspace", label: "Рабочий стол" },
   { href: adminUrl("/admin"),              icon: LayoutDashboard,      label: "Обзор" },
-  { href: adminUrl("/admin/users"),        icon: Users,                label: "Все пользователи" },
 
   { type: "group", key: "product", label: "Продукт и клиенты" },
+  { href: adminUrl("/admin/product"),      icon: BarChart3,            label: "Центр продукта" },
+  { href: adminUrl("/admin/product/users"),icon: Users,                label: "Пользователи и сегменты" },
+  { href: adminUrl("/admin/product/results"), icon: FileSearch,        label: "Продукты и результаты" },
+  { href: adminUrl("/admin/product/sessions"), icon: Gauge,            label: "Сессии и транскрипты", superadminOnly: true },
+  { href: adminUrl("/admin/product/subscriptions"), icon: Coins,       label: "Подписки, баллы и рефералы" },
+  { href: adminUrl("/admin/product/quality"), icon: ShieldAlert,       label: "Операции и качество" },
   { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки",           permission: "practitioners.view" },
   { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования" },
   { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии",           superadminOnly: true },
-  { href: adminUrl("/admin/quality"),      icon: ShieldAlert,          label: "Операции и качество" },
   { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы" },
   { href: adminUrl("/admin/reviews"),      icon: Star,                 label: "Отзывы",           permission: "safety.review" },
   { href: adminUrl("/admin/antifraud"),     icon: ShieldAlert,          label: "Антифрод",         permission: "antifraud.review" },
 
   { type: "group", key: "finance", label: "Финансы" },
-  { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Платежи и выплаты", superadminOnly: true },
+  { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансовый центр", superadminOnly: true },
+  { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", superadminOnly: true },
+  { href: adminUrl("/admin/finance/payouts"), icon: Landmark,          label: "Выплаты практикам", superadminOnly: true },
+  { href: adminUrl("/admin/finance/reports"), icon: FileSpreadsheet,   label: "Отчеты практиков", superadminOnly: true },
+  { href: adminUrl("/admin/finance/points"), icon: Coins,              label: "Баллы", superadminOnly: true },
+  { href: adminUrl("/admin/finance/reconciliation"), icon: FileSearch, label: "Сверка и импорт", superadminOnly: true },
+  { href: adminUrl("/admin/finance/unit-economics"), icon: BarChart3,  label: "Юнит-экономика", superadminOnly: true },
   { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
+  { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Старые платежи", superadminOnly: true },
 
   { type: "group", key: "ops", label: "Система, AI и журналы" },
   { href: adminUrl("/admin/ops"),          icon: ServerCog,            label: "Операционный центр", permission: "system.read" },

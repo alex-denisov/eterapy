@@ -66,7 +66,7 @@ export function PaymentsPanel({
   const [sortKey, setSortKey] = useState<"earnings" | "revenue">("earnings");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 25;
+  const PAGE_SIZE = 20;
 
   const filtered = practitioners
     .filter(p =>
@@ -171,11 +171,11 @@ export function PaymentsPanel({
       const res = await fetch("/api/admin/payout-runs", { method: "POST" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(typeof json.error === "string" ? json.error : "Не удалось запустить payout-run");
+        throw new Error(typeof json.error === "string" ? json.error : "Не удалось запустить авто-выплаты");
       }
-      toast.success("PayoutRun поставлен в очередь");
+      toast.success("Авто-выплаты поставлены в очередь");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось запустить payout-run");
+      toast.error(error instanceof Error ? error.message : "Не удалось запустить авто-выплаты");
     } finally {
       setRunProcessing(false);
     }
@@ -191,7 +191,7 @@ export function PaymentsPanel({
       <div className="rounded-xl border border-border/30 bg-card/20 p-4" data-testid="admin-payout-runs">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">PayoutRun</h2>
+            <h2 className="text-sm font-semibold">Авто-выплаты</h2>
             <p className="text-xs text-muted-foreground">Идемпотентные запуски выплат 1-го и 15-го числа</p>
           </div>
           <button
@@ -201,7 +201,7 @@ export function PaymentsPanel({
             className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-40"
             data-testid="admin-payout-run-start"
           >
-            {runProcessing ? "Запуск..." : "Запустить run"}
+            {runProcessing ? "Запуск..." : "Запустить авто-выплаты"}
           </button>
         </div>
         <div className="overflow-x-auto">
@@ -230,7 +230,7 @@ export function PaymentsPanel({
                 </tr>
               ))}
               {payoutRuns.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">PayoutRun ещё не запускался</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Авто-выплаты ещё не запускались</td></tr>
               )}
             </tbody>
           </table>
@@ -248,7 +248,7 @@ export function PaymentsPanel({
             </span>
             <button onClick={markSelectedPaid}
               className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)]">
-              Отметить оплаченными
+              Запустить выбранные выплаты
             </button>
           </div>
         )}

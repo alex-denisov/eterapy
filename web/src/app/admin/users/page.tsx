@@ -29,7 +29,7 @@ const CHANNEL_PROVIDERS: Record<string, string[]> = {
   manual: ["manual"],
 };
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 const SORT_FIELDS = {
   name: "name",
