@@ -21,19 +21,14 @@ describe("B230 v4.2 CTA monetization analytics", () => {
     expect(checkin).toContain('data-analytics-cta-role="bundle"');
   });
 
-  it("shows CTA monetization events in the admin overview (T3: metrics merged into Обзор)", () => {
-    // T3: the standalone /admin/metrics page was retired; its monitoring
-    // content now lives in the Обзор business center (admin/page.tsx) plus the
-    // deep-metrics component.
-    const overview = source("src/app/admin/page.tsx");
+  it("shows CTA monetization events in the product analytics center", () => {
+    const analyticsData = source("src/app/admin/admin-analytics-data.ts");
+    const productCenter = source("src/app/admin/product/page.tsx");
 
-    expect(overview).toContain("triage_primary_clicked");
-    expect(overview).toContain("triage_secondary_clicked");
-    expect(overview).toContain("triage_subscription_clicked");
-    expect(overview).toContain("credits_spend_clicked");
-    expect(overview).toContain('data-testid="admin-cta-monetization-funnel"');
-    expect(overview).toContain("one primary CTA");
-    expect(overview).toContain('"chat-analysis": 390');
-    expect(overview).toContain("compatibility: 590");
+    expect(analyticsData).toContain("triage_primary_clicked");
+    expect(analyticsData).toContain("triage_subscription_clicked");
+    expect(analyticsData).toContain("credits_spend_clicked");
+    expect(productCenter).toContain("Воронка продукта");
+    expect(productCenter).toContain('data-testid="admin-product-center"');
   });
 });

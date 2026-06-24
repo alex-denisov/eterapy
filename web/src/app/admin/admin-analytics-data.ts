@@ -6,7 +6,7 @@ export const PRODUCT_NAMES: Record<string, string> = {
   "deep-report": "Подробный разбор",
   "chat-analysis": "Анализ переписки",
   compatibility: "Совместимость",
-  circle: "Круг ясности",
+  circle: "Круг",
   pair: "Разобраться вдвоём",
   "daily-practice": "Ежедневная практика",
   "map-upgrade": "Апгрейд карты",

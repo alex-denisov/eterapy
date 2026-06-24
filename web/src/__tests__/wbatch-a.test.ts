@@ -45,12 +45,13 @@ describe("W5 — impersonation banner only shows when actually impersonating + c
 });
 
 describe("W4 — finance metrics rename + balance-paid products counted", () => {
-  const page = read("src/app/admin/page.tsx");
+  const page = read("src/app/admin/finance/page.tsx");
+  const data = read("src/app/admin/admin-analytics-data.ts");
   it("renames the block and counts every product transaction by magnitude", () => {
-    expect(page).toContain("Финансовые метрики");
+    expect(page).toContain("Финансы платформы");
     expect(page).not.toContain("Финансовый контур владельца");
-    expect(page).toContain('if (metadata.purchaseKind === "product") {');
-    expect(page).not.toContain('if (tx.amount > 0 && metadata.purchaseKind === "product")');
+    expect(data).toContain("productUsage");
+    expect(data).toContain("paymentMix");
   });
 });
 

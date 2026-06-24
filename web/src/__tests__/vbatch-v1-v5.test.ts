@@ -25,14 +25,12 @@ describe("V1 — impersonation sets the cookie directly (one less redirect + DB 
 });
 
 describe("V5 — owner financial loop rendered as grouped metric cards", () => {
-  const page = read("src/app/admin/page.tsx");
+  const page = read("src/app/admin/finance/page.tsx");
 
-  it("replaces the dense table with grouped metric cards", () => {
-    expect(page).toContain('data-testid="admin-owner-finance"');
-    expect(page).toContain('title: "Выручка"');
-    expect(page).toContain('title: "Выплаты практикам"');
-    expect(page).toContain('title: "Возвраты и риски"');
-    // Z1-Ф1: the client ₽ balance liability card became a clarity-credits card.
-    expect(page).toContain('title: "Баллы"');
+  it("moves the owner financial loop into the Finance Center", () => {
+    expect(page).toContain('data-testid="admin-finance-center"');
+    expect(page).toContain("Поступления и возвраты по дням");
+    expect(page).toContain("Выплаты практикам");
+    expect(page).toContain("Баллы, цифровые продукты и подписки");
   });
 });

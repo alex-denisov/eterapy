@@ -13,8 +13,8 @@ describe("D1 — admin payments panel: sortable columns + pagination", () => {
     expect(panel).toContain('toggleSort("earnings")');
   });
 
-  it("adds 25-per-page pagination over the filtered payouts", () => {
-    expect(panel).toContain("const PAGE_SIZE = 25");
+  it("adds 20-per-page pagination over the filtered payouts", () => {
+    expect(panel).toContain("const PAGE_SIZE = 20");
     expect(panel).toContain("const paged = filtered.slice");
     expect(panel).toContain("{paged.map(p =>");
     expect(panel).toContain("pageCount");

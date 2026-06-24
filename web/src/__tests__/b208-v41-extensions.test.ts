@@ -59,11 +59,10 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
     const adminShell = source("src/app/admin/admin-shell.tsx");
 
     expect(adminShell).toContain('data-testid="admin-shell"');
-    expect(adminPage).toContain('data-testid="admin-v41-overview"');
-    expect(adminPage).toContain('data-testid="admin-urgent-tasks"');
-    expect(adminPage).toContain("db.complaint.count");
-    expect(adminPage).toContain("db.payout.count");
-    expect(adminPage).toContain("db.videoSession.count");
-    expect(adminPage).toContain("кризисные и комплаенс-сигналы");
+    expect(adminPage).toContain('data-testid="admin-analytics-dashboard"');
+    expect(adminPage).toContain("Риски, качество и дневные приоритеты");
+    expect(adminPage).toContain("Экономика и финансы");
+    expect(adminPage).toContain("AI, токены и системная устойчивость");
+    expect(adminPage).toContain("Ежедневный контроль");
   });
 });

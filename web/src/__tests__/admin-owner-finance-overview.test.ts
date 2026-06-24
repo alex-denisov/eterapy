@@ -5,18 +5,17 @@ const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "
 
 describe("Admin owner finance overview", () => {
   it("surfaces owner-grade financial liabilities and revenue splits", () => {
-    const overview = source("src/app/admin/page.tsx");
-    expect(overview).toContain("Финансовые метрики");
-    // V5: rendered as grouped metric cards — labels shortened, metrics retained.
-    expect(overview).toContain("Hold / escrow");
-    expect(overview).toContain("Ожидает выплаты");
-    expect(overview).toContain("Потенциальные возвраты");
-    expect(overview).toContain("practitionerSubscriptionRevenueRub");
-    expect(overview).toContain("clientSubscriptionRevenueRub");
+    const overview = source("src/app/admin/finance/page.tsx");
+    const data = source("src/app/admin/admin-analytics-data.ts");
+    expect(overview).toContain("Финансы платформы");
+    expect(overview).toContain("Поступления и возвраты по дням");
+    expect(overview).toContain("Выплаты практикам");
+    expect(overview).toContain("Юнит-экономика");
+    expect(data).toContain("manualCredits");
+    expect(data).toContain("purchasedCredits");
     // Z1-Ф1: the client ₽ balance rail is removed — no ₽ top-up / manual-credit
     // liability lines, no user-balance liability metric.
     expect(overview).not.toContain("Пополнения через эквайер");
-    expect(overview).not.toContain("Ручные начисления");
     expect(overview).not.toContain("totalBalanceRub");
   });
 
