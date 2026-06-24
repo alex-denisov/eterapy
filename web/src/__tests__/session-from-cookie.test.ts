@@ -21,15 +21,16 @@ function makeRequest(cookies: Record<string, string>) {
 }
 
 describe("getSessionFromCookie", () => {
-  const origSecret = process.env.AUTH_SECRET;
+  const origEnv = process.env;
 
-  beforeAll(() => {
+  beforeEach(() => {
+    jest.resetModules();
+    process.env = { ...origEnv };
     process.env.AUTH_SECRET = SECRET;
   });
 
-  afterAll(() => {
-    if (origSecret === undefined) delete process.env.AUTH_SECRET;
-    else process.env.AUTH_SECRET = origSecret;
+  afterEach(() => {
+    process.env = origEnv;
   });
 
   it("returns {null,null} when no session cookie is present", async () => {
@@ -73,6 +74,23 @@ describe("getSessionFromCookie", () => {
     expect(await getSessionFromCookie(req)).toEqual({
       role: "PRACTITIONER",
       id: "p1",
+    });
+  });
+
+  it("uses AUTH_SESSION_COOKIE_NAME as the first proxy cookie name", async () => {
+    process.env.AUTH_SESSION_COOKIE_NAME = "__Secure-authjs.staging.session-token";
+    const { getSessionFromCookie: getSessionFromConfiguredCookie } = await import("../lib/session-from-cookie");
+    const token = await encode({
+      token: { id: "admin-1", role: "SUPERADMIN" },
+      secret: SECRET,
+      salt: "__Secure-authjs.staging.session-token",
+      maxAge: 60 * 60,
+    });
+    const req = makeRequest({ "__Secure-authjs.staging.session-token": token });
+
+    expect(await getSessionFromConfiguredCookie(req)).toEqual({
+      role: "SUPERADMIN",
+      id: "admin-1",
     });
   });
 });

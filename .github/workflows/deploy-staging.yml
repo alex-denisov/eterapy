@@ -176,6 +176,8 @@ jobs:
           # and the build makes no live calls (DATABASE_URL is a placeholder too).
           DATABASE_URL: ${{ secrets.DATABASE_URL_DEV }}
           AUTH_SECRET: 'staging-build-placeholder-secret-min-32-characters'
+          AUTH_COOKIE_DOMAIN: '.eterapy.com'
+          AUTH_SESSION_COOKIE_NAME: '__Secure-authjs.staging.session-token'
           NEXTAUTH_URL: 'https://staging.eterapy.com'
           AUTH_TRUST_HOST: 'true'
           RESEND_API_KEY: 'staging-build-placeholder'
@@ -287,6 +289,17 @@ jobs:
               set -euo pipefail
               REPO_DIR=/home/admin/eterapy-staging
               WEB_DIR=$REPO_DIR/web
+              upsert_env() {
+                key="$1"
+                value="$2"
+                if grep -q "^${key}=" "$WEB_DIR/.env.local" 2>/dev/null; then
+                  sed -i "s|^${key}=.*|${key}=${value}|" "$WEB_DIR/.env.local"
+                else
+                  printf '\n%s=%s\n' "$key" "$value" >> "$WEB_DIR/.env.local"
+                fi
+              }
+              upsert_env AUTH_COOKIE_DOMAIN .eterapy.com
+              upsert_env AUTH_SESSION_COOKIE_NAME __Secure-authjs.staging.session-token
               echo "Sourcing staging environment"
               if [ -f "$WEB_DIR/.env.local" ]; then
                 set -a; . "$WEB_DIR/.env.local"; set +a

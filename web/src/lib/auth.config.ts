@@ -6,12 +6,18 @@
 import type { NextAuthConfig } from "next-auth";
 import { MAIN_DOMAIN, USE_SUBDOMAINS } from "@/lib/subdomain";
 
-export const SESSION_COOKIE_NAME =
-  process.env.NODE_ENV === "production"
-    ? "__Secure-authjs.session-token"
-    : "authjs.session-token";
+function envValue(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value || undefined;
+}
 
-export const SHARED_COOKIE_DOMAIN = USE_SUBDOMAINS ? `.${MAIN_DOMAIN}` : undefined;
+export const SESSION_COOKIE_NAME =
+  envValue("AUTH_SESSION_COOKIE_NAME") ??
+  (process.env.NODE_ENV === "production"
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token");
+
+export const SHARED_COOKIE_DOMAIN = envValue("AUTH_COOKIE_DOMAIN") ?? (USE_SUBDOMAINS ? `.${MAIN_DOMAIN}` : undefined);
 
 export const authConfig = {
   trustHost: true,
