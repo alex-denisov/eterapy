@@ -1821,10 +1821,10 @@ export function AIControlCenter({
   return (
     <div className="space-y-6" data-testid="admin-ai-control-center">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="admin-ai-ops-metrics">
-        <MetricCard icon={Activity} label="requests" value={formatTokens(totals.requests)} hint={`tokens ${formatTokens(totals.tokens)} today`} />
-        <MetricCard icon={DollarSign} label="usd usage" value={formatUsdMicros(totals.costMicros)} hint="расчет по provider/model cost" />
-        <MetricCard icon={KeyRound} label="api keys" value={`${totals.activeKeys}/${visibleCredentials.length}`} hint={`${totals.failedKeys} ключей в ошибке`} />
-        <MetricCard icon={AlertTriangle} label="llm errors" value={formatTokens(totals.llmErrors)} hint={`${Object.keys(featureErrors).length} продуктов с ошибками`} />
+        <MetricCard icon={Activity} label="AI-запросы" value={formatTokens(totals.requests)} hint={`токены ${formatTokens(totals.tokens)} за день`} />
+        <MetricCard icon={DollarSign} label="Расход AI" value={formatUsdMicros(totals.costMicros)} hint="расчет по стоимости провайдера и модели" />
+        <MetricCard icon={KeyRound} label="API-ключи" value={`${totals.activeKeys}/${visibleCredentials.length}`} hint={`${totals.failedKeys} ключей в ошибке`} />
+        <MetricCard icon={AlertTriangle} label="Ошибки LLM" value={formatTokens(totals.llmErrors)} hint={`${Object.keys(featureErrors).length} продуктов с ошибками`} />
       </section>
 
       <section
