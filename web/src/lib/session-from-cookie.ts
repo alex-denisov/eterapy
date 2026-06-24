@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { decode } from "next-auth/jwt";
+import { SESSION_COOKIE_NAME } from "@/lib/auth.config";
 
 /**
  * NextAuth v5 encrypts the session JWT as a JWE (alg=dir, A256CBC-HS512).
@@ -20,11 +21,12 @@ import { decode } from "next-auth/jwt";
  */
 export type SessionClaims = { role: string | null; id: string | null };
 
-const COOKIE_NAMES = [
+const COOKIE_NAMES = Array.from(new Set([
+  SESSION_COOKIE_NAME,
   "__Secure-authjs.session-token",
   "authjs.session-token",
   "next-auth.session-token",
-] as const;
+]));
 
 /**
  * Return the full cookie value for `name`, reassembling Auth.js chunk cookies

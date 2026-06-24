@@ -70,4 +70,22 @@ describe("subdomain routing helpers", () => {
     expect(homeUrlForRole("ADMIN")).toBe("https://admin.eterapy.com/admin");
     expect(SHARED_COOKIE_DOMAIN).toBe(".eterapy.com");
   });
+
+  it("allows staging to use a parent cookie domain with a staging-only cookie name", async () => {
+    (process.env as Record<string, string>).NODE_ENV = "production";
+    process.env.NEXT_PUBLIC_USE_SUBDOMAINS = "true";
+    process.env.NEXT_PUBLIC_PRIMARY_DOMAIN_ONLY = "false";
+    process.env.NEXT_PUBLIC_MAIN_DOMAIN = "staging.eterapy.com";
+    process.env.NEXT_PUBLIC_APP_DOMAIN = "staging.app.eterapy.com";
+    process.env.NEXT_PUBLIC_ADMIN_DOMAIN = "staging.admin.eterapy.com";
+    process.env.AUTH_COOKIE_DOMAIN = ".eterapy.com";
+    process.env.AUTH_SESSION_COOKIE_NAME = "__Secure-authjs.staging.session-token";
+
+    const { SESSION_COOKIE_NAME, SHARED_COOKIE_DOMAIN, authConfig } = await import("@/lib/auth.config");
+
+    expect(SESSION_COOKIE_NAME).toBe("__Secure-authjs.staging.session-token");
+    expect(SHARED_COOKIE_DOMAIN).toBe(".eterapy.com");
+    expect(authConfig.cookies?.sessionToken?.name).toBe("__Secure-authjs.staging.session-token");
+    expect(authConfig.cookies?.sessionToken?.options.domain).toBe(".eterapy.com");
+  });
 });
