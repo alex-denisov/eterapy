@@ -26,6 +26,7 @@ import {
   CHAT_SESSION_COST_CREDITS,
   CHAT_SESSION_PRICE_KOPECKS,
   CHAT_SESSION_PRODUCT_KEY,
+  canReuseStandaloneSessionOnStart,
   canUsePremiumIncludedSession,
   decideChatSend,
   freeMessagesRemaining,
@@ -192,6 +193,7 @@ export async function getOrCreateSession(input: {
   // specific chat-analysis, or the standalone /products/chat (both null) — so
   // continuing a given context always reuses / creates its OWN chat, never the
   // user's latest unrelated conversation.
+  const isStandalone = sourceDialogueId == null && sourceAnalysisId == null;
   const where = sourceAnalysisId
     ? { userId: input.userId, sourceAnalysisId }
     : { userId: input.userId, sourceDialogueId, sourceAnalysisId: null };
@@ -199,7 +201,19 @@ export async function getOrCreateSession(input: {
     where,
     orderBy: { updatedAt: "desc" },
   });
-  if (existing) return existing as SessionRow;
+  if (existing) {
+    // B453: для самостоятельного чата каждый «новый диалог» — свежая нить. Прошлую
+    // строку переиспользуем только пока её окно активно или это чистая пустая
+    // строка; завершённую — НЕ трогаем (иначе старые сообщения всплывут при
+    // обновлении). Разбор (dialogue/analysis) — одна нить на источник, как раньше.
+    const reuse = isStandalone
+      ? canReuseStandaloneSessionOnStart(
+          toState(existing as SessionRow),
+          toMessages((existing as SessionRow).messages).length > 0,
+        )
+      : true;
+    if (reuse) return existing as SessionRow;
+  }
   const seededMessages = sourceAnalysisId
     ? await buildSeedMessagesFromAnalysis(input.userId, sourceAnalysisId)
     : sourceDialogueId
