@@ -30,14 +30,6 @@ export function formatRub(value: number) {
   }).format(Math.round(value));
 }
 
-export function formatUsdMicros(value: number) {
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value / 1_000_000);
-}
-
 export function formatCompactRub(value: number) {
   return new Intl.NumberFormat("ru-RU", {
     maximumFractionDigits: value > 0 && value < 100 ? 2 : 0,

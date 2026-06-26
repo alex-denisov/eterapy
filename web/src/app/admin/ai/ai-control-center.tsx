@@ -289,15 +289,14 @@ function formatRubFromUsdMicros(value: number, usdRub: number | null) {
   }).format(rub);
 }
 
-function formatUsdAmount(value: number) {
-  const abs = Math.abs(value);
-  const fractionDigits = abs > 0 && abs < 1 ? 4 : 2;
-  return new Intl.NumberFormat("en-US", {
+function formatUsdPerMillionAsRub(value: number, usdRub: number | null) {
+  if (!usdRub) return "Курс ЦБ недоступен";
+  const rub = value * usdRub;
+  return new Intl.NumberFormat("ru-RU", {
     style: "currency",
-    currency: "USD",
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: fractionDigits,
-  }).format(value);
+    currency: "RUB",
+    maximumFractionDigits: rub > 0 && rub < 100 ? 2 : 0,
+  }).format(rub);
 }
 
 function statusTone(status: string) {
@@ -420,10 +419,10 @@ function modelPricing(model: ModelRow, provider?: ProviderRow) {
   return modelCatalogPricing(model, provider?.provider) ?? providerDefaultPricing(provider);
 }
 
-function modelPricingLabel(model: ModelRow, provider?: ProviderRow) {
+function modelPricingLabel(model: ModelRow, provider?: ProviderRow, usdRub?: number | null) {
   const pricing = modelPricing(model, provider);
   if (!pricing) return null;
-  return `${pricing.source}: ${formatUsdAmount(pricing.inputUsdPerMillion)} in / ${formatUsdAmount(pricing.outputUsdPerMillion)} out за 1M токенов`;
+  return `${pricing.source}: вход ${formatUsdPerMillionAsRub(pricing.inputUsdPerMillion, usdRub ?? null)} / выход ${formatUsdPerMillionAsRub(pricing.outputUsdPerMillion, usdRub ?? null)} за 1 млн токенов`;
 }
 
 function providerOrderWithAllProviders(order?: AIProvider[] | null) {
@@ -672,6 +671,7 @@ function ModelSelect({
   value,
   models,
   provider,
+  usdRub,
   onChange,
   placeholder,
   recommendedValue,
@@ -679,6 +679,7 @@ function ModelSelect({
   value: string;
   models: ModelRow[];
   provider?: ProviderRow;
+  usdRub: number | null;
   onChange: (value: string) => void;
   placeholder?: string;
   recommendedValue?: string;
@@ -698,7 +699,7 @@ function ModelSelect({
       <datalist id={datalistId}>
         {recommended && <option value={recommended}>recommended</option>}
         {models.slice(0, 500).map((model) => {
-          const pricingLabel = modelPricingLabel(model, provider);
+          const pricingLabel = modelPricingLabel(model, provider, usdRub);
           const label = [
             model.isFree ? "Free" : null,
             model.displayName,
@@ -725,9 +726,11 @@ function ModelSelect({
 
 function ModelCostTableRow({
   row,
+  usdRub,
   onSavePricing,
 }: {
   row: ModelCostRow;
+  usdRub: number | null;
   onSavePricing: (provider: AIProvider, modelId: string, inputTokenCostMicros: number | null, outputTokenCostMicros: number | null) => Promise<void> | void;
 }) {
   const [draft, setDraft] = useState({
@@ -745,8 +748,8 @@ function ModelCostTableRow({
       </td>
       <td className={COMPACT_CELL_CLASS}>{row.model.contextWindow ? formatTokens(row.model.contextWindow) : "-"}</td>
       <td className={COMPACT_CELL_CLASS}>{row.pricing?.source ?? "provider default"}</td>
-      <td className={COMPACT_CELL_CLASS}>{formatUsdAmount(row.pricing?.inputUsdPerMillion ?? 0)}</td>
-      <td className={COMPACT_CELL_CLASS}>{formatUsdAmount(row.pricing?.outputUsdPerMillion ?? 0)}</td>
+      <td className={COMPACT_CELL_CLASS}>{formatUsdPerMillionAsRub(row.pricing?.inputUsdPerMillion ?? 0, usdRub)}</td>
+      <td className={COMPACT_CELL_CLASS}>{formatUsdPerMillionAsRub(row.pricing?.outputUsdPerMillion ?? 0, usdRub)}</td>
       <td className={COMPACT_CELL_CLASS}>
         <input
           value={draft.input}
@@ -780,7 +783,7 @@ function ModelCostTableRow({
             draft.output === "" ? null : Number(draft.output),
           )}
         >
-          Save
+          Сохранить
         </Button>
       </td>
     </tr>
@@ -790,6 +793,7 @@ function ModelCostTableRow({
 function ProviderTableRow({
   provider,
   models,
+  usdRub,
   cloudflareGateway,
   disabled,
   onSave,
@@ -798,6 +802,7 @@ function ProviderTableRow({
 }: {
   provider: ProviderRow;
   models: ModelRow[];
+  usdRub: number | null;
   cloudflareGateway: CloudflareGatewayState;
   disabled: boolean;
   onSave: (payload: Record<string, unknown>) => Promise<void> | void;
@@ -859,6 +864,7 @@ function ProviderTableRow({
           value={draft.defaultModel}
           models={models}
           provider={provider}
+          usdRub={usdRub}
           onChange={(value) => setDraft({ ...draft, defaultModel: value })}
           placeholder="Модель по умолчанию"
         />
@@ -914,6 +920,7 @@ function CredentialTableRow({
   credential,
   models,
   provider,
+  usdRub,
   onUpdate,
   onDelete,
   onCheck,
@@ -923,6 +930,7 @@ function CredentialTableRow({
   credential: CredentialRow;
   models: ModelRow[];
   provider: ProviderRow;
+  usdRub: number | null;
   onUpdate: (payload: Record<string, unknown>, msg: string) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
   onCheck: () => Promise<void> | void;
@@ -974,7 +982,7 @@ function CredentialTableRow({
       </td>
       <td className={COMPACT_CELL_CLASS}><input value={draft.priority} type="number" onChange={(event) => setDraft({ ...draft, priority: Number(event.target.value) })} className={COMPACT_INPUT_CLASS} /></td>
       <td className={COMPACT_CELL_CLASS}>
-        <ModelSelect value={draft.modelOverride} models={models} provider={provider} onChange={(value) => setDraft({ ...draft, modelOverride: value })} placeholder="Override модели" />
+        <ModelSelect value={draft.modelOverride} models={models} provider={provider} usdRub={usdRub} onChange={(value) => setDraft({ ...draft, modelOverride: value })} placeholder="Override модели" />
       </td>
       <td className={COMPACT_CELL_CLASS}>
         <input value={draft.baseUrlOverride} onChange={(event) => setDraft({ ...draft, baseUrlOverride: event.target.value })} placeholder="Base URL ключа" className={`${COMPACT_INPUT_CLASS} min-w-[20rem] font-mono`} />
@@ -1033,6 +1041,7 @@ function PolicyTableRow({
   policy,
   providers,
   models,
+  usdRub,
   errorCount,
   disabled,
   onSave,
@@ -1040,6 +1049,7 @@ function PolicyTableRow({
   policy: PolicyRow;
   providers: ProviderRow[];
   models: ModelsByProvider;
+  usdRub: number | null;
   errorCount: number;
   disabled: boolean;
   onSave: (payload: Record<string, unknown>) => Promise<void> | void;
@@ -1132,6 +1142,7 @@ function PolicyTableRow({
                 value={draft.modelPreferences[provider] ?? ""}
                 models={models[provider] ?? []}
                 provider={providerConfigById.get(provider)}
+                usdRub={usdRub}
                 onChange={(value) => updateModel(provider, value)}
                 placeholder="модель провайдера"
                 recommendedValue={pickRecommendedModel(provider, policy, models[provider] ?? [])}
@@ -1912,10 +1923,10 @@ export function AIControlCenter({
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Провайдер</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Статус</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Priority</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Timeout</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Default model</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Таймаут</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Модель по умолчанию</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Base URL</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Default price micros/1K</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Базовая цена micros/1K</th>
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
           </thead>
@@ -1925,6 +1936,7 @@ export function AIControlCenter({
                 key={provider.provider}
                 provider={provider}
                 models={models[provider.provider] ?? []}
+                usdRub={usdRub}
                 cloudflareGateway={cloudflareGateway}
                 disabled={isPending}
                 refreshing={refreshing === provider.provider}
@@ -1970,6 +1982,7 @@ export function AIControlCenter({
                   credential={credential}
                   models={models[credential.provider] ?? []}
                   provider={providerConfig}
+                  usdRub={usdRub}
                   onUpdate={(payload, msg) => patchCredential(credential.id, payload, msg)}
                   onDelete={() => deleteCredentialById(credential.id, credential.label)}
                   onCheck={() => checkCredentialById(credential.id, credential.label)}
@@ -2010,18 +2023,18 @@ export function AIControlCenter({
         <CompactTableShell minWidth="1480px">
           <thead className="bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <CompactHeader label="Provider" sortKey="provider" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
+              <CompactHeader label="Провайдер" sortKey="provider" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
                 <select value={modelCostFilters.provider} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, provider: event.target.value }); setModelCostPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                 </select>
               </CompactHeader>
-              <CompactHeader label="Model" sortKey="model" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
-                <input value={modelCostFilters.model} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, model: event.target.value }); setModelCostPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Модель" sortKey="model" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
+                <input value={modelCostFilters.model} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, model: event.target.value }); setModelCostPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Display name</th>
-              <CompactHeader label="Context" sortKey="context" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
-              <CompactHeader label="Source" sortKey="source" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Название</th>
+              <CompactHeader label="Контекст" sortKey="context" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
+              <CompactHeader label="Источник цены" sortKey="source" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
                 <select value={modelCostFilters.source} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, source: event.target.value }); setModelCostPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   <option value="free">free</option>
@@ -2032,25 +2045,25 @@ export function AIControlCenter({
                   <option value="provider default">provider default</option>
                 </select>
               </CompactHeader>
-              <CompactHeader label="Input $/1M" sortKey="input" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
-              <CompactHeader label="Output $/1M" sortKey="output" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
+              <CompactHeader label="Вход, ₽/1 млн" sortKey="input" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
+              <CompactHeader label="Выход, ₽/1 млн" sortKey="output" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
                 <select value={modelCostFilters.free} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, free: event.target.value }); setModelCostPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   <option value="free">Free</option>
                   <option value="paid">Paid</option>
                 </select>
               </CompactHeader>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Edit input micros/1K</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Edit output micros/1K</th>
-              <CompactHeader label="Fetched" sortKey="fetchedAt" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
-              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Save</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Вход micros/1K</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Выход micros/1K</th>
+              <CompactHeader label="Обновлено" sortKey="fetchedAt" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
+              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Сохранить</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
             {pagedModelCostRows.length === 0 ? (
               <tr><td colSpan={11} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Каталог моделей пуст по выбранным фильтрам</td></tr>
             ) : pagedModelCostRows.map((row) => (
-              <ModelCostTableRow key={`${row.provider}:${row.model.modelId}`} row={row} onSavePricing={saveModelPricing} />
+              <ModelCostTableRow key={`${row.provider}:${row.model.modelId}`} row={row} usdRub={usdRub} onSavePricing={saveModelPricing} />
             ))}
           </tbody>
         </CompactTableShell>
@@ -2112,6 +2125,7 @@ export function AIControlCenter({
                 policy={policy}
                 providers={providers}
                 models={models}
+                usdRub={usdRub}
                 errorCount={featureErrors[policy.feature] ?? 0}
                 disabled={isPending}
                 onSave={(payload) => saveAIControlPayload(payload, "Routing policy сохранена")}

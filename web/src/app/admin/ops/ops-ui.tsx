@@ -19,14 +19,6 @@ export function formatPercent(value: number) {
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value)}%`;
 }
 
-export function formatUsdMicros(value: number) {
-  return new Intl.NumberFormat("ru-RU", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value / 1_000_000);
-}
-
 export function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("ru-RU", {

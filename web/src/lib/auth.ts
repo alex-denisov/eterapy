@@ -160,8 +160,9 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
 
     async jwt({ token, user, account }) {
       if (user) {
+        const emailVerified = user.emailVerified as unknown;
         (token as Record<string, unknown>).id = user.id;
-        (token as Record<string, unknown>).emailVerified = user.emailVerified ? String(user.emailVerified) : undefined;
+        (token as Record<string, unknown>).emailVerified = emailVerified ? (emailVerified === true ? "true" : String(emailVerified)) : undefined;
         (token as Record<string, unknown>).role = user.role;
       }
 
@@ -173,7 +174,7 @@ export const { handlers, signIn, signOut, auth: rawAuth } = NextAuth({
         });
         if (dbUser) {
           (token as Record<string, unknown>).role = dbUser.role;
-          (token as Record<string, unknown>).emailVerified = dbUser.emailVerified;
+          (token as Record<string, unknown>).emailVerified = dbUser.emailVerified ? "true" : undefined;
         }
       }
 

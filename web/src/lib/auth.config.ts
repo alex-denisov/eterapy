@@ -47,10 +47,16 @@ export const authConfig = {
     // This runs in both Edge middleware and Node.js server — no DB calls here.
     session({ session, token }) {
       if (session.user) {
+        const rawEmailVerified = (token as Record<string, unknown>).emailVerified;
+        const normalizedEmailVerified = rawEmailVerified === true || rawEmailVerified === "true"
+          ? new Date(0)
+          : typeof rawEmailVerified === "string" && rawEmailVerified
+            ? new Date(rawEmailVerified)
+            : null;
         session.user.id = (token as Record<string, unknown>).id as string;
         // @ts-expect-error NextAuth v5 impossible emailVerified type (Date & string)
-        session.user.emailVerified = (token as Record<string, unknown>).emailVerified
-          ? new Date((token as Record<string, unknown>).emailVerified as string)
+        session.user.emailVerified = normalizedEmailVerified && Number.isFinite(normalizedEmailVerified.getTime())
+          ? normalizedEmailVerified
           : null;
         session.user.role = (token as Record<string, unknown>).role as string | undefined;
       }

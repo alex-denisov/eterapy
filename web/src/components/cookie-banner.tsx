@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const CONSENT_KEY = "eterapy_cookie_consent";
 
@@ -74,6 +75,7 @@ function getCookieConsentSnapshot() {
 export function CookieBanner() {
   const consent = useSyncExternalStore(subscribeToCookieConsent, getCookieConsentSnapshot, () => "pending");
   const [hydrated, setHydrated] = useState(false);
+  const pathname = usePathname();
   useEffect(() => {
     // #12: migrate a legacy per-origin localStorage consent into the shared
     // parent-domain cookie, so the banner doesn't reappear on the app subdomain.
@@ -105,7 +107,7 @@ export function CookieBanner() {
 
   // Render nothing until after hydration to keep SSR and the first
   // client render identical (server returns "pending" → null).
-  if (!hydrated || consent !== "missing") return null;
+  if (!hydrated || consent !== "missing" || pathname.startsWith("/admin")) return null;
 
   return (
     // B395: тёплая «стеклянная» плашка в стиле iOS — полупрозрачный фон +
