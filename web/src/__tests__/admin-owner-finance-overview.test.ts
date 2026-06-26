@@ -26,4 +26,12 @@ describe("Admin owner finance overview", () => {
     // the client credit-grant action remains (the credit-centric currency)
     expect(route).toContain('case "update_clarity_credits"');
   });
+
+  it("labels AI service cost rows with Russian names instead of raw feature slugs", () => {
+    const data = source("src/app/admin/admin-analytics-data.ts");
+    expect(data).toContain('"chat-analysis-ocr": "Распознавание переписки"');
+    expect(data).toContain('"dialogue-primary-answer": "Первичный разбор"');
+    expect(data).toContain('"session-stt": "Транскрипция сессии"');
+    expect(data).toContain('replaceAll("_", "-")');
+  });
 });

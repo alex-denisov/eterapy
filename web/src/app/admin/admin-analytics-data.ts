@@ -5,7 +5,9 @@ import { getProductLabel } from "@/lib/billing-labels";
 export const PRODUCT_NAMES: Record<string, string> = {
   reframe: "Переосмысление",
   "deep-report": "Подробный разбор",
+  "full-question": "Полный разбор вопроса",
   "chat-analysis": "Анализ переписки",
+  "chat-analysis-ocr": "Распознавание переписки",
   compatibility: "Совместимость",
   circle: "Круг",
   pair: "Разобраться вдвоём",
@@ -21,6 +23,15 @@ export const PRODUCT_NAMES: Record<string, string> = {
   "weekly-summary": "Недельное резюме",
   "companion-chat-session": "Живой диалог",
   "companion-chat-extension": "Продление живого диалога",
+  "companion-chat": "Решить вопрос в чате",
+  "dialogue-primary-answer": "Первичный разбор",
+  "dialogue-clarifier": "Уточняющие вопросы",
+  "dialogue-router": "Маршрутизация диалога",
+  "safety-classification": "Проверка безопасности",
+  "session-compliance": "Контроль сессий",
+  "session-summary": "AI-резюме сессии",
+  "session-stt": "Транскрипция сессии",
+  symbolic: "Символические продукты",
   session: "Сессия с практиком",
   subscription: "Подписка",
 };
@@ -143,7 +154,7 @@ export function cardPartsFromMetadata(metadata: unknown) {
 
 export function productLabel(productKey: string | null | undefined) {
   if (!productKey) return "Не указан";
-  const normalized = productKey.replace(/^product-/, "");
+  const normalized = productKey.replace(/^product-/, "").replaceAll("_", "-");
   return PRODUCT_NAMES[normalized] ?? getProductLabel(normalized);
 }
 
