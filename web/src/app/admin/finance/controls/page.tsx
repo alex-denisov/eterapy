@@ -48,7 +48,7 @@ export default async function FinanceControlsPage({ searchParams }: PageProps) {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-finance-controls">
       <AdminHero
         eyebrow="финансы"
-        title="Контроль и журналы финансов"
+        title="Контроль и журналы"
         actions={<PeriodToolbar basePath="/admin/finance/controls" start={period.startInput} end={period.endInput} />}
       >
         Финансовые события, транзакции, возвраты, ошибки YooKassa, удержанные выплаты и аудит изменений цен/тарифов.
