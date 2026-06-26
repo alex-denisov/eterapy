@@ -20,8 +20,11 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(center).toContain('data-testid="admin-ai-prompts"');
     expect(center).toContain('data-testid="admin-ai-interactions"');
     expect(center).toContain('data-testid="admin-ai-model-costs"');
-    expect(center).toContain("Вход, ₽/1 млн");
-    expect(center).toContain("Выход, ₽/1 млн");
+    expect(page).toContain("<AdminCurrencySelector");
+    expect(center).toContain('currency: DisplayCurrency');
+    expect(center).toContain('const perMillionUnit = currency === "USD" ? "$/1 млн" : "₽/1 млн";');
+    expect(center).toContain('label={`Вход, ${perMillionUnit}`}');
+    expect(center).toContain('label={`Выход, ${perMillionUnit}`}');
     expect(center).toContain("provider default");
     expect(center).toContain("reference/free");
     expect(center).toContain("MODEL_PRICING_REFERENCE_USD_PER_MILLION");

@@ -6,7 +6,8 @@ import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { resolvedProviderBaseUrl } from "@/lib/ai-gateway/provider-runtime";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
-import { formatCbrRateLabel, getAdminCurrencyRates } from "../admin-currency";
+import { formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../admin-currency";
+import { AdminCurrencySelector } from "../admin-currency-selector";
 import { AIControlCenter, type AIProvider } from "./ai-control-center";
 
 type RawProvider = {
@@ -125,13 +126,19 @@ type RawInteraction = {
   }>;
 };
 
-export default async function AdminAIPage() {
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AdminAIPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const session = await auth();
   const role = session?.user?.role ?? "";
   if (!session?.user?.id || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("ai.configure")) redirect("/admin");
+  const currency = resolveAdminCurrency(params);
 
   const [data, currencyRates] = await Promise.all([
     getAIControlCenterData(undefined, { includeSecrets: role === "SUPERADMIN" }),
@@ -244,11 +251,14 @@ export default async function AdminAIPage() {
             Бесплатный вход удерживаем дешёвым, платные отчёты и риск-сценарии ведём через доверенные модели.
           </p>
         </div>
-        <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-[var(--soft-ink-soft)]">
-          Активных политик:{" "}
-          <span className="font-medium text-[var(--soft-bordeaux)]">
-            {policies.filter((policy) => policy.enabled).length}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminCurrencySelector basePath="/admin/ai" currency={currency} />
+          <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-[var(--soft-ink-soft)]">
+            Активных политик:{" "}
+            <span className="font-medium text-[var(--soft-bordeaux)]">
+              {policies.filter((policy) => policy.enabled).length}
+            </span>
+          </div>
         </div>
       </div>
       <AIControlCenter
@@ -264,6 +274,7 @@ export default async function AdminAIPage() {
         cloudflareGateway={data.cloudflareGateway}
         canViewSecrets={role === "SUPERADMIN"}
         usdRub={currencyRates.usdRub}
+        currency={currency}
         currencyRateLabel={formatCbrRateLabel(currencyRates)}
       />
     </PageContainer>
