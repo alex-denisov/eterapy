@@ -100,7 +100,7 @@ export default async function AdminOpsAICostPage(props: {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-eyebrow">AI usage · {period.startInput} — {period.endInput}</p>
+          <p className="premium-eyebrow">расход AI · {period.startInput} — {period.endInput}</p>
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">AI-затраты и токены</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Контроль фактических токенов, рублевых затрат, ошибок, времени ответа и распределения расходов по продуктам, провайдерам и моделям.
@@ -111,10 +111,10 @@ export default async function AdminOpsAICostPage(props: {
 
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <AdminOpsMetric icon={CircleDollarSign} label="Расход" value={formatAdminAiCostRub(totals.cost, currencyRates)} hint={`Факт по стоимости моделей AI-центра · ${formatCbrRateLabel(currencyRates)}`} tone={totals.cost > 0 ? "neutral" : "ok"} />
-        <AdminOpsMetric icon={Hash} label="Токены" value={formatNumber(totals.tokens)} hint={`${formatNumber(totals.prompt)} prompt, ${formatNumber(totals.completion)} completion`} />
+        <AdminOpsMetric icon={Hash} label="Токены" value={formatNumber(totals.tokens)} hint={`${formatNumber(totals.prompt)} входящих, ${formatNumber(totals.completion)} исходящих`} />
         <AdminOpsMetric icon={BrainCircuit} label="Запросы" value={formatNumber(totals.requests)} hint={`${formatNumber(totals.attempts)} попыток маршрутизации`} />
         <AdminOpsMetric icon={AlertTriangle} label="Ошибки" value={formatPercent(errorRate)} hint={`${formatNumber(errors)} неуспешных попыток`} tone={statusTone(errorRate)} />
-        <AdminOpsMetric icon={Clock3} label="Latency" value={`${formatNumber(avgLatency)} ms`} hint="Среднее, взвешенное по числу запросов" tone={avgLatency > 10_000 ? "warn" : "ok"} />
+        <AdminOpsMetric icon={Clock3} label="Время ответа" value={`${formatNumber(avgLatency)} ms`} hint="Среднее, взвешенное по числу запросов" tone={avgLatency > 10_000 ? "warn" : "ok"} />
         <AdminOpsMetric icon={Gauge} label="Модели" value={formatNumber(Object.values(data.models).flat().length)} hint={`${formatNumber(data.providers.filter((row) => row.enabled).length)} провайдеров включено`} />
       </section>
 

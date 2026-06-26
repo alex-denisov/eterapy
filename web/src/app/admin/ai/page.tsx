@@ -237,7 +237,7 @@ export default async function AdminAIPage() {
     <PageContainer maxWidth="6xl">
       <div className="mb-6 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="soft-eyebrow">llm routing · cost control</p>
+          <p className="soft-eyebrow">маршрутизация LLM · контроль затрат</p>
           <h1 className="soft-h1 mt-2">AI-центр управления</h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--soft-ink-soft)]">
             Маршрутизация free, paid, sensitive, speech и compliance-задач по тарифным слоям.

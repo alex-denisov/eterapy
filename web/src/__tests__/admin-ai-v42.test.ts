@@ -12,7 +12,7 @@ describe("B229 admin AI v4.2 routing console", () => {
     const adminConfig = source("src/lib/ai-gateway/admin-config.ts");
 
     expect(page).toContain("ai.configure");
-    expect(page).toContain("llm routing · cost control");
+    expect(page).toContain("маршрутизация LLM · контроль затрат");
     expect(page).toContain("free, paid, sensitive, speech");
     expect(page).not.toContain("font-heading text-2xl font-bold");
     expect(center).toContain('data-testid="admin-ai-v42-guardrails"');

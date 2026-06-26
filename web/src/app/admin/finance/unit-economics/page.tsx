@@ -28,6 +28,7 @@ export default async function UnitEconomicsPage({ searchParams }: PageProps) {
       >
         Фактические затраты платформы на оказание услуг считаются по AIRequest. Для каждой услуги показана отдельная дневная гистограмма.
       </AdminHero>
+      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
       <div className="grid gap-4">
         {rows.length === 0 ? (
           <AnalyticsSection title="Нет AI-затрат за период">Нет данных за выбранный период.</AnalyticsSection>
