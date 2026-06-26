@@ -208,6 +208,8 @@ export function VerticalBarChart({
   const max = Math.max(maxValue ?? 0, ...data.flatMap((item) => [item.value, item.secondary ?? 0, item.tertiary ?? 0]), 1);
   const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
   if (data.length === 0) return <EmptyState />;
+  const hasValues = data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0);
+  if (!hasValues) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
   const series = [
     { key: "value" as const, label: seriesLabels?.[0] ?? "Значение", color: "var(--soft-bordeaux)" },
     ...(data.some((item) => item.secondary !== undefined) ? [{ key: "secondary" as const, label: seriesLabels?.[1] ?? "Дополнительно", color: "var(--soft-terracotta)" }] : []),

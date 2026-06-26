@@ -38,12 +38,12 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
 };
 
 const SECTION_CARDS = [
-  { key: "referralRisk", label: "Referral fraud", hint: "цепочки и reward holds" },
-  { key: "creditHolds", label: "Credit ledger", hint: "pending/revoked credits" },
-  { key: "heldPayouts", label: "Payment disputes", hint: "удержанные выплаты" },
-  { key: "practitionerRisk", label: "Practitioner risk", hint: "риск практиков" },
-  { key: "riskyReviews", label: "Content moderation", hint: "отзывы на проверке" },
-  { key: "appealQueue", label: "Appeal queue", hint: "апелляции" },
+  { key: "referralRisk", label: "Реферальный риск", hint: "цепочки и удержание бонусов" },
+  { key: "creditHolds", label: "Баллы и удержания", hint: "pending/revoked credits" },
+  { key: "heldPayouts", label: "Платежные споры", hint: "удержанные выплаты" },
+  { key: "practitionerRisk", label: "Риск практиков", hint: "риск практиков" },
+  { key: "riskyReviews", label: "Модерация контента", hint: "отзывы на проверке" },
+  { key: "appealQueue", label: "Апелляции", hint: "апелляции" },
 ];
 
 function riskTone(score: number) {
@@ -99,24 +99,24 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
         data-testid="admin-antifraud-v42-guardrails"
       >
         <div>
-          <p className="soft-eyebrow">meaningful action</p>
+          <p className="soft-eyebrow">значимое действие</p>
           <p className="mt-2 text-sm font-medium">Бонусы не за клик, а за завершённый шаг</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Referral и channel-награды проходят pending/hold до первичного разбора, покупки или состоявшейся встречи.
+            Реферальные и канальные награды проходят удержание до первичного разбора, покупки или состоявшейся встречи.
           </p>
         </div>
         <div>
-          <p className="soft-eyebrow">credit boundary</p>
+          <p className="soft-eyebrow">контур баллов</p>
           <p className="mt-2 text-sm font-medium">Баллы можно отозвать при fraud</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Ledger хранит source/status, clawback и expiry; живые консультации не превращаются в бесплатный вывод бонусов.
+            Журнал баллов хранит источник, статус, отзыв и срок действия; живые консультации не превращаются в бесплатный вывод бонусов.
           </p>
         </div>
         <div>
-          <p className="soft-eyebrow">practitioner trust</p>
+          <p className="soft-eyebrow">доверие к практикам</p>
           <p className="mt-2 text-sm font-medium">Hold выплат до решения модератора</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Fake booking, external payment, complaints и compliance-флаги видны рядом с evidence и апелляциями.
+            Фиктивные бронирования, внешние оплаты, жалобы и комплаенс-флаги видны рядом с доказательствами и апелляциями.
           </p>
         </div>
       </section>
@@ -124,10 +124,10 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
           ["todayEvents", "За 24 часа", AlertTriangle],
-          ["reviewQueue", "Manual review", FileWarning],
+          ["reviewQueue", "Ручная проверка", FileWarning],
           ["blockedEvents", "Блокировки", ShieldCheck],
           ["clawbackEvents", "Clawback", RotateCcw],
-          ["highRiskEvents", "High risk", CheckCircle2],
+          ["highRiskEvents", "Высокий риск", CheckCircle2],
         ].map(([key, label, Icon]) => (
           <div key={key as string} className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
             <div className="flex items-center justify-between">
@@ -156,7 +156,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
               ["review", "Проверка"],
               ["blocked", "Блок"],
               ["clawback", "Clawback"],
-              ["high", "High risk"],
+              ["high", "Высокий риск"],
               ["appeals", "Апелляции"],
               ["all", "Все"],
             ].map(([value, label]) => (
@@ -185,7 +185,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className={status.className}>{status.label}</Badge>
-                          <span className={`text-sm font-semibold ${riskTone(event.riskScore)}`}>risk {event.riskScore}</span>
+                          <span className={`text-sm font-semibold ${riskTone(event.riskScore)}`}>риск {event.riskScore}</span>
                           <span className="text-sm font-medium">{event.action}</span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -204,7 +204,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
                     </div>
                     <div className="flex flex-wrap gap-1">
                       {event.riskFlags.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">Без reason codes</span>
+                        <span className="text-xs text-muted-foreground">Без кодов причины</span>
                       ) : (
                         event.riskFlags.map((flag) => (
                           <span key={flag} className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground">
@@ -229,7 +229,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
 
         <aside className="space-y-4">
           <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
-            <h2 className="text-sm font-semibold">Analytics</h2>
+            <h2 className="text-sm font-semibold">Аналитика действий</h2>
             <div className="mt-3 space-y-2">
               {initialData.actionGroups.slice(0, 8).map((row) => (
                 <div key={row.action} className="flex items-center justify-between gap-3 text-xs">
@@ -240,7 +240,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
             </div>
           </div>
           <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
-            <h2 className="text-sm font-semibold">Evidence map</h2>
+            <h2 className="text-sm font-semibold">Карта доказательств</h2>
             <div className="mt-3 space-y-2">
               {initialData.subjectGroups.map((row) => (
                 <div key={row.subjectType} className="flex items-center justify-between gap-3 text-xs">

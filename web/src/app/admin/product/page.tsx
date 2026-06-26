@@ -19,7 +19,7 @@ export default async function ProductCenterPage({ searchParams }: PageProps) {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-product-center">
       <AdminHero
         eyebrow="продукт и клиенты"
-        title="Центр продукта"
+        title="Клиентский путь и продукты"
         actions={<PeriodToolbar basePath="/admin/product" start={period.startInput} end={period.endInput} />}
       >
         Управление клиентским путем: заявки, бронирования, сессии, результаты, отзывы, жалобы, антифрод, библиотека вопросов и реферальные механики.
@@ -41,6 +41,8 @@ export default async function ProductCenterPage({ searchParams }: PageProps) {
         </AnalyticsSection>
         <AnalyticsSection title="Подписки, баллы и рефералы" actionHref="/admin/product/subscriptions" actionLabel="Открыть">
           <div className="grid gap-4 xl:grid-cols-2">
+            <VerticalBarChart label="Покупки подписок по дням" data={data.charts.subscriptionPurchases} seriesLabels={["Пробный / без подписки", "Плюс", "Премиум"]} />
+            <VerticalBarChart label="Баллы на балансе по дням" data={data.charts.creditsBalanceByDay} />
             <VerticalBarChart label="Регистрации по реферальным ссылкам по дням" data={data.charts.referralRegistrations} />
             <VerticalBarChart label="Покупка подписки рефералами по дням" data={data.charts.referralSubscriptions} />
           </div>

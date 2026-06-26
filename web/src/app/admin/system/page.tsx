@@ -9,10 +9,10 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 import { PageContainer } from "@/components/ui/page-container";
 
 function statusLabel(status: "ok" | "degraded" | "down" | "missing_config") {
-  if (status === "ok") return "OK";
-  if (status === "degraded") return "Degraded";
-  if (status === "missing_config") return "Config";
-  return "Down";
+  if (status === "ok") return "ОК";
+  if (status === "degraded") return "Деградация";
+  if (status === "missing_config") return "Нет настройки";
+  return "Недоступен";
 }
 
 type Tone = "ok" | "warn" | "danger" | "neutral";
@@ -34,8 +34,8 @@ function statusTone(status: "ok" | "degraded" | "down" | "missing_config"): "ok"
 
 // A metric is green when healthy (0 problems) and red/amber otherwise.
 function statTone(label: string, value: number): Tone {
-  if (["Jobs failed", "Jobs dead", "AI errors 24h"].includes(label)) return value > 0 ? "danger" : "ok";
-  if (["Ожидают", "Jobs pending"].includes(label)) return value > 0 ? "warn" : "ok";
+  if (["Ошибки задач", "Невосстановимые задачи", "Ошибки AI за 24ч"].includes(label)) return value > 0 ? "danger" : "ok";
+  if (["Ожидают", "Задачи ожидают"].includes(label)) return value > 0 ? "warn" : "ok";
   return "neutral";
 }
 
@@ -76,14 +76,14 @@ export default async function AdminSystemPage() {
     { label: "Практиков", value: status.stats.practitioners },
     { label: "Бронирований", value: status.stats.bookings },
     { label: "Ожидают", value: status.stats.pendingBookings },
-    { label: "Audit logs", value: status.stats.auditLogs },
+    { label: "Журнал аудита", value: status.stats.auditLogs },
     { label: "Telegram", value: status.stats.telegramLinked },
-    { label: "Jobs pending", value: status.stats.jobsPending },
-    { label: "Jobs failed", value: status.stats.jobsFailed },
-    { label: "Jobs dead", value: status.stats.jobsDead },
-    { label: "AI 24h", value: status.stats.aiRequests24h },
-    { label: "AI errors 24h", value: status.stats.aiErrors24h },
-    { label: "Notify prefs", value: status.stats.notificationPreferences },
+    { label: "Задачи ожидают", value: status.stats.jobsPending },
+    { label: "Ошибки задач", value: status.stats.jobsFailed },
+    { label: "Невосстановимые задачи", value: status.stats.jobsDead },
+    { label: "AI за 24ч", value: status.stats.aiRequests24h },
+    { label: "Ошибки AI за 24ч", value: status.stats.aiErrors24h },
+    { label: "Настройки уведомлений", value: status.stats.notificationPreferences },
   ];
   const queuePressure = status.stats.jobsPending + status.stats.jobsFailed + status.stats.jobsDead;
   const aiErrorRate = status.stats.aiRequests24h > 0
@@ -94,8 +94,8 @@ export default async function AdminSystemPage() {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-eyebrow">ops center</p>
-          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Система</h1>
+          <p className="premium-eyebrow">операционный центр</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Надежность сервисов</h1>
           <p className="mt-1 text-sm text-muted-foreground">Живой статус платформы, зависимостей и production cron-контуров</p>
         </div>
         <div className="soft-admin-status-pill w-fit gap-2 px-3 py-1.5 text-sm" data-tone={statusTone(status.status)} data-testid="system-overall-status">
@@ -108,7 +108,7 @@ export default async function AdminSystemPage() {
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Server className="h-4 w-4 text-primary" />
-            Liveness
+            Доступность
           </div>
           <p className="text-2xl font-bold" style={{ color: TONE_COLOR[status.live.status === "ok" ? "ok" : "danger"] }}>{status.live.status}</p>
           <p className="mt-1 text-xs text-muted-foreground">uptime {status.live.uptimeSec}s · v{status.live.version}</p>
@@ -116,15 +116,15 @@ export default async function AdminSystemPage() {
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Database className="h-4 w-4 text-primary" />
-            Readiness
+            Готовность
           </div>
           <p className="text-2xl font-bold" style={{ color: TONE_COLOR[status.ready.status === "ok" ? "ok" : "danger"] }}>{status.ready.status}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{status.ready.checks.length} dependency checks</p>
+          <p className="mt-1 text-xs text-muted-foreground">{status.ready.checks.length} проверок зависимостей</p>
         </div>
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Clock3 className="h-4 w-4 text-primary" />
-            Last sample
+            Последний замер
           </div>
           <p className="text-sm font-medium">{new Date(status.ready.timestamp).toLocaleString("ru-RU")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{status.env.nodeEnv} · {status.env.appUrl}</p>
@@ -132,15 +132,15 @@ export default async function AdminSystemPage() {
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <Settings2 className="h-4 w-4 text-primary" />
-            Queue pressure
+            Нагрузка очередей
           </div>
           <p className="text-2xl font-bold" style={{ color: TONE_COLOR[queuePressure === 0 ? "ok" : (status.stats.jobsFailed > 0 || status.stats.jobsDead > 0 ? "danger" : "warn")] }}>{queuePressure.toLocaleString("ru-RU")}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{status.stats.jobsFailed} failed · {status.stats.jobsDead} dead</p>
+          <p className="mt-1 text-xs text-muted-foreground">{status.stats.jobsFailed} ошибок · {status.stats.jobsDead} dead</p>
         </div>
         <div className="rounded-lg border border-border/30 bg-card/40 p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
             <AlertTriangle className="h-4 w-4 text-primary" />
-            AI error rate
+            Ошибки AI
           </div>
           <p className="text-2xl font-bold" style={{ color: TONE_COLOR[aiErrorRate === 0 ? "ok" : aiErrorRate >= 15 ? "danger" : "warn"] }}>{aiErrorRate}%</p>
           <p className="mt-1 text-xs text-muted-foreground">{status.stats.aiErrors24h}/{status.stats.aiRequests24h} за 24 часа</p>
@@ -159,7 +159,7 @@ export default async function AdminSystemPage() {
         </div>
         {status.stats.message && (
           <p className="mt-3 rounded-lg border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-            DB stats unavailable: {status.stats.message}
+            Статистика БД недоступна: {status.stats.message}
           </p>
         )}
       </section>

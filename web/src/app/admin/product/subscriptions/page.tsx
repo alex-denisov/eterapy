@@ -25,6 +25,12 @@ export default async function ProductSubscriptionsPage({ searchParams }: PagePro
         Реферальные регистрации и покупки подписки считаются ежедневно по выбранному календарному периоду.
       </AdminHero>
       <div className="grid gap-4">
+        <AnalyticsSection title="Покупки подписок по дням">
+          <VerticalBarChart data={data.charts.subscriptionPurchases} seriesLabels={["Пробный / без подписки", "Плюс", "Премиум"]} />
+        </AnalyticsSection>
+        <AnalyticsSection title="Баллы на балансе по дням">
+          <VerticalBarChart data={data.charts.creditsBalanceByDay} />
+        </AnalyticsSection>
         <AnalyticsSection title="Реферальные регистрации по дням">
           <VerticalBarChart data={data.charts.referralRegistrations} />
         </AnalyticsSection>

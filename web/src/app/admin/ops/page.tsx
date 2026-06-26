@@ -94,8 +94,8 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-eyebrow">dev/stage · ops center</p>
-          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Система, AI и журналы</h1>
+          <p className="premium-eyebrow">dev/stage · операционный центр</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Операционный центр платформы</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Центр ежедневного контроля платформы: здоровье сервисов, очереди, AI-расходы, уведомления, файлы, база данных, логи и риск-события.
           </p>
@@ -156,17 +156,17 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <AdminOpsSection title="Рабочие инструменты блока">
+        <AdminOpsSection title="Карта здоровья платформы">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCost(aiCostMicros, currencyRates, currency)} hint="Детализация расхода по продуктам, моделям и статусам." />
             <AdminOpsLinkCard href="/admin/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, routing, промты." />
             <AdminOpsLinkCard href="/admin/notifications" title="Уведомления" value={formatNumber(status.stats.notificationPreferences)} hint="Диагностика доставок, очереди notification.delivery, Telegram/email." />
             <AdminOpsLinkCard href="/admin/files" title="Файлы" value="просмотр" hint="Файловое хранилище, типы, владельцы, размеры, даты." />
             <AdminOpsLinkCard href="/admin/database" title="База данных" value="read-only" hint="Табличный просмотр ключевых сущностей без ручного SQL." />
-            <AdminOpsLinkCard href="/admin/jobs" title="Задачи и очереди" value={formatNumber(queuePressure)} hint="Durable jobs, статусы, повторы, ошибки, dead jobs." />
-            <AdminOpsLinkCard href="/admin/logs" title="Логи и аудит" value={formatNumber(audit24h)} hint="Аудит, runtime, diagnostics, поиск и фильтры." />
-            <AdminOpsLinkCard href="/admin/system" title="Мониторинг системы" value={statusLabel(status.status)} hint="Health/readiness, зависимости, cron-контур." />
-            <AdminOpsLinkCard href="/admin/ops/security" title="Безопасность" value={formatNumber(securityEvents24h)} hint="Риск-действия, админские операции, доступ и инциденты." />
+            <AdminOpsLinkCard href="/admin/jobs" title="Очереди и задачи" value={formatNumber(queuePressure)} hint="Durable jobs, статусы, повторы, ошибки, dead jobs." />
+            <AdminOpsLinkCard href="/admin/logs" title="Журналы и аудит" value={formatNumber(audit24h)} hint="Аудит, runtime, diagnostics, поиск и фильтры." />
+            <AdminOpsLinkCard href="/admin/system" title="Надежность сервисов" value={statusLabel(status.status)} hint="Health/readiness, зависимости, cron-контур." />
+            <AdminOpsLinkCard href="/admin/ops/security" title="Безопасность и инциденты" value={formatNumber(securityEvents24h)} hint="Риск-действия, админские операции, доступ и инциденты." />
           </div>
         </AdminOpsSection>
 

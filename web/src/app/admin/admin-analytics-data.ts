@@ -353,6 +353,7 @@ export async function getProductCenterData(period: AdminPeriod) {
     sessions,
     referrals,
     inviteVisits,
+    creditEntries,
     complaints,
     applications,
     reviews,
@@ -398,6 +399,11 @@ export async function getProductCenterData(period: AdminPeriod) {
     }),
     db.referralAttribution.findMany({ where: { createdAt: { gte: period.start, lte: period.end } }, select: { status: true, createdAt: true, referrer: { select: { name: true, email: true } } } }),
     db.practitionerInviteVisit.findMany({ where: { createdAt: { gte: period.start, lte: period.end } }, select: { status: true, createdAt: true, invite: { select: { practitioner: { select: { user: { select: { name: true, email: true } } } } } } } }),
+    db.clarityCreditLedgerEntry.findMany({
+      where: { createdAt: { lte: period.end }, status: { in: ["pending", "confirmed"] } },
+      select: { amount: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
     db.complaint.count({ where: { status: { in: ["OPEN", "REVIEWING"] } } }),
     db.practitionerApplication.count({ where: { status: { in: ["PENDING", "REVIEWING"] } } }),
     db.review.count({ where: { status: { in: ["REVIEW", "HIDDEN"] } } }),
@@ -443,11 +449,36 @@ export async function getProductCenterData(period: AdminPeriod) {
   }
   const referralDay = new Map<string, number>();
   const referralSubscriptionDay = new Map<string, number>();
+  const subscriptionPurchaseDay = new Map<string, { free: number; plus: number; premium: number }>();
   for (const item of referrals) {
     addTo(referralDay, dayKey(item.createdAt), 1);
     if (item.status === "REWARDED") addTo(referralSubscriptionDay, dayKey(item.createdAt), 1);
   }
   for (const item of inviteVisits) addTo(referralDay, dayKey(item.createdAt), 1);
+  for (const sub of subscriptions) {
+    if (sub.createdAt < period.start || sub.createdAt > period.end) continue;
+    const day = dayKey(sub.createdAt);
+    const bucket = subscriptionPurchaseDay.get(day) ?? { free: 0, plus: 0, premium: 0 };
+    const plan = sub.planKey.toLowerCase();
+    if (plan.includes("premium")) bucket.premium += 1;
+    else if (plan.includes("plus")) bucket.plus += 1;
+    else bucket.free += 1;
+    subscriptionPurchaseDay.set(day, bucket);
+  }
+
+  const creditDeltaDay = new Map<string, number>();
+  let creditBalance = 0;
+  for (const entry of creditEntries) {
+    if (entry.createdAt < period.start) {
+      creditBalance += entry.amount;
+    } else if (entry.createdAt <= period.end) {
+      addTo(creditDeltaDay, dayKey(entry.createdAt), entry.amount);
+    }
+  }
+  const creditsBalanceByDay = period.days.map((day) => {
+    creditBalance += creditDeltaDay.get(day) ?? 0;
+    return { label: chartDayLabel(day), value: Math.max(0, creditBalance) };
+  });
 
   const topReferrers = new Map<string, number>();
   for (const item of referrals) addTo(topReferrers, item.referrer?.name ?? item.referrer?.email ?? "Не указан", 1);
@@ -462,6 +493,11 @@ export async function getProductCenterData(period: AdminPeriod) {
     charts: {
       referralRegistrations: chartFromMap(period.days, referralDay),
       referralSubscriptions: chartFromMap(period.days, referralSubscriptionDay),
+      subscriptionPurchases: period.days.map((day) => {
+        const row = subscriptionPurchaseDay.get(day) ?? { free: 0, plus: 0, premium: 0 };
+        return { label: chartDayLabel(day), value: row.free, secondary: row.plus, tertiary: row.premium };
+      }),
+      creditsBalanceByDay,
       topReferrers: [...topReferrers.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 10),
       productByDay: period.days.map((day) => {
         const map = productByDay.get(day);

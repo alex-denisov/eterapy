@@ -164,8 +164,8 @@ export default async function AdminLogsPage(props: {
     <PageContainer maxWidth="full" className="py-8">
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="premium-eyebrow">observability</p>
-          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Журнал событий</h1>
+          <p className="premium-eyebrow">наблюдаемость</p>
+          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Журналы и аудит</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Audit, live diagnostics и runtime-логи приложения для суперадмина.
           </p>

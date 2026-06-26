@@ -178,7 +178,7 @@ export default async function AdminJobsPage(props: {
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="premium-eyebrow">система</p>
-          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Очередь задач</h1>
+          <h1 className="premium-title mt-2 text-3xl md:text-4xl">Очереди и задачи</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Все durable jobs с фильтрами в заголовках, пагинацией по 25 и перезапуском упавших задач.
           </p>

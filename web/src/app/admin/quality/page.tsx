@@ -109,7 +109,7 @@ export default async function AdminQualityPage() {
         <MetricCard icon={MessageSquareWarning} label="Жалобы" value={formatNumber(complaintsCount)} hint="Обращения и спорные пользовательские ситуации." />
         <MetricCard icon={Star} label="Отзывы на проверке" value={formatNumber(pendingReviews)} hint="Модерация публикации, скрытия, редактирования и удаления." />
         <MetricCard icon={ShieldAlert} label="Антифрод очередь" value={formatNumber(antifraudData?.metrics.reviewQueue ?? 0)} hint="События, которые требуют ручного решения." />
-        <MetricCard icon={AlertTriangle} label="High risk" value={formatNumber(antifraudData?.metrics.highRiskEvents ?? 0)} hint="Высокий риск по referrals, credits, payouts и review abuse." />
+        <MetricCard icon={AlertTriangle} label="Высокий риск" value={formatNumber(antifraudData?.metrics.highRiskEvents ?? 0)} hint="Высокий риск по рефералам, баллам, выплатам и злоупотреблениям отзывами." />
       </section>
 
       {canReview && (

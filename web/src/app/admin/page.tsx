@@ -49,7 +49,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-analytics-dashboard">
       <AdminHero
         eyebrow="рабочий стол"
-        title="Обзор платформы"
+        title="Обзор ETerapy"
         actions={<><AdminCurrencySelector basePath="/admin" currency={currency} /><PeriodToolbar basePath="/admin" start={period.startInput} end={period.endInput} /></>}
       >
         Ежедневный контроль экономики, продукта, практиков, AI-затрат, баллов и операционных рисков.
@@ -58,7 +58,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
       <MetricGrid>
         <MetricCard href="#economy" label="Финансы" value={formatAdminRub(totals.revenueRub, currency, currencyRates)} hint={`Возвраты: ${formatAdminRub(totals.refundsRub, currency, currencyRates)}`} />
-        <MetricCard href="#product" label="Продукт и клиенты" value={formatNumber(totals.clientsTotal)} hint={`Бронирований за период: ${formatNumber(totals.bookings)}`} />
+        <MetricCard href="#product" label="Продукт и воронка" value={formatNumber(totals.bookings)} hint={`Клиентов всего: ${formatNumber(totals.clientsTotal)}`} />
         <MetricCard href="#ai-system" label="AI и система" value={formatAdminAiCost(totals.aiCostMicros, currencyRates, currency)} hint={`${formatNumber(totals.aiTokens)} токенов`} />
         <MetricCard href="#risk" label="Риски и очередь" value={formatNumber(totals.complaintsOpen + totals.applicationsPending + totals.reviewsPending + totals.jobsFailed)} hint="Жалобы, заявки, отзывы, failed jobs" tone={totals.jobsFailed > 0 ? "warn" : "neutral"} />
       </MetricGrid>
@@ -88,7 +88,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
           )}
         </AnalyticsSection>
 
-        <AnalyticsSection id="product" title="Продукт, клиенты и баллы" actionHref="/admin/product" actionLabel="Открыть продуктовый центр">
+        <AnalyticsSection id="product" title="Продукт и воронка" actionHref="/admin/product" actionLabel="Открыть продуктовый центр">
           <div className="grid gap-4 xl:grid-cols-2">
             <VerticalBarChart label="Бронирования по дням" data={charts.bookingsByDay} />
             <VerticalBarChart label="Баллы: дневное изменение баланса" data={charts.creditsByDay} />
@@ -97,6 +97,14 @@ export default async function AdminPage({ searchParams }: PageProps) {
             <MetricCard label="Баллы куплены" value={formatNumber(totals.purchasedCredits)} hint="Источник purchase" />
             <MetricCard label="Баллы начислены вручную" value={formatNumber(totals.manualCredits)} hint="Источник admin, отдельно от покупок" />
             <MetricCard label="Изменение баланса баллов" value={formatNumber(totals.creditsBalanceDelta)} hint="Net ledger за период" />
+          </div>
+        </AnalyticsSection>
+
+        <AnalyticsSection id="clients" title="Клиенты и поведение" actionHref="/admin/product/users" actionLabel="Открыть пользователей">
+          <div className="grid gap-3 md:grid-cols-3">
+            <MetricCard label="Клиенты всего" value={formatNumber(totals.clientsTotal)} />
+            <MetricCard label="Активные подписки" value={formatNumber(totals.activeSubscriptions)} />
+            <MetricCard label="Новые пользователи" value={formatNumber(totals.usersTotal)} hint="Вся база пользователей" />
           </div>
         </AnalyticsSection>
 
