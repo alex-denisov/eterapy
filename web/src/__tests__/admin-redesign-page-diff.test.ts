@@ -37,9 +37,9 @@ describe("Admin redesign page diff guardrails", () => {
     const creditsAlias = source("src/app/admin/finance/credits/page.tsx");
 
     expect(controls).toContain('title="Контроль и журналы"');
-    expect(transactionsAlias).toContain('redirect("/admin/finance/receipts")');
-    expect(pricingAlias).toContain('redirect("/admin/pricing")');
-    expect(creditsAlias).toContain('redirect("/admin/finance/points")');
+    expect(transactionsAlias).toContain('from "../receipts/page"');
+    expect(pricingAlias).toContain('from "../../pricing/page"');
+    expect(creditsAlias).toContain('from "../points/page"');
   });
 
   it("keeps antifraud and system surfaces in Russian user-facing labels", () => {
