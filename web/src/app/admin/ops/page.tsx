@@ -17,13 +17,13 @@ import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { PageContainer } from "@/components/ui/page-container";
+import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates } from "../admin-currency";
 import {
   AdminOpsLinkCard,
   AdminOpsMetric,
   AdminOpsSection,
   formatNumber,
   formatPercent,
-  formatUsdMicros,
 } from "./ops-ui";
 
 function statusTone(status: string) {
@@ -49,7 +49,7 @@ export default async function AdminOpsPage() {
   const oneDayAgo = new Date();
   oneDayAgo.setHours(oneDayAgo.getHours() - 24);
 
-  const [status, ai, audit24h, securityEvents24h] = await Promise.all([
+  const [status, ai, audit24h, securityEvents24h, currencyRates] = await Promise.all([
     getAdminSystemStatus(requestContextFromHeaders()),
     permissions.includes("ai.configure")
       ? getAIControlCenterData(undefined, { includeSecrets: false })
@@ -72,6 +72,7 @@ export default async function AdminOpsPage() {
         ],
       },
     }),
+    getAdminCurrencyRates(),
   ]);
 
   const aiCostMicros = ai?.usageDetails.reduce((sum, row) => sum + row.costMicros, 0) ?? 0;
@@ -116,8 +117,8 @@ export default async function AdminOpsPage() {
         <AdminOpsMetric
           icon={BrainCircuit}
           label="AI деньги"
-          value={formatUsdMicros(aiCostMicros)}
-          hint={`${formatNumber(aiTokens)} токенов за выбранный бюджетный период`}
+          value={formatAdminAiCostRub(aiCostMicros, currencyRates)}
+          hint={`${formatNumber(aiTokens)} токенов · ${formatCbrRateLabel(currencyRates)}`}
           tone={aiCostMicros > 0 ? "neutral" : "ok"}
         />
         <AdminOpsMetric
@@ -146,7 +147,7 @@ export default async function AdminOpsPage() {
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <AdminOpsSection title="Рабочие инструменты блока">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatUsdMicros(aiCostMicros)} hint="Детализация расхода по продуктам, моделям и статусам." />
+            <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCostRub(aiCostMicros, currencyRates)} hint="Детализация расхода по продуктам, моделям и статусам." />
             <AdminOpsLinkCard href="/admin/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, routing, промты." />
             <AdminOpsLinkCard href="/admin/notifications" title="Уведомления" value={formatNumber(status.stats.notificationPreferences)} hint="Диагностика доставок, очереди notification.delivery, Telegram/email." />
             <AdminOpsLinkCard href="/admin/files" title="Файлы" value="просмотр" hint="Файловое хранилище, типы, владельцы, размеры, даты." />

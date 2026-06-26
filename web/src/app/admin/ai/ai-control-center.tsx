@@ -279,12 +279,14 @@ function usdFromMicros(value: number) {
   return value / 1_000_000;
 }
 
-function formatUsdMicros(value: number) {
-  return new Intl.NumberFormat("en-US", {
+function formatRubFromUsdMicros(value: number, usdRub: number | null) {
+  if (!usdRub) return "Курс ЦБ недоступен";
+  const rub = usdFromMicros(value) * usdRub;
+  return new Intl.NumberFormat("ru-RU", {
     style: "currency",
-    currency: "USD",
-    minimumFractionDigits: value > 0 && value < 10_000 ? 4 : 2,
-  }).format(usdFromMicros(value));
+    currency: "RUB",
+    maximumFractionDigits: rub > 0 && rub < 100 ? 2 : 0,
+  }).format(rub);
 }
 
 function formatUsdAmount(value: number) {
@@ -306,6 +308,20 @@ function statusTone(status: string) {
   }
   if (normalized === "SKIPPED" || normalized === "RUNNING" || normalized === "WARN") return "border-amber-500/30 bg-amber-500/10 text-amber-700";
   return "border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]";
+}
+
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    SUCCEEDED: "Успешно",
+    FAILED: "Ошибка",
+    RUNNING: "В работе",
+    TIMEOUT: "Таймаут",
+    RATE_LIMITED: "Лимит",
+    OK: "ОК",
+    WARN: "Внимание",
+    SKIPPED: "Пропущено",
+  };
+  return labels[status.toUpperCase()] ?? status;
 }
 
 // Human-readable reasons for the admin so a failed key tells whether it needs a
@@ -1282,6 +1298,8 @@ export function AIControlCenter({
   encryptionConfigured,
   cloudflareGateway,
   canViewSecrets,
+  usdRub,
+  currencyRateLabel,
 }: {
   providers: ProviderRow[];
   policies: PolicyRow[];
@@ -1294,6 +1312,8 @@ export function AIControlCenter({
   encryptionConfigured: boolean;
   cloudflareGateway: CloudflareGatewayState;
   canViewSecrets: boolean;
+  usdRub: number | null;
+  currencyRateLabel: string;
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1471,6 +1491,7 @@ export function AIControlCenter({
       llmErrors,
     };
   }, [usage, usageTableRows, visibleCredentials]);
+  const formatCost = (value: number) => formatRubFromUsdMicros(value, usdRub);
 
   const modelCostRows = useMemo(() => {
     return PROVIDERS.flatMap((provider) => {
@@ -1822,7 +1843,7 @@ export function AIControlCenter({
     <div className="space-y-6" data-testid="admin-ai-control-center">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" data-testid="admin-ai-ops-metrics">
         <MetricCard icon={Activity} label="AI-запросы" value={formatTokens(totals.requests)} hint={`токены ${formatTokens(totals.tokens)} за день`} />
-        <MetricCard icon={DollarSign} label="Расход AI" value={formatUsdMicros(totals.costMicros)} hint="расчет по стоимости провайдера и модели" />
+        <MetricCard icon={DollarSign} label="Расход AI" value={formatCost(totals.costMicros)} hint={`расчет по стоимости провайдера и модели · ${currencyRateLabel}`} />
         <MetricCard icon={KeyRound} label="API-ключи" value={`${totals.activeKeys}/${visibleCredentials.length}`} hint={`${totals.failedKeys} ключей в ошибке`} />
         <MetricCard icon={AlertTriangle} label="Ошибки LLM" value={formatTokens(totals.llmErrors)} hint={`${Object.keys(featureErrors).length} продуктов с ошибками`} />
       </section>
@@ -2159,20 +2180,20 @@ export function AIControlCenter({
         <CompactTableShell minWidth="1120px">
           <thead className="bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <CompactHeader label="Product / feature" sortKey="feature" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
-                <input value={usageFilters.feature} onChange={(event) => { setUsageFilters({ ...usageFilters, feature: event.target.value }); setUsagePage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Продукт / функция" sortKey="feature" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
+                <input value={usageFilters.feature} onChange={(event) => { setUsageFilters({ ...usageFilters, feature: event.target.value }); setUsagePage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Provider" sortKey="provider" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
+              <CompactHeader label="Провайдер" sortKey="provider" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
                 <select value={usageFilters.provider} onChange={(event) => { setUsageFilters({ ...usageFilters, provider: event.target.value }); setUsagePage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                   <option value="NO_PROVIDER">NO_PROVIDER</option>
                 </select>
               </CompactHeader>
-              <CompactHeader label="Model" sortKey="model" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
-                <input value={usageFilters.model} onChange={(event) => { setUsageFilters({ ...usageFilters, model: event.target.value }); setUsagePage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Модель" sortKey="model" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
+                <input value={usageFilters.model} onChange={(event) => { setUsageFilters({ ...usageFilters, model: event.target.value }); setUsagePage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Status" sortKey="status" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
+              <CompactHeader label="Статус" sortKey="status" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
                 <select value={usageFilters.status} onChange={(event) => { setUsageFilters({ ...usageFilters, status: event.target.value }); setUsagePage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   <option value="SUCCEEDED">SUCCEEDED</option>
@@ -2181,10 +2202,10 @@ export function AIControlCenter({
                   <option value="TIMEOUT">TIMEOUT</option>
                 </select>
               </CompactHeader>
-              <CompactHeader label="Req/attempts" sortKey="requests" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
-              <CompactHeader label="Tokens" sortKey="tokens" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
-              <CompactHeader label="Cost" sortKey="cost" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
-              <CompactHeader label="Latency" sortKey="latency" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
+              <CompactHeader label="Запросы / попытки" sortKey="requests" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
+              <CompactHeader label="Токены" sortKey="tokens" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
+              <CompactHeader label="Стоимость, ₽" sortKey="cost" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
+              <CompactHeader label="Время ответа" sortKey="latency" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
@@ -2195,10 +2216,10 @@ export function AIControlCenter({
                 <td className={`${COMPACT_CELL_CLASS} font-medium text-[var(--soft-ink)]`}>{row.feature}</td>
                 <td className={COMPACT_CELL_CLASS}>{row.provider}</td>
                 <td className={`${COMPACT_CELL_CLASS} max-w-[20rem] break-all font-mono`}>{row.model}</td>
-                <td className={COMPACT_CELL_CLASS}><SoftBadge className={statusTone(row.status)}>{row.status}</SoftBadge></td>
+                <td className={COMPACT_CELL_CLASS}><SoftBadge className={statusTone(row.status)}>{statusLabel(row.status)}</SoftBadge></td>
                 <td className={COMPACT_CELL_CLASS}>{row.requestCount}/{row.attemptCount}</td>
                 <td className={COMPACT_CELL_CLASS}>{formatTokens(row.totalTokens)}</td>
-                <td className={COMPACT_CELL_CLASS}>{formatUsdMicros(row.costMicros)}</td>
+                <td className={COMPACT_CELL_CLASS}>{formatCost(row.costMicros)}</td>
                 <td className={`${COMPACT_CELL_CLASS} border-r-0`}>{row.avgLatencyMs ? `${row.avgLatencyMs} ms` : "-"}</td>
               </tr>
             ))}
@@ -2218,13 +2239,13 @@ export function AIControlCenter({
               <CompactHeader label="Время" sortKey="createdAt" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <input value={interactionFilters.createdAt} onChange={(event) => { setInteractionFilters({ ...interactionFilters, createdAt: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
               </CompactHeader>
-              <CompactHeader label="Feature" sortKey="feature" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
-                <input value={interactionFilters.feature} onChange={(event) => { setInteractionFilters({ ...interactionFilters, feature: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Функция" sortKey="feature" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
+                <input value={interactionFilters.feature} onChange={(event) => { setInteractionFilters({ ...interactionFilters, feature: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Пользователь" sortKey="user" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <input value={interactionFilters.user} onChange={(event) => { setInteractionFilters({ ...interactionFilters, user: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
               </CompactHeader>
-              <CompactHeader label="Status" sortKey="status" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
+              <CompactHeader label="Статус" sortKey="status" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <select value={interactionFilters.status} onChange={(event) => { setInteractionFilters({ ...interactionFilters, status: event.target.value }); setInteractionPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   <option value="SUCCEEDED">SUCCEEDED</option>
@@ -2232,14 +2253,14 @@ export function AIControlCenter({
                   <option value="RUNNING">RUNNING</option>
                 </select>
               </CompactHeader>
-              <CompactHeader label="Provider / model" sortKey="provider" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
+              <CompactHeader label="Провайдер / модель" sortKey="provider" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <select value={interactionFilters.provider} onChange={(event) => { setInteractionFilters({ ...interactionFilters, provider: event.target.value }); setInteractionPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                 </select>
               </CompactHeader>
-              <CompactHeader label="Tokens" sortKey="tokens" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)} />
-              <CompactHeader label="Cost" sortKey="cost" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)} />
+              <CompactHeader label="Токены" sortKey="tokens" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)} />
+              <CompactHeader label="Стоимость, ₽" sortKey="cost" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)} />
               <th className={`${COMPACT_HEADER_CLASS} p-0 align-top`}>
                 <div className="px-1.5 py-2 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">Ответ</div>
                 <input value={interactionFilters.answer} onChange={(event) => { setInteractionFilters({ ...interactionFilters, answer: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
@@ -2255,12 +2276,12 @@ export function AIControlCenter({
                 <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatDate(interaction.createdAt)}</td>
                 <td className={`${COMPACT_CELL_CLASS} font-medium text-[var(--soft-ink)]`}>{interaction.feature}</td>
                 <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{interaction.userLabel ?? interaction.userId ?? "anonymous"}</td>
-                <td className={COMPACT_CELL_CLASS}><SoftBadge className={statusTone(interaction.status)}>{interaction.status}</SoftBadge></td>
+                <td className={COMPACT_CELL_CLASS}><SoftBadge className={statusTone(interaction.status)}>{statusLabel(interaction.status)}</SoftBadge></td>
                 <td className={`${COMPACT_CELL_CLASS} max-w-[20rem] break-all font-mono text-[11px]`}>
-                  {interaction.responseProvider ?? interaction.attempts.at(-1)?.provider ?? "no provider"} / {interaction.responseModel ?? interaction.attempts.at(-1)?.model ?? "no model"}
+                  {interaction.responseProvider ?? interaction.attempts.at(-1)?.provider ?? "провайдер не указан"} / {interaction.responseModel ?? interaction.attempts.at(-1)?.model ?? "модель не указана"}
                 </td>
                 <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatTokens(interaction.totalTokens)}</td>
-                <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatUsdMicros(interaction.estimatedCostMicros)}</td>
+                <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatCost(interaction.estimatedCostMicros)}</td>
                 <td className={`${COMPACT_CELL_CLASS} max-w-[24rem] whitespace-normal break-words text-[var(--soft-ink)]`}>
                   {interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
                 </td>
@@ -2290,9 +2311,9 @@ export function AIControlCenter({
                             <div className="space-y-1">
                               {interaction.attempts.map((attempt, index) => (
                                 <div key={`${interaction.id}:attempt:${index}`} className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--soft-surface)] px-3 py-2 text-xs">
-                                  <SoftBadge className={statusTone(attempt.status)}>{attempt.status}</SoftBadge>
+                                  <SoftBadge className={statusTone(attempt.status)}>{statusLabel(attempt.status)}</SoftBadge>
                                   <span className="font-mono">{attempt.provider}/{attempt.model}</span>
-                                  <span className="text-[var(--soft-ink-soft)]">{attempt.totalTokens} tokens · {formatUsdMicros(attempt.estimatedCostMicros)} · {attempt.latencyMs ? `${attempt.latencyMs} ms` : "no latency"}</span>
+                                  <span className="text-[var(--soft-ink-soft)]">{attempt.totalTokens} токенов · {formatCost(attempt.estimatedCostMicros)} · {attempt.latencyMs ? `${attempt.latencyMs} ms` : "нет latency"}</span>
                                   {attempt.errorCode && <span className="text-red-700">{attempt.errorCode}</span>}
                                 </div>
                               ))}

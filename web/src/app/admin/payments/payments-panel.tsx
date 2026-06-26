@@ -52,10 +52,12 @@ export function PaymentsPanel({
   practitioners,
   clarityCredits,
   payoutRuns,
+  showCredits = true,
 }: {
   practitioners: Practitioner[];
   clarityCredits: ClarityCreditAuditEntry[];
   payoutRuns: PayoutRun[];
+  showCredits?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -369,7 +371,7 @@ export function PaymentsPanel({
         отслеживаются вручную до интеграции ЮKassa Payout API.
       </p>
 
-      <div className="mt-8 rounded-xl border border-border/30 overflow-hidden" data-testid="admin-clarity-credit-audit">
+      {showCredits && <div className="mt-8 rounded-xl border border-border/30 overflow-hidden" data-testid="admin-clarity-credit-audit">
         <div className="flex items-center justify-between border-b border-border/20 bg-card/30 px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold">Аудит баллов</h2>
@@ -416,7 +418,7 @@ export function PaymentsPanel({
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }

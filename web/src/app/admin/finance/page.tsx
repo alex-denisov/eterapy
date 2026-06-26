@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getDashboardAnalytics, resolveAdminPeriod } from "../admin-analytics-data";
+import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToRub } from "../admin-currency";
 import {
   AdminHero,
   AnalyticsSection,
@@ -11,9 +12,9 @@ import {
   MetricGrid,
   PeriodToolbar,
   VerticalBarChart,
+  formatCompactRub,
   formatNumber,
   formatRub,
-  formatUsdMicros,
 } from "../admin-analytics-ui";
 import { FinanceExportMenu } from "./export-menu";
 
@@ -25,8 +26,12 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
   const period = resolveAdminPeriod(await searchParams);
-  const { totals, charts } = await getDashboardAnalytics(period);
+  const [{ totals, charts }, currencyRates] = await Promise.all([
+    getDashboardAnalytics(period),
+    getAdminCurrencyRates(period.end),
+  ]);
   const reportHref = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}`;
+  const aiCostRubByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToRub(point.value, currencyRates) ?? 0 }));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-finance-center">
@@ -45,8 +50,8 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
 
       <MetricGrid>
         <MetricCard label="Поступления" value={formatRub(totals.revenueRub)} hint="Успешные транзакции" href="/admin/finance/receipts" />
-        <MetricCard label="Возвраты" value={formatRub(totals.refundsRub)} hint="Refunded/negative операции" href="/admin/finance/receipts" tone={totals.refundsRub > 0 ? "warn" : "neutral"} />
-        <MetricCard label="AI cost" value={formatUsdMicros(totals.aiCostMicros)} hint={`${formatNumber(totals.aiTokens)} токенов`} href="/admin/finance/unit-economics" />
+        <MetricCard label="Возвраты" value={formatRub(totals.refundsRub)} hint="Возвращенные и отрицательные операции" href="/admin/finance/receipts" tone={totals.refundsRub > 0 ? "warn" : "neutral"} />
+        <MetricCard label="AI-затраты" value={formatAdminAiCostRub(totals.aiCostMicros, currencyRates)} hint={`${formatNumber(totals.aiTokens)} токенов · ${formatCbrRateLabel(currencyRates)}`} href="/admin/finance/unit-economics" />
         <MetricCard label="Баллы вручную" value={formatNumber(totals.manualCredits)} hint="Отдельно от купленных баллов" href="/admin/finance/points" />
       </MetricGrid>
 
@@ -57,9 +62,19 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
               label="Поступления и возвраты по дням"
               unit=" ₽"
               data={charts.revenueByDay.map((point, index) => ({ ...point, secondary: charts.refundsByDay[index]?.value ?? 0 }))}
+              seriesLabels={["Поступления", "Возвраты"]}
             />
             <HorizontalBars data={charts.paymentMix} unit=" ₽" />
           </div>
+        </AnalyticsSection>
+
+        <AnalyticsSection title="AI-затраты в рублях" actionHref="/admin/finance/unit-economics" actionLabel="Юнит-экономика">
+          <VerticalBarChart
+            label={formatCbrRateLabel(currencyRates)}
+            unit=" ₽"
+            data={aiCostRubByDay}
+            valueFormatter={(value) => `${formatCompactRub(value)} ₽`}
+          />
         </AnalyticsSection>
 
         <AnalyticsSection title="Баллы, цифровые продукты и подписки" actionHref="/admin/finance/points" actionLabel="Баллы">

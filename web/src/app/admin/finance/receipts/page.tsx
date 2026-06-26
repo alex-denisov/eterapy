@@ -13,6 +13,7 @@ import {
   AdminHero,
   DataTable,
   PeriodToolbar,
+  StatusBadge,
   cardMask,
   formatDateTime,
   formatRub,
@@ -50,7 +51,7 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
           </>
         }
       >
-        Таблица показывает 20 операций на страницу, timestamp с секундами, способ оплаты и доступный источник оплаты без скрытия клиентских данных.
+        Таблица показывает 20 операций на страницу, дату и время с секундами, способ оплаты и доступный источник оплаты без скрытия клиентских данных.
       </AdminHero>
 
       <form className="mb-4 flex flex-wrap items-center gap-2">
@@ -58,10 +59,11 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
         <input type="hidden" name="end" value={period.endInput} />
         <input name="q" defaultValue={q} placeholder="Поиск по клиенту, email, provider payment id" className="min-w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-3 py-2 text-sm" />
         <button className="soft-admin-action" type="submit">Найти</button>
+        <button className="soft-admin-action" type="button">Проверить выбранные у провайдера</button>
       </form>
 
       <DataTable
-        columns={["Выбор", "Timestamp", "Клиент", "Сумма", "Статус", "Метод", "Источник", "Провайдер", "Чек"]}
+        columns={["Выбор", "Дата и время", "Клиент", "Сумма", "Статус", "Метод", "Источник", "Провайдер", "Чек"]}
         rows={transactions.map((tx) => {
           const parts = cardPartsFromMetadata(tx.metadata);
           const method = paymentMethodFromMetadata(tx.provider, tx.metadata);
@@ -70,7 +72,7 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
             formatDateTime(tx.createdAt),
             <span key="user">{tx.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{tx.user.email}</span></span>,
             formatRub(tx.amount / 100),
-            tx.status,
+            <StatusBadge key="status" status={tx.status} />,
             method,
             method === "Банковская карта" ? cardMask(parts.first6, parts.last4) : "—",
             tx.providerPaymentId ?? tx.provider,

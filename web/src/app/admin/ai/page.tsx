@@ -6,6 +6,7 @@ import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { resolvedProviderBaseUrl } from "@/lib/ai-gateway/provider-runtime";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
+import { formatCbrRateLabel, getAdminCurrencyRates } from "../admin-currency";
 import { AIControlCenter, type AIProvider } from "./ai-control-center";
 
 type RawProvider = {
@@ -132,7 +133,10 @@ export default async function AdminAIPage() {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("ai.configure")) redirect("/admin");
 
-  const data = await getAIControlCenterData(undefined, { includeSecrets: role === "SUPERADMIN" });
+  const [data, currencyRates] = await Promise.all([
+    getAIControlCenterData(undefined, { includeSecrets: role === "SUPERADMIN" }),
+    getAdminCurrencyRates(),
+  ]);
   const rawProviders = data.providers as RawProvider[];
   const rawPolicies = data.policies as RawPolicy[];
   const rawCredentials = data.credentials as RawCredential[];
@@ -259,6 +263,8 @@ export default async function AdminAIPage() {
         encryptionConfigured={data.encryptionConfigured}
         cloudflareGateway={data.cloudflareGateway}
         canViewSecrets={role === "SUPERADMIN"}
+        usdRub={currencyRates.usdRub}
+        currencyRateLabel={formatCbrRateLabel(currencyRates)}
       />
     </PageContainer>
   );

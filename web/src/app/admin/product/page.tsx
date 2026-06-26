@@ -37,7 +37,7 @@ export default async function ProductCenterPage({ searchParams }: PageProps) {
           <FunnelChart data={data.funnel} />
         </AnalyticsSection>
         <AnalyticsSection title="Использование продуктов по дням" actionHref="/admin/product/results" actionLabel="Продукты и результаты">
-          <VerticalBarChart label="Группированные столбцы: Переосмысление / Подробный разбор / Анализ переписки" data={data.charts.productByDay} />
+          <VerticalBarChart label="Группированные столбцы по самым активным продуктам" data={data.charts.productByDay} seriesLabels={data.charts.productByDayLabels} />
         </AnalyticsSection>
         <AnalyticsSection title="Подписки, баллы и рефералы" actionHref="/admin/product/subscriptions" actionLabel="Открыть">
           <div className="grid gap-4 xl:grid-cols-2">

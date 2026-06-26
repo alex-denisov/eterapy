@@ -1,5 +1,6 @@
 import { BookingStatus, TransactionStatus } from "@prisma/client";
 import db from "@/lib/db";
+import { getProductLabel } from "@/lib/billing-labels";
 
 export const PRODUCT_NAMES: Record<string, string> = {
   reframe: "Переосмысление",
@@ -10,6 +11,16 @@ export const PRODUCT_NAMES: Record<string, string> = {
   pair: "Разобраться вдвоём",
   "daily-practice": "Ежедневная практика",
   "map-upgrade": "Апгрейд карты",
+  "natal-chart": "Натальная карта",
+  "family-scenarios": "Семейные сценарии",
+  "human-design": "Human Design",
+  "surname-story": "История фамилии",
+  numerology: "Числовой портрет",
+  tarot: "Расклад Таро",
+  synastry: "Совместимость по звёздам",
+  "weekly-summary": "Недельное резюме",
+  "companion-chat-session": "Живой диалог",
+  "companion-chat-extension": "Продление живого диалога",
   session: "Сессия с практиком",
   subscription: "Подписка",
 };
@@ -95,7 +106,11 @@ function addTo(map: Map<string, number>, key: string, value: number) {
 }
 
 function chartFromMap(days: string[], map: Map<string, number>) {
-  return days.map((day) => ({ label: day.slice(5), value: map.get(day) ?? 0 }));
+  return days.map((day) => ({ label: chartDayLabel(day), value: map.get(day) ?? 0 }));
+}
+
+function chartDayLabel(day: string) {
+  return `${day.slice(8, 10)}.${day.slice(5, 7)}`;
 }
 
 function stringFromJson(value: unknown, keys: string[]) {
@@ -128,7 +143,29 @@ export function cardPartsFromMetadata(metadata: unknown) {
 
 export function productLabel(productKey: string | null | undefined) {
   if (!productKey) return "Не указан";
-  return PRODUCT_NAMES[productKey] ?? productKey;
+  const normalized = productKey.replace(/^product-/, "");
+  return PRODUCT_NAMES[normalized] ?? getProductLabel(normalized);
+}
+
+function analyticsIdentity(event: { userId?: string | null; sessionId?: string | null; dialogueId?: string | null }) {
+  return event.userId ?? event.dialogueId ?? event.sessionId ?? null;
+}
+
+function activePlanAt(
+  subscriptions: Array<{ userId: string; planKey: string; status: string; createdAt: Date; currentPeriodStart: Date | null; currentPeriodEnd: Date | null; cancelledAt: Date | null }>,
+  userId: string,
+  at: Date,
+) {
+  const row = subscriptions.find((sub) => {
+    if (sub.userId !== userId || !["TRIALING", "ACTIVE", "PAST_DUE", "CANCELLED", "EXPIRED"].includes(sub.status)) return false;
+    const start = sub.currentPeriodStart ?? sub.createdAt;
+    const end = sub.currentPeriodEnd ?? sub.cancelledAt;
+    return start <= at && (!end || end >= at);
+  });
+  const key = row?.planKey?.toLowerCase();
+  if (key?.includes("premium")) return "premium";
+  if (key?.includes("plus")) return "plus";
+  return "free";
 }
 
 export async function getDashboardAnalytics(period: AdminPeriod) {
@@ -301,6 +338,7 @@ export async function getProductCenterData(period: AdminPeriod) {
     events,
     users,
     results,
+    subscriptions,
     sessions,
     referrals,
     inviteVisits,
@@ -310,7 +348,7 @@ export async function getProductCenterData(period: AdminPeriod) {
   ] = await Promise.all([
     db.analyticsEvent.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
-      select: { event: true, createdAt: true },
+      select: { event: true, userId: true, sessionId: true, dialogueId: true, createdAt: true },
     }),
     db.user.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
@@ -318,9 +356,19 @@ export async function getProductCenterData(period: AdminPeriod) {
     }),
     db.productResult.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
-      select: { id: true, productKey: true, status: true, title: true, createdAt: true, user: { select: { name: true, email: true } } },
+      select: { id: true, userId: true, productKey: true, status: true, title: true, createdAt: true, user: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
       take: 200,
+    }),
+    db.userSubscription.findMany({
+      where: {
+        OR: [
+          { createdAt: { lte: period.end } },
+          { currentPeriodStart: { lte: period.end } },
+        ],
+      },
+      select: { userId: true, planKey: true, status: true, createdAt: true, currentPeriodStart: true, currentPeriodEnd: true, cancelledAt: true },
+      orderBy: { createdAt: "desc" },
     }),
     db.videoSession.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
@@ -344,14 +392,43 @@ export async function getProductCenterData(period: AdminPeriod) {
     db.review.count({ where: { status: { in: ["REVIEW", "HIDDEN"] } } }),
   ]);
 
-  const eventCounts = new Map<string, number>();
-  for (const event of events) addTo(eventCounts, event.event, 1);
+  const funnelStages = [
+    { key: "dialogue_created", label: "Создан диалог" },
+    { key: "primary_answer_viewed", label: "Ответ открыт" },
+    { key: "triage_primary_clicked", label: "CTA углубления" },
+    { key: "triage_subscription_clicked", label: "Подписка" },
+    { key: "credits_spend_clicked", label: "Баллы" },
+  ];
+  const stageIdentities = new Map<string, Set<string>>();
+  for (const stage of funnelStages) stageIdentities.set(stage.key, new Set());
+  for (const event of events) {
+    const identity = analyticsIdentity(event);
+    if (!identity) continue;
+    stageIdentities.get(event.event)?.add(identity);
+  }
+  let previous = new Set<string>();
+  const funnel = funnelStages.map((stage, index) => {
+    const current = stageIdentities.get(stage.key) ?? new Set<string>();
+    const identities = index === 0
+      ? current
+      : new Set([...current].filter((identity) => previous.has(identity)));
+    previous = identities;
+    return { label: stage.label, value: identities.size };
+  });
+
   const productByDay = new Map<string, Map<string, number>>();
+  const productPlanByDay = new Map<string, Map<string, { free: number; plus: number; premium: number }>>();
   for (const result of results) {
     const day = dayKey(result.createdAt);
     const map = productByDay.get(day) ?? new Map<string, number>();
     addTo(map, result.productKey, 1);
     productByDay.set(day, map);
+
+    const byProduct = productPlanByDay.get(result.productKey) ?? new Map<string, { free: number; plus: number; premium: number }>();
+    const bucket = byProduct.get(day) ?? { free: 0, plus: 0, premium: 0 };
+    bucket[activePlanAt(subscriptions, result.userId, result.createdAt)] += 1;
+    byProduct.set(day, bucket);
+    productPlanByDay.set(result.productKey, byProduct);
   }
   const referralDay = new Map<string, number>();
   const referralSubscriptionDay = new Map<string, number>();
@@ -366,13 +443,7 @@ export async function getProductCenterData(period: AdminPeriod) {
   for (const item of inviteVisits) addTo(topReferrers, item.invite.practitioner.user.name ?? item.invite.practitioner.user.email ?? "Не указан", 1);
 
   return {
-    funnel: [
-      { label: "Создан диалог", value: eventCounts.get("dialogue_created") ?? 0 },
-      { label: "Ответ открыт", value: eventCounts.get("primary_answer_viewed") ?? 0 },
-      { label: "CTA углубления", value: eventCounts.get("triage_primary_clicked") ?? 0 },
-      { label: "Подписка", value: eventCounts.get("triage_subscription_clicked") ?? 0 },
-      { label: "Баллы", value: eventCounts.get("credits_spend_clicked") ?? 0 },
-    ],
+    funnel,
     users,
     results,
     sessions,
@@ -383,13 +454,26 @@ export async function getProductCenterData(period: AdminPeriod) {
       topReferrers: [...topReferrers.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 10),
       productByDay: period.days.map((day) => {
         const map = productByDay.get(day);
+        const topKeys = [...new Set(results.map((result) => result.productKey))].slice(0, 3);
         return {
-          label: day.slice(5),
-          value: map?.get("reframe") ?? 0,
-          secondary: map?.get("deep-report") ?? 0,
-          tertiary: map?.get("chat-analysis") ?? 0,
+          label: chartDayLabel(day),
+          value: map?.get(topKeys[0] ?? "") ?? 0,
+          secondary: map?.get(topKeys[1] ?? "") ?? 0,
+          tertiary: map?.get(topKeys[2] ?? "") ?? 0,
         };
       }),
+      productByDayLabels: [...new Set(results.map((result) => result.productKey))].slice(0, 3).map(productLabel) as [string, string?, string?],
+      productUsageByProduct: [...productPlanByDay.entries()]
+        .map(([productKey, dayMap]) => ({
+          productKey,
+          label: productLabel(productKey),
+          total: [...dayMap.values()].reduce((sum, row) => sum + row.free + row.plus + row.premium, 0),
+          chart: period.days.map((day) => {
+            const row = dayMap.get(day) ?? { free: 0, plus: 0, premium: 0 };
+            return { label: chartDayLabel(day), value: row.free, secondary: row.plus, tertiary: row.premium };
+          }),
+        }))
+        .sort((a, b) => b.total - a.total),
     },
   };
 }

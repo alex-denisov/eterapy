@@ -84,7 +84,6 @@ const NAV_ITEMS: NavEntry[] = [
   { href: adminUrl("/admin/finance/reconciliation"), icon: FileSearch, label: "Сверка и импорт", superadminOnly: true },
   { href: adminUrl("/admin/finance/unit-economics"), icon: BarChart3,  label: "Юнит-экономика", superadminOnly: true },
   { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
-  { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Старые платежи", superadminOnly: true },
 
   { type: "group", key: "ops", label: "Система, AI и журналы" },
   { href: adminUrl("/admin/ops"),          icon: ServerCog,            label: "Операционный центр", permission: "system.read" },
@@ -204,7 +203,7 @@ export function AdminShell({
     <div data-testid="admin-shell" data-shell-role={role} className="soft-clarity-page soft-admin-shell flex min-h-screen">
       <aside
         data-testid="admin-shell-sidebar"
-        className="soft-admin-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
+        className="admin-shell-sidebar soft-admin-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
         style={{ top: "var(--header-height)" }}
       >
         {/* T10: logo intentionally omitted here — the public-shell-header
@@ -241,7 +240,7 @@ export function AdminShell({
             return (
             <Link key={item.href} href={item.href}
               data-testid="admin-shell-nav-item"
-              className={`soft-admin-nav-link flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+              className={`admin-shell-item soft-admin-nav-link flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
                 isActive(item.href)
                   ? "is-active font-medium"
                   : ""

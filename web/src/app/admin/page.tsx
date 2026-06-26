@@ -8,6 +8,7 @@ import {
   getDashboardAnalytics,
   resolveAdminPeriod,
 } from "./admin-analytics-data";
+import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToRub } from "./admin-currency";
 import {
   AdminHero,
   AnalyticsSection,
@@ -16,9 +17,9 @@ import {
   MetricGrid,
   PeriodToolbar,
   VerticalBarChart,
+  formatCompactRub,
   formatNumber,
   formatRub,
-  formatUsdMicros,
 } from "./admin-analytics-ui";
 
 type PageProps = {
@@ -33,8 +34,12 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const permissions = await getUserPermissions(session.user.id, role);
   const canViewBusiness = role === "SUPERADMIN" || permissions.includes("analytics.view");
   const period = resolveAdminPeriod(await searchParams);
-  const analytics = await getDashboardAnalytics(period);
+  const [analytics, currencyRates] = await Promise.all([
+    getDashboardAnalytics(period),
+    getAdminCurrencyRates(period.end),
+  ]);
   const { totals, charts } = analytics;
+  const aiCostRubByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToRub(point.value, currencyRates) ?? 0 }));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-analytics-dashboard">
@@ -49,7 +54,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
       <MetricGrid>
         <MetricCard href="#economy" label="Финансы" value={formatRub(totals.revenueRub)} hint={`Возвраты: ${formatRub(totals.refundsRub)}`} />
         <MetricCard href="#product" label="Продукт и клиенты" value={formatNumber(totals.clientsTotal)} hint={`Бронирований за период: ${formatNumber(totals.bookings)}`} />
-        <MetricCard href="#ai-system" label="AI и система" value={formatUsdMicros(totals.aiCostMicros)} hint={`${formatNumber(totals.aiTokens)} токенов`} />
+        <MetricCard href="#ai-system" label="AI и система" value={formatAdminAiCostRub(totals.aiCostMicros, currencyRates)} hint={`${formatNumber(totals.aiTokens)} токенов · ${formatCbrRateLabel(currencyRates)}`} />
         <MetricCard href="#risk" label="Риски и очередь" value={formatNumber(totals.complaintsOpen + totals.applicationsPending + totals.reviewsPending + totals.jobsFailed)} hint="Жалобы, заявки, отзывы, failed jobs" tone={totals.jobsFailed > 0 ? "warn" : "neutral"} />
       </MetricGrid>
 
@@ -101,7 +106,12 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
         <AnalyticsSection id="ai-system" title="AI, токены и системная устойчивость" actionHref="/admin/ops" actionLabel="Открыть систему">
           <div className="grid gap-4 xl:grid-cols-2">
-            <VerticalBarChart label="AI cost по дням" unit=" μ$" data={charts.aiCostByDay} />
+            <VerticalBarChart
+              label="AI-затраты по дням"
+              unit=" ₽"
+              data={aiCostRubByDay}
+              valueFormatter={(value) => `${formatCompactRub(value)} ₽`}
+            />
             <VerticalBarChart label="Токены по дням" data={charts.aiTokensByDay} />
           </div>
         </AnalyticsSection>

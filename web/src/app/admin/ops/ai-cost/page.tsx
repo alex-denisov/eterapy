@@ -2,22 +2,17 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlertTriangle, BrainCircuit, Clock3, DollarSign, Gauge, Hash } from "lucide-react";
+import { AlertTriangle, BrainCircuit, Clock3, CircleDollarSign, Gauge, Hash } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
-import { aiBudgetPeriod } from "@/lib/ai-gateway/domain";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
-import { AdminOpsMetric, AdminOpsSection, formatNumber, formatPercent, formatUsdMicros } from "../ops-ui";
+import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates } from "../../admin-currency";
+import { PeriodToolbar, StatusBadge } from "../../admin-analytics-ui";
+import { resolveAdminPeriod } from "../../admin-analytics-data";
+import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber, formatPercent } from "../ops-ui";
 
-type SearchParams = {
-  date?: string;
-};
-
-function normalizeDate(value: string | undefined) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return aiBudgetPeriod();
-  return value;
-}
+type SearchParams = Record<string, string | string[] | undefined>;
 
 function featureTitle(feature: string) {
   const known: Record<string, string> = {
@@ -52,8 +47,11 @@ export default async function AdminOpsAICostPage(props: {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("ai.configure")) redirect("/admin");
 
-  const period = normalizeDate(params.date);
-  const data = await getAIControlCenterData(period, { includeSecrets: role === "SUPERADMIN" });
+  const period = resolveAdminPeriod(params);
+  const [data, currencyRates] = await Promise.all([
+    getAIControlCenterData(period.endInput, { includeSecrets: role === "SUPERADMIN" }),
+    getAdminCurrencyRates(period.end),
+  ]);
   const totals = data.usageDetails.reduce(
     (acc, row) => {
       acc.requests += row.requestCount;
@@ -102,20 +100,17 @@ export default async function AdminOpsAICostPage(props: {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-eyebrow">AI usage · {period}</p>
+          <p className="premium-eyebrow">AI usage · {period.startInput} — {period.endInput}</p>
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">AI-затраты и токены</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Ежедневный контроль фактических токенов, денег, ошибок, latency и распределения расходов по продуктам, провайдерам и моделям.
+            Контроль фактических токенов, рублевых затрат, ошибок, времени ответа и распределения расходов по продуктам, провайдерам и моделям.
           </p>
         </div>
-        <form className="flex items-center gap-2" action="/admin/ops/ai-cost">
-          <input className="soft-admin-table-filter h-9 w-40" type="date" name="date" defaultValue={period} />
-          <button className="soft-admin-action h-9" type="submit">Показать</button>
-        </form>
+        <PeriodToolbar basePath="/admin/ops/ai-cost" start={period.startInput} end={period.endInput} />
       </div>
 
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <AdminOpsMetric icon={DollarSign} label="Расход" value={formatUsdMicros(totals.cost)} hint="Факт по стоимости моделей AI-центра" tone={totals.cost > 0 ? "neutral" : "ok"} />
+        <AdminOpsMetric icon={CircleDollarSign} label="Расход" value={formatAdminAiCostRub(totals.cost, currencyRates)} hint={`Факт по стоимости моделей AI-центра · ${formatCbrRateLabel(currencyRates)}`} tone={totals.cost > 0 ? "neutral" : "ok"} />
         <AdminOpsMetric icon={Hash} label="Токены" value={formatNumber(totals.tokens)} hint={`${formatNumber(totals.prompt)} prompt, ${formatNumber(totals.completion)} completion`} />
         <AdminOpsMetric icon={BrainCircuit} label="Запросы" value={formatNumber(totals.requests)} hint={`${formatNumber(totals.attempts)} попыток маршрутизации`} />
         <AdminOpsMetric icon={AlertTriangle} label="Ошибки" value={formatPercent(errorRate)} hint={`${formatNumber(errors)} неуспешных попыток`} tone={statusTone(errorRate)} />
@@ -131,7 +126,7 @@ export default async function AdminOpsAICostPage(props: {
               <div key={row.feature}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium">{featureTitle(row.feature)}</span>
-                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatUsdMicros(row.cost)}</span>
+                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCostRub(row.cost, currencyRates)}</span>
                 </div>
                 <div className="h-8 overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
                   <div
@@ -154,7 +149,7 @@ export default async function AdminOpsAICostPage(props: {
               <div key={row.provider}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium">{row.provider}</span>
-                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatUsdMicros(row.cost)}</span>
+                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCostRub(row.cost, currencyRates)}</span>
                 </div>
                 <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
                   <div
@@ -182,7 +177,7 @@ export default async function AdminOpsAICostPage(props: {
                 <th>Запросы</th>
                 <th>Токены</th>
                 <th>Стоимость</th>
-                <th>Latency</th>
+                <th>Время ответа</th>
               </tr>
             </thead>
             <tbody>
@@ -191,10 +186,10 @@ export default async function AdminOpsAICostPage(props: {
                   <td>{featureTitle(row.feature)}</td>
                   <td>{row.provider}</td>
                   <td>{row.model}</td>
-                  <td>{row.status}</td>
+                  <td><StatusBadge status={row.status} /></td>
                   <td className="tabular-nums">{formatNumber(row.requestCount)}</td>
                   <td className="tabular-nums">{formatNumber(row.totalTokens)}</td>
-                  <td className="tabular-nums">{formatUsdMicros(row.costMicros)}</td>
+                  <td className="tabular-nums">{formatAdminAiCostRub(row.costMicros, currencyRates)}</td>
                   <td className="tabular-nums">{row.avgLatencyMs ? `${formatNumber(Math.round(row.avgLatencyMs))} ms` : "—"}</td>
                 </tr>
               ))}
@@ -227,14 +222,14 @@ export default async function AdminOpsAICostPage(props: {
               <tbody>
                 {recentInteractions.map((row) => (
                   <tr key={row.id}>
-                    <td>{new Date(row.createdAt).toLocaleString("ru-RU")}</td>
+                    <td>{formatDateTime(row.createdAt)}</td>
                     <td>{featureTitle(row.feature)}</td>
                     <td>{row.userLabel ?? row.userId ?? "—"}</td>
                     <td>{row.responseProvider ?? "—"}</td>
                     <td>{row.responseModel ?? "—"}</td>
-                    <td>{row.status}</td>
+                    <td><StatusBadge status={row.status} /></td>
                     <td className="tabular-nums">{formatNumber(row.totalTokens)}</td>
-                    <td className="tabular-nums">{formatUsdMicros(row.estimatedCostMicros)}</td>
+                    <td className="tabular-nums">{formatAdminAiCostRub(row.estimatedCostMicros, currencyRates)}</td>
                   </tr>
                 ))}
                 {recentInteractions.length === 0 && (

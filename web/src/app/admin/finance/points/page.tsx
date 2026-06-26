@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getDashboardAnalytics, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, DataTable, MetricCard, MetricGrid, PeriodToolbar, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
+import { AdminHero, DataTable, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, VerticalBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
 import { FinanceExportMenu } from "../export-menu";
 
 type PageProps = {
@@ -46,14 +46,14 @@ export default async function FinancePointsPage({ searchParams }: PageProps) {
       <div className="mt-6 grid gap-4">
         <VerticalBarChart label="Баллы на балансе по дням: дневное изменение" data={charts.creditsByDay} />
         <DataTable
-          columns={["Timestamp", "Пользователь", "Баллы", "Тип", "Источник", "Статус", "Баланс после"]}
+          columns={["Дата и время", "Пользователь", "Баллы", "Тип", "Источник", "Статус", "Баланс после"]}
           rows={entries.map((entry) => [
             formatDateTime(entry.createdAt),
             <span key="user">{entry.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{entry.user.email}</span></span>,
             entry.amount,
-            entry.type,
+            statusLabel(entry.type),
             entry.source,
-            entry.status,
+            <StatusBadge key="status" status={entry.status} />,
             entry.balanceAfter ?? "—",
           ])}
         />

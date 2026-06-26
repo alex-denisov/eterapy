@@ -265,10 +265,10 @@ export default async function AdminUsersPage(props: {
   return (
     <PageContainer maxWidth="full" className="py-8">
       <div className="mb-6" data-testid="admin-users-unified-page">
-        <p className="premium-eyebrow">единый реестр</p>
-        <h1 className="premium-title mt-2 text-3xl md:text-4xl">Все пользователи</h1>
+        <p className="premium-eyebrow">продукт и клиенты</p>
+        <h1 className="premium-title mt-2 text-3xl md:text-4xl">Пользователи и сегменты</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Клиенты, практики, модераторы и суперадмины в одной таблице с быстрым редактированием.
+          Клиенты, практики, модераторы и суперадмины в одной таблице: статусы, канал регистрации, входы, баллы, подписки и быстрые действия.
         </p>
       </div>
 
