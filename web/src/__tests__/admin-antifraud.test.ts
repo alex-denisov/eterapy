@@ -35,9 +35,9 @@ describe("B220 admin anti-fraud dashboard", () => {
     expect(route).toContain("MANUAL_REVIEW_RESOLVED");
     expect(route).toContain("APPEAL_SUBMITTED");
     expect(route).toContain("appeal_submitted");
-    expect(panel).toContain("Manual review");
-    expect(panel).toContain("Appeal queue");
-    expect(panel).toContain("Evidence map");
+    expect(panel).toContain("Ручная проверка");
+    expect(panel).toContain("Апелляции");
+    expect(panel).toContain("Карта доказательств");
     expect(panel).toContain("Решено");
   });
 
@@ -49,8 +49,8 @@ describe("B220 admin anti-fraud dashboard", () => {
     expect(page).toContain("Риск-сигналы и апелляции");
     expect(page).not.toContain("premium-title");
     expect(panel).toContain('data-testid="admin-antifraud-v42-guardrails"');
-    expect(panel).toContain("meaningful action");
-    expect(panel).toContain("credit boundary");
-    expect(panel).toContain("practitioner trust");
+    expect(panel).toContain("значимое действие");
+    expect(panel).toContain("контур баллов");
+    expect(panel).toContain("доверие к практикам");
   });
 });
