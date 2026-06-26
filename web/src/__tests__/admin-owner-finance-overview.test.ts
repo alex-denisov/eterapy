@@ -34,4 +34,18 @@ describe("Admin owner finance overview", () => {
     expect(data).toContain('"session-stt": "Транскрипция сессии"');
     expect(data).toContain('replaceAll("_", "-")');
   });
+
+  it("renders admin charts as SVG and exposes the finance currency selector", () => {
+    const ui = source("src/app/admin/admin-analytics-ui.tsx");
+    const selector = source("src/app/admin/admin-currency-selector.tsx");
+    const finance = source("src/app/admin/finance/page.tsx");
+    const dashboard = source("src/app/admin/page.tsx");
+    expect(ui).toContain('data-testid="admin-vertical-bar-chart-svg"');
+    expect(ui).not.toContain("style={{ height:");
+    expect(selector).toContain("Валюта");
+    expect(selector).toContain("RUB · ₽");
+    expect(selector).toContain("USD · $");
+    expect(finance).toContain("<AdminCurrencySelector");
+    expect(dashboard).toContain("<AdminCurrencySelector");
+  });
 });

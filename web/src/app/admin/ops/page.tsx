@@ -17,7 +17,8 @@ import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { requestContextFromHeaders } from "@/lib/request-context";
 import { PageContainer } from "@/components/ui/page-container";
-import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates } from "../admin-currency";
+import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../admin-currency";
+import { AdminCurrencySelector } from "../admin-currency-selector";
 import {
   AdminOpsLinkCard,
   AdminOpsMetric,
@@ -38,13 +39,19 @@ function statusLabel(status: string) {
   return "требует внимания";
 }
 
-export default async function AdminOpsPage() {
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AdminOpsPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const session = await auth();
   const role = session?.user?.role ?? "";
   if (!session?.user?.id || !["ADMIN", "SUPERADMIN"].includes(role)) redirect("/admin");
 
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("system.read")) redirect("/admin");
+  const currency = resolveAdminCurrency(params);
 
   const oneDayAgo = new Date();
   oneDayAgo.setHours(oneDayAgo.getHours() - 24);
@@ -93,11 +100,15 @@ export default async function AdminOpsPage() {
             Центр ежедневного контроля платформы: здоровье сервисов, очереди, AI-расходы, уведомления, файлы, база данных, логи и риск-события.
           </p>
         </div>
-        <div className="soft-admin-status-pill w-fit gap-2 px-3 py-1.5 text-sm" data-tone={statusTone(status.status)}>
-          <ServerCog className="h-4 w-4" />
-          {statusLabel(status.status)}
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminCurrencySelector basePath="/admin/ops" currency={currency} />
+          <div className="soft-admin-status-pill w-fit gap-2 px-3 py-1.5 text-sm" data-tone={statusTone(status.status)}>
+            <ServerCog className="h-4 w-4" />
+            {statusLabel(status.status)}
+          </div>
         </div>
       </div>
+      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
 
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <AdminOpsMetric
@@ -117,8 +128,8 @@ export default async function AdminOpsPage() {
         <AdminOpsMetric
           icon={BrainCircuit}
           label="AI деньги"
-          value={formatAdminAiCostRub(aiCostMicros, currencyRates)}
-          hint={`${formatNumber(aiTokens)} токенов · ${formatCbrRateLabel(currencyRates)}`}
+          value={formatAdminAiCost(aiCostMicros, currencyRates, currency)}
+          hint={`${formatNumber(aiTokens)} токенов`}
           tone={aiCostMicros > 0 ? "neutral" : "ok"}
         />
         <AdminOpsMetric
@@ -147,7 +158,7 @@ export default async function AdminOpsPage() {
       <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <AdminOpsSection title="Рабочие инструменты блока">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCostRub(aiCostMicros, currencyRates)} hint="Детализация расхода по продуктам, моделям и статусам." />
+            <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCost(aiCostMicros, currencyRates, currency)} hint="Детализация расхода по продуктам, моделям и статусам." />
             <AdminOpsLinkCard href="/admin/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, routing, промты." />
             <AdminOpsLinkCard href="/admin/notifications" title="Уведомления" value={formatNumber(status.stats.notificationPreferences)} hint="Диагностика доставок, очереди notification.delivery, Telegram/email." />
             <AdminOpsLinkCard href="/admin/files" title="Файлы" value="просмотр" hint="Файловое хранилище, типы, владельцы, размеры, даты." />

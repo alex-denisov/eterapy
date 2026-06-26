@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type ActiveField = "start" | "end" | null;
 
@@ -89,6 +89,7 @@ function shiftMonth(anchorIso: string, delta: number) {
 
 export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string; start: string; end: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [startIso, setStartIso] = useState(start);
   const [endIso, setEndIso] = useState(end);
   const [startText, setStartText] = useState(toRu(start));
@@ -98,8 +99,17 @@ export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string;
 
   const days = useMemo(() => monthDays(monthIso), [monthIso]);
 
+  function buildParams(nextStart: string, nextEnd: string, period?: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("start", nextStart);
+    params.set("end", nextEnd);
+    if (period) params.set("period", period);
+    else params.delete("period");
+    return params;
+  }
+
   function navigate(nextStart = startIso, nextEnd = endIso) {
-    const params = new URLSearchParams({ start: nextStart, end: nextEnd });
+    const params = buildParams(nextStart, nextEnd);
     router.push(`${basePath}?${params.toString()}`);
   }
 
@@ -110,7 +120,7 @@ export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string;
     setStartText(toRu(next.start));
     setEndText(toRu(next.end));
     setMonthIso(next.start);
-    router.push(`${basePath}?period=${period}&start=${next.start}&end=${next.end}`);
+    router.push(`${basePath}?${buildParams(next.start, next.end, period).toString()}`);
   }
 
   function commitText(field: "start" | "end", value: string) {

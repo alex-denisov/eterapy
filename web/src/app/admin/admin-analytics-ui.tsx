@@ -208,38 +208,108 @@ export function VerticalBarChart({
   const max = Math.max(maxValue ?? 0, ...data.flatMap((item) => [item.value, item.secondary ?? 0, item.tertiary ?? 0]), 1);
   const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
   if (data.length === 0) return <EmptyState />;
+  const series = [
+    { key: "value" as const, label: seriesLabels?.[0] ?? "Значение", color: "var(--soft-bordeaux)" },
+    ...(data.some((item) => item.secondary !== undefined) ? [{ key: "secondary" as const, label: seriesLabels?.[1] ?? "Дополнительно", color: "var(--soft-terracotta)" }] : []),
+    ...(data.some((item) => item.tertiary !== undefined) ? [{ key: "tertiary" as const, label: seriesLabels?.[2] ?? "Третий показатель", color: "rgb(4 120 87)" }] : []),
+  ];
+  const left = 58;
+  const right = 16;
+  const top = 12;
+  const plotHeight = 212;
+  const bottom = 48;
+  const groupWidth = series.length > 1 ? 34 : 24;
+  const width = Math.max(760, left + right + data.length * groupWidth);
+  const height = top + plotHeight + bottom;
+  const plotWidth = width - left - right;
+  const tickValues = [max, max * 0.75, max * 0.5, max * 0.25, 0];
+  const labelStep = data.length > 60 ? 7 : data.length > 42 ? 5 : data.length > 24 ? 3 : data.length > 14 ? 2 : 1;
+  const innerGap = 2;
+  const barWidth = Math.max(3, Math.min(14, (groupWidth - 8 - innerGap * (series.length - 1)) / series.length));
+  const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
+
+  function yFor(value: number) {
+    return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
+  }
+
   return (
-    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
+    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4" data-testid="admin-vertical-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{label}</p> : <span />}
-        {seriesLabels ? (
+        {series.length > 1 ? (
           <div className="flex flex-wrap gap-3 text-[10px] text-[var(--soft-ink-soft)]">
-            <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-[var(--soft-bordeaux)]" />{seriesLabels[0]}</span>
-            {seriesLabels[1] ? <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-[var(--soft-terracotta)]" />{seriesLabels[1]}</span> : null}
-            {seriesLabels[2] ? <span className="inline-flex items-center gap-1"><i className="h-2 w-2 rounded-sm bg-emerald-600" />{seriesLabels[2]}</span> : null}
+            {series.map((item) => (
+              <span key={item.key} className="inline-flex items-center gap-1">
+                <i className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />
+                {item.label}
+              </span>
+            ))}
           </div>
         ) : null}
       </div>
-      <div className="relative h-64 border-l border-b border-[var(--soft-paper-edge)] pl-9">
-        <div className="pointer-events-none absolute inset-x-3 top-0 grid h-full grid-rows-4 text-[10px] text-[var(--soft-ink-faint)]">
-          {[max, max * 0.75, max * 0.5, max * 0.25].map((tick) => (
-            <div key={tick} className="border-t border-[var(--soft-paper-edge)]">
-              <span className="-ml-9 -translate-y-2 bg-[var(--soft-surface)] pr-1 tabular-nums">{formatValue(tick)}</span>
-            </div>
-          ))}
-        </div>
-        <div className="relative z-10 flex h-full items-end gap-0.5 overflow-x-auto pb-7">
-          {data.map((item) => (
-            <div key={item.label} className="flex min-w-5 flex-1 flex-col items-center justify-end gap-1">
-              <div className="flex h-full w-full items-end justify-center gap-0.5">
-                <span title={`${item.label}: ${formatValue(item.value)}`} className="w-2 rounded-t bg-[var(--soft-bordeaux)]" style={{ height: `${Math.max(2, (item.value / max) * 100)}%` }} />
-                {item.secondary !== undefined ? <span title={`${item.label}: ${formatValue(item.secondary)}`} className="w-2 rounded-t bg-[var(--soft-terracotta)]" style={{ height: `${Math.max(2, (item.secondary / max) * 100)}%` }} /> : null}
-                {item.tertiary !== undefined ? <span title={`${item.label}: ${formatValue(item.tertiary)}`} className="w-2 rounded-t bg-emerald-600" style={{ height: `${Math.max(2, (item.tertiary / max) * 100)}%` }} /> : null}
-              </div>
-              <span className="absolute bottom-1 origin-left rotate-[-35deg] text-[10px] text-[var(--soft-ink-faint)]">{item.label}</span>
-            </div>
-          ))}
-        </div>
+      <div className="overflow-x-auto">
+        <svg
+          role="img"
+          aria-label={label ?? "Гистограмма"}
+          className="block min-h-[272px] w-full min-w-[760px]"
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
+          data-testid="admin-vertical-bar-chart-svg"
+        >
+          <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" />
+          {tickValues.map((tick) => {
+            const y = yFor(tick);
+            return (
+              <g key={tick}>
+                <line x1={left} x2={width - right} y1={y} y2={y} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums">
+                  {formatValue(tick)}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          {data.map((item, index) => {
+            const groupX = left + index * (plotWidth / data.length);
+            const startX = groupX + (plotWidth / data.length - totalBarsWidth) / 2;
+            return (
+              <g key={item.label}>
+                {series.map((seriesItem, seriesIndex) => {
+                  const raw = item[seriesItem.key] ?? 0;
+                  const barHeight = raw > 0 ? Math.max(2, (raw / max) * plotHeight) : 0;
+                  const x = startX + seriesIndex * (barWidth + innerGap);
+                  const y = top + plotHeight - barHeight;
+                  return (
+                    <rect
+                      key={seriesItem.key}
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={barHeight}
+                      rx="2"
+                      fill={seriesItem.color}
+                      opacity={raw > 0 ? 0.96 : 0}
+                    >
+                      <title>{`${item.label}: ${formatValue(raw)}`}</title>
+                    </rect>
+                  );
+                })}
+                {index % labelStep === 0 || index === data.length - 1 ? (
+                  <text
+                    x={groupX + plotWidth / data.length / 2}
+                    y={top + plotHeight + 18}
+                    textAnchor="end"
+                    transform={`rotate(-35 ${groupX + plotWidth / data.length / 2} ${top + plotHeight + 18})`}
+                    className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums"
+                  >
+                    {item.label}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
       </div>
     </div>
   );

@@ -3,7 +3,8 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getDashboardAnalytics, resolveAdminPeriod } from "../admin-analytics-data";
-import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToRub } from "../admin-currency";
+import { adminCurrencyUnit, formatAdminAiCost, formatAdminCurrencyNumber, formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToDisplayCurrency, resolveAdminCurrency, rubToDisplayCurrency } from "../admin-currency";
+import { AdminCurrencySelector } from "../admin-currency-selector";
 import {
   AdminHero,
   AnalyticsSection,
@@ -12,9 +13,7 @@ import {
   MetricGrid,
   PeriodToolbar,
   VerticalBarChart,
-  formatCompactRub,
   formatNumber,
-  formatRub,
 } from "../admin-analytics-ui";
 import { FinanceExportMenu } from "./export-menu";
 
@@ -25,13 +24,18 @@ type PageProps = {
 export default async function AdminFinanceCenterPage({ searchParams }: PageProps) {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
-  const period = resolveAdminPeriod(await searchParams);
+  const params = await searchParams;
+  const period = resolveAdminPeriod(params);
+  const currency = resolveAdminCurrency(params);
   const [{ totals, charts }, currencyRates] = await Promise.all([
     getDashboardAnalytics(period),
     getAdminCurrencyRates(period.end),
   ]);
   const reportHref = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}`;
-  const aiCostRubByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToRub(point.value, currencyRates) ?? 0 }));
+  const aiCostByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
+  const revenueByDay = charts.revenueByDay.map((point) => ({ ...point, value: rubToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
+  const refundsByDay = charts.refundsByDay.map((point) => ({ ...point, value: rubToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
+  const paymentMix = charts.paymentMix.map((point) => ({ ...point, value: rubToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-finance-center">
@@ -41,17 +45,19 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
         actions={
           <>
             <FinanceExportMenu label="Скачать управленческий отчет" baseHref={reportHref} />
+            <AdminCurrencySelector basePath="/admin/finance" currency={currency} />
             <PeriodToolbar basePath="/admin/finance" start={period.startInput} end={period.endInput} />
           </>
         }
       >
         Управленческий учет, поступления, чеки ЮKassa, выплаты практикам, баллы, сверка и фактическая юнит-экономика.
       </AdminHero>
+      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
 
       <MetricGrid>
-        <MetricCard label="Поступления" value={formatRub(totals.revenueRub)} hint="Успешные транзакции" href="/admin/finance/receipts" />
-        <MetricCard label="Возвраты" value={formatRub(totals.refundsRub)} hint="Возвращенные и отрицательные операции" href="/admin/finance/receipts" tone={totals.refundsRub > 0 ? "warn" : "neutral"} />
-        <MetricCard label="AI-затраты" value={formatAdminAiCostRub(totals.aiCostMicros, currencyRates)} hint={`${formatNumber(totals.aiTokens)} токенов · ${formatCbrRateLabel(currencyRates)}`} href="/admin/finance/unit-economics" />
+        <MetricCard label="Поступления" value={formatAdminRub(totals.revenueRub, currency, currencyRates)} hint="Успешные транзакции" href="/admin/finance/receipts" />
+        <MetricCard label="Возвраты" value={formatAdminRub(totals.refundsRub, currency, currencyRates)} hint="Возвращенные и отрицательные операции" href="/admin/finance/receipts" tone={totals.refundsRub > 0 ? "warn" : "neutral"} />
+        <MetricCard label="AI-затраты" value={formatAdminAiCost(totals.aiCostMicros, currencyRates, currency)} hint={`${formatNumber(totals.aiTokens)} токенов`} href="/admin/finance/unit-economics" />
         <MetricCard label="Баллы вручную" value={formatNumber(totals.manualCredits)} hint="Отдельно от купленных баллов" href="/admin/finance/points" />
       </MetricGrid>
 
@@ -60,20 +66,21 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
           <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
             <VerticalBarChart
               label="Поступления и возвраты по дням"
-              unit=" ₽"
-              data={charts.revenueByDay.map((point, index) => ({ ...point, secondary: charts.refundsByDay[index]?.value ?? 0 }))}
+              unit={adminCurrencyUnit(currency)}
+              data={revenueByDay.map((point, index) => ({ ...point, secondary: refundsByDay[index]?.value ?? 0 }))}
               seriesLabels={["Поступления", "Возвраты"]}
+              valueFormatter={(value) => formatAdminCurrencyNumber(value, currency)}
             />
-            <HorizontalBars data={charts.paymentMix} unit=" ₽" />
+            <HorizontalBars data={paymentMix} unit={adminCurrencyUnit(currency)} />
           </div>
         </AnalyticsSection>
 
-        <AnalyticsSection title="AI-затраты в рублях" actionHref="/admin/finance/unit-economics" actionLabel="Юнит-экономика">
+        <AnalyticsSection title="AI-затраты" actionHref="/admin/finance/unit-economics" actionLabel="Юнит-экономика">
           <VerticalBarChart
-            label={formatCbrRateLabel(currencyRates)}
-            unit=" ₽"
-            data={aiCostRubByDay}
-            valueFormatter={(value) => `${formatCompactRub(value)} ₽`}
+            label="Фактические AI-затраты по дням"
+            unit={adminCurrencyUnit(currency)}
+            data={aiCostByDay}
+            valueFormatter={(value) => formatAdminCurrencyNumber(value, currency)}
           />
         </AnalyticsSection>
 

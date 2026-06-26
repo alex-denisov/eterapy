@@ -6,6 +6,9 @@ export type AdminCurrencyRates = {
   error?: string;
 };
 
+export const ADMIN_DISPLAY_CURRENCIES = ["RUB", "USD"] as const;
+export type AdminDisplayCurrency = (typeof ADMIN_DISPLAY_CURRENCIES)[number];
+
 const CBR_DAILY_URL = "https://www.cbr.ru/scripts/XML_daily.asp";
 
 function formatCbrDate(value: Date) {
@@ -63,14 +66,51 @@ export function microsUsdToRub(value: number, rates: AdminCurrencyRates | null |
   return (value / 1_000_000) * rates.usdRub;
 }
 
-export function formatAdminAiCostRub(value: number, rates: AdminCurrencyRates | null | undefined) {
-  const rub = microsUsdToRub(value, rates);
-  if (rub === null) return "Курс ЦБ недоступен";
+export function resolveAdminCurrency(params: Record<string, string | string[] | undefined> = {}): AdminDisplayCurrency {
+  const raw = Array.isArray(params.currency) ? params.currency[0] : params.currency;
+  return raw === "USD" ? "USD" : "RUB";
+}
+
+export function rubToDisplayCurrency(valueRub: number, currency: AdminDisplayCurrency, rates: AdminCurrencyRates | null | undefined) {
+  if (currency === "RUB") return valueRub;
+  if (!rates?.usdRub) return null;
+  return valueRub / rates.usdRub;
+}
+
+export function microsUsdToDisplayCurrency(value: number, currency: AdminDisplayCurrency, rates: AdminCurrencyRates | null | undefined) {
+  if (currency === "USD") return value / 1_000_000;
+  return microsUsdToRub(value, rates);
+}
+
+export function formatAdminMoney(value: number | null, currency: AdminDisplayCurrency) {
+  if (value === null) return "Курс ЦБ недоступен";
   return new Intl.NumberFormat("ru-RU", {
     style: "currency",
-    currency: "RUB",
-    maximumFractionDigits: rub > 0 && rub < 100 ? 2 : 0,
-  }).format(rub);
+    currency,
+    maximumFractionDigits: value > 0 && value < 100 ? 2 : 0,
+  }).format(value);
+}
+
+export function formatAdminRub(valueRub: number, currency: AdminDisplayCurrency, rates: AdminCurrencyRates | null | undefined) {
+  return formatAdminMoney(rubToDisplayCurrency(valueRub, currency, rates), currency);
+}
+
+export function formatAdminAiCost(value: number, rates: AdminCurrencyRates | null | undefined, currency: AdminDisplayCurrency = "RUB") {
+  return formatAdminMoney(microsUsdToDisplayCurrency(value, currency, rates), currency);
+}
+
+export function formatAdminAiCostRub(value: number, rates: AdminCurrencyRates | null | undefined) {
+  return formatAdminAiCost(value, rates, "RUB");
+}
+
+export function adminCurrencyUnit(currency: AdminDisplayCurrency) {
+  return currency === "USD" ? " $" : " ₽";
+}
+
+export function formatAdminCurrencyNumber(value: number, currency: AdminDisplayCurrency) {
+  return `${new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: value > 0 && value < 100 ? 2 : 0,
+  }).format(value)}${adminCurrencyUnit(currency)}`;
 }
 
 export function formatCbrRateLabel(rates: AdminCurrencyRates | null | undefined) {

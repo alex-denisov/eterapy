@@ -7,7 +7,8 @@ import { auth } from "@/lib/auth";
 import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
-import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates } from "../../admin-currency";
+import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
+import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { PeriodToolbar, StatusBadge } from "../../admin-analytics-ui";
 import { resolveAdminPeriod } from "../../admin-analytics-data";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber, formatPercent } from "../ops-ui";
@@ -48,6 +49,7 @@ export default async function AdminOpsAICostPage(props: {
   if (!permissions.includes("ai.configure")) redirect("/admin");
 
   const period = resolveAdminPeriod(params);
+  const currency = resolveAdminCurrency(params);
   const [data, currencyRates] = await Promise.all([
     getAIControlCenterData(period.endInput, { includeSecrets: role === "SUPERADMIN" }),
     getAdminCurrencyRates(period.end),
@@ -106,11 +108,15 @@ export default async function AdminOpsAICostPage(props: {
             Контроль фактических токенов, рублевых затрат, ошибок, времени ответа и распределения расходов по продуктам, провайдерам и моделям.
           </p>
         </div>
-        <PeriodToolbar basePath="/admin/ops/ai-cost" start={period.startInput} end={period.endInput} />
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminCurrencySelector basePath="/admin/ops/ai-cost" currency={currency} />
+          <PeriodToolbar basePath="/admin/ops/ai-cost" start={period.startInput} end={period.endInput} />
+        </div>
       </div>
+      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
 
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <AdminOpsMetric icon={CircleDollarSign} label="Расход" value={formatAdminAiCostRub(totals.cost, currencyRates)} hint={`Факт по стоимости моделей AI-центра · ${formatCbrRateLabel(currencyRates)}`} tone={totals.cost > 0 ? "neutral" : "ok"} />
+        <AdminOpsMetric icon={CircleDollarSign} label="Расход" value={formatAdminAiCost(totals.cost, currencyRates, currency)} hint="Факт по стоимости моделей AI-центра" tone={totals.cost > 0 ? "neutral" : "ok"} />
         <AdminOpsMetric icon={Hash} label="Токены" value={formatNumber(totals.tokens)} hint={`${formatNumber(totals.prompt)} входящих, ${formatNumber(totals.completion)} исходящих`} />
         <AdminOpsMetric icon={BrainCircuit} label="Запросы" value={formatNumber(totals.requests)} hint={`${formatNumber(totals.attempts)} попыток маршрутизации`} />
         <AdminOpsMetric icon={AlertTriangle} label="Ошибки" value={formatPercent(errorRate)} hint={`${formatNumber(errors)} неуспешных попыток`} tone={statusTone(errorRate)} />
@@ -126,7 +132,7 @@ export default async function AdminOpsAICostPage(props: {
               <div key={row.feature}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium">{featureTitle(row.feature)}</span>
-                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCostRub(row.cost, currencyRates)}</span>
+                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCost(row.cost, currencyRates, currency)}</span>
                 </div>
                 <div className="h-8 overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
                   <div
@@ -149,7 +155,7 @@ export default async function AdminOpsAICostPage(props: {
               <div key={row.provider}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium">{row.provider}</span>
-                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCostRub(row.cost, currencyRates)}</span>
+                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCost(row.cost, currencyRates, currency)}</span>
                 </div>
                 <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
                   <div
@@ -189,7 +195,7 @@ export default async function AdminOpsAICostPage(props: {
                   <td><StatusBadge status={row.status} /></td>
                   <td className="tabular-nums">{formatNumber(row.requestCount)}</td>
                   <td className="tabular-nums">{formatNumber(row.totalTokens)}</td>
-                  <td className="tabular-nums">{formatAdminAiCostRub(row.costMicros, currencyRates)}</td>
+                  <td className="tabular-nums">{formatAdminAiCost(row.costMicros, currencyRates, currency)}</td>
                   <td className="tabular-nums">{row.avgLatencyMs ? `${formatNumber(Math.round(row.avgLatencyMs))} ms` : "—"}</td>
                 </tr>
               ))}
@@ -229,7 +235,7 @@ export default async function AdminOpsAICostPage(props: {
                     <td>{row.responseModel ?? "—"}</td>
                     <td><StatusBadge status={row.status} /></td>
                     <td className="tabular-nums">{formatNumber(row.totalTokens)}</td>
-                    <td className="tabular-nums">{formatAdminAiCostRub(row.estimatedCostMicros, currencyRates)}</td>
+                    <td className="tabular-nums">{formatAdminAiCost(row.estimatedCostMicros, currencyRates, currency)}</td>
                   </tr>
                 ))}
                 {recentInteractions.length === 0 && (

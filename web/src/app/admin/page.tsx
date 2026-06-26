@@ -8,7 +8,8 @@ import {
   getDashboardAnalytics,
   resolveAdminPeriod,
 } from "./admin-analytics-data";
-import { formatAdminAiCostRub, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToRub } from "./admin-currency";
+import { adminCurrencyUnit, formatAdminAiCost, formatAdminCurrencyNumber, formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToDisplayCurrency, resolveAdminCurrency, rubToDisplayCurrency } from "./admin-currency";
+import { AdminCurrencySelector } from "./admin-currency-selector";
 import {
   AdminHero,
   AnalyticsSection,
@@ -17,9 +18,7 @@ import {
   MetricGrid,
   PeriodToolbar,
   VerticalBarChart,
-  formatCompactRub,
   formatNumber,
-  formatRub,
 } from "./admin-analytics-ui";
 
 type PageProps = {
@@ -33,28 +32,34 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
   const permissions = await getUserPermissions(session.user.id, role);
   const canViewBusiness = role === "SUPERADMIN" || permissions.includes("analytics.view");
-  const period = resolveAdminPeriod(await searchParams);
+  const params = await searchParams;
+  const period = resolveAdminPeriod(params);
+  const currency = resolveAdminCurrency(params);
   const [analytics, currencyRates] = await Promise.all([
     getDashboardAnalytics(period),
     getAdminCurrencyRates(period.end),
   ]);
   const { totals, charts } = analytics;
-  const aiCostRubByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToRub(point.value, currencyRates) ?? 0 }));
+  const aiCostByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
+  const revenueByDay = charts.revenueByDay.map((point) => ({ ...point, value: rubToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
+  const refundsByDay = charts.refundsByDay.map((point) => ({ ...point, value: rubToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
+  const paymentMix = charts.paymentMix.map((point) => ({ ...point, value: rubToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-analytics-dashboard">
       <AdminHero
         eyebrow="рабочий стол"
         title="Обзор платформы"
-        actions={<PeriodToolbar basePath="/admin" start={period.startInput} end={period.endInput} />}
+        actions={<><AdminCurrencySelector basePath="/admin" currency={currency} /><PeriodToolbar basePath="/admin" start={period.startInput} end={period.endInput} /></>}
       >
         Ежедневный контроль экономики, продукта, практиков, AI-затрат, баллов и операционных рисков.
       </AdminHero>
+      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
 
       <MetricGrid>
-        <MetricCard href="#economy" label="Финансы" value={formatRub(totals.revenueRub)} hint={`Возвраты: ${formatRub(totals.refundsRub)}`} />
+        <MetricCard href="#economy" label="Финансы" value={formatAdminRub(totals.revenueRub, currency, currencyRates)} hint={`Возвраты: ${formatAdminRub(totals.refundsRub, currency, currencyRates)}`} />
         <MetricCard href="#product" label="Продукт и клиенты" value={formatNumber(totals.clientsTotal)} hint={`Бронирований за период: ${formatNumber(totals.bookings)}`} />
-        <MetricCard href="#ai-system" label="AI и система" value={formatAdminAiCostRub(totals.aiCostMicros, currencyRates)} hint={`${formatNumber(totals.aiTokens)} токенов · ${formatCbrRateLabel(currencyRates)}`} />
+        <MetricCard href="#ai-system" label="AI и система" value={formatAdminAiCost(totals.aiCostMicros, currencyRates, currency)} hint={`${formatNumber(totals.aiTokens)} токенов`} />
         <MetricCard href="#risk" label="Риски и очередь" value={formatNumber(totals.complaintsOpen + totals.applicationsPending + totals.reviewsPending + totals.jobsFailed)} hint="Жалобы, заявки, отзывы, failed jobs" tone={totals.jobsFailed > 0 ? "warn" : "neutral"} />
       </MetricGrid>
 
@@ -64,16 +69,18 @@ export default async function AdminPage({ searchParams }: PageProps) {
             <div className="grid gap-4 xl:grid-cols-[1.3fr_0.7fr]">
               <VerticalBarChart
                 label="Оборот и возвраты по календарным дням"
-                unit=" ₽"
-                data={charts.revenueByDay.map((point, index) => ({
+                unit={adminCurrencyUnit(currency)}
+                data={revenueByDay.map((point, index) => ({
                   ...point,
-                  secondary: charts.refundsByDay[index]?.value ?? 0,
+                  secondary: refundsByDay[index]?.value ?? 0,
                 }))}
+                seriesLabels={["Оборот", "Возвраты"]}
+                valueFormatter={(value) => formatAdminCurrencyNumber(value, currency)}
               />
               <div className="grid gap-3">
-                <MetricCard label="Сессии завершены" value={formatNumber(totals.completedBookings)} hint={`Оборот сессий: ${formatRub(totals.completedBookingsRevenue)}`} />
+                <MetricCard label="Сессии завершены" value={formatNumber(totals.completedBookings)} hint={`Оборот сессий: ${formatAdminRub(totals.completedBookingsRevenue, currency, currencyRates)}`} />
                 <MetricCard label="Активные подписки" value={formatNumber(totals.activeSubscriptions)} hint="Клиентские и продуктовые подписки" />
-                <HorizontalBars data={charts.paymentMix} unit=" ₽" />
+                <HorizontalBars data={paymentMix} unit={adminCurrencyUnit(currency)} />
               </div>
             </div>
           ) : (
@@ -108,9 +115,9 @@ export default async function AdminPage({ searchParams }: PageProps) {
           <div className="grid gap-4 xl:grid-cols-2">
             <VerticalBarChart
               label="AI-затраты по дням"
-              unit=" ₽"
-              data={aiCostRubByDay}
-              valueFormatter={(value) => `${formatCompactRub(value)} ₽`}
+              unit={adminCurrencyUnit(currency)}
+              data={aiCostByDay}
+              valueFormatter={(value) => formatAdminCurrencyNumber(value, currency)}
             />
             <VerticalBarChart label="Токены по дням" data={charts.aiTokensByDay} />
           </div>
