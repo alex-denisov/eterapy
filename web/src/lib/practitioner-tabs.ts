@@ -26,6 +26,11 @@ export const PRACTITIONER_TABS: PractitionerTab[] = [
 
 export const DEFAULT_PRACTITIONER_TAB: PractitionerTabId = "psy-coach";
 
+/** Type guard for a catalog tab id coming from an untrusted source (URL query). */
+export function isPractitionerTabId(value: string | null | undefined): value is PractitionerTabId {
+  return value === "psy-coach" || value === "esoteric" || value === "all";
+}
+
 /**
  * Deep-link `?format=` query value → catalog tab. Keeps the practitioner CTA on
  * product pages connected to the filtered grid view. Esoteric sub-types
@@ -70,8 +75,50 @@ export function firstNonEmptyTab(allCats: string[][]): PractitionerTabId {
   return DEFAULT_PRACTITIONER_TAB;
 }
 
-/** Initial tab: an explicit ?format= deep-link wins; otherwise smart-default. */
-export function resolveInitialTab(allCats: string[][], formatParam: string | null): PractitionerTabId {
+/**
+ * Initial tab. Precedence (B460):
+ *   1. an explicit `?tab=` — the user's last catalog choice, pinned into the URL
+ *      so it survives a profile open + browser back / shareable reload;
+ *   2. an inbound `?format=` deep-link from a product-page CTA;
+ *   3. the smart-default (first non-empty tab).
+ */
+export function resolveInitialTab(
+  allCats: string[][],
+  formatParam: string | null,
+  tabParam?: string | null,
+): PractitionerTabId {
+  if (isPractitionerTabId(tabParam)) return tabParam;
   if (formatParam && FORMAT_TO_TAB[formatParam]) return FORMAT_TO_TAB[formatParam];
   return firstNonEmptyTab(allCats);
+}
+
+/**
+ * B460: the query string the grid pins (via `history.replaceState`) when a tab
+ * is picked — sets `?tab=`, preserves unrelated params (e.g. `sort`), and drops
+ * the inbound-only `?format=` hint so the explicit tab token governs the
+ * round-trip back from a profile.
+ */
+export function tabQueryString(currentSearch: string, id: PractitionerTabId): string {
+  const params = new URLSearchParams(currentSearch);
+  params.set("tab", id);
+  params.delete("format");
+  return params.toString();
+}
+
+/**
+ * B460: relative `/practitioners` URL (with its filter query) derived from a
+ * profile's `document.referrer`, so the back-arrow returns to the filtered list.
+ * Returns null when the referrer is missing, cross-origin, or not the catalog —
+ * the caller then falls back to the bare path.
+ */
+export function listHrefFromReferrer(referrer: string, origin: string): string | null {
+  if (!referrer) return null;
+  try {
+    const url = new URL(referrer);
+    if (url.origin !== origin) return null;
+    if (url.pathname !== "/practitioners") return null;
+    return url.pathname + url.search;
+  } catch {
+    return null;
+  }
 }
