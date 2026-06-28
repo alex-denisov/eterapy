@@ -1,5 +1,7 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import db from "@/lib/db";
 import { PractitionerStatus } from "@prisma/client";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
@@ -27,6 +29,7 @@ async function getPractitioners() {
       categories: p.categories,
       directions: p.directions,
       specialties: p.specialties as string[],
+      tags: p.tags,
       pricePerSession: minRate?.priceRub ?? p.pricePerSession,
       minDuration: minRate?.durationMin ?? 50,
       verified: p.verified,
@@ -64,24 +67,27 @@ export default async function PractitionersPage() {
             </p>
           </div>
 
+          {/* B457 (item 7): not «dead» chips — a short note + one real CTA into
+              the «Эзотерика» tab. Same checks (verification, ethics, price) apply. */}
           <div className="soft-card-flat p-5" style={{ maxWidth: 320 }}>
-            <p className="soft-eyebrow mb-3">дополнительные форматы</p>
-            <div className="flex flex-wrap gap-2">
-              {["Таро", "Астрология", "Нумерология", "Психология + эзотерика", "Обучение"].map((label) => (
-                <span key={label} className="soft-chip soft-chip-warm" style={{ fontSize: 12, padding: "5px 10px" }}>
-                  {label}
-                </span>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-[var(--soft-ink-faint)]">
-              Каталог расширяется постепенно: проверка, этический кодекс и цена до записи обязательны для всех форматов.
+            <p className="soft-eyebrow mb-2">не только психология</p>
+            <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              Таро, астрология, нумерология и другие практики — для тех, кому ближе
+              символический язык. Те же проверка и этический кодекс, цена видна до записи.
             </p>
+            <Link
+              href="/practitioners?format=esoteric#specialists"
+              className="soft-button soft-button-ghost mt-4 inline-flex text-sm"
+            >
+              Смотреть эзотерику
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Grid with filters */}
-      <section className="soft-shell py-8">
+      <section id="specialists" className="soft-shell py-8" style={{ scrollMarginTop: 84 }}>
         <PractitionersGrid practitioners={practitioners} />
       </section>
     </main>

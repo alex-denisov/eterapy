@@ -4,39 +4,18 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { BadgeCheck, ArrowRight } from "lucide-react";
-import { SPECIALTY_LABELS as CANONICAL_SPECIALTY_LABELS } from "@/lib/types";
-import { effectiveCategories, directionLabel } from "@/lib/practitioner-taxonomy";
+import { practitionerHelpChips } from "@/lib/practitioner-chips";
+import {
+  PRACTITIONER_TABS as TABS,
+  type PractitionerTabId as TabId,
+  FORMAT_TO_TAB,
+  tabCategories,
+  resolveInitialTab,
+} from "@/lib/practitioner-tabs";
 
-// B379 (M26): каталог специалистов открывается на вкладке «Психология и
-// коучинг» (дефолт); эзотерика — отдельная вкладка. Универсалов (психология +
-// эзотерика) подсвечивает бейдж и они попадают в обе релевантные вкладки.
-type TabId = "psy-coach" | "esoteric" | "all";
-
-const TABS: Array<{ id: TabId; label: string; match: (cats: string[]) => boolean }> = [
-  { id: "psy-coach", label: "Психология и коучинг", match: (c) => c.includes("psychology") || c.includes("coaching") },
-  { id: "esoteric", label: "Эзотерика", match: (c) => c.includes("esoteric") },
-  { id: "all", label: "Все специалисты", match: () => true },
-];
-
-const DEFAULT_TAB: TabId = "psy-coach";
-
-// Map of deep-link `?format=` query values to a catalog tab. Keeps the
-// practitioner CTA on product pages connected to the filtered grid view.
-// Esoteric sub-types (tarot/astro/numerology) all route to the «Эзотерика» tab.
-const FORMAT_TO_TAB: Record<string, TabId> = {
-  psychology: "psy-coach",
-  psy: "psy-coach",
-  coaching: "psy-coach",
-  coach: "psy-coach",
-  legal: "all",
-  finance: "all",
-  tarot: "esoteric",
-  astrology: "esoteric",
-  astro: "esoteric",
-  numerology: "esoteric",
-  numero: "esoteric",
-  esoteric: "esoteric",
-};
+// B379 (M26): каталог открывается на «Психология и коучинг» (дефолт); эзотерика —
+// отдельная вкладка; универсалы попадают в обе. Tab logic + B457 smart-default
+// (never render an empty catalog on load) live in lib/practitioner-tabs.
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #E8C4B8, #F4D5C8)",
@@ -47,19 +26,6 @@ const AVATAR_GRADIENTS = [
   "linear-gradient(140deg, #DBD3EA, #F4D5C8)",
 ];
 
-// V8: the six enum categories use the canonical labels (lib/types) so cards
-// match the practitioner profile editor and the admin modal; the extra
-// free-text psychology labels below stay for legacy/seed specialties.
-const SPECIALTY_LABELS: Record<string, string> = {
-  ...CANONICAL_SPECIALTY_LABELS,
-  RELATIONSHIPS: "Отношения",
-  SELF_ESTEEM: "Самооценка",
-  ANXIETY: "Тревога",
-  CAREER: "Карьера",
-  FAMILY: "Семья",
-  FINANCE: "Финансы",
-};
-
 type Practitioner = {
   id: string;
   slug: string;
@@ -69,6 +35,7 @@ type Practitioner = {
   categories?: string[];
   directions?: string[];
   specialties: string[];
+  tags?: string[];
   pricePerSession: number;
   minDuration: number;
   verified: boolean;
@@ -77,20 +44,24 @@ type Practitioner = {
   sessionCount: number;
 };
 
-function normalizeSpecialty(s: string) {
-  return SPECIALTY_LABELS[s] ?? s.toLocaleLowerCase("ru-RU");
-}
-
-/** Chips shown on a card: prefer the W3 directions, fall back to legacy specialties. */
-function cardChips(p: Practitioner): string[] {
-  if (p.directions && p.directions.length > 0) return p.directions.map(directionLabel);
-  return p.specialties.map(normalizeSpecialty);
-}
-
 export function PractitionersGrid({ practitioners }: { practitioners: Practitioner[] }) {
   const searchParams = useSearchParams();
   const formatParam = searchParams.get("format");
-  const initialTab: TabId = (formatParam && FORMAT_TO_TAB[formatParam]) || DEFAULT_TAB;
+
+  const withCat = practitioners.map((p, i) => {
+    // tabCategories expands the legacy "joint" category to psychology+esoteric.
+    const cats = tabCategories({ categories: p.categories, specialties: p.specialties, title: p.title });
+    return {
+      ...p,
+      cats,
+      universal: cats.includes("psychology") && cats.includes("esoteric"),
+      gradIdx: i % AVATAR_GRADIENTS.length,
+    };
+  });
+
+  // B457 smart-default: ?format= deep-link wins; otherwise the first tab that
+  // actually has specialists, so the catalog never renders empty on first load.
+  const initialTab: TabId = resolveInitialTab(withCat.map((p) => p.cats), formatParam);
   const [tab, setTab] = useState<TabId>(initialTab);
   const [sort, setSort] = useState("rec");
 
@@ -104,21 +75,6 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
     }
     // We intentionally re-evaluate when the URL search param changes.
   }, [formatParam, tab]);
-
-  const withCat = practitioners.map((p, i) => {
-    const rawCats = effectiveCategories({ categories: p.categories, specialties: p.specialties, title: p.title }) as string[];
-    // M26/B367: legacy "joint" category practitioners are psychology+esoteric
-    // universals; the closed joint-session service is replaced by a badge.
-    const cats = rawCats.includes("joint")
-      ? [...new Set([...rawCats.filter((c) => c !== "joint"), "psychology", "esoteric"])]
-      : rawCats;
-    return {
-      ...p,
-      cats,
-      universal: cats.includes("psychology") && cats.includes("esoteric"),
-      gradIdx: i % AVATAR_GRADIENTS.length,
-    };
-  });
 
   const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0];
   const filtered = withCat.filter((p) => activeTab.match(p.cats));
@@ -185,6 +141,8 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
           const gradient = AVATAR_GRADIENTS[p.gradIdx];
           const displayRating = p.reviewCount > 0 ? (p.rating).toFixed(1) : null;
           const displayName = p.name ?? "Специалист";
+          // B457: tasks-first chips that add info instead of echoing the title.
+          const chips = practitionerHelpChips(p).slice(0, 3);
 
             return (
             <article
@@ -250,9 +208,9 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
                     «{p.bio}»
                   </p>
                 )}
-                {cardChips(p).length > 0 && (
+                {chips.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    {cardChips(p).slice(0, 3).map((s) => (
+                    {chips.map((s) => (
                       <span key={s} className="soft-chip soft-chip-warm px-2 py-1 text-[11.5px]">
                         {s}
                       </span>

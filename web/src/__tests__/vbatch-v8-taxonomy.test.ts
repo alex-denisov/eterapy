@@ -29,10 +29,16 @@ describe("V8 — practitioner category taxonomy is a single canonical source", (
     expect(editor).toContain("Специализация и задачи");
   });
 
-  it("the public cards merge the canonical labels over legacy free-text labels", () => {
+  it("the public cards resolve chip labels through the shared canonical helper", () => {
+    // B457: the grid no longer keeps a local label copy — chips come from the
+    // shared lib/practitioner-chips helper, which sources canonical labels.
     const grid = read("src/app/practitioners/practitioners-grid.tsx");
-    expect(grid).toContain("CANONICAL_SPECIALTY_LABELS");
-    expect(grid).toContain("...CANONICAL_SPECIALTY_LABELS");
+    expect(grid).toContain("practitionerHelpChips");
+    expect(grid).toContain('from "@/lib/practitioner-chips"');
     expect(grid).not.toContain('PSYCHIC: "Интуитивные практики"');
+
+    const chips = read("src/lib/practitioner-chips.ts");
+    expect(chips).toContain('from "./types"');
+    expect(chips).toContain("SPECIALTY_LABELS");
   });
 });
