@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { type Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft, ShieldCheck, Zap } from "lucide-react";
+import { ShieldCheck, Zap } from "lucide-react";
 import db from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { PractitionerStatus } from "@prisma/client";
@@ -12,6 +12,7 @@ import { effectiveCategories, categoryLabel } from "@/lib/practitioner-taxonomy"
 import { practitionerHelpChips } from "@/lib/practitioner-chips";
 import { assertPractitionerBookingAllowed } from "@/lib/practitioner-compliance";
 import { SlotPicker } from "./slot-picker";
+import { PractitionerBackLink } from "./back-link";
 import { PractitionerReviews } from "./practitioner-reviews";
 import { APP_URL } from "@/lib/env";
 
@@ -149,16 +150,10 @@ export default async function PractitionerPage({
     <main className="soft-clarity-page soft-public-page">
       <section className="soft-shell py-10 md:py-14">
         {/* B458 (item 12): minimal round back-arrow (Tarot/library parity, B455 T17)
-            instead of a bulky chip. */}
+            instead of a bulky chip. B460 (item 16): the arrow returns to the
+            *filtered* catalog (referrer-aware client component). */}
         <div className="mb-6 flex items-center gap-1.5">
-          <Link
-            href="/practitioners"
-            aria-label="Все специалисты"
-            data-testid="practitioner-back"
-            className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
-          >
-            <ChevronLeft className="size-5" aria-hidden="true" />
-          </Link>
+          <PractitionerBackLink />
           <span className="text-xs uppercase tracking-[0.14em] text-[var(--soft-ink-faint)]">Специалисты</span>
         </div>
 

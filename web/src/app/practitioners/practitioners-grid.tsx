@@ -11,6 +11,8 @@ import {
   FORMAT_TO_TAB,
   tabCategories,
   resolveInitialTab,
+  isPractitionerTabId,
+  tabQueryString,
 } from "@/lib/practitioner-tabs";
 
 // B379 (M26): каталог открывается на «Психология и коучинг» (дефолт); эзотерика —
@@ -47,6 +49,7 @@ type Practitioner = {
 export function PractitionersGrid({ practitioners }: { practitioners: Practitioner[] }) {
   const searchParams = useSearchParams();
   const formatParam = searchParams.get("format");
+  const tabParam = searchParams.get("tab");
 
   const withCat = practitioners.map((p, i) => {
     // tabCategories expands the legacy "joint" category to psychology+esoteric.
@@ -59,22 +62,36 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
     };
   });
 
-  // B457 smart-default: ?format= deep-link wins; otherwise the first tab that
-  // actually has specialists, so the catalog never renders empty on first load.
-  const initialTab: TabId = resolveInitialTab(withCat.map((p) => p.cats), formatParam);
+  // Initial tab — B460: a pinned `?tab=` (user's last choice) wins; else the
+  // B457 smart-default (?format= deep-link, then first non-empty tab) so the
+  // catalog never renders empty on first load.
+  const initialTab: TabId = resolveInitialTab(withCat.map((p) => p.cats), formatParam, tabParam);
   const [tab, setTab] = useState<TabId>(initialTab);
   const [sort, setSort] = useState("rec");
 
-  // Keep the tab in sync if the user navigates between practitioner CTAs
-  // with different `?format=` query values without a full page reload.
-  useEffect(() => {
-    if (formatParam) {
-      const mapped = FORMAT_TO_TAB[formatParam];
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (mapped && mapped !== tab) setTab(mapped);
+  // B460: pin the active tab into the URL (`?tab=`) so it survives opening a
+  // profile + pressing back (and is shareable on reload). `history.replaceState`
+  // updates the address bar without re-running the force-dynamic server page and
+  // keeps a single catalog history entry (tab clicks aren't extra back-steps).
+  function selectTab(next: TabId) {
+    setTab(next);
+    if (typeof window !== "undefined") {
+      const qs = tabQueryString(window.location.search, next);
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}?${qs}`);
     }
-    // We intentionally re-evaluate when the URL search param changes.
-  }, [formatParam, tab]);
+  }
+
+  // Reconcile the tab when the URL changes externally: a cross-CTA `?format=`
+  // deep-link, or browser back restoring a pinned `?tab=` (B460).
+  useEffect(() => {
+    const desired = isPractitionerTabId(tabParam)
+      ? tabParam
+      : formatParam
+        ? FORMAT_TO_TAB[formatParam]
+        : undefined;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (desired && desired !== tab) setTab(desired);
+  }, [tabParam, formatParam, tab]);
 
   const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0];
   const filtered = withCat.filter((p) => activeTab.match(p.cats));
@@ -94,7 +111,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
               key={t.id}
               role="tab"
               className={["soft-chip transition-colors", tab === t.id ? "soft-chip-warm" : ""].join(" ")}
-              onClick={() => setTab(t.id)}
+              onClick={() => selectTab(t.id)}
               aria-selected={tab === t.id}
             >
               {t.label}
@@ -125,7 +142,7 @@ export function PractitionersGrid({ practitioners }: { practitioners: Practition
             подписывает этический кодекс и показывает цену до записи.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <button type="button" className="soft-button soft-button-ghost" onClick={() => setTab("all")}>
+            <button type="button" className="soft-button soft-button-ghost" onClick={() => selectTab("all")}>
               Показать всех
             </button>
             <Link href="/checkin" className="soft-button soft-button-primary inline-flex">
