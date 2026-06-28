@@ -15,6 +15,7 @@ interface Practitioner {
   bio: string;
   experience: string;
   verified: boolean;
+  bookingOverrideEnabled: boolean;
   agentOfferAcceptedAt: string | null;
   agentOfferVersion: string | null;
   taxStatus: string;
@@ -74,6 +75,8 @@ export function PractitionerActionPanel({
   const [taxReviewStatus, setTaxReviewStatus] = useState(p.taxReviewStatus);
   const [taxRejectedReason, setTaxRejectedReason] = useState(p.taxStatusRejectedReason ?? "");
   const [savingTaxStatus, setSavingTaxStatus] = useState(false);
+  const [bookingOverride, setBookingOverride] = useState(p.bookingOverrideEnabled);
+  const [savingOverride, setSavingOverride] = useState(false);
 
   async function callUserAction(action: string, extra: Record<string, string> = {}) {
     const res = await fetch(`/api/admin/users/${p.userId}`, {
@@ -166,6 +169,24 @@ export function PractitionerActionPanel({
       toast.error(d.error ?? "Ошибка");
     }
     setSavingTaxStatus(false);
+  }
+
+  async function saveBookingOverride(enabled: boolean) {
+    setSavingOverride(true);
+    const res = await fetch(`/api/admin/practitioners/${p.id}/booking-override`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled }),
+    });
+    const d = await res.json();
+    if (d.ok) {
+      setBookingOverride(enabled);
+      toast.success(enabled ? "Запись включена вручную" : "Ручное включение записи снято");
+      onUpdate({ bookingOverrideEnabled: enabled } as Partial<Practitioner>);
+    } else {
+      toast.error(d.error ?? "Ошибка");
+    }
+    setSavingOverride(false);
   }
 
   async function triggerPayout() {
@@ -435,6 +456,33 @@ export function PractitionerActionPanel({
               <div className="mt-2 grid gap-1 text-[11px] text-muted-foreground sm:grid-cols-2">
                 <p>Оферта: <span className="text-foreground">{p.agentOfferAcceptedAt ? p.agentOfferVersion ?? "принята" : "не принята"}</span></p>
                 <p>Реквизиты: <span className="text-foreground">{p.payoutDetailsType ?? "нет"} · ИНН {p.payoutDetailsInn ?? "—"} · KYC {p.payoutDetailsKycStatus ?? "—"}</span></p>
+              </div>
+            </div>
+          )}
+
+          {/* B459: superadmin-only manual booking-enable override. Makes a vetted/
+              demo practitioner bookable without full requisites (bypasses agent
+              offer + tax status + payout details, never the active check). */}
+          {adminRole === "SUPERADMIN" && (
+            <div className="rounded-lg border border-border/30 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Ручное включение записи</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground leading-snug">
+                  {bookingOverride
+                    ? "Запись открыта вручную — клиенты могут бронировать в обход реквизитов."
+                    : "Запись закрыта до агентской оферты, налогового статуса и реквизитов выплат."}
+                </p>
+                <button
+                  onClick={() => saveBookingOverride(!bookingOverride)}
+                  disabled={savingOverride}
+                  className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs transition-colors disabled:opacity-40 ${
+                    bookingOverride
+                      ? "border-green-500/40 text-green-400 hover:bg-green-500/10"
+                      : "border-border/40 text-muted-foreground hover:border-primary/50 hover:text-primary"
+                  }`}
+                >
+                  {savingOverride ? "…" : bookingOverride ? "✓ Запись включена" : "Включить запись"}
+                </button>
               </div>
             </div>
           )}

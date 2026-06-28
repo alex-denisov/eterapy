@@ -64,6 +64,7 @@ export default async function AdminPractitionersPage() {
       sessionDuration: p.sessionDuration,
       commissionPercent: p.commissionPercent,
       verified: p.verified,
+      bookingOverrideEnabled: p.bookingOverrideEnabled,
       agentOfferAcceptedAt: p.agentOfferAcceptedAt?.toISOString() ?? null,
       agentOfferVersion: p.agentOfferVersion,
       taxStatus: p.taxStatus,

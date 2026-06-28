@@ -33,6 +33,10 @@ async function main() {
         specialties: [Specialty.ASTROLOGY, Specialty.NUMEROLOGY],
         tags: ["астрология", "нумерология", "таро"],
         verified: true,
+        // B459: demo practitioner is booking-enabled via the superadmin override
+        // (bypasses the commercial requisites gate so the booking flow works).
+        bookingOverrideEnabled: true,
+        bookingOverrideAt: new Date(),
         pricePerSession: 3000,
         reviewCount: 15,
         ratingSum: 75,
@@ -41,6 +45,8 @@ async function main() {
       update: {
         status: "ACTIVE",
         verified: true,
+        bookingOverrideEnabled: true,
+        bookingOverrideAt: new Date(),
       },
     });
     // Тарифы
@@ -115,6 +121,8 @@ async function main() {
           specialties: p.specialties,
           tags: p.specialties.map(s => s.toLowerCase()),
           verified: true,
+          bookingOverrideEnabled: true,
+          bookingOverrideAt: new Date(),
           pricePerSession: p.price,
           reviewCount: 10,
           ratingSum: 50,
