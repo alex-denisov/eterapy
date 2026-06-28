@@ -6,6 +6,7 @@ export const AGENT_OFFER_VERSION = "agent-offer-2026-06-18";
 export const practitionerComplianceSelect = {
   id: true,
   status: true,
+  bookingOverrideEnabled: true,
   agentOfferAcceptedAt: true,
   agentOfferVersion: true,
   taxStatus: true,
@@ -40,6 +41,17 @@ export function evaluatePractitionerCommercialGate(practitioner: PractitionerCom
   if (!practitioner || practitioner.status !== "ACTIVE") {
     reasons.push("practitioner_inactive");
   }
+
+  // B459 (walkthrough item 15): a superadmin can manually enable booking for a
+  // practitioner the platform has vetted out-of-band (demo/seed accounts, or a
+  // specialist cleared by support before the requisites flow lands). The override
+  // bypasses the COMMERCIAL requirements below (agent offer, tax status, payout
+  // details) but never the active-status check above — an inactive practitioner
+  // stays unbookable. Real practitioners still need full requisites to be paid out.
+  if (practitioner?.bookingOverrideEnabled) {
+    return { allowed: reasons.length === 0, reasons };
+  }
+
   if (!practitioner?.agentOfferAcceptedAt || practitioner.agentOfferVersion !== AGENT_OFFER_VERSION) {
     reasons.push("agent_offer_required");
   }

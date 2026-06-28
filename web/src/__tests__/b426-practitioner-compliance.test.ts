@@ -4,6 +4,7 @@ describe("B426 practitioner commercial compliance gate", () => {
   const base = {
     id: "practitioner-1",
     status: "ACTIVE" as const,
+    bookingOverrideEnabled: false,
     agentOfferAcceptedAt: new Date("2026-06-18T10:00:00.000Z"),
     agentOfferVersion: AGENT_OFFER_VERSION,
     taxStatus: "SELF_EMPLOYED" as const,

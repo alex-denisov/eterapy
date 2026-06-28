@@ -25,6 +25,10 @@ interface DemoPractitioner {
   reviewCount: number;
   rating: number;
   sessionCount: number;
+  // B459 (walkthrough item 15): true = verified + booking enabled via the superadmin
+  // override (commercial requisites bypassed for demos). One demo is left false to
+  // showcase the «Не верифицирован» + «запись скоро откроется» blocked state.
+  bookingReady: boolean;
 }
 
 const DEMO: DemoPractitioner[] = [
@@ -42,6 +46,7 @@ const DEMO: DemoPractitioner[] = [
     reviewCount: 38,
     rating: 4.9,
     sessionCount: 210,
+    bookingReady: true,
   },
   {
     email: "psy-gestalt@test.eterapy.com",
@@ -57,6 +62,7 @@ const DEMO: DemoPractitioner[] = [
     reviewCount: 26,
     rating: 4.8,
     sessionCount: 150,
+    bookingReady: true,
   },
   {
     email: "psy-family@test.eterapy.com",
@@ -72,6 +78,7 @@ const DEMO: DemoPractitioner[] = [
     reviewCount: 41,
     rating: 4.9,
     sessionCount: 260,
+    bookingReady: true,
   },
   {
     email: "psy-emdr@test.eterapy.com",
@@ -87,6 +94,7 @@ const DEMO: DemoPractitioner[] = [
     reviewCount: 19,
     rating: 4.8,
     sessionCount: 110,
+    bookingReady: true,
   },
   {
     email: "coach-career@test.eterapy.com",
@@ -102,6 +110,7 @@ const DEMO: DemoPractitioner[] = [
     reviewCount: 22,
     rating: 4.7,
     sessionCount: 130,
+    bookingReady: true,
   },
   {
     email: "coach-life@test.eterapy.com",
@@ -117,6 +126,9 @@ const DEMO: DemoPractitioner[] = [
     reviewCount: 17,
     rating: 4.8,
     sessionCount: 90,
+    // B459: left unverified + booking-blocked on purpose — demonstrates the
+    // «Не верифицирован» badge and the «запись скоро откроется» notice.
+    bookingReady: false,
   },
 ];
 
@@ -161,7 +173,9 @@ async function main() {
         specialties: [],
         tags: d.tags,
         languages: d.languages,
-        verified: true,
+        verified: d.bookingReady,
+        bookingOverrideEnabled: d.bookingReady,
+        bookingOverrideAt: d.bookingReady ? new Date() : null,
         pricePerSession: d.price,
         reviewCount: d.reviewCount,
         ratingSum: Math.round(d.rating * d.reviewCount * 10) / 10,
@@ -178,7 +192,9 @@ async function main() {
         specialties: [],
         tags: d.tags,
         languages: d.languages,
-        verified: true,
+        verified: d.bookingReady,
+        bookingOverrideEnabled: d.bookingReady,
+        bookingOverrideAt: d.bookingReady ? new Date() : null,
         pricePerSession: d.price,
         reviewCount: d.reviewCount,
         ratingSum: Math.round(d.rating * d.reviewCount * 10) / 10,

@@ -26,6 +26,7 @@ interface Practitioner {
   sessionDuration: number;
   commissionPercent: number;
   verified: boolean;
+  bookingOverrideEnabled: boolean;
   agentOfferAcceptedAt: string | null;
   agentOfferVersion: string | null;
   taxStatus: string;

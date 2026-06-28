@@ -10,6 +10,7 @@ import { PractitionerStatus } from "@prisma/client";
 import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
 import { effectiveCategories, categoryLabel } from "@/lib/practitioner-taxonomy";
 import { practitionerHelpChips } from "@/lib/practitioner-chips";
+import { assertPractitionerBookingAllowed } from "@/lib/practitioner-compliance";
 import { SlotPicker } from "./slot-picker";
 import { PractitionerReviews } from "./practitioner-reviews";
 import { APP_URL } from "@/lib/env";
@@ -110,6 +111,13 @@ export default async function PractitionerPage({
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
   const cameFromRecommendation = Boolean(query?.dialogueId);
+
+  // B459 (walkthrough item 15): only show the booking flow when the commercial gate
+  // passes (active + agent offer + tax status + payout requisites, OR a superadmin
+  // booking-enable override). Otherwise the client would fill the whole form and be
+  // rejected with a 409 on submit — show a gentle notice instead.
+  const bookingGate = await assertPractitionerBookingAllowed(p.id);
+  const bookingAllowed = bookingGate.allowed;
 
   // B379: «контекст встречи». Спрашиваем при первой записи к специалисту;
   // повторная запись к тому же специалисту — без повторного запроса. Контекст
@@ -325,30 +333,50 @@ export default async function PractitionerPage({
                   «Формат сессии» внутри SlotPicker и меняются при переключении.
                   Прежний статичный подзаголовок с длительностью/ценой убран —
                   он не обновлялся при смене формата и дублировал переключатель. */}
-              <div className="mt-6">
-                <SlotPicker
-                  practitionerId={p.id}
-                  practitionerName={p.user.name}
-                  askContext={askContext}
-                  prefillContext={prefillContext}
-                />
-              </div>
+              {bookingAllowed ? (
+                <>
+                  <div className="mt-6">
+                    <SlotPicker
+                      practitionerId={p.id}
+                      practitionerName={p.user.name}
+                      askContext={askContext}
+                      prefillContext={prefillContext}
+                    />
+                  </div>
 
-              <div className="mt-4 text-xs text-[var(--soft-ink-faint)] text-center">
-                Оплата после подтверждения слота. Можно отменить за 24 часа.
-              </div>
+                  <div className="mt-4 text-xs text-[var(--soft-ink-faint)] text-center">
+                    Оплата после подтверждения слота. Можно отменить за 24 часа.
+                  </div>
 
-              {/* B353/Интерфейс 10 (2): make priority booking visible. Premium
-                  gets early access to slots + waitlist promotion when full —
-                  previously a backend-only benefit with no surface here. */}
-              <Link
-                href={`${APP_URL}/cabinet/billing`}
-                className="mt-3 flex items-center gap-2 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] px-3 py-2 text-xs leading-snug text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)]"
-                data-testid="priority-booking-hint"
-              >
-                <Zap className="size-3.5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-                <span><span style={{ fontWeight: 600 }}>Приоритетная запись</span> — ранний доступ к слотам и место в листе ожидания на Premium.</span>
-              </Link>
+                  {/* B353/Интерфейс 10 (2): make priority booking visible. Premium
+                      gets early access to slots + waitlist promotion when full —
+                      previously a backend-only benefit with no surface here. */}
+                  <Link
+                    href={`${APP_URL}/cabinet/billing`}
+                    className="mt-3 flex items-center gap-2 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] px-3 py-2 text-xs leading-snug text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)]"
+                    data-testid="priority-booking-hint"
+                  >
+                    <Zap className="size-3.5 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                    <span><span style={{ fontWeight: 600 }}>Приоритетная запись</span> — ранний доступ к слотам и место в листе ожидания на Premium.</span>
+                  </Link>
+                </>
+              ) : (
+                /* B459: practitioner not yet commercially enabled — no slot UI, no
+                   dead-end 409. A gentle notice keeps the profile honest. */
+                <div
+                  className="mt-6 rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)] p-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]"
+                  data-testid="booking-unavailable-notice"
+                >
+                  <p style={{ fontWeight: 600, color: "var(--soft-bordeaux)" }}>Запись скоро откроется</p>
+                  <p className="mt-1.5 text-[var(--soft-ink-faint)]">
+                    Специалист завершает проверку документов и реквизитов. Загляните чуть позже —
+                    или выберите другого специалиста из каталога.
+                  </p>
+                  <Link href="/practitioners" className="soft-chip mt-3 inline-flex">
+                    ← Все специалисты
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* v4: ethics card-flat */}
