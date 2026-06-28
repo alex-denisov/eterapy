@@ -179,6 +179,9 @@ describe("Z20 booking route priority gates", () => {
     (mockDb.practitioner.findUnique as jest.Mock).mockResolvedValue(activePractitioner());
     (mockDb.timeSlot.findUnique as jest.Mock).mockResolvedValue(earlySlot());
     (mockDb.timeSlot.update as jest.Mock).mockResolvedValue({});
+    // B458 (item 14): default to a repeat booking so the priority-gate tests don't
+    // trip the first-booking required-context rule. Context cases override this.
+    (mockDb.booking.findFirst as jest.Mock).mockResolvedValue({ id: "prev-booking" });
     mockDb.__tx.booking.create.mockResolvedValue({
       id: "booking-1",
       clientId: "client-1",
@@ -216,6 +219,35 @@ describe("Z20 booking route priority gates", () => {
       data: expect.objectContaining({
         priority: 100,
       }),
+    }));
+  });
+
+  // B458 (item 14): meeting context is required server-side on a first booking
+  // with a new practitioner; a repeat booking may omit it.
+  it("rejects a first booking when meeting context is missing", async () => {
+    mockGetUserActivePlan.mockResolvedValue({ key: "premium" } as never);
+    (mockDb.booking.findFirst as jest.Mock).mockResolvedValueOnce(null); // нет прошлой записи
+
+    const response = await createBooking(request({ practitionerId: "prac-1", slotId: "slot-early" }));
+
+    expect(response.status).toBe(400);
+    expect(mockDb.timeSlot.update).not.toHaveBeenCalled();
+    expect(mockDb.__tx.booking.create).not.toHaveBeenCalled();
+  });
+
+  it("accepts a first booking when meeting context is provided", async () => {
+    mockGetUserActivePlan.mockResolvedValue({ key: "premium" } as never);
+    (mockDb.booking.findFirst as jest.Mock).mockResolvedValueOnce(null);
+
+    const response = await createBooking(
+      request({ practitionerId: "prac-1", slotId: "slot-early", meetingContext: "тревога перед собеседованием" }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(mockDb.__tx.booking.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ meetingContext: "тревога перед собеседованием" }),
     }));
   });
 });

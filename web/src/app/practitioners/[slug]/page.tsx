@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { type Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck, Zap } from "lucide-react";
+import { ChevronLeft, ShieldCheck, Zap } from "lucide-react";
 import db from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { PractitionerStatus } from "@prisma/client";
@@ -148,10 +148,19 @@ export default async function PractitionerPage({
   return (
     <main className="soft-clarity-page soft-public-page">
       <section className="soft-shell py-10 md:py-14">
-        {/* v4: chip back button */}
-        <Link href="/practitioners" className="soft-chip mb-6 inline-flex">
-          ← Все специалисты
-        </Link>
+        {/* B458 (item 12): minimal round back-arrow (Tarot/library parity, B455 T17)
+            instead of a bulky chip. */}
+        <div className="mb-6 flex items-center gap-1.5">
+          <Link
+            href="/practitioners"
+            aria-label="Все специалисты"
+            data-testid="practitioner-back"
+            className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
+          >
+            <ChevronLeft className="size-5" aria-hidden="true" />
+          </Link>
+          <span className="text-xs uppercase tracking-[0.14em] text-[var(--soft-ink-faint)]">Специалисты</span>
+        </div>
 
         {/* v4: 2-col grid 1.4fr / 1fr */}
         <div className="grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-start">
@@ -202,6 +211,7 @@ export default async function PractitionerPage({
                 </div>
                 <div className="mt-1 text-sm text-[var(--soft-ink-soft)]">
                   {p.title} · работает онлайн
+                  {p.languages && p.languages.length > 0 && ` · ${p.languages.join(", ")}`}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                   {displayRating && (
@@ -233,20 +243,12 @@ export default async function PractitionerPage({
               </p>
             </div>
 
-            {/* Интерфейс 7: "образование и опыт" сразу после "обо мне" */}
-            <div className="soft-card-flat mt-4 p-5">
-              <p className="soft-eyebrow">образование и опыт</p>
-              <div className="mt-3 flex flex-col gap-2 text-sm text-[var(--soft-ink-soft)]">
-                {p.experience && <div>Опыт: {p.experience}</div>}
-                {p.languages && p.languages.length > 0 && (
-                  <div>Языки: {p.languages.join(", ")}</div>
-                )}
-                <div>Верификация пройдена ETerapy</div>
-              </div>
-            </div>
+            {/* B458 (item 12): dropped the redundant «образование и опыт» card —
+                experience is a header badge, verification is the header badge, and
+                languages now live in the header meta line. */}
 
             {/* B457: "с чем помогаю" — single tasks-first chip row (consistent
-                style, no dups). Языки live only in "образование и опыт" above. */}
+                style, no dups). */}
             {helpChips.length > 0 && (
               <div className="soft-card mt-4 p-5">
                 <p className="soft-eyebrow mb-3">с чем помогаю</p>
@@ -306,14 +308,14 @@ export default async function PractitionerPage({
             )}
           </div>
 
-          {/* ── Right column: sticky booking sidebar ── */}
-          {/* B353/Интерфейс 10 (5): a sticky element taller than the viewport
-              gets its lower part (calendar + slots + confirm) clipped and
-              unreachable. Cap the height to the viewport and let the booking
-              block scroll within itself so every control stays accessible. */}
+          {/* ── Right column: booking sidebar ── */}
+          {/* B458 (item 12): drop the inner vertical scroll + height cap that
+              created a nested scrollbar mismatched with the page. The panel is now
+              compact (calendar auto-selects the nearest date, redundant cards
+              removed), so it scrolls with the page; sticky just keeps it in view. */}
           <aside
-            className="self-start overflow-y-auto"
-            style={{ position: "sticky", top: 84, maxHeight: "calc(100vh - 100px)" }}
+            className="self-start"
+            style={{ position: "sticky", top: 84 }}
           >
             {/* v4: booking card */}
             <div className="soft-card p-7">

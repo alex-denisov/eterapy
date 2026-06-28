@@ -4,6 +4,7 @@ import db from "@/lib/db";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { canAccessPrioritySlot, isEarlyAccessSlot } from "@/lib/priority-booking";
 import { trackServerEvent } from "@/lib/analytics";
+import { generatePotentialSlots, slotsOverlap } from "@/lib/slot-availability";
 
 /**
  * GET /api/slots/available?practitionerId=xxx&date=2026-04-07&durationMin=60
@@ -35,27 +36,9 @@ export async function GET(req: NextRequest) {
   }
 
   // Все слоты рабочего дня с шагом durationMin, выровненные по интервалам
-  // 15 мин → :00, :15, :30, :45 | 30 мин → :00, :30 | 60 мин → :00
-  const ruleStartHour = rule.startHour;
-  const ruleStartMin = rule.startMinute;
-  const ruleEndHour = rule.endHour;
-  const ruleEndMin = rule.endMinute;
-
-  // Вычисляем выровненное время начала (округляем startMinute вверх до ближайшего интервала)
-  const alignedStartMin = Math.ceil(ruleStartMin / durationMin) * durationMin;
-  const alignedStartHour = alignedStartMin >= 60 ? ruleStartHour + 1 : ruleStartHour;
-  const finalStartMin = alignedStartMin >= 60 ? 0 : alignedStartMin;
-
-  const dayStart = new Date(dateStr + `T${String(alignedStartHour).padStart(2, "0")}:${String(finalStartMin).padStart(2, "0")}:00`);
-  const dayEnd   = new Date(dateStr + `T${String(ruleEndHour).padStart(2, "0")}:${String(ruleEndMin).padStart(2, "0")}:00`);
-
-  const potentialSlots: Array<{ startAt: Date; endAt: Date }> = [];
-  let cur = new Date(dayStart);
-  while (cur.getTime() + durationMin * 60000 <= dayEnd.getTime()) {
-    const slotEnd = new Date(cur.getTime() + durationMin * 60000);
-    potentialSlots.push({ startAt: new Date(cur), endAt: new Date(slotEnd) });
-    cur = new Date(cur.getTime() + durationMin * 60000);
-  }
+  // (15 мин → :00,:15,:30,:45 | 30 мин → :00,:30 | 60 мин → :00). B458: общая
+  // чистая функция, та же логика разделяется с месячной доступностью.
+  const potentialSlots = generatePotentialSlots(dateStr, rule, durationMin);
 
   if (potentialSlots.length === 0) return NextResponse.json({ slots: [] });
 
@@ -93,28 +76,25 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const isOverlapping = (s: Date, e: Date, blockS: Date, blockE: Date) =>
-    s < blockE && e > blockS;
-
   const now = new Date();
 
   const available = potentialSlots.filter(slot => {
     // В прошлом
     if (slot.startAt <= now) return false;
     // Заблокирован практиком
-    if (blocked.some(b => isOverlapping(slot.startAt, slot.endAt, b.startAt, b.endAt))) return false;
+    if (blocked.some(b => slotsOverlap(slot.startAt, slot.endAt, b.startAt, b.endAt))) return false;
     // Занят бронированием
-    if (bookedSlots.some(b => b.slot && isOverlapping(slot.startAt, slot.endAt, b.slot.startAt, b.slot.endAt))) return false;
+    if (bookedSlots.some(b => b.slot && slotsOverlap(slot.startAt, slot.endAt, b.slot.startAt, b.slot.endAt))) return false;
     // Помечен как unavailable ( TimeSlot.available === false )
-    if (unavailableSlots.some(u => isOverlapping(slot.startAt, slot.endAt, u.startAt, u.endAt))) return false;
+    if (unavailableSlots.some(u => slotsOverlap(slot.startAt, slot.endAt, u.startAt, u.endAt))) return false;
     // Persisted slots with early-access gates must not leak through generated availability.
-    const persistedSlot = persistedAvailableSlots.find(u => isOverlapping(slot.startAt, slot.endAt, u.startAt, u.endAt));
+    const persistedSlot = persistedAvailableSlots.find(u => slotsOverlap(slot.startAt, slot.endAt, u.startAt, u.endAt));
     if (persistedSlot && !canAccessPrioritySlot(persistedSlot, activePlan, now)) return false;
     return true;
   });
 
   const responseSlots = available.map(s => {
-    const persistedSlot = persistedAvailableSlots.find(u => isOverlapping(s.startAt, s.endAt, u.startAt, u.endAt));
+    const persistedSlot = persistedAvailableSlots.find(u => slotsOverlap(s.startAt, s.endAt, u.startAt, u.endAt));
     return {
       slotId: persistedSlot?.id,
       startAt: s.startAt.toISOString(),
