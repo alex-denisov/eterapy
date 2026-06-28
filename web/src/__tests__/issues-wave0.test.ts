@@ -18,12 +18,14 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
     expect(page).not.toContain('type="number"');
   });
 
-  it("D4: psychologist card states the correct 60-minute session", () => {
+  it("D4 / B455: specialist card states no fixed session length (duration is client-chosen)", () => {
     const catalog = source("src/components/products/service-catalog.tsx");
     const pricing = source("src/app/pricing/pricing-plans.tsx");
     expect(catalog).not.toContain("50 минут");
     expect(pricing).not.toContain("50 минут");
-    expect(catalog).toContain("60 минут онлайн");
+    // B455: dropped the misleading fixed "60 минут онлайн" — the client picks the length.
+    expect(catalog).not.toContain("60 минут онлайн");
+    expect(catalog).toContain("длительность встречи выбираете сами");
   });
 
   it("D3/D5: unified admin segmented control exists and replaces low-contrast toggles", () => {
