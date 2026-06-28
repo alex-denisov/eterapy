@@ -80,7 +80,7 @@ async function main() {
   }> = [
     { email: "tarot@test.eterapy.com", name: "Мария Крошевская", specialties: [Specialty.TAROT], price: 2500 },
     { email: "astrology@test.eterapy.com", name: "Ирина Звездная", specialties: [Specialty.ASTROLOGY], price: 3500 },
-    { email: "numerology@test.eterapy.com", name: "СветLanа Цифер", specialties: [Specialty.NUMEROLOGY], price: 2000 },
+    { email: "numerology@test.eterapy.com", name: "Светлана Цифер", specialties: [Specialty.NUMEROLOGY], price: 2000 },
     { email: "psychic@test.eterapy.com", name: "Ольга Интуи", specialties: [Specialty.PSYCHIC], price: 4000 },
     { email: "runes@test.eterapy.com", name: "Татьяна Руническая", specialties: [Specialty.RUNES], price: 2200 },
     { email: "dreams@test.eterapy.com", name: "Анна Сновидящая", specialties: [Specialty.DREAMS], price: 2800 },

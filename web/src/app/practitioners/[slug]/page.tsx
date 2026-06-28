@@ -8,8 +8,8 @@ import db from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { PractitionerStatus } from "@prisma/client";
 import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
-import { SPECIALTY_LABELS } from "@/lib/types";
-import { effectiveCategories, categoryLabel, directionLabel } from "@/lib/practitioner-taxonomy";
+import { effectiveCategories, categoryLabel } from "@/lib/practitioner-taxonomy";
+import { practitionerHelpChips } from "@/lib/practitioner-chips";
 import { SlotPicker } from "./slot-picker";
 import { PractitionerReviews } from "./practitioner-reviews";
 import { APP_URL } from "@/lib/env";
@@ -92,33 +92,20 @@ export default async function PractitionerPage({
   // Derive gradient from name length for variety
   const gradientIdx = p.user.name.length % AVATAR_GRADIENTS.length;
   const avatarGradient = AVATAR_GRADIENTS[gradientIdx];
-  // W3: three-level taxonomy — specialization badges, direction chips, task chips.
+  // W3: specialization badges in the header.
   const categoryNames = effectiveCategories({
     categories: p.categories,
     specialties: p.specialties as string[],
     title: p.title,
   }).map(categoryLabel);
-  const directionNames = (p.directions ?? []).map(directionLabel);
-  const rawHelpChips = directionNames.length > 0
-    ? directionNames
-    : (p.specialties as string[]).map((s) => SPECIALTY_LABELS[s] ?? s);
-  // Интерфейс 7: drop case-insensitive duplicate chips ("Астрология" vs
-  // "астрология") within help chips, and hide tags already shown as help chips
-  // or as category badges in the header.
-  const seenChips = new Set<string>();
-  const helpChips = rawHelpChips.filter((c) => {
-    const k = c.trim().toLowerCase();
-    if (!k || seenChips.has(k)) return false;
-    seenChips.add(k);
-    return true;
-  });
+  // B457 (items 9+10): one tasks-first «с чем помогаю» list — no title echo, no
+  // dups, consistent case + colour. Drop any chip already shown as a category badge.
   const badgeKeys = new Set(categoryNames.map((c) => c.trim().toLowerCase()));
-  const dedupedTags = p.tags.filter((tag) => {
-    const k = tag.trim().toLowerCase();
-    if (!k || seenChips.has(k) || badgeKeys.has(k)) return false;
-    seenChips.add(k);
-    return true;
-  });
+  const helpChips = practitionerHelpChips({
+    directions: p.directions,
+    specialties: p.specialties as string[],
+    tags: p.tags,
+  }).filter((c) => !badgeKeys.has(c.trim().toLowerCase()));
   const displayRating = rating > 0 ? rating.toFixed(1) : null;
   const priceDisplay = (firstRate?.priceRub ?? p.pricePerSession).toLocaleString("ru");
   const cameFromPrecheck = query?.source === "practitioner_precheck" || Boolean(query?.precheck);
@@ -250,25 +237,16 @@ export default async function PractitionerPage({
               </div>
             </div>
 
-            {/* v4 + W3: "с чем помогаю" — направления (warm) + задачи (plain) */}
-            {(helpChips.length > 0 || dedupedTags.length > 0) && (
+            {/* B457: "с чем помогаю" — single tasks-first chip row (consistent
+                style, no dups). Языки live only in "образование и опыт" above. */}
+            {helpChips.length > 0 && (
               <div className="soft-card mt-4 p-5">
                 <p className="soft-eyebrow mb-3">с чем помогаю</p>
                 <div className="flex flex-wrap gap-2">
                   {helpChips.map((s) => (
                     <span key={s} className="soft-chip soft-chip-warm">{s}</span>
                   ))}
-                  {dedupedTags.map((tag) => (
-                    <span key={tag} className="soft-chip">{tag}</span>
-                  ))}
                 </div>
-                {p.languages && p.languages.length > 0 && (
-                  <>
-                    <hr style={{ margin: "16px 0 12px", borderColor: "var(--soft-paper-edge)" }} />
-                    <p className="soft-eyebrow mb-2">языки</p>
-                    <p className="text-sm text-[var(--soft-ink-soft)]">{p.languages.join(", ")}</p>
-                  </>
-                )}
               </div>
             )}
 
