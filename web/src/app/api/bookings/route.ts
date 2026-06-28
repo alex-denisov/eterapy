@@ -25,7 +25,7 @@ import { log } from "@/lib/logger";
 import { APP_URL } from "@/lib/env";
 import { getUserActivePlan } from "@/lib/entitlements";
 import { bookingPriorityForPlan, canAccessPrioritySlot, promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
-import { sanitizeMeetingContext } from "@/lib/booking-context";
+import { validateMeetingContext } from "@/lib/booking-context";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,9 +130,6 @@ export async function POST(req: NextRequest) {
     const { practitionerId, slotId, slotStartAt, slotEndAt, priceOverride, meetingContext } = await req.json();
     if (!practitionerId) return NextResponse.json({ error: "practitionerId обязателен" }, { status: 400 });
 
-    // B379: «контекст встречи» — нормализуем на границе (тримминг, лимит длины).
-    const cleanMeetingContext = sanitizeMeetingContext(meetingContext);
-
     const practitioner = await db.practitioner.findUnique({
       where: { id: practitionerId },
       include: { user: { select: { name: true, email: true } } },
@@ -150,6 +147,19 @@ export async function POST(req: NextRequest) {
     }
     // Механика 10: an unverified (but ACTIVE) practitioner can still be booked;
     // the profile page surfaces a "не верифицирован" badge so the client knows.
+
+    // B379/B458 (item 14): «контекст встречи» нормализуем на границе и делаем
+    // ОБЯЗАТЕЛЬНЫМ при первой записи к специалисту (та же ветка, что askContext
+    // на профиле). Повторная запись к тому же специалисту — контекст необязателен.
+    const priorBooking = await db.booking.findFirst({
+      where: { clientId: session.user.id, practitionerId },
+      select: { id: true },
+    });
+    const contextCheck = validateMeetingContext(meetingContext, { required: !priorBooking });
+    if (!contextCheck.ok) {
+      return NextResponse.json({ error: contextCheck.error }, { status: 400 });
+    }
+    const cleanMeetingContext = contextCheck.value;
 
     const activePlan = await getUserActivePlan(session.user.id).catch(() => null);
     const bookingPriority = bookingPriorityForPlan(activePlan);

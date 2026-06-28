@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { appUrl, loginUrl } from "@/lib/subdomain";
-import { MEETING_CONTEXT_MAX } from "@/lib/booking-context";
+import { MEETING_CONTEXT_MAX, validateMeetingContext } from "@/lib/booking-context";
 
 interface PriceRate {
   durationMin: number;
@@ -25,7 +25,6 @@ const DURATION_LABELS: Record<number, string> = {
   60: "1 ч", 90: "1.5 ч", 120: "2 ч",
 };
 
-function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
@@ -33,19 +32,6 @@ function formatTime(iso: string) {
 /** "YYYY-MM-DD" in local timezone — avoids UTC off-by-one near midnight. */
 function localDateStr(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function getAvailableDates(month: number, year: number): Date[] {
-  const now = new Date();
-  const result: Date[] = [];
-  const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 0);
-  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
-    if (d >= new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
-      result.push(new Date(d));
-    }
-  }
-  return result;
 }
 
 const MONTH_NAMES = [
@@ -84,6 +70,14 @@ export function SlotPicker({
   const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState(false);
   const [meetingContext, setMeetingContext] = useState(prefillContext);
+  // B458 (item 14): обязательный контекст при первой записи (askContext).
+  const [contextError, setContextError] = useState<string | null>(null);
+  // B458 (items 12–13): реальная месячная доступность из /api/slots/month —
+  // подсветка только рабочих дней, авто-переход на первый месяц с записью и
+  // авто-выбор ближайшей даты (слоты видны сразу, без клика по календарю).
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [loadingMonth, setLoadingMonth] = useState(false);
+  const autoJumpDone = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -114,6 +108,40 @@ export function SlotPicker({
       window.clearTimeout(timer);
     };
   }, [practitionerId]);
+
+  // B458: месячная доступность — какие дни реально открыты + ближайшая дата.
+  useEffect(() => {
+    if (!selectedDuration) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setLoadingMonth(true);
+      fetch(`/api/slots/month?practitionerId=${practitionerId}&year=${selectedYear}&month=${selectedMonth}&durationMin=${selectedDuration}`)
+        .then(r => r.json())
+        .then(d => {
+          if (cancelled) return;
+          const dates: string[] = Array.isArray(d.availableDates) ? d.availableDates : [];
+          const earliest: string | null = d.earliestAvailableDate ?? null;
+          setAvailableDates(dates);
+          setLoadingMonth(false);
+
+          // Один авто-проход: пустой месяц + доступная дата дальше → перепрыгнуть.
+          const isFirstLoad = !autoJumpDone.current;
+          autoJumpDone.current = true;
+          if (isFirstLoad && dates.length === 0 && earliest) {
+            const [ey, em] = earliest.split("-").map(Number);
+            if (ey !== selectedYear || em - 1 !== selectedMonth) {
+              setSelectedMonth(em - 1);
+              setSelectedYear(ey);
+              return; // перезапрос для нового месяца авто-выберет дату
+            }
+          }
+          // Авто-выбор ближайшей даты месяца, если дата ещё не выбрана.
+          if (dates.length > 0) setSelectedDate(prev => prev ?? dates[0]);
+        })
+        .catch(() => { if (!cancelled) setLoadingMonth(false); });
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [practitionerId, selectedDuration, selectedMonth, selectedYear]);
 
   // Загружаем слоты при выборе даты + длительности
   useEffect(() => {
@@ -195,10 +223,24 @@ export function SlotPicker({
       }
       return;
     }
+    // B458 (item 14): контекст обязателен при первой записи к специалисту
+    // (askContext). Сервер дублирует проверку — это быстрый клиентский барьер.
+    if (askContext) {
+      const check = validateMeetingContext(meetingContext, { required: true });
+      if (!check.ok) {
+        setContextError(check.error);
+        toast.error(check.error);
+        document.getElementById("meeting-context")?.focus();
+        return;
+      }
+      setContextError(null);
+    }
     doBook();
   }
 
-  const monthDates = useMemo(() => getAvailableDates(selectedMonth, selectedYear), [selectedMonth, selectedYear]);
+  // B458: доступность дня берётся из месячного ответа сервера (реальные слоты),
+  // а не из «любой будущий день». Set — для быстрого поиска по строке даты.
+  const availableSet = useMemo(() => new Set(availableDates), [availableDates]);
 
   const calendarDays = useMemo(() => {
     const first = new Date(selectedYear, selectedMonth, 1);
@@ -212,18 +254,22 @@ export function SlotPicker({
     }
     for (let d = 1; d <= last.getDate(); d++) {
       const date = new Date(selectedYear, selectedMonth, d);
-      const isAvail = monthDates.some(ad => ad.getDate() === d && ad.getMonth() === selectedMonth && ad.getFullYear() === selectedYear);
+      const isAvail = availableSet.has(localDateStr(date));
       const isToday = date.toDateString() === new Date().toDateString();
       days.push({ date, isAvailable: isAvail, isToday });
     }
-    const remaining = 42 - days.length;
+    // B458 (item 13): дорисовываем только до конца последней недели месяца
+    // (5 недель, когда месяц укладывается) — без всегда-присутствующей 6-й
+    // строки серых дней следующего месяца.
+    const weeks = Math.ceil(days.length / 7);
+    const remaining = weeks * 7 - days.length;
     for (let i = 1; i <= remaining; i++) {
       const d = new Date(last);
       d.setDate(d.getDate() + i);
       days.push({ date: d, isAvailable: false, isToday: false });
     }
     return days;
-  }, [selectedYear, selectedMonth, monthDates]);
+  }, [selectedYear, selectedMonth, availableSet]);
 
   const selectedRate = rates.find(r => r.durationMin === selectedDuration);
   const isTodaySelected = selectedDate === todayDateStr;
@@ -250,8 +296,9 @@ export function SlotPicker({
 
   return (
       <div className="mt-4 space-y-5">
-        {/* B379: «контекст встречи» — спрашиваем только при первой записи к
-            специалисту (askContext). Повторная запись — без повторного запроса. */}
+        {/* B379/B458: «контекст встречи» — спрашиваем только при первой записи к
+            специалисту (askContext); при повторной — пропускаем. B458 (item 14):
+            при первой записи это поле ОБЯЗАТЕЛЬНО. */}
         {askContext && (
           <div data-testid="meeting-context-field">
             <label
@@ -259,19 +306,28 @@ export function SlotPicker({
               className="text-xs font-medium text-[var(--soft-ink-soft)] mb-2 block uppercase tracking-wide"
             >
               С чем хотите разобраться?
+              <span className="ml-1 text-[var(--soft-terracotta-dark)]" aria-hidden="true">*</span>
             </label>
             <textarea
               id="meeting-context"
               value={meetingContext}
-              onChange={(e) => setMeetingContext(e.target.value.slice(0, MEETING_CONTEXT_MAX))}
+              onChange={(e) => { setMeetingContext(e.target.value.slice(0, MEETING_CONTEXT_MAX)); if (contextError) setContextError(null); }}
               maxLength={MEETING_CONTEXT_MAX}
               rows={3}
-              placeholder="Коротко опишите ситуацию или вопрос — специалист увидит это в заявке. Необязательно."
-              className="w-full resize-none rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink)] placeholder:text-[var(--soft-ink-faint)]"
+              required
+              aria-invalid={contextError ? true : undefined}
+              placeholder="Коротко опишите ситуацию или вопрос — специалист увидит это в заявке и подготовится к встрече."
+              className={`w-full resize-none rounded-[var(--soft-radius-lg)] border bg-[var(--soft-paper-card)] px-3 py-2 text-sm text-[var(--soft-ink)] placeholder:text-[var(--soft-ink-faint)] ${
+                contextError ? "border-red-400" : "border-[var(--soft-paper-edge)]"
+              }`}
             />
-            <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
-              Виден только выбранному специалисту. {meetingContext.length}/{MEETING_CONTEXT_MAX}
-            </p>
+            {contextError ? (
+              <p className="mt-1 text-[11px] text-red-500" data-testid="meeting-context-error">{contextError}</p>
+            ) : (
+              <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
+                Виден только выбранному специалисту. {meetingContext.length}/{MEETING_CONTEXT_MAX}
+              </p>
+            )}
           </div>
         )}
 
@@ -331,7 +387,7 @@ export function SlotPicker({
                   <div key={day} className="text-[10px] font-medium text-[var(--soft-ink-soft)]/60 py-1">{day}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 gap-1">
+              <div className={`grid grid-cols-7 gap-1 transition-opacity ${loadingMonth ? "opacity-50" : ""}`}>
                 {calendarDays.map((day, idx) => {
                   const isSelected = selectedDate === localDateStr(day.date);
                   const thisMonth = day.date.getMonth() === selectedMonth;
@@ -366,6 +422,11 @@ export function SlotPicker({
                 })}
               </div>
             </div>
+            {!loadingMonth && availableDates.length === 0 && (
+              <p className="mt-2 text-[11px] text-[var(--soft-ink-faint)]" data-testid="month-no-availability">
+                В этом месяце свободных дат нет — посмотрите соседние месяцы стрелками выше.
+              </p>
+            )}
           </div>
         )}
 
