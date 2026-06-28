@@ -24,6 +24,7 @@ describe("v5 product pages", () => {
 
   it("keeps products canonical, flat, and still connected to the free dialogue", () => {
     const indexPage = source("app/products/page.tsx");
+    const catalog = source("components/products/service-catalog.tsx");
     const detailPage = source("app/products/[slug]/page.tsx");
     const shell = source("components/products/product-page-shell.tsx");
     const purchaseControls = source("components/products/product-purchase-controls.tsx");
@@ -37,8 +38,9 @@ describe("v5 product pages", () => {
     ].map(source).join("\n");
 
     expect(indexPage).toContain('data-testid="products-page"');
-    expect(indexPage).toContain('href="/checkin"');
-    expect(indexPage).toContain("открыть нужную услугу напрямую");
+    // B456: the free dialogue link now lives on the catalog's slim entry row.
+    expect(catalog).toContain("/checkin");
+    expect(indexPage).toContain("выберите то, что подходит сейчас");
     expect(shell).toContain('data-testid="product-service-start"');
     expect(detailPage).toContain("<ProductActionSurface");
     expect(detailPage).toContain("<ReframeActions");
