@@ -60,10 +60,10 @@ describe("B382 — topic→service CTA funnel", () => {
     }
   });
 
-  it("teaser microcopy follows the «первая часть бесплатно · полный за N баллов» pattern", () => {
+  it("teaser microcopy states the honest price only (no free-fragment promise, B454)", () => {
     const cta = resolveLibraryCta({ topic: "Хожу по кругу" }); // → Переосмысление, 1 балл, 299 ₽
     expect(cta.product).toBe("Переосмысление");
-    expect(cta.teaserNote).toBe("первая часть разбора бесплатно · полный — за 1 балл (299 ₽)");
+    expect(cta.teaserNote).toBe("разбор вашего вопроса — 1 балл (299 ₽)");
   });
 
   it("honours per-card ctaProduct override (Отношения → Вместе)", () => {

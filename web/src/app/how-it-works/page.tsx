@@ -23,10 +23,12 @@ const steps = [
   },
 ];
 
-const productGroups = [
-  ["Разобраться самому", "Переосмысление, подробный разбор, разбор переписки и решение вопроса в чате."],
-  ["Эзотерические форматы", "Таро, натальная карта и числовой портрет подаются как метафора, не как прогноз."],
-  ["Живой разговор", "Психолог, коуч, юрист или эзотерик. Цена видна до бронирования."],
+// Each card deep-links to its group anchor on /products (ids set on the
+// ServiceCatalog group <section>s): solo / esoteric / specialists.
+const productGroups: ReadonlyArray<readonly [string, string, string]> = [
+  ["Разобраться самому", "Переосмысление, подробный разбор, разбор переписки и решение вопроса в чате.", "/products#solo"],
+  ["Эзотерические форматы", "Таро, натальная карта и числовой портрет подаются как метафора, не как прогноз.", "/products#esoteric"],
+  ["Живой разговор", "Психолог, коуч, юрист или эзотерик. Цена видна до бронирования.", "/products#specialists"],
 ];
 
 export default function HowItWorksPage() {
@@ -108,11 +110,18 @@ export default function HowItWorksPage() {
             разбор переписки или встречу со специалистом, перейдите к нужному формату сразу.
           </p>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
-            {productGroups.map(([title, text]) => (
-              <div key={title} className="soft-card p-4">
-                <p className="font-semibold text-[var(--soft-bordeaux)]">{title}</p>
+            {productGroups.map(([title, text, href]) => (
+              <Link
+                key={title}
+                href={href}
+                className="soft-card group/grp block p-4 transition hover:border-[var(--soft-terracotta)] hover:shadow-[var(--soft-shadow-md)]"
+              >
+                <p className="flex items-center justify-between gap-2 font-semibold text-[var(--soft-bordeaux)]">
+                  {title}
+                  <ArrowRight className="size-4 shrink-0 opacity-0 transition group-hover/grp:opacity-100" aria-hidden="true" />
+                </p>
                 <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{text}</p>
-              </div>
+              </Link>
             ))}
           </div>
           <Link href="/products" className="soft-button soft-button-primary mt-6">
@@ -158,7 +167,7 @@ export default function HowItWorksPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-12 text-center" style={{ paddingBottom: 80 }}>
+        <div className="mt-10 text-center" style={{ paddingBottom: 16 }}>
           <Link
             href="/checkin"
             className="soft-button soft-button-primary"

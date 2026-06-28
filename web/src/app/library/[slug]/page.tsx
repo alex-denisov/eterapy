@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Lock } from "lucide-react";
+import { ArrowRight, ChevronLeft, Lock } from "lucide-react";
 import { Disclaimer } from "@/components/ui/disclaimer";
 import { canonicalUrl } from "@/lib/seo";
 import { mainUrl } from "@/lib/subdomain";
@@ -121,20 +121,30 @@ export default async function LibraryEntryPage({
       />
 
       <article className="soft-shell-narrow py-12 md:py-16">
-        <Link href="/library" className="soft-chip soft-chip-warm">
-          Назад в библиотеку
-        </Link>
+        {/* B454/T17: minimal back-arrow (Tarot parity) instead of a bulky chip;
+            the topic + similar-count meta moves under the title, not above it. */}
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="/library"
+            aria-label="Назад в библиотеку"
+            data-testid="library-entry-back"
+            className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
+          >
+            <ChevronLeft className="size-5" aria-hidden="true" />
+          </Link>
+          <span className="text-xs uppercase tracking-[0.14em] text-[var(--soft-ink-faint)]">Библиотека</span>
+        </div>
 
-        <header className="mt-8">
-          <div className="flex flex-wrap items-center gap-3">
+        <header className="mt-6">
+          <h1 className="max-w-3xl text-3xl italic leading-snug text-[var(--soft-bordeaux)] md:text-4xl" style={{ fontFamily: "var(--font-heading)" }}>
+            «{entry.question}»
+          </h1>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <span className="soft-chip">{entry.topic}</span>
             <span className="text-xs text-[var(--soft-ink-faint)]">
               анонимно · {similar.toLocaleString("ru-RU")} прошли похожий разбор
             </span>
           </div>
-          <h1 className="mt-7 max-w-3xl text-3xl italic leading-snug text-[var(--soft-bordeaux)] md:text-4xl" style={{ fontFamily: "var(--font-heading)" }}>
-            «{entry.question}»
-          </h1>
         </header>
 
         {/* Единое полотно: одна типографская колонка, секции разделены типографикой
@@ -181,9 +191,13 @@ export default async function LibraryEntryPage({
                 </li>
               ))}
             </ul>
-            <Disclaimer className="mt-6 border-[var(--soft-paper-edge)] bg-transparent text-[var(--soft-ink-soft)]">
-              Мы публикуем только обезличенный вопрос и короткий фрагмент разбора с согласия автора. Всё остальное
-              доступно только в личном разборе.
+            {/* B454: drop the auto «Важно» heading (the redundant line) and force a
+                readable ink colour over the component's faded `text-muted-foreground`. */}
+            <Disclaimer title="" className="mt-6 border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]">
+              <span className="text-[var(--soft-ink-soft)]">
+                Мы публикуем только обезличенный вопрос и короткий фрагмент разбора с согласия автора. Всё остальное
+                доступно только в личном разборе.
+              </span>
             </Disclaimer>
           </section>
         </div>
@@ -206,10 +220,16 @@ export default async function LibraryEntryPage({
                 <Link
                   key={item.slug}
                   href={mainUrl(`/library/${item.slug}`)}
-                  className="soft-card soft-library-card block p-5"
+                  className="soft-card soft-library-card p-5"
                 >
-                  <span className="soft-chip soft-chip-warm">{item.topic}</span>
-                  <p className="soft-library-question mt-4">«{item.question}»</p>
+                  {/* B454: `block` previously overrode `.soft-library-card`'s flex
+                      column, so `min-height` left dead space under the CTA. Grouping
+                      chip+question lets space-between pin «читать разбор» to the
+                      bottom edge. */}
+                  <div>
+                    <span className="soft-chip soft-chip-warm">{item.topic}</span>
+                    <p className="soft-library-question mt-4">«{item.question}»</p>
+                  </div>
                   <span className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[var(--soft-terracotta-dark)]">
                     читать разбор
                     <ArrowRight className="size-3.5" aria-hidden="true" />

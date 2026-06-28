@@ -75,30 +75,37 @@ const GROUPS: ServiceGroup[] = [
       { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: price("natal-chart"), kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
       { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом: ресурсы и разные ритмы пары.", price: price("synastry"), kind: "Цифровое", href: "/products/synastry", icon: Compass },
       { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: price("numerology"), kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
-      { id: "hd-d", title: "Дизайн человека", desc: "Ваш тип и бодиграф по реальным данным рождения — бесплатно. Полный разбор каналов — за баллы.", price: `тип бесплатно · ${price("human-design")}`, kind: "Цифровое", href: "/products/human-design", icon: Compass },
-      { id: "surname-d", title: "История фамилии", desc: "Происхождение и история вашей фамилии — коротко и бесплатно. Полный родовой разбор — за баллы.", price: `история бесплатно · ${price("surname-story")}`, kind: "Цифровое", href: "/products/surname-story", icon: Sparkles },
+      { id: "hd-d", title: "Дизайн человека", desc: "Тип, профиль и каналы по реальным данным рождения — разбор вашего бодиграфа.", price: price("human-design"), kind: "Цифровое", href: "/products/human-design", icon: Compass },
+      { id: "surname-d", title: "История фамилии", desc: "Происхождение, история и родовой след вашей фамилии.", price: price("surname-story"), kind: "Цифровое", href: "/products/surname-story", icon: Sparkles },
     ],
   },
   {
     id: "specialists",
     title: "Поговорить со специалистом",
     cards: [
-      { id: "specialist", title: "Поговорить со специалистом", desc: "Психологи, коучи, юристы, финансовые консультанты и эзотерики. 60 минут онлайн, цена видна до записи — специалист заранее видит ваш разбор.", price: formatSessionFloor(), kind: "Встреча", href: "/practitioners", icon: Heart, highlight: true },
+      { id: "specialist", title: "Поговорить со специалистом", desc: "Психологи, коучи, юристы, финансовые консультанты и эзотерики. Онлайн, длительность встречи выбираете сами; цена видна до записи — специалист заранее видит ваш разбор.", price: formatSessionFloor(), kind: "Встреча", href: "/practitioners", icon: Heart, highlight: true },
     ],
   },
 ];
 
 function ServiceCardView({ card }: { card: ServiceCard }) {
   const Icon = card.icon;
+  // B454: the grid cell is the stable hover target; the inner card lifts via
+  // `.soft-service-cell:hover .soft-service-card` (v4-soft.css) so the lift can
+  // never move the hit area out from under the cursor (no hover jitter).
+  const cellClass = [
+    "soft-service-cell col-span-12",
+    card.highlight ? "md:col-span-12" : "md:col-span-6 lg:col-span-4",
+  ].join(" ");
   const className = [
-    "soft-service-card col-span-12 flex min-h-44 flex-col rounded-[var(--soft-radius-lg)] border p-7",
-    "cursor-pointer hover:border-[var(--terracotta)] hover:shadow-[var(--shadow-md)] hover:-translate-y-1",
+    "soft-service-card flex h-full min-h-44 cursor-pointer flex-col rounded-[var(--soft-radius-lg)] border p-7",
     card.highlight
-      ? "border-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-deep)] md:col-span-12"
-      : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] md:col-span-6 lg:col-span-4",
+      ? "border-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-deep)]"
+      : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]",
   ].join(" ");
 
   return (
+    <div className={cellClass}>
     <Link href={card.href} className={className} data-testid={`service-card-${card.id}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-2 text-xs text-[var(--soft-ink-faint)]">
@@ -114,6 +121,7 @@ function ServiceCardView({ card }: { card: ServiceCard }) {
         <ArrowRight className="size-4" aria-hidden="true" />
       </span>
     </Link>
+    </div>
   );
 }
 
@@ -128,7 +136,7 @@ export function ServiceCatalog({
     <div className={className} data-testid="v4-service-catalog">
       <div className="flex flex-col gap-10">
         {GROUPS.map((group) => (
-          <section key={group.id} data-testid={`service-group-${group.id}`}>
+          <section key={group.id} id={group.id} data-testid={`service-group-${group.id}`} className="scroll-mt-28">
             <h3 className="soft-eyebrow mb-4">{group.title}</h3>
             <div className="soft-map-grid" data-testid="v4-service-cards">
               {group.cards.map((card) => <ServiceCardView key={card.id} card={card} />)}
