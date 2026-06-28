@@ -113,22 +113,23 @@ export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub
 
   return (
     <>
-      {/* Hero */}
-      <section className="soft-shell" style={{ paddingBlock: "clamp(3rem, 7vw, 5.5rem) clamp(1.5rem, 4vw, 3rem)" }}>
+      {/* Hero — B454/B396: tightened so the plan cards + their CTAs reach the
+          first screen (top pad cut, no bottom pad, lede trimmed to one line). */}
+      <section className="soft-shell" style={{ paddingBlock: "clamp(1.5rem, 3.5vw, 2.5rem) 0" }}>
         <div style={{ maxWidth: "48rem", marginInline: "auto", textAlign: "center" }}>
           <p className="soft-eyebrow">тарифы</p>
-          <h1 className="soft-h1 mt-4">
+          <h1 className="soft-h1 mt-3">
             Платите за <em className="soft-italic">результат</em>, а не за подписку «на всякий случай»
           </h1>
-          <p className="soft-lede mt-5" style={{ maxWidth: "38rem", marginInline: "auto" }}>
-              Один разбор всегда бесплатный. Подписка — для практики и цифровых углублений.
-              Встречи со специалистом оплачиваются отдельно по полной цене, без скидок в тарифах.
+          <p className="soft-lede mt-4" style={{ maxWidth: "38rem", marginInline: "auto" }}>
+              Один разбор всегда бесплатный. Подписка — для цифровых углублений; встречи со
+              специалистом оплачиваются отдельно по полной цене.
           </p>
         </div>
       </section>
 
       {/* Plans */}
-      <section className="soft-shell soft-public-section">
+      <section className="soft-shell soft-public-section" style={{ paddingBlockStart: "clamp(1rem, 2.5vw, 1.5rem)" }}>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           {plans.map((plan) => {
             // Механика 1: подписки только месячные — годовых планов нет.

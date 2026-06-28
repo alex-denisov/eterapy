@@ -688,8 +688,17 @@
 
   .soft-step-card:hover,
   .soft-product-card:hover,
-  .soft-service-card:hover,
   .soft-question-card:hover {
+    border-color: var(--soft-terracotta);
+    box-shadow: var(--soft-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  /* B454: service cards lift on hover of their stable cell wrapper, not on the
+     card's own :hover. The cell keeps the hit area anchored to the card's
+     resting footprint, so the lift can't slip out from under the cursor at the
+     card's bottom edge (fixes the hover "jitter"). */
+  .soft-service-cell:hover .soft-service-card {
     border-color: var(--soft-terracotta);
     box-shadow: var(--soft-shadow-md);
     transform: translateY(-2px);

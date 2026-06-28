@@ -45,6 +45,24 @@ export function paidMinutesRemaining(session: ChatSessionState, now: Date = new 
   return Math.max(0, Math.ceil(ms / 60_000));
 }
 
+// B453: каждый «новый диалог» в самостоятельном чате (/products/chat) — это свежая
+// нить (новая строка), а не новое оплаченное окно поверх старой переписки. При старте
+// без sessionId прошлую самостоятельную строку переиспользуем ТОЛЬКО если:
+//  • её оплаченное окно ещё активно — идемпотентный повторный старт без двойного
+//    списания (защита на случай, если sessionId по какой-то причине не дошёл), либо
+//  • это чистая нетронутая «пустая» строка (не начата и без сообщений) — чтобы не
+//    плодить орфанов при повторных неудачных стартах.
+// Завершённую/истёкшую сессию НЕ переиспользуем — иначе её старые сообщения всплывут
+// при следующем обновлении страницы.
+export function canReuseStandaloneSessionOnStart(
+  session: ChatSessionState,
+  hasMessages: boolean,
+  now: Date = new Date(),
+): boolean {
+  if (isPaidSessionActive(session, now)) return true;
+  return session.paidStartedAt == null && !hasMessages;
+}
+
 export type ChatSendDecision =
   | { allowed: true; kind: "free"; freeRemaining: number }
   | { allowed: true; kind: "paid"; minutesRemaining: number }

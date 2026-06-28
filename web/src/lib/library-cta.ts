@@ -78,7 +78,10 @@ export function resolveLibraryCta(input: {
   const slug = PRODUCT_SLUG[product];
   const credits = getProductCreditCost(slug) ?? 1;
   const priceLabel = getProductPriceLabel(slug) ?? "";
-  const teaserNote = `первая часть разбора бесплатно · полный — за ${formatPoints(credits)}${
+  // B454: services no longer ship a free fragment (the symbolic/joint paywall
+  // rework, B450/B451) — so the microcopy states the honest price only, no
+  // "первая часть бесплатно" promise that the product can't keep.
+  const teaserNote = `разбор вашего вопроса — ${formatPoints(credits)}${
     priceLabel ? ` (${priceLabel})` : ""
   }`;
   const query = input.fromSlug
