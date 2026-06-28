@@ -48,12 +48,13 @@ describe("design v4.2 rollout", () => {
     const products = source("lib/v5-products.ts");
 
     // M26/B370: каталог = 5 групп; «Вместе» — одна карточка, практик-карточек нет.
-    expect(catalog).toContain("Начать бесплатно");
-    expect(catalog).toContain("Самостоятельные разборы");
+    // B456: calm section labels (de-anchored from «бесплатно»/internal terms).
+    expect(catalog).toContain("С чего начать");
+    expect(catalog).toContain("Разобраться самостоятельно");
     expect(catalog).toContain("Вместе");
     expect(catalog).toContain("Эзотерика");
-    expect(catalog).toContain("Поговорить со специалистом");
-    expect(catalog).toContain("soft-service-card");
+    expect(catalog).toContain("Поговорить с человеком");
+    expect(catalog).toContain("soft-svc-card");
     expect(catalog).not.toContain("var(--paper-card)");
     expect(pricing).toContain("590");
     expect(pricing).toContain("Без скидок на встречи");

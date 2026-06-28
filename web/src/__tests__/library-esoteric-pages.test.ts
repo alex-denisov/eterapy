@@ -44,7 +44,8 @@ describe("B205 Library and esoteric service pages", () => {
     expect(catalog).toContain('href: "/products/natal-chart"');
     expect(catalog).toContain('href: "/products/numerology"');
     expect(catalog).not.toContain("joint-session");
-    expect(catalog).toContain("Подробнее и заказать");
+    // B456: cards link to real pages (no in-card «Подробнее и заказать» link).
+    expect(catalog).toContain('href: "/products/human-design"');
     expect(catalog).not.toContain('id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: "390 ₽", cat: "tarot", kind: "Цифровое", href: "#"' );
   });
 

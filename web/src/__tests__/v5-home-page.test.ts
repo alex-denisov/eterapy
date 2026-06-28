@@ -46,7 +46,8 @@ describe("v5 public home page", () => {
     expect(hero).toContain("soft-halo-stage-compact");
     // Primary разбор is /checkin (no standalone product page after B293).
     expect(services).toContain('href: "/checkin"');
-    expect(services).toContain("Открыть бесплатный вход");
+    // B456: the free entry is the calm «Первый разбор» row (no «бесплатно» CTA).
+    expect(services).toContain("Первый разбор");
     // B366: session floor derives from the single source (formatSessionFloor()).
     expect(services).toContain("formatSessionFloor");
     expect(services).toContain('href: "/products/tarot"');

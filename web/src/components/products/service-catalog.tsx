@@ -1,8 +1,12 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
   Bookmark,
+  ChevronRight,
   Compass,
   Heart,
   MessageCircle,
@@ -18,141 +22,202 @@ import { formatSessionFloor } from "@/lib/session-pricing";
 // the single session floor — the catalog can no longer drift from checkout.
 const price = (slug: string): string => getProductPriceLabel(slug) ?? "—";
 
-// M26/B370: каталог = 5 смысловых групп вместо чипов-фильтров. Групп
-// «Практика»/«Маршрут» нет; «Вместе» — одна карточка (механика в B385, пока
-// ведёт на pair); «Поговорить со специалистом» — одна выделенная карточка.
-// ≤12 карточек на дефолтном экране, мобайл — одна колонка.
+// B456: /products redesign (calm, above-fold, scroll-spy). The catalog is one
+// continuous feed of 5 calm sections. Section ids stay `free|solo|together|
+// esoteric|specialists` because /how-it-works deep-links to #solo/#esoteric/
+// #specialists — do not rename them. Copy is de-anchored from «бесплатно»: the
+// only free signal is the quiet 0 ₽ chip on the «Первый разбор» entry row.
 
 type ServiceCard = {
   id: string;
   title: string;
   desc: string;
   price: string;
-  kind: string;
   href: string;
   icon: LucideIcon;
   highlight?: boolean;
 };
 
+type Layout = "entry" | "grid" | "row";
+
 type ServiceGroup = {
   id: string;
+  nav: string;
   title: string;
+  subtitle?: string;
+  layout: Layout;
   cards: ServiceCard[];
 };
 
 const GROUPS: ServiceGroup[] = [
   {
     id: "free",
-    title: "Начать бесплатно",
+    nav: "Начать",
+    title: "С чего начать",
+    layout: "entry",
     cards: [
-      { id: "primary", title: "Первичный разбор", desc: "Короткий уточняющий диалог и бесплатное отражение ситуации. Без карты и регистрации.", price: "0 ₽", kind: "Бесплатно", href: "/checkin", icon: Heart },
+      { id: "primary", title: "Первый разбор", desc: "Спокойно расскажите, что происходит, — и получите бережное отражение вашей ситуации.", price: "0 ₽", href: "/checkin", icon: Heart },
     ],
   },
   {
     id: "solo",
-    title: "Самостоятельные разборы",
+    nav: "Разборы",
+    title: "Разобраться самостоятельно",
+    layout: "grid",
     cards: [
-      { id: "angles", title: "Переосмысление", desc: "Мысли · чувства · другой взгляд · первый шаг. Когнитивный рефрейминг одной ситуации. Первый угол бесплатно.", price: price("reframe"), kind: "Цифровое", href: "/products/reframe", icon: Compass },
-      { id: "report", title: "Подробный разбор", desc: "Документ-разбор на 10–15 страниц, который можно сохранить и обсудить.", price: price("deep-report"), kind: "Цифровое", href: "/products/deep-report", icon: Bookmark },
-      { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции, границы и варианты ответа.", price: price("chat-analysis"), kind: "Цифровое", href: "/products/chat-analysis", icon: MessagesSquare },
-      // B417: живой синхронный диалог — мостик между цифровыми форматами и
-      // встречей со специалистом. Платная услуга (бесплатен первичный разбор).
-      { id: "live-chat", title: "Решить вопрос в чате", desc: "Живой диалог 45 минут, чтобы разобрать вопрос в своём темпе. Продолжение разбора, когда хочется проговорить глубже.", price: price("chat-session"), kind: "Живой диалог", href: "/products/chat", icon: MessageCircle },
+      { id: "angles", title: "Переосмысление", desc: "Взгляд на ситуацию под другим углом", price: price("reframe"), href: "/products/reframe", icon: Compass },
+      { id: "report", title: "Подробный разбор", desc: "Глубокий письменный разбор", price: price("deep-report"), href: "/products/deep-report", icon: Bookmark },
+      { id: "chat", title: "Разбор переписки", desc: "Тон, эмоции и варианты ответа", price: price("chat-analysis"), href: "/products/chat-analysis", icon: MessagesSquare },
+      { id: "live-chat", title: "Решить вопрос в чате", desc: "Живой диалог в своём темпе", price: price("chat-session"), href: "/products/chat", icon: MessageCircle },
     ],
   },
   {
     id: "together",
+    nav: "Вместе",
     title: "Вместе",
+    layout: "row",
     cards: [
-      { id: "together", title: "Вместе", desc: "Взгляд со стороны · сверить взгляды · совместимость. Один общий вопрос — и бережный разбор для двоих или близких.", price: `от ${price("pair")}`, kind: "Для двоих и близких", href: "/products/pair", icon: Users },
+      { id: "together", title: "Вместе", desc: "Бережный разбор для двоих или близких", price: `от ${price("pair")}`, href: "/products/pair", icon: Users },
     ],
   },
   {
     id: "esoteric",
+    nav: "Эзотерика",
     title: "Эзотерика",
+    subtitle: "символический взгляд",
+    layout: "grid",
     cards: [
-      { id: "tarot-d", title: "Расклад Таро", desc: "Цифровой расклад с бережной интерпретацией.", price: price("tarot"), kind: "Цифровое", href: "/products/tarot", icon: Moon },
-      { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор натальной карты.", price: price("natal-chart"), kind: "Цифровое", href: "/products/natal-chart", icon: Compass },
-      { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом: ресурсы и разные ритмы пары.", price: price("synastry"), kind: "Цифровое", href: "/products/synastry", icon: Compass },
-      { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор без фатальных обещаний.", price: price("numerology"), kind: "Цифровое", href: "/products/numerology", icon: Sparkles },
-      { id: "hd-d", title: "Дизайн человека", desc: "Тип, профиль и каналы по реальным данным рождения — разбор вашего бодиграфа.", price: price("human-design"), kind: "Цифровое", href: "/products/human-design", icon: Compass },
-      { id: "surname-d", title: "История фамилии", desc: "Происхождение, история и родовой след вашей фамилии.", price: price("surname-story"), kind: "Цифровое", href: "/products/surname-story", icon: Sparkles },
+      { id: "tarot-d", title: "Расклад Таро", desc: "Бережная интерпретация расклада", price: price("tarot"), href: "/products/tarot", icon: Moon },
+      { id: "astro-d", title: "Натальная карта", desc: "Базовый разбор карты", price: price("natal-chart"), href: "/products/natal-chart", icon: Compass },
+      { id: "synastry-d", title: "Совместимость по звёздам", desc: "Две натальные карты рядом", price: price("synastry"), href: "/products/synastry", icon: Compass },
+      { id: "numero-d", title: "Числовой портрет", desc: "Нумерологический разбор", price: price("numerology"), href: "/products/numerology", icon: Sparkles },
+      { id: "hd-d", title: "Дизайн человека", desc: "Тип и бодиграф", price: price("human-design"), href: "/products/human-design", icon: Compass },
+      { id: "surname-d", title: "История фамилии", desc: "Происхождение и родовой след", price: price("surname-story"), href: "/products/surname-story", icon: Sparkles },
     ],
   },
   {
     id: "specialists",
-    title: "Поговорить со специалистом",
+    nav: "Специалист",
+    title: "Поговорить с человеком",
+    layout: "row",
     cards: [
-      { id: "specialist", title: "Поговорить со специалистом", desc: "Психологи, коучи, юристы, финансовые консультанты и эзотерики. Онлайн, длительность встречи выбираете сами; цена видна до записи — специалист заранее видит ваш разбор.", price: formatSessionFloor(), kind: "Встреча", href: "/practitioners", icon: Heart, highlight: true },
+      { id: "specialist", title: "Поговорить с человеком", desc: "Психолог, коуч или эзотерик — онлайн, длительность встречи выбираете сами. Цена видна до записи.", price: formatSessionFloor(), href: "/practitioners", icon: Heart, highlight: true },
     ],
   },
 ];
 
 function ServiceCardView({ card }: { card: ServiceCard }) {
   const Icon = card.icon;
-  // B454: the grid cell is the stable hover target; the inner card lifts via
-  // `.soft-service-cell:hover .soft-service-card` (v4-soft.css) so the lift can
-  // never move the hit area out from under the cursor (no hover jitter).
-  const cellClass = [
-    "soft-service-cell col-span-12",
-    card.highlight ? "md:col-span-12" : "md:col-span-6 lg:col-span-4",
-  ].join(" ");
-  const className = [
-    "soft-service-card flex h-full min-h-44 cursor-pointer flex-col rounded-[var(--soft-radius-lg)] border p-7",
-    card.highlight
-      ? "border-[var(--soft-terracotta-dark)] bg-[var(--soft-paper-deep)]"
-      : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]",
-  ].join(" ");
-
   return (
-    <div className={cellClass}>
-    <Link href={card.href} className={className} data-testid={`service-card-${card.id}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-2 text-xs text-[var(--soft-ink-faint)]">
-          <Icon className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-          <span>{card.kind}</span>
-        </div>
-        <span className="soft-badge soft-badge-warm">{card.price}</span>
-      </div>
-      <h3 className="soft-h3 mt-4">{card.title}</h3>
-      <p className="mt-2 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{card.desc}</p>
-      <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-[var(--soft-terracotta-dark)]">
-        {card.id === "primary" ? "Открыть бесплатный вход" : card.id === "specialist" ? "Выбрать специалиста" : "Подробнее и заказать"}
-        <ArrowRight className="size-4" aria-hidden="true" />
+    <Link href={card.href} className="soft-svc-card" data-testid={`service-card-${card.id}`}>
+      <Icon className="svc-icon size-5" aria-hidden="true" />
+      <span className="svc-body">
+        <span className="svc-title">{card.title}</span>
+        <span className="svc-desc">{card.desc}</span>
       </span>
+      <span className="soft-badge soft-badge-warm svc-price">{card.price}</span>
+      <ChevronRight className="svc-chev size-4" aria-hidden="true" />
     </Link>
-    </div>
+  );
+}
+
+function WideRow({ card }: { card: ServiceCard }) {
+  const Icon = card.icon;
+  const className = ["soft-entry-row", card.highlight ? "soft-entry-row-accent" : ""].join(" ").trim();
+  return (
+    <Link href={card.href} className={className} data-testid={`service-card-${card.id}`}>
+      <Icon className="er-icon size-5" aria-hidden="true" />
+      <span className="er-title">{card.title}</span>
+      <span className="er-desc">{card.desc}</span>
+      <span className="soft-badge soft-badge-warm er-price">{card.price}</span>
+      <ArrowRight className="er-arrow size-4" aria-hidden="true" />
+    </Link>
   );
 }
 
 export function ServiceCatalog({
-  showFooterLink = true,
+  showFooterLink: _showFooterLink = true,
   className = "",
 }: {
   showFooterLink?: boolean;
   className?: string;
 }) {
+  const [active, setActive] = useState<string>(GROUPS[0]?.id ?? "");
+
+  // B456: scroll-spy. The sticky category bar (mobile) highlights whichever
+  // section has scrolled up under it; at the very top the first category stays
+  // active. A rAF-throttled scroll listener is more predictable here than an
+  // IntersectionObserver rootMargin band, which leaves the top ambiguous (no
+  // section in the band → the last value sticks).
+  useEffect(() => {
+    const ids = GROUPS.map((g) => g.id);
+    let raf = 0;
+    const compute = () => {
+      raf = 0;
+      const line = 120; // just below the sticky header + the chip bar
+      let current = ids[0] ?? "";
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top - line <= 0) current = id;
+      }
+      setActive((prev) => (prev === current ? prev : current));
+    };
+    const onScroll = () => {
+      if (raf === 0) raf = requestAnimationFrame(compute);
+    };
+    compute();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const jumpTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    setActive(id);
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <div className={className} data-testid="v4-service-catalog">
-      <div className="flex flex-col gap-10">
+    <div className={`soft-catalog ${className}`.trim()} data-testid="v4-service-catalog">
+      <nav className="soft-catalog-nav md:hidden" aria-label="Категории услуг">
+        {GROUPS.map((group) => (
+          <button
+            key={group.id}
+            type="button"
+            onClick={() => jumpTo(group.id)}
+            className={`soft-catalog-chip${active === group.id ? " is-active" : ""}`}
+            aria-current={active === group.id ? "true" : undefined}
+          >
+            {group.nav}
+          </button>
+        ))}
+      </nav>
+
+      <div className="soft-catalog-sections">
         {GROUPS.map((group) => (
           <section key={group.id} id={group.id} data-testid={`service-group-${group.id}`} className="scroll-mt-28">
-            <h3 className="soft-eyebrow mb-4">{group.title}</h3>
-            <div className="soft-map-grid" data-testid="v4-service-cards">
-              {group.cards.map((card) => <ServiceCardView key={card.id} card={card} />)}
+            <div className="soft-catalog-head">
+              <h2 className="soft-eyebrow">{group.title}</h2>
+              {group.subtitle ? <span className="soft-catalog-sub">· {group.subtitle}</span> : null}
             </div>
+
+            {group.layout === "grid" ? (
+              <div className="flex flex-col gap-2 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-4" data-testid={`service-cards-${group.id}`}>
+                {group.cards.map((card) => (
+                  <ServiceCardView key={card.id} card={card} />
+                ))}
+              </div>
+            ) : (
+              group.cards.map((card) => <WideRow key={card.id} card={card} />)
+            )}
           </section>
         ))}
       </div>
-
-      {showFooterLink && (
-        <div className="mt-8 text-center">
-          <Link href="/products" className="soft-button soft-button-ghost">
-            Все продукты
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-      )}
     </div>
   );
 }
