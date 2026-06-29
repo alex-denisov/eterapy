@@ -94,6 +94,15 @@ describe("B462 — deep design-review polish batch", () => {
       const block = css.slice(css.indexOf(".tarot-order-surface:focus-within"));
       expect(block.slice(0, 220)).toContain("--soft-terracotta");
     });
+
+    it("keeps the focus ring viewport-unconditional (not behind a min-width media)", () => {
+      // Regression guard: the surface's base styles live inside min-width:768 /
+      // max-width:760 media blocks. The focus ring must sit BEFORE the first
+      // @media so it shows at every viewport — mobile users tab into the field
+      // too, and the review was mobile-centric. (Caught live: a desktop-gated
+      // version left 390px with no ring.)
+      expect(css.indexOf(".tarot-order-surface:focus-within")).toBeLessThan(css.indexOf("@media"));
+    });
   });
 
   describe("§4.3 empty states sit on the soft Dialogue-Halo background", () => {
