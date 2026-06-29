@@ -7,6 +7,18 @@ import { ArrowRight, CheckCircle2, Copy, RefreshCcw, Users, LockKeyhole } from "
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { getProductCreditCost } from "@/lib/product-prices";
+import { findReadingById, readingIdFromSearch, withReadingParam } from "@/lib/pair-hub";
+
+// B465: pin the active circle to the URL (`?reading=<id>`) so refresh/back restores
+// this exact session and a bare visit starts fresh — parity with every other service.
+function pinReadingUrl(id: string) {
+  if (typeof window === "undefined") return;
+  window.history.replaceState(
+    null,
+    "",
+    withReadingParam(window.location.pathname, window.location.search, id),
+  );
+}
 
 // B385 scenario A — «Взгляд со стороны». Runs on the ClarityCircle engine:
 // the initiator describes a private situation, the platform generates neutral
@@ -83,14 +95,27 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
         })
         .catch(() => undefined);
     } else {
+      const readingId = readingIdFromSearch(
+        typeof window !== "undefined" ? window.location.search : "",
+      );
       jsonRequest<ApiPayload>("/api/products/circle")
         .then((payload) => {
           if (cancelled) return;
           setHasEntitlement(Boolean(payload.hasEntitlement));
-          const outside = (payload.results ?? []).find(
+          const outsides = (payload.results ?? []).filter(
             (item) => (item.metadata?.outsideQuestions?.length ?? 0) > 0,
           );
-          setCircle(outside ?? null);
+          if (readingId) {
+            // ?reading=<id> → restore that exact session (any status).
+            setCircle(findReadingById(outsides, readingId));
+            return;
+          }
+          // Fresh visit (no ?reading=): resume an in-progress invite (still collecting
+          // answers, not yet finalized) and pin it; a finalized разбор stays in Дневник
+          // and is NOT auto-resurfaced — a bare visit is a new session.
+          const pending = outsides.find((item) => !item.reportId) ?? null;
+          if (pending) pinReadingUrl(pending.id);
+          setCircle(pending);
         })
         .catch(() => undefined);
     }
@@ -113,7 +138,9 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
         body: JSON.stringify({ action: "create_outside", situation, topic: "outside" }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
-      setCircle((payload.result as FullCircle) ?? null);
+      const created = (payload.result as FullCircle) ?? null;
+      setCircle(created);
+      if (created?.id) pinReadingUrl(created.id);
       setSituation("");
       setStatus("idle");
     } catch (error) {
@@ -150,7 +177,9 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
         body: JSON.stringify({ creatorConsent: true }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
-      setCircle((payload.result as FullCircle) ?? circle);
+      const generated = (payload.result as FullCircle) ?? circle;
+      setCircle(generated);
+      if (generated?.id) pinReadingUrl(generated.id);
       if (payload.paywalled) {
         setMessage(payload.teaserText ?? "Бесплатный фрагмент готов. Полный разбор откроется после оплаты.");
       }
@@ -226,13 +255,13 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder="Как вас подписать (необязательно)"
-            className="soft-question-input py-3 text-sm"
+            className="soft-question-input py-3 text-base"
           />
           <textarea
             value={answerText}
             onChange={(event) => setAnswerText(event.target.value)}
             placeholder="Что вы видите в этой ситуации?"
-            className="soft-question-input min-h-32 py-3 text-sm"
+            className="soft-question-input tarot-question-input min-h-32 py-3"
           />
           <Button
             onClick={submitAnswer}
@@ -272,7 +301,7 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
             value={situation}
             onChange={(event) => setSituation(event.target.value)}
             placeholder="Что происходит и что хочется прояснить чужим, свежим взглядом?"
-            className="soft-question-input min-h-28 py-3 text-sm"
+            className="soft-question-input tarot-question-input min-h-28 py-3"
             data-testid="together-situation-input"
           />
           <Button
@@ -307,7 +336,7 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
             <input
               readOnly
               value={`${typeof window !== "undefined" ? window.location.origin : ""}/products/pair?invite=${circle.inviteToken}`}
-              className="soft-question-input flex-1 py-2 text-sm"
+              className="soft-question-input flex-1 py-2 text-base"
               data-testid="together-invite-link"
             />
             <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">
