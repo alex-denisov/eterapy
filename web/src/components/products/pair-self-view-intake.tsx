@@ -77,7 +77,7 @@ export function PairSelfViewIntake() {
   const disabled = phase === "loading";
 
   return (
-    <div className="soft-card soft-form-panel mt-4" data-testid="pair-self-view-intake">
+    <div className="soft-card soft-form-panel" data-testid="pair-self-view-intake">
       <p className="soft-eyebrow">ваша связь</p>
       <h2 className="soft-h3 mt-2">Сначала ваша сторона</h2>
       <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
