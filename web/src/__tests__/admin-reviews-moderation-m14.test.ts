@@ -22,7 +22,7 @@ describe("M14 — admin reviews moderation", () => {
   });
 
   it("renders an admin page that lists reviews and a manager", () => {
-    const page = source("src/app/admin/reviews/page.tsx");
+    const page = source("src/app/admin/product/quality/page.tsx");
     expect(page).toContain("db.review.findMany");
     expect(page).toContain("ReviewsManager");
     expect(page).toContain('["ADMIN", "SUPERADMIN", "MODERATOR"]');
@@ -34,7 +34,7 @@ describe("M14 — admin reviews moderation", () => {
     expect(manager).toContain('data-testid="reviews-filter-practitioner"');
     expect(manager).toContain('data-testid="reviews-filter-author"');
     expect(manager).toContain('data-testid="reviews-sort"');
-    expect(manager).toContain("rating-desc");
+    expect(manager).toContain('toggleSort("rating")');
     // R2: exact time, not just date.
     expect(manager).toContain("function formatDateTime");
     expect(manager).toContain('hour: "2-digit"');
@@ -46,9 +46,10 @@ describe("M14 — admin reviews moderation", () => {
     expect(manager).toContain("Удалить");
   });
 
-  it("adds an Отзывы nav link to the admin shell", () => {
+  it("keeps reviews inside the product quality section", () => {
     const shell = source("src/app/admin/admin-shell.tsx");
-    expect(shell).toContain('adminUrl("/admin/reviews")');
-    expect(shell).toContain('label: "Отзывы"');
+    expect(shell).toContain('adminUrl("/admin/product/quality")');
+    expect(shell).toContain('label: "Операции и качество"');
+    expect(shell).not.toContain('adminUrl("/admin/reviews")');
   });
 });

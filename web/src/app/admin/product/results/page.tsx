@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { appUrl } from "@/lib/subdomain";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
 import { AdminHero, AnalyticsSection, DataTable, PeriodToolbar, StatusBadge, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
 
@@ -54,6 +55,7 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
               label="Заказы по календарным дням в разрезе тарифа клиента"
               data={item.chart}
               seriesLabels={["Free / без подписки", "Plus", "Premium"]}
+              integerTicks
             />
           </AnalyticsSection>
         ))}
@@ -73,7 +75,7 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
             productLabel(result.productKey),
             result.title,
             <StatusBadge key="status" status={result.status} />,
-            <a key="open" className="soft-admin-action" href={`/api/admin/product-results/${result.id}`} target="_blank">Открыть</a>,
+            <a key="open" className="soft-admin-action" href={appUrl(`/cabinet/results/${result.id}`)} target="_blank" rel="noreferrer">Открыть</a>,
           ])}
         />
         <div className="mt-4 flex items-center justify-between text-xs text-[var(--soft-ink-soft)]">

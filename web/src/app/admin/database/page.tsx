@@ -43,7 +43,7 @@ function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
   }
   if (!("page" in patch)) next.set("page", "1");
   const query = next.toString();
-  return query ? `/admin/database?${query}` : "/admin/database";
+  return query ? `/admin/ops/database?${query}` : "/admin/ops/database";
 }
 
 function stringify(value: unknown): string | number | boolean | null {
@@ -276,7 +276,7 @@ export default async function AdminDatabasePage(props: {
         <span className="soft-admin-status-pill">read-only · {PAGE_SIZE}/page</span>
       </div>
 
-      <form action="/admin/database" className="mb-4 flex flex-wrap items-end gap-3">
+      <form action="/admin/ops/database" className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
           Таблица
           <select className="soft-admin-table-filter mt-1 h-9 min-w-56" name="table" defaultValue={table}>

@@ -24,13 +24,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const permissions = await getUserPermissions(session.user!.id!, role);
 
   // X9: sidebar «непрочитанные» counters — actionable items awaiting a moderator.
-  const [applications, bookings, complaints, reviews] = await Promise.all([
+  const [applications, bookings, complaints, reviews, libraryRequests] = await Promise.all([
     db.practitionerApplication.count({ where: { status: "PENDING" } }).catch(() => 0),
     db.booking.count({ where: { status: "PENDING" } }).catch(() => 0),
     db.complaint.count({ where: { status: "OPEN" } }).catch(() => 0),
     db.review.count({ where: { status: "REVIEW" } }).catch(() => 0),
+    db.dialogue.count({ where: { libraryStatus: "PENDING_REVIEW", deletedAt: null } }).catch(() => 0),
   ]);
-  const counts = { applications, bookings, complaints, reviews };
+  const counts = { applications, bookings, complaints, reviews, libraryRequests, quality: applications + complaints + reviews + libraryRequests };
 
   return (
     <AdminShell user={session.user} role={role} permissions={permissions} counts={counts}>

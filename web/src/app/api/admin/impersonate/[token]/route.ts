@@ -25,7 +25,7 @@ function expiredPage() {
     h2{color:#ef4444}a{color:#c9a96e}</style></head>
     <body><div class="card"><h2>❌ Ссылка устарела</h2>
     <p style="color:#8899aa">Токен недействителен или истёк (TTL: 5 минут).</p>
-    <p><a href="/admin/clients">← Вернуться в панель</a></p></div></body></html>`,
+    <p><a href="/admin/product/users">← Вернуться в панель</a></p></div></body></html>`,
     { status: 410, headers: { "Content-Type": "text/html; charset=utf-8" } },
   );
 }
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     select: { id: true, role: true, blockedAt: true, deletedAt: true },
   });
   if (!target || target.blockedAt || target.deletedAt || target.role === "SUPERADMIN") {
-    return NextResponse.redirect(new URL(adminUrl("/admin/clients"), req.url));
+    return NextResponse.redirect(new URL(adminUrl("/admin/product/users"), req.url));
   }
 
   const cabinet = target.role === "PRACTITIONER" ? "/cabinet/practitioner" : "/cabinet";

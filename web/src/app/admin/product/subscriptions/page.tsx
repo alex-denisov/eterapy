@@ -26,16 +26,16 @@ export default async function ProductSubscriptionsPage({ searchParams }: PagePro
       </AdminHero>
       <div className="grid gap-4">
         <AnalyticsSection title="Покупки подписок по дням">
-          <VerticalBarChart data={data.charts.subscriptionPurchases} seriesLabels={["Пробный / без подписки", "Плюс", "Премиум"]} />
+          <VerticalBarChart data={data.charts.subscriptionPurchases} seriesLabels={["Пробный / без подписки", "Плюс", "Премиум"]} integerTicks />
         </AnalyticsSection>
         <AnalyticsSection title="Баллы на балансе по дням">
-          <VerticalBarChart data={data.charts.creditsBalanceByDay} />
+          <VerticalBarChart data={data.charts.creditsBalanceByDay} integerTicks />
         </AnalyticsSection>
         <AnalyticsSection title="Реферальные регистрации по дням">
-          <VerticalBarChart data={data.charts.referralRegistrations} />
+          <VerticalBarChart data={data.charts.referralRegistrations} integerTicks />
         </AnalyticsSection>
         <AnalyticsSection title="Покупки подписки пользователями, пришедшими по реферальной программе">
-          <VerticalBarChart data={data.charts.referralSubscriptions} />
+          <VerticalBarChart data={data.charts.referralSubscriptions} integerTicks />
         </AnalyticsSection>
         <AnalyticsSection title="Топ-перформеры по приглашенным пользователям">
           <HorizontalBars data={data.charts.topReferrers} />

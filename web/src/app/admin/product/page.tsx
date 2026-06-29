@@ -37,14 +37,14 @@ export default async function ProductCenterPage({ searchParams }: PageProps) {
           <FunnelChart data={data.funnel} />
         </AnalyticsSection>
         <AnalyticsSection title="Использование продуктов по дням" actionHref="/admin/product/results" actionLabel="Продукты и результаты">
-          <VerticalBarChart label="Группированные столбцы по самым активным продуктам" data={data.charts.productByDay} seriesLabels={data.charts.productByDayLabels} />
+          <VerticalBarChart label="Группированные столбцы по самым активным продуктам" data={data.charts.productByDay} seriesLabels={data.charts.productByDayLabels} integerTicks />
         </AnalyticsSection>
         <AnalyticsSection title="Подписки, баллы и рефералы" actionHref="/admin/product/subscriptions" actionLabel="Открыть">
           <div className="grid gap-4 xl:grid-cols-2">
-            <VerticalBarChart label="Покупки подписок по дням" data={data.charts.subscriptionPurchases} seriesLabels={["Пробный / без подписки", "Плюс", "Премиум"]} />
-            <VerticalBarChart label="Баллы на балансе по дням" data={data.charts.creditsBalanceByDay} />
-            <VerticalBarChart label="Регистрации по реферальным ссылкам по дням" data={data.charts.referralRegistrations} />
-            <VerticalBarChart label="Покупка подписки рефералами по дням" data={data.charts.referralSubscriptions} />
+            <VerticalBarChart label="Покупки подписок по дням" data={data.charts.subscriptionPurchases} seriesLabels={["Пробный / без подписки", "Плюс", "Премиум"]} integerTicks />
+            <VerticalBarChart label="Баллы на балансе по дням" data={data.charts.creditsBalanceByDay} integerTicks />
+            <VerticalBarChart label="Регистрации по реферальным ссылкам по дням" data={data.charts.referralRegistrations} integerTicks />
+            <VerticalBarChart label="Покупка подписки рефералами по дням" data={data.charts.referralSubscriptions} integerTicks />
           </div>
         </AnalyticsSection>
       </div>

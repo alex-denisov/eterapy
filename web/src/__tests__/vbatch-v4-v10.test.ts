@@ -6,8 +6,8 @@ const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "ut
 describe("V4 — admin/reviews compact paginated table with in-row actions + edit", () => {
   const manager = read("src/app/admin/reviews/reviews-manager.tsx");
 
-  it("renders a table paginated at 25 rows with searchable practitioner filter", () => {
-    expect(manager).toContain("const PAGE_SIZE = 25");
+  it("renders a table paginated at 20 rows with searchable practitioner filter", () => {
+    expect(manager).toContain("const PAGE_SIZE = 20");
     expect(manager).toContain("<table");
     expect(manager).toContain('data-testid="reviews-filter-practitioner-search"');
     expect(manager).toContain("practitionerQuery");

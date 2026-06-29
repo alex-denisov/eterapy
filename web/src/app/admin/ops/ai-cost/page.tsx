@@ -123,7 +123,7 @@ export default async function AdminOpsAICostPage(props: {
       </section>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <AdminOpsSection title="Расход по продуктам" actionHref="/admin/ai" actionLabel="Настроить маршруты">
+        <AdminOpsSection title="Расход по продуктам" actionHref="/admin/ops/ai" actionLabel="Настроить маршруты">
           <div className="space-y-3">
             {byFeature.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный день расход не найден.</p>}
             {byFeature.map((row) => (
@@ -146,7 +146,7 @@ export default async function AdminOpsAICostPage(props: {
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Расход по провайдерам" actionHref="/admin/ai" actionLabel="Открыть AI-центр">
+        <AdminOpsSection title="Расход по провайдерам" actionHref="/admin/ops/ai" actionLabel="Открыть AI-центр">
           <div className="space-y-3">
             {byProvider.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный день провайдеры не списывали токены.</p>}
             {byProvider.map((row) => (
@@ -169,7 +169,7 @@ export default async function AdminOpsAICostPage(props: {
         </AdminOpsSection>
       </div>
 
-      <AdminOpsSection title="Детализация по моделям" actionHref="/admin/ai" actionLabel="Стоимость моделей">
+      <AdminOpsSection title="Детализация по моделям" actionHref="/admin/ops/ai" actionLabel="Стоимость моделей">
         <div className="overflow-x-auto">
           <table className="soft-admin-table min-w-[980px]">
             <thead>
@@ -208,7 +208,7 @@ export default async function AdminOpsAICostPage(props: {
       </AdminOpsSection>
 
       {role === "SUPERADMIN" && (
-        <AdminOpsSection title="Аудит пользовательских LLM-диалогов" actionHref="/admin/ai" actionLabel="Полный аудит">
+        <AdminOpsSection title="Аудит пользовательских LLM-диалогов" actionHref="/admin/ops/ai" actionLabel="Полный аудит">
           <div className="overflow-x-auto">
             <table className="soft-admin-table min-w-[980px]">
               <thead>
@@ -250,7 +250,7 @@ export default async function AdminOpsAICostPage(props: {
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link className="soft-admin-action" href="/admin/ai">Управление AI-центром</Link>
+        <Link className="soft-admin-action" href="/admin/ops/ai">Управление AI-центром</Link>
         <Link className="soft-admin-action" href="/admin/ops">Операционный центр</Link>
       </div>
     </PageContainer>

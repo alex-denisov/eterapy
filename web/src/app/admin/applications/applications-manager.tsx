@@ -210,7 +210,7 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                         </button>
                       )}
                       {a.status === "APPROVED" && adminRole === "SUPERADMIN" && (
-                        <a href={`/admin/practitioners?email=${encodeURIComponent(a.email)}`}
+                        <a href={`/admin/product/users?role=PRACTITIONER&q=${encodeURIComponent(a.email)}`}
                           className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs text-primary hover:bg-primary/10">
                           Открыть аккаунт практика →
                         </a>

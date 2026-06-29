@@ -10,7 +10,7 @@ export function SearchInput({ defaultValue, statusFilter }: { defaultValue: stri
       onKeyDown={(e) => {
         if (e.key === "Enter") {
           const val = (e.target as HTMLInputElement).value;
-          window.location.href = `/admin/bookings?${new URLSearchParams({ status: statusFilter, search: val })}`;
+          window.location.href = `/admin/product/sessions?${new URLSearchParams({ status: statusFilter, search: val })}`;
         }
       }}
     />

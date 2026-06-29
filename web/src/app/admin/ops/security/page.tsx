@@ -19,6 +19,34 @@ function actionTone(action: string) {
   return "neutral" as const;
 }
 
+function actionLabel(action: string) {
+  const labels: Record<string, string> = {
+    LOGIN: "Вход",
+    LOGOUT: "Выход",
+    PASSWORD_RESET: "Сброс пароля",
+    PASSWORD_CHANGE: "Смена пароля",
+    PASSWORD_SET: "Назначение пароля",
+    ACCOUNT_BLOCK: "Блокировка аккаунта",
+    ACCOUNT_UNBLOCK: "Разблокировка аккаунта",
+    ACCOUNT_DELETE: "Удаление аккаунта",
+    IMPERSONATE: "Имперсонация",
+    REVIEW_MODERATE: "Модерация отзыва",
+    REVIEW_DELETE: "Удаление отзыва",
+    LIBRARY_MODERATE: "Модерация библиотеки",
+    PRACTITIONER_STATUS: "Статус практика",
+    PRACTITIONER_VERIFIED: "Верификация практика",
+    PAYOUT_RUN: "Запуск выплат",
+    REFUND: "Возврат",
+    SETTINGS_CHANGE: "Изменение настроек",
+  };
+  if (labels[action]) return labels[action];
+  return action
+    .replace(/^AI_/, "AI: ")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
+}
+
 function detailLabel(key: string) {
   const labels: Record<string, string> = {
     email: "Email",
@@ -35,6 +63,13 @@ function detailLabel(key: string) {
     ip: "IP",
     userId: "Пользователь",
     targetId: "Цель",
+    dialogueId: "Диалог",
+    from: "Было",
+    to: "Стало",
+    bookingId: "Бронирование",
+    practitionerId: "Практик",
+    providerId: "Провайдер",
+    feature: "Функция",
   };
   return labels[key] ?? key;
 }
@@ -60,11 +95,11 @@ function AuditDetails({ details }: { details: string | null }) {
   if (parsed.text) return <span className="block max-w-[28rem] whitespace-normal break-words text-xs leading-snug">{parsed.text}</span>;
   if (parsed.entries.length === 0) return <span className="text-[var(--soft-ink-faint)]">—</span>;
   return (
-    <dl className="grid max-w-[28rem] grid-cols-[7rem_1fr] gap-x-2 gap-y-1 text-xs leading-snug">
+    <dl className="flex max-w-[34rem] flex-wrap gap-1.5 text-xs leading-snug">
       {parsed.entries.map(([key, value]) => (
-        <div key={key} className="contents">
-          <dt className="text-[var(--soft-ink-faint)]">{detailLabel(key)}</dt>
-          <dd className="min-w-0 break-words text-[var(--soft-ink)]">{formatDetailValue(value)}</dd>
+        <div key={key} className="max-w-full rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1">
+          <dt className="inline text-[var(--soft-ink-faint)]">{detailLabel(key)}: </dt>
+          <dd className="inline break-words text-[var(--soft-ink)]">{formatDetailValue(value)}</dd>
         </div>
       ))}
     </dl>
@@ -146,7 +181,7 @@ export default async function AdminOpsSecurityPage() {
             Контроль риск-действий, доступа, удалений, выплат/возвратов, AI-изменений и событий, которые должны попадать в аудит.
           </p>
         </div>
-        <Link className="soft-admin-action w-fit" href="/admin/logs">Открыть все логи</Link>
+        <Link className="soft-admin-action w-fit" href="/admin/ops/logs">Открыть все логи</Link>
       </div>
 
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -158,10 +193,10 @@ export default async function AdminOpsSecurityPage() {
       </section>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-        <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/antifraud" actionLabel="Открыть антифрод">
+        <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/product/quality" actionLabel="Открыть антифрод">
           <div className="max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)]">
             <div className="max-w-full overflow-x-auto">
-            <table className="soft-admin-table table-fixed min-w-[980px]">
+            <table className="soft-admin-data-table table-fixed min-w-[980px]">
               <colgroup>
                 <col className="w-[11rem]" />
                 <col className="w-[11rem]" />
@@ -186,8 +221,9 @@ export default async function AdminOpsSecurityPage() {
                     <td>{formatDateTime(row.createdAt)}</td>
                     <td>
                       <span className="soft-admin-status-pill" data-tone={actionTone(row.action)}>
-                        {row.action}
+                        {actionLabel(row.action)}
                       </span>
+                      <p className="mt-1 break-all text-[10px] text-[var(--soft-ink-faint)]">{row.action}</p>
                     </td>
                     <td className="break-all font-mono text-xs">{row.userId}</td>
                     <td className="break-all font-mono text-xs">{row.targetId ?? "—"}</td>
@@ -208,7 +244,7 @@ export default async function AdminOpsSecurityPage() {
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Retention и удаления" actionHref="/admin/logs" actionLabel="Журнал">
+        <AdminOpsSection title="Retention и удаления" actionHref="/admin/ops/logs" actionLabel="Журнал">
           <div className="space-y-3">
             {deletionEvents.map((row) => (
               <div key={row.id} className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3">
@@ -229,22 +265,22 @@ export default async function AdminOpsSecurityPage() {
 
         <AdminOpsSection title="Контуры контроля">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/logs">
+            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/ops/logs">
               <FileSearch className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
               <p className="text-sm font-semibold">Логи и аудит</p>
               <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Системные, runtime, diagnostics, audit.</p>
             </Link>
-            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/antifraud">
+            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/product/quality">
               <ShieldAlert className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
               <p className="text-sm font-semibold">Антифрод</p>
               <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Referral risk, holds, appeals, payout risk.</p>
             </Link>
-            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/users">
+            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/product/users">
               <UserCog className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
               <p className="text-sm font-semibold">Пользователи</p>
               <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Роли, статусы, имперсонация и доступ.</p>
             </Link>
-            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/ai">
+            <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/ops/ai">
               <AlertTriangle className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
               <p className="text-sm font-semibold">AI governance</p>
               <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Ключи, routing, промты, аудит LLM.</p>

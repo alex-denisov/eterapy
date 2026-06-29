@@ -157,18 +157,18 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
         <AdminOpsSection title="Карта здоровья платформы">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCost(aiCostMicros, currencyRates, currency)} hint="Детализация расхода по продуктам, моделям и статусам." />
-            <AdminOpsLinkCard href="/admin/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, routing, промты." />
-            <AdminOpsLinkCard href="/admin/notifications" title="Уведомления" value={formatNumber(status.stats.notificationPreferences)} hint="Диагностика доставок, очереди notification.delivery, Telegram/email." />
-            <AdminOpsLinkCard href="/admin/files" title="Файлы" value="просмотр" hint="Файловое хранилище, типы, владельцы, размеры, даты." />
-            <AdminOpsLinkCard href="/admin/database" title="База данных" value="read-only" hint="Табличный просмотр ключевых сущностей без ручного SQL." />
-            <AdminOpsLinkCard href="/admin/jobs" title="Очереди и задачи" value={formatNumber(queuePressure)} hint="Durable jobs, статусы, повторы, ошибки, dead jobs." />
-            <AdminOpsLinkCard href="/admin/logs" title="Журналы и аудит" value={formatNumber(audit24h)} hint="Аудит, runtime, diagnostics, поиск и фильтры." />
-            <AdminOpsLinkCard href="/admin/system" title="Надежность сервисов" value={statusLabel(status.status)} hint="Health/readiness, зависимости, cron-контур." />
+            <AdminOpsLinkCard href="/admin/ops/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, routing, промты." />
+            <AdminOpsLinkCard href="/admin/ops/notifications" title="Уведомления" value={formatNumber(status.stats.notificationPreferences)} hint="Диагностика доставок, очереди notification.delivery, Telegram/email." />
+            <AdminOpsLinkCard href="/admin/ops/files" title="Файлы" value="просмотр" hint="Файловое хранилище, типы, владельцы, размеры, даты." />
+            <AdminOpsLinkCard href="/admin/ops/database" title="База данных" value="read-only" hint="Табличный просмотр ключевых сущностей без ручного SQL." />
+            <AdminOpsLinkCard href="/admin/ops/jobs" title="Очереди и задачи" value={formatNumber(queuePressure)} hint="Durable jobs, статусы, повторы, ошибки, dead jobs." />
+            <AdminOpsLinkCard href="/admin/ops/logs" title="Журналы и аудит" value={formatNumber(audit24h)} hint="Аудит, runtime, diagnostics, поиск и фильтры." />
+            <AdminOpsLinkCard href="/admin/ops/system" title="Надежность сервисов" value={statusLabel(status.status)} hint="Health/readiness, зависимости, cron-контур." />
             <AdminOpsLinkCard href="/admin/ops/security" title="Безопасность и инциденты" value={formatNumber(securityEvents24h)} hint="Риск-действия, админские операции, доступ и инциденты." />
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Сервисы и зависимости" actionHref="/admin/system" actionLabel="Открыть мониторинг">
+        <AdminOpsSection title="Сервисы и зависимости" actionHref="/admin/ops/system" actionLabel="Открыть мониторинг">
           <div className="divide-y divide-[var(--soft-paper-edge)]">
             {status.services.slice(0, 10).map((service) => (
               <div key={service.key} className="flex items-center justify-between gap-3 py-2">
@@ -186,7 +186,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Очереди и cron-контур" actionHref="/admin/jobs" actionLabel="Открыть задачи">
+        <AdminOpsSection title="Очереди и cron-контур" actionHref="/admin/ops/jobs" actionLabel="Открыть задачи">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3">
               <p className="text-xl font-semibold tabular-nums">{formatNumber(status.stats.jobsPending)}</p>
@@ -211,12 +211,12 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
           </div>
         </AdminOpsSection>
 
-        <AdminOpsSection title="Контуры данных" actionHref="/admin/database" actionLabel="Открыть БД">
+        <AdminOpsSection title="Контуры данных" actionHref="/admin/ops/database" actionLabel="Открыть БД">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <AdminOpsLinkCard href="/admin/database?table=users" title="Пользователи" value={formatNumber(status.stats.users)} hint="Аккаунты, роли, каналы, доступ." />
-            <AdminOpsLinkCard href="/admin/database?table=practitioners" title="Практики" value={formatNumber(status.stats.practitioners)} hint="Профили, статусы, тарифы." />
-            <AdminOpsLinkCard href="/admin/database?table=bookings" title="Бронирования" value={formatNumber(status.stats.bookings)} hint={`${formatNumber(status.stats.pendingBookings)} ожидают решения.`} />
-            <AdminOpsLinkCard href="/admin/logs" title="Журнал аудита" value={formatNumber(status.stats.auditLogs)} hint="Админские действия и системные события." />
+            <AdminOpsLinkCard href="/admin/ops/database?table=users" title="Пользователи" value={formatNumber(status.stats.users)} hint="Аккаунты, роли, каналы, доступ." />
+            <AdminOpsLinkCard href="/admin/ops/database?table=practitioners" title="Практики" value={formatNumber(status.stats.practitioners)} hint="Профили, статусы, тарифы." />
+            <AdminOpsLinkCard href="/admin/ops/database?table=bookings" title="Бронирования" value={formatNumber(status.stats.bookings)} hint={`${formatNumber(status.stats.pendingBookings)} ожидают решения.`} />
+            <AdminOpsLinkCard href="/admin/ops/logs" title="Журнал аудита" value={formatNumber(status.stats.auditLogs)} hint="Админские действия и системные события." />
           </div>
         </AdminOpsSection>
       </div>

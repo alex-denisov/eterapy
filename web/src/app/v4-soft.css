@@ -3027,12 +3027,20 @@
   }
 
   .soft-admin-nav-link.is-section-active {
-    background: color-mix(in srgb, var(--soft-bordeaux) 7%, transparent);
+    background: color-mix(in srgb, var(--soft-paper-card) 88%, white);
     color: var(--soft-bordeaux);
+    box-shadow:
+      inset 3px 0 0 var(--soft-terracotta),
+      0 10px 24px -20px rgba(92, 42, 44, 0.35);
   }
 
   .soft-admin-nav-link[data-depth="1"] {
     color: color-mix(in srgb, var(--soft-ink-soft) 88%, white);
+  }
+
+  .soft-admin-nav-link[data-depth="1"].is-active,
+  .soft-admin-nav-link[data-depth="1"]:hover {
+    color: var(--soft-bordeaux);
   }
 
   .soft-app-mobile-nav,
@@ -3126,6 +3134,68 @@
     outline: 1px solid var(--soft-bordeaux);
     outline-offset: -1px;
     background: white;
+  }
+
+  .soft-chart-hit {
+    outline: none;
+  }
+
+  .soft-chart-tooltip {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
+
+  .soft-chart-hit:hover .soft-chart-tooltip,
+  .soft-chart-hit:focus .soft-chart-tooltip,
+  .soft-chart-hit:focus-visible .soft-chart-tooltip {
+    opacity: 1;
+  }
+
+  .soft-chart-tooltip rect {
+    fill: rgba(76, 33, 38, 0.94);
+    stroke: rgba(255, 255, 255, 0.28);
+    stroke-width: 1px;
+  }
+
+  .soft-chart-tooltip text {
+    fill: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+
+  .soft-chart-html-hit {
+    outline: none;
+  }
+
+  .soft-chart-tooltip-html {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.5rem);
+    z-index: 20;
+    max-width: min(18rem, 70vw);
+    transform: translateX(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    border-radius: 0.35rem;
+    background: rgba(76, 33, 38, 0.94);
+    box-shadow: 0 16px 32px -24px rgba(47, 22, 24, 0.72);
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    opacity: 0;
+    padding: 0.35rem 0.5rem;
+    pointer-events: none;
+    text-align: center;
+    transition: opacity 120ms ease;
+    white-space: normal;
+  }
+
+  .soft-chart-html-hit:hover .soft-chart-tooltip-html,
+  .soft-chart-html-hit:focus .soft-chart-tooltip-html,
+  .soft-chart-html-hit:focus-visible .soft-chart-tooltip-html {
+    opacity: 1;
   }
 
   .soft-admin-sort-link {

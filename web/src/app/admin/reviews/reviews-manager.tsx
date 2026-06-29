@@ -30,7 +30,7 @@ const FILTERS: Array<{ key: string; label: string }> = [
   { key: "HIDDEN", label: "Скрытые" },
 ];
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 // R2: show the exact time, not just the date.
 function formatDateTime(iso: string): string {
@@ -43,7 +43,8 @@ function formatDateTime(iso: string): string {
   });
 }
 
-type SortMode = "date-desc" | "date-asc" | "rating-desc" | "rating-asc";
+type SortField = "rating" | "text" | "author" | "practitioner" | "createdAt" | "status";
+type SortDirection = "asc" | "desc";
 
 export function ReviewsManager({
   reviews: initial,
@@ -57,7 +58,11 @@ export function ReviewsManager({
   const [practitioner, setPractitioner] = useState("all");
   const [practitionerQuery, setPractitionerQuery] = useState("");
   const [authorQuery, setAuthorQuery] = useState("");
-  const [sort, setSort] = useState<SortMode>("date-desc");
+  const [ratingQuery, setRatingQuery] = useState("");
+  const [textQuery, setTextQuery] = useState("");
+  const [dateQuery, setDateQuery] = useState("");
+  const [sortField, setSortField] = useState<SortField>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   // V4: inline redaction of review text.
@@ -77,21 +82,30 @@ export function ReviewsManager({
   const visible = useMemo(() => {
     const author = authorQuery.trim().toLowerCase();
     const prac = practitionerQuery.trim().toLowerCase();
+    const rating = ratingQuery.trim();
+    const text = textQuery.trim().toLowerCase();
+    const date = dateQuery.trim().toLowerCase();
     const list = reviews.filter((r) => {
       if (filter !== "all" && r.status !== filter) return false;
       if (practitioner !== "all" && r.practitionerSlug !== practitioner) return false;
+      if (rating && !String(r.rating).includes(rating)) return false;
+      if (text && !(r.text ?? "").toLowerCase().includes(text)) return false;
       if (prac && !r.practitionerName.toLowerCase().includes(prac)) return false;
       if (author && !r.authorName.toLowerCase().includes(author) && !r.authorEmail.toLowerCase().includes(author)) return false;
+      if (date && !formatDateTime(r.createdAt).toLowerCase().includes(date)) return false;
       return true;
     });
     return [...list].sort((a, b) => {
-      if (sort === "rating-desc") return b.rating - a.rating;
-      if (sort === "rating-asc") return a.rating - b.rating;
-      const ta = new Date(a.createdAt).getTime();
-      const tb = new Date(b.createdAt).getTime();
-      return sort === "date-asc" ? ta - tb : tb - ta;
+      let result = 0;
+      if (sortField === "rating") result = a.rating - b.rating;
+      if (sortField === "text") result = (a.text ?? "").localeCompare(b.text ?? "", "ru");
+      if (sortField === "author") result = `${a.authorName} ${a.authorEmail}`.localeCompare(`${b.authorName} ${b.authorEmail}`, "ru");
+      if (sortField === "practitioner") result = a.practitionerName.localeCompare(b.practitionerName, "ru");
+      if (sortField === "status") result = (STATUS_META[a.status]?.label ?? a.status).localeCompare(STATUS_META[b.status]?.label ?? b.status, "ru");
+      if (sortField === "createdAt") result = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sortDir === "asc" ? result : -result;
     });
-  }, [reviews, filter, practitioner, practitionerQuery, authorQuery, sort]);
+  }, [reviews, filter, practitioner, practitionerQuery, authorQuery, ratingQuery, textQuery, dateQuery, sortField, sortDir]);
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -100,6 +114,20 @@ export function ReviewsManager({
   // Any filter change returns to the first page.
   function resetPage<T>(setter: (v: T) => void) {
     return (value: T) => { setter(value); setPage(1); };
+  }
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir(field === "createdAt" ? "desc" : "asc");
+    }
+  }
+
+  function sortMark(field: SortField) {
+    if (sortField !== field) return "↕";
+    return sortDir === "asc" ? "↑" : "↓";
   }
 
   async function setStatus(id: string, status: string) {
@@ -160,75 +188,17 @@ export function ReviewsManager({
     }
   }
 
-  const TH = "px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-muted-foreground";
+  const TH = "p-0 align-top text-left";
   const TD = "px-2.5 py-2 align-top";
   const ACTION = "rounded-md px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+  const HEADER_BUTTON = "flex h-7 w-full items-center justify-between gap-1 px-2 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]";
+  const FILTER_INPUT = "soft-admin-table-filter mt-0";
 
   return (
     <div data-testid="admin-reviews-manager">
-      <div className="mb-3 flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => { setFilter(f.key); setPage(1); }}
-            className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
-              filter === f.key
-                ? "bg-foreground text-background"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {/* R1/V4: practitioner dropdown (alphabetical) + practitioner name search +
-          author search + sort. */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <select
-          value={practitioner}
-          onChange={(e) => resetPage(setPractitioner)(e.target.value)}
-          aria-label="Фильтр по практику"
-          className="rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
-          data-testid="reviews-filter-practitioner"
-        >
-          <option value="all">Все практики</option>
-          {practitioners.map(([slug, name]) => (
-            <option key={slug} value={slug}>{name}</option>
-          ))}
-        </select>
-        <input
-          type="search"
-          value={practitionerQuery}
-          onChange={(e) => resetPage(setPractitionerQuery)(e.target.value)}
-          placeholder="Практик: имя или фамилия"
-          aria-label="Поиск по имени практика"
-          className="rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
-          data-testid="reviews-filter-practitioner-search"
-        />
-        <input
-          type="search"
-          value={authorQuery}
-          onChange={(e) => resetPage(setAuthorQuery)(e.target.value)}
-          placeholder="Автор: имя или email"
-          aria-label="Поиск по автору отзыва"
-          className="rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
-          data-testid="reviews-filter-author"
-        />
-        <select
-          value={sort}
-          onChange={(e) => resetPage(setSort)(e.target.value as SortMode)}
-          aria-label="Сортировка"
-          className="ml-auto rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-sm"
-          data-testid="reviews-sort"
-        >
-          <option value="date-desc">Сначала новые</option>
-          <option value="date-asc">Сначала старые</option>
-          <option value="rating-desc">Оценка: высокая → низкая</option>
-          <option value="rating-asc">Оценка: низкая → высокая</option>
-        </select>
-        <span className="text-xs text-muted-foreground">{visible.length}</span>
+      <div className="mb-3 flex items-center justify-between gap-3 text-xs text-[var(--soft-ink-soft)]">
+        <span>Найдено: {visible.length}</span>
+        <span data-testid="reviews-sort" className="sr-only">Сортировка: {sortField} {sortDir}</span>
       </div>
 
       {visible.length === 0 ? (
@@ -237,17 +207,45 @@ export function ReviewsManager({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-border/60">
-            <table className="w-full min-w-[920px] border-collapse text-sm">
-              <thead className="bg-muted/20">
+          <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
+            <table className="soft-admin-data-table min-w-[1120px]">
+              <thead>
                 <tr>
-                  <th className={TH}>Оценка</th>
-                  <th className={TH}>Отзыв</th>
-                  <th className={TH}>Автор</th>
-                  <th className={TH}>Практик</th>
-                  <th className={TH}>Дата</th>
-                  <th className={TH}>Статус</th>
-                  <th className={`${TH} text-right`}>Действия</th>
+                  <th className={TH}>
+                    <button type="button" className={HEADER_BUTTON} onClick={() => toggleSort("rating")}>Оценка <span>{sortMark("rating")}</span></button>
+                    <input className={FILTER_INPUT} value={ratingQuery} onChange={(e) => resetPage(setRatingQuery)(e.target.value)} placeholder="1-5" />
+                  </th>
+                  <th className={TH}>
+                    <button type="button" className={HEADER_BUTTON} onClick={() => toggleSort("text")}>Отзыв <span>{sortMark("text")}</span></button>
+                    <input className={FILTER_INPUT} value={textQuery} onChange={(e) => resetPage(setTextQuery)(e.target.value)} placeholder="текст" />
+                  </th>
+                  <th className={TH}>
+                    <button type="button" className={HEADER_BUTTON} onClick={() => toggleSort("author")}>Автор <span>{sortMark("author")}</span></button>
+                    <input className={FILTER_INPUT} value={authorQuery} onChange={(e) => resetPage(setAuthorQuery)(e.target.value)} placeholder="имя/email" data-testid="reviews-filter-author" />
+                  </th>
+                  <th className={TH}>
+                    <button type="button" className={HEADER_BUTTON} onClick={() => toggleSort("practitioner")}>Практик <span>{sortMark("practitioner")}</span></button>
+                    <select className={FILTER_INPUT} value={practitioner} onChange={(e) => resetPage(setPractitioner)(e.target.value)} data-testid="reviews-filter-practitioner">
+                      <option value="all">Все практики</option>
+                      {practitioners.map(([slug, name]) => (
+                        <option key={slug} value={slug}>{name}</option>
+                      ))}
+                    </select>
+                    <input className={FILTER_INPUT} value={practitionerQuery} onChange={(e) => resetPage(setPractitionerQuery)(e.target.value)} placeholder="имя" data-testid="reviews-filter-practitioner-search" />
+                  </th>
+                  <th className={TH}>
+                    <button type="button" className={HEADER_BUTTON} onClick={() => toggleSort("createdAt")}>Дата <span>{sortMark("createdAt")}</span></button>
+                    <input className={FILTER_INPUT} value={dateQuery} onChange={(e) => resetPage(setDateQuery)(e.target.value)} placeholder="дд.мм" />
+                  </th>
+                  <th className={TH}>
+                    <button type="button" className={HEADER_BUTTON} onClick={() => toggleSort("status")}>Статус <span>{sortMark("status")}</span></button>
+                    <select className={FILTER_INPUT} value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}>
+                      {FILTERS.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+                    </select>
+                  </th>
+                  <th className={`${TH} text-right`}>
+                    <div className={HEADER_BUTTON}>Действия</div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">

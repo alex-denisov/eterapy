@@ -41,7 +41,7 @@ export function AdminCurrencySelector({
           {OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </label>
-      {rateLabel ? <span className="whitespace-nowrap border-l border-[var(--soft-paper-edge)] pl-2 tabular-nums">{rateLabel}</span> : null}
+      {rateLabel ? <span className="whitespace-nowrap border-l border-[var(--soft-paper-edge)] pl-2 font-medium tabular-nums text-[var(--soft-bordeaux)]">{rateLabel}</span> : null}
     </div>
   );
 }

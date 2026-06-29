@@ -33,7 +33,7 @@ function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
   }
   if (!("page" in patch)) next.set("page", "1");
   const query = next.toString();
-  return query ? `/admin/jobs?${query}` : "/admin/jobs";
+  return query ? `/admin/ops/jobs?${query}` : "/admin/ops/jobs";
 }
 
 function SortLink({ params, field, children }: { params: SearchParams; field: string; children: React.ReactNode }) {
@@ -60,7 +60,7 @@ function HiddenParams({ params, except = [] }: { params: SearchParams; except?: 
 
 function HeaderInput({ params, name, placeholder }: { params: SearchParams; name: keyof SearchParams; placeholder: string }) {
   return (
-    <form action="/admin/jobs">
+    <form action="/admin/ops/jobs">
       <HiddenParams params={params} except={[name]} />
       <input className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
     </form>
@@ -69,7 +69,7 @@ function HeaderInput({ params, name, placeholder }: { params: SearchParams; name
 
 function HeaderSelect({ params, name, options }: { params: SearchParams; name: keyof SearchParams; options: Array<{ value: string; label: string }> }) {
   return (
-    <form action="/admin/jobs">
+    <form action="/admin/ops/jobs">
       <HiddenParams params={params} except={[name]} />
       <select className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""}>
         {options.map((option) => (

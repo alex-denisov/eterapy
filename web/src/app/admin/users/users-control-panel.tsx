@@ -42,7 +42,7 @@ function makeUrl(searchParams: URLSearchParams, patch: Record<string, string | n
   }
   if (!("page" in patch)) next.set("page", "1");
   const query = next.toString();
-  return query ? `/admin/users?${query}` : "/admin/users";
+  return query ? `/admin/product/users?${query}` : "/admin/product/users";
 }
 
 function SortHeader({ field, label, hint }: { field: string; label: string; hint?: string }) {
@@ -78,7 +78,7 @@ function PlainHeader({ label, hint }: { label: string; hint?: string }) {
   );
 }
 
-function FilterInput({ param, placeholder }: { param: string; placeholder: string }) {
+function FilterInput({ param, placeholder, type = "search" }: { param: string; placeholder: string; type?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get(param) ?? "");
@@ -87,6 +87,7 @@ function FilterInput({ param, placeholder }: { param: string; placeholder: strin
     <div className="relative">
       <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
       <input
+        type={type}
         className={`${COMPACT_INPUT_CLASS} pl-5`}
         value={value}
         placeholder={placeholder}
@@ -306,13 +307,34 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 ]}
               />
             </th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="credits" label="Баллы" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="freeToolsLimit" label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="bookings" label="Брони" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="entitlements" label="Покупки" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="subscriptions" label="Подписки" /></th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="credits" label="Баллы" />
+              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="createdAt" label="Регистрация" />
+              <FilterInput param="created" placeholder="дата" type="date" />
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" />
+              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="freeToolsLimit" label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" />
+              <FilterInput param="limit" placeholder="0/3/∞" />
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="bookings" label="Брони" />
+              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="entitlements" label="Покупки" />
+              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <SortHeader field="subscriptions" label="Подписки" />
+              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+            </th>
             <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
           </tr>
         </thead>

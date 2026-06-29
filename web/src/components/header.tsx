@@ -200,15 +200,15 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: appUrl("/practitioner/ethics"), label: "Этический кодекс", icon: Lock },
   ] : role === "SUPERADMIN" ? [
     { href: adminUrl("/admin"), label: "Обзор", icon: LayoutDashboard },
-    { href: adminUrl("/admin/users"), label: "Все пользователи", icon: Users },
-    { href: adminUrl("/admin/pricing"), label: "Цены и тарифы", icon: CreditCard },
-    { href: adminUrl("/admin/ai"), label: "AI-центр", icon: Sparkles },
+    { href: adminUrl("/admin/product/users"), label: "Все пользователи", icon: Users },
+    { href: adminUrl("/admin/finance/pricing"), label: "Цены и тарифы", icon: CreditCard },
+    { href: adminUrl("/admin/ops/ai"), label: "AI-центр", icon: Sparkles },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : role === "ADMIN" ? [
     { href: adminUrl("/admin"), label: "Обзор", icon: LayoutDashboard },
-    { href: adminUrl("/admin/users"), label: "Все пользователи", icon: Users },
-    { href: adminUrl("/admin/applications"), label: "Заявки", icon: BookOpen },
-    { href: adminUrl("/admin/bookings"), label: "Бронирования", icon: CalendarDays },
+    { href: adminUrl("/admin/product/users"), label: "Все пользователи", icon: Users },
+    { href: adminUrl("/admin/product/quality"), label: "Заявки", icon: BookOpen },
+    { href: adminUrl("/admin/product/sessions"), label: "Бронирования", icon: CalendarDays },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
     { href: appUrl(""), label: "Главная", icon: LayoutDashboard },

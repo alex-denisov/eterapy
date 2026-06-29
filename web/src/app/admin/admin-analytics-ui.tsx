@@ -40,6 +40,14 @@ export function formatPercent(value: number) {
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value)}%`;
 }
 
+function chartTickValues(maxValue: number, integerTicks: boolean) {
+  const max = integerTicks ? Math.max(1, Math.ceil(maxValue)) : maxValue;
+  if (!integerTicks) return [max, max * 0.75, max * 0.5, max * 0.25, 0];
+  if (max <= 6) return Array.from({ length: max + 1 }, (_, index) => max - index);
+  return [...new Set([max, Math.round(max * 0.75), Math.round(max * 0.5), Math.round(max * 0.25), 0])]
+    .sort((a, b) => b - a);
+}
+
 export function formatDateTime(value: Date | string | null | undefined) {
   if (!value) return "—";
   return new Intl.DateTimeFormat("ru-RU", {
@@ -197,6 +205,7 @@ export function VerticalBarChart({
   maxValue,
   seriesLabels,
   valueFormatter,
+  integerTicks = false,
 }: {
   data: ChartPoint[];
   unit?: string;
@@ -204,8 +213,10 @@ export function VerticalBarChart({
   maxValue?: number;
   seriesLabels?: [string, string?, string?];
   valueFormatter?: (value: number) => string;
+  integerTicks?: boolean;
 }) {
-  const max = Math.max(maxValue ?? 0, ...data.flatMap((item) => [item.value, item.secondary ?? 0, item.tertiary ?? 0]), 1);
+  const rawMax = Math.max(maxValue ?? 0, ...data.flatMap((item) => [item.value, item.secondary ?? 0, item.tertiary ?? 0]), 1);
+  const max = integerTicks ? Math.max(1, Math.ceil(rawMax)) : rawMax;
   const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
   if (data.length === 0) return <EmptyState />;
   const hasValues = data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0);
@@ -220,12 +231,12 @@ export function VerticalBarChart({
   const top = 12;
   const plotHeight = 212;
   const verticalLabels = data.length > 18;
-  const bottom = verticalLabels ? 92 : 44;
+  const bottom = verticalLabels ? 66 : 34;
   const groupWidth = verticalLabels ? (series.length > 1 ? 34 : 24) : (series.length > 1 ? 48 : 42);
   const width = Math.max(760, left + right + data.length * groupWidth);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
-  const tickValues = [max, max * 0.75, max * 0.5, max * 0.25, 0];
+  const tickValues = chartTickValues(max, integerTicks);
   const innerGap = 2;
   const barWidth = Math.max(3, Math.min(14, (groupWidth - 8 - innerGap * (series.length - 1)) / series.length));
   const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
@@ -273,8 +284,10 @@ export function VerticalBarChart({
           <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           {data.map((item, index) => {
-            const groupX = left + index * (plotWidth / data.length);
-            const startX = groupX + (plotWidth / data.length - totalBarsWidth) / 2;
+            const slotWidth = plotWidth / data.length;
+            const groupX = left + index * slotWidth;
+            const centerX = groupX + slotWidth / 2;
+            const startX = groupX + (slotWidth - totalBarsWidth) / 2;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -282,26 +295,35 @@ export function VerticalBarChart({
                   const barHeight = raw > 0 ? Math.max(2, (raw / max) * plotHeight) : 0;
                   const x = startX + seriesIndex * (barWidth + innerGap);
                   const y = top + plotHeight - barHeight;
+                  const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)}`;
+                  const tooltipWidth = Math.min(230, Math.max(124, tooltip.length * 5.8));
+                  const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, x + barWidth / 2));
+                  const tooltipY = Math.max(top + 28, y - 6);
                   return (
-                    <rect
-                      key={seriesItem.key}
-                      x={x}
-                      y={y}
-                      width={barWidth}
-                      height={barHeight}
-                      rx="2"
-                      fill={seriesItem.color}
-                      opacity={raw > 0 ? 0.96 : 0}
-                    >
-                      <title>{`${item.label} · ${seriesItem.label}: ${formatValue(raw)}`}</title>
-                    </rect>
+                    <g key={seriesItem.key} className="soft-chart-hit" tabIndex={raw > 0 ? 0 : undefined} aria-label={tooltip}>
+                      <rect
+                        x={x}
+                        y={y}
+                        width={barWidth}
+                        height={barHeight}
+                        rx="2"
+                        fill={seriesItem.color}
+                        opacity={raw > 0 ? 0.96 : 0}
+                      />
+                      {raw > 0 ? (
+                        <g className="soft-chart-tooltip" transform={`translate(${tooltipX} ${tooltipY})`}>
+                          <rect x={-tooltipWidth / 2} y="-25" width={tooltipWidth} height="22" rx="5" />
+                          <text x="0" y="-10" textAnchor="middle">{tooltip}</text>
+                        </g>
+                      ) : null}
+                    </g>
                   );
                 })}
                 <text
-                  x={groupX + plotWidth / data.length / 2}
-                  y={verticalLabels ? top + plotHeight + 78 : top + plotHeight + 20}
+                  x={centerX}
+                  y={verticalLabels ? top + plotHeight + 52 : top + plotHeight + 15}
                   textAnchor={verticalLabels ? "end" : "middle"}
-                  transform={verticalLabels ? `rotate(-90 ${groupX + plotWidth / data.length / 2} ${top + plotHeight + 78})` : undefined}
+                  transform={verticalLabels ? `rotate(-90 ${centerX} ${top + plotHeight + 52})` : undefined}
                   className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums"
                 >
                   {item.label}
@@ -328,10 +350,13 @@ export function HorizontalBars({ data, unit }: { data: ChartPoint[]; unit?: stri
           </div>
           <div className="h-2 rounded-full bg-[var(--soft-paper-edge)]">
             <div
-              className="h-2 rounded-full bg-[var(--soft-bordeaux)]"
+              className="soft-chart-html-hit relative h-2 rounded-full bg-[var(--soft-bordeaux)]"
               style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }}
-              title={`${item.label}: ${formatNumber(item.value)}${unit ?? ""}`}
-            />
+              tabIndex={0}
+              aria-label={`${item.label}: ${formatNumber(item.value)}${unit ?? ""}`}
+            >
+              <span className="soft-chart-tooltip-html">{item.label}: {formatNumber(item.value)}{unit ?? ""}</span>
+            </div>
           </div>
         </div>
       ))}
@@ -352,15 +377,17 @@ export function FunnelChart({ data }: { data: ChartPoint[] }) {
             <div className="text-xs text-[var(--soft-ink-soft)]">{item.label}</div>
             <div className="flex justify-center">
               <div
-                className="flex h-11 items-center justify-center rounded-sm bg-[var(--soft-bordeaux)] px-3 text-xs font-semibold text-white shadow-sm"
-                title={`${item.label}: ${formatNumber(item.value)} · ${formatPercent(conversion)}`}
+                className="soft-chart-html-hit relative flex h-11 items-center justify-center rounded-sm bg-[var(--soft-bordeaux)] px-3 text-xs font-semibold text-white shadow-sm"
                 style={{
                   width: `${width}%`,
                   clipPath: "polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%)",
                   opacity: 1 - index * 0.07,
                 }}
+                tabIndex={0}
+                aria-label={`${item.label}: ${formatNumber(item.value)} · ${formatPercent(conversion)}`}
               >
                 {formatNumber(item.value)}
+                <span className="soft-chart-tooltip-html">{item.label}: {formatNumber(item.value)} · {formatPercent(conversion)}</span>
               </div>
             </div>
             <div className="text-right text-xs tabular-nums text-[var(--soft-ink-faint)]">{formatPercent(conversion)}</div>

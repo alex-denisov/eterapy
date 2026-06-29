@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
   ${why ? `<p style="margin:0 0 8px;color:#94a3b8;font-size:13px">Почему ETerapy:</p>
   <p style="margin:0 0 20px;color:#f8fafc;line-height:1.6">${why.replace(/\n/g, "<br>")}</p>` : ""}
 
-  <a href="${APP_URL}/admin/practitioners" style="display:inline-block;background:#C9A84C;color:#0D1B2A;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+  <a href="${APP_URL}/admin/product/quality" style="display:inline-block;background:#C9A84C;color:#0D1B2A;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
     Открыть панель практиков →
   </a>
 

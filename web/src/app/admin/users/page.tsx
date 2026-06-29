@@ -13,6 +13,8 @@ type SearchParams = {
   role?: string;
   status?: string;
   channel?: string;
+  created?: string;
+  limit?: string;
   sort?: string;
   dir?: string;
   page?: string;
@@ -84,6 +86,19 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
   } else if (params.status === "unverified") {
     where.emailVerified = false;
     where.deletedAt = null;
+  }
+
+  const created = params.created?.trim();
+  if (created && /^\d{4}-\d{2}-\d{2}$/.test(created)) {
+    const start = new Date(`${created}T00:00:00.000Z`);
+    const end = new Date(`${created}T23:59:59.999Z`);
+    where.createdAt = { gte: start, lte: end };
+  }
+
+  const limit = params.limit?.trim();
+  if (limit) {
+    if (limit === "∞") where.freeToolsLimit = 0;
+    else if (/^\d+$/.test(limit)) where.freeToolsLimit = Number(limit);
   }
 
   return where;
@@ -175,6 +190,10 @@ export default async function AdminUsersPage(props: {
         provider: true,
         registrationChannel: true,
         telegramUsername: true,
+        birthDate: true,
+        birthTime: true,
+        birthPlace: true,
+        timezone: true,
         practitioner: {
           select: {
             id: true,
@@ -280,6 +299,10 @@ export default async function AdminUsersPage(props: {
     clarityCredits: creditByUser.get(user.id) ?? 0,
     provider: user.provider,
     telegramUsername: user.telegramUsername,
+    birthDate: user.birthDate?.toISOString() ?? null,
+    birthTime: user.birthTime,
+    birthPlace: user.birthPlace,
+    timezone: user.timezone,
     practitioner: user.practitioner ? {
       id: user.practitioner.id,
       status: user.practitioner.status,

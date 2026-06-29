@@ -28,13 +28,14 @@ export default async function CabinetResultPage({
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
   const userId = session.user.id;
+  const canViewAnyResult = ["ADMIN", "SUPERADMIN"].includes(session.user.role ?? "");
 
   const { id } = await params;
   const result = await db.productResult.findUnique({ where: { id } });
 
   // 404 if the result does not exist, belongs to someone else, or has been
   // soft-deleted. Resist leaking ownership through the error itself.
-  if (!result || result.userId !== userId || result.deletedAt) {
+  if (!result || (!canViewAnyResult && result.userId !== userId) || result.deletedAt) {
     notFound();
   }
 

@@ -32,7 +32,7 @@ function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
   }
   if (!("page" in patch)) next.set("page", "1");
   const query = next.toString();
-  return query ? `/admin/logs?${query}` : "/admin/logs";
+  return query ? `/admin/ops/logs?${query}` : "/admin/ops/logs";
 }
 
 function HiddenParams({ params, except = [] }: { params: SearchParams; except?: string[] }) {
@@ -53,7 +53,7 @@ const LOG_INPUT_CLASS = "h-7 w-full min-w-0 border-0 border-t border-[var(--soft
 
 function HeaderInput({ params, name, placeholder }: { params: SearchParams; name: keyof SearchParams; placeholder: string }) {
   return (
-    <form action="/admin/logs">
+    <form action="/admin/ops/logs">
       <HiddenParams params={params} except={[name]} />
       <input className={LOG_INPUT_CLASS} name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
     </form>

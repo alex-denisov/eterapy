@@ -6,24 +6,19 @@ import {
   BellRing,
   BrainCircuit,
   BookOpenText,
-  CalendarDays,
   Database,
   FileSearch,
   FolderOpen,
   Gauge,
   LayoutDashboard,
   LifeBuoy,
-  MessageSquareWarning,
   Settings,
   ShieldAlert,
   SlidersHorizontal,
-  Star,
   Users,
-  UserCog,
   WalletCards,
   Wrench,
   LogOut,
-  FileText,
   ListTodo,
   ServerCog,
   BarChart3,
@@ -49,48 +44,39 @@ interface NavItem {
 }
 
 // Unified nav order — single source of truth for both ADMIN and SUPERADMIN.
-// User management is intentionally merged into /admin/users; role-specific
-// pages remain reachable as drill-downs from the unified table.
+// User management is intentionally merged into /admin/product/users. Legacy
+// role-specific routes stay as compatibility entry points until every action
+// from their old panels is migrated into the unified modal.
 const NAV_ITEMS: NavItem[] = [
   { href: adminUrl("/admin"),              icon: LayoutDashboard,      label: "Обзор", section: "workspace", level: 0 },
 
   { href: adminUrl("/admin/product"),      icon: BarChart3,            label: "Продукт и клиенты", section: "product", level: 0 },
-  { href: adminUrl("/admin/users"),        icon: Users,                label: "Пользователи и сегменты", section: "product", level: 1 },
-  { href: adminUrl("/admin/clients"),      icon: Users,                label: "Клиенты платформы", section: "product", level: 1, permission: "clients.view" },
-  { href: adminUrl("/admin/practitioners"),icon: UserCog,              label: "Практики", section: "product", level: 1, permission: "practitioners.view" },
+  { href: adminUrl("/admin/product/users"), icon: Users,               label: "Пользователи и сегменты", section: "product", level: 1 },
   { href: adminUrl("/admin/product/funnel"), icon: BarChart3,          label: "Воронка и конверсии", section: "product", level: 1 },
   { href: adminUrl("/admin/product/results"), icon: FileSearch,        label: "Продукты и результаты", section: "product", level: 1 },
   { href: adminUrl("/admin/product/sessions"), icon: Gauge,            label: "Сессии и транскрипты", section: "product", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/product/subscriptions"), icon: Coins,       label: "Подписки, баллы и рефералы", section: "product", level: 1 },
   { href: adminUrl("/admin/product/quality"), icon: ShieldAlert,       label: "Операции и качество", section: "product", level: 1 },
-  { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки практиков", section: "product", level: 1, permission: "practitioners.view" },
-  { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования", section: "product", level: 1 },
-  { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии", section: "product", level: 1, superadminOnly: true },
-  { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы", section: "product", level: 1 },
-  { href: adminUrl("/admin/reviews"),      icon: Star,                 label: "Отзывы", section: "product", level: 1, permission: "safety.review" },
-  { href: adminUrl("/admin/antifraud"),    icon: ShieldAlert,          label: "Антифрод", section: "product", level: 1, permission: "antifraud.review" },
-  { href: adminUrl("/admin/quality"),      icon: ShieldAlert,          label: "Качество и обращения", section: "product", level: 1, permission: "safety.review" },
 
   { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансы", section: "finance", level: 0, superadminOnly: true },
   { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/payouts"), icon: Landmark,          label: "Выплаты практикам", section: "finance", level: 1, superadminOnly: true },
-  { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Платежи и баллы", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/reports"), icon: FileSpreadsheet,   label: "Отчеты практиков", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/points"), icon: Coins,              label: "Баллы", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/reconciliation"), icon: FileSearch, label: "Сверка и импорт", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/unit-economics"), icon: BarChart3,  label: "Юнит-экономика", section: "finance", level: 1, superadminOnly: true },
-  { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/pricing"), icon: SlidersHorizontal, label: "Цены и тарифы", section: "finance", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/finance/controls"), icon: FileSearch,       label: "Контроль и журналы", section: "finance", level: 1, superadminOnly: true },
 
   { href: adminUrl("/admin/ops"),          icon: ServerCog,            label: "Система, AI и журналы", section: "ops", level: 0, permission: "system.read" },
   { href: adminUrl("/admin/ops/ai-cost"),  icon: BrainCircuit,         label: "AI-затраты и токены", section: "ops", level: 1, permission: "ai.configure" },
-  { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "Провайдеры и модели", section: "ops", level: 1, permission: "ai.configure" },
-  { href: adminUrl("/admin/notifications"),icon: BellRing,             label: "Уведомления", section: "ops", level: 1, permission: "notifications.diagnose" },
-  { href: adminUrl("/admin/files"),        icon: FolderOpen,           label: "Файлы", section: "ops", level: 1, superadminOnly: true },
-  { href: adminUrl("/admin/database"),     icon: Database,             label: "База данных", section: "ops", level: 1, permission: "system.read" },
-  { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Надежность сервисов", section: "ops", level: 1, permission: "system.read" },
-  { href: adminUrl("/admin/jobs"),         icon: ListTodo,             label: "Очереди и задачи", section: "ops", level: 1, permission: "system.read" },
-  { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Журналы и аудит", section: "ops", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/ops/ai"),       icon: BrainCircuit,         label: "Провайдеры и модели", section: "ops", level: 1, permission: "ai.configure" },
+  { href: adminUrl("/admin/ops/notifications"), icon: BellRing,        label: "Уведомления", section: "ops", level: 1, permission: "notifications.diagnose" },
+  { href: adminUrl("/admin/ops/files"),    icon: FolderOpen,           label: "Файлы", section: "ops", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/ops/database"), icon: Database,             label: "База данных", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/ops/system"),   icon: Wrench,               label: "Надежность сервисов", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/ops/jobs"),     icon: ListTodo,             label: "Очереди и задачи", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/ops/logs"),     icon: BookOpenText,         label: "Журналы и аудит", section: "ops", level: 1, superadminOnly: true },
   { href: adminUrl("/admin/ops/security"), icon: FileSearch,           label: "Безопасность и инциденты", section: "ops", level: 1, permission: "system.read" },
 
   { href: adminUrl("/admin/support"),      icon: LifeBuoy,             label: "Поддержка", section: "support", level: 0 },
@@ -101,12 +87,37 @@ const ROLE_LABELS: Record<string, string> = {
   SUPERADMIN: "Суперадминистратор",
 };
 
+const LEGACY_CANONICAL_PATHS: Record<string, string> = {
+  "/admin/applications": "/admin/product/quality",
+  "/admin/users": "/admin/product/users",
+  "/admin/clients": "/admin/product/users",
+  "/admin/practitioners": "/admin/product/users",
+  "/admin/complaints": "/admin/product/quality",
+  "/admin/reviews": "/admin/product/quality",
+  "/admin/antifraud": "/admin/product/quality",
+  "/admin/quality": "/admin/product/quality",
+  "/admin/bookings": "/admin/product/sessions",
+  "/admin/sessions": "/admin/product/sessions",
+  "/admin/pricing": "/admin/finance/pricing",
+  "/admin/payments": "/admin/finance/payouts",
+  "/admin/payouts": "/admin/finance/payouts",
+  "/admin/ai": "/admin/ops/ai",
+  "/admin/notifications": "/admin/ops/notifications",
+  "/admin/files": "/admin/ops/files",
+  "/admin/database": "/admin/ops/database",
+  "/admin/system": "/admin/ops/system",
+  "/admin/jobs": "/admin/ops/jobs",
+  "/admin/logs": "/admin/ops/logs",
+};
+
+function canonicalAdminPath(pathname: string) {
+  return LEGACY_CANONICAL_PATHS[pathname] ?? pathname;
+}
+
 // X9: section key for the sidebar unread badge, derived from the nav href.
 function navCountKey(href: string): string | null {
-  if (href.endsWith("/admin/applications")) return "applications";
-  if (href.endsWith("/admin/bookings")) return "bookings";
-  if (href.endsWith("/admin/complaints")) return "complaints";
-  if (href.endsWith("/admin/reviews")) return "reviews";
+  if (href.endsWith("/admin/product/quality")) return "quality";
+  if (href.endsWith("/admin/product/sessions")) return "bookings";
   return null;
 }
 
@@ -134,6 +145,7 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const activePathname = canonicalAdminPath(pathname);
   const isSuperAdmin = role === "SUPERADMIN";
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
 
@@ -146,13 +158,13 @@ export function AdminShell({
 
   function isActive(href: string) {
     const itemPath = toPathname(href);
-    if (itemPath === "/admin") return pathname === itemPath;
-    if (itemPath === "/admin/ops") return pathname === itemPath;
-    return pathname.startsWith(itemPath);
+    if (itemPath === "/admin") return activePathname === itemPath;
+    if (itemPath === "/admin/ops") return activePathname === itemPath;
+    return activePathname.startsWith(itemPath);
   }
 
   function isExactActive(href: string) {
-    return pathname === toPathname(href);
+    return activePathname === toPathname(href);
   }
 
   function isSectionActive(item: NavItem) {
@@ -161,7 +173,7 @@ export function AdminShell({
   }
 
   const navLabelByPath = new Map(navItems.map((item) => [toPathname(item.href), item.label]));
-  const breadcrumbItems = pathname
+  const breadcrumbItems = activePathname
     .split("/")
     .filter(Boolean)
     .slice(1)
@@ -210,6 +222,7 @@ export function AdminShell({
             const exactActive = isExactActive(item.href);
             const active = isActive(item.href);
             const parentActive = isSectionActive(item) && !exactActive;
+            const navActive = active || ((item.level ?? 0) === 0 && parentActive);
             return (
             <Link key={item.href} href={item.href}
               data-testid="admin-shell-nav-item"
@@ -220,7 +233,7 @@ export function AdminShell({
                   ? "ml-5 min-h-8 gap-2 px-2 py-1.5 text-xs"
                   : "mt-2 min-h-10 gap-2.5 px-3 py-2 text-sm font-semibold"
               } ${
-                active
+                navActive
                   ? "is-active font-medium"
                   : parentActive
                     ? "is-section-active"
@@ -245,7 +258,7 @@ export function AdminShell({
           <Link href={adminUrl("/admin/settings")}
             aria-current={pathname === "/admin/settings" ? "page" : undefined}
             className={`soft-admin-nav-link flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
-              pathname === "/admin/settings" ? "is-active font-medium" : ""
+              activePathname === "/admin/settings" ? "is-active font-medium" : ""
             }`}>
             <Settings className="h-4 w-4 shrink-0" />
             Настройки

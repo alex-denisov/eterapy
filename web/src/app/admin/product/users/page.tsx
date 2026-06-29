@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
-export default function AdminProductUsersAliasPage() {
-  redirect("/admin/users");
-}
+// Canonical product/client route for the unified users registry.
+export const dynamic = "force-dynamic";
+export { default } from "../../users/page";

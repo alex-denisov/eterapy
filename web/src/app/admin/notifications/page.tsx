@@ -55,7 +55,7 @@ function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
   }
   if (!("page" in patch)) next.set("page", "1");
   const query = next.toString();
-  return query ? `/admin/notifications?${query}` : "/admin/notifications";
+  return query ? `/admin/ops/notifications?${query}` : "/admin/ops/notifications";
 }
 
 function HiddenParams({ params, except = [] }: { params: SearchParams; except?: string[] }) {
@@ -82,7 +82,7 @@ function SortLink({ params, field, children }: { params: SearchParams; field: st
 
 function HeaderInput({ params, name, placeholder }: { params: SearchParams; name: keyof SearchParams; placeholder: string }) {
   return (
-    <form action="/admin/notifications">
+    <form action="/admin/ops/notifications">
       <HiddenParams params={params} except={[name]} />
       <input className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
     </form>
@@ -91,7 +91,7 @@ function HeaderInput({ params, name, placeholder }: { params: SearchParams; name
 
 function HeaderSelect({ params, name, options }: { params: SearchParams; name: keyof SearchParams; options: Array<{ value: string; label: string }> }) {
   return (
-    <form action="/admin/notifications">
+    <form action="/admin/ops/notifications">
       <HiddenParams params={params} except={[name]} />
       <select className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""}>
         {options.map((option) => (

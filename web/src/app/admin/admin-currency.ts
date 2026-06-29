@@ -39,7 +39,7 @@ export async function getAdminCurrencyRates(date = new Date()): Promise<AdminCur
   const sourceUrl = `${CBR_DAILY_URL}?date_req=${dateReq}`;
   try {
     const response = await fetch(sourceUrl, {
-      next: { revalidate: 60 * 60 * 6 },
+      cache: "no-store",
       headers: { accept: "application/xml,text/xml;q=0.9,*/*;q=0.8" },
     });
     if (!response.ok) throw new Error(`CBR responded ${response.status}`);
@@ -114,9 +114,9 @@ export function formatAdminCurrencyNumber(value: number, currency: AdminDisplayC
 }
 
 export function formatCbrRateLabel(rates: AdminCurrencyRates | null | undefined) {
-  if (!rates?.usdRub) return "USD/RUB · курс недоступен";
-  return `USD/RUB · ${rates.asOf} · ${new Intl.NumberFormat("ru-RU", {
+  if (!rates?.usdRub) return "$/₽ · курс недоступен";
+  return `$/₽ · ${rates.asOf} · ${new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(rates.usdRub)} ₽`;
+    maximumFractionDigits: 2,
+  }).format(rates.usdRub)}`;
 }

@@ -44,7 +44,7 @@ export default async function FinancePointsPage({ searchParams }: PageProps) {
         <MetricCard label="Операций" value={formatNumber(entries.length)} />
       </MetricGrid>
       <div className="mt-6 grid gap-4">
-        <VerticalBarChart label="Баллы на балансе по дням: дневное изменение" data={charts.creditsByDay} />
+        <VerticalBarChart label="Баллы на балансе по дням: дневное изменение" data={charts.creditsByDay} integerTicks />
         <DataTable
           columns={["Дата и время", "Пользователь", "Баллы", "Тип", "Источник", "Статус", "Баланс после"]}
           rows={entries.map((entry) => [

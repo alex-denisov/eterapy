@@ -39,12 +39,12 @@ export default async function ProductFunnelPage({ searchParams }: PageProps) {
           <FunnelChart data={data.funnel} />
         </AnalyticsSection>
         <AnalyticsSection title="CTA и продуктовые действия по дням" actionHref="/admin/product/results" actionLabel="Результаты">
-          <VerticalBarChart label="Самые активные продукты" data={data.charts.productByDay} seriesLabels={data.charts.productByDayLabels} />
+          <VerticalBarChart label="Самые активные продукты" data={data.charts.productByDay} seriesLabels={data.charts.productByDayLabels} integerTicks />
         </AnalyticsSection>
         <AnalyticsSection title="Реферальная конверсия" actionHref="/admin/product/subscriptions" actionLabel="Рефералы">
           <div className="grid gap-4 xl:grid-cols-2">
-            <VerticalBarChart label="Регистрации по реферальной ссылке" data={data.charts.referralRegistrations} />
-            <VerticalBarChart label="Покупки подписки рефералами" data={data.charts.referralSubscriptions} />
+            <VerticalBarChart label="Регистрации по реферальной ссылке" data={data.charts.referralRegistrations} integerTicks />
+            <VerticalBarChart label="Покупки подписки рефералами" data={data.charts.referralSubscriptions} integerTicks />
           </div>
         </AnalyticsSection>
       </div>

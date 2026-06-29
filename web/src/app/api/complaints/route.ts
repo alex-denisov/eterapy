@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
         event: "COMPLIANCE_ALERT",
         data: {
           summary: `Жалоба «${reasonLabel}» на сессию с ${booking.practitioner.user.name ?? "практиком"}`,
-          reviewUrl: "/admin/complaints",
+          reviewUrl: "/admin/product/quality",
         },
       }).catch((e) => log.error("complaints.reviewer_notify_failed", { err: e, reviewerId: reviewer.id })),
     ),
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
         <p><b>Описание:</b> ${description}</p>
         <p><b>ID бронирования:</b> ${bookingId}</p>
         <br>
-        <a href="${APP_URL}/admin/complaints" style="background:#C9A84C;color:#0D1B2A;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
+        <a href="${APP_URL}/admin/product/quality" style="background:#C9A84C;color:#0D1B2A;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
           Рассмотреть жалобу →
         </a>
       </body></html>`,

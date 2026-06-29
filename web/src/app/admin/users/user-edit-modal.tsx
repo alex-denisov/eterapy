@@ -47,6 +47,11 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
 
   const [name, setName] = useState(row.name);
   const [email, setEmail] = useState(row.email);
+  const [telegramUsername, setTelegramUsername] = useState(row.telegramUsername ?? "");
+  const [birthDate, setBirthDate] = useState(row.birthDate ? row.birthDate.slice(0, 10) : "");
+  const [birthTime, setBirthTime] = useState(row.birthTime ?? "");
+  const [birthPlace, setBirthPlace] = useState(row.birthPlace ?? "");
+  const [timezone, setTimezone] = useState(row.timezone ?? "");
   const [role, setRole] = useState<UserRole>(row.role);
   const [freeLimit, setFreeLimit] = useState(row.freeToolsLimit == null ? "" : String(row.freeToolsLimit));
   const [clarityCredits, setClarityCredits] = useState(String(row.clarityCredits));
@@ -108,9 +113,20 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       if (canEditName && name.trim() && name.trim() !== row.name) {
         await patchJson(`/api/admin/users/${row.id}`, { action: "update_name", name: name.trim() });
       }
-      // 2. Email
-      if (canEditName && email.trim() && email.trim().toLowerCase() !== row.email.toLowerCase()) {
-        await patchJson(`/api/admin/users/${row.id}`, { action: "update_profile", email: email.trim() });
+      // 2. Profile details from the old client management page.
+      if (canEditName) {
+        const profilePatch: Record<string, unknown> = { action: "update_profile" };
+        if (email.trim() && email.trim().toLowerCase() !== row.email.toLowerCase()) profilePatch.email = email.trim();
+        if (row.role === "CLIENT") {
+          if (birthDate !== (row.birthDate ? row.birthDate.slice(0, 10) : "")) profilePatch.birthDate = birthDate;
+          if (birthTime !== (row.birthTime ?? "")) profilePatch.birthTime = birthTime;
+          if (birthPlace !== (row.birthPlace ?? "")) profilePatch.birthPlace = birthPlace;
+          if (timezone !== (row.timezone ?? "")) profilePatch.timezone = timezone;
+          if (telegramUsername.replace(/^@/, "") !== (row.telegramUsername ?? "")) profilePatch.telegramUsername = telegramUsername;
+        }
+        if (Object.keys(profilePatch).length > 1) {
+          await patchJson(`/api/admin/users/${row.id}`, profilePatch);
+        }
       }
       // 3. Role + free limit (superadmin)
       const usersPatch: Record<string, unknown> = { userId: row.id };
@@ -273,6 +289,34 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
               </label>
             </div>
           </section>
+
+          {row.role === "CLIENT" && (
+            <section>
+              <h3 className={`mb-2 ${LABEL}`}>Профиль клиента</h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className={LABEL}>Telegram</span>
+                  <Input className={FIELD} value={telegramUsername} disabled={!canEditName} placeholder="@username" onChange={(e) => setTelegramUsername(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className={LABEL}>Дата рождения</span>
+                  <Input className={FIELD} type="date" value={birthDate} disabled={!canEditName} onChange={(e) => setBirthDate(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className={LABEL}>Время рождения</span>
+                  <Input className={FIELD} type="time" value={birthTime} disabled={!canEditName} onChange={(e) => setBirthTime(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className={LABEL}>Город</span>
+                  <Input className={FIELD} value={birthPlace} disabled={!canEditName} placeholder="Москва" onChange={(e) => setBirthPlace(e.target.value)} />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className={LABEL}>Часовой пояс</span>
+                  <Input className={FIELD} value={timezone} disabled={!canEditName} placeholder="Europe/Moscow" onChange={(e) => setTimezone(e.target.value)} />
+                </label>
+              </div>
+            </section>
+          )}
 
           {/* Role + limit (superadmin) */}
           {permissions.canManageRoles && (

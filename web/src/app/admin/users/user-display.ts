@@ -28,6 +28,10 @@ export interface AdminUserRow {
   clarityCredits: number;
   provider: string | null;
   telegramUsername: string | null;
+  birthDate: string | null;
+  birthTime: string | null;
+  birthPlace: string | null;
+  timezone: string | null;
   practitioner: {
     id: string;
     status: string;

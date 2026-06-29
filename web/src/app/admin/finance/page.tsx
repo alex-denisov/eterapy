@@ -84,7 +84,7 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
 
         <AnalyticsSection title="Баллы, цифровые продукты и подписки" actionHref="/admin/finance/points" actionLabel="Баллы">
           <div className="grid gap-4 xl:grid-cols-2">
-            <VerticalBarChart label="Дневное изменение баллов" data={charts.creditsByDay} />
+            <VerticalBarChart label="Дневное изменение баллов" data={charts.creditsByDay} integerTicks />
             <HorizontalBars data={charts.productUsage} />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -98,7 +98,7 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
           <div className="grid gap-3 md:grid-cols-3">
             <MetricCard label="Выплаты практикам" value="Открыть" href="/admin/finance/payouts" hint="Селективные и авто-выплаты" />
             <MetricCard label="Отчеты практиков" value="Открыть" href="/admin/finance/reports" hint="Электронные отчеты услуг" />
-            <MetricCard label="Цены и тарифы" value="Открыть" href="/admin/pricing" hint="Продукты, подписки, комиссии" />
+            <MetricCard label="Цены и тарифы" value="Открыть" href="/admin/finance/pricing" hint="Продукты, подписки, комиссии" />
             <MetricCard label="Сверка и импорт" value="Открыть" href="/admin/finance/reconciliation" hint="Webhook/экспорт/провайдер" />
             <MetricCard label="Контроль и журналы" value="Открыть" href="/admin/finance/controls" hint="Финансовые логи" />
             <MetricCard label="Юнит-экономика" value="Открыть" href="/admin/finance/unit-economics" hint="Фактические AI-затраты" />

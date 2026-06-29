@@ -88,8 +88,8 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
         <AnalyticsSection id="product" title="Продукт и воронка" actionHref="/admin/product" actionLabel="Открыть продуктовый центр">
           <div className="grid gap-4 xl:grid-cols-2">
-            <VerticalBarChart label="Бронирования по дням" data={charts.bookingsByDay} />
-            <VerticalBarChart label="Баллы: дневное изменение баланса" data={charts.creditsByDay} />
+            <VerticalBarChart label="Бронирования по дням" data={charts.bookingsByDay} integerTicks />
+            <VerticalBarChart label="Баллы: дневное изменение баланса" data={charts.creditsByDay} integerTicks />
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <MetricCard label="Баллы куплены" value={formatNumber(totals.purchasedCredits)} hint="Источник purchase" />
@@ -106,7 +106,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
           </div>
         </AnalyticsSection>
 
-        <AnalyticsSection id="practitioners" title="Практики и capacity" actionHref="/admin/applications" actionLabel="Заявки практиков">
+        <AnalyticsSection id="practitioners" title="Практики и capacity" actionHref="/admin/product/quality" actionLabel="Заявки и качество">
           <div className="grid gap-4 md:grid-cols-3">
             <MetricCard label="Всего практиков" value={formatNumber(totals.practitionersTotal)} hint={`Активных: ${formatNumber(totals.activePractitioners)}`} />
             <MetricCard label="Заявки / документы" value={formatNumber(totals.applicationsPending)} hint="Ожидают проверки" tone={totals.applicationsPending > 0 ? "warn" : "neutral"} />
@@ -125,7 +125,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
               data={aiCostByDay}
               valueFormatter={(value) => formatAdminCurrencyNumber(value, currency)}
             />
-            <VerticalBarChart label="Токены по дням" data={charts.aiTokensByDay} />
+            <VerticalBarChart label="Токены по дням" data={charts.aiTokensByDay} integerTicks />
           </div>
         </AnalyticsSection>
 
@@ -135,10 +135,10 @@ export default async function AdminPage({ searchParams }: PageProps) {
 
         <AnalyticsSection id="risk" title="Риски, качество и дневные приоритеты" actionHref="/admin/product/quality" actionLabel="Открыть очередь контроля">
           <div className="grid gap-3 md:grid-cols-4">
-            <MetricCard label="Открытые жалобы" value={formatNumber(totals.complaintsOpen)} href="/admin/complaints" tone={totals.complaintsOpen > 0 ? "warn" : "neutral"} />
-            <MetricCard label="Отзывы на контроле" value={formatNumber(totals.reviewsPending)} href="/admin/reviews" tone={totals.reviewsPending > 0 ? "warn" : "neutral"} />
-            <MetricCard label="Заявки практиков" value={formatNumber(totals.applicationsPending)} href="/admin/applications" tone={totals.applicationsPending > 0 ? "warn" : "neutral"} />
-            <MetricCard label="Сбойные задачи" value={formatNumber(totals.jobsFailed)} href="/admin/jobs" tone={totals.jobsFailed > 0 ? "danger" : "neutral"} />
+            <MetricCard label="Открытые жалобы" value={formatNumber(totals.complaintsOpen)} href="/admin/product/quality" tone={totals.complaintsOpen > 0 ? "warn" : "neutral"} />
+            <MetricCard label="Отзывы на контроле" value={formatNumber(totals.reviewsPending)} href="/admin/product/quality" tone={totals.reviewsPending > 0 ? "warn" : "neutral"} />
+            <MetricCard label="Заявки практиков" value={formatNumber(totals.applicationsPending)} href="/admin/product/quality" tone={totals.applicationsPending > 0 ? "warn" : "neutral"} />
+            <MetricCard label="Сбойные задачи" value={formatNumber(totals.jobsFailed)} href="/admin/ops/jobs" tone={totals.jobsFailed > 0 ? "danger" : "neutral"} />
           </div>
         </AnalyticsSection>
 
