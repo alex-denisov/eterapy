@@ -88,6 +88,52 @@ export const PAIR_RELATIONSHIP_OPTIONS: readonly PairRelationshipOption[] = [
 export const PAIR_TENSION_PROMPT = "Где чаще всего возникает напряжение?";
 export const PAIR_QUESTION_PROMPT = "Один конкретный вопрос — необязательно";
 
+// ── Сессионность (?reading=<id>) ─────────────────────────────────────────────
+// B465: «Вместе» прежде не имела сессий — оба сценария (circle/compatibility)
+// молча подтягивали последний результат и не отражали активную сессию в URL.
+// Приводим к общему паттерну услуг (см. use-symbolic-service.ts): активный разбор
+// закрепляется в `?reading=<id>` через history.replaceState, refresh/back
+// восстанавливает именно его, а свежий заход без параметра = новая сессия.
+// Чистые строковые помощники — без React/window, юнит-тестируемы.
+
+export const PAIR_READING_PARAM = "reading";
+
+/** Read the pinned reading id from a `?…` search string or URLSearchParams. */
+export function readingIdFromSearch(search: string | URLSearchParams): string | null {
+  const params = typeof search === "string" ? new URLSearchParams(search) : search;
+  const value = params.get(PAIR_READING_PARAM)?.trim();
+  return value ? value : null;
+}
+
+/**
+ * Return `pathname?search` with `reading=<id>` set (preserving any other params,
+ * e.g. `scenario`). Pass the current `window.location` parts; output is a relative
+ * URL safe for `history.replaceState`.
+ */
+export function withReadingParam(pathname: string, search: string, readingId: string): string {
+  const params = new URLSearchParams(search);
+  params.set(PAIR_READING_PARAM, readingId);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+/** Return `pathname?search` with `reading` removed (used by reset / «новый разбор»). */
+export function withoutReadingParam(pathname: string, search: string): string {
+  const params = new URLSearchParams(search);
+  params.delete(PAIR_READING_PARAM);
+  const query = params.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
+/** Find the session whose id matches the pinned `?reading=` (restore-by-id). */
+export function findReadingById<T extends { id: string }>(
+  items: readonly T[] | null | undefined,
+  readingId: string | null,
+): T | null {
+  if (!readingId || !items) return null;
+  return items.find((item) => item.id === readingId) ?? null;
+}
+
 export function getPairRelationshipOption(key: string): PairRelationshipOption | null {
   return PAIR_RELATIONSHIP_OPTIONS.find((option) => option.key === key) ?? null;
 }

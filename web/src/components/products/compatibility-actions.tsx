@@ -8,7 +8,19 @@ import { Button } from "@/components/ui/button";
 import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { PairSelfViewIntake } from "@/components/products/pair-self-view-intake";
+import { readingIdFromSearch, withReadingParam } from "@/lib/pair-hub";
 import type { PairRelationshipType } from "@/lib/pair-hub";
+
+// B465: pin the active compatibility to the URL (`?reading=<id>`) so refresh/back
+// restores this session; a bare visit (no pending invite) starts fresh.
+function pinReadingUrl(id: string) {
+  if (typeof window === "undefined") return;
+  window.history.replaceState(
+    null,
+    "",
+    withReadingParam(window.location.pathname, window.location.search, id),
+  );
+}
 
 type CompatibilityResult = {
   id: string;
@@ -81,16 +93,28 @@ export function CompatibilityActions({
   useEffect(() => {
     if (!inviteToken && authStatus !== "authenticated") return;
     let cancelled = false;
+    // ?reading=<id> pins the active session (creator flow only — the partner arrives
+    // via ?invite=). Restore that exact compatibility by id; otherwise fall back to the
+    // dialogue-scoped / latest-incomplete lookup.
+    const readingId = inviteToken
+      ? null
+      : readingIdFromSearch(typeof window !== "undefined" ? window.location.search : "");
     const url = inviteToken
       ? `/api/products/compatibility/invite/${encodeURIComponent(inviteToken)}`
-      : dialogueId
-        ? `/api/products/compatibility?dialogueId=${encodeURIComponent(dialogueId)}&productKey=${productKey}`
-        : `/api/products/compatibility?productKey=${productKey}`;
+      : readingId
+        ? `/api/products/compatibility/${encodeURIComponent(readingId)}?productKey=${productKey}`
+        : dialogueId
+          ? `/api/products/compatibility?dialogueId=${encodeURIComponent(dialogueId)}&productKey=${productKey}`
+          : `/api/products/compatibility?productKey=${productKey}`;
     jsonRequest<ApiPayload>(url)
       .then((payload) => {
         if (cancelled) return;
         setHasEntitlement(Boolean(payload.hasEntitlement));
-        setResult(payload.results?.[0] ?? payload.result ?? null);
+        const restored = payload.results?.[0] ?? payload.result ?? null;
+        setResult(restored);
+        // Fresh visit that resumed a pending invite → pin it so it becomes a proper,
+        // refresh-safe session (matches the rest of the services).
+        if (!inviteToken && !readingId && restored?.id) pinReadingUrl(restored.id);
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -111,7 +135,9 @@ export function CompatibilityActions({
         body: JSON.stringify({ dialogueId, type: relationshipType, action: "create_invite" }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
-      setResult(payload.result ?? null);
+      const created = payload.result ?? null;
+      setResult(created);
+      if (created?.id) pinReadingUrl(created.id);
       if (payload.paywalled) {
         setMessage(payload.teaserText ?? "Бесплатный фрагмент готов. Полная карта откроется после оплаты.");
       }
@@ -171,7 +197,9 @@ export function CompatibilityActions({
         body: JSON.stringify({ creatorConsent: true }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
-      setResult(payload.result ?? null);
+      const generated = payload.result ?? null;
+      setResult(generated);
+      if (generated?.id) pinReadingUrl(generated.id);
       setStatus("idle");
     } catch (error) {
       const typed = error as Error & { status?: number; payload?: ApiPayload };
@@ -343,7 +371,7 @@ export function CompatibilityActions({
               <input
                 readOnly
                 value={`${typeof window !== "undefined" ? window.location.origin : ""}/products/${productKey === "pair" ? "pair" : "compatibility"}?invite=${result.inviteToken}`}
-                className="soft-question-input flex-1 py-2 text-sm"
+                className="soft-question-input flex-1 py-2 text-base"
               />
               <Button onClick={copyInviteLink} className="soft-button soft-button-ghost shrink-0">
                 {copied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
