@@ -24,8 +24,8 @@ export interface TogetherScenario {
 export const TOGETHER_SCENARIOS: readonly TogetherScenario[] = [
   {
     key: "outside",
-    eyebrow: "сценарий 1",
-    title: "Взгляд со стороны",
+    eyebrow: "свежий взгляд",
+    title: "Свежий взгляд",
     blurb:
       "Опишите ситуацию — мы соберём 3–5 бережных вопросов для близкого человека. " +
       "Он ответит по ссылке за 2–3 минуты, без регистрации. Полный разбор увидите вы.",
@@ -39,7 +39,7 @@ export const TOGETHER_SCENARIOS: readonly TogetherScenario[] = [
   },
   {
     key: "compare",
-    eyebrow: "сценарий 2",
+    eyebrow: "сверить взгляды",
     title: "Сверить взгляды",
     blurb:
       "Каждый отвечает отдельно и по согласию. Общий итог открывается только когда " +
@@ -51,21 +51,6 @@ export const TOGETHER_SCENARIOS: readonly TogetherScenario[] = [
     ],
     engine: "compatibility",
     href: "/products/pair?scenario=compare",
-  },
-  {
-    key: "compatibility",
-    eyebrow: "сценарий 3",
-    title: "Совместимость",
-    blurb:
-      "Режим для пары, дружбы, работы или семьи: два взгляда на связь и тёплый разбор " +
-      "точек согласия, зон напряжения и одного аккуратного шага.",
-    bullets: [
-      "Точки пересечения и зоны напряжения",
-      "Языки заботы и сценарии общения",
-      "Один совместный шаг на ближайшую неделю",
-    ],
-    engine: "compatibility",
-    href: "/products/compatibility",
   },
 ] as const;
 

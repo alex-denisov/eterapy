@@ -91,8 +91,9 @@ describe("v5 product pages", () => {
     // reframe), so the copy must say Premium, not Plus.
     expect(products).toContain("или −3 балла · в Premium входит");
     expect(products).not.toContain("в Plus входит");
-    // «Совместимость» теперь сценарий внутри «Вместе», не отдельная услуга.
-    expect(products).toContain("посмотреть на совместимость");
+    // B463: разбор отношений живёт в сценарии «Сверить взгляды» («Ваша связь»)
+    // внутри «Вместе», не отдельной услугой «Совместимость».
+    expect(products).toContain("про ваши отношения в целом");
   });
 
   it("B405 shows guests ₽ and authenticated users баллы-first on the product hero price", () => {

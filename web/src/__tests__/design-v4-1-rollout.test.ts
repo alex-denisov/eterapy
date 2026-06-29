@@ -62,8 +62,9 @@ describe("design v4.2 rollout", () => {
     // the live-встреча card uses the single session floor helper.
     expect(catalog).toContain("getProductPriceLabel");
     expect(catalog).toContain("formatSessionFloor");
-    // «Вместе» (pair) несёт сценарий совместимости; отдельной услуги нет.
-    expect(products).toContain("посмотреть на совместимость");
+    // B463: «Вместе» (pair) несёт разбор отношений в сценарии «Сверить взгляды»
+    // («Ваша связь»); отдельной услуги «Совместимость» нет.
+    expect(products).toContain("про ваши отношения в целом");
   });
 
   // B374: the v4.2 growth-loop, esoteric-showcase and specialists-teaser

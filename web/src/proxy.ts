@@ -178,6 +178,22 @@ export default async function proxy(request: NextRequest) {
     );
   }
 
+  // B463 (M28): standalone «Совместимость» was folded into «Вместе» as the «Ваша связь»
+  // mode (a relationship-type inside «Сверить взгляды»). The /products/compatibility
+  // route was retired with no redirect → 404 (incl. legacy invite links). Permanent
+  // (308) redirect to the compare scenario, preserving search (invite=…) so old invites
+  // still resolve. Must run BEFORE unknownProductSlug, which would otherwise 404 it.
+  if (pathname === "/products/compatibility" || pathname.startsWith("/products/compatibility/")) {
+    const target = new URL("/products/pair", request.url);
+    target.search = request.nextUrl.search;
+    target.searchParams.set("scenario", "compare");
+    return applyRobotsPolicy(
+      withRequestContext(NextResponse.redirect(target, 308), context),
+      host,
+      pathname,
+    );
+  }
+
   if (unknownProductSlug(pathname) || isRemovedPath(pathname)) {
     return applyRobotsPolicy(
       rewriteWithContext(internalRewriteUrl(request, "/__product-not-found"), requestHeaders, context),

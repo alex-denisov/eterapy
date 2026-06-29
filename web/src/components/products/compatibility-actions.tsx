@@ -7,6 +7,8 @@ import { ArrowRight, CheckCircle2, Copy, Flag, RefreshCcw, LockKeyhole, Share2, 
 import { Button } from "@/components/ui/button";
 import { ProductIntake } from "@/components/products/product-intake";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { PairSelfViewIntake } from "@/components/products/pair-self-view-intake";
+import type { PairRelationshipType } from "@/lib/pair-hub";
 
 type CompatibilityResult = {
   id: string;
@@ -58,10 +60,14 @@ export function CompatibilityActions({
   dialogueId,
   inviteToken,
   productKey = "compatibility",
+  relationshipType = "romantic",
 }: {
   dialogueId?: string | null;
   inviteToken?: string | null;
   productKey?: "compatibility" | "pair";
+  // B463: «Ваша связь» relationship type, threaded from the pair self-view intake so
+  // the invite carries the right `type` (it feeds the compatibility engine prompt).
+  relationshipType?: PairRelationshipType;
 }) {
   const { status: authStatus } = useSession();
   const [result, setResult] = useState<CompatibilityResult | null>(null);
@@ -102,7 +108,7 @@ export function CompatibilityActions({
     try {
       const payload = await jsonRequest<ApiPayload>("/api/products/compatibility", {
         method: "POST",
-        body: JSON.stringify({ dialogueId, type: "romantic", action: "create_invite" }),
+        body: JSON.stringify({ dialogueId, type: relationshipType, action: "create_invite" }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
@@ -240,17 +246,22 @@ export function CompatibilityActions({
     );
   }
 
-  // No dialogue yet — CTA to start
+  // No dialogue yet — CTA to start. B463: «Вместе» uses the «Ваша связь» guided
+  // self-view (relationship-type + warmth/tension/optional question); the legacy
+  // standalone compatibility keeps the single-field intake.
   if (!dialogueId && !result) {
+    if (productKey === "pair") {
+      return <PairSelfViewIntake />;
+    }
     return (
       <ProductIntake
         productKey={productKey}
         mode="light"
-        title={productKey === "pair" ? "Сначала ваша сторона общего вопроса" : "Сначала ваша сторона совместимости"}
+        title="Сначала ваша сторона совместимости"
         description="Один ввод создаст контекст услуги прямо здесь. Затем вы сможете отправить партнёру ссылку без перехода в общий первичный разбор."
-        promptLabel={productKey === "pair" ? "Ваш взгляд на общий вопрос" : "Ваш взгляд на связь"}
+        promptLabel="Ваш взгляд на связь"
         placeholder="Опишите ситуацию, ожидания и то, что хочется аккуратно прояснить вместе."
-        submitLabel={productKey === "pair" ? "Сохранить свою сторону" : "Начать со своей стороны"}
+        submitLabel="Начать со своей стороны"
         readyLabel="Контекст готов. Возвращаем вас к приглашению."
         testId="compatibility-no-dialogue"
       />
