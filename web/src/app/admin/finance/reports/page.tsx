@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, DataTable, PeriodToolbar, formatDateTime, formatRub } from "../../admin-analytics-ui";
+import { AdminHero, DataTable, PeriodToolbar, formatDateTime } from "../../admin-analytics-ui";
+import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
+import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { FinanceExportMenu } from "../export-menu";
 
 type PageProps = {
@@ -14,13 +16,18 @@ type PageProps = {
 export default async function FinanceReportsPage({ searchParams }: PageProps) {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
-  const period = resolveAdminPeriod(await searchParams);
-  const reports = await db.agentReport.findMany({
+  const params = await searchParams;
+  const period = resolveAdminPeriod(params);
+  const currency = resolveAdminCurrency(params);
+  const [reports, currencyRates] = await Promise.all([
+  db.agentReport.findMany({
     where: { periodStart: { gte: period.start }, periodEnd: { lte: period.end } },
     include: { practitioner: { include: { user: { select: { name: true, email: true } } } } },
     orderBy: { periodEnd: "desc" },
     take: 20,
-  });
+  }),
+  getAdminCurrencyRates(),
+  ]);
   const reportHref = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}&scope=agent-reports`;
 
   return (
@@ -32,6 +39,7 @@ export default async function FinanceReportsPage({ searchParams }: PageProps) {
           <>
             <FinanceExportMenu label="Сформировать отчеты за период" baseHref={reportHref} />
             <FinanceExportMenu label="Экспорт отчетов" baseHref={reportHref} />
+            <AdminCurrencySelector basePath="/admin/finance/reports" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
             <PeriodToolbar basePath="/admin/finance/reports" start={period.startInput} end={period.endInput} />
           </>
         }
@@ -49,9 +57,9 @@ export default async function FinanceReportsPage({ searchParams }: PageProps) {
           `${report.practitioner.commissionPercent}%`,
           `${formatDateTime(report.periodStart)} — ${formatDateTime(report.periodEnd)}`,
           report.sessionCount,
-          formatRub(report.grossKopecks / 100),
-          formatRub(report.commissionKopecks / 100),
-          formatRub(report.payoutDueKopecks / 100),
+          formatAdminRub(report.grossKopecks / 100, currency, currencyRates),
+          formatAdminRub(report.commissionKopecks / 100, currency, currencyRates),
+          formatAdminRub(report.payoutDueKopecks / 100, currency, currencyRates),
           report.status,
           formatDateTime(report.createdAt),
         ])}

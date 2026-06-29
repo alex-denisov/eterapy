@@ -22,12 +22,9 @@ export default async function AdminSettingsPage() {
           <p className="premium-eyebrow">админ · конфигурация</p>
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">Настройки</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Аккаунт администратора, безопасность и быстрый доступ к системным разделам.
+            Аккаунт администратора, безопасность и персональные уведомления.
           </p>
         </div>
-        <span className="soft-admin-status-pill" data-tone={role === "SUPERADMIN" ? "ok" : "warn"}>
-          {role === "SUPERADMIN" ? "полный контур" : "ограниченный доступ"}
-        </span>
       </div>
 
       <AdminSettingsClient

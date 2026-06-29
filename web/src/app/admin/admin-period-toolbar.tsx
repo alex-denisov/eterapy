@@ -88,6 +88,10 @@ function shiftMonth(anchorIso: string, delta: number) {
 }
 
 export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string; start: string; end: string }) {
+  return <AdminPeriodToolbarInner key={`${start}:${end}`} basePath={basePath} start={start} end={end} />;
+}
+
+function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; start: string; end: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [startIso, setStartIso] = useState(start);

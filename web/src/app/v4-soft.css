@@ -3026,6 +3026,15 @@
       0 10px 24px -20px rgba(92, 42, 44, 0.35);
   }
 
+  .soft-admin-nav-link.is-section-active {
+    background: color-mix(in srgb, var(--soft-bordeaux) 7%, transparent);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-admin-nav-link[data-depth="1"] {
+    color: color-mix(in srgb, var(--soft-ink-soft) 88%, white);
+  }
+
   .soft-app-mobile-nav,
   .soft-admin-mobile-nav {
     border-top: 1px solid var(--soft-paper-edge);
@@ -3099,17 +3108,24 @@
   }
 
   .soft-admin-table-filter {
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
     width: 100%;
     min-width: 7rem;
     height: 1.7rem;
-    border: 1px solid var(--soft-paper-edge);
-    border-radius: 0.35rem;
-    background: var(--soft-paper-card);
+    border: 0;
+    border-top: 1px solid var(--soft-paper-edge);
+    border-radius: 0;
+    background: color-mix(in srgb, var(--soft-paper-card) 94%, white);
     padding: 0 0.38rem;
     color: var(--soft-ink);
     font-size: 0.7rem;
     font-weight: 500;
+  }
+
+  .soft-admin-table-filter:focus {
+    outline: 1px solid var(--soft-bordeaux);
+    outline-offset: -1px;
+    background: white;
   }
 
   .soft-admin-sort-link {

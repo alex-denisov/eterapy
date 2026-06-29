@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
-import { AdminHero, AnalyticsSection, DataTable, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, formatDateTime, formatNumber, formatRub } from "../../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, DataTable, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, formatDateTime, formatNumber } from "../../admin-analytics-ui";
 import { resolveAdminPeriod } from "../../admin-analytics-data";
+import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
+import { AdminCurrencySelector } from "../../admin-currency-selector";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -23,8 +25,10 @@ export default async function FinanceControlsPage({ searchParams }: PageProps) {
   const permissions = await getUserPermissions(session.user.id, role);
   if (!permissions.includes("system.read") && role !== "SUPERADMIN") redirect("/admin");
 
-  const period = resolveAdminPeriod(await searchParams);
-  const [transactions, auditRows, webhookErrors, failedPayouts] = await Promise.all([
+  const params = await searchParams;
+  const period = resolveAdminPeriod(params);
+  const currency = resolveAdminCurrency(params);
+  const [transactions, auditRows, webhookErrors, failedPayouts, currencyRates] = await Promise.all([
     db.transaction.findMany({
       where: { createdAt: { gte: period.start, lte: period.end } },
       orderBy: { createdAt: "desc" },
@@ -39,6 +43,7 @@ export default async function FinanceControlsPage({ searchParams }: PageProps) {
     }),
     db.webhookEvent.count({ where: { provider: "yookassa", status: { in: ["FAILED", "ERROR"] }, receivedAt: { gte: period.start, lte: period.end } } }),
     db.payout.count({ where: { status: { in: ["FAILED", "HELD"] }, createdAt: { gte: period.start, lte: period.end } } }),
+    getAdminCurrencyRates(),
   ]);
   const financeAudit = auditRows.filter((row) => financeAction(row.action)).slice(0, 30);
   const refunded = transactions.filter((tx) => tx.status === "REFUNDED" || tx.amount < 0).length;
@@ -49,7 +54,7 @@ export default async function FinanceControlsPage({ searchParams }: PageProps) {
       <AdminHero
         eyebrow="финансы"
         title="Контроль и журналы"
-        actions={<PeriodToolbar basePath="/admin/finance/controls" start={period.startInput} end={period.endInput} />}
+        actions={<><AdminCurrencySelector basePath="/admin/finance/controls" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} /><PeriodToolbar basePath="/admin/finance/controls" start={period.startInput} end={period.endInput} /></>}
       >
         Финансовые события, транзакции, возвраты, ошибки YooKassa, удержанные выплаты и аудит изменений цен/тарифов.
       </AdminHero>
@@ -68,7 +73,7 @@ export default async function FinanceControlsPage({ searchParams }: PageProps) {
             rows={transactions.map((tx) => [
               formatDateTime(tx.createdAt),
               <span key="user">{tx.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{tx.user.email}</span></span>,
-              formatRub(tx.amount / 100),
+              formatAdminRub(tx.amount / 100, currency, currencyRates),
               <StatusBadge key="status" status={tx.status} />,
               tx.provider,
               tx.providerPaymentId ?? "—",

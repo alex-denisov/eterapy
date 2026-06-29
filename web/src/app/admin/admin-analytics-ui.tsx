@@ -219,13 +219,13 @@ export function VerticalBarChart({
   const right = 16;
   const top = 12;
   const plotHeight = 212;
-  const bottom = 48;
-  const groupWidth = series.length > 1 ? 34 : 24;
+  const verticalLabels = data.length > 18;
+  const bottom = verticalLabels ? 92 : 44;
+  const groupWidth = verticalLabels ? (series.length > 1 ? 34 : 24) : (series.length > 1 ? 48 : 42);
   const width = Math.max(760, left + right + data.length * groupWidth);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = [max, max * 0.75, max * 0.5, max * 0.25, 0];
-  const labelStep = data.length > 60 ? 7 : data.length > 42 ? 5 : data.length > 24 ? 3 : data.length > 14 ? 2 : 1;
   const innerGap = 2;
   const barWidth = Math.max(3, Math.min(14, (groupWidth - 8 - innerGap * (series.length - 1)) / series.length));
   const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
@@ -293,21 +293,19 @@ export function VerticalBarChart({
                       fill={seriesItem.color}
                       opacity={raw > 0 ? 0.96 : 0}
                     >
-                      <title>{`${item.label}: ${formatValue(raw)}`}</title>
+                      <title>{`${item.label} · ${seriesItem.label}: ${formatValue(raw)}`}</title>
                     </rect>
                   );
                 })}
-                {index % labelStep === 0 || index === data.length - 1 ? (
-                  <text
-                    x={groupX + plotWidth / data.length / 2}
-                    y={top + plotHeight + 18}
-                    textAnchor="end"
-                    transform={`rotate(-35 ${groupX + plotWidth / data.length / 2} ${top + plotHeight + 18})`}
-                    className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums"
-                  >
-                    {item.label}
-                  </text>
-                ) : null}
+                <text
+                  x={groupX + plotWidth / data.length / 2}
+                  y={verticalLabels ? top + plotHeight + 78 : top + plotHeight + 20}
+                  textAnchor={verticalLabels ? "end" : "middle"}
+                  transform={verticalLabels ? `rotate(-90 ${groupX + plotWidth / data.length / 2} ${top + plotHeight + 78})` : undefined}
+                  className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums"
+                >
+                  {item.label}
+                </text>
               </g>
             );
           })}
@@ -329,7 +327,11 @@ export function HorizontalBars({ data, unit }: { data: ChartPoint[]; unit?: stri
             <span className="tabular-nums text-[var(--soft-ink-soft)]">{formatNumber(item.value)}{unit ?? ""}</span>
           </div>
           <div className="h-2 rounded-full bg-[var(--soft-paper-edge)]">
-            <div className="h-2 rounded-full bg-[var(--soft-bordeaux)]" style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }} />
+            <div
+              className="h-2 rounded-full bg-[var(--soft-bordeaux)]"
+              style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }}
+              title={`${item.label}: ${formatNumber(item.value)}${unit ?? ""}`}
+            />
           </div>
         </div>
       ))}
@@ -351,6 +353,7 @@ export function FunnelChart({ data }: { data: ChartPoint[] }) {
             <div className="flex justify-center">
               <div
                 className="flex h-11 items-center justify-center rounded-sm bg-[var(--soft-bordeaux)] px-3 text-xs font-semibold text-white shadow-sm"
+                title={`${item.label}: ${formatNumber(item.value)} · ${formatPercent(conversion)}`}
                 style={{
                   width: `${width}%`,
                   clipPath: "polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%)",
@@ -378,19 +381,21 @@ export function DataTable({
   empty?: ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
+    <div className="max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)]">
+      <div className="max-w-full overflow-x-auto">
       <table className="soft-admin-data-table min-w-[980px]">
         <thead>
           <tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr>
         </thead>
         <tbody>
           {rows.length > 0 ? rows.map((row, index) => (
-            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
+            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex} className="max-w-[28rem] whitespace-normal break-words">{cell}</td>)}</tr>
           )) : (
             <tr><td colSpan={columns.length}>{empty ?? "Нет данных"}</td></tr>
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

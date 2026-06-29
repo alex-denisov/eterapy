@@ -37,7 +37,7 @@ export default async function AdminPage({ searchParams }: PageProps) {
   const currency = resolveAdminCurrency(params);
   const [analytics, currencyRates] = await Promise.all([
     getDashboardAnalytics(period),
-    getAdminCurrencyRates(period.end),
+    getAdminCurrencyRates(),
   ]);
   const { totals, charts } = analytics;
   const aiCostByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
@@ -50,12 +50,10 @@ export default async function AdminPage({ searchParams }: PageProps) {
       <AdminHero
         eyebrow="рабочий стол"
         title="Обзор ETerapy"
-        actions={<><AdminCurrencySelector basePath="/admin" currency={currency} /><PeriodToolbar basePath="/admin" start={period.startInput} end={period.endInput} /></>}
+        actions={<><AdminCurrencySelector basePath="/admin" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} /><PeriodToolbar basePath="/admin" start={period.startInput} end={period.endInput} /></>}
       >
         Ежедневный контроль экономики, продукта, практиков, AI-затрат, баллов и операционных рисков.
       </AdminHero>
-      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
-
       <MetricGrid>
         <MetricCard href="#economy" label="Финансы" value={formatAdminRub(totals.revenueRub, currency, currencyRates)} hint={`Возвраты: ${formatAdminRub(totals.refundsRub, currency, currencyRates)}`} />
         <MetricCard href="#product" label="Продукт и воронка" value={formatNumber(totals.bookings)} hint={`Клиентов всего: ${formatNumber(totals.clientsTotal)}`} />

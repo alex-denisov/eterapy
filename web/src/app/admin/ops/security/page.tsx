@@ -19,6 +19,58 @@ function actionTone(action: string) {
   return "neutral" as const;
 }
 
+function detailLabel(key: string) {
+  const labels: Record<string, string> = {
+    email: "Email",
+    role: "Роль",
+    status: "Статус",
+    reason: "Причина",
+    amount: "Сумма",
+    provider: "Провайдер",
+    model: "Модель",
+    product: "Продукт",
+    device: "Устройство",
+    channel: "Канал",
+    fingerprint: "Отпечаток",
+    ip: "IP",
+    userId: "Пользователь",
+    targetId: "Цель",
+  };
+  return labels[key] ?? key;
+}
+
+function formatDetailValue(value: unknown) {
+  if (value == null || value === "") return "—";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value);
+}
+
+function parseAuditDetails(details: string | null) {
+  if (!details) return { entries: [], text: null };
+  try {
+    const parsed = JSON.parse(details) as Record<string, unknown>;
+    return { entries: Object.entries(parsed).slice(0, 8), text: null };
+  } catch {
+    return { entries: [], text: details };
+  }
+}
+
+function AuditDetails({ details }: { details: string | null }) {
+  const parsed = parseAuditDetails(details);
+  if (parsed.text) return <span className="block max-w-[28rem] whitespace-normal break-words text-xs leading-snug">{parsed.text}</span>;
+  if (parsed.entries.length === 0) return <span className="text-[var(--soft-ink-faint)]">—</span>;
+  return (
+    <dl className="grid max-w-[28rem] grid-cols-[7rem_1fr] gap-x-2 gap-y-1 text-xs leading-snug">
+      {parsed.entries.map(([key, value]) => (
+        <div key={key} className="contents">
+          <dt className="text-[var(--soft-ink-faint)]">{detailLabel(key)}</dt>
+          <dd className="min-w-0 break-words text-[var(--soft-ink)]">{formatDetailValue(value)}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export default async function AdminOpsSecurityPage() {
   const session = await auth();
   const role = session?.user?.role ?? "";
@@ -88,7 +140,7 @@ export default async function AdminOpsSecurityPage() {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-eyebrow">security · audit · stage</p>
+          <p className="premium-eyebrow">безопасность и аудит</p>
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">Безопасность и инциденты</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Контроль риск-действий, доступа, удалений, выплат/возвратов, AI-изменений и событий, которые должны попадать в аудит.
@@ -107,8 +159,17 @@ export default async function AdminOpsSecurityPage() {
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/antifraud" actionLabel="Открыть антифрод">
-          <div className="overflow-x-auto">
-            <table className="soft-admin-table min-w-[980px]">
+          <div className="max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)]">
+            <div className="max-w-full overflow-x-auto">
+            <table className="soft-admin-table table-fixed min-w-[980px]">
+              <colgroup>
+                <col className="w-[11rem]" />
+                <col className="w-[11rem]" />
+                <col className="w-[12rem]" />
+                <col className="w-[12rem]" />
+                <col className="w-[8rem]" />
+                <col />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Timestamp</th>
@@ -128,10 +189,10 @@ export default async function AdminOpsSecurityPage() {
                         {row.action}
                       </span>
                     </td>
-                    <td className="font-mono text-xs">{row.userId}</td>
-                    <td className="font-mono text-xs">{row.targetId ?? "—"}</td>
-                    <td>{row.ip ?? "—"}</td>
-                    <td className="max-w-md truncate">{row.details ?? "—"}</td>
+                    <td className="break-all font-mono text-xs">{row.userId}</td>
+                    <td className="break-all font-mono text-xs">{row.targetId ?? "—"}</td>
+                    <td className="break-all">{row.ip ?? "—"}</td>
+                    <td><AuditDetails details={row.details} /></td>
                   </tr>
                 ))}
                 {recentRiskActions.length === 0 && (
@@ -143,6 +204,7 @@ export default async function AdminOpsSecurityPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </AdminOpsSection>
 

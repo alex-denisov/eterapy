@@ -35,6 +35,8 @@ const SORT_FIELDS = {
   name: "name",
   email: "email",
   role: "role",
+  channel: "provider",
+  freeToolsLimit: "freeToolsLimit",
   createdAt: "createdAt",
 } as const;
 
@@ -88,9 +90,54 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
 }
 
 function buildOrderBy(params: SearchParams): Prisma.UserOrderByWithRelationInput {
-  const field = SORT_FIELDS[params.sort as keyof typeof SORT_FIELDS] ?? "createdAt";
   const dir = params.dir === "asc" ? "asc" : "desc";
+  if (params.sort === "bookings") return { bookingsAsClient: { _count: dir } };
+  if (params.sort === "entitlements") return { entitlements: { _count: dir } };
+  if (params.sort === "subscriptions") return { subscriptions: { _count: dir } };
+  const field = SORT_FIELDS[params.sort as keyof typeof SORT_FIELDS] ?? "createdAt";
   return { [field]: dir };
+}
+
+function userStatusRank(row: AdminUserRow) {
+  if (row.deletedAt) return 4;
+  if (row.blockedAt) return 3;
+  if (!row.emailVerified) return 2;
+  return 1;
+}
+
+function postSortRows(rows: AdminUserRow[], params: SearchParams) {
+  const dir = params.dir === "asc" ? 1 : -1;
+  const valueFor = (row: AdminUserRow): number | string => {
+    switch (params.sort) {
+      case "credits":
+        return row.clarityCredits;
+      case "lastLogin":
+        return row.lastLogin?.at ? Date.parse(row.lastLogin.at) : 0;
+      case "status":
+        return userStatusRank(row);
+      case "bookings":
+        return row.bookingsCount;
+      case "entitlements":
+        return row.entitlementsCount;
+      case "subscriptions":
+        return row.subscriptionsCount;
+      case "channel":
+        return row.provider ?? "";
+      case "freeToolsLimit":
+        return row.freeToolsLimit ?? -1;
+      default:
+        return "";
+    }
+  };
+  if (!["credits", "lastLogin", "status", "bookings", "entitlements", "subscriptions", "channel", "freeToolsLimit"].includes(params.sort ?? "")) {
+    return rows;
+  }
+  return [...rows].sort((a, b) => {
+    const left = valueFor(a);
+    const right = valueFor(b);
+    if (typeof left === "number" && typeof right === "number") return (left - right) * dir;
+    return String(left).localeCompare(String(right), "ru") * dir;
+  });
 }
 
 export default async function AdminUsersPage(props: {
@@ -220,7 +267,7 @@ export default async function AdminUsersPage(props: {
     return [event.userId, { at: event.createdAt.toISOString(), ip: event.ip, device, channel, fingerprint }];
   }));
 
-  const rows: AdminUserRow[] = users.map((user) => ({
+  const rows: AdminUserRow[] = postSortRows(users.map((user) => ({
     id: user.id,
     name: user.name,
     email: user.email,
@@ -255,7 +302,7 @@ export default async function AdminUsersPage(props: {
     subscriptionsCount: user._count.subscriptions,
     registrationSource: user.registrationChannel ?? user.provider ?? null,
     lastLogin: lastLoginByUser.get(user.id) ?? null,
-  }));
+  })), params);
 
   const canCreate = role === "SUPERADMIN"
     || permissions.includes("users.create")

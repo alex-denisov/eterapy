@@ -1,20 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
-import { BellRing, BrainCircuit, Database, LockKeyhole, Settings2, SlidersHorizontal } from "lucide-react";
+import { BellRing, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
-
-const QUICK_LINKS = [
-  { href: "/admin/ai", label: "AI-центр", desc: "провайдеры, ключи, промты и маршрутизация", icon: BrainCircuit },
-  { href: "/admin/pricing", label: "Цены и тарифы", desc: "продукты, подписки и тарифы практиков", icon: SlidersHorizontal },
-  { href: "/admin/notifications", label: "Уведомления", desc: "delivery jobs и ручная переотправка", icon: BellRing },
-  { href: "/admin/system", label: "Система", desc: "health, зависимости, cron и очереди", icon: Settings2 },
-  { href: "/admin/database", label: "База данных", desc: "read-only просмотр ключевых таблиц", icon: Database },
-];
 
 export function AdminSettingsClient({
   email,
@@ -69,7 +60,7 @@ export function AdminSettingsClient({
               <tr><td>Имя</td><td>{name}</td></tr>
               <tr><td>Email</td><td>{email}</td></tr>
               <tr><td>Роль</td><td>{role === "SUPERADMIN" ? "Суперадминистратор" : "Администратор"}</td></tr>
-              <tr><td>Доступ</td><td>{role === "SUPERADMIN" ? "полный контур" : "по назначенным permissions"}</td></tr>
+              <tr><td>Доступ</td><td>{role === "SUPERADMIN" ? "Суперадминистратор" : "По назначенным правам"}</td></tr>
             </tbody>
           </table>
         </div>
@@ -118,19 +109,6 @@ export function AdminSettingsClient({
           telegramStatus={telegramStatus}
           role={(role === "SUPERADMIN" ? "SUPERADMIN" : "ADMIN") as "ADMIN" | "SUPERADMIN"}
         />
-      </section>
-
-      <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-sm)] lg:col-span-2">
-        <h2 className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">Системные разделы</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {QUICK_LINKS.map(({ href, label, desc, icon: Icon }) => (
-            <Link key={href} href={href} className="rounded-lg border border-[var(--soft-paper-edge)] bg-white/55 p-4 transition-colors hover:border-[var(--soft-terracotta)]">
-              <Icon className="mb-3 size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-              <p className="font-semibold text-[var(--soft-bordeaux)]">{label}</p>
-              <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{desc}</p>
-            </Link>
-          ))}
-        </div>
       </section>
     </div>
   );

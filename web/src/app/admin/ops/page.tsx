@@ -94,22 +94,20 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
     <PageContainer maxWidth="full">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="premium-eyebrow">dev/stage · операционный центр</p>
+          <p className="premium-eyebrow">операционный центр</p>
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">Операционный центр платформы</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
             Центр ежедневного контроля платформы: здоровье сервисов, очереди, AI-расходы, уведомления, файлы, база данных, логи и риск-события.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <AdminCurrencySelector basePath="/admin/ops" currency={currency} />
+          <AdminCurrencySelector basePath="/admin/ops" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
           <div className="soft-admin-status-pill w-fit gap-2 px-3 py-1.5 text-sm" data-tone={statusTone(status.status)}>
             <ServerCog className="h-4 w-4" />
             {statusLabel(status.status)}
           </div>
         </div>
       </div>
-      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
-
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <AdminOpsMetric
           icon={Gauge}

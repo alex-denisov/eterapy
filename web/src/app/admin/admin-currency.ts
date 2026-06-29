@@ -114,8 +114,8 @@ export function formatAdminCurrencyNumber(value: number, currency: AdminDisplayC
 }
 
 export function formatCbrRateLabel(rates: AdminCurrencyRates | null | undefined) {
-  if (!rates?.usdRub) return "Курс ЦБ РФ: недоступен";
-  return `Курс ЦБ РФ на ${rates.asOf}: доллар США — ${new Intl.NumberFormat("ru-RU", {
+  if (!rates?.usdRub) return "USD/RUB · курс недоступен";
+  return `USD/RUB · ${rates.asOf} · ${new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   }).format(rates.usdRub)} ₽`;

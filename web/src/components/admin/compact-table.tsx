@@ -11,14 +11,14 @@
  */
 
 import { type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
 
 export const COMPACT_TABLE_PAGE_SIZE = 25;
 
 export const COMPACT_INPUT_CLASS =
-  "h-7 w-full min-w-0 border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
+  "h-7 w-full min-w-0 rounded-none border-0 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-1.5 text-[11px] text-[var(--soft-ink)] outline-none placeholder:text-[var(--soft-ink-faint)] focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
 export const COMPACT_SELECT_CLASS =
-  "h-7 w-full min-w-0 border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
+  "h-7 w-full min-w-0 rounded-none border-0 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
 export const COMPACT_HEADER_CLASS =
   "border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium";
 export const COMPACT_CELL_CLASS =
@@ -77,12 +77,9 @@ export function CompactHeader({
         className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)] disabled:cursor-default"
       >
         <span>{label}</span>
-        {sortKey && (
-          <ChevronsUpDown
-            className={`h-3 w-3 ${active ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-soft)]"}`}
-            aria-hidden="true"
-          />
-        )}
+        {sortKey && active && direction === "asc" ? <ArrowUp className="h-3 w-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
+        {sortKey && active && direction === "desc" ? <ArrowDown className="h-3 w-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
+        {sortKey && !active ? <ChevronsUpDown className="h-3 w-3 text-[var(--soft-ink-soft)]" aria-hidden="true" /> : null}
         {active && <span className="sr-only">sorted {direction}</span>}
       </button>
       {children}

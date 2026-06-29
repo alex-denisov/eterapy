@@ -4,13 +4,21 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
-import { AdminHero, MetricCard, MetricGrid, formatNumber, formatRub } from "../../admin-analytics-ui";
+import { AdminHero, MetricCard, MetricGrid, formatNumber } from "../../admin-analytics-ui";
+import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
+import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { FinanceExportMenu } from "../export-menu";
 import { PaymentsPanel } from "../../payments/payments-panel";
 
-export default async function FinancePayoutsPage() {
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function FinancePayoutsPage({ searchParams }: PageProps) {
   const session = await auth();
   if (!session || session.user?.role !== "SUPERADMIN") redirect("/admin");
+  const params = await searchParams;
+  const currency = resolveAdminCurrency(params);
 
   const practitioners = await db.practitioner.findMany({
     where: { status: "ACTIVE" },
@@ -31,9 +39,10 @@ export default async function FinancePayoutsPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  const [balances, payoutRuns] = await Promise.all([
+  const [balances, payoutRuns, currencyRates] = await Promise.all([
     computePractitionerBalances(practitioners.map((p) => p.id)),
     db.payoutRun.findMany({ orderBy: { scheduledFor: "desc" }, take: 10 }),
+    getAdminCurrencyRates(),
   ]);
 
   const list = practitioners.map((p) => {
@@ -75,16 +84,21 @@ export default async function FinancePayoutsPage() {
       <AdminHero
         eyebrow="финансы"
         title="Выплаты практикам"
-        actions={<FinanceExportMenu label="Экспорт выплат" baseHref={reportHref} />}
+        actions={
+          <>
+            <FinanceExportMenu label="Экспорт выплат" baseHref={reportHref} />
+            <AdminCurrencySelector basePath="/admin/finance/payouts" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
+          </>
+        }
       >
         Селективные выплаты, авто-выплаты, комиссии практиков, KYC реквизитов, удержания и резерв по спорным операциям.
       </AdminHero>
 
       <MetricGrid>
-        <MetricCard label="Оборот сессий" value={formatRub(totals.revenue)} />
-        <MetricCard label="Комиссия платформы" value={formatRub(totals.platform)} />
-        <MetricCard label="К выплате" value={formatRub(totals.practitioners)} />
-        <MetricCard label="Удержано / резерв" value={formatRub(totals.held)} tone={totals.held > 0 ? "warn" : "neutral"} />
+        <MetricCard label="Оборот сессий" value={formatAdminRub(totals.revenue, currency, currencyRates)} />
+        <MetricCard label="Комиссия платформы" value={formatAdminRub(totals.platform, currency, currencyRates)} />
+        <MetricCard label="К выплате" value={formatAdminRub(totals.practitioners, currency, currencyRates)} />
+        <MetricCard label="Удержано / резерв" value={formatAdminRub(totals.held, currency, currencyRates)} tone={totals.held > 0 ? "warn" : "neutral"} />
       </MetricGrid>
 
       <div className="mt-6">
@@ -92,6 +106,7 @@ export default async function FinancePayoutsPage() {
           practitioners={list}
           clarityCredits={[]}
           showCredits={false}
+          formatMoney={(valueRub) => formatAdminRub(valueRub, currency, currencyRates)}
           payoutRuns={payoutRuns.map((run) => ({
             id: run.id,
             scheduledFor: run.scheduledFor.toISOString(),

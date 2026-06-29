@@ -52,7 +52,7 @@ export default async function AdminOpsAICostPage(props: {
   const currency = resolveAdminCurrency(params);
   const [data, currencyRates] = await Promise.all([
     getAIControlCenterData(period.endInput, { includeSecrets: role === "SUPERADMIN" }),
-    getAdminCurrencyRates(period.end),
+    getAdminCurrencyRates(),
   ]);
   const totals = data.usageDetails.reduce(
     (acc, row) => {
@@ -109,12 +109,10 @@ export default async function AdminOpsAICostPage(props: {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <AdminCurrencySelector basePath="/admin/ops/ai-cost" currency={currency} />
+          <AdminCurrencySelector basePath="/admin/ops/ai-cost" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
           <PeriodToolbar basePath="/admin/ops/ai-cost" start={period.startInput} end={period.endInput} />
         </div>
       </div>
-      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
-
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <AdminOpsMetric icon={CircleDollarSign} label="Расход" value={formatAdminAiCost(totals.cost, currencyRates, currency)} hint="Факт по стоимости моделей AI-центра" tone={totals.cost > 0 ? "neutral" : "ok"} />
         <AdminOpsMetric icon={Hash} label="Токены" value={formatNumber(totals.tokens)} hint={`${formatNumber(totals.prompt)} входящих, ${formatNumber(totals.completion)} исходящих`} />

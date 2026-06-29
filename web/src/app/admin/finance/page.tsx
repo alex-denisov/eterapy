@@ -29,7 +29,7 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
   const currency = resolveAdminCurrency(params);
   const [{ totals, charts }, currencyRates] = await Promise.all([
     getDashboardAnalytics(period),
-    getAdminCurrencyRates(period.end),
+    getAdminCurrencyRates(),
   ]);
   const reportHref = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}`;
   const aiCostByDay = charts.aiCostByDay.map((point) => ({ ...point, value: microsUsdToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }));
@@ -45,15 +45,13 @@ export default async function AdminFinanceCenterPage({ searchParams }: PageProps
         actions={
           <>
             <FinanceExportMenu label="Скачать управленческий отчет" baseHref={reportHref} />
-            <AdminCurrencySelector basePath="/admin/finance" currency={currency} />
+            <AdminCurrencySelector basePath="/admin/finance" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
             <PeriodToolbar basePath="/admin/finance" start={period.startInput} end={period.endInput} />
           </>
         }
       >
         Управленческий учет, поступления, чеки ЮKassa, выплаты практикам, баллы, сверка и фактическая юнит-экономика.
       </AdminHero>
-      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
-
       <MetricGrid>
         <MetricCard label="Поступления" value={formatAdminRub(totals.revenueRub, currency, currencyRates)} hint="Успешные транзакции" href="/admin/finance/receipts" />
         <MetricCard label="Возвраты" value={formatAdminRub(totals.refundsRub, currency, currencyRates)} hint="Возвращенные и отрицательные операции" href="/admin/finance/receipts" tone={totals.refundsRub > 0 ? "warn" : "neutral"} />

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Pencil, Plus, RefreshCw, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Pencil, Plus, RefreshCw, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,9 +59,9 @@ function SortHeader({ field, label }: { field: string; label: string }) {
       onClick={() => router.push(makeUrl(searchParams, { sort: field, dir: nextDir }))}
     >
       <span>{label}</span>
-      <span className={active ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"}>
-        {active ? (dir === "asc" ? "↑" : "↓") : "↕"}
-      </span>
+      {active && dir === "asc" ? <ArrowUp className="size-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
+      {active && dir === "desc" ? <ArrowDown className="size-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
+      {!active ? <ChevronsUpDown className="size-3 text-[var(--soft-ink-faint)]" aria-hidden="true" /> : null}
     </button>
   );
 }
@@ -279,7 +279,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <PlainHeader label="Канал" hint="Канал привлечения (источник регистрации)" />
+              <SortHeader field="channel" label="Канал" />
               <FilterSelect
                 param="channel"
                 options={[
@@ -305,13 +305,13 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 ]}
               />
             </th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Баллы" hint="Баллы (только клиенты)" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="credits" label="Баллы" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" /></th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" /></th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Брони" hint="Количество бронирований сессий" /></th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Покупки" hint="Оплаченные продукты (entitlements)" /></th>
-            <th className={COMPACT_HEADER_CLASS}><PlainHeader label="Подписки" hint="Активные подписки" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="lastLogin" label="Последний вход" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="freeToolsLimit" label="Лимит/мес" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="bookings" label="Брони" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="entitlements" label="Покупки" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="subscriptions" label="Подписки" /></th>
             <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
           </tr>
         </thead>

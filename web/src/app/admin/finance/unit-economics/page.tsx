@@ -19,7 +19,7 @@ export default async function UnitEconomicsPage({ searchParams }: PageProps) {
   const currency = resolveAdminCurrency(params);
   const [rows, currencyRates] = await Promise.all([
     getUnitEconomicsData(period),
-    getAdminCurrencyRates(period.end),
+    getAdminCurrencyRates(),
   ]);
 
   return (
@@ -27,11 +27,10 @@ export default async function UnitEconomicsPage({ searchParams }: PageProps) {
       <AdminHero
         eyebrow="финансы"
         title="Юнит-экономика"
-        actions={<><AdminCurrencySelector basePath="/admin/finance/unit-economics" currency={currency} /><PeriodToolbar basePath="/admin/finance/unit-economics" start={period.startInput} end={period.endInput} /></>}
+        actions={<><AdminCurrencySelector basePath="/admin/finance/unit-economics" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} /><PeriodToolbar basePath="/admin/finance/unit-economics" start={period.startInput} end={period.endInput} /></>}
       >
         Фактические затраты платформы на оказание услуг считаются по AIRequest. Для каждой услуги показана отдельная дневная гистограмма.
       </AdminHero>
-      <p className="mb-4 text-xs uppercase tracking-[0.08em] text-[var(--soft-ink-soft)]">{formatCbrRateLabel(currencyRates)}</p>
       <div className="grid gap-4">
         {rows.length === 0 ? (
           <AnalyticsSection title="Нет AI-затрат за период">Нет данных за выбранный период.</AnalyticsSection>

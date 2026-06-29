@@ -16,8 +16,9 @@ import {
   StatusBadge,
   cardMask,
   formatDateTime,
-  formatRub,
 } from "../../admin-analytics-ui";
+import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
+import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { FinanceExportMenu } from "../export-menu";
 
 type PageProps = {
@@ -33,9 +34,13 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
   const params = await searchParams;
   const period = resolveAdminPeriod(params);
+  const currency = resolveAdminCurrency(params);
   const page = Math.max(1, Number(first(params.page)) || 1);
   const q = first(params.q) ?? "";
-  const { transactions, total, take } = await getFinanceRows(period, page, q);
+  const [{ transactions, total, take }, currencyRates] = await Promise.all([
+    getFinanceRows(period, page, q),
+    getAdminCurrencyRates(),
+  ]);
   const pages = Math.max(1, Math.ceil(total / take));
   const baseReport = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}`;
 
@@ -47,6 +52,7 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
         actions={
           <>
             <FinanceExportMenu label="Экспорт поступлений" baseHref={baseReport} />
+            <AdminCurrencySelector basePath="/admin/finance/receipts" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
             <PeriodToolbar basePath="/admin/finance/receipts" start={period.startInput} end={period.endInput} />
           </>
         }
@@ -71,7 +77,7 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
             <input key="select" type="checkbox" className="accent-[var(--soft-bordeaux)]" />,
             formatDateTime(tx.createdAt),
             <span key="user">{tx.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{tx.user.email}</span></span>,
-            formatRub(tx.amount / 100),
+            formatAdminRub(tx.amount / 100, currency, currencyRates),
             <StatusBadge key="status" status={tx.status} />,
             method,
             method === "Банковская карта" ? cardMask(parts.first6, parts.last4) : "—",

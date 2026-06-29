@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   Star,
   Users,
+  UserCog,
   WalletCards,
   Wrench,
   LogOut,
@@ -36,71 +37,63 @@ import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 interface NavItem {
-  type?: "item";
   href: string;
   icon: React.ElementType;
   label: string;
+  section: "workspace" | "product" | "finance" | "ops" | "support";
+  level?: 0 | 1;
   /** Если задано — показывать только при наличии этого полномочия */
   permission?: Permission;
   /** Только для суперадмина */
   superadminOnly?: boolean;
 }
 
-interface NavGroup {
-  type: "group";
-  key: string;
-  label: string;
-}
-
-type NavEntry = NavItem | NavGroup;
-
 // Unified nav order — single source of truth for both ADMIN and SUPERADMIN.
 // User management is intentionally merged into /admin/users; role-specific
 // pages remain reachable as drill-downs from the unified table.
-const NAV_ITEMS: NavEntry[] = [
-  { type: "group", key: "workspace", label: "Рабочий стол" },
-  { href: adminUrl("/admin"),              icon: LayoutDashboard,      label: "Обзор" },
+const NAV_ITEMS: NavItem[] = [
+  { href: adminUrl("/admin"),              icon: LayoutDashboard,      label: "Обзор", section: "workspace", level: 0 },
 
-  { type: "group", key: "product", label: "Продукт и клиенты" },
-  { href: adminUrl("/admin/product"),      icon: BarChart3,            label: "Центр продукта" },
-  { href: adminUrl("/admin/product/users"),icon: Users,                label: "Пользователи и сегменты" },
-  { href: adminUrl("/admin/product/funnel"), icon: BarChart3,          label: "Воронка и конверсии" },
-  { href: adminUrl("/admin/product/results"), icon: FileSearch,        label: "Продукты и результаты" },
-  { href: adminUrl("/admin/product/sessions"), icon: Gauge,            label: "Сессии и транскрипты", superadminOnly: true },
-  { href: adminUrl("/admin/product/subscriptions"), icon: Coins,       label: "Подписки, баллы и рефералы" },
-  { href: adminUrl("/admin/product/quality"), icon: ShieldAlert,       label: "Операции и качество" },
-  { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки",           permission: "practitioners.view" },
-  { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования" },
-  { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии",           superadminOnly: true },
-  { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы" },
-  { href: adminUrl("/admin/reviews"),      icon: Star,                 label: "Отзывы",           permission: "safety.review" },
-  { href: adminUrl("/admin/antifraud"),     icon: ShieldAlert,          label: "Антифрод",         permission: "antifraud.review" },
+  { href: adminUrl("/admin/product"),      icon: BarChart3,            label: "Продукт и клиенты", section: "product", level: 0 },
+  { href: adminUrl("/admin/users"),        icon: Users,                label: "Пользователи и сегменты", section: "product", level: 1 },
+  { href: adminUrl("/admin/clients"),      icon: Users,                label: "Клиенты", section: "product", level: 1, permission: "clients.view" },
+  { href: adminUrl("/admin/practitioners"),icon: UserCog,              label: "Практики", section: "product", level: 1, permission: "practitioners.view" },
+  { href: adminUrl("/admin/product/funnel"), icon: BarChart3,          label: "Воронка и конверсии", section: "product", level: 1 },
+  { href: adminUrl("/admin/product/results"), icon: FileSearch,        label: "Продукты и результаты", section: "product", level: 1 },
+  { href: adminUrl("/admin/product/sessions"), icon: Gauge,            label: "Сессии и транскрипты", section: "product", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/product/subscriptions"), icon: Coins,       label: "Подписки, баллы и рефералы", section: "product", level: 1 },
+  { href: adminUrl("/admin/product/quality"), icon: ShieldAlert,       label: "Операции и качество", section: "product", level: 1 },
+  { href: adminUrl("/admin/applications"), icon: FileText,             label: "Заявки практиков", section: "product", level: 1, permission: "practitioners.view" },
+  { href: adminUrl("/admin/bookings"),     icon: CalendarDays,         label: "Бронирования", section: "product", level: 1 },
+  { href: adminUrl("/admin/sessions"),     icon: Gauge,                label: "Сессии", section: "product", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/complaints"),   icon: MessageSquareWarning, label: "Жалобы", section: "product", level: 1 },
+  { href: adminUrl("/admin/reviews"),      icon: Star,                 label: "Отзывы", section: "product", level: 1, permission: "safety.review" },
+  { href: adminUrl("/admin/antifraud"),    icon: ShieldAlert,          label: "Антифрод", section: "product", level: 1, permission: "antifraud.review" },
+  { href: adminUrl("/admin/quality"),      icon: ShieldAlert,          label: "Качество и обращения", section: "product", level: 1, permission: "safety.review" },
 
-  { type: "group", key: "finance", label: "Финансы" },
-  { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансовый центр", superadminOnly: true },
-  { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", superadminOnly: true },
-  { href: adminUrl("/admin/finance/payouts"), icon: Landmark,          label: "Выплаты практикам", superadminOnly: true },
-  { href: adminUrl("/admin/finance/reports"), icon: FileSpreadsheet,   label: "Отчеты практиков", superadminOnly: true },
-  { href: adminUrl("/admin/finance/points"), icon: Coins,              label: "Баллы", superadminOnly: true },
-  { href: adminUrl("/admin/finance/reconciliation"), icon: FileSearch, label: "Сверка и импорт", superadminOnly: true },
-  { href: adminUrl("/admin/finance/unit-economics"), icon: BarChart3,  label: "Юнит-экономика", superadminOnly: true },
-  { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы",    superadminOnly: true },
-  { href: adminUrl("/admin/finance/controls"), icon: FileSearch,       label: "Контроль и журналы", superadminOnly: true },
+  { href: adminUrl("/admin/finance"),      icon: WalletCards,          label: "Финансы", section: "finance", level: 0, superadminOnly: true },
+  { href: adminUrl("/admin/finance/receipts"), icon: ReceiptText,      label: "Поступления и чеки", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/payouts"), icon: Landmark,          label: "Выплаты практикам", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/payments"),     icon: WalletCards,          label: "Платежи и баллы", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/reports"), icon: FileSpreadsheet,   label: "Отчеты практиков", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/points"), icon: Coins,              label: "Баллы", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/reconciliation"), icon: FileSearch, label: "Сверка и импорт", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/unit-economics"), icon: BarChart3,  label: "Юнит-экономика", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/pricing"),      icon: SlidersHorizontal,    label: "Цены и тарифы", section: "finance", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/finance/controls"), icon: FileSearch,       label: "Контроль и журналы", section: "finance", level: 1, superadminOnly: true },
 
-  { type: "group", key: "ops", label: "Система, AI и журналы" },
-  { href: adminUrl("/admin/ops"),          icon: ServerCog,            label: "Операционный центр", permission: "system.read" },
-  { href: adminUrl("/admin/ops/ai-cost"),  icon: BrainCircuit,         label: "AI-затраты и токены", permission: "ai.configure" },
-  { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "Провайдеры и модели", permission: "ai.configure" },
-  { href: adminUrl("/admin/notifications"),icon: BellRing,             label: "Уведомления",      permission: "notifications.diagnose" },
-  { href: adminUrl("/admin/files"),        icon: FolderOpen,           label: "Файлы",            superadminOnly: true },
-  { href: adminUrl("/admin/database"),     icon: Database,             label: "База данных",      permission: "system.read" },
-  { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Надежность сервисов", permission: "system.read" },
-  { href: adminUrl("/admin/jobs"),         icon: ListTodo,             label: "Очереди и задачи", permission: "system.read" },
-  { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Журналы и аудит",  superadminOnly: true },
-  { href: adminUrl("/admin/ops/security"), icon: FileSearch,           label: "Безопасность и инциденты", permission: "system.read" },
+  { href: adminUrl("/admin/ops"),          icon: ServerCog,            label: "Система, AI и журналы", section: "ops", level: 0, permission: "system.read" },
+  { href: adminUrl("/admin/ops/ai-cost"),  icon: BrainCircuit,         label: "AI-затраты и токены", section: "ops", level: 1, permission: "ai.configure" },
+  { href: adminUrl("/admin/ai"),           icon: BrainCircuit,         label: "Провайдеры и модели", section: "ops", level: 1, permission: "ai.configure" },
+  { href: adminUrl("/admin/notifications"),icon: BellRing,             label: "Уведомления", section: "ops", level: 1, permission: "notifications.diagnose" },
+  { href: adminUrl("/admin/files"),        icon: FolderOpen,           label: "Файлы", section: "ops", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/database"),     icon: Database,             label: "База данных", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/system"),       icon: Wrench,               label: "Надежность сервисов", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/jobs"),         icon: ListTodo,             label: "Очереди и задачи", section: "ops", level: 1, permission: "system.read" },
+  { href: adminUrl("/admin/logs"),         icon: BookOpenText,         label: "Журналы и аудит", section: "ops", level: 1, superadminOnly: true },
+  { href: adminUrl("/admin/ops/security"), icon: FileSearch,           label: "Безопасность и инциденты", section: "ops", level: 1, permission: "system.read" },
 
-  { type: "group", key: "support", label: "Поддержка" },
-  { href: adminUrl("/admin/support"),      icon: LifeBuoy,             label: "Поддержка" },
+  { href: adminUrl("/admin/support"),      icon: LifeBuoy,             label: "Поддержка", section: "support", level: 0 },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -117,38 +110,14 @@ function navCountKey(href: string): string | null {
   return null;
 }
 
-function isNavItem(entry: NavEntry): entry is NavItem {
-  return entry.type !== "group";
-}
-
 function canShowNavItem(item: NavItem, permissions: Permission[], isSuperAdmin: boolean) {
   if (item.superadminOnly && !isSuperAdmin) return false;
   if (item.permission && !permissions.includes(item.permission)) return false;
   return true;
 }
 
-function visibleNavEntries(entries: NavEntry[], permissions: Permission[], isSuperAdmin: boolean) {
-  const visible: NavEntry[] = [];
-  let pendingGroup: NavGroup | null = null;
-
-  function pushGroupIfNeeded() {
-    if (pendingGroup) {
-      visible.push(pendingGroup);
-      pendingGroup = null;
-    }
-  }
-
-  for (const entry of entries) {
-    if (!isNavItem(entry)) {
-      pendingGroup = entry;
-      continue;
-    }
-    if (canShowNavItem(entry, permissions, isSuperAdmin)) {
-      pushGroupIfNeeded();
-      visible.push(entry);
-    }
-  }
-  return visible;
+function visibleNavEntries(entries: NavItem[], permissions: Permission[], isSuperAdmin: boolean) {
+  return entries.filter((entry) => canShowNavItem(entry, permissions, isSuperAdmin));
 }
 
 export function AdminShell({
@@ -170,16 +139,25 @@ export function AdminShell({
 
   // Фильтруем: суперадмин-only скрываем для ADMIN; permission-protected скрываем если нет полномочия
   const nav = visibleNavEntries(NAV_ITEMS, permissions, isSuperAdmin);
-  const navItems = nav.filter(isNavItem);
+  const navItems = nav;
 
-  // Для мобильного навигации — первые 4 пункта
-  const mobileNav = navItems.slice(0, 4);
+  // Для мобильной навигации — основные разделы, без вложенных страниц.
+  const mobileNav = navItems.filter((item) => (item.level ?? 0) === 0).slice(0, 4);
 
   function isActive(href: string) {
     const itemPath = toPathname(href);
     if (itemPath === "/admin") return pathname === itemPath;
     if (itemPath === "/admin/ops") return pathname === itemPath;
     return pathname.startsWith(itemPath);
+  }
+
+  function isExactActive(href: string) {
+    return pathname === toPathname(href);
+  }
+
+  function isSectionActive(item: NavItem) {
+    if ((item.level ?? 0) !== 0 || item.section === "workspace") return false;
+    return navItems.some((candidate) => candidate.section === item.section && isActive(candidate.href));
   }
 
   const navLabelByPath = new Map(navItems.map((item) => [toPathname(item.href), item.label]));
@@ -225,29 +203,30 @@ export function AdminShell({
 
         <nav className="flex-1 space-y-0.5">
           {nav.map((item) => {
-            if (!isNavItem(item)) {
-              return (
-                <div
-                  key={item.key}
-                  className="px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--soft-ink-faint)]"
-                  data-testid="admin-shell-nav-group"
-                >
-                  {item.label}
-                </div>
-              );
-            }
             const Icon = item.icon;
             const countKey = navCountKey(item.href);
             const count = countKey ? (counts?.[countKey] ?? 0) : 0;
+            const depth = item.level ?? 0;
+            const exactActive = isExactActive(item.href);
+            const active = isActive(item.href);
+            const parentActive = isSectionActive(item) && !exactActive;
             return (
             <Link key={item.href} href={item.href}
               data-testid="admin-shell-nav-item"
-              className={`admin-shell-item soft-admin-nav-link flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
-                isActive(item.href)
+              data-depth={depth}
+              aria-current={exactActive ? "page" : undefined}
+              className={`admin-shell-item soft-admin-nav-link flex items-center rounded-[var(--radius-control)] transition-colors duration-[var(--motion-base)] ${
+                depth === 1
+                  ? "ml-5 min-h-8 gap-2 px-2 py-1.5 text-xs"
+                  : "mt-2 min-h-10 gap-2.5 px-3 py-2 text-sm font-semibold"
+              } ${
+                active
                   ? "is-active font-medium"
-                  : ""
+                  : parentActive
+                    ? "is-section-active"
+                    : ""
               }`}>
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className={`${depth === 1 ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0`} />
               {item.label}
               {count > 0 && (
                 <span

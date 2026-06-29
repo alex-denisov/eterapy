@@ -53,11 +53,13 @@ export function PaymentsPanel({
   clarityCredits,
   payoutRuns,
   showCredits = true,
+  formatMoney = (value) => `${value.toLocaleString("ru-RU")} ₽`,
 }: {
   practitioners: Practitioner[];
   clarityCredits: ClarityCreditAuditEntry[];
   payoutRuns: PayoutRun[];
   showCredits?: boolean;
+  formatMoney?: (valueRub: number) => string;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -227,8 +229,8 @@ export function PaymentsPanel({
                   <td className="p-3 text-right">{run.candidateCount}</td>
                   <td className="p-3 text-right">{run.processingCount}</td>
                   <td className="p-3 text-right">{run.heldCount}</td>
-                  <td className="p-3 text-right font-semibold">{Math.round(run.totalDisbursedKopecks / 100).toLocaleString("ru")} ₽</td>
-                  <td className="p-3 text-right text-muted-foreground">{Math.round(run.totalReserveKopecks / 100).toLocaleString("ru")} ₽</td>
+                  <td className="p-3 text-right font-semibold">{formatMoney(Math.round(run.totalDisbursedKopecks / 100))}</td>
+                  <td className="p-3 text-right text-muted-foreground">{formatMoney(Math.round(run.totalReserveKopecks / 100))}</td>
                 </tr>
               ))}
               {payoutRuns.length === 0 && (
@@ -246,7 +248,7 @@ export function PaymentsPanel({
         {selected.size > 0 && (
           <div className="flex items-center gap-3 ml-auto">
             <span className="text-sm text-muted-foreground">
-              Выбрано: {selected.size} · {totalSelected.toLocaleString("ru")} ₽
+              Выбрано: {selected.size} · {formatMoney(totalSelected)}
             </span>
             <button onClick={markSelectedPaid}
               className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)]">
@@ -295,15 +297,15 @@ export function PaymentsPanel({
                   <p className="text-xs text-muted-foreground">{p.email}</p>
                 </td>
                 <td className="p-3 text-right text-muted-foreground">{p.sessionCount}</td>
-                <td className="p-3 text-right">{p.totalRevenue.toLocaleString("ru")} ₽</td>
-                <td className="p-3 text-right text-primary">{p.platformFee.toLocaleString("ru")} ₽ <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
+                <td className="p-3 text-right">{formatMoney(p.totalRevenue)}</td>
+                <td className="p-3 text-right text-primary">{formatMoney(p.platformFee)} <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
                 <td className="p-3 text-right font-semibold text-green-400">
-                  {p.practitionerEarnings.toLocaleString("ru")} ₽
+                  {formatMoney(p.practitionerEarnings)}
                 </td>
                 <td className="p-3 text-right text-yellow-400">
-                  {p.heldPayout.toLocaleString("ru")} ₽
+                  {formatMoney(p.heldPayout)}
                   {p.reservePayout > 0 && (
-                    <span className="block text-[10px] text-muted-foreground">резерв {p.reservePayout.toLocaleString("ru")} ₽</span>
+                    <span className="block text-[10px] text-muted-foreground">резерв {formatMoney(p.reservePayout)}</span>
                   )}
                 </td>
                 <td className="p-3">

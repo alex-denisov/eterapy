@@ -252,7 +252,7 @@ export default async function AdminAIPage({ searchParams }: PageProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <AdminCurrencySelector basePath="/admin/ai" currency={currency} />
+          <AdminCurrencySelector basePath="/admin/ai" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
           <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2 text-xs text-[var(--soft-ink-soft)]">
             Активных политик:{" "}
             <span className="font-medium text-[var(--soft-bordeaux)]">
