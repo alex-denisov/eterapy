@@ -298,7 +298,7 @@ export default function ClientBookingsPage() {
       </div>
 
       {bookings.length === 0 && (
-        <div className="soft-card py-12 text-center">
+        <div className="soft-card soft-empty-stage py-12 text-center">
           <p className="soft-h3" style={{ color: "var(--soft-bordeaux)" }}>Пока нет записей</p>
           <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
             Живой разговор со специалистом помогает там, где одного разбора мало.

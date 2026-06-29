@@ -764,8 +764,10 @@ export function ChatAnalysisActions() {
       {tab === "input" && (
         <div data-testid="chat-analysis-input">
           <div className="soft-card overflow-hidden p-0 transition-colors focus-within:border-[var(--soft-bordeaux)]">
-            {/* primary input = two attach affordances, side by side */}
-            <div className="grid grid-cols-2 gap-2.5 p-3">
+            {/* primary input = two attach affordances. B462 §3.2: stacked
+                one-per-row on mobile (was a locked 2-col grid → cramped wrapping
+                + tiny tap targets at 390px), side by side from sm: up. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 p-3">
               <button
                 type="button"
                 onClick={() => screenshotInputRef.current?.click()}
