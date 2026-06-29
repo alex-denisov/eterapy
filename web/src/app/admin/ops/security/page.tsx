@@ -157,7 +157,7 @@ export default async function AdminOpsSecurityPage() {
         <AdminOpsMetric icon={AlertTriangle} label="AI-изменения" value={formatNumber(aiRisk)} hint="Настройки providers/routing/prompts/keys" tone={aiRisk > 0 ? "warn" : "ok"} />
       </section>
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/antifraud" actionLabel="Открыть антифрод">
           <div className="max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)]">
             <div className="max-w-full overflow-x-auto">

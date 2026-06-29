@@ -53,13 +53,15 @@ export function PaymentsPanel({
   clarityCredits,
   payoutRuns,
   showCredits = true,
-  formatMoney = (value) => `${value.toLocaleString("ru-RU")} ₽`,
+  currency = "RUB",
+  usdRub = null,
 }: {
   practitioners: Practitioner[];
   clarityCredits: ClarityCreditAuditEntry[];
   payoutRuns: PayoutRun[];
   showCredits?: boolean;
-  formatMoney?: (valueRub: number) => string;
+  currency?: "RUB" | "USD";
+  usdRub?: number | null;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -71,6 +73,15 @@ export function PaymentsPanel({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
+  const formatMoney = (valueRub: number) => {
+    const converted = currency === "USD" ? (usdRub ? valueRub / usdRub : null) : valueRub;
+    if (converted === null) return "Курс ЦБ недоступен";
+    return new Intl.NumberFormat("ru-RU", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: converted > 0 && converted < 100 ? 2 : 0,
+    }).format(converted);
+  };
 
   const filtered = practitioners
     .filter(p =>

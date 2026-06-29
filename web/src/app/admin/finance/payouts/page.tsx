@@ -106,7 +106,8 @@ export default async function FinancePayoutsPage({ searchParams }: PageProps) {
           practitioners={list}
           clarityCredits={[]}
           showCredits={false}
-          formatMoney={(valueRub) => formatAdminRub(valueRub, currency, currencyRates)}
+          currency={currency}
+          usdRub={currencyRates.usdRub}
           payoutRuns={payoutRuns.map((run) => ({
             id: run.id,
             scheduledFor: run.scheduledFor.toISOString(),

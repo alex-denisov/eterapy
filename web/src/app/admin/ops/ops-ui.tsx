@@ -64,7 +64,7 @@ export function AdminOpsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)]">
+    <section className="min-w-0 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)]">
       <div className="flex flex-col gap-2 border-b border-[var(--soft-paper-edge)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-base font-semibold text-[var(--soft-ink)]">{title}</h2>
         {actionHref && actionLabel && (

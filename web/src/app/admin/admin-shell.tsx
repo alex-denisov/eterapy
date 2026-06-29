@@ -243,7 +243,10 @@ export function AdminShell({
 
         <div className="mt-2 border-t border-[var(--soft-paper-edge)] pt-2">
           <Link href={adminUrl("/admin/settings")}
-            className="soft-admin-nav-link flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]">
+            aria-current={pathname === "/admin/settings" ? "page" : undefined}
+            className={`soft-admin-nav-link flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+              pathname === "/admin/settings" ? "is-active font-medium" : ""
+            }`}>
             <Settings className="h-4 w-4 shrink-0" />
             Настройки
           </Link>

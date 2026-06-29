@@ -1,1 +1,5 @@
-export { default, dynamic } from "../../users/page";
+import { redirect } from "next/navigation";
+
+export default function AdminProductUsersAliasPage() {
+  redirect("/admin/users");
+}

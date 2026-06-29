@@ -1,3 +1,5 @@
-import AdminPaymentsPage from "../payments/page";
+import { redirect } from "next/navigation";
 
-export default AdminPaymentsPage;
+export default function AdminPayoutsAliasPage() {
+  redirect("/admin/finance/payouts");
+}

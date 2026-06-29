@@ -1,1 +1,5 @@
-export { default, dynamic } from "../receipts/page";
+import { redirect } from "next/navigation";
+
+export default function AdminFinanceTransactionsAliasPage() {
+  redirect("/admin/finance/receipts");
+}
