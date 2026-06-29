@@ -166,6 +166,20 @@
     background: var(--soft-paper-deep);
   }
 
+  /* B462 §4.2: the product order-surface (Tarot / Natal / Human Design / reframe)
+     wraps the big editorial .soft-question-input, which deliberately strips its
+     own outline — so the visible focus indicator lives on the card. Kept at the
+     top of the layer (NOT inside a min-width media) so the Soft-Clarity terracotta
+     ring shows at every viewport, fixing the review note and a WCAG 2.4.7 gap. */
+  .tarot-order-surface {
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .tarot-order-surface:focus-within {
+    border-color: var(--soft-terracotta);
+    box-shadow: 0 0 0 3px rgba(214, 117, 88, 0.14);
+  }
+
   .soft-chip {
     display: inline-flex;
     min-height: 2rem;
@@ -1850,17 +1864,6 @@
 
   .tarot-order-surface {
     padding: clamp(0.9rem, 2.3vw, 1.2rem);
-    transition: border-color 160ms ease, box-shadow 160ms ease;
-  }
-
-  /* B462 §4.2: the big editorial .soft-question-input deliberately strips its own
-     outline, so the visible focus indicator lives on the card (mirrors
-     .landing-question-surface:focus-within). Tarot / Natal / Human Design / reframe
-     all use this surface — one rule gives them a uniform Soft-Clarity terracotta
-     ring instead of no focus affordance at all. */
-  .tarot-order-surface:focus-within {
-    border-color: var(--soft-terracotta);
-    box-shadow: 0 0 0 3px rgba(214, 117, 88, 0.14);
   }
 
   .tarot-order-grid {
