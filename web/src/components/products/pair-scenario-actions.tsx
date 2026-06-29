@@ -90,7 +90,7 @@ export function PairScenarioActions({
         {activeScenario.description}
       </p>
 
-      <div data-testid="pair-scenario-intake">
+      <div className="mt-4" data-testid="pair-scenario-intake">
         {active === "outside" ? (
           <TogetherActions inviteToken={null} />
         ) : (

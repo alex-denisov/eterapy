@@ -259,9 +259,7 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
           <p className="soft-eyebrow">свежий взгляд</p>
           <h2 className="soft-h3 mt-2">Опишите ситуацию</h2>
         </div>
-        <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>
-          {hasEntitlement ? "полный разбор открыт" : "начало бесплатно"}
-        </span>
+        {hasEntitlement && <span className="soft-badge soft-badge-warm">полный разбор открыт</span>}
       </div>
 
       {!circle && (
