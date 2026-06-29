@@ -45,7 +45,7 @@ function makeUrl(searchParams: URLSearchParams, patch: Record<string, string | n
   return query ? `/admin/users?${query}` : "/admin/users";
 }
 
-function SortHeader({ field, label }: { field: string; label: string }) {
+function SortHeader({ field, label, hint }: { field: string; label: string; hint?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const active = searchParams.get("sort") === field;
@@ -56,6 +56,7 @@ function SortHeader({ field, label }: { field: string; label: string }) {
     <button
       type="button"
       className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
+      title={hint}
       onClick={() => router.push(makeUrl(searchParams, { sort: field, dir: nextDir }))}
     >
       <span>{label}</span>
@@ -307,8 +308,8 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
             </th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="credits" label="Баллы" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="createdAt" label="Регистрация" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="lastLogin" label="Последний вход" /></th>
-            <th className={COMPACT_HEADER_CLASS}><SortHeader field="freeToolsLimit" label="Лимит/мес" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" /></th>
+            <th className={COMPACT_HEADER_CLASS}><SortHeader field="freeToolsLimit" label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="bookings" label="Брони" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="entitlements" label="Покупки" /></th>
             <th className={COMPACT_HEADER_CLASS}><SortHeader field="subscriptions" label="Подписки" /></th>

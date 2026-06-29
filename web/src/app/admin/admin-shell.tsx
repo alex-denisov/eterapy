@@ -56,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
 
   { href: adminUrl("/admin/product"),      icon: BarChart3,            label: "Продукт и клиенты", section: "product", level: 0 },
   { href: adminUrl("/admin/users"),        icon: Users,                label: "Пользователи и сегменты", section: "product", level: 1 },
-  { href: adminUrl("/admin/clients"),      icon: Users,                label: "Клиенты", section: "product", level: 1, permission: "clients.view" },
+  { href: adminUrl("/admin/clients"),      icon: Users,                label: "Клиенты платформы", section: "product", level: 1, permission: "clients.view" },
   { href: adminUrl("/admin/practitioners"),icon: UserCog,              label: "Практики", section: "product", level: 1, permission: "practitioners.view" },
   { href: adminUrl("/admin/product/funnel"), icon: BarChart3,          label: "Воронка и конверсии", section: "product", level: 1 },
   { href: adminUrl("/admin/product/results"), icon: FileSearch,        label: "Продукты и результаты", section: "product", level: 1 },
