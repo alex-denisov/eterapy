@@ -223,7 +223,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
       </div>
 
       {items.length === 0 ? (
-        <div className="soft-card p-12 text-center">
+        <div className="soft-card soft-empty-stage p-12 text-center">
           <h2 className="soft-h3">Карта пока пустая</h2>
           <p className="mt-3 max-w-md mx-auto text-sm" style={{ color: "var(--soft-ink-soft)" }}>
             Начните с вопроса или сохраните готовый результат. Мы покажем только то,

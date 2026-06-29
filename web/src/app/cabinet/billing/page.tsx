@@ -314,7 +314,28 @@ export default function BillingPage() {
     }
   }
 
-  if (status === "loading") return null;
+  // B462 §3.4: while the next-auth session resolves, render the page shell with
+  // skeleton cards instead of `return null` — the old null left a blank viewport
+  // on a cold load of /cabinet/billing (the review's «blank content» screenshot).
+  if (status === "loading") {
+    return (
+      <div className="p-6 md:p-8 space-y-6" data-testid="billing-loading" aria-busy="true">
+        <div>
+          <div className="soft-eyebrow">оплата</div>
+          <h1 className="soft-h1 mt-2">Подписка и оплата</h1>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="soft-card p-6">
+              <div className="h-3.5 w-24 animate-pulse rounded bg-[var(--soft-paper-edge)]" />
+              <div className="mt-4 h-8 w-32 animate-pulse rounded bg-[var(--soft-paper-edge)]" />
+              <div className="mt-6 h-10 w-full animate-pulse rounded bg-[var(--soft-paper-edge)]" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (!session) { router.push("/login"); return null; }
   // Y6: client-only surface — a practitioner/admin reaching /cabinet/billing by
   // direct link is routed back to /cabinet, which sends them to the home their

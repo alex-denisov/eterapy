@@ -586,6 +586,30 @@
     pointer-events: none;
   }
 
+  /* B462 §4.3: empty states (no diary entries, no bookings) sit on a faint
+     Dialogue-Halo wash at ~12% opacity so the page feels alive and cozy rather
+     than a blank bootstrap card. Halo is clipped to the card and stays behind
+     content via an isolated stacking context. */
+  .soft-empty-stage {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .soft-empty-stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(circle at 30% 30%, var(--soft-halo-1) 0%, transparent 55%),
+      radial-gradient(circle at 72% 32%, var(--soft-halo-2) 0%, transparent 50%),
+      radial-gradient(circle at 50% 78%, var(--soft-halo-3) 0%, transparent 55%);
+    opacity: 0.12;
+    filter: blur(30px);
+    pointer-events: none;
+  }
+
   .soft-ask-card {
     position: relative;
     z-index: 1;
@@ -1826,6 +1850,17 @@
 
   .tarot-order-surface {
     padding: clamp(0.9rem, 2.3vw, 1.2rem);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  /* B462 §4.2: the big editorial .soft-question-input deliberately strips its own
+     outline, so the visible focus indicator lives on the card (mirrors
+     .landing-question-surface:focus-within). Tarot / Natal / Human Design / reframe
+     all use this surface — one rule gives them a uniform Soft-Clarity terracotta
+     ring instead of no focus affordance at all. */
+  .tarot-order-surface:focus-within {
+    border-color: var(--soft-terracotta);
+    box-shadow: 0 0 0 3px rgba(214, 117, 88, 0.14);
   }
 
   .tarot-order-grid {

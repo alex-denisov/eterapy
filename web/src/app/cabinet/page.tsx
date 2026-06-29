@@ -394,15 +394,21 @@ export default async function ClientCabinetPage() {
         ) : recentDialogues.map((d, i) => (
           <div
             key={d.id}
-            className="flex items-center justify-between gap-4"
+            className="flex items-center justify-between gap-3"
             style={{ padding: "12px 0", borderTop: i > 0 ? "1px solid var(--soft-paper-edge)" : "none" }}
           >
-            <div className="flex items-start gap-4">
-              <span className="shrink-0" style={{ fontSize: 12, color: "var(--soft-ink-faint)", width: 110, paddingTop: 2 }}>
+            {/* B462 §3.1: min-w-0 on the flex children lets a long title wrap
+                instead of pushing «Открыть» out of the card; the date column is
+                narrow on mobile (was a fixed 110px) and widens from sm: up. */}
+            <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+              <span
+                className="w-12 shrink-0 pt-0.5 text-[11px] sm:w-[110px] sm:text-xs"
+                style={{ color: "var(--soft-ink-faint)" }}
+              >
                 {d.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
               </span>
-              <div>
-                <p style={{ fontWeight: 500 }}>{d.title}</p>
+              <div className="min-w-0">
+                <p className="break-words" style={{ fontWeight: 500 }}>{d.title}</p>
                 <p style={{ fontSize: 12.5, color: "var(--soft-ink-faint)", marginTop: 2 }}>
                   {dialogueTopicLabelRu(d.topic)} · {dialogueStatusLabelRu(d.status)}
                 </p>

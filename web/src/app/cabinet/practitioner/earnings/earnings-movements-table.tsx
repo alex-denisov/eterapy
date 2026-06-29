@@ -146,7 +146,51 @@ export function EarningsMovementsTable({ rows }: { rows: EarningsMovementRow[] }
         </select>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* B462 §4.1: real tables feel cramped on mobile — below sm: the movements
+          render as stacked list-cards (no horizontal scroll). The table is kept
+          from sm: up where there is room for five columns. */}
+      <ul className="space-y-2 sm:hidden" data-testid="practitioner-earnings-cards">
+        {pageRows.map((row) => {
+          const isEarning = row.kind === "earning";
+          return (
+            <li
+              key={row.id}
+              className="rounded-[var(--soft-radius-md)] border border-[var(--soft-paper-edge)] p-3"
+              data-testid="practitioner-earnings-card"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-medium text-[var(--soft-ink)]">
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: isEarning ? "var(--soft-terracotta-dark)" : "var(--soft-bordeaux)" }}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 truncate">{row.label}</span>
+                  </p>
+                  {row.sublabel && (
+                    <p className="mt-0.5 truncate text-xs text-[var(--soft-ink-faint)]">{row.sublabel}</p>
+                  )}
+                </div>
+                <span
+                  className="shrink-0 whitespace-nowrap font-heading font-semibold tabular-nums"
+                  style={{ color: isEarning ? "var(--soft-terracotta-dark)" : "var(--soft-bordeaux)" }}
+                >
+                  {isEarning ? "+" : "−"}{Math.abs(row.amountRub).toLocaleString("ru-RU")} ₽
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-2 text-xs text-[var(--soft-ink-soft)]">
+                <span>{kindLabel(row.kind)} · {formatDate(row.dateIso)}</span>
+                <span className="soft-admin-status-pill" data-tone={statusTone(row.status)}>
+                  {row.status}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm" data-testid="practitioner-earnings-rows">
           <thead>
             <tr className="text-left text-xs uppercase tracking-wide text-[var(--soft-ink-faint)]">
