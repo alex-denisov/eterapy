@@ -1,15 +1,30 @@
 import Link from "next/link";
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { PublicJsonLd } from "@/components/seo/public-json-ld";
 import { CompatibilityActions } from "@/components/products/compatibility-actions";
 import { TogetherActions } from "@/components/products/together-actions";
+import { PairScenarioActions } from "@/components/products/pair-scenario-actions";
+import { ProductHeroPrice } from "@/components/products/product-hero-price";
+import { ProductPrivacyBadge } from "@/components/products/product-legal";
 import { createPublicPageMetadata } from "@/lib/public-page-seo";
-import { TOGETHER_SCENARIOS } from "@/lib/together";
+import { getV5Product } from "@/lib/v5-products";
+import { resolvePairScenario, getPairRelationshipOption } from "@/lib/pair-hub";
 
 export const metadata = createPublicPageMetadata("/products/pair");
 
-type PairSearch = { invite?: string; dialogueId?: string; scenario?: string; via?: string };
+type PairSearch = {
+  invite?: string;
+  dialogueId?: string;
+  scenario?: string;
+  via?: string;
+  relType?: string;
+};
 
+// B463 (M28, walkthrough item 21): «Вместе» on the compact tool-first hero (the same
+// "Tarot strategy" as the single-tool product pages). The tall display headline + three
+// scenario cards + below-the-fold form are replaced by a compact hero and a two-scenario
+// pill picker that swaps the intake inline on the first screen. The orphaned
+// «Совместимость» card is folded into «Сверить взгляды» as the «Ваша связь» mode.
 export default async function TogetherPage({
   searchParams,
 }: {
@@ -18,7 +33,6 @@ export default async function TogetherPage({
   const search = await searchParams;
   const invite = search?.invite ?? null;
   const isOutsideInvite = search?.via === "outside";
-  const scenario = search?.scenario === "compare" ? "compare" : "outside";
 
   // Invited-guest views skip the hub and render the relevant answer surface.
   if (invite) {
@@ -36,67 +50,44 @@ export default async function TogetherPage({
     );
   }
 
+  const product = getV5Product("pair");
+  const initialScenario = resolvePairScenario(search?.scenario);
+  const relationshipType = getPairRelationshipOption(search?.relType ?? "")?.key ?? "romantic";
+
   return (
     <main className="soft-clarity-page soft-public-page" data-testid="together-page">
       <PublicJsonLd route="/products/pair" />
-      <section className="soft-shell py-12 md:py-20">
-        <div className="max-w-2xl">
-          <p className="soft-eyebrow">вместе</p>
-          <h1 className="soft-display mt-4">
-            Разобраться <span className="soft-italic">вместе</span>, не теряя границ
-          </h1>
-          <p className="soft-lede mt-6">
-            Один вопрос — несколько взглядов. Выберите формат: позвать кого-то за свежим взглядом,
-            сверить взгляды по согласию или посмотреть на совместимость.
-          </p>
-        </div>
-
-        <div className="mt-10 grid gap-4 md:grid-cols-3" data-testid="together-scenarios">
-          {TOGETHER_SCENARIOS.map((item) => {
-            const isActive =
-              (item.key === "outside" && scenario === "outside") ||
-              (item.key === "compare" && scenario === "compare");
-            return (
-              <article
-                key={item.key}
-                className={`soft-card flex flex-col p-6 ${isActive ? "ring-2 ring-[var(--soft-terracotta-dark)]" : ""}`}
-                data-testid={`together-scenario-${item.key}`}
+      <section className="soft-shell" style={{ paddingTop: 20, paddingBottom: 28 }}>
+        <div className="mx-auto w-full max-w-2xl">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <Link
+                href="/"
+                aria-label="Назад"
+                data-testid="pair-hero-back"
+                className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)]"
               >
-                <p className="soft-eyebrow">{item.eyebrow}</p>
-                <h2 className="soft-h3 mt-2">{item.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{item.blurb}</p>
-                <ul className="mt-4 space-y-1.5 text-sm text-[var(--soft-ink-soft)]">
-                  {item.bullets.map((bullet) => (
-                    <li key={bullet} className="flex gap-2">
-                      <span aria-hidden="true" className="text-[var(--soft-terracotta-dark)]">·</span>
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href={item.key === "outside" ? "#together-intake" : item.href}
-                  className={`soft-button mt-5 w-fit ${isActive ? "soft-button-primary" : "soft-button-ghost"}`}
-                >
-                  {isActive ? "Выбрано" : "Выбрать формат"}
-                  <ArrowRight className="size-4" aria-hidden="true" />
-                </Link>
-              </article>
-            );
-          })}
-        </div>
+                <ChevronLeft className="size-5" aria-hidden="true" />
+              </Link>
+              <h1 className="soft-h2 truncate" style={{ margin: 0 }}>Вместе</h1>
+            </div>
+            {product && <ProductHeroPrice product={product} />}
+          </div>
 
-        <div className="mt-6 flex gap-2 rounded-[var(--soft-radius-md)] bg-[var(--soft-paper-deep)] p-4 text-sm text-[var(--soft-ink-soft)]">
-          <LockKeyhole className="mt-0.5 size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-          <span>Приватные ответы не раскрываются как инструмент давления — общий итог только помогает начать разговор спокойно.</span>
-        </div>
-      </section>
+          <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">Один вопрос — несколько взглядов.</p>
 
-      <section id="together-intake" className="soft-shell pb-16">
-        {scenario === "compare" ? (
-          <CompatibilityActions dialogueId={search?.dialogueId ?? null} inviteToken={null} productKey="pair" />
-        ) : (
-          <TogetherActions inviteToken={null} />
-        )}
+          <div className="mt-3">
+            <ProductPrivacyBadge />
+          </div>
+
+          <div className="mt-6">
+            <PairScenarioActions
+              initialScenario={initialScenario}
+              dialogueId={search?.dialogueId ?? null}
+              relationshipType={relationshipType}
+            />
+          </div>
+        </div>
       </section>
     </main>
   );

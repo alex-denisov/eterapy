@@ -256,7 +256,7 @@ export function TogetherActions({ inviteToken }: { inviteToken?: string | null }
     <div className="soft-card soft-form-panel" data-testid="together-actions">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="soft-eyebrow">взгляд со стороны</p>
+          <p className="soft-eyebrow">свежий взгляд</p>
           <h2 className="soft-h3 mt-2">Опишите ситуацию</h2>
         </div>
         <span className={hasEntitlement ? "soft-badge soft-badge-warm" : "soft-badge"}>

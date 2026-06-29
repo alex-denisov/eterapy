@@ -39,7 +39,8 @@ describe("B201/B202 Circle and Pair flows", () => {
     expect(source("src/proxy.ts")).toContain("unknownProductSlug");
     expect(source("src/lib/v5-products.ts")).not.toContain('slug: "circle"');
     expect(togetherPage).toContain("<TogetherActions");
-    expect(togetherPage).toContain('data-testid="together-scenarios"');
+    // B463 (M28): the 3-card scenario grid is replaced by the inline pill picker.
+    expect(togetherPage).toContain("<PairScenarioActions");
 
     // Outside-view UI (initiator + account-less guest) lives in together-actions.
     expect(actions).toContain('data-testid="together-actions"');

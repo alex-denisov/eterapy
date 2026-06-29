@@ -10,11 +10,13 @@ import {
 } from "@/lib/together";
 
 describe("B385 «Вместе» scenarios", () => {
-  it("exposes exactly three scenarios with distinct keys", () => {
-    expect(TOGETHER_SCENARIOS).toHaveLength(3);
+  // B463 (M28): the standalone «Совместимость» card was folded into «Сверить взгляды»
+  // as the «Ваша связь» relationship mode, so the hub now exposes two scenarios.
+  it("exposes exactly two scenarios with distinct keys", () => {
+    expect(TOGETHER_SCENARIOS).toHaveLength(2);
     const keys = TOGETHER_SCENARIOS.map((s) => s.key);
-    expect(new Set(keys).size).toBe(3);
-    expect(keys).toEqual(["outside", "compare", "compatibility"]);
+    expect(new Set(keys).size).toBe(2);
+    expect(keys).toEqual(["outside", "compare"]);
   });
 
   it("maps each scenario to a valid engine", () => {
@@ -26,8 +28,10 @@ describe("B385 «Вместе» scenarios", () => {
   });
 
   it("resolves scenarios by key and returns null otherwise", () => {
-    expect(getTogetherScenario("outside")?.title).toBe("Взгляд со стороны");
+    expect(getTogetherScenario("outside")?.title).toBe("Свежий взгляд");
     expect(getTogetherScenario("circle")).toBeNull();
+    // B463: the compatibility scenario card no longer exists on the hub.
+    expect(getTogetherScenario("compatibility")).toBeNull();
   });
 });
 
