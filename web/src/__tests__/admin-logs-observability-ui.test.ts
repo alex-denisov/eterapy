@@ -7,7 +7,7 @@ function source(relativePath: string) {
 
 describe("admin logs observability UI", () => {
   it("exposes audit, live diagnostics, and runtime log surfaces", () => {
-    const page = source("src/app/admin/logs/page.tsx");
+    const page = source("src/app/admin/logs/admin-logs-page.tsx");
     const viewer = source("src/app/admin/logs/logs-viewer.tsx");
 
     // T7: audit/diagnostics/runtime now live in one tabbed surface rendered

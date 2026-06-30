@@ -89,9 +89,9 @@ describe("Z17 payout holds and payout runs", () => {
     const cronRoute = source("src/app/api/cron/payouts/route.ts");
     const cronJobs = source("src/lib/cron-jobs.ts");
     const earningsPage = source("src/app/cabinet/practitioner/earnings/page.tsx");
-    const adminPayments = source("src/app/admin/payments/page.tsx");
+    const adminPayments = source("src/app/admin/finance/payouts/page.tsx");
     const adminPaymentsPanel = source("src/app/admin/payments/payments-panel.tsx");
-    const adminPayouts = source("src/app/admin/payouts/page.tsx");
+    const adminPayouts = source("src/app/admin/finance/payouts/page.tsx");
 
     expect(schema).toContain("model PayoutRun");
     expect(schema).toContain("holdDays");
@@ -113,6 +113,6 @@ describe("Z17 payout holds and payout runs", () => {
     expect(earningsPage).toContain("holdDays");
     expect(adminPayments).toContain("payoutRun.findMany");
     expect(adminPaymentsPanel).toContain("PayoutRun");
-    expect(adminPayouts).toContain("AdminPaymentsPage");
+    expect(adminPayouts).toContain("payoutRun.findMany");
   });
 });

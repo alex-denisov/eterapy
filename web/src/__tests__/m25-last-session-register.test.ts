@@ -17,7 +17,7 @@ describe("last-session at registration", () => {
   });
 
   it("admin last-session lookup includes REGISTER alongside LOGIN", () => {
-    const page = source("src/app/admin/users/page.tsx");
+    const page = source("src/app/admin/users/admin-users-page.tsx");
     expect(page).toMatch(/action:\s*\{\s*in:\s*\[\s*"LOGIN",\s*"REGISTER"\s*\]\s*\}/);
   });
 

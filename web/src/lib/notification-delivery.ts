@@ -154,7 +154,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "PAYMENT_RECEIVED":
       return { title: "Платёж получен", body: `${data.amountRub} ₽ — ${data.date}`, href: "/cabinet/practitioner/earnings" };
     case "PAYOUT_SCHEDULED":
-      return { title: "Запланированная выплата", body: `${data.date}: ${data.totalRub} ₽ (${data.practitionerCount})`, href: "/admin/payouts" };
+      return { title: "Запланированная выплата", body: `${data.date}: ${data.totalRub} ₽ (${data.practitionerCount})`, href: "/admin/finance/payouts" };
     case "BALANCE_TOPUP":
       return { title: "Баланс пополнен", body: `+${data.amountRub} ₽`, href: "/cabinet/billing" };
     case "PRODUCT_UNLOCKED":
@@ -188,7 +188,7 @@ function formatWebNotification(event: NotifEvent, data: Record<string, string>):
     case "PRACTITIONER_DIGEST":
       return { title: "Дайджест специалиста", body: data.summary || "Заявки, встречи, выплаты и отзывы", href: data.digestUrl || "/cabinet/practitioner" };
     case "COMPLIANCE_ALERT":
-      return { title: "Комплаенс-сигнал", body: data.summary || "Нужна проверка модератором", href: data.reviewUrl || "/admin/complaints" };
+      return { title: "Комплаенс-сигнал", body: data.summary || "Нужна проверка модератором", href: data.reviewUrl || "/admin/product/quality" };
     case "CREDITS_EXPIRING":
       return { title: "Баллы скоро сгорят", body: `${data.credits || "Несколько"} баллов закончатся через ${data.days || "пару"} дн.`, href: data.walletUrl || "/cabinet/wallet" };
     case "STREAK_AT_RISK":
@@ -260,7 +260,7 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
     case "PRACTITIONER_DIGEST":
       return `Дайджест специалиста\n${data.summary ?? "Заявки, встречи, выплаты и отзывы."}\n<a href="${data.digestUrl ?? `${baseUrl}/cabinet/practitioner`}">Открыть кабинет →</a>`;
     case "COMPLIANCE_ALERT":
-      return `Комплаенс-сигнал\n${data.summary ?? "Нужна проверка модератором."}\n<a href="${data.reviewUrl ?? `${baseUrl}/admin/complaints`}">Открыть →</a>`;
+      return `Комплаенс-сигнал\n${data.summary ?? "Нужна проверка модератором."}\n<a href="${data.reviewUrl ?? `${baseUrl}/admin/product/quality`}">Открыть →</a>`;
     case "CREDITS_EXPIRING":
       return `Баллы скоро сгорят\n${data.credits ?? "Несколько"} баллов закончатся примерно через ${data.days ?? "пару"} дн.\n<a href="${data.walletUrl ?? `${baseUrl}/cabinet/wallet`}">Открыть кошелёк →</a>`;
     case "STREAK_AT_RISK":

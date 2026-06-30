@@ -5,7 +5,7 @@ const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd()
 
 describe("T4 admin users — full editable table + channel tracking", () => {
   it("derives the acquisition channel from the persisted provider column and filters by it", () => {
-    const page = source("src/app/admin/users/page.tsx");
+    const page = source("src/app/admin/users/admin-users-page.tsx");
     const panel = source("src/app/admin/users/users-control-panel.tsx");
     // U1: channel taxonomy extracted to the shared display module.
     const display = source("src/app/admin/users/user-display.ts");

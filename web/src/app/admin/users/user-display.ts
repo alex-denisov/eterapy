@@ -34,11 +34,24 @@ export interface AdminUserRow {
   timezone: string | null;
   practitioner: {
     id: string;
+    slug: string;
     status: string;
     title: string;
+    bio: string;
+    experience: string;
     commissionPercent: number;
     verified: boolean;
     verifiedAt: string | null;
+    bookingOverrideEnabled: boolean;
+    agentOfferAcceptedAt: string | null;
+    agentOfferVersion: string | null;
+    taxStatus: string;
+    taxReviewStatus: string;
+    taxStatusVerifiedAt: string | null;
+    taxStatusRejectedReason: string | null;
+    payoutDetailsType: string | null;
+    payoutDetailsInn: string | null;
+    payoutDetailsKycStatus: string | null;
     categories: string[];
     directions: string[];
     specialties: Specialty[];
@@ -46,6 +59,16 @@ export interface AdminUserRow {
     pricePerSession: number;
     sessionDuration: number;
     priceRates: Array<{ durationMin: number; priceRub: number; enabled: boolean }>;
+    reviewCount: number;
+    sessionCount: number;
+    avgRating: number | null;
+    openComplaintCount: number;
+    accruedNet: number;
+    paidOut: number;
+    pendingPayout: number;
+    availablePayout: number;
+    heldPayout: number;
+    currentBalance: number;
   } | null;
   moderatorPermissions: string[];
   moderatorPermissionsCount: number;
@@ -75,6 +98,13 @@ export interface UserPermissions {
   canManageRights: boolean;
   canSetPassword: boolean;
   canManagePractitioners: boolean;
+  canBlockPractitioners: boolean;
+  canSetPractitionerRates: boolean;
+  canViewPractitionerFinance: boolean;
+  canPayoutPractitioners: boolean;
+  canVerifyPractitioners: boolean;
+  canViewClientSessions: boolean;
+  canViewClientEvents: boolean;
   canDelete: boolean;
 }
 

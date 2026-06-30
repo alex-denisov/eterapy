@@ -105,7 +105,7 @@ describe("U6 — practitioner profile API accepts categories/tags/price/duration
 });
 
 describe("page wiring — extra data flows to the modal", () => {
-  const page = read("src/app/admin/users/page.tsx");
+  const page = read("src/app/admin/users/admin-users-page.tsx");
 
   it("passes moderator permission keys and practitioner detail fields", () => {
     expect(page).toContain("moderatorPermissions:");
@@ -119,6 +119,9 @@ describe("page wiring — extra data flows to the modal", () => {
     expect(page).toContain("canManageRights:");
     expect(page).toContain("canSetPassword:");
     expect(page).toContain("canManagePractitioners:");
+    expect(page).toContain("canSetPractitionerRates:");
+    expect(page).toContain("canViewPractitionerFinance:");
+    expect(page).toContain("canViewClientSessions:");
     expect(page).toContain("canDelete:");
   });
 });

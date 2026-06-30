@@ -25,7 +25,7 @@ describe("A1 — Groq provider-restricted classification", () => {
 
 describe("A1 — effective base URL (CF Gateway) is shown in the API-keys table", () => {
   it("page computes the resolved effective base URL per credential", () => {
-    const page = source("src/app/admin/ai/page.tsx");
+    const page = source("src/app/admin/ai/admin-ai-page.tsx");
     expect(page).toContain("resolvedProviderBaseUrl");
     expect(page).toContain("effectiveBaseUrl");
   });

@@ -5,6 +5,7 @@ import { Prisma, Role } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
+import { computePractitionerBalances } from "@/lib/practitioner-balance";
 import { PageContainer } from "@/components/ui/page-container";
 import { UsersControlPanel, type AdminUserRow } from "./users-control-panel";
 
@@ -197,17 +198,31 @@ export default async function AdminUsersPage(props: {
         practitioner: {
           select: {
             id: true,
+            slug: true,
             status: true,
             title: true,
+            bio: true,
+            experience: true,
             commissionPercent: true,
             verified: true,
             verifiedAt: true,
+            bookingOverrideEnabled: true,
+            agentOfferAcceptedAt: true,
+            agentOfferVersion: true,
+            taxStatus: true,
+            taxReviewStatus: true,
+            taxStatusVerifiedAt: true,
+            taxStatusRejectedReason: true,
+            payoutDetails: { select: { type: true, inn: true, kycStatus: true } },
             categories: true,
             directions: true,
             specialties: true,
             tags: true,
             pricePerSession: true,
             sessionDuration: true,
+            ratingSum: true,
+            reviewCount: true,
+            sessionCount: true,
             priceRates: {
               select: { durationMin: true, priceRub: true, enabled: true },
               orderBy: { durationMin: "asc" },
@@ -286,6 +301,25 @@ export default async function AdminUsersPage(props: {
     return [event.userId, { at: event.createdAt.toISOString(), ip: event.ip, device, channel, fingerprint }];
   }));
 
+  const practitionerIds = users.map((user) => user.practitioner?.id).filter((id): id is string => Boolean(id));
+  const [practitionerBalances, complaintRows] = await Promise.all([
+    computePractitionerBalances(practitionerIds),
+    practitionerIds.length > 0
+      ? db.complaint.findMany({
+        where: {
+          status: { in: ["OPEN", "REVIEWING"] },
+          booking: { practitionerId: { in: practitionerIds } },
+        },
+        select: { booking: { select: { practitionerId: true } } },
+      })
+      : Promise.resolve([]),
+  ]);
+  const openComplaintCount = new Map<string, number>();
+  for (const row of complaintRows) {
+    const practitionerId = row.booking.practitionerId;
+    openComplaintCount.set(practitionerId, (openComplaintCount.get(practitionerId) ?? 0) + 1);
+  }
+
   const rows: AdminUserRow[] = postSortRows(users.map((user) => ({
     id: user.id,
     name: user.name,
@@ -303,21 +337,47 @@ export default async function AdminUsersPage(props: {
     birthTime: user.birthTime,
     birthPlace: user.birthPlace,
     timezone: user.timezone,
-    practitioner: user.practitioner ? {
-      id: user.practitioner.id,
-      status: user.practitioner.status,
-      title: user.practitioner.title,
-      commissionPercent: user.practitioner.commissionPercent,
-      verified: user.practitioner.verified,
-      verifiedAt: user.practitioner.verifiedAt?.toISOString() ?? null,
-      categories: user.practitioner.categories,
-      directions: user.practitioner.directions,
-      specialties: user.practitioner.specialties,
-      tags: user.practitioner.tags,
-      pricePerSession: user.practitioner.pricePerSession,
-      sessionDuration: user.practitioner.sessionDuration,
-      priceRates: user.practitioner.priceRates,
-    } : null,
+    practitioner: user.practitioner ? (() => {
+      const balance = practitionerBalances.get(user.practitioner.id);
+      return {
+        id: user.practitioner.id,
+        slug: user.practitioner.slug,
+        status: user.practitioner.status,
+        title: user.practitioner.title,
+        bio: user.practitioner.bio,
+        experience: user.practitioner.experience,
+        commissionPercent: user.practitioner.commissionPercent,
+        verified: user.practitioner.verified,
+        verifiedAt: user.practitioner.verifiedAt?.toISOString() ?? null,
+        bookingOverrideEnabled: user.practitioner.bookingOverrideEnabled,
+        agentOfferAcceptedAt: user.practitioner.agentOfferAcceptedAt?.toISOString() ?? null,
+        agentOfferVersion: user.practitioner.agentOfferVersion,
+        taxStatus: user.practitioner.taxStatus,
+        taxReviewStatus: user.practitioner.taxReviewStatus,
+        taxStatusVerifiedAt: user.practitioner.taxStatusVerifiedAt?.toISOString() ?? null,
+        taxStatusRejectedReason: user.practitioner.taxStatusRejectedReason,
+        payoutDetailsType: user.practitioner.payoutDetails?.type ?? null,
+        payoutDetailsInn: user.practitioner.payoutDetails?.inn ?? null,
+        payoutDetailsKycStatus: user.practitioner.payoutDetails?.kycStatus ?? null,
+        categories: user.practitioner.categories,
+        directions: user.practitioner.directions,
+        specialties: user.practitioner.specialties,
+        tags: user.practitioner.tags,
+        pricePerSession: user.practitioner.pricePerSession,
+        sessionDuration: user.practitioner.sessionDuration,
+        priceRates: user.practitioner.priceRates,
+        reviewCount: user.practitioner.reviewCount,
+        sessionCount: user.practitioner.sessionCount,
+        avgRating: user.practitioner.reviewCount > 0 ? user.practitioner.ratingSum / user.practitioner.reviewCount : null,
+        openComplaintCount: openComplaintCount.get(user.practitioner.id) ?? 0,
+        accruedNet: balance?.accruedNet ?? 0,
+        paidOut: balance?.paidOut ?? 0,
+        pendingPayout: balance?.pendingPayout ?? 0,
+        availablePayout: balance?.availablePayout ?? 0,
+        heldPayout: balance?.heldPayout ?? 0,
+        currentBalance: balance?.currentBalance ?? 0,
+      };
+    })() : null,
     moderatorPermissions: permissionsByUser.get(user.id) ?? [],
     moderatorPermissionsCount: (permissionsByUser.get(user.id) ?? []).length,
     bookingsCount: user._count.bookingsAsClient,
@@ -358,6 +418,13 @@ export default async function AdminUsersPage(props: {
           canManageRights: role === "SUPERADMIN",
           canSetPassword: role === "SUPERADMIN" || permissions.includes("users.set_password") || permissions.includes("clients.set_password"),
           canManagePractitioners: role === "SUPERADMIN" || permissions.includes("practitioners.edit"),
+          canBlockPractitioners: role === "SUPERADMIN" || permissions.includes("practitioners.block"),
+          canSetPractitionerRates: role === "SUPERADMIN" || permissions.includes("practitioners.set_rates"),
+          canViewPractitionerFinance: role === "SUPERADMIN" || permissions.includes("practitioners.view_earnings"),
+          canPayoutPractitioners: role === "SUPERADMIN" || permissions.includes("practitioners.payout"),
+          canVerifyPractitioners: role === "SUPERADMIN" || permissions.includes("practitioners.verify"),
+          canViewClientSessions: role === "SUPERADMIN" || permissions.includes("clients.view_sessions"),
+          canViewClientEvents: role === "SUPERADMIN" || permissions.includes("clients.view_events"),
           canDelete: role === "SUPERADMIN" || permissions.includes("users.delete") || permissions.includes("clients.delete"),
         }}
       />

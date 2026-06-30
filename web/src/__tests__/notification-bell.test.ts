@@ -45,7 +45,7 @@ describe("web notification bell", () => {
         event: "PAYOUT_SCHEDULED",
         title: "Выплата",
         body: "Admin only",
-        href: "/admin/payouts",
+        href: "/admin/finance/payouts",
         readAt: null,
         createdAt: new Date("2026-04-28T10:00:00.000Z"),
       },

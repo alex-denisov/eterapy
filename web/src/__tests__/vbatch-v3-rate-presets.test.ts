@@ -27,7 +27,7 @@ describe("V3 — practitioner session pricing as toggleable presets in the admin
   });
 
   it("the page loads priceRates for the modal", () => {
-    const page = read("src/app/admin/users/page.tsx");
+    const page = read("src/app/admin/users/admin-users-page.tsx");
     expect(page).toContain("priceRates:");
     const display = read("src/app/admin/users/user-display.ts");
     expect(display).toContain("priceRates: Array<{ durationMin: number; priceRub: number; enabled: boolean }>");

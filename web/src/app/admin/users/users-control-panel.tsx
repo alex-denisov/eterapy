@@ -17,12 +17,15 @@ import {
   type AdminUserRow,
   type UserPermissions,
   ROLE_LABELS,
+  SESSION_DURATIONS,
   roleColor,
   channelLabel,
   channelColor,
   statusOf,
 } from "./user-display";
 import { UserEditModal } from "./user-edit-modal";
+import { PractitionerTaxonomyFields } from "@/components/practitioner/taxonomy-fields";
+import { specialtiesForDirections } from "@/lib/practitioner-taxonomy";
 
 export type { AdminUserRow } from "./user-display";
 
@@ -127,22 +130,60 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [title, setTitle] = useState("");
   const [bio, setBio] = useState("");
   const [telegramUsername, setTelegramUsername] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [birthTime, setBirthTime] = useState("");
+  const [birthPlace, setBirthPlace] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const [sendResetLink, setSendResetLink] = useState(true);
+  const [experience, setExperience] = useState("1 год");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [directions, setDirections] = useState<string[]>([]);
+  const [tasks, setTasks] = useState<string[]>([]);
+  const [verified, setVerified] = useState(false);
+  const [founding, setFounding] = useState(false);
+  const [rates, setRates] = useState(() => SESSION_DURATIONS.map((durationMin) => ({
+    durationMin,
+    enabled: durationMin === 60,
+    priceRub: durationMin === 15 ? "500" : durationMin === 30 ? "900" : durationMin === 45 ? "1200" : durationMin === 60 ? "1500" : durationMin === 90 ? "2000" : "2500",
+  })));
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    const response = await fetch("/api/admin/users", {
+    if (role === "PRACTITIONER" && password.length < 8) {
+      toast.error("Для создания практика задайте пароль минимум 8 символов");
+      return;
+    }
+    const response = await fetch(role === "PRACTITIONER" ? "/api/admin/practitioners/create" : "/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role,
-        name,
-        email,
-        password: password || undefined,
-        title,
-        bio,
-        telegramUsername,
-        sendResetLink: !password,
-      }),
+      body: JSON.stringify(role === "PRACTITIONER"
+        ? {
+          name,
+          email,
+          password,
+          title,
+          bio,
+          experience,
+          specialties: specialtiesForDirections(directions),
+          tags: tasks,
+          verified,
+          founding,
+          rates: rates.map((rate) => ({ durationMin: rate.durationMin, priceRub: Number(rate.priceRub) || 0, enabled: rate.enabled })),
+        }
+        : {
+          role,
+          name,
+          email,
+          password: password || undefined,
+          title,
+          bio,
+          telegramUsername,
+          birthDate,
+          birthTime,
+          birthPlace,
+          timezone,
+          sendResetLink: !password && sendResetLink,
+        }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) {
@@ -152,6 +193,8 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
     toast.success("Пользователь создан");
     onClose();
     setName(""); setEmail(""); setPassword(""); setTitle(""); setBio(""); setTelegramUsername("");
+    setBirthDate(""); setBirthTime(""); setBirthPlace(""); setTimezone(""); setExperience("1 год");
+    setCategories([]); setDirections([]); setTasks([]); setVerified(false); setFounding(false);
     startTransition(() => router.refresh());
   }
 
@@ -159,7 +202,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 p-4">
-      <div className="w-full max-w-2xl rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-lg)]">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
             <h2 className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">Новый пользователь</h2>
@@ -194,16 +237,90 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
             Telegram
             <Input className="mt-1 h-9" value={telegramUsername} onChange={(event) => setTelegramUsername(event.target.value)} placeholder="@username" />
           </label>
+          {role === "CLIENT" && (
+            <>
+              <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
+                Дата рождения
+                <Input className="mt-1 h-9" type="date" value={birthDate} onChange={(event) => setBirthDate(event.target.value)} />
+              </label>
+              <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
+                Время рождения
+                <Input className="mt-1 h-9" type="time" value={birthTime} onChange={(event) => setBirthTime(event.target.value)} />
+              </label>
+              <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
+                Город рождения
+                <Input className="mt-1 h-9" value={birthPlace} onChange={(event) => setBirthPlace(event.target.value)} placeholder="Москва" />
+              </label>
+              <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
+                Часовой пояс
+                <Input className="mt-1 h-9" value={timezone} onChange={(event) => setTimezone(event.target.value)} placeholder="Europe/Moscow" />
+              </label>
+              <label className="md:col-span-2 flex items-center gap-2 pt-1 text-xs font-medium text-[var(--soft-ink-soft)]">
+                <input type="checkbox" checked={sendResetLink} onChange={(event) => setSendResetLink(event.target.checked)} className="accent-[var(--soft-bordeaux)]" />
+                Отправить письмо со ссылкой на установку пароля
+              </label>
+            </>
+          )}
           {role === "PRACTITIONER" && (
             <>
               <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
                 Заголовок практика
                 <Input className="mt-1 h-9" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Таролог · психолог" />
               </label>
+              <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
+                Опыт
+                <Input className="mt-1 h-9" value={experience} onChange={(event) => setExperience(event.target.value)} placeholder="5 лет" />
+              </label>
               <label className="md:col-span-2 text-xs font-semibold text-[var(--soft-ink-soft)]">
                 Описание
                 <textarea className="soft-admin-table-filter mt-1 min-h-20 py-2" value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Коротко о подходе практика" />
               </label>
+              <div className="md:col-span-2">
+                <PractitionerTaxonomyFields
+                  dense
+                  value={{ categories, directions, tasks }}
+                  onChange={(next) => {
+                    setCategories(next.categories);
+                    setDirections(next.directions);
+                    setTasks(next.tasks);
+                  }}
+                />
+              </div>
+              <div className="md:col-span-2 grid gap-2 sm:grid-cols-2">
+                <label className="flex items-center gap-2 text-xs font-medium text-[var(--soft-ink-soft)]">
+                  <input type="checkbox" checked={verified} onChange={(event) => setVerified(event.target.checked)} className="accent-[var(--soft-bordeaux)]" />
+                  Верифицирован
+                </label>
+                <label className="flex items-center gap-2 text-xs font-medium text-[var(--soft-ink-soft)]">
+                  <input type="checkbox" checked={founding} onChange={(event) => setFounding(event.target.checked)} className="accent-[var(--soft-bordeaux)]" />
+                  Основатель
+                </label>
+              </div>
+              <div className="md:col-span-2">
+                <span className="text-xs font-semibold text-[var(--soft-ink-soft)]">Тарифная сетка</span>
+                <div className="mt-1.5 grid gap-1.5 sm:grid-cols-2">
+                  {rates.map((rate, index) => (
+                    <div key={rate.durationMin} className="flex items-center gap-2 rounded-md border border-[var(--soft-paper-edge)] px-2.5 py-1.5">
+                      <label className="flex w-[5.5rem] shrink-0 items-center gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+                        <input
+                          type="checkbox"
+                          checked={rate.enabled}
+                          onChange={(event) => setRates((items) => items.map((item, i) => i === index ? { ...item, enabled: event.target.checked } : item))}
+                          className="accent-[var(--soft-bordeaux)]"
+                        />
+                        {rate.durationMin} мин
+                      </label>
+                      <Input
+                        className="h-8"
+                        inputMode="numeric"
+                        value={rate.priceRub}
+                        disabled={!rate.enabled}
+                        onChange={(event) => setRates((items) => items.map((item, i) => i === index ? { ...item, priceRub: event.target.value } : item))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </>
           )}
           <div className="md:col-span-2 mt-2 flex justify-end gap-2">

@@ -44,7 +44,7 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
   });
 
   it("D6: admin/system colors metrics by health tone", () => {
-    const page = source("src/app/admin/system/page.tsx");
+    const page = source("src/app/admin/system/admin-system-page.tsx");
     expect(page).toContain("const TONE_COLOR");
     expect(page).toContain("function statTone");
     expect(page).toContain("statusTone(service.status)");

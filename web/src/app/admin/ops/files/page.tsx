@@ -1,3 +1,3 @@
 // Canonical ops route for file storage inspection.
 export const dynamic = "force-dynamic";
-export { default } from "../../files/page";
+export { default } from "../../files/admin-files-page";

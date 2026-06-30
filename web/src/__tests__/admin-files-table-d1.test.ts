@@ -15,7 +15,7 @@ describe("D1 — admin files table uses the minimalist standard", () => {
   });
 
   it("page serializes rows and delegates to the client table", () => {
-    const page = source("src/app/admin/files/page.tsx");
+    const page = source("src/app/admin/files/admin-files-page.tsx");
     expect(page).toContain("FilesTable");
     expect(page).toContain("StoredFileRow");
     expect(page).not.toContain('rounded-xl border border-border/30 overflow-hidden');

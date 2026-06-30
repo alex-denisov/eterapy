@@ -2,21 +2,31 @@ import fs from "node:fs";
 import path from "node:path";
 
 const panel = fs.readFileSync(
-  path.join(process.cwd(), "src/app/admin/practitioners/practitioners-panel.tsx"),
+  path.join(process.cwd(), "src/app/admin/users/users-control-panel.tsx"),
+  "utf8",
+);
+const modal = fs.readFileSync(
+  path.join(process.cwd(), "src/app/admin/users/user-edit-modal.tsx"),
+  "utf8",
+);
+const page = fs.readFileSync(
+  path.join(process.cwd(), "src/app/admin/users/admin-users-page.tsx"),
   "utf8",
 );
 
-describe("D1 — admin practitioners panel: pagination + unified filter buttons", () => {
-  it("adds 25-per-page pagination over the filtered list", () => {
-    expect(panel).toContain("const PAGE_SIZE = 25");
-    expect(panel).toContain("const paged = filtered.slice");
+describe("D1 — practitioners are managed in the unified users registry", () => {
+  it("uses unified server pagination and role filtering", () => {
+    expect(page).toContain("const PAGE_SIZE = 20");
+    expect(panel).toContain('value="PRACTITIONER"');
     expect(panel).toContain("pageCount");
-    expect(panel).toContain("{paged.map(p =>");
   });
 
-  it("replaces the low-contrast status toggles with the shared seg button", () => {
-    expect(panel).toContain("soft-admin-seg-btn");
-    expect(panel).not.toContain("bg-primary/15 text-primary");
-    expect(panel).toContain("data-active={filterStatus === s}");
+  it("keeps practitioner operations, finance, tax, booking override, and tariffs in the modal", () => {
+    expect(modal).toContain("Практик · профиль и тарифы");
+    expect(modal).toContain("Статус профиля");
+    expect(modal).toContain("Налоговый статус и реквизиты");
+    expect(modal).toContain("Ручное включение записи");
+    expect(modal).toContain("triggerPractitionerPayout");
+    expect(modal).toContain("user-modal-rate-presets");
   });
 });

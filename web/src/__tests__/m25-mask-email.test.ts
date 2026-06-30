@@ -47,7 +47,7 @@ describe("roleLabelRu", () => {
 describe("B359/Баг17 wiring", () => {
   it("admin notifications page renders a «Кому» column from resolved recipients", () => {
     const page = fs.readFileSync(
-      path.join(process.cwd(), "src/app/admin/notifications/page.tsx"),
+      path.join(process.cwd(), "src/app/admin/notifications/admin-notifications-page.tsx"),
       "utf8",
     );
     expect(page).toContain("maskEmail");

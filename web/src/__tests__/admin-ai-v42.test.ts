@@ -6,7 +6,7 @@ const source = (relativePath: string) => fs.readFileSync(path.join(root, relativ
 
 describe("B229 admin AI v4.2 routing console", () => {
   it("surfaces v4.2 LLM routing guardrails without weakening RBAC", () => {
-    const page = source("src/app/admin/ai/page.tsx");
+    const page = source("src/app/admin/ai/admin-ai-page.tsx");
     const center = source("src/app/admin/ai/ai-control-center.tsx");
     const route = source("src/app/api/admin/ai/control/route.ts");
     const adminConfig = source("src/lib/ai-gateway/admin-config.ts");

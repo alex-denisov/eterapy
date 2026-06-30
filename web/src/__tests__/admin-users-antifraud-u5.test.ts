@@ -48,7 +48,7 @@ describe("U5 — login events captured with IP + device + channel", () => {
 
 describe("U5 — admin user card surfaces last-session provenance", () => {
   it("page queries the latest session-establishing audit per user and derives registration source", () => {
-    const page = read("src/app/admin/users/page.tsx");
+    const page = read("src/app/admin/users/admin-users-page.tsx");
     // B359 / Баг 2: last-session lookup now considers LOGIN *and* REGISTER so a
     // just-registered user (no separate LOGIN yet) still shows a session.
     expect(page).toMatch(/action:\s*\{\s*in:\s*\[\s*"LOGIN",\s*"REGISTER"\s*\]\s*\}/);

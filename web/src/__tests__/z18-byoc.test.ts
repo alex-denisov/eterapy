@@ -56,7 +56,7 @@ describe("Z18 BYOC practitioner client source axis", () => {
     const publicLanding = source("src/app/p/[slug]/page.tsx");
     const practitionerNav = source("src/components/cabinet/cabinet-shell.tsx");
     const earningsPage = source("src/app/cabinet/practitioner/earnings/page.tsx");
-    const adminBookings = source("src/app/admin/bookings/page.tsx");
+    const adminBookings = source("src/app/admin/product/sessions/page.tsx");
 
     expect(schema).toContain("enum ClientSource");
     expect(schema).toContain("model PractitionerInvite");

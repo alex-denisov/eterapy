@@ -278,7 +278,7 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
     case "PRACTITIONER_DIGEST":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Дайджест кабинета</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Заявки, встречи, выплаты и отзывы за период."}</p>${btn(data.digestUrl ?? `${BASE_URL}/cabinet/practitioner`, "Открыть кабинет")}`;
     case "COMPLIANCE_ALERT":
-      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Комплаенс-сигнал</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Нужна проверка модератором."}</p>${btn(data.reviewUrl ?? `${BASE_URL}/admin/complaints`, "Открыть проверку")}`;
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Комплаенс-сигнал</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.summary ?? "Нужна проверка модератором."}</p>${btn(data.reviewUrl ?? `${BASE_URL}/admin/product/quality`, "Открыть проверку")}`;
     case "CREDITS_EXPIRING":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Баллы скоро сгорят</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">У вас есть ${data.credits ?? "несколько"} баллов, которые закончатся примерно через ${data.days ?? "пару"} дн. Можно потратить их на один небольшой разбор без спешки.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     case "STREAK_AT_RISK":

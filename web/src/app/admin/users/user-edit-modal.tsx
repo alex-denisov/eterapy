@@ -29,6 +29,15 @@ interface UserEditModalProps {
 
 const LABEL = "text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]";
 const FIELD = "mt-1 h-9 w-full rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 text-sm text-[var(--soft-ink-strong)]";
+const PRACTITIONER_STATUSES = [
+  { value: "PENDING", label: "На проверке" },
+  { value: "ACTIVE", label: "Активен" },
+  { value: "SUSPENDED", label: "Деактивирован" },
+  { value: "BLOCKED", label: "Заблокирован" },
+];
+
+type ClientSessionRow = { id: string; status: string; priceRub: number; createdAt: string };
+type ClientEventRow = { action: string; createdAt: string; details: string | null };
 
 async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
   const response = await fetch(url, {
@@ -61,6 +70,14 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
 
   // U6 — practitioner management
   const pr = row.practitioner;
+  const [prStatus, setPrStatus] = useState(pr?.status ?? "");
+  const [prTitle, setPrTitle] = useState(pr?.title ?? "");
+  const [prBio, setPrBio] = useState(pr?.bio ?? "");
+  const [prExperience, setPrExperience] = useState(pr?.experience ?? "");
+  const [taxStatus, setTaxStatus] = useState(pr?.taxStatus === "UNKNOWN" ? "SELF_EMPLOYED" : pr?.taxStatus ?? "SELF_EMPLOYED");
+  const [taxReviewStatus, setTaxReviewStatus] = useState(pr?.taxReviewStatus ?? "PENDING");
+  const [taxRejectedReason, setTaxRejectedReason] = useState(pr?.taxStatusRejectedReason ?? "");
+  const [bookingOverride, setBookingOverride] = useState(pr?.bookingOverrideEnabled ?? false);
   const [commission, setCommission] = useState(pr ? String(pr.commissionPercent) : "");
   // W3: three-level taxonomy (specialization → direction → tasks)
   const [categories, setCategories] = useState<string[]>(pr ? pr.categories : []);
@@ -77,6 +94,11 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   });
 
   const [busy, setBusy] = useState(false);
+  const [payoutBusy, setPayoutBusy] = useState(false);
+  const [clientSessions, setClientSessions] = useState<ClientSessionRow[]>([]);
+  const [clientEvents, setClientEvents] = useState<ClientEventRow[]>([]);
+  const [loadingClientSessions, setLoadingClientSessions] = useState(false);
+  const [loadingClientEvents, setLoadingClientEvents] = useState(false);
   // W1: render the modal in a portal at document.body so it escapes the admin
   // shell's stacking context (the sticky sidebar + the backdrop-blur header both
   // create one) — otherwise z-[100] still loses to the header's z-50.
@@ -100,6 +122,68 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   }
   function setRatePrice(i: number, value: string) {
     setRates((rs) => rs.map((r, idx) => idx === i ? { ...r, priceRub: value } : r));
+  }
+
+  async function loadClientSessions() {
+    setLoadingClientSessions(true);
+    try {
+      const response = await fetch(`/api/bookings?role=admin&userId=${row.id}`);
+      const data = await response.json().catch(() => ({}));
+      setClientSessions(Array.isArray(data.bookings) ? data.bookings : []);
+    } catch {
+      toast.error("Не удалось загрузить сессии клиента");
+    } finally {
+      setLoadingClientSessions(false);
+    }
+  }
+
+  async function loadClientEvents() {
+    setLoadingClientEvents(true);
+    try {
+      const response = await fetch(`/api/admin/audit?targetId=${row.id}&limit=50`);
+      const data = await response.json().catch(() => ({}));
+      setClientEvents(Array.isArray(data.logs) ? data.logs : []);
+    } catch {
+      toast.error("Не удалось загрузить события клиента");
+    } finally {
+      setLoadingClientEvents(false);
+    }
+  }
+
+  async function toggleBookingOverride() {
+    if (!pr) return;
+    setBusy(true);
+    try {
+      const next = !bookingOverride;
+      await patchJson(`/api/admin/practitioners/${pr.id}/booking-override`, { enabled: next });
+      setBookingOverride(next);
+      toast.success(next ? "Запись включена вручную" : "Ручное включение записи снято");
+      onSaved();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось изменить запись");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function triggerPractitionerPayout() {
+    if (!pr || pr.currentBalance <= 0) return;
+    if (!window.confirm(`Выплатить ${pr.currentBalance.toLocaleString("ru-RU")} ₽ этому практику?`)) return;
+    setPayoutBusy(true);
+    try {
+      const response = await fetch(`/api/admin/practitioners/${pr.id}/payout`, { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data?.ok === false || data?.error) {
+        throw new Error(typeof data?.error === "string" ? data.error : "Ошибка выплаты");
+      }
+      toast.success("Выплата инициирована");
+      onSaved();
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Ошибка выплаты");
+    } finally {
+      setPayoutBusy(false);
+    }
   }
 
   async function saveAll() {
@@ -155,6 +239,9 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
       // 8. Practitioner profile (title/categories/tags/commission)
       if (canEditPractitioner && pr) {
         const ppatch: Record<string, unknown> = {};
+        if (prTitle !== pr.title) ppatch.title = prTitle;
+        if (prBio !== pr.bio) ppatch.bio = prBio;
+        if (prExperience !== pr.experience) ppatch.experience = prExperience;
         if (permissions.canManageRoles && commission !== String(pr.commissionPercent)) ppatch.commissionPercent = Number(commission);
         if (JSON.stringify([...categories].sort()) !== JSON.stringify([...pr.categories].sort())) ppatch.categories = categories;
         if (JSON.stringify([...directions].sort()) !== JSON.stringify([...pr.directions].sort())) ppatch.directions = directions;
@@ -166,8 +253,24 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
           await patchJson(`/api/admin/practitioners/${pr.id}/profile`, ppatch);
         }
       }
+      // 8b. Practitioner operational status and tax review gates from the old practitioner panel.
+      if (canEditPractitioner && pr && permissions.canBlockPractitioners && prStatus !== pr.status) {
+        await patchJson(`/api/admin/practitioners/${pr.id}/status`, { status: prStatus });
+      }
+      if (canEditPractitioner && pr && permissions.canVerifyPractitioners) {
+        const taxChanged = taxStatus !== pr.taxStatus
+          || taxReviewStatus !== pr.taxReviewStatus
+          || taxRejectedReason !== (pr.taxStatusRejectedReason ?? "");
+        if (taxChanged) {
+          await patchJson(`/api/admin/practitioners/${pr.id}/tax-status`, {
+            taxStatus,
+            taxReviewStatus,
+            rejectedReason: taxRejectedReason,
+          });
+        }
+      }
       // 9. Session pricing presets (PriceRate) — superadmin only (rates API gate).
-      if (canEditPractitioner && pr && permissions.canManageRoles) {
+      if (canEditPractitioner && pr && permissions.canSetPractitionerRates) {
         const payload = rates
           .filter((r) => r.enabled || r.priceRub.trim() !== "")
           .map((r) => ({ durationMin: r.durationMin, priceRub: Number(r.priceRub) || 0, enabled: r.enabled }));
@@ -318,6 +421,58 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
             </section>
           )}
 
+          {row.role === "CLIENT" && (permissions.canViewClientSessions || permissions.canViewClientEvents) && (
+            <section>
+              <h3 className={`mb-2 ${LABEL}`}>История клиента</h3>
+              <div className="grid gap-3 lg:grid-cols-2">
+                {permissions.canViewClientSessions && (
+                  <div className="rounded-md border border-[var(--soft-paper-edge)] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-[var(--soft-ink-strong)]">Сессии</p>
+                      <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => void loadClientSessions()} disabled={loadingClientSessions}>
+                        {loadingClientSessions ? "Загрузка..." : clientSessions.length ? "Обновить" : "Загрузить"}
+                      </button>
+                    </div>
+                    <div className="max-h-52 space-y-1 overflow-y-auto text-xs">
+                      {clientSessions.length === 0 ? (
+                        <p className="text-[var(--soft-ink-faint)]">Нажмите «Загрузить», чтобы увидеть бронирования клиента.</p>
+                      ) : clientSessions.map((session) => (
+                        <div key={session.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded border border-[var(--soft-paper-edge)] px-2 py-1.5">
+                          <span className="truncate text-[var(--soft-ink-soft)]">{new Date(session.createdAt).toLocaleString("ru-RU")}</span>
+                          <span className="font-medium text-[var(--soft-ink-strong)]">{session.status}</span>
+                          <span className="tabular-nums text-[var(--soft-bordeaux)]">{session.priceRub.toLocaleString("ru-RU")} ₽</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {permissions.canViewClientEvents && (
+                  <div className="rounded-md border border-[var(--soft-paper-edge)] p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-[var(--soft-ink-strong)]">События</p>
+                      <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => void loadClientEvents()} disabled={loadingClientEvents}>
+                        {loadingClientEvents ? "Загрузка..." : clientEvents.length ? "Обновить" : "Загрузить"}
+                      </button>
+                    </div>
+                    <div className="max-h-52 space-y-1 overflow-y-auto text-xs">
+                      {clientEvents.length === 0 ? (
+                        <p className="text-[var(--soft-ink-faint)]">Нажмите «Загрузить», чтобы увидеть журнал действий клиента.</p>
+                      ) : clientEvents.map((event, index) => (
+                        <div key={`${event.action}-${event.createdAt}-${index}`} className="rounded border border-[var(--soft-paper-edge)] px-2 py-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-[var(--soft-ink-strong)]">{event.action}</span>
+                            <span className="whitespace-nowrap text-[10px] text-[var(--soft-ink-faint)]">{new Date(event.createdAt).toLocaleString("ru-RU")}</span>
+                          </div>
+                          {event.details && <p className="mt-0.5 line-clamp-2 break-words text-[10px] text-[var(--soft-ink-faint)]">{event.details}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
           {/* Role + limit (superadmin) */}
           {permissions.canManageRoles && (
             <section>
@@ -392,14 +547,124 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                 )}
                 <span className="text-[var(--soft-ink-faint)]"> — заявки в разделе «Заявки»</span>
               </p>
-              <label className="block max-w-[12rem]">
-                <span className={LABEL}>Комиссия платформы, % {!permissions.canManageRoles && "(суперадмин)"}</span>
-                <Input className={FIELD} inputMode="numeric" value={commission} disabled={!permissions.canManageRoles} onChange={(e) => setCommission(e.target.value)} />
-              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className={LABEL}>Статус профиля</span>
+                  <select className={FIELD} value={prStatus} disabled={!permissions.canBlockPractitioners} onChange={(e) => setPrStatus(e.target.value)}>
+                    {PRACTITIONER_STATUSES.map((item) => (
+                      <option key={item.value} value={item.value}>{item.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className={LABEL}>Комиссия платформы, % {!permissions.canManageRoles && "(суперадмин)"}</span>
+                  <Input className={FIELD} inputMode="numeric" value={commission} disabled={!permissions.canManageRoles} onChange={(e) => setCommission(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className={LABEL}>Заголовок</span>
+                  <Input className={FIELD} value={prTitle} disabled={!canEditPractitioner} onChange={(e) => setPrTitle(e.target.value)} />
+                </label>
+                <label className="block">
+                  <span className={LABEL}>Опыт</span>
+                  <Input className={FIELD} value={prExperience} disabled={!canEditPractitioner} onChange={(e) => setPrExperience(e.target.value)} />
+                </label>
+                <label className="block sm:col-span-2">
+                  <span className={LABEL}>Биография</span>
+                  <textarea className={`${FIELD} min-h-24 py-2`} value={prBio} disabled={!canEditPractitioner} onChange={(e) => setPrBio(e.target.value)} />
+                </label>
+              </div>
+
+              {permissions.canViewPractitionerFinance && (
+                <div className="mt-3 rounded-md border border-[var(--soft-paper-edge)] p-3">
+                  <div className="grid gap-2 text-xs sm:grid-cols-3">
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Начислено после комиссии</p>
+                      <p className="text-lg font-semibold tabular-nums text-[var(--soft-ink-strong)]">{pr.accruedNet.toLocaleString("ru-RU")} ₽</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Выплачено</p>
+                      <p className="text-lg font-semibold tabular-nums text-emerald-600">{pr.paidOut.toLocaleString("ru-RU")} ₽</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Баланс к выплате</p>
+                      <p className="text-lg font-semibold tabular-nums text-[var(--soft-bordeaux)]">{pr.currentBalance.toLocaleString("ru-RU")} ₽</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">В обработке</p>
+                      <p className="font-medium tabular-nums">{pr.pendingPayout.toLocaleString("ru-RU")} ₽</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Доступно</p>
+                      <p className="font-medium tabular-nums">{pr.availablePayout.toLocaleString("ru-RU")} ₽</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Удержано</p>
+                      <p className="font-medium tabular-nums">{pr.heldPayout.toLocaleString("ru-RU")} ₽</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Сессии</p>
+                      <p className="font-medium">{pr.sessionCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Рейтинг</p>
+                      <p className="font-medium">{pr.avgRating != null ? `${pr.avgRating.toFixed(1)} · ${pr.reviewCount} отзывов` : "нет оценок"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[var(--soft-ink-faint)]">Открытые жалобы</p>
+                      <p className={pr.openComplaintCount > 0 ? "font-semibold text-red-600" : "font-medium"}>{pr.openComplaintCount}</p>
+                    </div>
+                  </div>
+                  {permissions.canPayoutPractitioners && (
+                    <button type="button" className="soft-admin-action mt-3" data-variant="primary" onClick={() => void triggerPractitionerPayout()} disabled={payoutBusy || pr.currentBalance <= 0}>
+                      {payoutBusy ? "Запускаем..." : pr.currentBalance > 0 ? `Выплатить ${pr.currentBalance.toLocaleString("ru-RU")} ₽` : "Нет средств к выплате"}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {permissions.canVerifyPractitioners && (
+                <div className="mt-3 rounded-md border border-[var(--soft-paper-edge)] p-3">
+                  <span className={LABEL}>Налоговый статус и реквизиты</span>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <select className={FIELD} value={taxStatus} onChange={(e) => setTaxStatus(e.target.value)}>
+                      <option value="SELF_EMPLOYED">Самозанятый</option>
+                      <option value="INDIVIDUAL_ENTREPRENEUR">ИП</option>
+                      <option value="LEGAL_ENTITY">ООО</option>
+                    </select>
+                    <select className={FIELD} value={taxReviewStatus} onChange={(e) => setTaxReviewStatus(e.target.value)}>
+                      <option value="PENDING">Ожидает проверки</option>
+                      <option value="VERIFIED">Подтвержден</option>
+                      <option value="REJECTED">Отклонен</option>
+                      <option value="EXPIRED">Истек</option>
+                    </select>
+                    <Input className={FIELD} value={taxRejectedReason} onChange={(e) => setTaxRejectedReason(e.target.value)} placeholder="Причина отказа" />
+                  </div>
+                  <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
+                    Реквизиты: {pr.payoutDetailsType ?? "нет"} · ИНН {pr.payoutDetailsInn ?? "—"} · KYC {pr.payoutDetailsKycStatus ?? "—"}.
+                    Оферта: {pr.agentOfferAcceptedAt ? pr.agentOfferVersion ?? "принята" : "не принята"}.
+                  </p>
+                </div>
+              )}
+
+              {permissions.canManageRoles && (
+                <div className="mt-3 rounded-md border border-[var(--soft-paper-edge)] p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <span className={LABEL}>Ручное включение записи</span>
+                      <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
+                        {bookingOverride ? "Запись открыта вручную в обход коммерческих реквизитов." : "Запись закрыта до выполнения коммерческих условий."}
+                      </p>
+                    </div>
+                    <button type="button" className="soft-admin-action" data-variant={bookingOverride ? "subtle" : "primary"} onClick={() => void toggleBookingOverride()} disabled={busy}>
+                      {bookingOverride ? "Снять ручное включение" : "Включить запись"}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* V3: session tariffs as toggleable presets — one row per standard
                   duration with an enable checkbox + price (superadmin sets price). */}
-              {permissions.canManageRoles && (
+              {permissions.canSetPractitionerRates && (
                 <div className="mt-3" data-testid="user-modal-rate-presets">
                   <span className={LABEL}>Тарифы сессий — включение и цена</span>
                   <p className="text-[10px] text-[var(--soft-ink-faint)]">Отметьте длительности, которые предлагает практик, и задайте цену ₽. Показ клиентам практик включает сам.</p>

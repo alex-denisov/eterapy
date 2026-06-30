@@ -28,6 +28,6 @@ describe("payment audit logging", () => {
   });
 
   it("the /admin/logs viewer gives PAYMENT a financial (warn) tone", () => {
-    expect(source("src/app/admin/logs/page.tsx")).toMatch(/PAYMENT.*return "warn"|"PAYMENT"\)\)\s*return "warn"|includes\("PAYMENT"\)/);
+    expect(source("src/app/admin/logs/admin-logs-page.tsx")).toMatch(/PAYMENT.*return "warn"|"PAYMENT"\)\)\s*return "warn"|includes\("PAYMENT"\)/);
   });
 });

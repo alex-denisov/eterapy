@@ -60,7 +60,7 @@ describe("B212 session STT, summary, and compliance pipeline", () => {
     const transcriptRoute = source("src/app/api/video/transcript/route.ts");
     const controls = source("src/components/video/video-controls.tsx");
     const room = source("src/components/video/video-room.tsx");
-    const complaintsPage = source("src/app/admin/complaints/page.tsx");
+    const complaintsPage = source("src/app/admin/product/quality/page.tsx");
     const complaintsManager = source("src/app/admin/complaints/complaints-manager.tsx");
 
     expect(schema).toContain("transcriptMetadata");

@@ -14,9 +14,9 @@ describe("D5 — unify superadmin segmented-tab buttons (readable colors)", () =
   });
 
   it("bookings status filter shares the same segmented-button style", () => {
-    const page = source("src/app/admin/bookings/page.tsx");
+    const page = source("src/app/admin/bookings/bookings-manager.tsx");
     expect(page).toContain('className="soft-admin-seg-btn"');
-    expect(page).toContain("data-active={statusFilter === s.value}");
+    expect(page).toContain("data-active={sort === k}");
     expect(page).not.toContain("bg-brand-soft-gold/15 text-brand-soft-gold");
   });
 

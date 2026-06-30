@@ -88,26 +88,6 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const LEGACY_CANONICAL_PATHS: Record<string, string> = {
-  "/admin/applications": "/admin/product/quality",
-  "/admin/users": "/admin/product/users",
-  "/admin/clients": "/admin/product/users",
-  "/admin/practitioners": "/admin/product/users",
-  "/admin/complaints": "/admin/product/quality",
-  "/admin/reviews": "/admin/product/quality",
-  "/admin/antifraud": "/admin/product/quality",
-  "/admin/quality": "/admin/product/quality",
-  "/admin/bookings": "/admin/product/sessions",
-  "/admin/sessions": "/admin/product/sessions",
-  "/admin/pricing": "/admin/finance/pricing",
-  "/admin/payments": "/admin/finance/payouts",
-  "/admin/payouts": "/admin/finance/payouts",
-  "/admin/ai": "/admin/ops/ai",
-  "/admin/notifications": "/admin/ops/notifications",
-  "/admin/files": "/admin/ops/files",
-  "/admin/database": "/admin/ops/database",
-  "/admin/system": "/admin/ops/system",
-  "/admin/jobs": "/admin/ops/jobs",
-  "/admin/logs": "/admin/ops/logs",
 };
 
 function canonicalAdminPath(pathname: string) {

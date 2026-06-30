@@ -38,13 +38,13 @@ describe("Admin redesign page diff guardrails", () => {
 
     expect(controls).toContain('title="Контроль и журналы"');
     expect(transactionsAlias).toContain('from "../receipts/page"');
-    expect(pricingAlias).toContain('from "../../pricing/page"');
+    expect(pricingAlias).toContain('from "../../pricing/pricing-editor"');
     expect(creditsAlias).toContain('from "../points/page"');
   });
 
   it("keeps antifraud and system surfaces in Russian user-facing labels", () => {
     const antifraud = source("src/app/admin/antifraud/admin-antifraud-panel.tsx");
-    const system = source("src/app/admin/system/page.tsx");
+    const system = source("src/app/admin/system/admin-system-page.tsx");
     const ops = source("src/app/admin/ops/page.tsx");
 
     expect(antifraud).toContain("Аналитика действий");

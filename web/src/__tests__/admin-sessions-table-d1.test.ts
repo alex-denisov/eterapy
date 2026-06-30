@@ -20,7 +20,7 @@ describe("D1 — admin sessions table uses the minimalist standard", () => {
   });
 
   it("page serializes rows and delegates to the client table", () => {
-    const page = source("src/app/admin/sessions/page.tsx");
+    const page = source("src/app/admin/product/sessions/page.tsx");
     expect(page).toContain("SessionsTable");
     expect(page).toContain("VideoSessionRow");
     expect(page).toContain("db.videoSession.findMany");

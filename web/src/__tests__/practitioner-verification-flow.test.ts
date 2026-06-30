@@ -16,11 +16,11 @@ describe("Practitioner verification flow", () => {
   });
 
   it("shows verification requests as a separate application kind and approves verified=true", () => {
-    const page = source("src/app/admin/applications/page.tsx");
+    const page = source("src/app/admin/product/quality/page.tsx");
     const manager = source("src/app/admin/applications/applications-manager.tsx");
     const route = source("src/app/api/admin/applications/[id]/route.ts");
     expect(page).toContain("parsePractitionerVerificationMarker");
-    expect(page).toContain('kind: verificationPractitionerId ? "VERIFICATION" : "APPLICATION"');
+    expect(page).toContain('kind: verificationPractitionerId ? "VERIFICATION" as const : "APPLICATION" as const');
     expect(manager).toContain("verificationCompleted");
     expect(manager).toContain("Верификация");
     expect(route).toContain("PRACTITIONER_VERIFIED");

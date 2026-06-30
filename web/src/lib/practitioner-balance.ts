@@ -1,7 +1,7 @@
 /**
  * Practitioner earnings/balance calculation — shared between the practitioner
- * cabinet (`/cabinet/practitioner/earnings`) and the superadmin practitioner
- * management panel (`/admin/practitioners`).
+ * cabinet (`/cabinet/practitioner/earnings`) and the superadmin unified users
+ * registry (`/admin/product/users`).
  *
  * Formula (all integer rubles):
  *   accruedNet     = sum(COMPLETED booking.priceRub) − commission
