@@ -1,7 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { formatCbrRateLabel, getAdminCurrencyRates } from "@/app/admin/admin-currency";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const originalFetch = global.fetch;
+
+afterEach(() => {
+  global.fetch = originalFetch;
+});
 
 describe("Admin owner finance overview", () => {
   it("surfaces owner-grade financial liabilities and revenue splits", () => {
@@ -47,5 +53,25 @@ describe("Admin owner finance overview", () => {
     expect(selector).toContain("USD · $");
     expect(finance).toContain("<AdminCurrencySelector");
     expect(dashboard).toContain("<AdminCurrencySelector");
+  });
+
+  it("parses the official CBR USD block instead of the first XML currency value", async () => {
+    const xml = [
+      '<?xml version="1.0" encoding="windows-1251"?>',
+      '<ValCurs Date="30.06.2026" name="Foreign Currency Market">',
+      '<Valute ID="R01010"><CharCode>AUD</CharCode><Nominal>1</Nominal><Value>53,6191</Value></Valute>',
+      '<Valute ID="R01235"><CharCode>USD</CharCode><Nominal>1</Nominal><Value>77,7539</Value></Valute>',
+      "</ValCurs>",
+    ].join("");
+
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      text: async () => xml,
+    })) as unknown as typeof fetch;
+
+    const rates = await getAdminCurrencyRates(new Date("2026-06-30T07:00:00.000Z"));
+
+    expect(rates.usdRub).toBeCloseTo(77.7539);
+    expect(formatCbrRateLabel(rates)).toBe("$/₽ · 30.06.2026 · 77,75");
   });
 });

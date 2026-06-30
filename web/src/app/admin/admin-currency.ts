@@ -18,7 +18,9 @@ function formatCbrDate(value: Date) {
 }
 
 function parseCbrValue(xml: string, charCode: string) {
-  const block = xml.match(new RegExp(`<Valute[^>]*>[\\s\\S]*?<CharCode>${charCode}</CharCode>[\\s\\S]*?</Valute>`, "i"))?.[0];
+  const block = xml
+    .match(/<Valute\b[^>]*>[\s\S]*?<\/Valute>/gi)
+    ?.find((value) => new RegExp(`<CharCode>\\s*${charCode}\\s*</CharCode>`, "i").test(value));
   if (!block) return null;
   const nominalRaw = block.match(/<Nominal>([^<]+)<\/Nominal>/i)?.[1] ?? "1";
   const valueRaw = block.match(/<Value>([^<]+)<\/Value>/i)?.[1];
