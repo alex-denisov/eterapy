@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Shared "compact admin table" primitives — the same dense, filter-in-header,
  * client-paginated style used by the "Промты продуктов" table on /admin/ai.
@@ -68,19 +66,35 @@ export function CompactHeader({
   children?: ReactNode;
 }) {
   const active = sortKey && activeSortKey === sortKey;
+  const content = (
+    <>
+      <span>{label}</span>
+      {sortKey && active && direction === "asc" ? <ArrowUp className="h-3 w-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
+      {sortKey && active && direction === "desc" ? <ArrowDown className="h-3 w-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
+      {sortKey && !active ? <ChevronsUpDown className="h-3 w-3 text-[var(--soft-ink-soft)]" aria-hidden="true" /> : null}
+      {active && <span className="sr-only">sorted {direction}</span>}
+    </>
+  );
+
+  if (!sortKey || !onSort) {
+    return (
+      <th className={COMPACT_HEADER_CLASS} scope="col">
+        <div className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+          {content}
+        </div>
+        {children}
+      </th>
+    );
+  }
+
   return (
     <th className={COMPACT_HEADER_CLASS} scope="col">
       <button
         type="button"
-        disabled={!sortKey || !onSort}
-        onClick={() => sortKey && onSort?.(sortKey)}
-        className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)] disabled:cursor-default"
+        onClick={() => onSort(sortKey)}
+        className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
       >
-        <span>{label}</span>
-        {sortKey && active && direction === "asc" ? <ArrowUp className="h-3 w-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
-        {sortKey && active && direction === "desc" ? <ArrowDown className="h-3 w-3 text-[var(--soft-bordeaux)]" aria-hidden="true" /> : null}
-        {sortKey && !active ? <ChevronsUpDown className="h-3 w-3 text-[var(--soft-ink-soft)]" aria-hidden="true" /> : null}
-        {active && <span className="sr-only">sorted {direction}</span>}
+        {content}
       </button>
       {children}
     </th>

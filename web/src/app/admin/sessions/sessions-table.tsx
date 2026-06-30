@@ -1,6 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+  CompactHeader,
+  CompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_INPUT_CLASS,
+  type SortDirection,
+} from "@/components/admin/compact-table";
 
 export interface VideoSessionRow {
   id: string;
@@ -15,7 +23,7 @@ export interface VideoSessionRow {
   recordingExpiry: string | null;
 }
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 20;
 
 const STATUS_META: Record<string, { label: string; tone: string }> = {
   WAITING: { label: "Ожидание", tone: "warn" },
@@ -70,6 +78,8 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
   }
   const dateMark = sort === "date-desc" ? " ▼" : sort === "date-asc" ? " ▲" : "";
   const durationMark = sort === "duration-desc" ? " ▼" : sort === "duration-asc" ? " ▲" : "";
+  const activeSortKey = sort.startsWith("duration") ? "duration" : "date";
+  const sortDirection: SortDirection = sort.endsWith("asc") ? "asc" : "desc";
 
   return (
     <div data-testid="admin-sessions-table">
@@ -97,34 +107,37 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
           }}
           placeholder="Поиск: клиент или практик"
           aria-label="Поиск по сессиям"
-          className="soft-admin-table-filter mt-0 ml-auto h-8 w-60"
+          className={`${COMPACT_INPUT_CLASS} ml-auto w-60 rounded border border-[var(--soft-paper-edge)]`}
         />
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="soft-admin-data-table min-w-[900px]">
+      <CompactTableShell minWidth="900px">
           <thead>
             <tr>
-              <th>Клиент → Практик</th>
-              <th>Статус</th>
-              <th>Комната</th>
-              <th>
-                <button type="button" className="cursor-pointer bg-transparent" onClick={durationSort}>
-                  Длительность{durationMark}
-                </button>
-              </th>
-              <th>
-                <button type="button" className="cursor-pointer bg-transparent" onClick={dateSort}>
-                  Дата{dateMark}
-                </button>
-              </th>
-              <th>Запись</th>
+              <CompactHeader label="Клиент → Практик" />
+              <CompactHeader label="Статус" />
+              <CompactHeader label="Комната" />
+              <CompactHeader
+                label={`Длительность${durationMark}`}
+                sortKey="duration"
+                activeSortKey={activeSortKey}
+                direction={sortDirection}
+                onSort={durationSort}
+              />
+              <CompactHeader
+                label={`Дата${dateMark}`}
+                sortKey="date"
+                activeSortKey={activeSortKey}
+                direction={sortDirection}
+                onSort={dateSort}
+              />
+              <CompactHeader label="Запись" />
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-[var(--soft-ink-soft)]">
+                <td colSpan={6} className={`${COMPACT_CELL_CLASS} py-10 text-center text-[var(--soft-ink-soft)]`}>
                   Нет видеосессий
                 </td>
               </tr>
@@ -133,21 +146,21 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
                 const meta = STATUS_META[s.status] ?? { label: s.status, tone: "muted" };
                 return (
                   <tr key={s.id}>
-                    <td>
+                    <td className={COMPACT_CELL_CLASS}>
                       <p className="font-medium text-[var(--soft-ink)]">{s.clientName}</p>
                       <p className="text-xs text-[var(--soft-ink-faint)]">→ {s.practitionerName}</p>
                     </td>
-                    <td>
+                    <td className={COMPACT_CELL_CLASS}>
                       <span className="soft-admin-status-pill" data-tone={meta.tone}>{meta.label}</span>
                     </td>
-                    <td>
+                    <td className={COMPACT_CELL_CLASS}>
                       <code className="text-xs text-[var(--soft-ink-soft)]">{s.roomName.slice(0, 20)}…</code>
                     </td>
-                    <td className="text-[var(--soft-ink-soft)]">{s.durationMin !== null ? `${s.durationMin} мин` : "—"}</td>
-                    <td className="whitespace-nowrap text-[var(--soft-ink-soft)]">
+                    <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{s.durationMin !== null ? `${s.durationMin} мин` : "—"}</td>
+                    <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>
                       {new Date(s.createdAt).toLocaleDateString("ru-RU")}
                     </td>
-                    <td>
+                    <td className={COMPACT_CELL_CLASS}>
                       {s.recordingUrl ? (
                         <div>
                           <a href={s.recordingUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--soft-bordeaux)] hover:underline">
@@ -168,19 +181,10 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
               })
             )}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
 
       {pageCount > 1 && (
-        <div className="mt-3 flex items-center justify-between text-xs text-[var(--soft-ink-faint)]">
-          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
-            Назад
-          </button>
-          <span>{safePage} / {pageCount}</span>
-          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPage((p) => Math.min(pageCount, p + 1))} disabled={safePage >= pageCount}>
-            Вперёд
-          </button>
-        </div>
+        <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
     </div>
   );

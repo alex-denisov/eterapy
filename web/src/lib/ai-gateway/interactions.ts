@@ -64,6 +64,8 @@ function messagesFromMetadata(metadata: Record<string, unknown>) {
 export async function listAdminAIInteractions(input: {
   period?: string;
   daysBack?: number;
+  start?: Date;
+  end?: Date;
   feature?: string | null;
   status?: AIRequestStatus | "all" | null;
   provider?: AIProvider | "all" | null;
@@ -71,7 +73,9 @@ export async function listAdminAIInteractions(input: {
   limit?: number;
   sort?: "createdAt_desc" | "createdAt_asc" | "tokens_desc" | "cost_desc";
 } = {}): Promise<AdminAIInteractionRow[]> {
-  const { start, end } = periodBounds(input.period ?? aiBudgetPeriod(), input.daysBack ?? 1);
+  const { start, end } = input.start && input.end
+    ? { start: input.start, end: new Date(input.end.getTime() + 1) }
+    : periodBounds(input.period ?? aiBudgetPeriod(), input.daysBack ?? 1);
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 200);
   const q = input.q?.trim().toLowerCase() || null;
   const feature = input.feature?.trim() || null;

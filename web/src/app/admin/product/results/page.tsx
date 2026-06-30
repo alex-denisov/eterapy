@@ -47,6 +47,14 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
         Для каждого цифрового продукта показывается дневное потребление, ниже — полный реестр заказанных результатов.
       </AdminHero>
       <div className="grid gap-4">
+        <AnalyticsSection title="Все продукты по дням">
+          <VerticalBarChart
+            label="Все заказанные продукты по календарным дням"
+            data={data.charts.productByDay}
+            seriesLabels={data.charts.productByDayLabels}
+            integerTicks
+          />
+        </AnalyticsSection>
         {data.charts.productUsageByProduct.length === 0 ? (
           <AnalyticsSection title="Использование продуктов">Нет результатов за выбранный период.</AnalyticsSection>
         ) : data.charts.productUsageByProduct.map((item) => (

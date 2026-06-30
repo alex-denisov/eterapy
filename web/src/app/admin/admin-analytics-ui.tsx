@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
 import { AdminPeriodToolbar } from "./admin-period-toolbar";
 
 export type ChartPoint = {
@@ -180,7 +181,7 @@ export function AnalyticsSection({
   actionLabel?: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+    <section id={id} className="min-w-0 scroll-mt-24 overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
         {actionHref && actionLabel ? <Link className="soft-admin-action" href={actionHref}>{actionLabel}</Link> : null}
@@ -230,9 +231,9 @@ export function VerticalBarChart({
   const right = 16;
   const top = 12;
   const plotHeight = 212;
-  const verticalLabels = data.length > 18;
-  const bottom = verticalLabels ? 66 : 34;
-  const groupWidth = verticalLabels ? (series.length > 1 ? 34 : 24) : (series.length > 1 ? 48 : 42);
+  const compactLabels = data.length > 18;
+  const bottom = compactLabels ? 46 : 34;
+  const groupWidth = compactLabels ? (series.length > 1 ? 36 : 28) : (series.length > 1 ? 48 : 42);
   const width = Math.max(760, left + right + data.length * groupWidth);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
@@ -246,7 +247,7 @@ export function VerticalBarChart({
   }
 
   return (
-    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4" data-testid="admin-vertical-bar-chart">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4" data-testid="admin-vertical-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{label}</p> : <span />}
         {series.length > 1 ? (
@@ -288,6 +289,7 @@ export function VerticalBarChart({
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
+            const axisLabelY = top + plotHeight + (compactLabels ? 20 : 15);
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -321,9 +323,8 @@ export function VerticalBarChart({
                 })}
                 <text
                   x={centerX}
-                  y={verticalLabels ? top + plotHeight + 52 : top + plotHeight + 15}
-                  textAnchor={verticalLabels ? "end" : "middle"}
-                  transform={verticalLabels ? `rotate(-90 ${centerX} ${top + plotHeight + 52})` : undefined}
+                  y={axisLabelY}
+                  textAnchor="middle"
                   className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums"
                 >
                   {item.label}
@@ -408,21 +409,23 @@ export function DataTable({
   empty?: ReactNode;
 }) {
   return (
-    <div className="max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)]">
-      <div className="max-w-full overflow-x-auto">
-      <table className="soft-admin-data-table min-w-[980px]">
-        <thead>
-          <tr>{columns.map((column) => <th key={column}>{column}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.length > 0 ? rows.map((row, index) => (
-            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex} className="max-w-[28rem] whitespace-normal break-words">{cell}</td>)}</tr>
-          )) : (
-            <tr><td colSpan={columns.length}>{empty ?? "Нет данных"}</td></tr>
-          )}
-        </tbody>
-      </table>
-      </div>
-    </div>
+    <CompactTableShell minWidth="980px">
+      <thead>
+        <tr>{columns.map((column) => <CompactHeader key={column} label={column} />)}</tr>
+      </thead>
+      <tbody>
+        {rows.length > 0 ? rows.map((row, index) => (
+          <tr key={index}>
+            {row.map((cell, cellIndex) => (
+              <td key={cellIndex} className={`${COMPACT_CELL_CLASS} max-w-[28rem] whitespace-normal break-words`}>
+                {cell}
+              </td>
+            ))}
+          </tr>
+        )) : (
+          <tr><td colSpan={columns.length} className={`${COMPACT_CELL_CLASS} py-6 text-center text-[var(--soft-ink-soft)]`}>{empty ?? "Нет данных"}</td></tr>
+        )}
+      </tbody>
+    </CompactTableShell>
   );
 }

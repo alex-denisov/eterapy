@@ -3147,6 +3147,7 @@
   }
 
   .soft-chart-hit:hover .soft-chart-tooltip,
+  .soft-chart-hit rect:hover + .soft-chart-tooltip,
   .soft-chart-hit:focus .soft-chart-tooltip,
   .soft-chart-hit:focus-visible .soft-chart-tooltip {
     opacity: 1;

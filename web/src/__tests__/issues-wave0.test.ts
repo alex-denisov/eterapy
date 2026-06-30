@@ -35,12 +35,15 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
     for (const file of [
       "src/app/admin/applications/applications-manager.tsx",
       "src/app/admin/complaints/complaints-manager.tsx",
-      "src/app/admin/bookings/bookings-manager.tsx",
     ]) {
       const content = source(file);
       expect(content).toContain("soft-admin-seg-btn");
       expect(content).not.toContain("bg-primary/15 text-primary");
     }
+    const bookings = source("src/app/admin/bookings/bookings-manager.tsx");
+    expect(bookings).toContain("CompactTableShell");
+    expect(bookings).toContain("COMPACT_SELECT_CLASS");
+    expect(bookings).not.toContain("bg-primary/15 text-primary");
   });
 
   it("D6: admin/system colors metrics by health tone", () => {

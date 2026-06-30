@@ -169,8 +169,7 @@ function periodBounds(period: string) {
   return { start, end };
 }
 
-export async function getAIUsageDetails(period = aiBudgetPeriod(), client = db): Promise<AIUsageDetailRow[]> {
-  const { start, end } = periodBounds(period);
+async function queryAIUsageDetails(start: Date, end: Date, client = db): Promise<AIUsageDetailRow[]> {
   const rows = await client.$queryRaw<Array<{
     feature: string;
     provider: string;
@@ -223,4 +222,14 @@ export async function getAIUsageDetails(period = aiBudgetPeriod(), client = db):
     costMicros: numberFromDb(row.cost_micros),
     avgLatencyMs: row.avg_latency_ms === null ? null : Math.round(numberFromDb(row.avg_latency_ms)),
   }));
+}
+
+export async function getAIUsageDetails(period = aiBudgetPeriod(), client = db): Promise<AIUsageDetailRow[]> {
+  const { start, end } = periodBounds(period);
+  return queryAIUsageDetails(start, end, client);
+}
+
+export async function getAIUsageDetailsForRange(input: { start: Date; end: Date }, client = db): Promise<AIUsageDetailRow[]> {
+  const endExclusive = new Date(input.end.getTime() + 1);
+  return queryAIUsageDetails(input.start, endExclusive, client);
 }

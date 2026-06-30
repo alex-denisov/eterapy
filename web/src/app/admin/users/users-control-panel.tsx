@@ -81,6 +81,10 @@ function PlainHeader({ label, hint }: { label: string; hint?: string }) {
   );
 }
 
+function HeaderSpacer() {
+  return <div aria-hidden="true" className="h-7 border-t border-[var(--soft-paper-edge)]" />;
+}
+
 function FilterInput({ param, placeholder, type = "search" }: { param: string; placeholder: string; type?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -426,7 +430,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="credits" label="Баллы" />
-              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+              <HeaderSpacer />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="createdAt" label="Регистрация" />
@@ -434,7 +438,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" />
-              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+              <HeaderSpacer />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="freeToolsLimit" label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" />
@@ -442,15 +446,15 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="bookings" label="Брони" />
-              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+              <HeaderSpacer />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="entitlements" label="Покупки" />
-              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+              <HeaderSpacer />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <SortHeader field="subscriptions" label="Подписки" />
-              <div className="h-7 border-t border-[var(--soft-paper-edge)] px-1.5 py-1 text-[10px] text-[var(--soft-ink-faint)]">расчетное</div>
+              <HeaderSpacer />
             </th>
             <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
           </tr>

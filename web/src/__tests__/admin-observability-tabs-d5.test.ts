@@ -13,10 +13,14 @@ describe("D5 — unify superadmin segmented-tab buttons (readable colors)", () =
     expect(viewer).not.toContain("bg-[var(--soft-bordeaux)] text-white shadow-sm");
   });
 
-  it("bookings status filter shares the same segmented-button style", () => {
+  it("bookings management uses the shared compact admin table controls", () => {
     const page = source("src/app/admin/bookings/bookings-manager.tsx");
-    expect(page).toContain('className="soft-admin-seg-btn"');
-    expect(page).toContain("data-active={sort === k}");
+    expect(page).toContain('data-testid="admin-bookings-table"');
+    expect(page).toContain("CompactTableShell");
+    expect(page).toContain("CompactHeader");
+    expect(page).toContain("CompactPaginationBar");
+    expect(page).toContain("COMPACT_SELECT_CLASS");
+    expect(page).toContain("toggleSort");
     expect(page).not.toContain("bg-brand-soft-gold/15 text-brand-soft-gold");
   });
 

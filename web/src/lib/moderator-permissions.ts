@@ -14,7 +14,8 @@ export const ALL_PERMISSIONS = [
   "practitioners.view", "practitioners.create", "practitioners.edit",
   "practitioners.block", "practitioners.reset_password", "practitioners.set_password",
   "practitioners.set_rates", "practitioners.set_schedule", "practitioners.view_earnings",
-  "practitioners.payout", "practitioners.verify",
+  "practitioners.payout", "practitioners.verify", "practitioners.manage_reports",
+  "practitioners.manage_documents",
   "dialogues.view", "reports.view", "library.moderate", "safety.review", "antifraud.review",
   "payments.refund", "subscriptions.manage", "notifications.diagnose",
   "practitioner_pro.manage", "content.configure", "seo.manage",
@@ -27,7 +28,8 @@ export const V5_REQUIRED_PERMISSIONS: Permission[] = [
   "users.view", "users.create", "users.edit", "users.delete", "users.block",
   "dialogues.view", "reports.view", "library.moderate", "safety.review", "antifraud.review",
   "analytics.view", "payments.refund", "subscriptions.manage",
-  "notifications.diagnose", "practitioners.verify", "practitioner_pro.manage",
+  "notifications.diagnose", "practitioners.verify", "practitioners.manage_reports",
+  "practitioners.manage_documents", "practitioner_pro.manage",
   "content.configure", "ai.configure", "legal.cross_border.manage", "seo.manage", "system.read", "system.operate",
 ];
 

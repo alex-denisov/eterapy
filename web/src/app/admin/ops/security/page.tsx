@@ -6,6 +6,7 @@ import { AlertTriangle, FileSearch, LockKeyhole, ShieldAlert, Trash2, UserCog } 
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
 import { PageContainer } from "@/components/ui/page-container";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber } from "../ops-ui";
 
@@ -92,17 +93,29 @@ function parseAuditDetails(details: string | null) {
 
 function AuditDetails({ details }: { details: string | null }) {
   const parsed = parseAuditDetails(details);
-  if (parsed.text) return <span className="block max-w-[28rem] whitespace-normal break-words text-xs leading-snug">{parsed.text}</span>;
+  if (parsed.text) {
+    return (
+      <details className="max-w-[24rem] text-xs">
+        <summary className="cursor-pointer text-[var(--soft-bordeaux)]">Показать детали</summary>
+        <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--soft-paper-edge)] bg-white p-2 font-sans text-[11px] leading-snug text-[var(--soft-ink)]">
+          {parsed.text}
+        </pre>
+      </details>
+    );
+  }
   if (parsed.entries.length === 0) return <span className="text-[var(--soft-ink-faint)]">—</span>;
   return (
-    <dl className="flex max-w-[34rem] flex-wrap gap-1.5 text-xs leading-snug">
-      {parsed.entries.map(([key, value]) => (
-        <div key={key} className="max-w-full rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1">
-          <dt className="inline text-[var(--soft-ink-faint)]">{detailLabel(key)}: </dt>
-          <dd className="inline break-words text-[var(--soft-ink)]">{formatDetailValue(value)}</dd>
-        </div>
-      ))}
-    </dl>
+    <details className="max-w-[24rem] text-xs">
+      <summary className="cursor-pointer text-[var(--soft-bordeaux)]">Показать детали ({parsed.entries.length})</summary>
+      <dl className="mt-2 grid max-h-40 gap-1 overflow-auto rounded border border-[var(--soft-paper-edge)] bg-white p-2 text-[11px] leading-snug">
+        {parsed.entries.map(([key, value]) => (
+          <div key={key} className="grid grid-cols-[6.5rem_1fr] gap-2">
+            <dt className="text-[var(--soft-ink-faint)]">{detailLabel(key)}</dt>
+            <dd className="min-w-0 break-words text-[var(--soft-ink)]">{formatDetailValue(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
   );
 }
 
@@ -194,9 +207,7 @@ export default async function AdminOpsSecurityPage() {
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/product/quality" actionLabel="Открыть антифрод">
-          <div className="max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)]">
-            <div className="max-w-full overflow-x-auto">
-            <table className="soft-admin-data-table table-fixed min-w-[980px]">
+          <CompactTableShell minWidth="980px">
               <colgroup>
                 <col className="w-[11rem]" />
                 <col className="w-[11rem]" />
@@ -207,41 +218,39 @@ export default async function AdminOpsSecurityPage() {
               </colgroup>
               <thead>
                 <tr>
-                  <th>Timestamp</th>
-                  <th>Действие</th>
-                  <th>Администратор</th>
-                  <th>Цель</th>
-                  <th>IP</th>
-                  <th>Детали</th>
+                  <CompactHeader label="Timestamp" />
+                  <CompactHeader label="Действие" />
+                  <CompactHeader label="Администратор" />
+                  <CompactHeader label="Цель" />
+                  <CompactHeader label="IP" />
+                  <CompactHeader label="Детали" />
                 </tr>
               </thead>
               <tbody>
                 {recentRiskActions.map((row) => (
                   <tr key={row.id}>
-                    <td>{formatDateTime(row.createdAt)}</td>
-                    <td>
+                    <td className={COMPACT_CELL_CLASS}>{formatDateTime(row.createdAt)}</td>
+                    <td className={COMPACT_CELL_CLASS}>
                       <span className="soft-admin-status-pill" data-tone={actionTone(row.action)}>
                         {actionLabel(row.action)}
                       </span>
                       <p className="mt-1 break-all text-[10px] text-[var(--soft-ink-faint)]">{row.action}</p>
                     </td>
-                    <td className="break-all font-mono text-xs">{row.userId}</td>
-                    <td className="break-all font-mono text-xs">{row.targetId ?? "—"}</td>
-                    <td className="break-all">{row.ip ?? "—"}</td>
-                    <td><AuditDetails details={row.details} /></td>
+                    <td className={`${COMPACT_CELL_CLASS} break-all font-mono text-[10px]`}>{row.userId}</td>
+                    <td className={`${COMPACT_CELL_CLASS} break-all font-mono text-[10px]`}>{row.targetId ?? "—"}</td>
+                    <td className={`${COMPACT_CELL_CLASS} break-all`}>{row.ip ?? "—"}</td>
+                    <td className={`${COMPACT_CELL_CLASS} align-top`}><AuditDetails details={row.details} /></td>
                   </tr>
                 ))}
                 {recentRiskActions.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-sm text-[var(--soft-ink-soft)]">
+                    <td colSpan={6} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>
                       Риск-действий в audit_logs не найдено.
                     </td>
                   </tr>
                 )}
               </tbody>
-            </table>
-            </div>
-          </div>
+          </CompactTableShell>
         </AdminOpsSection>
 
         <AdminOpsSection title="Retention и удаления" actionHref="/admin/ops/logs" actionLabel="Журнал">

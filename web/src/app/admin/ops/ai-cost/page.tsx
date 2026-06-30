@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 import { AlertTriangle, BrainCircuit, Clock3, CircleDollarSign, Gauge, Hash } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
+import { listAdminAIInteractions } from "@/lib/ai-gateway/interactions";
+import { getAIUsageDetailsForRange } from "@/lib/ai-gateway/usage";
 import { getUserPermissions } from "@/lib/moderator-permissions";
+import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
 import { PageContainer } from "@/components/ui/page-container";
 import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
@@ -50,11 +53,15 @@ export default async function AdminOpsAICostPage(props: {
 
   const period = resolveAdminPeriod(params);
   const currency = resolveAdminCurrency(params);
-  const [data, currencyRates] = await Promise.all([
-    getAIControlCenterData(period.endInput, { includeSecrets: role === "SUPERADMIN" }),
+  const [data, currencyRates, usageDetails, interactions] = await Promise.all([
+    getAIControlCenterData(period.endInput, { includeSecrets: false }),
     getAdminCurrencyRates(),
+    getAIUsageDetailsForRange({ start: period.start, end: period.end }),
+    role === "SUPERADMIN"
+      ? listAdminAIInteractions({ start: period.start, end: period.end, limit: 80 })
+      : Promise.resolve([]),
   ]);
-  const totals = data.usageDetails.reduce(
+  const totals = usageDetails.reduce(
     (acc, row) => {
       acc.requests += row.requestCount;
       acc.attempts += row.attemptCount;
@@ -72,7 +79,7 @@ export default async function AdminOpsAICostPage(props: {
   const errorRate = totals.attempts > 0 ? (errors / totals.attempts) * 100 : 0;
   const avgLatency = totals.requests > 0 ? Math.round(totals.latencySum / totals.requests) : 0;
 
-  const byFeatureMap = data.usageDetails.reduce((map, row) => {
+  const byFeatureMap = usageDetails.reduce((map, row) => {
     const current = map.get(row.feature) ?? { feature: row.feature, requests: 0, tokens: 0, cost: 0, errors: 0 };
     current.requests += row.requestCount;
     current.tokens += row.totalTokens;
@@ -83,7 +90,7 @@ export default async function AdminOpsAICostPage(props: {
   }, new Map<string, { feature: string; requests: number; tokens: number; cost: number; errors: number }>());
   const byFeature = Array.from(byFeatureMap.values()).sort((a, b) => b.cost - a.cost);
 
-  const byProviderMap = data.usageDetails.reduce((map, row) => {
+  const byProviderMap = usageDetails.reduce((map, row) => {
     const current = map.get(row.provider) ?? { provider: row.provider, requests: 0, tokens: 0, cost: 0, errors: 0 };
     current.requests += row.requestCount;
     current.tokens += row.totalTokens;
@@ -96,7 +103,7 @@ export default async function AdminOpsAICostPage(props: {
 
   const maxFeatureCost = Math.max(...byFeature.map((row) => row.cost), 1);
   const maxProviderCost = Math.max(...byProvider.map((row) => row.cost), 1);
-  const recentInteractions = data.interactions.slice(0, 12);
+  const recentInteractions = interactions.slice(0, 12);
 
   return (
     <PageContainer maxWidth="full">
@@ -125,7 +132,7 @@ export default async function AdminOpsAICostPage(props: {
       <div className="grid gap-4 xl:grid-cols-2">
         <AdminOpsSection title="Расход по продуктам" actionHref="/admin/ops/ai" actionLabel="Настроить маршруты">
           <div className="space-y-3">
-            {byFeature.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный день расход не найден.</p>}
+            {byFeature.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный период расход не найден.</p>}
             {byFeature.map((row) => (
               <div key={row.feature}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
@@ -148,7 +155,7 @@ export default async function AdminOpsAICostPage(props: {
 
         <AdminOpsSection title="Расход по провайдерам" actionHref="/admin/ops/ai" actionLabel="Открыть AI-центр">
           <div className="space-y-3">
-            {byProvider.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный день провайдеры не списывали токены.</p>}
+            {byProvider.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный период провайдеры не списывали токены.</p>}
             {byProvider.map((row) => (
               <div key={row.provider}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
@@ -169,85 +176,83 @@ export default async function AdminOpsAICostPage(props: {
         </AdminOpsSection>
       </div>
 
+      <div className="mt-4 grid gap-4">
       <AdminOpsSection title="Детализация по моделям" actionHref="/admin/ops/ai" actionLabel="Стоимость моделей">
-        <div className="overflow-x-auto">
-          <table className="soft-admin-table min-w-[980px]">
+        <CompactTableShell minWidth="980px">
             <thead>
               <tr>
-                <th>Продукт</th>
-                <th>Провайдер</th>
-                <th>Модель</th>
-                <th>Статус</th>
-                <th>Запросы</th>
-                <th>Токены</th>
-                <th>Стоимость</th>
-                <th>Время ответа</th>
+                <CompactHeader label="Продукт" />
+                <CompactHeader label="Провайдер" />
+                <CompactHeader label="Модель" />
+                <CompactHeader label="Статус" />
+                <CompactHeader label="Запросы" />
+                <CompactHeader label="Токены" />
+                <CompactHeader label="Стоимость" />
+                <CompactHeader label="Время ответа" />
               </tr>
             </thead>
             <tbody>
-              {data.usageDetails.map((row) => (
+              {usageDetails.map((row) => (
                 <tr key={`${row.feature}-${row.provider}-${row.model}-${row.status}`}>
-                  <td>{featureTitle(row.feature)}</td>
-                  <td>{row.provider}</td>
-                  <td>{row.model}</td>
-                  <td><StatusBadge status={row.status} /></td>
-                  <td className="tabular-nums">{formatNumber(row.requestCount)}</td>
-                  <td className="tabular-nums">{formatNumber(row.totalTokens)}</td>
-                  <td className="tabular-nums">{formatAdminAiCost(row.costMicros, currencyRates, currency)}</td>
-                  <td className="tabular-nums">{row.avgLatencyMs ? `${formatNumber(Math.round(row.avgLatencyMs))} ms` : "—"}</td>
+                  <td className={COMPACT_CELL_CLASS}>{featureTitle(row.feature)}</td>
+                  <td className={COMPACT_CELL_CLASS}>{row.provider}</td>
+                  <td className={COMPACT_CELL_CLASS}>{row.model}</td>
+                  <td className={COMPACT_CELL_CLASS}><StatusBadge status={row.status} /></td>
+                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatNumber(row.requestCount)}</td>
+                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatNumber(row.totalTokens)}</td>
+                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatAdminAiCost(row.costMicros, currencyRates, currency)}</td>
+                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{row.avgLatencyMs ? `${formatNumber(Math.round(row.avgLatencyMs))} ms` : "—"}</td>
                 </tr>
               ))}
-              {data.usageDetails.length === 0 && (
+              {usageDetails.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-6 text-center text-sm text-[var(--soft-ink-soft)]">Нет AI-запросов за выбранный день.</td>
+                  <td colSpan={8} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>Нет AI-запросов за выбранный период.</td>
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
+        </CompactTableShell>
       </AdminOpsSection>
 
       {role === "SUPERADMIN" && (
         <AdminOpsSection title="Аудит пользовательских LLM-диалогов" actionHref="/admin/ops/ai" actionLabel="Полный аудит">
-          <div className="overflow-x-auto">
-            <table className="soft-admin-table min-w-[980px]">
+          <CompactTableShell minWidth="980px">
               <thead>
                 <tr>
-                  <th>Время</th>
-                  <th>Продукт</th>
-                  <th>Пользователь</th>
-                  <th>Провайдер</th>
-                  <th>Модель</th>
-                  <th>Статус</th>
-                  <th>Токены</th>
-                  <th>Стоимость</th>
+                  <CompactHeader label="Время" />
+                  <CompactHeader label="Продукт" />
+                  <CompactHeader label="Пользователь" />
+                  <CompactHeader label="Провайдер" />
+                  <CompactHeader label="Модель" />
+                  <CompactHeader label="Статус" />
+                  <CompactHeader label="Токены" />
+                  <CompactHeader label="Стоимость" />
                 </tr>
               </thead>
               <tbody>
                 {recentInteractions.map((row) => (
                   <tr key={row.id}>
-                    <td>{formatDateTime(row.createdAt)}</td>
-                    <td>{featureTitle(row.feature)}</td>
-                    <td>{row.userLabel ?? row.userId ?? "—"}</td>
-                    <td>{row.responseProvider ?? "—"}</td>
-                    <td>{row.responseModel ?? "—"}</td>
-                    <td><StatusBadge status={row.status} /></td>
-                    <td className="tabular-nums">{formatNumber(row.totalTokens)}</td>
-                    <td className="tabular-nums">{formatAdminAiCost(row.estimatedCostMicros, currencyRates, currency)}</td>
+                    <td className={COMPACT_CELL_CLASS}>{formatDateTime(row.createdAt)}</td>
+                    <td className={COMPACT_CELL_CLASS}>{featureTitle(row.feature)}</td>
+                    <td className={`${COMPACT_CELL_CLASS} max-w-[18rem] break-words`}>{row.userLabel ?? row.userId ?? "—"}</td>
+                    <td className={COMPACT_CELL_CLASS}>{row.responseProvider ?? "—"}</td>
+                    <td className={COMPACT_CELL_CLASS}>{row.responseModel ?? "—"}</td>
+                    <td className={COMPACT_CELL_CLASS}><StatusBadge status={row.status} /></td>
+                    <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatNumber(row.totalTokens)}</td>
+                    <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatAdminAiCost(row.estimatedCostMicros, currencyRates, currency)}</td>
                   </tr>
                 ))}
                 {recentInteractions.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-sm text-[var(--soft-ink-soft)]">
+                    <td colSpan={8} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>
                       Аудит диалогов пуст или скрыт настройками доступа.
                     </td>
                   </tr>
                 )}
               </tbody>
-            </table>
-          </div>
+          </CompactTableShell>
         </AdminOpsSection>
       )}
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Link className="soft-admin-action" href="/admin/ops/ai">Управление AI-центром</Link>

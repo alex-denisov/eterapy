@@ -140,7 +140,7 @@ export function AdminShell({
     const itemPath = toPathname(href);
     if (itemPath === "/admin") return activePathname === itemPath;
     if (itemPath === "/admin/ops") return activePathname === itemPath;
-    return activePathname.startsWith(itemPath);
+    return activePathname === itemPath || activePathname.startsWith(`${itemPath}/`);
   }
 
   function isExactActive(href: string) {
