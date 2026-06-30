@@ -62,8 +62,8 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
   const [birthPlace, setBirthPlace] = useState(row.birthPlace ?? "");
   const [timezone, setTimezone] = useState(row.timezone ?? "");
   const [role, setRole] = useState<UserRole>(row.role);
-  const [freeLimit, setFreeLimit] = useState(row.freeToolsLimit == null ? "" : String(row.freeToolsLimit));
   const [clarityCredits, setClarityCredits] = useState(String(row.clarityCredits));
+  const [subscriptionPlan, setSubscriptionPlan] = useState(row.subscriptionPlanKey ?? "none");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [perms, setPerms] = useState<string[]>(row.moderatorPermissions);
@@ -212,12 +212,9 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
           await patchJson(`/api/admin/users/${row.id}`, profilePatch);
         }
       }
-      // 3. Role + free limit (superadmin)
+      // 3. Role (superadmin)
       const usersPatch: Record<string, unknown> = { userId: row.id };
       if (canEditRole && role !== row.role) usersPatch.role = role;
-      if (permissions.canManageRoles && freeLimit !== String(row.freeToolsLimit ?? "")) {
-        usersPatch.freeToolsLimit = freeLimit.trim() === "" ? 0 : Number(freeLimit);
-      }
       if (Object.keys(usersPatch).length > 1) {
         await patchJson("/api/admin/users", usersPatch);
       }
@@ -227,6 +224,12 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
         if (Number.isInteger(nextCredits) && nextCredits !== row.clarityCredits) {
           await patchJson(`/api/admin/users/${row.id}`, { action: "update_clarity_credits", clarityCredits: nextCredits, reason: "admin user modal" });
         }
+      }
+      if (canEditBalance && row.role === "CLIENT" && subscriptionPlan !== (row.subscriptionPlanKey ?? "none")) {
+        await patchJson(`/api/admin/users/${row.id}`, {
+          action: "set_subscription",
+          planKey: subscriptionPlan === "none" ? null : subscriptionPlan,
+        });
       }
       // 6. Manual password
       if (password && password.length >= 8) {
@@ -473,7 +476,7 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
             </section>
           )}
 
-          {/* Role + limit (superadmin) */}
+          {/* Role (superadmin) */}
           {permissions.canManageRoles && (
             <section>
               <h3 className={`mb-2 ${LABEL}`}>Роль и доступ</h3>
@@ -485,10 +488,6 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                       <option key={r} value={r} disabled={r === "SUPERADMIN"}>{ROLE_LABELS[r]}</option>
                     ))}
                   </select>
-                </label>
-                <label className="block">
-                  <span className={LABEL}>Бесплатных инструментов в месяц</span>
-                  <Input className={FIELD} inputMode="numeric" value={freeLimit} disabled={isSuper} placeholder="0 = безлимит" onChange={(e) => setFreeLimit(e.target.value)} />
                 </label>
               </div>
             </section>
@@ -503,6 +502,16 @@ export function UserEditModal({ row, permissions, onClose, onSaved }: UserEditMo
                   <span className={LABEL}>Баллы {row.role !== "CLIENT" && "(только клиенты)"}</span>
                   <Input className={FIELD} inputMode="numeric" value={row.role === "CLIENT" ? clarityCredits : "—"} disabled={!canEditBalance || row.role !== "CLIENT"} onChange={(e) => setClarityCredits(e.target.value)} />
                 </label>
+                {row.role === "CLIENT" && (
+                  <label className="block">
+                    <span className={LABEL}>Подписка</span>
+                    <select className={FIELD} value={subscriptionPlan} disabled={!canEditBalance} onChange={(e) => setSubscriptionPlan(e.target.value)}>
+                      <option value="none">Без подписки</option>
+                      <option value="plus">Plus</option>
+                      <option value="premium">Premium</option>
+                    </select>
+                  </label>
+                )}
               </div>
             </section>
           )}

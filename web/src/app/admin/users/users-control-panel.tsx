@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { type ReactNode, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Pencil, Plus, RefreshCw, Search, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CalendarDays, ChevronLeft, ChevronRight, ChevronsUpDown, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -48,6 +48,18 @@ function makeUrl(searchParams: URLSearchParams, patch: Record<string, string | n
   return query ? `/admin/product/users?${query}` : "/admin/product/users";
 }
 
+async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data?.ok === false || data?.error) {
+    throw new Error(typeof data?.error === "string" ? data.error : "Не удалось выполнить действие");
+  }
+}
+
 function SortHeader({ field, label, hint }: { field: string; label: string; hint?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,19 +82,27 @@ function SortHeader({ field, label, hint }: { field: string; label: string; hint
   );
 }
 
-function PlainHeader({ label, hint }: { label: string; hint?: string }) {
+function PlainHeader({ label, hint, children }: { label: string; hint?: string; children?: ReactNode }) {
   return (
-    <div
-      className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
-      title={hint}
-    >
-      {label}
+    <div className="grid gap-1 p-1">
+      <div
+        className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
+        title={hint}
+      >
+        {label}
+      </div>
+      {children}
     </div>
   );
 }
 
-function HeaderSpacer() {
-  return <div aria-hidden="true" className="h-7 border-t border-[var(--soft-paper-edge)]" />;
+function HeaderCell({ field, label, hint, children }: { field: string; label: string; hint?: string; children?: ReactNode }) {
+  return (
+    <div className="grid gap-1 p-1">
+      <SortHeader field={field} label={label} hint={hint} />
+      {children}
+    </div>
+  );
 }
 
 function FilterInput({ param, placeholder, type = "search" }: { param: string; placeholder: string; type?: string }) {
@@ -90,19 +110,38 @@ function FilterInput({ param, placeholder, type = "search" }: { param: string; p
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get(param) ?? "");
 
+  function apply(nextValue: string) {
+    router.push(makeUrl(searchParams, { [param]: nextValue.trim() }));
+  }
+
+  function clear() {
+    setValue("");
+    router.push(makeUrl(searchParams, { [param]: null }));
+  }
+
   return (
     <div className="relative">
       <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
       <input
         type={type}
-        className={`${COMPACT_INPUT_CLASS} pl-5`}
+        className={`${COMPACT_INPUT_CLASS} pl-5 pr-6`}
         value={value}
         placeholder={placeholder}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Enter") router.push(makeUrl(searchParams, { [param]: value.trim() }));
+          if (event.key === "Enter") apply(value);
         }}
       />
+      {value ? (
+        <button
+          type="button"
+          className="absolute right-1 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+          onClick={clear}
+          aria-label="Очистить фильтр"
+        >
+          <X className="size-3" aria-hidden="true" />
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -121,6 +160,116 @@ function FilterSelect({ param, options }: { param: string; options: Array<{ valu
         <option key={option.value} value={option.value}>{option.label}</option>
       ))}
     </select>
+  );
+}
+
+function dateLabel(value: string) {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value.slice(8, 10)}.${value.slice(5, 7)}.${value.slice(0, 4)}` : "";
+}
+
+function isoDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function HeaderDateFilter({ param }: { param: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const value = searchParams.get(param) ?? "";
+  const initialDate = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date();
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+  const days = useMemo(() => {
+    const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+    const last = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
+    const leading = (first.getDay() + 6) % 7;
+    const trailing = 6 - ((last.getDay() + 6) % 7);
+    const start = new Date(first);
+    start.setDate(first.getDate() - leading);
+    const total = leading + last.getDate() + trailing;
+    return Array.from({ length: total }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return date;
+    });
+  }, [viewDate]);
+
+  function apply(nextValue: string | null) {
+    router.push(makeUrl(searchParams, { [param]: nextValue }));
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        className={`${COMPACT_INPUT_CLASS} flex items-center justify-between gap-1 px-1.5 text-left`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className={value ? "text-[var(--soft-ink)]" : "text-[var(--soft-ink-faint)]"}>{dateLabel(value) || "дата"}</span>
+        <CalendarDays className="size-3 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+      </button>
+      {value ? (
+        <button
+          type="button"
+          className="absolute right-5 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+          onClick={(event) => {
+            event.stopPropagation();
+            apply(null);
+          }}
+          aria-label="Очистить дату"
+        >
+          <X className="size-3" aria-hidden="true" />
+        </button>
+      ) : null}
+      {open ? (
+        <div className="mt-1 rounded border border-[var(--soft-paper-edge)] bg-white p-1 shadow-[var(--soft-shadow-sm)]">
+          <div className="mb-1 flex items-center justify-between gap-1">
+            <button
+              type="button"
+              className="inline-flex size-6 items-center justify-center rounded hover:bg-[var(--soft-surface)]"
+              onClick={() => setViewDate((date) => new Date(date.getFullYear(), date.getMonth() - 1, 1))}
+              aria-label="Предыдущий месяц"
+            >
+              <ChevronLeft className="size-3" aria-hidden="true" />
+            </button>
+            <span className="text-[10px] font-semibold text-[var(--soft-ink-soft)]">
+              {new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(viewDate)}
+            </span>
+            <button
+              type="button"
+              className="inline-flex size-6 items-center justify-center rounded hover:bg-[var(--soft-surface)]"
+              onClick={() => setViewDate((date) => new Date(date.getFullYear(), date.getMonth() + 1, 1))}
+              aria-label="Следующий месяц"
+            >
+              <ChevronRight className="size-3" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-semibold text-[var(--soft-ink-faint)]">
+            {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day) => <span key={day}>{day}</span>)}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-0.5">
+            {days.map((date) => {
+              const current = isoDate(date);
+              const inMonth = date.getMonth() === viewDate.getMonth();
+              const selected = current === value;
+              return (
+                <button
+                  key={current}
+                  type="button"
+                  className={`h-6 rounded text-[10px] tabular-nums ${selected ? "bg-[var(--soft-bordeaux)] text-white" : inMonth ? "text-[var(--soft-ink)] hover:bg-[var(--soft-surface)]" : "text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)]"}`}
+                  onClick={() => apply(current)}
+                >
+                  {date.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -348,8 +497,47 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
   const [createOpen, setCreateOpen] = useState(false);
   // U1/U2: the table is READ-ONLY. Editing happens in a modal opened per row.
   const [editing, setEditing] = useState<AdminUserRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const selectableRows = rows.filter((row) => row.role !== "SUPERADMIN");
+  const selectedOnPage = selectableRows.filter((row) => selectedIds.has(row.id)).length;
+  const allVisibleSelected = selectableRows.length > 0 && selectedOnPage === selectableRows.length;
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleVisibleRows(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const row of selectableRows) {
+        if (checked) next.add(row.id);
+        else next.delete(row.id);
+      }
+      return next;
+    });
+  }
+
+  async function runBulkAction(action: "block" | "soft_delete") {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    const label = action === "block" ? "заблокировать" : "удалить";
+    if (!window.confirm(`${label[0].toUpperCase()}${label.slice(1)} выбранных пользователей: ${ids.length}?`)) return;
+    try {
+      await Promise.all(ids.map((id) => patchJson(`/api/admin/users/${id}`, { action, comment: "bulk admin users table" })));
+      toast.success(action === "block" ? "Пользователи заблокированы" : "Пользователи помечены на удаление");
+      setSelectedIds(new Set());
+      startTransition(() => router.refresh());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Массовое действие не выполнено");
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -371,6 +559,26 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
         </div>
       </div>
 
+      {selectedIds.size > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-white px-3 py-2 text-xs">
+          <span className="font-medium text-[var(--soft-ink-soft)]">Выбрано: {selectedIds.size}</span>
+          <div className="flex flex-wrap gap-2">
+            {permissions.canBlock && (
+              <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => void runBulkAction("block")}>
+                <Ban className="size-3.5" aria-hidden="true" />
+                Заблокировать
+              </button>
+            )}
+            {permissions.canDelete && (
+              <button type="button" className="soft-admin-action" data-variant="danger" onClick={() => void runBulkAction("soft_delete")}>
+                <Trash2 className="size-3.5" aria-hidden="true" />
+                Удалить
+              </button>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       {editing && (
         <UserEditModal
@@ -381,15 +589,29 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
         />
       )}
 
-      <CompactTableShell minWidth="1240px">
+      <CompactTableShell minWidth="1420px">
         <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
           <tr>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="name" label="Пользователь" />
-              <FilterInput param="q" placeholder="имя/email" />
+              <PlainHeader label="">
+                <label className="flex h-7 items-center justify-center" title="Выбрать пользователей на странице">
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--soft-bordeaux)]"
+                    checked={allVisibleSelected}
+                    disabled={selectableRows.length === 0}
+                    onChange={(event) => toggleVisibleRows(event.target.checked)}
+                  />
+                </label>
+              </PlainHeader>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="role" label="Роль" />
+              <HeaderCell field="name" label="Пользователь">
+                <FilterInput param="q" placeholder="имя/email" />
+              </HeaderCell>
+            </th>
+            <th className={COMPACT_HEADER_CLASS}>
+              <HeaderCell field="role" label="Роль">
               <FilterSelect
                 param="role"
                 options={[
@@ -400,9 +622,10 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   { value: "SUPERADMIN", label: "Суперадмины" },
                 ]}
               />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="channel" label="Канал" />
+              <HeaderCell field="channel" label="Канал">
               <FilterSelect
                 param="channel"
                 options={[
@@ -414,9 +637,10 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   { value: "manual", label: "Manual" },
                 ]}
               />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="status" label="Статус" />
+              <HeaderCell field="status" label="Статус">
               <FilterSelect
                 param="status"
                 options={[
@@ -427,34 +651,32 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   { value: "unverified", label: "Email нет" },
                 ]}
               />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="credits" label="Баллы" />
-              <HeaderSpacer />
+              <HeaderCell field="credits" label="Баллы" />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="createdAt" label="Регистрация" />
-              <FilterInput param="created" placeholder="дата" type="date" />
+              <HeaderCell field="createdAt" label="Регистрация">
+                <HeaderDateFilter param="created" />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)" />
-              <HeaderSpacer />
+              <HeaderCell field="lastLogin" label="Последний вход" hint="Дата последней сессии (IP и устройство — в карточке)">
+                <HeaderDateFilter param="lastLogin" />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="freeToolsLimit" label="Лимит/мес" hint="Лимит бесплатных инструментов в месяц (0 = безлимит)" />
-              <FilterInput param="limit" placeholder="0/3/∞" />
+              <HeaderCell field="bookings" label="Брони" />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="bookings" label="Брони" />
-              <HeaderSpacer />
+              <HeaderCell field="entitlements" label="Покупки" />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="entitlements" label="Покупки" />
-              <HeaderSpacer />
+              <HeaderCell field="subscriptions" label="Подписка" />
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <SortHeader field="subscriptions" label="Подписки" />
-              <HeaderSpacer />
+              <HeaderCell field="antifraud" label="Антифрод" hint="Скоринг клиента 0–10: 10 = максимальный риск" />
             </th>
             <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
           </tr>
@@ -462,12 +684,24 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={12} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
+              <td colSpan={13} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Пользователи не найдены</td>
             </tr>
           ) : rows.map((row) => {
             const status = statusOf(row);
+            const fraudScore = row.clientAntifraudScore ?? 0;
+            const fraudClass = fraudScore >= 8 ? "text-red-600" : fraudScore >= 5 ? "text-amber-600" : "text-emerald-600";
             return (
               <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
+                <td className={`${COMPACT_CELL_CLASS} text-center`}>
+                  <input
+                    type="checkbox"
+                    className="accent-[var(--soft-bordeaux)]"
+                    checked={selectedIds.has(row.id)}
+                    disabled={row.role === "SUPERADMIN"}
+                    onChange={(event) => toggleRow(row.id, event.target.checked)}
+                    aria-label={`Выбрать ${row.name || row.email}`}
+                  />
+                </td>
                 <td className={`${COMPACT_CELL_CLASS} min-w-[13rem]`}>
                   <div className="truncate font-medium text-[var(--soft-ink-strong)]">{row.name || "—"}</div>
                   <div className="truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</div>
@@ -478,10 +712,12 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                 <td className={NUM_CELL}>{row.role === "CLIENT" ? row.clarityCredits : "—"}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(row.createdAt).toLocaleDateString("ru-RU")}</td>
                 <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{row.lastLogin ? new Date(row.lastLogin.at).toLocaleDateString("ru-RU") : "—"}</td>
-                <td className={NUM_CELL}>{row.freeToolsLimit == null ? "—" : row.freeToolsLimit === 0 ? "∞" : row.freeToolsLimit}</td>
                 <td className={NUM_CELL}>{row.bookingsCount}</td>
                 <td className={NUM_CELL}>{row.entitlementsCount}</td>
-                <td className={NUM_CELL}>{row.subscriptionsCount}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{row.subscriptionLabel}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap font-semibold tabular-nums ${row.role === "CLIENT" ? fraudClass : "text-[var(--soft-ink-faint)]"}`}>
+                  {row.role === "CLIENT" ? `${fraudScore}/10` : "—"}
+                </td>
                 <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                   <button type="button" className="soft-admin-action" onClick={() => setEditing(row)} title="Открыть карточку пользователя">
                     <Pencil className="size-3.5" aria-hidden="true" />

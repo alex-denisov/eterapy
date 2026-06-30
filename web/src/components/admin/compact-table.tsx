@@ -14,9 +14,9 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from "l
 export const COMPACT_TABLE_PAGE_SIZE = 25;
 
 export const COMPACT_INPUT_CLASS =
-  "h-7 w-full min-w-0 rounded-none border-0 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-1.5 text-[11px] text-[var(--soft-ink)] outline-none placeholder:text-[var(--soft-ink-faint)] focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
+  "h-7 w-full min-w-0 rounded border border-[var(--soft-paper-edge)] bg-white/85 px-1.5 text-[11px] text-[var(--soft-ink)] outline-none placeholder:text-[var(--soft-ink-faint)] focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
 export const COMPACT_SELECT_CLASS =
-  "h-7 w-full min-w-0 rounded-none border-0 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
+  "h-7 w-full min-w-0 rounded border border-[var(--soft-paper-edge)] bg-white/85 px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
 export const COMPACT_HEADER_CLASS =
   "border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium";
 export const COMPACT_CELL_CLASS =

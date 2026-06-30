@@ -8,7 +8,8 @@ describe("Superadmin redesign regression guardrails", () => {
     const users = source("src/app/admin/users/users-control-panel.tsx");
 
     expect(users).not.toContain("расчетное");
-    expect(users).toContain("HeaderSpacer");
+    expect(users).toContain("HeaderCell");
+    expect(users).toContain("HeaderDateFilter");
   });
 
   it("keeps nested sidebar activity exact by route segment, not prefix", () => {
@@ -36,9 +37,9 @@ describe("Superadmin redesign regression guardrails", () => {
     const results = source("src/app/admin/product/results/page.tsx");
 
     expect(results).toContain('title="Все продукты по дням"');
+    expect(results).toContain("StackedBarChart");
     expect(results).toContain('label="Все заказанные продукты по календарным дням"');
-    expect(results).toContain("data.charts.productByDay");
-    expect(results).toContain("data.charts.productByDayLabels");
+    expect(results).toContain("data.charts.productByDayStacked");
   });
 
   it("loads AI cost details for the selected date range and renders uniform compact tables", () => {

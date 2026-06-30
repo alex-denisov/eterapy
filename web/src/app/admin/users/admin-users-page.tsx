@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
+import { getSubscriptionPlanLabel } from "@/lib/billing-labels";
 import { PageContainer } from "@/components/ui/page-container";
 import { UsersControlPanel, type AdminUserRow } from "./users-control-panel";
 
@@ -15,7 +16,7 @@ type SearchParams = {
   status?: string;
   channel?: string;
   created?: string;
-  limit?: string;
+  lastLogin?: string;
   sort?: string;
   dir?: string;
   page?: string;
@@ -39,7 +40,6 @@ const SORT_FIELDS = {
   email: "email",
   role: "role",
   channel: "provider",
-  freeToolsLimit: "freeToolsLimit",
   createdAt: "createdAt",
 } as const;
 
@@ -96,12 +96,6 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
     where.createdAt = { gte: start, lte: end };
   }
 
-  const limit = params.limit?.trim();
-  if (limit) {
-    if (limit === "∞") where.freeToolsLimit = 0;
-    else if (/^\d+$/.test(limit)) where.freeToolsLimit = Number(limit);
-  }
-
   return where;
 }
 
@@ -136,16 +130,16 @@ function postSortRows(rows: AdminUserRow[], params: SearchParams) {
       case "entitlements":
         return row.entitlementsCount;
       case "subscriptions":
-        return row.subscriptionsCount;
+        return row.subscriptionLabel;
       case "channel":
         return row.provider ?? "";
-      case "freeToolsLimit":
-        return row.freeToolsLimit ?? -1;
+      case "antifraud":
+        return row.clientAntifraudScore ?? -1;
       default:
         return "";
     }
   };
-  if (!["credits", "lastLogin", "status", "bookings", "entitlements", "subscriptions", "channel", "freeToolsLimit"].includes(params.sort ?? "")) {
+  if (!["credits", "lastLogin", "status", "bookings", "entitlements", "subscriptions", "channel", "antifraud"].includes(params.sort ?? "")) {
     return rows;
   }
   return [...rows].sort((a, b) => {
@@ -170,7 +164,22 @@ export default async function AdminUsersPage(props: {
 
   const page = Math.max(1, Number(params.page) || 1);
   const where = buildWhere(params, role, permissions);
+  const lastLogin = params.lastLogin?.trim();
+  if (lastLogin && /^\d{4}-\d{2}-\d{2}$/.test(lastLogin)) {
+    const start = new Date(`${lastLogin}T00:00:00.000Z`);
+    const end = new Date(`${lastLogin}T23:59:59.999Z`);
+    const loginUserRows = await db.auditLog.findMany({
+      where: {
+        createdAt: { gte: start, lte: end },
+        action: { in: ["LOGIN", "REGISTER"] },
+      },
+      distinct: ["userId"],
+      select: { userId: true },
+    });
+    where.id = { in: loginUserRows.map((item) => item.userId).filter((id): id is string => Boolean(id)) };
+  }
   const orderBy = buildOrderBy(params);
+  const now = new Date();
 
   const [users, total] = await Promise.all([
     db.user.findMany({
@@ -187,7 +196,6 @@ export default async function AdminUsersPage(props: {
         deletedAt: true,
         blockedAt: true,
         emailVerified: true,
-        freeToolsLimit: true,
         provider: true,
         registrationChannel: true,
         telegramUsername: true,
@@ -229,6 +237,15 @@ export default async function AdminUsersPage(props: {
             },
           },
         },
+        subscriptions: {
+          where: {
+            status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
+            OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { planKey: true, status: true, currentPeriodEnd: true },
+        },
         _count: {
           select: {
             bookingsAsClient: true,
@@ -269,6 +286,50 @@ export default async function AdminUsersPage(props: {
     })
     : [];
   const creditByUser = new Map(creditSums.map((row) => [row.userId, row._sum.amount ?? 0]));
+
+  const [fraudEvents, referralRisks] = clientIds.length > 0
+    ? await Promise.all([
+      db.fraudEvent.findMany({
+        where: {
+          riskScore: { gt: 0 },
+          OR: [
+            { subjectId: { in: clientIds } },
+            { actorUserId: { in: clientIds } },
+          ],
+        },
+        orderBy: { riskScore: "desc" },
+        take: 1000,
+        select: { subjectId: true, actorUserId: true, riskScore: true },
+      }),
+      db.referralAttribution.findMany({
+        where: {
+          riskScore: { gt: 0 },
+          OR: [
+            { referrerUserId: { in: clientIds } },
+            { referredUserId: { in: clientIds } },
+          ],
+        },
+        orderBy: { riskScore: "desc" },
+        take: 1000,
+        select: { referrerUserId: true, referredUserId: true, riskScore: true },
+      }),
+    ])
+    : [[], []] as const;
+  const clientSet = new Set(clientIds);
+  const antifraudByUser = new Map<string, number>();
+  function addClientRisk(userId: string | null | undefined, rawScore: number) {
+    if (!userId || !clientSet.has(userId)) return;
+    const score = Math.max(0, Math.min(10, Math.ceil(rawScore / 10)));
+    antifraudByUser.set(userId, Math.max(antifraudByUser.get(userId) ?? 0, score));
+  }
+  for (const event of fraudEvents) {
+    addClientRisk(event.subjectId, event.riskScore);
+    addClientRisk(event.actorUserId, event.riskScore);
+  }
+  for (const item of referralRisks) {
+    addClientRisk(item.referrerUserId, item.riskScore);
+    addClientRisk(item.referredUserId, item.riskScore);
+  }
 
   // U5 (antifraud): latest session-establishing audit per user → last-session
   // timestamp + IP + device + channel. distinct + desc returns the most recent
@@ -329,7 +390,6 @@ export default async function AdminUsersPage(props: {
     deletedAt: user.deletedAt?.toISOString() ?? null,
     blockedAt: user.blockedAt?.toISOString() ?? null,
     emailVerified: user.emailVerified,
-    freeToolsLimit: user.freeToolsLimit,
     clarityCredits: creditByUser.get(user.id) ?? 0,
     provider: user.provider,
     telegramUsername: user.telegramUsername,
@@ -383,6 +443,12 @@ export default async function AdminUsersPage(props: {
     bookingsCount: user._count.bookingsAsClient,
     entitlementsCount: user._count.entitlements,
     subscriptionsCount: user._count.subscriptions,
+    subscriptionLabel: (user.role === Role.CLIENT || user.role === Role.PRACTITIONER)
+      ? getSubscriptionPlanLabel(user.subscriptions[0]?.planKey)
+      : "—",
+    subscriptionPlanKey: user.subscriptions[0]?.planKey ?? null,
+    subscriptionStatus: user.subscriptions[0]?.status ?? null,
+    clientAntifraudScore: user.role === Role.CLIENT ? antifraudByUser.get(user.id) ?? 0 : null,
     registrationSource: user.registrationChannel ?? user.provider ?? null,
     lastLogin: lastLoginByUser.get(user.id) ?? null,
   })), params);

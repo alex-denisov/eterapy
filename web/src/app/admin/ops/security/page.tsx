@@ -8,6 +8,7 @@ import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
 import { PageContainer } from "@/components/ui/page-container";
+import { statusLabel } from "../../admin-analytics-ui";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber } from "../ops-ui";
 
 function since(hours: number) {
@@ -181,6 +182,72 @@ export default async function AdminOpsSecurityPage() {
     }),
   ]);
 
+  const [clientFraudEvents, clientReferralRisks] = await Promise.all([
+    db.fraudEvent.findMany({
+      where: {
+        riskScore: { gte: 50 },
+        OR: [{ subjectId: { not: null } }, { actorUserId: { not: null } }],
+      },
+      orderBy: { riskScore: "desc" },
+      take: 200,
+      select: { subjectId: true, actorUserId: true, riskScore: true, action: true, status: true, createdAt: true },
+    }),
+    db.referralAttribution.findMany({
+      where: { riskScore: { gte: 50 } },
+      orderBy: { riskScore: "desc" },
+      take: 200,
+      select: { referrerUserId: true, referredUserId: true, riskScore: true, status: true, createdAt: true },
+    }),
+  ]);
+  const clientRiskCandidates = new Set<string>();
+  for (const event of clientFraudEvents) {
+    if (event.subjectId) clientRiskCandidates.add(event.subjectId);
+    if (event.actorUserId) clientRiskCandidates.add(event.actorUserId);
+  }
+  for (const item of clientReferralRisks) {
+    if (item.referrerUserId) clientRiskCandidates.add(item.referrerUserId);
+    if (item.referredUserId) clientRiskCandidates.add(item.referredUserId);
+  }
+  const clientUsers = clientRiskCandidates.size > 0
+    ? await db.user.findMany({
+      where: { id: { in: [...clientRiskCandidates] }, role: "CLIENT" },
+      select: { id: true, name: true, email: true, blockedAt: true },
+    })
+    : [];
+  const clientUserById = new Map(clientUsers.map((user) => [user.id, user]));
+  const clientRiskRowsById = new Map<string, { userId: string; name: string; email: string; score: number; rawScore: number; signal: string; status: string; createdAt: Date; blocked: boolean }>();
+  function addClientSecurityRisk(userId: string | null | undefined, rawScore: number, signal: string, status: string, createdAt: Date) {
+    if (!userId) return;
+    const user = clientUserById.get(userId);
+    if (!user) return;
+    const score = Math.max(0, Math.min(10, Math.ceil(rawScore / 10)));
+    const current = clientRiskRowsById.get(userId);
+    if (!current || score > current.score || (score === current.score && createdAt > current.createdAt)) {
+      clientRiskRowsById.set(userId, {
+        userId,
+        name: user.name,
+        email: user.email,
+        score,
+        rawScore,
+        signal,
+        status,
+        createdAt,
+        blocked: Boolean(user.blockedAt),
+      });
+    }
+  }
+  for (const event of clientFraudEvents) {
+    addClientSecurityRisk(event.subjectId, event.riskScore, actionLabel(event.action), event.status, event.createdAt);
+    addClientSecurityRisk(event.actorUserId, event.riskScore, actionLabel(event.action), event.status, event.createdAt);
+  }
+  for (const item of clientReferralRisks) {
+    addClientSecurityRisk(item.referrerUserId, item.riskScore, "Реферальный риск", item.status, item.createdAt);
+    addClientSecurityRisk(item.referredUserId, item.riskScore, "Реферальный риск", item.status, item.createdAt);
+  }
+  const clientRiskRows = [...clientRiskRowsById.values()].sort((a, b) => b.score - a.score || b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 20);
+  const highRiskClients = clientRiskRows.filter((row) => row.score >= 8).length;
+  const manualBlockCandidates = clientRiskRows.filter((row) => row.score >= 8 && !row.blocked).length;
+
   const aiRisk = recentRiskActions.filter((row) => row.action.includes("AI_")).length;
   const accessRisk = recentRiskActions.filter((row) => /LOGIN|PASSWORD|ROLE|PERMISSION|IMPERSONATE/i.test(row.action)).length;
 
@@ -197,15 +264,53 @@ export default async function AdminOpsSecurityPage() {
         <Link className="soft-admin-action w-fit" href="/admin/ops/logs">Открыть все логи</Link>
       </div>
 
-      <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         <AdminOpsMetric icon={FileSearch} label="Аудит 24ч" value={formatNumber(audit24h)} hint="Все события audit_logs за сутки" />
         <AdminOpsMetric icon={ShieldAlert} label="Риск-действия" value={formatNumber(riskActions24h)} hint="Удаления, роли, выплаты, возвраты, AI" tone={riskActions24h > 0 ? "warn" : "ok"} />
         <AdminOpsMetric icon={LockKeyhole} label="Доступ" value={formatNumber(loginActions24h)} hint="Login-события и смены доступа" tone={accessRisk > 0 ? "warn" : "neutral"} />
         <AdminOpsMetric icon={Trash2} label="Retention" value={formatNumber(deletionEvents24h)} hint="Удаления и анонимизация по policy" tone={deletionEvents24h > 0 ? "warn" : "ok"} />
         <AdminOpsMetric icon={AlertTriangle} label="AI-изменения" value={formatNumber(aiRisk)} hint="Настройки providers/routing/prompts/keys" tone={aiRisk > 0 ? "warn" : "ok"} />
+        <AdminOpsMetric icon={ShieldAlert} label="Клиенты 8–10" value={formatNumber(highRiskClients)} hint={`${manualBlockCandidates} без блокировки`} tone={manualBlockCandidates > 0 ? "danger" : highRiskClients > 0 ? "warn" : "ok"} />
       </section>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <AdminOpsSection title="Антифрод клиентов" actionHref="/admin/product/users" actionLabel="Открыть пользователей">
+          <CompactTableShell minWidth="900px">
+            <thead>
+              <tr>
+                <CompactHeader label="Клиент" />
+                <CompactHeader label="Скоринг" />
+                <CompactHeader label="Сигнал" />
+                <CompactHeader label="Статус" />
+                <CompactHeader label="Timestamp" />
+              </tr>
+            </thead>
+            <tbody>
+              {clientRiskRows.map((row) => (
+                <tr key={row.userId}>
+                  <td className={`${COMPACT_CELL_CLASS} min-w-[14rem]`}>
+                    <p className="truncate font-medium text-[var(--soft-ink-strong)]">{row.name}</p>
+                    <p className="truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</p>
+                  </td>
+                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap font-semibold tabular-nums ${row.score >= 8 ? "text-red-600" : row.score >= 5 ? "text-amber-600" : "text-emerald-600"}`}>
+                    {row.score}/10
+                  </td>
+                  <td className={COMPACT_CELL_CLASS}>{row.signal}</td>
+                  <td className={COMPACT_CELL_CLASS}>{row.blocked ? "Заблокирован" : statusLabel(row.status)}</td>
+                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatDateTime(row.createdAt)}</td>
+                </tr>
+              ))}
+              {clientRiskRows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>
+                    Клиентов с антифрод-скорингом 5+ не найдено.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </CompactTableShell>
+        </AdminOpsSection>
+
         <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/product/quality" actionLabel="Открыть антифрод">
           <CompactTableShell minWidth="980px">
               <colgroup>

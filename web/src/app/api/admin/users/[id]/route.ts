@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { getUserPermissions, type Permission } from "@/lib/moderator-permissions";
 import { getClarityCreditBalance, recordClarityCreditEntry } from "@/lib/clarity-credits";
+import { getSubscriptionPlan } from "@/lib/entitlements";
 
 function isAdminOrSuper(role?: string) {
   return role === "ADMIN" || role === "SUPERADMIN";
@@ -21,7 +22,7 @@ const ACTION_PERMISSION: Record<string, Permission | "SUPERADMIN_ONLY"> = {
   block:            "clients.block",
   unblock:          "clients.block",
   update_clarity_credits: "SUPERADMIN_ONLY",
-  set_free_limit:   "SUPERADMIN_ONLY",
+  set_subscription: "SUPERADMIN_ONLY",
   soft_delete:      "clients.delete",
   restore:          "clients.delete",
 };
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     where: { id },
     select: {
       id: true, name: true, email: true, role: true, emailVerified: true,
-      avatarUrl: true, deletedAt: true, blockedAt: true, freeToolsLimit: true,
+      avatarUrl: true, deletedAt: true, blockedAt: true,
       createdAt: true, updatedAt: true,
       birthDate: true, birthTime: true, birthPlace: true, timezone: true,
       telegramUsername: true,
@@ -117,12 +118,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       await logAudit(adminId, "ACCOUNT_UNBLOCK", id);
       return NextResponse.json({ ok: true });
     }
-    case "set_free_limit": {
-      const limit = body.limit === "unlimited" ? 0 : Number(body.limit);
-      await db.user.update({ where: { id }, data: { freeToolsLimit: limit } });
-      await logAudit(adminId, "PROFILE_UPDATE", id, `freeToolsLimit=${limit}`);
-      return NextResponse.json({ ok: true });
-    }
     case "update_profile": {
       const { email, birthDate, birthTime, birthPlace, timezone, telegramUsername } = body;
       const data: Record<string, unknown> = {};
@@ -188,6 +183,56 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       }
       await logAudit(adminId, "PROFILE_UPDATE", id, `clarity_credits=${target}${reason ? ` (${reason})` : ""}`);
       return NextResponse.json({ ok: true, clarityCredits: target });
+    }
+    case "set_subscription": {
+      if (!["CLIENT", "PRACTITIONER"].includes(targetUser.role)) {
+        return NextResponse.json({ error: "Подписку можно назначить только клиенту или практику" }, { status: 400 });
+      }
+      const planKey = typeof body.planKey === "string" && body.planKey.trim() ? body.planKey.trim() : null;
+      if (planKey && !getSubscriptionPlan(planKey)) {
+        return NextResponse.json({ error: "Неизвестный тариф подписки" }, { status: 400 });
+      }
+      const clientPlans = ["plus", "premium"];
+      const practitionerPlans = ["practitioner_pro", "practitioner_pro_plus"];
+      if (planKey && targetUser.role === "CLIENT" && !clientPlans.includes(planKey)) {
+        return NextResponse.json({ error: "Этот тариф не относится к клиентским подпискам" }, { status: 400 });
+      }
+      if (planKey && targetUser.role === "PRACTITIONER" && !practitionerPlans.includes(planKey)) {
+        return NextResponse.json({ error: "Этот тариф не относится к подпискам практиков" }, { status: 400 });
+      }
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setMonth(periodEnd.getMonth() + 1);
+      await db.$transaction(async (tx) => {
+        await tx.userSubscription.updateMany({
+          where: {
+            userId: id,
+            status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
+            OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+          },
+          data: {
+            status: "CANCELLED",
+            cancelAtPeriodEnd: false,
+            cancelledAt: now,
+            currentPeriodEnd: now,
+          },
+        });
+        if (planKey) {
+          await tx.userSubscription.create({
+            data: {
+              userId: id,
+              planKey,
+              status: "ACTIVE",
+              provider: "admin",
+              currentPeriodStart: now,
+              currentPeriodEnd: periodEnd,
+              metadata: { assignedBy: adminId, reason: "manual_admin_assignment" },
+            },
+          });
+        }
+      });
+      await logAudit(adminId, "PROFILE_UPDATE", id, `subscription=${planKey ?? "none"}`);
+      return NextResponse.json({ ok: true });
     }
     case "soft_delete": {
       // Sets deletedAt = now. /api/cron/cleanup purges users after 10 days.

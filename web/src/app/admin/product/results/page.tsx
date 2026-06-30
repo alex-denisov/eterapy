@@ -5,7 +5,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, AnalyticsSection, DataTable, PeriodToolbar, StatusBadge, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, DataTable, PeriodToolbar, StackedBarChart, StatusBadge, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -48,10 +48,9 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
       </AdminHero>
       <div className="grid gap-4">
         <AnalyticsSection title="Все продукты по дням">
-          <VerticalBarChart
+          <StackedBarChart
             label="Все заказанные продукты по календарным дням"
-            data={data.charts.productByDay}
-            seriesLabels={data.charts.productByDayLabels}
+            data={data.charts.productByDayStacked}
             integerTicks
           />
         </AnalyticsSection>

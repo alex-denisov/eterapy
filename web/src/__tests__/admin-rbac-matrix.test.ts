@@ -95,7 +95,7 @@ describe("v5 admin RBAC matrix", () => {
     expect(mockDb.moderatorPermission.findMany).not.toHaveBeenCalled();
   });
 
-  it("gives default ADMIN accounts read-only baseline access without privileged v5 rights", async () => {
+  it("gives default ADMIN accounts read-only baseline access without privileged product rights", async () => {
     const permissions = await getUserPermissions("admin-1", "ADMIN");
 
     expect(permissions).toEqual(DEFAULT_ADMIN_PERMISSIONS);
@@ -114,11 +114,10 @@ describe("v5 admin RBAC matrix", () => {
     });
   });
 
-  it("rejects role and free-limit mutations from non-SUPERADMIN users", async () => {
+  it("rejects role mutations from non-SUPERADMIN users", async () => {
     const response = await patchUsers(request("https://admin.eterapy.com/api/admin/users", "PATCH", {
       userId: "client-1",
       role: "ADMIN",
-      freeToolsLimit: "unlimited",
     }));
     const body = await response.json();
 
@@ -128,7 +127,7 @@ describe("v5 admin RBAC matrix", () => {
     expect(mockLogAudit).not.toHaveBeenCalled();
   });
 
-  it("allows SUPERADMIN to mutate role and free limit with an audit trail", async () => {
+  it("allows SUPERADMIN to mutate role with an audit trail", async () => {
     mockAuth.mockResolvedValueOnce({
       user: { id: "superadmin-1", role: "SUPERADMIN" },
       expires: "2026-04-28T00:00:00.000Z",
@@ -140,7 +139,6 @@ describe("v5 admin RBAC matrix", () => {
       id: "client-1",
       name: "Client",
       role: "CLIENT",
-      freeToolsLimit: 0,
     });
     const txPractitionerFindUnique = jest.fn().mockResolvedValue(null);
     const txPractitionerUpdate = jest.fn();
@@ -152,19 +150,18 @@ describe("v5 admin RBAC matrix", () => {
     const response = await patchUsers(request("https://admin.eterapy.com/api/admin/users", "PATCH", {
       userId: "client-1",
       role: "CLIENT",
-      freeToolsLimit: "unlimited",
     }));
 
     expect(response.status).toBe(200);
     expect(txUserUpdate).toHaveBeenCalledWith({
       where: { id: "client-1" },
-      data: { freeToolsLimit: 0, role: "CLIENT" },
-      select: { id: true, name: true, freeToolsLimit: true, role: true },
+      data: { role: "CLIENT" },
+      select: { id: true, name: true, role: true },
     });
     // Demotion path probes for a profile to suspend; finds none → never updates.
     expect(txPractitionerFindUnique).toHaveBeenCalled();
     expect(txPractitionerUpdate).not.toHaveBeenCalled();
-    expect(mockLogAudit).toHaveBeenCalledWith("superadmin-1", "PROFILE_UPDATE", "client-1", "freeToolsLimit,role");
+    expect(mockLogAudit).toHaveBeenCalledWith("superadmin-1", "PROFILE_UPDATE", "client-1", "role");
   });
 
   it("keeps manual moderator creation SUPERADMIN-only", async () => {

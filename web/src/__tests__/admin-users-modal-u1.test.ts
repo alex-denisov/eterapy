@@ -21,12 +21,11 @@ describe("U1 — compact read-only users table (colored text, no badges)", () =>
     expect(panel).not.toContain("Баланс · баллы");
   });
 
-  it("clarifies the Лимит and Активность columns", () => {
-    expect(panel).toContain("Лимит/мес");
-    expect(panel).toContain("бесплатных инструментов");
+  it("clarifies activity, subscription and antifraud columns", () => {
     expect(panel).toContain('label="Брони"');
     expect(panel).toContain('label="Покупки"');
-    expect(panel).toContain('label="Подписки"');
+    expect(panel).toContain('label="Подписка"');
+    expect(panel).toContain('label="Антифрод"');
   });
 
   it("is read-only: editing happens through the modal, not inline inputs", () => {

@@ -24,7 +24,6 @@ export interface AdminUserRow {
   emailVerified: boolean;
   deletedAt: string | null;
   blockedAt: string | null;
-  freeToolsLimit: number | null;
   clarityCredits: number;
   provider: string | null;
   telegramUsername: string | null;
@@ -75,6 +74,10 @@ export interface AdminUserRow {
   bookingsCount: number;
   entitlementsCount: number;
   subscriptionsCount: number;
+  subscriptionLabel: string;
+  subscriptionPlanKey: string | null;
+  subscriptionStatus: string | null;
+  clientAntifraudScore: number | null;
   // U5 (antifraud): registration source + last-session provenance from logs.
   registrationSource: string | null;
   lastLogin: {
@@ -220,7 +223,7 @@ export const PERMISSION_GROUPS: Array<{ group: string; items: Array<{ key: strin
     ],
   },
   {
-    group: "Продукт v5",
+    group: "Продукт",
     items: [
       { key: "dialogues.view", label: "Просмотр диалогов" },
       { key: "reports.view", label: "Просмотр отчётов" },

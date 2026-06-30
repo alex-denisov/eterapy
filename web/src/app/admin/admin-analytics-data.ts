@@ -483,6 +483,13 @@ export async function getProductCenterData(period: AdminPeriod) {
   const topReferrers = new Map<string, number>();
   for (const item of referrals) addTo(topReferrers, item.referrer?.name ?? item.referrer?.email ?? "Не указан", 1);
   for (const item of inviteVisits) addTo(topReferrers, item.invite.practitioner.user.name ?? item.invite.practitioner.user.email ?? "Не указан", 1);
+  const productKeysByVolume = [...productPlanByDay.entries()]
+    .map(([productKey, dayMap]) => ({
+      productKey,
+      total: [...dayMap.values()].reduce((sum, row) => sum + row.free + row.plus + row.premium, 0),
+    }))
+    .sort((a, b) => b.total - a.total)
+    .map((item) => item.productKey);
 
   return {
     funnel,
@@ -507,6 +514,17 @@ export async function getProductCenterData(period: AdminPeriod) {
           value: map?.get(topKeys[0] ?? "") ?? 0,
           secondary: map?.get(topKeys[1] ?? "") ?? 0,
           tertiary: map?.get(topKeys[2] ?? "") ?? 0,
+        };
+      }),
+      productByDayStacked: period.days.map((day) => {
+        const map = productByDay.get(day);
+        return {
+          label: chartDayLabel(day),
+          value: productKeysByVolume.reduce((sum, productKey) => sum + (map?.get(productKey) ?? 0), 0),
+          segments: productKeysByVolume.map((productKey) => ({
+            label: productLabel(productKey),
+            value: map?.get(productKey) ?? 0,
+          })),
         };
       }),
       productByDayLabels: [...new Set(results.map((result) => result.productKey))].slice(0, 3).map(productLabel) as [string, string?, string?],

@@ -8,6 +8,7 @@ export type ChartPoint = {
   value: number;
   secondary?: number;
   tertiary?: number;
+  segments?: Array<{ label: string; value: number; color?: string }>;
 };
 
 export type MetricTone = "neutral" | "ok" | "warn" | "danger";
@@ -199,6 +200,27 @@ export function EmptyState({ children = "Нет данных за выбранн
   );
 }
 
+type ChartSeriesKey = "value" | "secondary" | "tertiary";
+type ChartSeries = { key: ChartSeriesKey; label: string; color: string };
+
+const CHART_PALETTE = ["#118DFF", "#12239E", "#E66C37", "#6B007B", "#E044A7", "#744EC2"];
+
+function chartSeries(data: ChartPoint[], labels?: [string, string?, string?]): ChartSeries[] {
+  return [
+    { key: "value", label: labels?.[0] ?? "Значение", color: CHART_PALETTE[0] },
+    ...(data.some((item) => item.secondary !== undefined)
+      ? [{ key: "secondary" as const, label: labels?.[1] ?? "Дополнительно", color: CHART_PALETTE[1] }]
+      : []),
+    ...(data.some((item) => item.tertiary !== undefined)
+      ? [{ key: "tertiary" as const, label: labels?.[2] ?? "Третий показатель", color: CHART_PALETTE[2] }]
+      : []),
+  ];
+}
+
+function chartCardClass() {
+  return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D9E2F2] bg-gradient-to-b from-white to-[#F7FAFF] p-4 shadow-[0_18px_44px_-36px_rgba(17,24,39,0.55)]";
+}
+
 export function VerticalBarChart({
   data,
   unit,
@@ -222,18 +244,14 @@ export function VerticalBarChart({
   if (data.length === 0) return <EmptyState />;
   const hasValues = data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0);
   if (!hasValues) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
-  const series = [
-    { key: "value" as const, label: seriesLabels?.[0] ?? "Значение", color: "var(--soft-bordeaux)" },
-    ...(data.some((item) => item.secondary !== undefined) ? [{ key: "secondary" as const, label: seriesLabels?.[1] ?? "Дополнительно", color: "var(--soft-terracotta)" }] : []),
-    ...(data.some((item) => item.tertiary !== undefined) ? [{ key: "tertiary" as const, label: seriesLabels?.[2] ?? "Третий показатель", color: "rgb(4 120 87)" }] : []),
-  ];
+  const series = chartSeries(data, seriesLabels);
   const left = 58;
   const right = 16;
   const top = 12;
   const plotHeight = 212;
   const compactLabels = data.length > 18;
-  const bottom = compactLabels ? 46 : 34;
-  const groupWidth = compactLabels ? (series.length > 1 ? 36 : 28) : (series.length > 1 ? 48 : 42);
+  const bottom = 28;
+  const groupWidth = compactLabels ? (series.length > 1 ? 38 : 32) : (series.length > 1 ? 52 : 44);
   const width = Math.max(760, left + right + data.length * groupWidth);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
@@ -247,11 +265,11 @@ export function VerticalBarChart({
   }
 
   return (
-    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4" data-testid="admin-vertical-bar-chart">
+    <div className={chartCardClass()} data-testid="admin-vertical-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{label}</p> : <span />}
+        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#1F2937]">{label}</p> : <span />}
         {series.length > 1 ? (
-          <div className="flex flex-wrap gap-3 text-[10px] text-[var(--soft-ink-soft)]">
+          <div className="flex flex-wrap gap-3 text-[10px] text-[#4B5563]">
             {series.map((item) => (
               <span key={item.key} className="inline-flex items-center gap-1">
                 <i className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />
@@ -275,21 +293,21 @@ export function VerticalBarChart({
             const y = yFor(tick);
             return (
               <g key={tick}>
-                <line x1={left} x2={width - right} y1={y} y2={y} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums">
+                <line x1={left} x2={width - right} y1={y} y2={y} stroke="#E5ECF6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[10px] tabular-nums">
                   {formatValue(tick)}
                 </text>
               </g>
             );
           })}
-          <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="var(--soft-paper-edge)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           {data.map((item, index) => {
             const slotWidth = plotWidth / data.length;
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
-            const axisLabelY = top + plotHeight + (compactLabels ? 20 : 15);
+            const axisLabelY = top + plotHeight + 14;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -308,7 +326,7 @@ export function VerticalBarChart({
                         y={y}
                         width={barWidth}
                         height={barHeight}
-                        rx="2"
+                        rx="3"
                         fill={seriesItem.color}
                         opacity={raw > 0 ? 0.96 : 0}
                       />
@@ -325,7 +343,152 @@ export function VerticalBarChart({
                   x={centerX}
                   y={axisLabelY}
                   textAnchor="middle"
-                  className="fill-[var(--soft-ink-faint)] text-[10px] tabular-nums"
+                  className="fill-[#667085] text-[10px] tabular-nums"
+                >
+                  {item.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+export function StackedBarChart({
+  data,
+  unit,
+  label,
+  maxValue,
+  seriesLabels,
+  valueFormatter,
+  integerTicks = false,
+}: {
+  data: ChartPoint[];
+  unit?: string;
+  label?: string;
+  maxValue?: number;
+  seriesLabels?: [string, string?, string?];
+  valueFormatter?: (value: number) => string;
+  integerTicks?: boolean;
+}) {
+  const hasSegments = data.some((item) => item.segments && item.segments.length > 0);
+  const segmentLabels = hasSegments
+    ? [...new Set(data.flatMap((item) => (item.segments ?? []).map((segment) => segment.label)))]
+    : [];
+  const series = hasSegments
+    ? segmentLabels.map((segmentLabel, index) => ({ key: segmentLabel, label: segmentLabel, color: CHART_PALETTE[index % CHART_PALETTE.length] }))
+    : chartSeries(data, seriesLabels).map((item) => ({ ...item, key: item.key as string }));
+  const totals = data.map((item) => {
+    if (hasSegments) return (item.segments ?? []).reduce((sum, segment) => sum + Math.max(0, segment.value), 0);
+    return chartSeries(data, seriesLabels).reduce((sum, seriesItem) => sum + Math.max(0, item[seriesItem.key] ?? 0), 0);
+  });
+  const rawMax = Math.max(maxValue ?? 0, ...totals, 1);
+  const max = integerTicks ? Math.max(1, Math.ceil(rawMax)) : rawMax;
+  const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
+  if (data.length === 0) return <EmptyState />;
+  if (!totals.some((value) => value > 0)) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
+
+  const left = 58;
+  const right = 16;
+  const top = 12;
+  const plotHeight = 212;
+  const bottom = 28;
+  const slotWidth = data.length > 18 ? 34 : 42;
+  const width = Math.max(760, left + right + data.length * slotWidth);
+  const height = top + plotHeight + bottom;
+  const plotWidth = width - left - right;
+  const tickValues = chartTickValues(max, integerTicks);
+  const barWidth = Math.max(7, Math.min(20, slotWidth * 0.56));
+
+  function yFor(value: number) {
+    return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
+  }
+
+  return (
+    <div className={chartCardClass()} data-testid="admin-stacked-bar-chart">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#1F2937]">{label}</p> : <span />}
+        <div className="flex flex-wrap gap-3 text-[10px] text-[#4B5563]">
+          {series.map((item) => (
+            <span key={item.key} className="inline-flex items-center gap-1">
+              <i className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <svg
+          role="img"
+          aria-label={label ?? "Гистограмма с накоплением"}
+          className="block min-h-[272px] w-full min-w-[760px]"
+          viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
+          data-testid="admin-stacked-bar-chart-svg"
+        >
+          <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" />
+          {tickValues.map((tick) => {
+            const y = yFor(tick);
+            return (
+              <g key={tick}>
+                <line x1={left} x2={width - right} y1={y} y2={y} stroke="#E5ECF6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[10px] tabular-nums">
+                  {formatValue(tick)}
+                </text>
+              </g>
+            );
+          })}
+          <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          {data.map((item, index) => {
+            const currentSlotWidth = plotWidth / data.length;
+            const groupX = left + index * currentSlotWidth;
+            const centerX = groupX + currentSlotWidth / 2;
+            const x = centerX - barWidth / 2;
+            let accumulated = 0;
+            const total = totals[index] ?? 0;
+            return (
+              <g key={item.label}>
+                {series.map((seriesItem) => {
+                  const segmentedValue = hasSegments
+                    ? (item.segments ?? []).find((segment) => segment.label === seriesItem.label)?.value ?? 0
+                    : Number(item[seriesItem.key as ChartSeriesKey] ?? 0);
+                  const raw = Math.max(0, segmentedValue);
+                  const from = accumulated;
+                  accumulated += raw;
+                  if (raw <= 0) return null;
+                  const y = yFor(accumulated);
+                  const previousY = yFor(from);
+                  const segmentHeight = Math.max(2, previousY - y);
+                  const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(total)}`;
+                  const tooltipWidth = Math.min(260, Math.max(150, tooltip.length * 5.8));
+                  const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, centerX));
+                  const tooltipY = Math.max(top + 28, y - 6);
+                  return (
+                    <g key={seriesItem.key} className="soft-chart-hit" tabIndex={0} aria-label={tooltip}>
+                      <rect
+                        x={x}
+                        y={y}
+                        width={barWidth}
+                        height={segmentHeight}
+                        rx="2.5"
+                        fill={seriesItem.color}
+                        opacity={0.96}
+                      />
+                      <g className="soft-chart-tooltip" transform={`translate(${tooltipX} ${tooltipY})`}>
+                        <rect x={-tooltipWidth / 2} y="-25" width={tooltipWidth} height="22" rx="5" />
+                        <text x="0" y="-10" textAnchor="middle">{tooltip}</text>
+                      </g>
+                    </g>
+                  );
+                })}
+                <text
+                  x={centerX}
+                  y={top + plotHeight + 14}
+                  textAnchor="middle"
+                  className="fill-[#667085] text-[10px] tabular-nums"
                 >
                   {item.label}
                 </text>

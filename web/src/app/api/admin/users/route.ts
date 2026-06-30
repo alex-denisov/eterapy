@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
     },
     select: {
       id: true, name: true, email: true, role: true, createdAt: true, deletedAt: true,
-      emailVerified: true, freeToolsLimit: true, avatarUrl: true,
+      emailVerified: true, avatarUrl: true,
     },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -188,17 +188,16 @@ export async function PATCH(req: NextRequest) {
 
   const adminId = session.user!.id!;
   const adminRole = session.user!.role!;
-  const { userId, freeToolsLimit, role } = await req.json();
+  const { userId, role } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId обязателен" }, { status: 400 });
-  if (adminRole !== "SUPERADMIN" && (freeToolsLimit !== undefined || role !== undefined)) {
-    return NextResponse.json({ error: "Только суперадмин может менять роль и лимиты пользователя" }, { status: 403 });
+  if (adminRole !== "SUPERADMIN" && role !== undefined) {
+    return NextResponse.json({ error: "Только суперадмин может менять роль пользователя" }, { status: 403 });
   }
   if (role !== undefined && !["CLIENT", "PRACTITIONER", "ADMIN"].includes(role)) {
     return NextResponse.json({ error: "Некорректная роль" }, { status: 400 });
   }
 
   const data: Record<string, unknown> = {};
-  if (freeToolsLimit !== undefined) data.freeToolsLimit = freeToolsLimit === "unlimited" ? 0 : Number(freeToolsLimit);
   if (role) data.role = role;
   if (Object.keys(data).length === 0) return NextResponse.json({ error: "Нет изменений" }, { status: 400 });
 
@@ -209,7 +208,7 @@ export async function PATCH(req: NextRequest) {
     const updated = await tx.user.update({
       where: { id: userId },
       data,
-      select: { id: true, name: true, freeToolsLimit: true, role: true },
+      select: { id: true, name: true, role: true },
     });
     let provisioning: Awaited<ReturnType<typeof ensurePractitionerForUser>> | null = null;
     if (role === Role.PRACTITIONER) {
