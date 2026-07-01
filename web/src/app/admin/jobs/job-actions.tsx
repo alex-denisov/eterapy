@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { RotateCcw } from "lucide-react";
 
 interface Props {
   jobId: string;
@@ -36,9 +37,11 @@ export function JobActions({ jobId, status, maxAttempts, label = "Повтори
     <button
       onClick={requeue}
       disabled={loading}
-      className="soft-admin-action shrink-0"
+      className="soft-admin-icon-button shrink-0"
+      title={`${label} (${maxAttempts})`}
+      aria-label={`${label} задачу ${jobId}`}
     >
-      {loading ? "..." : `${label} (${maxAttempts})`}
+      {loading ? "..." : <RotateCcw className="size-3.5" aria-hidden="true" />}
     </button>
   );
 }

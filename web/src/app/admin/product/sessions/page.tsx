@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ExternalLink, FileText, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getProductCenterData, resolveAdminPeriod } from "../../admin-analytics-data";
@@ -150,9 +151,19 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
             item.booking.practitioner.user.name,
             <StatusBadge key="status" status={item.status} />,
             duration(item.startedAt, item.endedAt),
-            <Link key="session" className="soft-admin-action" href={`/session/${item.booking.id}`} target="_blank">Открыть</Link>,
-            item.transcriptText ? <a key="transcript" className="soft-admin-action" href={`/api/admin/sessions/${item.id}/transcript`} target="_blank">Открыть</a> : "—",
-            item.summaryText ? <a key="summary" className="soft-admin-action" href={`/api/admin/sessions/${item.id}/summary`} target="_blank">Открыть</a> : "—",
+            <Link key="session" className="soft-admin-icon-button" href={`/session/${item.booking.id}`} target="_blank" title="Открыть сессию" aria-label="Открыть сессию">
+              <ExternalLink className="size-3.5" aria-hidden="true" />
+            </Link>,
+            item.transcriptText ? (
+              <a key="transcript" className="soft-admin-icon-button" href={`/api/admin/sessions/${item.id}/transcript`} target="_blank" title="Открыть транскрипт" aria-label="Открыть транскрипт">
+                <FileText className="size-3.5" aria-hidden="true" />
+              </a>
+            ) : "—",
+            item.summaryText ? (
+              <a key="summary" className="soft-admin-icon-button" href={`/api/admin/sessions/${item.id}/summary`} target="_blank" title="Открыть AI-резюме" aria-label="Открыть AI-резюме">
+                <Sparkles className="size-3.5" aria-hidden="true" />
+              </a>
+            ) : "—",
           ])}
         />
         <div className="mt-4 flex items-center justify-between text-xs text-[var(--soft-ink-soft)]">

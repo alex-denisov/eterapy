@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
@@ -82,7 +83,9 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
             productLabel(result.productKey),
             result.title,
             <StatusBadge key="status" status={result.status} />,
-            <a key="open" className="soft-admin-action" href={appUrl(`/cabinet/results/${result.id}`)} target="_blank" rel="noreferrer">Открыть</a>,
+            <a key="open" className="soft-admin-icon-button" href={appUrl(`/cabinet/results/${result.id}`)} target="_blank" rel="noreferrer" title="Открыть результат" aria-label={`Открыть результат ${result.title}`}>
+              <ExternalLink className="size-3.5" aria-hidden="true" />
+            </a>,
           ])}
         />
         <div className="mt-4 flex items-center justify-between text-xs text-[var(--soft-ink-soft)]">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Fragment } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pencil, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 
@@ -485,19 +485,25 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                           <span className="text-xs text-[var(--soft-ink-faint)]">%</span>
                           <button
                             type="button"
-                            className="soft-admin-action"
+                            className="soft-admin-icon-button"
                             data-variant="primary"
                             disabled={savingCommission === practitioner.id}
                             onClick={() => saveCommission(practitioner.id)}
                             title="Сохранить комиссию"
+                            aria-label={`Сохранить комиссию ${practitioner.user.email}`}
                           >
-                            {savingCommission === practitioner.id ? "…" : "✓"}
+                            {savingCommission === practitioner.id ? "…" : <Check className="size-3.5" aria-hidden="true" />}
                           </button>
                         </div>
                       </td>
                       <td>
-                        <button className="soft-admin-action" onClick={() => setExpandedPrac(expanded ? null : practitioner.id)}>
-                          {expanded ? "Скрыть ставки" : "Ставки"}
+                        <button
+                          className="soft-admin-icon-button"
+                          onClick={() => setExpandedPrac(expanded ? null : practitioner.id)}
+                          title={expanded ? "Скрыть ставки" : "Показать ставки"}
+                          aria-label={expanded ? "Скрыть ставки" : "Показать ставки"}
+                        >
+                          {expanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
                         </button>
                       </td>
                     </tr>

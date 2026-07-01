@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock3, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -152,35 +153,72 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
           Жалоб нет
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
+          <table className="soft-admin-data-table min-w-[1120px]">
+            <thead>
+              <tr>
+                <th>Жалоба</th>
+                <th>Клиент</th>
+                <th>Практик</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th>Создано</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
           {filtered.map(c => {
             const meta = STATUS_META[c.status] ?? STATUS_META.OPEN;
             const isExpanded = expandedId === c.id;
             return (
-              <div key={c.id} className="rounded-xl border border-border/30 bg-card/20 overflow-hidden">
-                {/* Заголовок */}
-                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer"
-                  onClick={() => setExpandedId(isExpanded ? null : c.id)}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <Badge className={`${meta.color} text-xs`}>{meta.label}</Badge>
-                      <span className="text-sm font-medium">{REASON_LABELS[c.reason] ?? c.reason}</span>
+              <Fragment key={c.id}>
+                <tr>
+                  <td>
+                    <button
+                      type="button"
+                      className="mr-1 inline-flex size-6 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white align-middle text-[var(--soft-bordeaux)]"
+                      onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                      aria-label={isExpanded ? "Свернуть жалобу" : "Раскрыть жалобу"}
+                      title={isExpanded ? "Свернуть" : "Раскрыть"}
+                    >
+                      {isExpanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
+                    </button>
+                    <span className="font-medium" title={REASON_LABELS[c.reason] ?? c.reason}>{REASON_LABELS[c.reason] ?? c.reason}</span>
+                  </td>
+                  <td>
+                    <span className="soft-admin-cell-truncate">{c.clientName}</span>
+                    <span className="soft-admin-cell-muted">{c.clientEmail}</span>
+                  </td>
+                  <td title={c.practitionerName}>{c.practitionerName}</td>
+                  <td>{c.priceRub.toLocaleString("ru-RU")} ₽</td>
+                  <td><Badge className={`${meta.color} text-xs`}>{meta.label}</Badge></td>
+                  <td>{new Date(c.createdAt).toLocaleDateString("ru-RU")}</td>
+                  <td>
+                    <div className="soft-admin-table-actions">
+                      {c.status !== "REVIEWING" && (
+                        <button type="button" onClick={() => updateStatus(c.id, "REVIEWING")} disabled={processing === c.id} className="soft-admin-icon-button" title="На рассмотрение" aria-label="Перевести жалобу на рассмотрение">
+                          <Clock3 className="size-3.5" aria-hidden="true" />
+                        </button>
+                      )}
+                      {c.status !== "RESOLVED" && (
+                        <button type="button" onClick={() => updateStatus(c.id, "RESOLVED")} disabled={processing === c.id} className="soft-admin-icon-button" data-variant="primary" title="Решена" aria-label="Отметить жалобу решенной">
+                          <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                        </button>
+                      )}
+                      {c.status !== "CLOSED" && (
+                        <button type="button" onClick={() => updateStatus(c.id, "CLOSED")} disabled={processing === c.id} className="soft-admin-icon-button" title="Закрыть" aria-label="Закрыть жалобу">
+                          <LockKeyhole className="size-3.5" aria-hidden="true" />
+                        </button>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {c.clientName} → {c.practitionerName} · {c.priceRub.toLocaleString("ru")} ₽
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(c.createdAt).toLocaleDateString("ru-RU")}
-                    </span>
-                    <span className="text-muted-foreground/40 text-xs">{isExpanded ? "▲" : "▼"}</span>
-                  </div>
-                </div>
+                  </td>
+                </tr>
 
                 {/* Детали */}
                 {isExpanded && (
-                  <div className="border-t border-border/20 px-4 pb-4 pt-3 space-y-4">
+                  <tr className="soft-admin-row-details">
+                    <td colSpan={7}>
+                      <div className="space-y-4 px-4 pb-4 pt-3">
                     {/* Описание */}
                     <div>
                       <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Описание</p>
@@ -378,11 +416,15 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                       )}
                       {processing === c.id && <span className="text-xs text-muted-foreground">Обновление...</span>}
                     </div>
-                  </div>
+                      </div>
+                    </td>
+                  </tr>
                 )}
-              </div>
+              </Fragment>
             );
           })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

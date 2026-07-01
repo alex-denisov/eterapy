@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
+import { CheckCircle2, ChevronDown, ChevronRight, Clock3, ExternalLink, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -92,135 +93,136 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-muted-foreground text-sm">Нет заявок</div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map(a => {
-            const isExpanded = expandedId === a.id;
-            const meta = STATUS_META[a.status] ?? STATUS_META.PENDING;
-            return (
-              <div key={a.id} className="rounded-xl border border-border/30 bg-card/20 overflow-hidden">
-                {/* Заголовок */}
-                <div className="flex items-center gap-3 px-4 py-3 cursor-pointer"
-                  onClick={() => setExpandedId(isExpanded ? null : a.id)}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="font-medium">{a.name}</p>
-                      <Badge className={`${meta.color} text-xs`}>{meta.label}</Badge>
-                      {a.kind === "VERIFICATION" && (
-                        <Badge className="bg-primary/10 text-primary text-xs">Верификация</Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {a.email}
-                      {a.telegram && ` · ${a.telegram}`}
-                      {" · "}
-                      {a.specialties.map(s => SPECIALTY_LABELS[s] ?? s).join(", ")}
-                      {" · "}
-                      {a.experience}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(a.createdAt).toLocaleDateString("ru-RU")}
-                    </span>
-                    <span className="text-muted-foreground/40 text-xs">{isExpanded ? "▲" : "▼"}</span>
-                  </div>
-                </div>
-
-                {/* Детали */}
-                {isExpanded && (
-                  <div className="border-t border-border/20 px-4 pb-4 pt-3 space-y-4">
-                    {/* О себе */}
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">О себе</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{a.about}</p>
-                    </div>
-
-                    {a.kind === "VERIFICATION" && (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Тип заявки</p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          Практик просит подтвердить личность/документы. При одобрении будет выставлен флаг verified.
-                        </p>
-                      </div>
-                    )}
-
-                    {a.why && a.kind !== "VERIFICATION" && (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1.5">Почему ETerapy</p>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{a.why}</p>
-                      </div>
-                    )}
-
-                    {(a.portfolio || a.formats.length > 0) && (
-                      <div className="flex gap-6 flex-wrap">
-                        {a.portfolio && (
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Портфолио</p>
-                            <a href={a.portfolio.startsWith("http") ? a.portfolio : `https://${a.portfolio}`}
-                              target="_blank" className="text-sm text-primary hover:underline">{a.portfolio}</a>
-                          </div>
-                        )}
-                        {a.formats.length > 0 && (
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Форматы</p>
-                            <p className="text-sm text-muted-foreground">{a.formats.join(", ")}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Y5: verification documents uploaded by the practitioner. */}
-                    {a.attachments && a.attachments.length > 0 && (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Документы ({a.attachments.length})</p>
-                        <div className="flex flex-wrap gap-2">
-                          {a.attachments.map((url, i) => (
-                            <a
-                              key={url}
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Документ {i + 1}
+        <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
+          <table className="soft-admin-data-table min-w-[1080px]">
+            <thead>
+              <tr>
+                <th>Заявка</th>
+                <th>Контакты</th>
+                <th>Специализации</th>
+                <th>Опыт</th>
+                <th>Статус</th>
+                <th>Создано</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(a => {
+                const isExpanded = expandedId === a.id;
+                const meta = STATUS_META[a.status] ?? STATUS_META.PENDING;
+                const specialties = a.specialties.map(s => SPECIALTY_LABELS[s] ?? s).join(", ");
+                return (
+                  <Fragment key={a.id}>
+                    <tr>
+                      <td>
+                        <button
+                          type="button"
+                          className="mr-1 inline-flex size-6 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white align-middle text-[var(--soft-bordeaux)]"
+                          onClick={() => setExpandedId(isExpanded ? null : a.id)}
+                          aria-label={isExpanded ? "Свернуть заявку" : "Раскрыть заявку"}
+                          title={isExpanded ? "Свернуть" : "Раскрыть"}
+                        >
+                          {isExpanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
+                        </button>
+                        <span className="font-medium">{a.name}</span>
+                        {a.kind === "VERIFICATION" && <span className="ml-2 soft-admin-status-pill">Верификация</span>}
+                      </td>
+                      <td>
+                        <span className="soft-admin-cell-truncate">{a.email}</span>
+                        {a.telegram ? <span className="soft-admin-cell-muted">{a.telegram}</span> : null}
+                      </td>
+                      <td title={specialties}>{specialties}</td>
+                      <td title={a.experience}>{a.experience}</td>
+                      <td><Badge className={`${meta.color} text-xs`}>{meta.label}</Badge></td>
+                      <td>{new Date(a.createdAt).toLocaleDateString("ru-RU")}</td>
+                      <td>
+                        <div className="soft-admin-table-actions">
+                          {a.status !== "REVIEWING" && (
+                            <button type="button" onClick={() => updateStatus(a.id, "REVIEWING")} className="soft-admin-icon-button" title="На проверку" aria-label="Перевести заявку на проверку">
+                              <Clock3 className="size-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                          {a.status !== "APPROVED" && (
+                            <button type="button" onClick={() => updateStatus(a.id, "APPROVED")} className="soft-admin-icon-button" data-variant="primary" title="Одобрить" aria-label="Одобрить заявку">
+                              <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                          {a.status !== "REJECTED" && (
+                            <button type="button" onClick={() => updateStatus(a.id, "REJECTED")} className="soft-admin-icon-button" data-variant="danger" title="Отклонить" aria-label="Отклонить заявку">
+                              <XCircle className="size-3.5" aria-hidden="true" />
+                            </button>
+                          )}
+                          {a.status === "APPROVED" && adminRole === "SUPERADMIN" && (
+                            <a href={`/admin/product/users?role=PRACTITIONER&q=${encodeURIComponent(a.email)}`} className="soft-admin-icon-button" title="Открыть аккаунт практика" aria-label="Открыть аккаунт практика">
+                              <ExternalLink className="size-3.5" aria-hidden="true" />
                             </a>
-                          ))}
+                          )}
                         </div>
-                      </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${a.id}-details`} className="soft-admin-row-details">
+                        <td colSpan={7}>
+                          <div className="grid gap-4 p-4 lg:grid-cols-2">
+                            <div>
+                              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">О себе</p>
+                              <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">{a.about}</p>
+                            </div>
+                            <div className="space-y-3">
+                              {a.kind === "VERIFICATION" && (
+                                <div>
+                                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Тип заявки</p>
+                                  <p className="text-sm leading-relaxed text-muted-foreground">
+                                    Практик просит подтвердить личность/документы. При одобрении будет выставлен флаг verified.
+                                  </p>
+                                </div>
+                              )}
+                              {a.why && a.kind !== "VERIFICATION" && (
+                                <div>
+                                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Почему ETerapy</p>
+                                  <p className="text-sm leading-relaxed text-muted-foreground">{a.why}</p>
+                                </div>
+                              )}
+                              {(a.portfolio || a.formats.length > 0) && (
+                                <div className="flex flex-wrap gap-6">
+                                  {a.portfolio && (
+                                    <div className="min-w-0">
+                                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Портфолио</p>
+                                      <a href={a.portfolio.startsWith("http") ? a.portfolio : `https://${a.portfolio}`} target="_blank" className="block max-w-xs truncate text-sm text-primary hover:underline">
+                                        {a.portfolio}
+                                      </a>
+                                    </div>
+                                  )}
+                                  {a.formats.length > 0 && (
+                                    <div>
+                                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Форматы</p>
+                                      <p className="text-sm text-muted-foreground">{a.formats.join(", ")}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {a.attachments && a.attachments.length > 0 && (
+                                <div>
+                                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Документы ({a.attachments.length})</p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {a.attachments.map((url, i) => (
+                                      <a key={url} href={url} target="_blank" rel="noreferrer" className="soft-admin-action" data-variant="subtle">
+                                        Документ {i + 1}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-
-                    {/* Действия */}
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-border/10">
-                      {a.status !== "REVIEWING" && (
-                        <button onClick={() => updateStatus(a.id, "REVIEWING")}
-                          className="rounded-lg border border-blue-500/30 px-3 py-1.5 text-xs text-blue-400 hover:bg-blue-500/10">
-                          На проверку
-                        </button>
-                      )}
-                      {a.status !== "APPROVED" && (
-                        <button onClick={() => updateStatus(a.id, "APPROVED")}
-                          className="rounded-lg border border-green-500/30 px-3 py-1.5 text-xs text-green-400 hover:bg-green-500/10">
-                          ✓ Одобрить
-                        </button>
-                      )}
-                      {a.status !== "REJECTED" && (
-                        <button onClick={() => updateStatus(a.id, "REJECTED")}
-                          className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-500/10">
-                          Отклонить
-                        </button>
-                      )}
-                      {a.status === "APPROVED" && adminRole === "SUPERADMIN" && (
-                        <a href={`/admin/product/users?role=PRACTITIONER&q=${encodeURIComponent(a.email)}`}
-                          className="rounded-lg border border-primary/40 px-3 py-1.5 text-xs text-primary hover:bg-primary/10">
-                          Открыть аккаунт практика →
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

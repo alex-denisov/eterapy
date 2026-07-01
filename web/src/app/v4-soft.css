@@ -3076,7 +3076,17 @@
   }
 
   .soft-admin-shell table {
+    width: 100%;
+    border-collapse: collapse;
     color: var(--soft-ink);
+    font-size: 0.6875rem;
+    line-height: 1.25;
+    table-layout: auto;
+  }
+
+  .soft-admin-shell thead {
+    background: color-mix(in srgb, var(--soft-paper-deep) 78%, white);
+    color: var(--soft-ink-soft);
   }
 
   .soft-admin-shell th,
@@ -3084,11 +3094,71 @@
     border-color: var(--soft-paper-edge) !important;
   }
 
+  .soft-admin-shell th {
+    border-right: 1px solid var(--soft-paper-edge);
+    color: var(--soft-ink-soft);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+
+  .soft-admin-shell td {
+    border-top: 1px solid var(--soft-paper-edge);
+    border-right: 1px solid var(--soft-paper-edge);
+    max-width: 18rem;
+    overflow: hidden;
+    padding: 0.32rem 0.45rem;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .soft-admin-shell td:last-child,
+  .soft-admin-shell th:last-child {
+    border-right: 0;
+  }
+
+  .soft-admin-shell tbody tr:hover td {
+    background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
+  }
+
+  .soft-admin-shell td:has(input),
+  .soft-admin-shell td:has(select),
+  .soft-admin-shell td:has(textarea),
+  .soft-admin-shell td:has(details),
+  .soft-admin-shell td:has(pre),
+  .soft-admin-shell td[data-wrap="true"],
+  .soft-admin-shell .soft-admin-cell-wrap {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .soft-admin-shell td pre,
+  .soft-admin-shell td textarea {
+    white-space: pre-wrap;
+  }
+
+  .soft-admin-shell td code,
+  .soft-admin-shell td pre {
+    word-break: break-word;
+  }
+
+  .soft-admin-shell td img {
+    max-width: none;
+  }
+
   .soft-admin-data-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: auto;
-    font-size: 0.78rem;
+    font-size: 0.6875rem;
+    line-height: 1.25;
   }
 
   .soft-admin-data-table thead {
@@ -3097,16 +3167,20 @@
 
   .soft-admin-data-table th {
     vertical-align: top;
-    padding: 0.4rem 0.5rem;
+    padding: 0.32rem 0.45rem;
     text-align: left;
     font-weight: 700;
-    color: var(--soft-bordeaux);
+    color: var(--soft-ink-soft);
     white-space: nowrap;
   }
 
   .soft-admin-data-table td {
-    padding: 0.38rem 0.5rem;
+    max-width: 18rem;
+    overflow: hidden;
+    padding: 0.32rem 0.45rem;
+    text-overflow: ellipsis;
     vertical-align: middle;
+    white-space: nowrap;
     border-top: 1px solid var(--soft-paper-edge);
     background: color-mix(in srgb, var(--soft-paper-card) 95%, white);
   }
@@ -3115,8 +3189,20 @@
     background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
   }
 
+  .soft-admin-data-table td:has(input),
+  .soft-admin-data-table td:has(select),
+  .soft-admin-data-table td:has(textarea),
+  .soft-admin-data-table td:has(details),
+  .soft-admin-data-table td:has(pre),
+  .soft-admin-data-table td[data-wrap="true"],
+  .soft-admin-data-table .soft-admin-cell-wrap {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
   .soft-admin-table-filter {
-    margin-top: 0.15rem;
     width: 100%;
     min-width: 7rem;
     height: 1.7rem;
@@ -3275,6 +3361,58 @@
     opacity: 0.48;
   }
 
+  .soft-admin-table-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    white-space: nowrap;
+  }
+
+  .soft-admin-shell table td:last-child > .soft-admin-table-actions,
+  .soft-admin-shell table td:last-child > div:not([class*="grid"]):not([class*="space-y"]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.25rem;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .soft-admin-shell table td:last-child {
+    text-align: right;
+  }
+
+  .soft-admin-cell-truncate {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .soft-admin-cell-muted {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--soft-ink-faint);
+    font-size: 0.625rem;
+  }
+
+  .soft-admin-row-details {
+    background: color-mix(in srgb, var(--soft-paper-card) 86%, white);
+  }
+
+  .soft-admin-row-details td {
+    max-width: none;
+    overflow: visible;
+    padding: 0;
+    text-align: left;
+    white-space: normal;
+  }
+
   .soft-admin-icon-button {
     display: inline-flex;
     align-items: center;
@@ -3297,6 +3435,12 @@
     border-color: var(--soft-terracotta);
     background: var(--soft-terracotta);
     color: #fff8f1;
+  }
+
+  .soft-admin-icon-button[data-variant="danger"] {
+    border-color: color-mix(in srgb, var(--soft-rose) 60%, var(--soft-paper-edge));
+    background: var(--soft-rose);
+    color: var(--soft-bordeaux);
   }
 
   .soft-admin-icon-button:disabled {

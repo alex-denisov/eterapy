@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CheckCircle2, EyeOff, Pencil, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface AdminReview {
@@ -190,7 +191,7 @@ export function ReviewsManager({
 
   const TH = "p-0 align-top text-left";
   const TD = "px-2.5 py-2 align-top";
-  const ACTION = "rounded-md px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+  const ACTION = "soft-admin-icon-button disabled:cursor-not-allowed disabled:opacity-40";
   const HEADER_BUTTON = "flex h-7 w-full items-center justify-between gap-1 px-2 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]";
   const FILTER_INPUT = "soft-admin-table-filter mt-0";
 
@@ -274,9 +275,13 @@ export function ReviewsManager({
                               className="w-full rounded-md border border-border/60 bg-card/40 px-2 py-1.5 text-sm"
                               aria-label="Текст отзыва"
                             />
-                            <div className="flex gap-2">
-                              <button type="button" disabled={busy} onClick={() => saveText(r.id)} className={`${ACTION} bg-foreground text-background`}>Сохранить</button>
-                              <button type="button" disabled={busy} onClick={() => setEditingId(null)} className={`${ACTION} bg-muted/30 text-muted-foreground hover:bg-muted/50`}>Отмена</button>
+                            <div className="soft-admin-table-actions justify-start">
+                              <button type="button" disabled={busy} onClick={() => saveText(r.id)} className={ACTION} data-variant="primary" title="Сохранить" aria-label="Сохранить отзыв">
+                                <Save className="size-3.5" aria-hidden="true" />
+                              </button>
+                              <button type="button" disabled={busy} onClick={() => setEditingId(null)} className={ACTION} title="Отмена" aria-label="Отменить редактирование">
+                                <X className="size-3.5" aria-hidden="true" />
+                              </button>
                             </div>
                           </div>
                         ) : (
@@ -296,12 +301,20 @@ export function ReviewsManager({
                       <td className={`${TD} whitespace-nowrap text-xs text-muted-foreground`}>{formatDateTime(r.createdAt)}</td>
                       <td className={`${TD} whitespace-nowrap font-medium ${meta.className}`}>{meta.label}</td>
                       <td className={`${TD} text-right`}>
-                        <div className="inline-flex flex-wrap justify-end gap-1.5">
-                          <button type="button" disabled={busy || r.status === "PUBLISHED"} onClick={() => setStatus(r.id, "PUBLISHED")} className={`${ACTION} border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20`}>Опубликовать</button>
-                          <button type="button" disabled={busy || r.status === "HIDDEN"} onClick={() => setStatus(r.id, "HIDDEN")} className={`${ACTION} border border-border bg-muted/30 text-muted-foreground hover:bg-muted/50`}>Скрыть</button>
-                          <button type="button" disabled={busy} onClick={() => { setEditingId(r.id); setEditText(r.text ?? ""); }} className={`${ACTION} border border-border bg-card/40 text-foreground hover:bg-muted/40`}>Изменить</button>
+                        <div className="soft-admin-table-actions">
+                          <button type="button" disabled={busy || r.status === "PUBLISHED"} onClick={() => setStatus(r.id, "PUBLISHED")} className={ACTION} data-variant="primary" title="Опубликовать" aria-label="Опубликовать отзыв">
+                            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                          </button>
+                          <button type="button" disabled={busy || r.status === "HIDDEN"} onClick={() => setStatus(r.id, "HIDDEN")} className={ACTION} title="Скрыть" aria-label="Скрыть отзыв">
+                            <EyeOff className="size-3.5" aria-hidden="true" />
+                          </button>
+                          <button type="button" disabled={busy} onClick={() => { setEditingId(r.id); setEditText(r.text ?? ""); }} className={ACTION} title="Изменить" aria-label="Изменить отзыв">
+                            <Pencil className="size-3.5" aria-hidden="true" />
+                          </button>
                           {canDelete && (
-                            <button type="button" disabled={busy} onClick={() => remove(r.id)} className={`${ACTION} border border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/20`}>Удалить</button>
+                            <button type="button" disabled={busy} onClick={() => remove(r.id)} className={ACTION} data-variant="danger" title="Удалить" aria-label="Удалить отзыв">
+                              <Trash2 className="size-3.5" aria-hidden="true" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -314,9 +327,9 @@ export function ReviewsManager({
 
           {pageCount > 1 && (
             <div className="mt-3 flex items-center justify-between gap-2 text-sm">
-              <button type="button" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className={`${ACTION} border border-border bg-card/40 text-foreground hover:bg-muted/40`}>Назад</button>
+              <button type="button" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="soft-admin-action" data-variant="subtle">Назад</button>
               <span className="text-xs text-muted-foreground">Страница {safePage} / {pageCount}</span>
-              <button type="button" disabled={safePage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))} className={`${ACTION} border border-border bg-card/40 text-foreground hover:bg-muted/40`}>Вперёд</button>
+              <button type="button" disabled={safePage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))} className="soft-admin-action" data-variant="subtle">Вперёд</button>
             </div>
           )}
         </>

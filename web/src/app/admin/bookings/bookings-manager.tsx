@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import {
   CompactHeader,
@@ -211,11 +212,13 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
                   <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                     <button
                       type="button"
-                      className="soft-admin-action"
+                      className="soft-admin-icon-button"
                       data-variant="subtle"
                       onClick={() => setExpandedId(isExpanded ? null : b.id)}
+                      title={isExpanded ? "Свернуть" : "Открыть"}
+                      aria-label={isExpanded ? "Свернуть бронирование" : "Открыть бронирование"}
                     >
-                      {isExpanded ? "Свернуть" : "Открыть"}
+                      {isExpanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
                     </button>
                   </td>
                 </tr>

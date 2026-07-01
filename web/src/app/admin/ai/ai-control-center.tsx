@@ -559,7 +559,7 @@ function CompactTableShell({
   return (
     <div className="max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
       <div className="max-w-full overflow-auto">
-        <table className="w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth }}>
+        <table className="soft-admin-compact-table w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth }}>
           {children}
         </table>
       </div>

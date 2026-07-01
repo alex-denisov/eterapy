@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Download } from "lucide-react";
 import { auth } from "@/lib/auth";
 import {
   cardPartsFromMetadata,
@@ -82,7 +83,11 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
             method,
             method === "Банковская карта" ? cardMask(parts.first6, parts.last4) : "—",
             tx.providerPaymentId ?? tx.provider,
-            tx.providerPaymentId ? <a key="receipt" className="soft-admin-action" href={`/api/admin/finance/receipt/${tx.id}`} target="_blank">Скачать чек</a> : "—",
+            tx.providerPaymentId ? (
+              <a key="receipt" className="soft-admin-icon-button" href={`/api/admin/finance/receipt/${tx.id}`} target="_blank" title="Скачать чек" aria-label="Скачать чек">
+                <Download className="size-3.5" aria-hidden="true" />
+              </a>
+            ) : "—",
           ];
         })}
       />

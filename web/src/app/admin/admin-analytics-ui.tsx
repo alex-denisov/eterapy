@@ -580,8 +580,10 @@ export function DataTable({
         {rows.length > 0 ? rows.map((row, index) => (
           <tr key={index}>
             {row.map((cell, cellIndex) => (
-              <td key={cellIndex} className={`${COMPACT_CELL_CLASS} max-w-[28rem] whitespace-normal break-words`}>
-                {cell}
+              <td key={cellIndex} className={`${COMPACT_CELL_CLASS} max-w-[22rem]`}>
+                {typeof cell === "string" || typeof cell === "number" ? (
+                  <span className="soft-admin-cell-truncate" title={String(cell)}>{cell}</span>
+                ) : cell}
               </td>
             ))}
           </tr>

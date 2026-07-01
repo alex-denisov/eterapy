@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Download } from "lucide-react";
 import {
   CompactHeader,
   CompactPaginationBar,
@@ -162,9 +163,9 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
                     </td>
                     <td className={COMPACT_CELL_CLASS}>
                       {s.recordingUrl ? (
-                        <div>
-                          <a href={s.recordingUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--soft-bordeaux)] hover:underline">
-                            ⬇ Скачать
+                        <div className="inline-flex flex-col items-end gap-1">
+                          <a href={s.recordingUrl} target="_blank" rel="noopener noreferrer" className="soft-admin-icon-button" title="Скачать запись" aria-label="Скачать запись">
+                            <Download className="size-3.5" aria-hidden="true" />
                           </a>
                           {s.recordingExpiry && (
                             <p className="text-[10px] text-[var(--soft-ink-faint)]">

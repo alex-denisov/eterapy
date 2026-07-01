@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BookOpenText } from "lucide-react";
+import { BookOpenText, CheckCircle2, EyeOff } from "lucide-react";
 import { StatusBadge, formatDateTime } from "../../admin-analytics-ui";
 
 export interface LibraryRequestRow {
@@ -122,9 +122,28 @@ export function LibraryRequestsManager({ rows: initialRows }: { rows: LibraryReq
                 <td className="whitespace-nowrap text-xs text-[var(--soft-ink-soft)]">{formatDateTime(row.consentAt)}</td>
                 <td className="whitespace-nowrap text-xs text-[var(--soft-ink-soft)]">{formatDateTime(row.createdAt)}</td>
                 <td>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button type="button" disabled={busyId === row.id || row.status === "PUBLISHED"} onClick={() => updateStatus(row.id, "PUBLISHED")} className="soft-admin-action" data-variant="primary">Опубликовать</button>
-                    <button type="button" disabled={busyId === row.id || row.status === "WITHDRAWN"} onClick={() => updateStatus(row.id, "WITHDRAWN")} className="soft-admin-action" data-variant="subtle">Снять</button>
+                  <div className="soft-admin-table-actions">
+                    <button
+                      type="button"
+                      disabled={busyId === row.id || row.status === "PUBLISHED"}
+                      onClick={() => updateStatus(row.id, "PUBLISHED")}
+                      className="soft-admin-icon-button"
+                      data-variant="primary"
+                      title="Опубликовать"
+                      aria-label="Опубликовать вопрос"
+                    >
+                      <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busyId === row.id || row.status === "WITHDRAWN"}
+                      onClick={() => updateStatus(row.id, "WITHDRAWN")}
+                      className="soft-admin-icon-button"
+                      title="Снять"
+                      aria-label="Снять вопрос с публикации"
+                    >
+                      <EyeOff className="size-3.5" aria-hidden="true" />
+                    </button>
                   </div>
                 </td>
               </tr>

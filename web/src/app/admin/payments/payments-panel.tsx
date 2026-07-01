@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Pause, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -213,14 +214,15 @@ export function PaymentsPanel({
             type="button"
             onClick={startPayoutRun}
             disabled={runProcessing}
-            className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-40"
+            className="soft-admin-action"
+            data-variant="primary"
             data-testid="admin-payout-run-start"
           >
             {runProcessing ? "Запуск..." : "Запустить авто-выплаты"}
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="soft-admin-data-table min-w-[760px]">
             <thead className="bg-card/30 border-b border-border/20">
               <tr>
                 <th className="p-3 text-left text-xs font-medium text-muted-foreground">Дата</th>
@@ -270,7 +272,7 @@ export function PaymentsPanel({
       </div>
 
       <div className="rounded-xl border border-border/30 overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="soft-admin-data-table min-w-[980px]">
           <thead className="bg-card/30 border-b border-border/20">
             <tr>
               <th className="p-3 w-8">
@@ -320,15 +322,18 @@ export function PaymentsPanel({
                   )}
                 </td>
                 <td className="p-3">
-                  <div className="flex gap-1 items-center justify-end">
+                  <div className="soft-admin-table-actions">
                     <button onClick={async () => { if (await markPaid(p.id)) router.refresh(); }}
                       disabled={processing === p.id || p.practitionerEarnings === 0}
-                      className="rounded-lg bg-[var(--soft-terracotta)] px-2.5 py-1 text-xs font-medium text-[#fff8f1] hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-40 transition-colors">
-                      {processing === p.id ? "..." : "Выплатить"}
+                      className="soft-admin-icon-button"
+                      data-variant="primary"
+                      title="Выплатить"
+                      aria-label={`Выплатить ${p.name}`}>
+                      {processing === p.id ? "..." : <CheckCircle2 className="size-3.5" aria-hidden="true" />}
                     </button>
                     <div className="relative group">
-                      <button className="rounded-lg border border-border/30 px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
-                        ⏸
+                      <button className="soft-admin-icon-button" title="Приостановить выплату" aria-label={`Приостановить выплату ${p.name}`}>
+                        <Pause className="size-3.5" aria-hidden="true" />
                       </button>
                       {/* Всплывающая форма приостановки */}
                       <div className="absolute right-0 top-full mt-1 z-10 hidden group-focus-within:block w-56 rounded-xl border border-border/40 bg-card p-3 shadow-xl">
@@ -349,9 +354,11 @@ export function PaymentsPanel({
                         type="button"
                         onClick={() => verifyKyc(p.id)}
                         disabled={processing === p.id}
-                        className="rounded-lg border border-border/30 px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                        className="soft-admin-icon-button disabled:opacity-40"
+                        title="Проверить KYC"
+                        aria-label={`Проверить KYC ${p.name}`}
                       >
-                        KYC
+                        <ShieldCheck className="size-3.5" aria-hidden="true" />
                       </button>
                     )}
                   </div>
@@ -392,7 +399,7 @@ export function PaymentsPanel({
           </div>
           <Badge variant="outline">{clarityCredits.length}</Badge>
         </div>
-        <table className="w-full text-sm">
+        <table className="soft-admin-data-table min-w-[760px]">
           <thead className="bg-card/20">
             <tr>
               <th className="p-3 text-left text-xs text-muted-foreground font-medium">Пользователь</th>
