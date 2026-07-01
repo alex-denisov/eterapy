@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { Download } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import {
   cardPartsFromMetadata,
   getFinanceRows,
@@ -11,12 +11,10 @@ import {
 } from "../../admin-analytics-data";
 import {
   AdminHero,
-  DataTable,
-  LinkPagination,
   PeriodToolbar,
-  StatusBadge,
   cardMask,
   formatDateTime,
+  statusLabel,
 } from "../../admin-analytics-ui";
 import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
@@ -26,9 +24,37 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+const receiptColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
+  { key: "client", label: "Клиент", sortable: true },
+  { key: "amount", label: "Сумма", sortable: true, align: "right" },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "SUCCEEDED", label: "Успешно" },
+      { value: "PENDING", label: "Ожидает" },
+      { value: "FAILED", label: "Ошибка" },
+      { value: "REFUNDED", label: "Возврат" },
+    ],
+  },
+  {
+    key: "method",
+    label: "Метод",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "Банковская карта", label: "Банковская карта" },
+      { value: "СБП", label: "СБП" },
+      { value: "ЮKassa", label: "ЮKassa" },
+    ],
+  },
+  { key: "source", label: "Источник", sortable: true },
+  { key: "provider", label: "Провайдер", sortable: true },
+  { key: "receipt", label: "Чек", filterKind: "none", align: "center" },
+];
 
 export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
   const session = await auth();
@@ -36,14 +62,11 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const period = resolveAdminPeriod(params);
   const currency = resolveAdminCurrency(params);
-  const page = Math.max(1, Number(first(params.page)) || 1);
-  const q = first(params.q) ?? "";
   const [{ transactions, total, take }, currencyRates] = await Promise.all([
-    getFinanceRows(period, page, q),
+    getFinanceRows(period, 1, "", 500),
     getAdminCurrencyRates(),
   ]);
   const baseReport = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}`;
-  const paginationHref = (nextPage: number) => `/admin/finance/receipts?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${nextPage}`;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-finance-receipts">
@@ -61,38 +84,38 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
         Таблица показывает 20 операций на страницу, дату и время с секундами, способ оплаты и доступный источник оплаты без скрытия клиентских данных.
       </AdminHero>
 
-      <form className="mb-4 flex flex-wrap items-center gap-2">
-        <input type="hidden" name="start" value={period.startInput} />
-        <input type="hidden" name="end" value={period.endInput} />
-        <input name="q" defaultValue={q} placeholder="Поиск по клиенту, email, provider payment id" className="min-w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-3 py-2 text-sm" />
-        <button className="soft-admin-action" type="submit">Найти</button>
-        <button className="soft-admin-action" type="button">Проверить выбранные у провайдера</button>
-      </form>
-
-      <DataTable
-        columns={["Выбор", "Дата и время", "Клиент", "Сумма", "Статус", "Метод", "Источник", "Провайдер", "Чек"]}
+      <AdminCompactDataTable
+        columns={receiptColumns}
+        selectable
+        bulkActions={[{ key: "provider-check", label: "Проверить выбранные у провайдера", variant: "subtle" }]}
         rows={transactions.map((tx) => {
           const parts = cardPartsFromMetadata(tx.metadata);
           const method = paymentMethodFromMetadata(tx.provider, tx.metadata);
-          return [
-            <input key="select" type="checkbox" className="accent-[var(--soft-bordeaux)]" />,
-            formatDateTime(tx.createdAt),
-            <span key="user">{tx.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{tx.user.email}</span></span>,
-            formatAdminRub(tx.amount / 100, currency, currencyRates),
-            <StatusBadge key="status" status={tx.status} />,
-            method,
-            method === "Банковская карта" ? cardMask(parts.first6, parts.last4) : "—",
-            tx.providerPaymentId ?? tx.provider,
-            tx.providerPaymentId ? (
-              <a key="receipt" className="soft-admin-icon-button" href={`/api/admin/finance/receipt/${tx.id}`} target="_blank" title="Скачать чек" aria-label="Скачать чек">
-                <Download className="size-3.5" aria-hidden="true" />
-              </a>
-            ) : "—",
-          ];
+          const amount = tx.amount / 100;
+          const source = method === "Банковская карта" ? cardMask(parts.first6, parts.last4) : "—";
+          const txStatus = String(tx.status);
+          return {
+            id: tx.id,
+            cells: {
+              createdAt: { value: formatDateTime(tx.createdAt), sortValue: new Date(tx.createdAt).getTime(), filterValue: formatDateTime(tx.createdAt) },
+              client: { value: tx.user.name ?? "—", subvalue: tx.user.email, filterValue: `${tx.user.name ?? ""} ${tx.user.email ?? ""}` },
+              amount: { value: formatAdminRub(amount, currency, currencyRates), sortValue: amount },
+              status: { kind: "status", label: statusLabel(tx.status), tone: txStatus === "SUCCEEDED" ? "ok" : txStatus === "FAILED" ? "danger" : "warn", filterValue: `${tx.status} ${statusLabel(tx.status)}` },
+              method,
+              source,
+              provider: tx.providerPaymentId ?? tx.provider,
+              receipt: tx.providerPaymentId
+                ? { kind: "link", href: `/api/admin/finance/receipt/${tx.id}`, icon: "download", external: true, title: "Скачать чек" }
+                : null,
+            },
+          };
         })}
+        empty="Поступлений за выбранный период нет"
+        minWidth="1240px"
       />
-
-      <LinkPagination page={page} pageSize={take} total={total} hrefForPage={paginationHref} />
+      {total > take ? (
+        <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">Показаны последние {take} операций из {total.toLocaleString("ru-RU")} за период. Для полного среза используйте экспорт.</p>
+      ) : null}
     </main>
   );
 }

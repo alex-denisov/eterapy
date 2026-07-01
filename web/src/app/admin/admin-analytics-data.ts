@@ -317,7 +317,7 @@ export async function getDashboardAnalytics(period: AdminPeriod) {
   };
 }
 
-export async function getFinanceRows(period: AdminPeriod, page = 1, query = "") {
+export async function getFinanceRows(period: AdminPeriod, page = 1, query = "", take = 20) {
   const whereQuery = query.trim();
   const where = {
     createdAt: { gte: period.start, lte: period.end },
@@ -330,7 +330,6 @@ export async function getFinanceRows(period: AdminPeriod, page = 1, query = "") 
       ],
     } : {}),
   };
-  const take = 20;
   const [transactions, total] = await Promise.all([
     db.transaction.findMany({
       where,

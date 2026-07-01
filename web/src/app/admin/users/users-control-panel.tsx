@@ -501,7 +501,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
         <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
           <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
             Роль
-            <select className="soft-admin-table-filter mt-1 h-9" value={role} onChange={(event) => setRole(event.target.value as typeof role)}>
+            <select className={`${COMPACT_SELECT_CLASS} mt-1 h-9`} value={role} onChange={(event) => setRole(event.target.value as typeof role)}>
               <option value="CLIENT">Клиент</option>
               <option value="PRACTITIONER">Практик</option>
               <option value="ADMIN">Модератор</option>
@@ -559,7 +559,7 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
               </label>
               <label className="md:col-span-2 text-xs font-semibold text-[var(--soft-ink-soft)]">
                 Описание
-                <textarea className="soft-admin-table-filter mt-1 min-h-20 py-2" value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Коротко о подходе практика" />
+                <textarea className={`${COMPACT_INPUT_CLASS} mt-1 min-h-20 py-2`} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Коротко о подходе практика" />
               </label>
               <div className="md:col-span-2">
                 <PractitionerTaxonomyFields

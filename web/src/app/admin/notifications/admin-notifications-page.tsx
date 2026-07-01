@@ -10,6 +10,7 @@ import { NOTIFICATION_DELIVERY_JOB_TYPE } from "@/lib/notification-delivery";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { maskEmail, roleLabelRu } from "@/lib/mask-email";
 import { PageContainer } from "@/components/ui/page-container";
+import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS, COMPACT_INPUT_CLASS, COMPACT_SELECT_CLASS } from "@/components/admin/compact-table";
 import { LinkPagination } from "../admin-analytics-ui";
 import { JobActions } from "../jobs/job-actions";
 
@@ -85,7 +86,7 @@ function HeaderInput({ params, name, placeholder }: { params: SearchParams; name
   return (
     <form action="/admin/ops/notifications">
       <HiddenParams params={params} except={[name]} />
-      <input className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
+      <input className={COMPACT_INPUT_CLASS} name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
     </form>
   );
 }
@@ -94,7 +95,7 @@ function HeaderSelect({ params, name, options }: { params: SearchParams; name: k
   return (
     <form action="/admin/ops/notifications">
       <HiddenParams params={params} except={[name]} />
-      <select className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""}>
+      <select className={COMPACT_SELECT_CLASS} name={name} defaultValue={params[name] ?? ""}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -229,44 +230,44 @@ export default async function AdminNotificationsPage(props: {
         </div>
       </div>
 
-      <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[1320px]" data-testid="admin-notification-jobs-table">
+      <section data-testid="admin-notification-jobs-table">
+        <CompactTableShell minWidth="1320px">
           <thead>
             <tr>
-              <th><SortLink params={params} field="createdAt">Событие</SortLink><HeaderInput params={params} name="event" placeholder="event" /></th>
-              <th>Канал<HeaderInput params={params} name="channel" placeholder="email/web/telegram" /></th>
-              <th>Кому</th>
-              <th><SortLink params={params} field="status">Статус</SortLink><HeaderSelect params={params} name="status" options={[{ value: "", label: "Все" }, ...Object.values(JobStatus).map((item) => ({ value: item, label: item }))]} /></th>
-              <th><SortLink params={params} field="attempts">Retry</SortLink></th>
-              <th>Request</th>
-              <th><SortLink params={params} field="runAfter">Run after</SortLink></th>
-              <th><SortLink params={params} field="updatedAt">Обновлено</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></th>
-              <th>Ошибка</th>
-              <th>Действия</th>
+              <CompactHeader label="Событие"><SortLink params={params} field="createdAt">Сортировать</SortLink><HeaderInput params={params} name="event" placeholder="event" /></CompactHeader>
+              <CompactHeader label="Канал"><HeaderInput params={params} name="channel" placeholder="email/web/telegram" /></CompactHeader>
+              <CompactHeader label="Кому" />
+              <CompactHeader label="Статус"><SortLink params={params} field="status">Сортировать</SortLink><HeaderSelect params={params} name="status" options={[{ value: "", label: "Все" }, ...Object.values(JobStatus).map((item) => ({ value: item, label: item }))]} /></CompactHeader>
+              <CompactHeader label="Retry"><SortLink params={params} field="attempts">Сортировать</SortLink></CompactHeader>
+              <CompactHeader label="Request" />
+              <CompactHeader label="Run after"><SortLink params={params} field="runAfter">Сортировать</SortLink></CompactHeader>
+              <CompactHeader label="Обновлено"><SortLink params={params} field="updatedAt">Сортировать</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></CompactHeader>
+              <CompactHeader label="Ошибка" />
+              <CompactHeader label="Действия" />
             </tr>
           </thead>
           <tbody>
             {jobs.length === 0 ? (
-              <tr><td colSpan={10} className="text-center">Delivery jobs пока нет</td></tr>
+              <tr><td colSpan={10} className={`${COMPACT_CELL_CLASS} text-center`}>Delivery jobs пока нет</td></tr>
             ) : jobs.map((job) => (
               <tr key={job.id} data-testid="notification-diagnostic-row">
-                <td>{job.payload.event ?? "unknown"}</td>
-                <td>{job.payload.channel ?? "unknown"}</td>
-                <td className="max-w-44 truncate" title={recipientLabel(job.payload.userId).who}>
+                <td className={COMPACT_CELL_CLASS}>{job.payload.event ?? "unknown"}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.payload.channel ?? "unknown"}</td>
+                <td className={`${COMPACT_CELL_CLASS} max-w-44 truncate`} title={recipientLabel(job.payload.userId).who}>
                   {recipientLabel(job.payload.userId).who}
                   <span className="ml-1 text-[var(--soft-ink-faint)]">· {recipientLabel(job.payload.userId).role}</span>
                 </td>
-                <td><span className="soft-admin-status-pill" data-tone={statusTone(job.status)}>{job.status}</span></td>
-                <td>{job.attempts}/{job.maxAttempts}</td>
-                <td className="max-w-44 truncate">{job.payload.requestId ?? job.id}</td>
-                <td>{job.runAfter.toLocaleString("ru-RU")}</td>
-                <td>{job.updatedAt.toLocaleString("ru-RU")}</td>
-                <td className="max-w-md truncate">{job.error ?? "нет"}</td>
-                <td><JobActions jobId={job.id} status={job.status} maxAttempts={job.maxAttempts} label="Отправить" /></td>
+                <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={statusTone(job.status)}>{job.status}</span></td>
+                <td className={COMPACT_CELL_CLASS}>{job.attempts}/{job.maxAttempts}</td>
+                <td className={`${COMPACT_CELL_CLASS} max-w-44 truncate`}>{job.payload.requestId ?? job.id}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.runAfter.toLocaleString("ru-RU")}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.updatedAt.toLocaleString("ru-RU")}</td>
+                <td className={`${COMPACT_CELL_CLASS} max-w-md truncate`}>{job.error ?? "нет"}</td>
+                <td className={`${COMPACT_CELL_CLASS} border-r-0`}><JobActions jobId={job.id} status={job.status} maxAttempts={job.maxAttempts} label="Отправить" /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </CompactTableShell>
       </section>
 
       <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { page: String(nextPage) })} />

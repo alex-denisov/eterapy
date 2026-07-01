@@ -3,13 +3,35 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getDashboardAnalytics, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, DataTable, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, VerticalBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
+import { AdminHero, MetricCard, MetricGrid, PeriodToolbar, VerticalBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
 import { FinanceExportMenu } from "../export-menu";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const pointColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
+  { key: "user", label: "Пользователь", sortable: true },
+  { key: "amount", label: "Баллы", sortable: true, align: "right" },
+  { key: "type", label: "Тип", sortable: true },
+  { key: "source", label: "Источник", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "PENDING", label: "Ожидает" },
+      { value: "SUCCEEDED", label: "Успешно" },
+      { value: "FAILED", label: "Ошибка" },
+      { value: "REVOKED", label: "Отозвано" },
+    ],
+  },
+  { key: "balanceAfter", label: "Баланс после", sortable: true, align: "right" },
+];
 
 export default async function FinancePointsPage({ searchParams }: PageProps) {
   const session = await auth();
@@ -45,17 +67,24 @@ export default async function FinancePointsPage({ searchParams }: PageProps) {
       </MetricGrid>
       <div className="mt-6 grid gap-4">
         <VerticalBarChart label="Баллы на балансе по дням: дневное изменение" data={charts.creditsByDay} integerTicks />
-        <DataTable
-          columns={["Дата и время", "Пользователь", "Баллы", "Тип", "Источник", "Статус", "Баланс после"]}
-          rows={entries.map((entry) => [
-            formatDateTime(entry.createdAt),
-            <span key="user">{entry.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{entry.user.email}</span></span>,
-            entry.amount,
-            statusLabel(entry.type),
-            entry.source,
-            <StatusBadge key="status" status={entry.status} />,
-            entry.balanceAfter ?? "—",
-          ])}
+        <AdminCompactDataTable
+          columns={pointColumns}
+          rows={entries.map((entry) => {
+            const entryStatus = String(entry.status);
+            return {
+              id: entry.id,
+              cells: {
+                createdAt: { value: formatDateTime(entry.createdAt), sortValue: entry.createdAt.getTime(), filterValue: formatDateTime(entry.createdAt) },
+                user: { value: entry.user.name ?? "—", subvalue: entry.user.email, filterValue: `${entry.user.name ?? ""} ${entry.user.email ?? ""}` },
+                amount: { value: entry.amount, sortValue: entry.amount },
+                type: statusLabel(entry.type),
+                source: entry.source,
+                status: { kind: "status", label: statusLabel(entry.status), tone: entryStatus === "SUCCEEDED" ? "ok" : entryStatus === "FAILED" ? "danger" : "warn", filterValue: `${entry.status} ${statusLabel(entry.status)}` },
+                balanceAfter: { value: entry.balanceAfter ?? "—", sortValue: entry.balanceAfter ?? -1 },
+              },
+            };
+          })}
+          minWidth="1080px"
         />
       </div>
     </main>

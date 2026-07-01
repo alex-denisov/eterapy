@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
+import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS, COMPACT_INPUT_CLASS, COMPACT_SELECT_CLASS } from "@/components/admin/compact-table";
 import { LinkPagination } from "../admin-analytics-ui";
 
 type SearchParams = {
@@ -278,7 +279,7 @@ export default async function AdminDatabasePage(props: {
       <form action="/admin/ops/database" className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
           Таблица
-          <select className="soft-admin-table-filter mt-1 h-9 min-w-56" name="table" defaultValue={table}>
+          <select className={`${COMPACT_SELECT_CLASS} mt-1 h-9 min-w-56`} name="table" defaultValue={table}>
             {TABLES.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
@@ -286,30 +287,30 @@ export default async function AdminDatabasePage(props: {
         </label>
         <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
           Поиск
-          <input className="soft-admin-table-filter mt-1 h-9 min-w-80" name="q" defaultValue={q} placeholder="id, email, статус, описание" />
+          <input className={`${COMPACT_INPUT_CLASS} mt-1 h-9 min-w-80`} name="q" defaultValue={q} placeholder="id, email, статус, описание" />
         </label>
         <button className="soft-admin-action" data-variant="primary" type="submit">Открыть</button>
       </form>
 
-      <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[1080px]" data-testid="admin-database-browser">
+      <section data-testid="admin-database-browser">
+        <CompactTableShell minWidth="1080px">
           <thead>
             <tr>
-              {columns.length === 0 ? <th>{table}</th> : columns.map((column) => <th key={column}>{column}</th>)}
+              {columns.length === 0 ? <CompactHeader label={table} /> : columns.map((column) => <CompactHeader key={column} label={column} />)}
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={Math.max(1, columns.length)} className="text-center">Строки не найдены</td></tr>
+              <tr><td colSpan={Math.max(1, columns.length)} className={`${COMPACT_CELL_CLASS} py-8 text-center`}>Строки не найдены</td></tr>
             ) : rows.map((row, index) => (
               <tr key={`${table}-${index}`}>
                 {columns.map((column) => (
-                  <td key={column} className="max-w-md truncate">{String(row[column] ?? "null")}</td>
+                  <td key={column} className={`${COMPACT_CELL_CLASS} max-w-md truncate`}>{String(row[column] ?? "null")}</td>
                 ))}
               </tr>
             ))}
           </tbody>
-        </table>
+        </CompactTableShell>
       </section>
 
       <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { table, page: String(nextPage) })} />

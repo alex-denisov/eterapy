@@ -1,41 +1,41 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, AnalyticsSection, DataTable, LinkPagination, PeriodToolbar, StackedBarChart, StatusBadge, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, PeriodToolbar, StackedBarChart, VerticalBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+const resultColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Timestamp", sortable: true, filterKind: "date" },
+  { key: "client", label: "Клиент", sortable: true },
+  { key: "product", label: "Продукт", sortable: true },
+  { key: "title", label: "Название", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "READY", label: "Готово" },
+      { value: "CREATED", label: "Создано" },
+      { value: "FAILED", label: "Ошибка" },
+    ],
+  },
+  { key: "open", label: "Открыть", filterKind: "none", align: "center" },
+];
 
 export default async function ProductResultsPage({ searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user?.id || !["ADMIN", "SUPERADMIN"].includes(session.user.role ?? "")) redirect("/admin");
   const params = await searchParams;
   const period = resolveAdminPeriod(params);
-  const q = (first(params.q) ?? "").trim().toLowerCase();
-  const page = Math.max(1, Number(first(params.page)) || 1);
   const data = await getProductCenterData(period);
-  const filtered = data.results.filter((result) => {
-    if (!q) return true;
-    return [
-      result.title,
-      result.status,
-      productLabel(result.productKey),
-      result.user.name,
-      result.user.email,
-    ].some((value) => value?.toLowerCase().includes(q));
-  });
-  const take = 20;
-  const rows = filtered.slice((page - 1) * take, page * take);
-  const paginationHref = (nextPage: number) => `/admin/product/results?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${nextPage}`;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -68,26 +68,25 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
         ))}
       </div>
       <div className="mt-6">
-        <form className="mb-4 flex flex-wrap items-center gap-2">
-          <input type="hidden" name="start" value={period.startInput} />
-          <input type="hidden" name="end" value={period.endInput} />
-          <input name="q" defaultValue={q} placeholder="Поиск по клиенту, email, продукту, статусу" className="min-w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-3 py-2 text-sm" />
-          <button className="soft-admin-action" type="submit">Найти</button>
-        </form>
-        <DataTable
-          columns={["Timestamp", "Клиент", "Продукт", "Название", "Статус", "Открыть"]}
-          rows={rows.map((result) => [
-            formatDateTime(result.createdAt),
-            <span key="user">{result.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{result.user.email}</span></span>,
-            productLabel(result.productKey),
-            result.title,
-            <StatusBadge key="status" status={result.status} />,
-            <a key="open" className="soft-admin-icon-button" href={appUrl(`/cabinet/results/${result.id}`)} target="_blank" rel="noreferrer" title="Открыть результат" aria-label={`Открыть результат ${result.title}`}>
-              <ExternalLink className="size-3.5" aria-hidden="true" />
-            </a>,
-          ])}
+        <AdminCompactDataTable
+          columns={resultColumns}
+          rows={data.results.map((result) => {
+            const resultStatus = String(result.status);
+            return {
+              id: result.id,
+              cells: {
+                createdAt: { value: formatDateTime(result.createdAt), sortValue: new Date(result.createdAt).getTime(), filterValue: formatDateTime(result.createdAt) },
+                client: { value: result.user.name ?? "—", subvalue: result.user.email, filterValue: `${result.user.name ?? ""} ${result.user.email ?? ""}` },
+                product: { value: productLabel(result.productKey), filterValue: `${productLabel(result.productKey)} ${result.productKey}` },
+                title: result.title,
+                status: { kind: "status", label: statusLabel(result.status), tone: resultStatus === "FAILED" ? "danger" : resultStatus === "READY" ? "ok" : "warn", filterValue: `${result.status} ${statusLabel(result.status)}` },
+                open: { kind: "link", href: appUrl(`/cabinet/results/${result.id}`), icon: "open", external: true, title: `Открыть результат ${result.title}` },
+              },
+            };
+          })}
+          empty="Результатов за выбранный период нет"
+          minWidth="1120px"
         />
-        <LinkPagination page={page} pageSize={take} total={filtered.length} hrefForPage={paginationHref} />
       </div>
     </main>
   );

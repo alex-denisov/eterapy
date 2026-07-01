@@ -1,12 +1,11 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ExternalLink, FileText, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getProductCenterData, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, DataTable, LinkPagination, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, formatDateTime } from "../../admin-analytics-ui";
+import { AdminHero, MetricCard, MetricGrid, PeriodToolbar, formatDateTime, statusLabel } from "../../admin-analytics-ui";
 import { BookingsManager, type AdminBookingRow } from "../../bookings/bookings-manager";
 import { SessionsTable, type VideoSessionRow } from "../../sessions/sessions-table";
 
@@ -19,17 +18,33 @@ function duration(start: Date | null, end: Date | null) {
   return `${Math.max(1, Math.round((end.getTime() - start.getTime()) / 60000))} мин`;
 }
 
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
+const transcriptColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Timestamp", sortable: true, filterKind: "date" },
+  { key: "client", label: "Клиент", sortable: true },
+  { key: "practitioner", label: "Практик", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "WAITING", label: "Ожидает" },
+      { value: "ACTIVE", label: "Активна" },
+      { value: "ENDED", label: "Завершена" },
+      { value: "FAILED", label: "Ошибка" },
+    ],
+  },
+  { key: "duration", label: "Длительность", sortable: true, align: "right" },
+  { key: "session", label: "Сессия", filterKind: "none", align: "center" },
+  { key: "transcript", label: "Транскрипт", filterKind: "none", align: "center" },
+  { key: "summary", label: "AI-резюме", filterKind: "none", align: "center" },
+];
 
 export default async function ProductSessionsPage({ searchParams }: PageProps) {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
   const params = await searchParams;
   const period = resolveAdminPeriod(params);
-  const q = (first(params.q) ?? "").trim().toLowerCase();
-  const page = Math.max(1, Number(first(params.page)) || 1);
   const [data, bookings, videoSessions] = await Promise.all([
     getProductCenterData(period),
     db.booking.findMany({
@@ -57,19 +72,6 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
   const active = data.sessions.filter((item) => item.status === "ACTIVE" || item.status === "WAITING");
   const withTranscript = data.sessions.filter((item) => item.transcriptText);
   const withSummary = data.sessions.filter((item) => item.summaryText);
-  const filtered = data.sessions.filter((item) => {
-    if (!q) return true;
-    return [
-      item.status,
-      item.roomName,
-      item.booking.client.name,
-      item.booking.client.email,
-      item.booking.practitioner.user.name,
-    ].some((value) => value?.toLowerCase().includes(q));
-  });
-  const take = 20;
-  const rows = filtered.slice((page - 1) * take, page * take);
-  const paginationHref = (nextPage: number) => `/admin/product/sessions?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${nextPage}`;
   const bookingRows: AdminBookingRow[] = bookings.map((booking) => ({
     id: booking.id,
     status: booking.status,
@@ -137,36 +139,35 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
         <div className="mb-4">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Транскрипты и AI-резюме</h2>
         </div>
-        <form className="mb-4 flex flex-wrap items-center gap-2">
-          <input type="hidden" name="start" value={period.startInput} />
-          <input type="hidden" name="end" value={period.endInput} />
-          <input name="q" defaultValue={q} placeholder="Поиск по клиенту, практику, комнате, статусу" className="min-w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-3 py-2 text-sm" />
-          <button className="soft-admin-action" type="submit">Найти</button>
-        </form>
-        <DataTable
-          columns={["Timestamp", "Клиент", "Практик", "Статус", "Длительность", "Сессия", "Транскрипт", "AI-резюме"]}
-          rows={rows.map((item) => [
-            formatDateTime(item.createdAt),
-            <span key="client">{item.booking.client.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{item.booking.client.email}</span></span>,
-            item.booking.practitioner.user.name,
-            <StatusBadge key="status" status={item.status} />,
-            duration(item.startedAt, item.endedAt),
-            <Link key="session" className="soft-admin-icon-button" href={`/session/${item.booking.id}`} target="_blank" title="Открыть сессию" aria-label="Открыть сессию">
-              <ExternalLink className="size-3.5" aria-hidden="true" />
-            </Link>,
-            item.transcriptText ? (
-              <a key="transcript" className="soft-admin-icon-button" href={`/api/admin/sessions/${item.id}/transcript`} target="_blank" title="Открыть транскрипт" aria-label="Открыть транскрипт">
-                <FileText className="size-3.5" aria-hidden="true" />
-              </a>
-            ) : "—",
-            item.summaryText ? (
-              <a key="summary" className="soft-admin-icon-button" href={`/api/admin/sessions/${item.id}/summary`} target="_blank" title="Открыть AI-резюме" aria-label="Открыть AI-резюме">
-                <Sparkles className="size-3.5" aria-hidden="true" />
-              </a>
-            ) : "—",
-          ])}
+        <AdminCompactDataTable
+          columns={transcriptColumns}
+          rows={data.sessions.map((item) => {
+            const durationLabel = duration(item.startedAt, item.endedAt);
+            const durationSort = item.startedAt && item.endedAt
+              ? Math.max(1, Math.round((item.endedAt.getTime() - item.startedAt.getTime()) / 60000))
+              : -1;
+            const sessionStatus = String(item.status);
+            return {
+              id: item.id,
+              cells: {
+                createdAt: { value: formatDateTime(item.createdAt), sortValue: item.createdAt.getTime(), filterValue: formatDateTime(item.createdAt) },
+                client: { value: item.booking.client.name, subvalue: item.booking.client.email, filterValue: `${item.booking.client.name} ${item.booking.client.email}` },
+                practitioner: item.booking.practitioner.user.name,
+                status: { kind: "status", label: statusLabel(item.status), tone: sessionStatus === "ACTIVE" ? "ok" : sessionStatus === "FAILED" ? "danger" : "warn", filterValue: `${item.status} ${statusLabel(item.status)}` },
+                duration: { value: durationLabel, sortValue: durationSort },
+                session: { kind: "link", href: `/session/${item.booking.id}`, icon: "open", external: true, title: "Открыть сессию" },
+                transcript: item.transcriptText
+                  ? { kind: "link", href: `/api/admin/sessions/${item.id}/transcript`, icon: "open", external: true, title: "Открыть транскрипт" }
+                  : null,
+                summary: item.summaryText
+                  ? { kind: "link", href: `/api/admin/sessions/${item.id}/summary`, icon: "open", external: true, title: "Открыть AI-резюме" }
+                  : null,
+              },
+            };
+          })}
+          empty="Транскриптов и AI-резюме за выбранный период нет"
+          minWidth="1180px"
         />
-        <LinkPagination page={page} pageSize={take} total={filtered.length} hrefForPage={paginationHref} />
       </section>
     </main>
   );

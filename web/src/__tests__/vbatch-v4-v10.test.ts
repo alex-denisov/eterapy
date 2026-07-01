@@ -8,7 +8,8 @@ describe("V4 — admin/reviews compact paginated table with in-row actions + edi
 
   it("renders a table paginated at 20 rows with searchable practitioner filter", () => {
     expect(manager).toContain("const PAGE_SIZE = 20");
-    expect(manager).toContain("<table");
+    expect(manager).toContain("CompactTableShell");
+    expect(manager).toContain("COMPACT_HEADER_CLASS");
     expect(manager).toContain('data-testid="reviews-filter-practitioner-search"');
     expect(manager).toContain("practitionerQuery");
     // alphabetical dropdown retained

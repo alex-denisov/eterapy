@@ -6,7 +6,13 @@ import { CheckCircle2, Pause, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CompactPaginationBar } from "@/components/admin/compact-table";
+import {
+  CompactHeader,
+  CompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_INPUT_CLASS,
+} from "@/components/admin/compact-table";
 
 interface Practitioner {
   id: string;
@@ -222,45 +228,40 @@ export function PaymentsPanel({
             {runProcessing ? "Запуск..." : "Запустить авто-выплаты"}
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="soft-admin-data-table min-w-[760px]">
-            <thead className="bg-card/30 border-b border-border/20">
+        <CompactTableShell minWidth="760px">
+            <thead>
               <tr>
-                <th className="p-3 text-left text-xs font-medium text-muted-foreground">Дата</th>
-                <th className="p-3 text-left text-xs font-medium text-muted-foreground">Статус</th>
-                <th className="p-3 text-right text-xs font-medium text-muted-foreground">Кандидаты</th>
-                <th className="p-3 text-right text-xs font-medium text-muted-foreground">В обработке</th>
-                <th className="p-3 text-right text-xs font-medium text-muted-foreground">Held</th>
-                <th className="p-3 text-right text-xs font-medium text-muted-foreground">К выплате</th>
-                <th className="p-3 text-right text-xs font-medium text-muted-foreground">Резерв</th>
+                <CompactHeader label="Дата" />
+                <CompactHeader label="Статус" />
+                <CompactHeader label="Кандидаты" />
+                <CompactHeader label="В обработке" />
+                <CompactHeader label="Удержано" />
+                <CompactHeader label="К выплате" />
+                <CompactHeader label="Резерв" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/10">
+            <tbody>
               {payoutRuns.map((run) => (
                 <tr key={run.id}>
-                  <td className="p-3">{new Date(run.scheduledFor).toLocaleDateString("ru-RU")}</td>
-                  <td className="p-3"><Badge variant="outline">{run.status}</Badge></td>
-                  <td className="p-3 text-right">{run.candidateCount}</td>
-                  <td className="p-3 text-right">{run.processingCount}</td>
-                  <td className="p-3 text-right">{run.heldCount}</td>
-                  <td className="p-3 text-right font-semibold">{formatMoney(Math.round(run.totalDisbursedKopecks / 100))}</td>
-                  <td className="p-3 text-right text-muted-foreground">{formatMoney(Math.round(run.totalReserveKopecks / 100))}</td>
+                  <td className={COMPACT_CELL_CLASS}>{new Date(run.scheduledFor).toLocaleDateString("ru-RU")}</td>
+                  <td className={COMPACT_CELL_CLASS}><Badge variant="outline">{run.status}</Badge></td>
+                  <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{run.candidateCount}</td>
+                  <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{run.processingCount}</td>
+                  <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{run.heldCount}</td>
+                  <td className={`${COMPACT_CELL_CLASS} text-right font-semibold tabular-nums`}>{formatMoney(Math.round(run.totalDisbursedKopecks / 100))}</td>
+                  <td className={`${COMPACT_CELL_CLASS} text-right text-muted-foreground tabular-nums`}>{formatMoney(Math.round(run.totalReserveKopecks / 100))}</td>
                 </tr>
               ))}
               {payoutRuns.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Авто-выплаты ещё не запускались</td></tr>
+                <tr><td colSpan={7} className={`${COMPACT_CELL_CLASS} py-8 text-center text-sm text-muted-foreground`}>Авто-выплаты ещё не запускались</td></tr>
               )}
             </tbody>
-          </table>
-        </div>
+        </CompactTableShell>
       </div>
 
-      <div className="flex gap-3 items-center">
-        <Input placeholder="Поиск практика..."
-          value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-          className="bg-card/50 max-w-xs h-8 text-sm" />
+      <div className="flex min-h-8 items-center justify-end gap-3">
         {selected.size > 0 && (
-          <div className="flex items-center gap-3 ml-auto">
+          <div className="mr-auto flex flex-wrap items-center gap-3">
             <span className="text-sm text-muted-foreground">
               Выбрано: {selected.size} · {formatMoney(totalSelected)}
             </span>
@@ -272,57 +273,59 @@ export function PaymentsPanel({
         )}
       </div>
 
-      <div className="rounded-xl border border-border/30 overflow-hidden">
-        <table className="soft-admin-data-table min-w-[980px]">
-          <thead className="bg-card/30 border-b border-border/20">
+      <CompactTableShell minWidth="980px">
+          <thead>
             <tr>
-              <th className="p-3 w-8">
+              <th className="border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium">
+                <div className="flex h-14 items-center justify-center px-1.5">
                 <input type="checkbox"
                   checked={selected.size === filtered.length && filtered.length > 0}
                   onChange={e => setSelected(e.target.checked ? new Set(filtered.map(p => p.id)) : new Set())}
                   className="accent-primary" />
+                </div>
               </th>
-              <th className="text-left p-3 text-xs text-muted-foreground font-medium">Практик</th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Сессий</th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">
-                <button type="button" className="cursor-pointer bg-transparent" onClick={() => toggleSort("revenue")}>
-                  Оборот{mark("revenue")}
-                </button>
-              </th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Комиссия</th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">
-                <button type="button" className="cursor-pointer bg-transparent" onClick={() => toggleSort("earnings")}>
-                  Доступно{mark("earnings")}
-                </button>
-              </th>
-              <th className="text-right p-3 text-xs text-muted-foreground font-medium">Удержано</th>
-              <th className="p-3"></th>
+              <CompactHeader label="Практик">
+                <div className="p-1 pt-0">
+                  <input
+                    className={COMPACT_INPUT_CLASS}
+                    value={search}
+                    onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+                    placeholder="имя/email"
+                  />
+                </div>
+              </CompactHeader>
+              <CompactHeader label="Сессий" />
+              <CompactHeader label={`Оборот${mark("revenue")}`} sortKey="revenue" activeSortKey={sortKey} direction={sortDir} onSort={() => toggleSort("revenue")} />
+              <CompactHeader label="Комиссия" />
+              <CompactHeader label={`Доступно${mark("earnings")}`} sortKey="earnings" activeSortKey={sortKey} direction={sortDir} onSort={() => toggleSort("earnings")} />
+              <CompactHeader label="Удержано" />
+              <CompactHeader label="Действия" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/10">
+          <tbody>
             {paged.map(p => (
               <tr key={p.id} className={`hover:bg-white/2 ${selected.has(p.id) ? "bg-primary/3" : ""}`}>
-                <td className="p-3">
+                <td className={`${COMPACT_CELL_CLASS} text-center`}>
                   <input type="checkbox" checked={selected.has(p.id)}
                     onChange={() => toggleSelect(p.id)} className="accent-primary" />
                 </td>
-                <td className="p-3">
+                <td className={COMPACT_CELL_CLASS}>
                   <p className="font-medium">{p.name}</p>
                   <p className="text-xs text-muted-foreground">{p.email}</p>
                 </td>
-                <td className="p-3 text-right text-muted-foreground">{p.sessionCount}</td>
-                <td className="p-3 text-right">{formatMoney(p.totalRevenue)}</td>
-                <td className="p-3 text-right text-primary">{formatMoney(p.platformFee)} <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
-                <td className="p-3 text-right font-semibold text-green-400">
+                <td className={`${COMPACT_CELL_CLASS} text-right text-muted-foreground tabular-nums`}>{p.sessionCount}</td>
+                <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{formatMoney(p.totalRevenue)}</td>
+                <td className={`${COMPACT_CELL_CLASS} text-right text-primary tabular-nums`}>{formatMoney(p.platformFee)} <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
+                <td className={`${COMPACT_CELL_CLASS} text-right font-semibold text-green-400 tabular-nums`}>
                   {formatMoney(p.practitionerEarnings)}
                 </td>
-                <td className="p-3 text-right text-yellow-400">
+                <td className={`${COMPACT_CELL_CLASS} text-right text-yellow-400 tabular-nums`}>
                   {formatMoney(p.heldPayout)}
                   {p.reservePayout > 0 && (
                     <span className="block text-[10px] text-muted-foreground">резерв {formatMoney(p.reservePayout)}</span>
                   )}
                 </td>
-                <td className="p-3">
+                <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                   <div className="soft-admin-table-actions">
                     <button onClick={async () => { if (await markPaid(p.id)) router.refresh(); }}
                       disabled={processing === p.id || p.practitionerEarnings === 0}
@@ -367,11 +370,10 @@ export function PaymentsPanel({
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="py-10 text-center text-sm text-muted-foreground">Нет практиков</td></tr>
+              <tr><td colSpan={8} className={`${COMPACT_CELL_CLASS} py-10 text-center text-sm text-muted-foreground`}>Нет практиков</td></tr>
             )}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
 
       {pageCount > 1 && (
         <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
@@ -390,45 +392,45 @@ export function PaymentsPanel({
           </div>
           <Badge variant="outline">{clarityCredits.length}</Badge>
         </div>
-        <table className="soft-admin-data-table min-w-[760px]">
-          <thead className="bg-card/20">
+        <CompactTableShell minWidth="760px">
+          <thead>
             <tr>
-              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Пользователь</th>
-              <th className="p-3 text-right text-xs text-muted-foreground font-medium">Баллы</th>
-              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Тип / источник</th>
-              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Статус</th>
-              <th className="p-3 text-left text-xs text-muted-foreground font-medium">Срок</th>
+              <CompactHeader label="Пользователь" />
+              <CompactHeader label="Баллы" />
+              <CompactHeader label="Тип / источник" />
+              <CompactHeader label="Статус" />
+              <CompactHeader label="Срок" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/10">
+          <tbody>
             {clarityCredits.map((entry) => (
               <tr key={entry.id} className="hover:bg-white/2">
-                <td className="p-3">
+                <td className={COMPACT_CELL_CLASS}>
                   <p className="font-medium">{entry.userName}</p>
                   <p className="text-xs text-muted-foreground">{entry.userEmail}</p>
                 </td>
-                <td className="p-3 text-right font-semibold tabular-nums">
+                <td className={`${COMPACT_CELL_CLASS} text-right font-semibold tabular-nums`}>
                   {entry.amount > 0 ? "+" : ""}{entry.amount}
                   {entry.balanceAfter !== null && (
                     <span className="ml-1 text-[10px] text-muted-foreground">→ {entry.balanceAfter}</span>
                   )}
                 </td>
-                <td className="p-3 text-muted-foreground">
+                <td className={`${COMPACT_CELL_CLASS} text-muted-foreground`}>
                   {entry.type} · {entry.source}
                 </td>
-                <td className="p-3">
+                <td className={COMPACT_CELL_CLASS}>
                   <Badge variant={entry.status === "confirmed" ? "default" : "outline"}>{entry.status}</Badge>
                 </td>
-                <td className="p-3 text-muted-foreground">
+                <td className={`${COMPACT_CELL_CLASS} text-muted-foreground`}>
                   {entry.expiresAt ? new Date(entry.expiresAt).toLocaleDateString("ru-RU") : "без срока"}
                 </td>
               </tr>
             ))}
             {clarityCredits.length === 0 && (
-              <tr><td colSpan={5} className="py-10 text-center text-sm text-muted-foreground">Пока нет операций по баллам</td></tr>
+              <tr><td colSpan={5} className={`${COMPACT_CELL_CLASS} py-10 text-center text-sm text-muted-foreground`}>Пока нет операций по баллам</td></tr>
             )}
           </tbody>
-        </table>
+        </CompactTableShell>
       </div>}
     </div>
   );

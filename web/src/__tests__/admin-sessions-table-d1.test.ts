@@ -10,9 +10,9 @@ describe("D1 — admin sessions table uses the minimalist standard", () => {
     expect(table).toContain("CompactTableShell");
     expect(table).toContain("CompactHeader");
     expect(table).toContain("CompactPaginationBar");
-    // status segmented filter + search above the table
-    expect(table).toContain("soft-admin-seg-btn");
-    expect(table).toContain('type="search"');
+    // status and text filters live inside column headers.
+    expect(table).toContain("COMPACT_SELECT_CLASS");
+    expect(table).toContain("COMPACT_INPUT_CLASS");
     // sortable columns
     expect(table).toContain("dateSort");
     expect(table).toContain("durationSort");
@@ -28,7 +28,8 @@ describe("D1 — admin sessions table uses the minimalist standard", () => {
     expect(bookings).toContain("CompactTableShell");
     expect(bookings).toContain("CompactHeader");
     expect(bookings).toContain("CompactPaginationBar");
-    expect(bookings).toContain('type="search"');
+    expect(bookings).toContain("COMPACT_INPUT_CLASS");
+    expect(bookings).toContain("COMPACT_SELECT_CLASS");
     expect(bookings).toContain("RescheduleControls");
     expect(bookings).toContain("PAGE_SIZE = 20");
     expect(bookings).not.toContain('className="rounded-xl border border-border/20 bg-card/20 overflow-hidden"');

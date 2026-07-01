@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Ban, Edit3, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   CompactHeader,
@@ -69,30 +69,57 @@ function sourceLabel(source: string) {
   return source === "BYOC" ? "BYOC" : "Платформа";
 }
 
+function HeaderTextFilter({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="p-1 pt-0">
+      <input
+        className={COMPACT_INPUT_CLASS}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
+  );
+}
+
 export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
   const [rows, setRows] = useState(initial);
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("all");
   const [sortField, setSortField] = useState<SortField>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [page, setPage] = useState(1);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<AdminBookingRow | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<AdminBookingRow | null>(null);
+  const [filters, setFilters] = useState({
+    createdAt: "",
+    slotStartAt: "",
+    client: "",
+    practitioner: "",
+    status: "all",
+    source: "",
+    priceRub: "",
+  });
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const list = rows.filter((row) => {
-      if (status !== "all" && row.status !== status) return false;
-      if (!q) return true;
+      if (filters.status !== "all" && row.status !== filters.status) return false;
       return [
-        row.client.name,
-        row.client.email,
-        row.practitioner.name,
-        row.status,
-        sourceLabel(row.source),
-        String(row.priceRub),
-        String(row.durationMin),
-      ].some((value) => value.toLowerCase().includes(q));
+        [filters.createdAt, formatAdminDateTime(row.createdAt)],
+        [filters.slotStartAt, formatAdminDateTime(row.slotStartAt)],
+        [filters.client, `${row.client.name} ${row.client.email}`],
+        [filters.practitioner, row.practitioner.name],
+        [filters.source, sourceLabel(row.source)],
+        [filters.priceRub, `${row.priceRub} ${row.durationMin}`],
+      ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
     });
     return [...list].sort((a, b) => {
       let result = 0;
@@ -104,7 +131,7 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
       else result = (a[sortField] ?? "").localeCompare(b[sortField] ?? "");
       return sortDirection === "asc" ? result : -result;
     });
-  }, [query, rows, sortDirection, sortField, status]);
+  }, [filters, rows, sortDirection, sortField]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -121,7 +148,6 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
   }
 
   async function cancelBooking(id: string) {
-    if (!confirm("Отменить бронирование? Действие необратимо.")) return;
     setPendingId(id);
     const res = await fetch(`/api/bookings`, {
       method: "PATCH",
@@ -132,6 +158,7 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
     if (res.ok) {
       setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status: "CANCELLED" } : r)));
       toast.success("Бронирование отменено");
+      setCancelTarget(null);
     } else {
       toast.error(body?.error ?? "Не удалось отменить");
     }
@@ -140,41 +167,39 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
 
   return (
     <div className="space-y-3" data-testid="admin-bookings-table">
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className={`${COMPACT_SELECT_CLASS} w-48 rounded border border-[var(--soft-paper-edge)]`}
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            setPage(1);
-          }}
-          aria-label="Фильтр статуса бронирования"
-        >
-          {STATUS_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-        </select>
-        <input
-          type="search"
-          className={`${COMPACT_INPUT_CLASS} ml-auto w-72 rounded border border-[var(--soft-paper-edge)]`}
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Поиск: клиент, email, практик, сумма"
-          aria-label="Поиск по бронированиям"
-        />
-      </div>
-
       <CompactTableShell minWidth="1120px">
-        <thead>
+        <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
           <tr>
-            <CompactHeader label="Создано" sortKey="createdAt" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort} />
-            <CompactHeader label="Сессия" sortKey="slotStartAt" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort} />
-            <CompactHeader label="Клиент" sortKey="client" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort} />
-            <CompactHeader label="Практик" sortKey="practitioner" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort} />
-            <CompactHeader label="Статус" sortKey="status" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort} />
-            <CompactHeader label="Источник" />
-            <CompactHeader label="Сумма / длительность" sortKey="priceRub" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort} />
+            <CompactHeader label="Создано" sortKey="createdAt" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
+              <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
+            </CompactHeader>
+            <CompactHeader label="Сессия" sortKey="slotStartAt" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
+              <HeaderTextFilter value={filters.slotStartAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, slotStartAt: value })); setPage(1); }} />
+            </CompactHeader>
+            <CompactHeader label="Клиент" sortKey="client" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
+              <HeaderTextFilter value={filters.client} placeholder="имя/email" onChange={(value) => { setFilters((current) => ({ ...current, client: value })); setPage(1); }} />
+            </CompactHeader>
+            <CompactHeader label="Практик" sortKey="practitioner" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
+              <HeaderTextFilter value={filters.practitioner} placeholder="практик" onChange={(value) => { setFilters((current) => ({ ...current, practitioner: value })); setPage(1); }} />
+            </CompactHeader>
+            <CompactHeader label="Статус" sortKey="status" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
+              <div className="p-1 pt-0">
+                <select
+                  className={COMPACT_SELECT_CLASS}
+                  value={filters.status}
+                  onChange={(event) => { setFilters((current) => ({ ...current, status: event.target.value })); setPage(1); }}
+                  aria-label="Фильтр статуса бронирования"
+                >
+                  {STATUS_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </div>
+            </CompactHeader>
+            <CompactHeader label="Источник">
+              <HeaderTextFilter value={filters.source} placeholder="источник" onChange={(value) => { setFilters((current) => ({ ...current, source: value })); setPage(1); }} />
+            </CompactHeader>
+            <CompactHeader label="Сумма / длительность" sortKey="priceRub" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
+              <HeaderTextFilter value={filters.priceRub} placeholder="сумма/мин" onChange={(value) => { setFilters((current) => ({ ...current, priceRub: value })); setPage(1); }} />
+            </CompactHeader>
             <CompactHeader label="Действия" />
           </tr>
         </thead>
@@ -185,93 +210,54 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
             </tr>
           ) : visible.map((b) => {
             const st = getBookingStatus(b.status);
-            const isExpanded = expandedId === b.id;
             const commissionLabel = b.commissionPercentApplied === null
               ? "ставка не зафиксирована"
               : `${b.commissionPercentApplied}% комиссия`;
             return (
-              <Fragment key={b.id}>
-                <tr>
-                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatAdminDateTime(b.createdAt)}</td>
-                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatAdminDateTime(b.slotStartAt)}</td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <p className="font-medium text-[var(--soft-ink)]">{b.client.name}</p>
-                    <p className="text-[10px] text-[var(--soft-ink-faint)]">{b.client.email}</p>
-                  </td>
-                  <td className={COMPACT_CELL_CLASS}>{b.practitioner.name}</td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <span className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${st.color}`}>{st.label}</span>
-                  </td>
-                  <td className={COMPACT_CELL_CLASS}>
-                    <p>{sourceLabel(b.source)}</p>
-                    <p className="text-[10px] text-[var(--soft-ink-faint)]">{commissionLabel}</p>
-                  </td>
-                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap tabular-nums`}>
-                    {b.priceRub.toLocaleString("ru-RU")} ₽ · {b.durationMin} мин
-                  </td>
-                  <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
+              <tr key={b.id}>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatAdminDateTime(b.createdAt)}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatAdminDateTime(b.slotStartAt)}</td>
+                <td className={COMPACT_CELL_CLASS}>
+                  <p className="font-medium text-[var(--soft-ink)]">{b.client.name}</p>
+                  <p className="text-[10px] text-[var(--soft-ink-faint)]">{b.client.email}</p>
+                </td>
+                <td className={COMPACT_CELL_CLASS}>{b.practitioner.name}</td>
+                <td className={COMPACT_CELL_CLASS}>
+                  <span className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${st.color}`}>{st.label}</span>
+                </td>
+                <td className={COMPACT_CELL_CLASS}>
+                  <p>{sourceLabel(b.source)}</p>
+                  <p className="text-[10px] text-[var(--soft-ink-faint)]">{commissionLabel}</p>
+                </td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap tabular-nums`}>
+                  {b.priceRub.toLocaleString("ru-RU")} ₽ · {b.durationMin} мин
+                </td>
+                <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
+                  <div className="soft-admin-table-actions">
                     <button
                       type="button"
                       className="soft-admin-icon-button"
-                      data-variant="subtle"
-                      onClick={() => setExpandedId(isExpanded ? null : b.id)}
-                      title={isExpanded ? "Свернуть" : "Открыть"}
-                      aria-label={isExpanded ? "Свернуть бронирование" : "Открыть бронирование"}
+                      onClick={() => setRescheduleTarget(b)}
+                      disabled={!CANCELLABLE.has(b.status)}
+                      title="Перенести или изменить длительность"
+                      aria-label="Перенести или изменить длительность"
                     >
-                      {isExpanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
+                      <Edit3 className="size-3.5" aria-hidden="true" />
                     </button>
-                  </td>
-                </tr>
-                {isExpanded && (
-                  <tr>
-                    <td colSpan={8} className={`${COMPACT_CELL_CLASS} border-r-0 bg-[var(--soft-surface)] p-3`}>
-                      <div className="space-y-4 text-xs">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div>
-                            <p className="text-[var(--soft-ink-faint)]">Клиент</p>
-                            <p>{b.client.name}</p>
-                            <p className="text-[var(--soft-ink-faint)]">{b.client.email}</p>
-                          </div>
-                          <div>
-                            <p className="text-[var(--soft-ink-faint)]">Практик</p>
-                            <p>{b.practitioner.name}</p>
-                            {b.referrerPractitionerId && (
-                              <p className="text-[var(--soft-ink-faint)]">BYOC referrer: {b.referrerPractitionerId}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {CANCELLABLE.has(b.status) && (
-                          <RescheduleControls
-                            booking={b}
-                            onApplied={(slot, priceRub, durationMin) => {
-                              setRows((prev) =>
-                                prev.map((r) =>
-                                  r.id === b.id
-                                    ? { ...r, slotStartAt: slot.startAt, priceRub, durationMin }
-                                    : r,
-                                ),
-                              );
-                            }}
-                          />
-                        )}
-
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {CANCELLABLE.has(b.status) && (
-                            <button
-                              onClick={() => cancelBooking(b.id)}
-                              disabled={pendingId === b.id}
-                              className="rounded border border-red-500/30 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              {pendingId === b.id ? "Отмена..." : "Отменить бронирование"}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
+                    <button
+                      type="button"
+                      className="soft-admin-icon-button"
+                      data-variant="danger"
+                      onClick={() => setCancelTarget(b)}
+                      disabled={!CANCELLABLE.has(b.status) || pendingId === b.id}
+                      title="Отменить бронирование"
+                      aria-label="Отменить бронирование"
+                    >
+                      <Ban className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
             );
           })}
         </tbody>
@@ -280,17 +266,41 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
       {pageCount > 1 && (
         <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
+      {cancelTarget ? (
+        <ConfirmCancelModal
+          booking={cancelTarget}
+          pending={pendingId === cancelTarget.id}
+          onClose={() => setCancelTarget(null)}
+          onConfirm={() => cancelBooking(cancelTarget.id)}
+        />
+      ) : null}
+      {rescheduleTarget ? (
+        <RescheduleControls
+          booking={rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          onApplied={(slot, priceRub, durationMin) => {
+            setRows((prev) =>
+              prev.map((r) =>
+                r.id === rescheduleTarget.id
+                  ? { ...r, slotStartAt: slot.startAt, priceRub, durationMin }
+                  : r,
+              ),
+            );
+            setRescheduleTarget(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
 interface RescheduleControlsProps {
   booking: AdminBookingRow;
+  onClose: () => void;
   onApplied: (slot: AvailableSlot, priceRub: number, durationMin: number) => void;
 }
 
-function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
-  const [open, setOpen] = useState(false);
+function RescheduleControls({ booking, onClose, onApplied }: RescheduleControlsProps) {
   const [date, setDate] = useState(todayInputDate());
   const [duration, setDuration] = useState<number>(booking.durationMin || 60);
   const [slots, setSlots] = useState<AvailableSlot[]>([]);
@@ -298,7 +308,7 @@ function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
   const [picked, setPicked] = useState<AvailableSlot | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function fetchSlots(d: string, dur: number) {
+  const fetchSlots = useCallback(async (d: string, dur: number) => {
     setLoading(true);
     setSlots([]);
     setPicked(null);
@@ -311,7 +321,14 @@ function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
     const json = await res.json().catch(() => ({}));
     setSlots(json.slots ?? []);
     setLoading(false);
-  }
+  }, [booking.practitioner.id]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchSlots(date, duration);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [date, duration, fetchSlots]);
 
   async function applyReschedule() {
     if (!picked) return;
@@ -329,7 +346,6 @@ function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
         })} · ${json.booking?.priceRub ?? booking.priceRub} ₽`,
       );
       onApplied(picked, json.booking?.priceRub ?? booking.priceRub, duration);
-      setOpen(false);
       setPicked(null);
     } else {
       toast.error(json.error ?? "Не удалось перенести");
@@ -337,117 +353,119 @@ function RescheduleControls({ booking, onApplied }: RescheduleControlsProps) {
     setSubmitting(false);
   }
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => {
-          setOpen(true);
-          fetchSlots(date, duration);
-        }}
-        className="rounded-lg border border-primary/30 px-3 py-1.5 text-xs text-primary hover:bg-primary/10"
-      >
-        Перенести / изменить длительность
-      </button>
-    );
-  }
-
   return (
-    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-primary">Перенос сессии</p>
-        <button onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-foreground">
-          Закрыть
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-3 items-end">
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Дата</span>
-          <input
-            type="date"
-            value={date}
-            min={todayInputDate()}
-            onChange={(e) => {
-              setDate(e.target.value);
-              fetchSlots(e.target.value, duration);
-            }}
-            className="rounded-lg border border-border/40 bg-card/50 px-2 py-1 text-xs"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground">Длительность</span>
-          <select
-            value={duration}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              setDuration(next);
-              fetchSlots(date, next);
-            }}
-            className="rounded-lg border border-border/40 bg-card/50 px-2 py-1 text-xs"
-          >
-            {DURATION_CHOICES.map((d) => (
-              <option key={d} value={d}>
-                {d} мин
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="space-y-1">
-        <p className="text-[11px] text-muted-foreground">
-          Свободные окна {booking.practitioner.name} · текущее: {booking.durationMin} мин · {booking.priceRub.toLocaleString("ru-RU")} ₽
-        </p>
-        {loading ? (
-          <p className="text-xs text-muted-foreground/70">Загружаем...</p>
-        ) : slots.length === 0 ? (
-          <p className="text-xs text-muted-foreground/70">На этот день нет свободных окон.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {slots.map((s) => {
-              const isPicked = picked?.startAt === s.startAt;
-              const time = new Date(s.startAt).toLocaleTimeString("ru-RU", {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              return (
-                <button
-                  key={s.startAt}
-                  onClick={() => setPicked(s)}
-                  className={`rounded-md border px-2 py-1 text-xs transition-colors ${
-                    isPicked
-                      ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] font-semibold text-[var(--soft-bordeaux)]"
-                      : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:text-[var(--soft-ink)]"
-                  }`}
-                >
-                  {time}
-                </button>
-              );
-            })}
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 p-4">
+      <div className="w-full max-w-lg rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-lg)]">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Перенос сессии</h3>
+            <p className="text-xs text-[var(--soft-ink-soft)]">{booking.client.name} · {booking.practitioner.name}</p>
           </div>
-        )}
-      </div>
-      {picked && (
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <p className="text-xs">
-            Перенести на{" "}
-            <b>
-              {new Date(picked.startAt).toLocaleString("ru-RU", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </b>{" "}
-            ({duration} мин)
-          </p>
-          <button
-            onClick={applyReschedule}
-            disabled={submitting}
-            className="rounded-lg bg-[var(--soft-terracotta)] px-3 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)] disabled:opacity-50"
-          >
-            {submitting ? "..." : "Подтвердить"}
+          <button type="button" className="soft-admin-icon-button" onClick={onClose} aria-label="Закрыть">
+            <X className="size-3.5" aria-hidden="true" />
           </button>
         </div>
-      )}
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--soft-ink-soft)]">
+            Дата
+            <input
+              type="date"
+              value={date}
+              min={todayInputDate()}
+              onChange={(event) => {
+                setDate(event.target.value);
+              }}
+              className="h-8 rounded border border-[var(--soft-paper-edge)] bg-white px-2 text-xs"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-semibold text-[var(--soft-ink-soft)]">
+            Длительность
+            <select
+              value={duration}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setDuration(next);
+              }}
+              className="h-8 rounded border border-[var(--soft-paper-edge)] bg-white px-2 text-xs"
+            >
+              {DURATION_CHOICES.map((choice) => <option key={choice} value={choice}>{choice} мин</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="mt-3 space-y-2">
+          <p className="text-[11px] text-[var(--soft-ink-faint)]">
+            Свободные окна {booking.practitioner.name} · текущее: {booking.durationMin} мин · {booking.priceRub.toLocaleString("ru-RU")} ₽
+          </p>
+          {loading ? (
+            <p className="text-xs text-[var(--soft-ink-soft)]">Загружаем...</p>
+          ) : slots.length === 0 ? (
+            <p className="text-xs text-[var(--soft-ink-soft)]">На этот день нет свободных окон.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {slots.map((slot) => {
+                const isPicked = picked?.startAt === slot.startAt;
+                const time = new Date(slot.startAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <button
+                    key={slot.startAt}
+                    type="button"
+                    onClick={() => setPicked(slot)}
+                    className={`rounded-md border px-2 py-1 text-xs transition-colors ${isPicked ? "border-[var(--soft-bordeaux)] bg-[var(--soft-apricot)] font-semibold text-[var(--soft-bordeaux)]" : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:text-[var(--soft-ink)]"}`}
+                  >
+                    {time}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-[var(--soft-ink-soft)]">
+            {picked ? `Выбрано: ${new Date(picked.startAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · ${duration} мин` : "Выберите свободное окно"}
+          </p>
+          <div className="flex gap-2">
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={onClose}>Отмена</button>
+            <button type="button" className="soft-admin-action" data-variant="primary" onClick={applyReschedule} disabled={!picked || submitting}>
+              {submitting ? "Сохраняем..." : "Подтвердить"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmCancelModal({
+  booking,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  booking: AdminBookingRow;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/35 p-4">
+      <div className="w-full max-w-sm rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-lg)]">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Отменить бронирование?</h3>
+            <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{booking.client.name} · {formatAdminDateTime(booking.slotStartAt)}</p>
+          </div>
+          <button type="button" className="soft-admin-icon-button" onClick={onClose} aria-label="Закрыть">
+            <X className="size-3.5" aria-hidden="true" />
+          </button>
+        </div>
+        <p className="text-sm text-[var(--soft-ink-soft)]">Действие изменит статус бронирования на “Отменено”.</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={onClose}>Не отменять</button>
+          <button type="button" className="soft-admin-action" data-variant="danger" onClick={onConfirm} disabled={pending}>
+            {pending ? "Отменяем..." : "Отменить"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

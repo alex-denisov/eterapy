@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, EyeOff, Pencil, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
-import { CompactPaginationBar } from "@/components/admin/compact-table";
+import { CompactPaginationBar, CompactTableShell, COMPACT_CELL_CLASS, COMPACT_HEADER_CLASS, COMPACT_INPUT_CLASS } from "@/components/admin/compact-table";
 
 interface AdminReview {
   id: string;
@@ -190,11 +190,11 @@ export function ReviewsManager({
     }
   }
 
-  const TH = "p-0 align-top text-left";
-  const TD = "px-2.5 py-2 align-top";
+  const TH = COMPACT_HEADER_CLASS;
+  const TD = COMPACT_CELL_CLASS;
   const ACTION = "soft-admin-icon-button disabled:cursor-not-allowed disabled:opacity-40";
   const HEADER_BUTTON = "flex h-7 w-full items-center justify-between gap-1 px-2 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]";
-  const FILTER_INPUT = "soft-admin-table-filter mt-0";
+  const FILTER_INPUT = COMPACT_INPUT_CLASS;
 
   return (
     <div data-testid="admin-reviews-manager">
@@ -209,8 +209,7 @@ export function ReviewsManager({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
-            <table className="soft-admin-data-table min-w-[1120px]">
+          <CompactTableShell minWidth="1120px">
               <thead>
                 <tr>
                   <th className={TH}>
@@ -323,8 +322,7 @@ export function ReviewsManager({
                   );
                 })}
               </tbody>
-            </table>
-          </div>
+          </CompactTableShell>
 
           {pageCount > 1 && (
             <CompactPaginationBar page={safePage} total={visible.length} pageSize={PAGE_SIZE} onPage={setPage} />

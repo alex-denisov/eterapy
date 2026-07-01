@@ -5,6 +5,8 @@ import {
   CompactTableShell,
   COMPACT_CELL_CLASS,
   COMPACT_HEADER_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
 } from "@/components/admin/compact-table";
 
 // Header label cell for the compact diagnostics/runtime tables.
@@ -280,12 +282,12 @@ function RuntimeLogsPanel() {
           placeholder="Поиск по event, requestId, provider, тексту..."
           value={search}
           onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
-          className="soft-admin-table-filter max-w-sm"
+          className={`${COMPACT_INPUT_CLASS} max-w-sm`}
         />
         <select
           value={level}
           onChange={(event) => { setStreamState("connecting"); setError(""); setLevel(event.target.value); }}
-          className="h-8 rounded-lg border border-[var(--soft-paper-edge)] bg-white/70 px-2 text-xs text-[var(--soft-ink)]"
+          className={`${COMPACT_SELECT_CLASS} h-8`}
         >
           <option value="all">Все уровни</option>
           <option value="error">error</option>
@@ -297,7 +299,7 @@ function RuntimeLogsPanel() {
         <select
           value={source}
           onChange={(event) => { setStreamState("connecting"); setError(""); setSource(event.target.value); }}
-          className="h-8 rounded-lg border border-[var(--soft-paper-edge)] bg-white/70 px-2 text-xs text-[var(--soft-ink)]"
+          className={`${COMPACT_SELECT_CLASS} h-8`}
         >
           <option value="all">Все источники</option>
           {sources.map((item) => (<option key={item.key} value={item.key}>{item.label}</option>))}
@@ -403,7 +405,8 @@ export function LogsTabs({ auditTable }: { auditTable: React.ReactNode }) {
               type="button"
               onClick={() => setTab(key as keyof typeof LOG_TABS)}
               data-active={active}
-              className="soft-admin-seg-btn"
+              className="soft-admin-action"
+              data-variant={active ? "primary" : "subtle"}
             >
               {label}
             </button>

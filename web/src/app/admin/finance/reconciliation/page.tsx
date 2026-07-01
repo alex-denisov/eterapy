@@ -3,13 +3,23 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, DataTable, MetricCard, MetricGrid, PeriodToolbar, formatDateTime, formatNumber } from "../../admin-analytics-ui";
+import { AdminHero, MetricCard, MetricGrid, PeriodToolbar, formatDateTime, formatNumber } from "../../admin-analytics-ui";
 import { FinanceExportMenu } from "../export-menu";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const reconciliationColumns: AdminCompactColumn[] = [
+  { key: "receivedAt", label: "Timestamp", sortable: true, filterKind: "date" },
+  { key: "eventType", label: "Событие", sortable: true },
+  { key: "resourceId", label: "Resource ID", sortable: true },
+  { key: "status", label: "Статус", sortable: true },
+  { key: "requestId", label: "Request ID", sortable: true },
+  { key: "error", label: "Ошибка", sortable: true },
+];
 
 export default async function FinanceReconciliationPage({ searchParams }: PageProps) {
   const session = await auth();
@@ -43,16 +53,21 @@ export default async function FinanceReconciliationPage({ searchParams }: PagePr
         <MetricCard label="Импорт сверки" value="Готов" hint="Принимает файл провайдера в рабочем флоу" />
       </MetricGrid>
       <div className="mt-6">
-        <DataTable
-          columns={["Timestamp", "Событие", "Resource ID", "Статус", "Request ID", "Ошибка"]}
-          rows={webhooks.map((event) => [
-            formatDateTime(event.receivedAt),
-            event.eventType,
-            event.resourceId ?? "—",
-            event.status,
-            event.requestId ?? "—",
-            event.error ?? "—",
-          ])}
+        <AdminCompactDataTable
+          columns={reconciliationColumns}
+          rows={webhooks.map((event) => ({
+            id: event.id,
+            cells: {
+              receivedAt: { value: formatDateTime(event.receivedAt), sortValue: event.receivedAt.getTime(), filterValue: formatDateTime(event.receivedAt) },
+              eventType: event.eventType,
+              resourceId: event.resourceId ?? "—",
+              status: event.status,
+              requestId: event.requestId ?? "—",
+              error: event.error ?? "—",
+            },
+          }))}
+          empty="Webhook-событий за выбранный период нет"
+          minWidth="1120px"
         />
       </div>
     </main>

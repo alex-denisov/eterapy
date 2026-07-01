@@ -8,6 +8,7 @@ import {
   CompactTableShell,
   COMPACT_CELL_CLASS,
   COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
   type SortDirection,
 } from "@/components/admin/compact-table";
 
@@ -33,8 +34,8 @@ const STATUS_META: Record<string, { label: string; tone: string }> = {
   ENDED: { label: "Завершена", tone: "" },
 };
 
-const STATUS_TABS: Array<{ key: string; label: string }> = [
-  { key: "all", label: "Все" },
+const STATUS_FILTERS: Array<{ key: string; label: string }> = [
+  { key: "all", label: "Все статусы" },
   { key: "ACTIVE", label: "Активные" },
   { key: "RECORDING", label: "Запись" },
   { key: "WAITING", label: "Ожидание" },
@@ -44,19 +45,27 @@ const STATUS_TABS: Array<{ key: string; label: string }> = [
 type SortMode = "date-desc" | "date-asc" | "duration-desc" | "duration-asc";
 
 export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
-  const [status, setStatus] = useState("all");
-  const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortMode>("date-desc");
   const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    participants: "",
+    status: "all",
+    roomName: "",
+    duration: "",
+    createdAt: "",
+    recording: "",
+  });
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const list = rows.filter((row) => {
-      if (status !== "all" && row.status !== status) return false;
-      if (q && !row.clientName.toLowerCase().includes(q) && !row.clientEmail.toLowerCase().includes(q) && !row.practitionerName.toLowerCase().includes(q)) {
-        return false;
-      }
-      return true;
+      if (filters.status !== "all" && row.status !== filters.status) return false;
+      return [
+        [filters.participants, `${row.clientName} ${row.clientEmail} ${row.practitionerName}`],
+        [filters.roomName, row.roomName],
+        [filters.duration, row.durationMin !== null ? `${row.durationMin}` : "—"],
+        [filters.createdAt, new Date(row.createdAt).toLocaleDateString("ru-RU")],
+        [filters.recording, row.recordingUrl ? "есть запись" : "нет записи"],
+      ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
     });
     return [...list].sort((a, b) => {
       if (sort === "duration-asc") return (a.durationMin ?? -1) - (b.durationMin ?? -1);
@@ -65,7 +74,7 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
       const tb = new Date(b.createdAt).getTime();
       return sort === "date-asc" ? ta - tb : tb - ta;
     });
-  }, [rows, status, query, sort]);
+  }, [filters, rows, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -84,55 +93,48 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
 
   return (
     <div data-testid="admin-sessions-table">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => {
-              setStatus(tab.key);
-              setPage(1);
-            }}
-            data-active={status === tab.key}
-            className="soft-admin-seg-btn"
-          >
-            {tab.label}
-          </button>
-        ))}
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Поиск: клиент или практик"
-          aria-label="Поиск по сессиям"
-          className={`${COMPACT_INPUT_CLASS} ml-auto w-60 rounded border border-[var(--soft-paper-edge)]`}
-        />
-      </div>
-
       <CompactTableShell minWidth="900px">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <CompactHeader label="Клиент → Практик" />
-              <CompactHeader label="Статус" />
-              <CompactHeader label="Комната" />
+              <CompactHeader label="Клиент → Практик">
+                <HeaderTextFilter value={filters.participants} placeholder="клиент/практик" onChange={(value) => { setFilters((current) => ({ ...current, participants: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Статус">
+                <div className="p-1 pt-0">
+                  <select
+                    className={COMPACT_SELECT_CLASS}
+                    value={filters.status}
+                    onChange={(event) => { setFilters((current) => ({ ...current, status: event.target.value })); setPage(1); }}
+                    aria-label="Фильтр статуса видеосессии"
+                  >
+                    {STATUS_FILTERS.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                  </select>
+                </div>
+              </CompactHeader>
+              <CompactHeader label="Комната">
+                <HeaderTextFilter value={filters.roomName} placeholder="room" onChange={(value) => { setFilters((current) => ({ ...current, roomName: value })); setPage(1); }} />
+              </CompactHeader>
               <CompactHeader
                 label={`Длительность${durationMark}`}
                 sortKey="duration"
                 activeSortKey={activeSortKey}
                 direction={sortDirection}
                 onSort={durationSort}
-              />
+              >
+                <HeaderTextFilter value={filters.duration} placeholder="мин" onChange={(value) => { setFilters((current) => ({ ...current, duration: value })); setPage(1); }} />
+              </CompactHeader>
               <CompactHeader
                 label={`Дата${dateMark}`}
                 sortKey="date"
                 activeSortKey={activeSortKey}
                 direction={sortDirection}
                 onSort={dateSort}
-              />
-              <CompactHeader label="Запись" />
+              >
+                <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Запись">
+                <HeaderTextFilter value={filters.recording} placeholder="есть/нет" onChange={(value) => { setFilters((current) => ({ ...current, recording: value })); setPage(1); }} />
+              </CompactHeader>
             </tr>
           </thead>
           <tbody>
@@ -187,6 +189,28 @@ export function SessionsTable({ rows }: { rows: VideoSessionRow[] }) {
       {pageCount > 1 && (
         <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
+    </div>
+  );
+}
+
+function HeaderTextFilter({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="p-1 pt-0">
+      <input
+        className={COMPACT_INPUT_CLASS}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }

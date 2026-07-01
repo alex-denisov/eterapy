@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
+import { COMPACT_INPUT_CLASS } from "@/components/admin/compact-table";
 
 interface PriceRate {
   durationMin: number;
@@ -268,7 +269,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
         <div className="overflow-x-auto">
-          <table className="soft-admin-data-table min-w-[720px]">
+          <table className="soft-admin-compact-table min-w-[720px] w-full border-collapse text-left text-[11px] leading-tight">
             <thead><tr><th>Параметр</th><th>Ключ</th><th>Значение</th><th>Ед.</th></tr></thead>
             <tbody>
               {rows.map(({ key, label, unit, recommended }) => (
@@ -282,7 +283,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                       value={settings[key] ?? ""}
                       placeholder={recommended !== undefined ? `реком. ${recommended}` : ""}
                       onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
-                      className="soft-admin-table-filter mt-0 h-8 w-32 min-w-32"
+                      className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-32 min-w-32`}
                     />
                   </td>
                   <td>{unit}</td>
@@ -337,7 +338,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
               value={pracQuery}
               onChange={(event) => setPracQuery(event.target.value)}
               placeholder="Поиск: имя или email"
-              className="soft-admin-table-filter mt-0 h-8 w-56"
+              className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-56`}
               aria-label="Поиск практика"
             />
             <button onClick={() => setBulkMode(!bulkMode)} className="soft-admin-action">
@@ -348,7 +349,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
 
         {bulkMode && (
           <div className="mb-4 overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-white/55 p-3">
-            <table className="soft-admin-data-table min-w-[760px]">
+            <table className="soft-admin-compact-table min-w-[760px] w-full border-collapse text-left text-[11px] leading-tight">
               <thead><tr><th>Длительность</th><th>Включить</th><th>Цена</th></tr></thead>
               <tbody>
                 {Object.entries(DURATION_LABELS).map(([duration, label]) => {
@@ -372,7 +373,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                           value={rate.price}
                           disabled={!rate.enabled}
                           onChange={(event) => setBulkRates((current) => ({ ...current, [durationMin]: { ...current[durationMin], price: Number(event.target.value) } }))}
-                          className="soft-admin-table-filter mt-0 h-8 w-32 min-w-32"
+                          className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-32 min-w-32`}
                         />
                       </td>
                     </tr>
@@ -387,7 +388,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
         )}
 
         <div className="overflow-x-auto">
-          <table className="soft-admin-data-table min-w-[980px]">
+          <table className="soft-admin-compact-table min-w-[980px] w-full border-collapse text-left text-[11px] leading-tight">
             <thead>
               <tr>
                 <th>
@@ -443,7 +444,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                                 step={50}
                                 value={basePriceDraft[practitioner.id] ?? ""}
                                 onChange={(event) => setBasePriceDraft((draft) => ({ ...draft, [practitioner.id]: event.target.value }))}
-                                className="soft-admin-table-filter mt-0 h-8 w-28 min-w-28"
+                                className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-28 min-w-28`}
                                 aria-label={`Базовая цена ${practitioner.user.email}`}
                                 autoFocus
                               />
@@ -479,7 +480,7 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                             max={100}
 	                            value={commissionDraft[practitioner.id] ?? String(practitioner.commissionPercent ?? 35)}
                             onChange={(event) => setCommissionDraft((current) => ({ ...current, [practitioner.id]: event.target.value }))}
-                            className="soft-admin-table-filter mt-0 h-8 w-16 min-w-16"
+                            className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-16 min-w-16`}
                             aria-label={`Комиссия ${practitioner.user.email}`}
                           />
                           <span className="text-xs text-[var(--soft-ink-faint)]">%</span>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
+import { CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
 
 export function AdminSettingsClient({
   email,
@@ -54,15 +55,15 @@ export function AdminSettingsClient({
     <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-sm)]">
         <h2 className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">Аккаунт</h2>
-        <div className="mt-4 overflow-x-auto">
-          <table className="soft-admin-data-table">
+        <div className="mt-4">
+          <CompactTableShell minWidth="420px">
             <tbody>
-              <tr><td>Имя</td><td>{name}</td></tr>
-              <tr><td>Email</td><td>{email}</td></tr>
-              <tr><td>Роль</td><td>{role === "SUPERADMIN" ? "Суперадминистратор" : "Администратор"}</td></tr>
-              <tr><td>Доступ</td><td>{role === "SUPERADMIN" ? "Суперадминистратор" : "По назначенным правам"}</td></tr>
+              <tr><td className={COMPACT_CELL_CLASS}>Имя</td><td className={COMPACT_CELL_CLASS}>{name}</td></tr>
+              <tr><td className={COMPACT_CELL_CLASS}>Email</td><td className={COMPACT_CELL_CLASS}>{email}</td></tr>
+              <tr><td className={COMPACT_CELL_CLASS}>Роль</td><td className={COMPACT_CELL_CLASS}>{role === "SUPERADMIN" ? "Суперадминистратор" : "Администратор"}</td></tr>
+              <tr><td className={COMPACT_CELL_CLASS}>Доступ</td><td className={COMPACT_CELL_CLASS}>{role === "SUPERADMIN" ? "Суперадминистратор" : "По назначенным правам"}</td></tr>
             </tbody>
-          </table>
+          </CompactTableShell>
         </div>
         <p className="mt-4 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
           Имя, email и полномочия администратора меняются через раздел пользователей и модераторов, чтобы все действия оставались в audit log.

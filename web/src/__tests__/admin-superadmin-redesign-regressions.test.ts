@@ -2,6 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+const listFiles = (dir: string): string[] => {
+  const absolute = path.join(process.cwd(), dir);
+  return fs.readdirSync(absolute, { withFileTypes: true }).flatMap((entry) => {
+    const rel = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listFiles(rel);
+    return entry.isFile() && /\.(tsx|ts)$/.test(entry.name) ? [rel] : [];
+  });
+};
 
 describe("Superadmin redesign regression guardrails", () => {
   it("removes non-functional calculated placeholders from product users headers", () => {
@@ -75,5 +83,51 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(display).toContain("Отчёты практиков");
     expect(display).toContain("Документы и KYC");
     expect(display).toContain("Тарифы, цены и комиссия");
+  });
+
+  it("uses the compact users-table pattern on high-traffic admin tables", () => {
+    const compactClientTable = source("src/components/admin/compact-client-table.tsx");
+    const productResults = source("src/app/admin/product/results/page.tsx");
+    const productSessions = source("src/app/admin/product/sessions/page.tsx");
+    const financeReceipts = source("src/app/admin/finance/receipts/page.tsx");
+    const financeReports = source("src/app/admin/finance/reports/page.tsx");
+    const financePoints = source("src/app/admin/finance/points/page.tsx");
+
+    expect(compactClientTable).toContain("AdminCompactDataTable");
+    expect(compactClientTable).toContain("filterKind");
+    expect(compactClientTable).toContain("CompactPaginationBar");
+    expect(compactClientTable).toContain("Выбрано:");
+
+    for (const page of [productResults, productSessions, financeReceipts, financeReports, financePoints]) {
+      expect(page).toContain("AdminCompactDataTable");
+      expect(page).not.toMatch(/import\s+\{[^}]*\bDataTable\b[^}]*\}/);
+      expect(page).not.toContain("<DataTable");
+      expect(page).not.toContain("<form className=\"mb-4 flex flex-wrap items-center gap-2\"");
+    }
+  });
+
+  it("keeps product quality operation tables on the compact table system", () => {
+    const managers = [
+      source("src/app/admin/complaints/complaints-manager.tsx"),
+      source("src/app/admin/applications/applications-manager.tsx"),
+      source("src/app/admin/product/quality/library-requests-manager.tsx"),
+      source("src/app/admin/reviews/reviews-manager.tsx"),
+    ];
+
+    for (const manager of managers) {
+      expect(manager).toContain("CompactTableShell");
+      expect(manager).not.toContain("soft-admin-data-table");
+      expect(manager).not.toContain("soft-admin-seg");
+    }
+  });
+
+  it("does not reintroduce legacy admin table wrappers in admin pages", () => {
+    const files = listFiles("src/app/admin").filter((file) => !file.includes("/api/"));
+    const offenders = files.filter((file) => {
+      const text = source(file);
+      return /soft-admin-data-table|soft-admin-seg|soft-admin-table-filter|<DataTable\b/.test(text);
+    });
+
+    expect(offenders).toEqual([]);
   });
 });

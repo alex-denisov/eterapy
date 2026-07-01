@@ -4,12 +4,13 @@ import path from "node:path";
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 describe("D1 — admin files table uses the minimalist standard", () => {
-  it("renders the shared soft-admin-data-table with filter/search/sort/pagination", () => {
+  it("renders the shared compact admin table with filter/sort/pagination", () => {
     const table = source("src/app/admin/files/files-table.tsx");
     expect(table).toContain('data-testid="admin-files-table"');
-    expect(table).toContain("soft-admin-data-table");
-    expect(table).toContain("soft-admin-seg-btn");
-    expect(table).toContain('type="search"');
+    expect(table).toContain("CompactTableShell");
+    expect(table).toContain("CompactHeader");
+    expect(table).toContain("COMPACT_INPUT_CLASS");
+    expect(table).toContain("COMPACT_SELECT_CLASS");
     expect(table).toContain("size-desc");
     expect(table).toContain("PAGE_SIZE = 25");
   });

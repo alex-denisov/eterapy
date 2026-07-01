@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CompactPaginationBar } from "@/components/admin/compact-table";
+import {
+  CompactHeader,
+  CompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
+} from "@/components/admin/compact-table";
 
 export interface StoredFileRow {
   id: string;
@@ -26,21 +33,21 @@ function kindClass(kind: string): string {
 }
 
 export function FilesTable({ rows }: { rows: StoredFileRow[] }) {
-  const [kind, setKind] = useState("all");
-  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({ file: "", kind: "all", user: "", size: "", createdAt: "" });
   const [sort, setSort] = useState<SortMode>("date-desc");
   const [page, setPage] = useState(1);
 
   const kinds = useMemo(() => Array.from(new Set(rows.map((r) => r.kind))).sort(), [rows]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const list = rows.filter((row) => {
-      if (kind !== "all" && row.kind !== kind) return false;
-      if (q && !row.originalName.toLowerCase().includes(q) && !row.userName.toLowerCase().includes(q) && !row.userEmail.toLowerCase().includes(q)) {
-        return false;
-      }
-      return true;
+      if (filters.kind !== "all" && row.kind !== filters.kind) return false;
+      return [
+        [filters.file, `${row.originalName} ${row.mimeType}`],
+        [filters.user, `${row.userName} ${row.userEmail}`],
+        [filters.size, `${Math.round(row.sizeBytes / 1024)}`],
+        [filters.createdAt, new Date(row.createdAt).toLocaleDateString("ru-RU")],
+      ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
     });
     return [...list].sort((a, b) => {
       if (sort === "size-asc") return a.sizeBytes - b.sizeBytes;
@@ -49,7 +56,7 @@ export function FilesTable({ rows }: { rows: StoredFileRow[] }) {
       const tb = new Date(b.createdAt).getTime();
       return sort === "date-asc" ? ta - tb : tb - ta;
     });
-  }, [rows, kind, query, sort]);
+  }, [rows, filters, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -60,53 +67,40 @@ export function FilesTable({ rows }: { rows: StoredFileRow[] }) {
 
   return (
     <div data-testid="admin-files-table">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => { setKind("all"); setPage(1); }} data-active={kind === "all"} className="soft-admin-seg-btn">
-          Все
-        </button>
-        {kinds.map((k) => (
-          <button key={k} type="button" onClick={() => { setKind(k); setPage(1); }} data-active={kind === k} className="soft-admin-seg-btn">
-            {k}
-          </button>
-        ))}
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => { setQuery(event.target.value); setPage(1); }}
-          placeholder="Поиск: файл или пользователь"
-          aria-label="Поиск по файлам"
-          className="soft-admin-table-filter mt-0 ml-auto h-8 w-60"
-        />
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="soft-admin-data-table min-w-[820px]">
+      <CompactTableShell minWidth="820px">
           <thead>
             <tr>
-              <th>Файл</th>
-              <th>Тип</th>
-              <th>Пользователь</th>
-              <th>
-                <button type="button" className="cursor-pointer bg-transparent" onClick={() => setSort((c) => (c === "size-desc" ? "size-asc" : "size-desc"))}>
-                  Размер{sizeMark}
-                </button>
-              </th>
-              <th>
-                <button type="button" className="cursor-pointer bg-transparent" onClick={() => setSort((c) => (c === "date-desc" ? "date-asc" : "date-desc"))}>
-                  Дата{dateMark}
-                </button>
-              </th>
+              <CompactHeader label="Файл">
+                <HeaderTextFilter value={filters.file} placeholder="файл/mime" onChange={(value) => { setFilters((current) => ({ ...current, file: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Тип">
+                <div className="p-1 pt-0">
+                  <select className={COMPACT_SELECT_CLASS} value={filters.kind} onChange={(event) => { setFilters((current) => ({ ...current, kind: event.target.value })); setPage(1); }}>
+                    <option value="all">Все</option>
+                    {kinds.map((kind) => <option key={kind} value={kind}>{kind}</option>)}
+                  </select>
+                </div>
+              </CompactHeader>
+              <CompactHeader label="Пользователь">
+                <HeaderTextFilter value={filters.user} placeholder="имя/email" onChange={(value) => { setFilters((current) => ({ ...current, user: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label={`Размер${sizeMark}`} sortKey="size" activeSortKey={sort.startsWith("size") ? "size" : ""} direction={sort.endsWith("asc") ? "asc" : "desc"} onSort={() => setSort((c) => (c === "size-desc" ? "size-asc" : "size-desc"))}>
+                <HeaderTextFilter value={filters.size} placeholder="КБ" onChange={(value) => { setFilters((current) => ({ ...current, size: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label={`Дата${dateMark}`} sortKey="date" activeSortKey={sort.startsWith("date") ? "date" : ""} direction={sort.endsWith("asc") ? "asc" : "desc"} onSort={() => setSort((c) => (c === "date-desc" ? "date-asc" : "date-desc"))}>
+                <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
+              </CompactHeader>
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 ? (
               <tr>
-                <td colSpan={5} className="py-10 text-center text-[var(--soft-ink-soft)]">Файлов нет</td>
+                <td colSpan={5} className={`${COMPACT_CELL_CLASS} py-10 text-center text-[var(--soft-ink-soft)]`}>Файлов нет</td>
               </tr>
             ) : (
               visible.map((f) => (
                 <tr key={f.id}>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <div className="flex items-center gap-2">
                       {f.mimeType.startsWith("image/") ? (
                         <a href={f.path} target="_blank" rel="noopener noreferrer">
@@ -124,25 +118,32 @@ export function FilesTable({ rows }: { rows: StoredFileRow[] }) {
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <span className={`rounded px-1.5 py-0.5 text-xs ${kindClass(f.kind)}`}>{f.kind}</span>
                   </td>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <p className="text-xs font-medium text-[var(--soft-ink)]">{f.userName}</p>
                     <p className="text-[10px] text-[var(--soft-ink-faint)]">{f.userEmail}</p>
                   </td>
-                  <td className="text-xs text-[var(--soft-ink-soft)]">{(f.sizeBytes / 1024).toFixed(0)} КБ</td>
-                  <td className="whitespace-nowrap text-xs text-[var(--soft-ink-soft)]">{new Date(f.createdAt).toLocaleDateString("ru-RU")}</td>
+                  <td className={`${COMPACT_CELL_CLASS} text-xs text-[var(--soft-ink-soft)]`}>{(f.sizeBytes / 1024).toFixed(0)} КБ</td>
+                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-xs text-[var(--soft-ink-soft)]`}>{new Date(f.createdAt).toLocaleDateString("ru-RU")}</td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
 
       {pageCount > 1 && (
         <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
+    </div>
+  );
+}
+
+function HeaderTextFilter({ value, placeholder, onChange }: { value: string; placeholder: string; onChange: (value: string) => void }) {
+  return (
+    <div className="p-1 pt-0">
+      <input className={COMPACT_INPUT_CLASS} value={value} placeholder={placeholder} autoComplete="off" onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

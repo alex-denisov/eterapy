@@ -4,6 +4,14 @@ import { Fragment, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, Clock3, LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import {
+  CompactHeader,
+  CompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
+} from "@/components/admin/compact-table";
 
 interface Complaint {
   id: string;
@@ -62,16 +70,37 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   RESOLVED:  { label: "Решена",        color: "bg-green-500/10 text-green-400" },
   CLOSED:    { label: "Закрыта",       color: "bg-muted/20 text-muted-foreground" },
 };
+const PAGE_SIZE = 20;
 
 export function ComplaintsManager({ complaints: initial }: { complaints: Complaint[] }) {
   const [complaints, setComplaints] = useState(initial);
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    reason: "",
+    client: "",
+    practitioner: "",
+    amount: "",
+    status: "all",
+    createdAt: "",
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolution, setResolution] = useState<Record<string, string>>({});
   const [decision, setDecision] = useState<Record<string, PayoutDecision>>({});
   const [processing, setProcessing] = useState<string | null>(null);
 
-  const filtered = complaints.filter(c => filterStatus === "all" || c.status === filterStatus);
+  const filtered = complaints.filter(c => {
+    if (filters.status !== "all" && c.status !== filters.status) return false;
+    return [
+      [filters.reason, `${REASON_LABELS[c.reason] ?? c.reason} ${c.description}`],
+      [filters.client, `${c.clientName} ${c.clientEmail}`],
+      [filters.practitioner, c.practitionerName],
+      [filters.amount, String(c.priceRub)],
+      [filters.createdAt, new Date(c.createdAt).toLocaleDateString("ru-RU")],
+    ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
+  });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   async function updateStatus(id: string, status: string) {
     const c = complaints.find(x => x.id === id);
@@ -127,53 +156,56 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
 
   return (
     <div className="space-y-4">
-      {/* Фильтры */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="soft-admin-seg">
-          {[
-            ["all", "Все"],
-            ["OPEN", `Новые (${counts.OPEN})`],
-            ["REVIEWING", `На рассмотрении (${counts.REVIEWING})`],
-            ["RESOLVED", `Решены (${counts.RESOLVED})`],
-            ["CLOSED", `Закрыты (${counts.CLOSED})`],
-          ].map(([v, l]) => (
-            <button key={v} onClick={() => setFilterStatus(v)}
-              data-active={filterStatus === v}
-              className="soft-admin-seg-btn">
-              {l}
-            </button>
-          ))}
-        </div>
-        <span className="ml-auto text-xs text-muted-foreground self-center">{filtered.length}</span>
-      </div>
-
-      {/* Список */}
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-muted-foreground text-sm rounded-xl border border-border/20">
           Жалоб нет
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
-          <table className="soft-admin-data-table min-w-[1120px]">
+        <>
+          <CompactTableShell minWidth="1120px">
             <thead>
               <tr>
-                <th>Жалоба</th>
-                <th>Клиент</th>
-                <th>Практик</th>
-                <th>Сумма</th>
-                <th>Статус</th>
-                <th>Создано</th>
-                <th>Действия</th>
+                <CompactHeader label="Жалоба">
+                  <HeaderTextFilter value={filters.reason} placeholder="причина/текст" onChange={(value) => { setFilters((current) => ({ ...current, reason: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Клиент">
+                  <HeaderTextFilter value={filters.client} placeholder="имя/email" onChange={(value) => { setFilters((current) => ({ ...current, client: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Практик">
+                  <HeaderTextFilter value={filters.practitioner} placeholder="практик" onChange={(value) => { setFilters((current) => ({ ...current, practitioner: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Сумма">
+                  <HeaderTextFilter value={filters.amount} placeholder="₽" onChange={(value) => { setFilters((current) => ({ ...current, amount: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Статус">
+                  <div className="p-1 pt-0">
+                    <select
+                      className={COMPACT_SELECT_CLASS}
+                      value={filters.status}
+                      onChange={(event) => { setFilters((current) => ({ ...current, status: event.target.value })); setPage(1); }}
+                    >
+                      <option value="all">Все ({complaints.length})</option>
+                      <option value="OPEN">Новые ({counts.OPEN})</option>
+                      <option value="REVIEWING">На рассмотрении ({counts.REVIEWING})</option>
+                      <option value="RESOLVED">Решены ({counts.RESOLVED})</option>
+                      <option value="CLOSED">Закрыты ({counts.CLOSED})</option>
+                    </select>
+                  </div>
+                </CompactHeader>
+                <CompactHeader label="Создано">
+                  <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Действия" />
               </tr>
             </thead>
             <tbody>
-          {filtered.map(c => {
+          {pageRows.map(c => {
             const meta = STATUS_META[c.status] ?? STATUS_META.OPEN;
             const isExpanded = expandedId === c.id;
             return (
               <Fragment key={c.id}>
                 <tr>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <button
                       type="button"
                       className="mr-1 inline-flex size-6 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white align-middle text-[var(--soft-bordeaux)]"
@@ -185,15 +217,15 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
                     </button>
                     <span className="font-medium" title={REASON_LABELS[c.reason] ?? c.reason}>{REASON_LABELS[c.reason] ?? c.reason}</span>
                   </td>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS}>
                     <span className="soft-admin-cell-truncate">{c.clientName}</span>
                     <span className="soft-admin-cell-muted">{c.clientEmail}</span>
                   </td>
-                  <td title={c.practitionerName}>{c.practitionerName}</td>
-                  <td>{c.priceRub.toLocaleString("ru-RU")} ₽</td>
-                  <td><Badge className={`${meta.color} text-xs`}>{meta.label}</Badge></td>
-                  <td>{new Date(c.createdAt).toLocaleDateString("ru-RU")}</td>
-                  <td>
+                  <td className={COMPACT_CELL_CLASS} title={c.practitionerName}>{c.practitionerName}</td>
+                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap tabular-nums`}>{c.priceRub.toLocaleString("ru-RU")} ₽</td>
+                  <td className={COMPACT_CELL_CLASS}><Badge className={`${meta.color} text-xs`}>{meta.label}</Badge></td>
+                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{new Date(c.createdAt).toLocaleDateString("ru-RU")}</td>
+                  <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                     <div className="soft-admin-table-actions">
                       {c.status !== "REVIEWING" && (
                         <button type="button" onClick={() => updateStatus(c.id, "REVIEWING")} disabled={processing === c.id} className="soft-admin-icon-button" title="На рассмотрение" aria-label="Перевести жалобу на рассмотрение">
@@ -424,9 +456,32 @@ export function ComplaintsManager({ complaints: initial }: { complaints: Complai
             );
           })}
             </tbody>
-          </table>
-        </div>
+          </CompactTableShell>
+          <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
+        </>
       )}
+    </div>
+  );
+}
+
+function HeaderTextFilter({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="p-1 pt-0">
+      <input
+        className={COMPACT_INPUT_CLASS}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }

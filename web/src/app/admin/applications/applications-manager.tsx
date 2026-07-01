@@ -4,7 +4,14 @@ import { Fragment, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronRight, Clock3, ExternalLink, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import {
+  CompactHeader,
+  CompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
+} from "@/components/admin/compact-table";
 
 interface Application {
   id: string;
@@ -35,19 +42,35 @@ const SPECIALTY_LABELS: Record<string, string> = {
   TAROT: "Таро", ASTROLOGY: "Астрология", NUMEROLOGY: "Нумерология",
   PSYCHIC: "Экстрасенсорика", RUNES: "Руны", DREAMS: "Сонники",
 };
+const PAGE_SIZE = 20;
 
 export function ApplicationsManager({ applications: initial, adminRole }: { applications: Application[]; adminRole: string }) {
   const [apps, setApps] = useState(initial);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    application: "",
+    contacts: "",
+    specialties: "",
+    experience: "",
+    status: "all",
+    createdAt: "",
+  });
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filtered = apps.filter(a => {
-    if (filterStatus !== "all" && a.status !== filterStatus) return false;
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q) || a.about.toLowerCase().includes(q);
+    const specialties = a.specialties.map(s => SPECIALTY_LABELS[s] ?? s).join(", ");
+    if (filters.status !== "all" && a.status !== filters.status) return false;
+    return [
+      [filters.application, `${a.name} ${a.about} ${a.why ?? ""}`],
+      [filters.contacts, `${a.email} ${a.telegram ?? ""}`],
+      [filters.specialties, specialties],
+      [filters.experience, a.experience],
+      [filters.createdAt, new Date(a.createdAt).toLocaleDateString("ru-RU")],
+    ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
   });
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   async function updateStatus(id: string, status: string) {
     const res = await fetch(`/api/admin/applications/${id}`, {
@@ -72,49 +95,55 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
 
   return (
     <div className="space-y-4">
-      {/* Фильтры */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <Input placeholder="Поиск по имени, email, тексту..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          className="bg-card/50 max-w-xs h-8 text-sm" />
-        <div className="soft-admin-seg">
-          {[["all", "Все"], ["PENDING", "Новые"], ["REVIEWING", "На проверке"], ["APPROVED", "Одобренные"], ["REJECTED", "Отклонённые"]].map(([v, l]) => (
-            <button key={v} onClick={() => setFilterStatus(v)}
-              data-active={filterStatus === v}
-              className="soft-admin-seg-btn">
-              {l}
-            </button>
-          ))}
-        </div>
-        <span className="text-xs text-muted-foreground ml-auto">{filtered.length}</span>
-      </div>
-
-      {/* Список */}
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-muted-foreground text-sm">Нет заявок</div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
-          <table className="soft-admin-data-table min-w-[1080px]">
+        <>
+          <CompactTableShell minWidth="1080px">
             <thead>
               <tr>
-                <th>Заявка</th>
-                <th>Контакты</th>
-                <th>Специализации</th>
-                <th>Опыт</th>
-                <th>Статус</th>
-                <th>Создано</th>
-                <th>Действия</th>
+                <CompactHeader label="Заявка">
+                  <HeaderTextFilter value={filters.application} placeholder="имя/текст" onChange={(value) => { setFilters((current) => ({ ...current, application: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Контакты">
+                  <HeaderTextFilter value={filters.contacts} placeholder="email/telegram" onChange={(value) => { setFilters((current) => ({ ...current, contacts: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Специализации">
+                  <HeaderTextFilter value={filters.specialties} placeholder="направление" onChange={(value) => { setFilters((current) => ({ ...current, specialties: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Опыт">
+                  <HeaderTextFilter value={filters.experience} placeholder="опыт" onChange={(value) => { setFilters((current) => ({ ...current, experience: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Статус">
+                  <div className="p-1 pt-0">
+                    <select
+                      className={COMPACT_SELECT_CLASS}
+                      value={filters.status}
+                      onChange={(event) => { setFilters((current) => ({ ...current, status: event.target.value })); setPage(1); }}
+                    >
+                      <option value="all">Все</option>
+                      <option value="PENDING">Новые</option>
+                      <option value="REVIEWING">На проверке</option>
+                      <option value="APPROVED">Одобренные</option>
+                      <option value="REJECTED">Отклонённые</option>
+                    </select>
+                  </div>
+                </CompactHeader>
+                <CompactHeader label="Создано">
+                  <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
+                </CompactHeader>
+                <CompactHeader label="Действия" />
               </tr>
             </thead>
             <tbody>
-              {filtered.map(a => {
+              {pageRows.map(a => {
                 const isExpanded = expandedId === a.id;
                 const meta = STATUS_META[a.status] ?? STATUS_META.PENDING;
                 const specialties = a.specialties.map(s => SPECIALTY_LABELS[s] ?? s).join(", ");
                 return (
                   <Fragment key={a.id}>
                     <tr>
-                      <td>
+                      <td className={COMPACT_CELL_CLASS}>
                         <button
                           type="button"
                           className="mr-1 inline-flex size-6 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white align-middle text-[var(--soft-bordeaux)]"
@@ -127,15 +156,15 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                         <span className="font-medium">{a.name}</span>
                         {a.kind === "VERIFICATION" && <span className="ml-2 soft-admin-status-pill">Верификация</span>}
                       </td>
-                      <td>
+                      <td className={COMPACT_CELL_CLASS}>
                         <span className="soft-admin-cell-truncate">{a.email}</span>
                         {a.telegram ? <span className="soft-admin-cell-muted">{a.telegram}</span> : null}
                       </td>
-                      <td title={specialties}>{specialties}</td>
-                      <td title={a.experience}>{a.experience}</td>
-                      <td><Badge className={`${meta.color} text-xs`}>{meta.label}</Badge></td>
-                      <td>{new Date(a.createdAt).toLocaleDateString("ru-RU")}</td>
-                      <td>
+                      <td className={COMPACT_CELL_CLASS} title={specialties}>{specialties}</td>
+                      <td className={COMPACT_CELL_CLASS} title={a.experience}>{a.experience}</td>
+                      <td className={COMPACT_CELL_CLASS}><Badge className={`${meta.color} text-xs`}>{meta.label}</Badge></td>
+                      <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{new Date(a.createdAt).toLocaleDateString("ru-RU")}</td>
+                      <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                         <div className="soft-admin-table-actions">
                           {a.status !== "REVIEWING" && (
                             <button type="button" onClick={() => updateStatus(a.id, "REVIEWING")} className="soft-admin-icon-button" title="На проверку" aria-label="Перевести заявку на проверку">
@@ -222,9 +251,32 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                 );
               })}
             </tbody>
-          </table>
-        </div>
+          </CompactTableShell>
+          <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
+        </>
       )}
+    </div>
+  );
+}
+
+function HeaderTextFilter({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="p-1 pt-0">
+      <input
+        className={COMPACT_INPUT_CLASS}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }

@@ -28,16 +28,17 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
     expect(catalog).toContain("длительность встречи выбираете сами");
   });
 
-  it("D3/D5: unified admin segmented control exists and replaces low-contrast toggles", () => {
+  it("D3/D5: unified admin compact controls replace low-contrast toggles", () => {
     const css = source("src/app/v4-soft.css");
-    expect(css).toContain(".soft-admin-seg-btn");
-    expect(css).toContain('.soft-admin-seg-btn[data-active="true"]');
+    expect(css).toContain(".soft-admin-action");
+    expect(css).toContain('.soft-admin-action[data-variant="primary"]');
     for (const file of [
       "src/app/admin/applications/applications-manager.tsx",
       "src/app/admin/complaints/complaints-manager.tsx",
     ]) {
       const content = source(file);
-      expect(content).toContain("soft-admin-seg-btn");
+      expect(content).toContain("CompactTableShell");
+      expect(content).toContain("COMPACT_SELECT_CLASS");
       expect(content).not.toContain("bg-primary/15 text-primary");
     }
     const bookings = source("src/app/admin/bookings/bookings-manager.tsx");

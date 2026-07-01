@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
+import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS, COMPACT_INPUT_CLASS, COMPACT_SELECT_CLASS } from "@/components/admin/compact-table";
 import { LinkPagination } from "../admin-analytics-ui";
 import { JobActions } from "./job-actions";
 
@@ -63,7 +64,7 @@ function HeaderInput({ params, name, placeholder }: { params: SearchParams; name
   return (
     <form action="/admin/ops/jobs">
       <HiddenParams params={params} except={[name]} />
-      <input className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
+      <input className={COMPACT_INPUT_CLASS} name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
     </form>
   );
 }
@@ -72,7 +73,7 @@ function HeaderSelect({ params, name, options }: { params: SearchParams; name: k
   return (
     <form action="/admin/ops/jobs">
       <HiddenParams params={params} except={[name]} />
-      <select className="soft-admin-table-filter" name={name} defaultValue={params[name] ?? ""}>
+      <select className={COMPACT_SELECT_CLASS} name={name} defaultValue={params[name] ?? ""}>
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -199,62 +200,62 @@ export default async function AdminJobsPage(props: {
       </div>
 
       {Object.keys(queueMap).length > 0 && (
-        <section className="mb-5 overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3 shadow-[var(--soft-shadow-sm)]">
-          <table className="soft-admin-data-table min-w-[780px]">
+        <section className="mb-5">
+          <CompactTableShell minWidth="780px">
             <thead>
-              <tr><th>Очередь</th><th>Pending</th><th>Running</th><th>Failed</th><th>Dead</th><th>Done</th></tr>
+              <tr><CompactHeader label="Очередь" /><CompactHeader label="Pending" /><CompactHeader label="Running" /><CompactHeader label="Failed" /><CompactHeader label="Dead" /><CompactHeader label="Done" /></tr>
             </thead>
             <tbody>
               {Object.entries(queueMap).map(([queue, counts]) => (
                 <tr key={queue}>
-                  <td>{queue}</td>
-                  <td>{counts.PENDING ?? 0}</td>
-                  <td>{counts.RUNNING ?? 0}</td>
-                  <td>{counts.FAILED ?? 0}</td>
-                  <td>{counts.DEAD ?? 0}</td>
-                  <td>{counts.SUCCEEDED ?? 0}</td>
+                  <td className={COMPACT_CELL_CLASS}>{queue}</td>
+                  <td className={COMPACT_CELL_CLASS}>{counts.PENDING ?? 0}</td>
+                  <td className={COMPACT_CELL_CLASS}>{counts.RUNNING ?? 0}</td>
+                  <td className={COMPACT_CELL_CLASS}>{counts.FAILED ?? 0}</td>
+                  <td className={COMPACT_CELL_CLASS}>{counts.DEAD ?? 0}</td>
+                  <td className={COMPACT_CELL_CLASS}>{counts.SUCCEEDED ?? 0}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </CompactTableShell>
         </section>
       )}
 
-      <section className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-sm)]">
-        <table className="soft-admin-data-table min-w-[1240px]" data-testid="admin-jobs-table">
+      <section data-testid="admin-jobs-table">
+        <CompactTableShell minWidth="1240px">
           <thead>
             <tr>
-              <th><SortLink params={params} field="queue">Очередь</SortLink><HeaderInput params={params} name="queue" placeholder="queue" /></th>
-              <th><SortLink params={params} field="type">Тип</SortLink><HeaderInput params={params} name="type" placeholder="type" /></th>
-              <th><SortLink params={params} field="status">Статус</SortLink><HeaderSelect params={params} name="status" options={[{ value: "", label: "Все" }, ...Object.values(JobStatus).map((item) => ({ value: item, label: item }))]} /></th>
-              <th><SortLink params={params} field="attempts">Попытки</SortLink></th>
-              <th><SortLink params={params} field="priority">Приоритет</SortLink></th>
-              <th><SortLink params={params} field="runAfter">Run after</SortLink></th>
-              <th>Locked</th>
-              <th><SortLink params={params} field="updatedAt">Обновлено</SortLink><HeaderInput params={params} name="q" placeholder="id/error/locked" /></th>
-              <th>Ошибка</th>
-              <th>Действия</th>
+              <CompactHeader label="Очередь"><SortLink params={params} field="queue">Сортировать</SortLink><HeaderInput params={params} name="queue" placeholder="queue" /></CompactHeader>
+              <CompactHeader label="Тип"><SortLink params={params} field="type">Сортировать</SortLink><HeaderInput params={params} name="type" placeholder="type" /></CompactHeader>
+              <CompactHeader label="Статус"><SortLink params={params} field="status">Сортировать</SortLink><HeaderSelect params={params} name="status" options={[{ value: "", label: "Все" }, ...Object.values(JobStatus).map((item) => ({ value: item, label: item }))]} /></CompactHeader>
+              <CompactHeader label="Попытки"><SortLink params={params} field="attempts">Сортировать</SortLink></CompactHeader>
+              <CompactHeader label="Приоритет"><SortLink params={params} field="priority">Сортировать</SortLink></CompactHeader>
+              <CompactHeader label="Run after"><SortLink params={params} field="runAfter">Сортировать</SortLink></CompactHeader>
+              <CompactHeader label="Locked" />
+              <CompactHeader label="Обновлено"><SortLink params={params} field="updatedAt">Сортировать</SortLink><HeaderInput params={params} name="q" placeholder="id/error/locked" /></CompactHeader>
+              <CompactHeader label="Ошибка" />
+              <CompactHeader label="Действия" />
             </tr>
           </thead>
           <tbody>
             {jobs.length === 0 ? (
-              <tr><td colSpan={10} className="text-center">Задачи не найдены</td></tr>
+              <tr><td colSpan={10} className={`${COMPACT_CELL_CLASS} text-center`}>Задачи не найдены</td></tr>
             ) : jobs.map((job) => (
               <tr key={job.id} data-testid="admin-job-row">
-                <td>{job.queue}</td>
-                <td>{job.type}</td>
-                <td><span className="soft-admin-status-pill" data-tone={statusTone(job.status)}>{job.status}</span></td>
-                <td>{job.attempts}/{job.maxAttempts}</td>
-                <td>{job.priority}</td>
-                <td>{job.runAfter.toLocaleString("ru-RU")}</td>
-                <td>{job.lockedBy ?? "нет"}</td>
-                <td>{job.updatedAt.toLocaleString("ru-RU")}</td>
-                <td className="max-w-md truncate">{job.error ?? "нет"}</td>
-                <td><JobActions jobId={job.id} status={job.status} maxAttempts={job.maxAttempts} /></td>
+                <td className={COMPACT_CELL_CLASS}>{job.queue}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.type}</td>
+                <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={statusTone(job.status)}>{job.status}</span></td>
+                <td className={COMPACT_CELL_CLASS}>{job.attempts}/{job.maxAttempts}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.priority}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.runAfter.toLocaleString("ru-RU")}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.lockedBy ?? "нет"}</td>
+                <td className={COMPACT_CELL_CLASS}>{job.updatedAt.toLocaleString("ru-RU")}</td>
+                <td className={`${COMPACT_CELL_CLASS} max-w-md truncate`}>{job.error ?? "нет"}</td>
+                <td className={`${COMPACT_CELL_CLASS} border-r-0`}><JobActions jobId={job.id} status={job.status} maxAttempts={job.maxAttempts} /></td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </CompactTableShell>
       </section>
 
       <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { page: String(nextPage) })} />

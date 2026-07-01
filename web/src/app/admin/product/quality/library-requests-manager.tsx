@@ -3,6 +3,14 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { BookOpenText, CheckCircle2, EyeOff } from "lucide-react";
+import {
+  CompactHeader,
+  CompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
+} from "@/components/admin/compact-table";
 import { StatusBadge, formatDateTime } from "../../admin-analytics-ui";
 
 export interface LibraryRequestRow {
@@ -22,22 +30,34 @@ const STATUS_OPTIONS = [
   { value: "PUBLISHED", label: "Опубликовано" },
   { value: "WITHDRAWN", label: "Снято" },
 ];
+const PAGE_SIZE = 20;
 
 export function LibraryRequestsManager({ rows: initialRows }: { rows: LibraryRequestRow[] }) {
   const [rows, setRows] = useState(initialRows);
-  const [status, setStatus] = useState("all");
-  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState({
+    question: "",
+    author: "",
+    status: "all",
+    consentAt: "",
+    createdAt: "",
+  });
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return rows.filter((row) => {
-      if (status !== "all" && row.status !== status) return false;
-      if (!q) return true;
-      return [row.title, row.question, row.userName, row.userEmail]
-        .some((value) => value.toLowerCase().includes(q));
+      if (filters.status !== "all" && row.status !== filters.status) return false;
+      return [
+        [filters.question, `${row.title} ${row.question}`],
+        [filters.author, `${row.userName} ${row.userEmail}`],
+        [filters.consentAt, formatDateTime(row.consentAt)],
+        [filters.createdAt, formatDateTime(row.createdAt)],
+      ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
     });
-  }, [query, rows, status]);
+  }, [filters, rows]);
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   async function updateStatus(id: string, nextStatus: "PUBLISHED" | "WITHDRAWN" | "PENDING_REVIEW") {
     const previous = rows;
@@ -62,50 +82,43 @@ export function LibraryRequestsManager({ rows: initialRows }: { rows: LibraryReq
 
   return (
     <div className="space-y-3" data-testid="admin-library-requests-manager">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="soft-admin-seg">
-          {STATUS_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className="soft-admin-seg-btn"
-              data-active={status === option.value}
-              onClick={() => setStatus(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="soft-admin-table-filter mt-0 ml-auto h-8 w-72"
-          placeholder="Поиск: вопрос, клиент, email"
-          aria-label="Поиск по заявкам библиотеки"
-        />
-      </div>
-
-      <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)]">
-        <table className="soft-admin-data-table min-w-[980px]">
+      <CompactTableShell minWidth="980px">
           <thead>
             <tr>
-              <th>Вопрос</th>
-              <th>Автор</th>
-              <th>Статус</th>
-              <th>Согласие</th>
-              <th>Создано</th>
-              <th>Действия</th>
+              <CompactHeader label="Вопрос">
+                <HeaderTextFilter value={filters.question} placeholder="вопрос" onChange={(value) => { setFilters((current) => ({ ...current, question: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Автор">
+                <HeaderTextFilter value={filters.author} placeholder="имя/email" onChange={(value) => { setFilters((current) => ({ ...current, author: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Статус">
+                <div className="p-1 pt-0">
+                  <select
+                    className={COMPACT_SELECT_CLASS}
+                    value={filters.status}
+                    onChange={(event) => { setFilters((current) => ({ ...current, status: event.target.value })); setPage(1); }}
+                  >
+                    {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+              </CompactHeader>
+              <CompactHeader label="Согласие">
+                <HeaderTextFilter value={filters.consentAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, consentAt: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Создано">
+                <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
+              </CompactHeader>
+              <CompactHeader label="Действия" />
             </tr>
           </thead>
           <tbody>
-            {visible.length === 0 ? (
+            {pageRows.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-8 text-center text-[var(--soft-ink-soft)]">Заявок на публикацию нет</td>
+                <td colSpan={6} className={`${COMPACT_CELL_CLASS} py-8 text-center text-[var(--soft-ink-soft)]`}>Заявок на публикацию нет</td>
               </tr>
-            ) : visible.map((row) => (
+            ) : pageRows.map((row) => (
               <tr key={row.id}>
-                <td className="max-w-[28rem]">
+                <td className={`${COMPACT_CELL_CLASS} max-w-[28rem]`}>
                   <div className="flex items-start gap-2">
                     <BookOpenText className="mt-0.5 h-4 w-4 shrink-0 text-[var(--soft-bordeaux)]" aria-hidden="true" />
                     <div className="min-w-0">
@@ -114,14 +127,14 @@ export function LibraryRequestsManager({ rows: initialRows }: { rows: LibraryReq
                     </div>
                   </div>
                 </td>
-                <td>
+                <td className={COMPACT_CELL_CLASS}>
                   <p className="text-xs font-medium text-[var(--soft-ink)]">{row.userName}</p>
                   <p className="text-[10px] text-[var(--soft-ink-faint)]">{row.userEmail}</p>
                 </td>
-                <td><StatusBadge status={row.status} /></td>
-                <td className="whitespace-nowrap text-xs text-[var(--soft-ink-soft)]">{formatDateTime(row.consentAt)}</td>
-                <td className="whitespace-nowrap text-xs text-[var(--soft-ink-soft)]">{formatDateTime(row.createdAt)}</td>
-                <td>
+                <td className={COMPACT_CELL_CLASS}><StatusBadge status={row.status} /></td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-xs text-[var(--soft-ink-soft)]`}>{formatDateTime(row.consentAt)}</td>
+                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap text-xs text-[var(--soft-ink-soft)]`}>{formatDateTime(row.createdAt)}</td>
+                <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                   <div className="soft-admin-table-actions">
                     <button
                       type="button"
@@ -149,8 +162,30 @@ export function LibraryRequestsManager({ rows: initialRows }: { rows: LibraryReq
               </tr>
             ))}
           </tbody>
-        </table>
-      </div>
+      </CompactTableShell>
+      <CompactPaginationBar page={safePage} total={visible.length} pageSize={PAGE_SIZE} onPage={setPage} />
+    </div>
+  );
+}
+
+function HeaderTextFilter({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="p-1 pt-0">
+      <input
+        className={COMPACT_INPUT_CLASS}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }

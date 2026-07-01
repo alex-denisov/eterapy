@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
-import { AdminHero, AnalyticsSection, DataTable, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, formatDateTime, formatNumber } from "../../admin-analytics-ui";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+import { AdminHero, AnalyticsSection, MetricCard, MetricGrid, PeriodToolbar, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
 import { resolveAdminPeriod } from "../../admin-analytics-data";
 import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
@@ -12,6 +13,24 @@ import { AdminCurrencySelector } from "../../admin-currency-selector";
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const operationColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
+  { key: "client", label: "Клиент", sortable: true },
+  { key: "amount", label: "Сумма", sortable: true, align: "right" },
+  { key: "status", label: "Статус", sortable: true },
+  { key: "provider", label: "Провайдер", sortable: true },
+  { key: "providerId", label: "ID провайдера", sortable: true },
+];
+
+const auditColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
+  { key: "action", label: "Действие", sortable: true },
+  { key: "userId", label: "Администратор", sortable: true },
+  { key: "targetId", label: "Цель", sortable: true },
+  { key: "ip", label: "IP", sortable: true },
+  { key: "details", label: "Детали", sortable: true },
+];
 
 function financeAction(action: string) {
   return /PAYOUT|PAYMENT|REFUND|PRICE|TARIFF|REPORT|RECONCILIATION|YOOKASSA|TRANSACTION/i.test(action);
@@ -68,30 +87,42 @@ export default async function FinanceControlsPage({ searchParams }: PageProps) {
 
       <div className="mt-6 grid gap-4">
         <AnalyticsSection title="Последние финансовые операции">
-          <DataTable
-            columns={["Дата и время", "Клиент", "Сумма", "Статус", "Провайдер", "ID провайдера"]}
-            rows={transactions.map((tx) => [
-              formatDateTime(tx.createdAt),
-              <span key="user">{tx.user.name}<br /><span className="text-xs text-[var(--soft-ink-faint)]">{tx.user.email}</span></span>,
-              formatAdminRub(tx.amount / 100, currency, currencyRates),
-              <StatusBadge key="status" status={tx.status} />,
-              tx.provider,
-              tx.providerPaymentId ?? "—",
-            ])}
+          <AdminCompactDataTable
+            columns={operationColumns}
+            rows={transactions.map((tx) => {
+              const txStatus = String(tx.status);
+              return {
+              id: tx.id,
+              cells: {
+                createdAt: { value: formatDateTime(tx.createdAt), sortValue: tx.createdAt.getTime(), filterValue: formatDateTime(tx.createdAt) },
+                client: { value: tx.user.name ?? "—", subvalue: tx.user.email, filterValue: `${tx.user.name ?? ""} ${tx.user.email ?? ""}` },
+                amount: { value: formatAdminRub(tx.amount / 100, currency, currencyRates), sortValue: tx.amount },
+                status: { kind: "status", label: statusLabel(tx.status), tone: txStatus === "SUCCEEDED" ? "ok" : txStatus === "FAILED" ? "danger" : "warn", filterValue: `${tx.status} ${statusLabel(tx.status)}` },
+                provider: tx.provider,
+                providerId: tx.providerPaymentId ?? "—",
+              },
+            };
+            })}
+            minWidth="1120px"
           />
         </AnalyticsSection>
 
         <AnalyticsSection title="Аудит финансовых действий">
-          <DataTable
-            columns={["Дата и время", "Действие", "Администратор", "Цель", "IP", "Детали"]}
-            rows={financeAudit.map((row) => [
-              formatDateTime(row.createdAt),
-              row.action,
-              <span key="user" className="font-mono text-xs">{row.userId}</span>,
-              <span key="target" className="font-mono text-xs">{row.targetId ?? "—"}</span>,
-              row.ip ?? "—",
-              <span key="details" className="line-clamp-2 max-w-lg">{row.details ?? "—"}</span>,
-            ])}
+          <AdminCompactDataTable
+            columns={auditColumns}
+            rows={financeAudit.map((row) => ({
+              id: row.id,
+              cells: {
+                createdAt: { value: formatDateTime(row.createdAt), sortValue: row.createdAt.getTime(), filterValue: formatDateTime(row.createdAt) },
+                action: row.action,
+                userId: { value: row.userId, title: row.userId },
+                targetId: row.targetId ?? "—",
+                ip: row.ip ?? "—",
+                details: { value: row.details ?? "—", title: row.details ?? "—" },
+              },
+            }))}
+            empty="Финансовых действий за выбранный период нет"
+            minWidth="1240px"
           />
         </AnalyticsSection>
       </div>
