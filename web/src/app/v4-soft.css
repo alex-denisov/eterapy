@@ -3088,6 +3088,12 @@
     display: none;
   }
 
+  .soft-admin-shell,
+  .soft-admin-shell > main,
+  .soft-admin-shell .admin-shell-main {
+    overflow-x: hidden;
+  }
+
   .soft-admin-shell :where(main, section, .admin-shell-main, .premium-page) {
     min-width: 0;
     max-width: 100%;
