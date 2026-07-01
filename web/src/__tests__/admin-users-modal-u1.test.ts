@@ -28,6 +28,25 @@ describe("U1 — compact read-only users table (colored text, no badges)", () =>
     expect(panel).toContain('label="Антифрод"');
   });
 
+  it("keeps the dense header filters and Jira-style pagination controls", () => {
+    expect(panel).toContain("MultiSelectFilter");
+    expect(panel).toContain('param="credits"');
+    expect(panel).toContain('param="bookings"');
+    expect(panel).toContain('param="entitlements"');
+    expect(panel).toContain('param="subscription"');
+    expect(panel).toContain('param="antifraud"');
+    expect(panel).toContain("parseRuDate");
+    expect(panel).toContain("paginationItems");
+    expect(panel).toContain("Предыдущая");
+    expect(panel).toContain("Следующая");
+  });
+
+  it("uses icon-only row actions for edit and impersonation", () => {
+    expect(panel).toContain("aria-label={`Редактировать");
+    expect(panel).toContain("aria-label={`Войти как");
+    expect(panel).not.toContain("<Pencil className=\"size-3.5\" aria-hidden=\"true\" />\n                    Изменить");
+  });
+
   it("is read-only: editing happens through the modal, not inline inputs", () => {
     expect(panel).toContain("UserEditModal");
     expect(panel).toContain("setEditing(row)");

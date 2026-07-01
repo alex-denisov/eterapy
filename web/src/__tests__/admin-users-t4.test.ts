@@ -12,8 +12,10 @@ describe("T4 admin users — full editable table + channel tracking", () => {
 
     // Channel taxonomy + DB-backed filter (reuses User.provider; defaults to manual).
     expect(page).toContain("CHANNEL_PROVIDERS");
-    expect(page).toContain('where.provider');
+    expect(page).toContain("selectedChannels");
+    expect(page).toContain("{ provider: { in: [...providerValues] } }");
     expect(panel).toContain('param="channel"');
+    expect(panel).toContain("MultiSelectFilter");
     expect(display).toContain("channelOf");
     expect(display).toContain('case "vk": return "vk"');
     expect(display).toContain('default: return "manual"');

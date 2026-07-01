@@ -1,9 +1,9 @@
 "use client";
 
-import { type ReactNode, useMemo, useState, useTransition } from "react";
+import { type InputHTMLAttributes, type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowUp, Ban, CalendarDays, ChevronLeft, ChevronRight, ChevronsUpDown, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, LogIn, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +46,17 @@ function makeUrl(searchParams: URLSearchParams, patch: Record<string, string | n
   if (!("page" in patch)) next.set("page", "1");
   const query = next.toString();
   return query ? `/admin/product/users?${query}` : "/admin/product/users";
+}
+
+function valuesOf(value: string | null) {
+  return (value ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function compactValue(values: string[]) {
+  return values.length > 0 ? values.join(",") : null;
 }
 
 async function patchJson(url: string, body: Record<string, unknown>): Promise<void> {
@@ -105,7 +116,7 @@ function HeaderCell({ field, label, hint, children }: { field: string; label: st
   );
 }
 
-function FilterInput({ param, placeholder, type = "search" }: { param: string; placeholder: string; type?: string }) {
+function FilterInput({ param, placeholder, inputMode }: { param: string; placeholder: string; inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [value, setValue] = useState(searchParams.get(param) ?? "");
@@ -123,10 +134,12 @@ function FilterInput({ param, placeholder, type = "search" }: { param: string; p
     <div className="relative">
       <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
       <input
-        type={type}
+        type="text"
+        inputMode={inputMode}
         className={`${COMPACT_INPUT_CLASS} pl-5 pr-6`}
         value={value}
         placeholder={placeholder}
+        autoComplete="off"
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") apply(value);
@@ -146,25 +159,101 @@ function FilterInput({ param, placeholder, type = "search" }: { param: string; p
   );
 }
 
-function FilterSelect({ param, options }: { param: string; options: Array<{ value: string; label: string }> }) {
+function MultiSelectFilter({
+  param,
+  placeholder,
+  options,
+}: {
+  param: string;
+  placeholder: string;
+  options: Array<{ value: string; label: string }>;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const value = searchParams.get(param) ?? "";
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selected = valuesOf(searchParams.get(param));
+  const selectedSet = new Set(selected);
+  const summary = selected.length === 0
+    ? placeholder
+    : selected.length === 1
+      ? options.find((option) => option.value === selected[0])?.label ?? placeholder
+      : `Выбрано: ${selected.length}`;
+
+  useEffect(() => {
+    if (!open) return;
+    function close(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [open]);
+
+  function toggle(value: string) {
+    const next = new Set(selected);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    router.push(makeUrl(searchParams, { [param]: compactValue([...next]) }));
+  }
+
   return (
-    <select
-      className={COMPACT_SELECT_CLASS}
-      value={value}
-      onChange={(event) => router.push(makeUrl(searchParams, { [param]: event.target.value }))}
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>{option.label}</option>
-      ))}
-    </select>
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        className={`${COMPACT_SELECT_CLASS} flex items-center justify-between gap-1 text-left`}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="truncate">{summary}</span>
+        <ChevronDown className="size-3 shrink-0 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-[calc(100%+4px)] z-[80] min-w-full rounded-md border border-[var(--soft-paper-edge)] bg-white p-1 shadow-[var(--soft-shadow-sm)]">
+          {selected.length > 0 ? (
+            <button
+              type="button"
+              className="mb-1 flex h-7 w-full items-center rounded px-2 text-left text-[11px] text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)]"
+              onClick={() => router.push(makeUrl(searchParams, { [param]: null }))}
+            >
+              Сбросить
+            </button>
+          ) : null}
+          {options.map((option) => (
+            <label
+              key={option.value}
+              className="flex h-7 w-full cursor-pointer items-center gap-2 rounded px-2 text-[11px] text-[var(--soft-ink)] hover:bg-[var(--soft-surface)]"
+            >
+              <input
+                type="checkbox"
+                className="accent-[var(--soft-bordeaux)]"
+                checked={selectedSet.has(option.value)}
+                onChange={() => toggle(option.value)}
+              />
+              <span className="truncate">{option.label}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
 function dateLabel(value: string) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value.slice(8, 10)}.${value.slice(5, 7)}.${value.slice(0, 4)}` : "";
+}
+
+function parseRuDate(value: string) {
+  const match = value.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), 12);
+  if (
+    date.getFullYear() !== Number(year)
+    || date.getMonth() !== Number(month) - 1
+    || date.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+  return isoDate(date);
 }
 
 function isoDate(date: Date) {
@@ -180,7 +269,9 @@ function HeaderDateFilter({ param }: { param: string }) {
   const value = searchParams.get(param) ?? "";
   const initialDate = value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date();
   const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(dateLabel(value));
   const [viewDate, setViewDate] = useState(() => new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const days = useMemo(() => {
     const first = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
     const last = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0);
@@ -196,27 +287,54 @@ function HeaderDateFilter({ param }: { param: string }) {
     });
   }, [viewDate]);
 
+  useEffect(() => {
+    if (!open) return;
+    function close(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [open]);
+
   function apply(nextValue: string | null) {
     router.push(makeUrl(searchParams, { [param]: nextValue }));
     setOpen(false);
   }
 
+  function commitDraft() {
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      if (value) apply(null);
+      return;
+    }
+    const parsed = parseRuDate(trimmed);
+    if (parsed && parsed !== value) apply(parsed);
+  }
+
   return (
-    <div className="relative">
-      <button
-        type="button"
-        className={`${COMPACT_INPUT_CLASS} flex items-center justify-between gap-1 px-1.5 text-left`}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <span className={value ? "text-[var(--soft-ink)]" : "text-[var(--soft-ink-faint)]"}>{dateLabel(value) || "дата"}</span>
-        <CalendarDays className="size-3 text-[var(--soft-ink-faint)]" aria-hidden="true" />
-      </button>
+    <div ref={rootRef} className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        className={`${COMPACT_INPUT_CLASS} pr-12`}
+        value={draft}
+        placeholder="дд.мм.гггг"
+        autoComplete="off"
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commitDraft}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commitDraft();
+          if (event.key === "Escape") setOpen(false);
+        }}
+        aria-label="Дата фильтра"
+      />
       {value ? (
         <button
           type="button"
-          className="absolute right-5 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+          className="absolute right-6 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
           onClick={(event) => {
             event.stopPropagation();
+            setDraft("");
             apply(null);
           }}
           aria-label="Очистить дату"
@@ -224,8 +342,20 @@ function HeaderDateFilter({ param }: { param: string }) {
           <X className="size-3" aria-hidden="true" />
         </button>
       ) : null}
+      <button
+        type="button"
+        className="absolute right-1 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setOpen((current) => !current)}
+        aria-label="Открыть календарь"
+      >
+        <CalendarDays className="size-3" aria-hidden="true" />
+      </button>
       {open ? (
-        <div className="mt-1 rounded border border-[var(--soft-paper-edge)] bg-white p-1 shadow-[var(--soft-shadow-sm)]">
+        <div
+          className="absolute left-0 top-[calc(100%+4px)] z-[90] w-56 rounded-md border border-[var(--soft-paper-edge)] bg-white p-2 shadow-[var(--soft-shadow-sm)]"
+          onMouseDown={(event) => event.preventDefault()}
+        >
           <div className="mb-1 flex items-center justify-between gap-1">
             <button
               type="button"
@@ -260,7 +390,10 @@ function HeaderDateFilter({ param }: { param: string }) {
                   key={current}
                   type="button"
                   className={`h-6 rounded text-[10px] tabular-nums ${selected ? "bg-[var(--soft-bordeaux)] text-white" : inMonth ? "text-[var(--soft-ink)] hover:bg-[var(--soft-surface)]" : "text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)]"}`}
-                  onClick={() => apply(current)}
+                  onClick={() => {
+                    setDraft(dateLabel(current));
+                    apply(current);
+                  }}
                 >
                   {date.getDate()}
                 </button>
@@ -490,6 +623,29 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
 
 const NUM_CELL = `${COMPACT_CELL_CLASS} whitespace-nowrap text-right tabular-nums`;
 
+type PaginationItem = number | { type: "jump"; target: number; label: "..." };
+
+function paginationItems(page: number, pageCount: number): PaginationItem[] {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
+  const items: PaginationItem[] = [1];
+  let start = Math.max(2, page - 1);
+  let end = Math.min(pageCount - 1, page + 1);
+
+  if (page <= 4) {
+    start = 2;
+    end = 5;
+  } else if (page >= pageCount - 3) {
+    start = pageCount - 4;
+    end = pageCount - 1;
+  }
+
+  if (start > 2) items.push({ type: "jump", target: Math.max(1, page - 3), label: "..." });
+  for (let item = start; item <= end; item += 1) items.push(item);
+  if (end < pageCount - 1) items.push({ type: "jump", target: Math.min(pageCount, page + 3), label: "..." });
+  items.push(pageCount);
+  return items;
+}
+
 export function UsersControlPanel({ rows, page, pageSize, total, permissions }: UsersControlPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -541,28 +697,10 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-[var(--soft-ink-faint)]">
-          Показано {rows.length} из {total.toLocaleString("ru-RU")} · страница {page} / {pageCount}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => router.refresh()} disabled={pending}>
-            <RefreshCw className="size-3.5" aria-hidden="true" />
-            Обновить
-          </button>
-          {permissions.canCreate && (
-            <button type="button" className="soft-admin-action" data-variant="primary" onClick={() => setCreateOpen(true)}>
-              <Plus className="size-3.5" aria-hidden="true" />
-              Создать
-            </button>
-          )}
-        </div>
-      </div>
-
-      {selectedIds.size > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-white px-3 py-2 text-xs">
-          <span className="font-medium text-[var(--soft-ink-soft)]">Выбрано: {selectedIds.size}</span>
-          <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {selectedIds.size > 0 ? (
+          <div className="mr-auto flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-medium text-[var(--soft-ink-soft)]">Выбрано: {selectedIds.size}</span>
             {permissions.canBlock && (
               <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => void runBulkAction("block")}>
                 <Ban className="size-3.5" aria-hidden="true" />
@@ -576,8 +714,20 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               </button>
             )}
           </div>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => router.refresh()} disabled={pending}>
+            <RefreshCw className="size-3.5" aria-hidden="true" />
+            Обновить
+          </button>
+          {permissions.canCreate && (
+            <button type="button" className="soft-admin-action" data-variant="primary" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-3.5" aria-hidden="true" />
+              Создать
+            </button>
+          )}
         </div>
-      ) : null}
+      </div>
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       {editing && (
@@ -612,49 +762,51 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <HeaderCell field="role" label="Роль">
-              <FilterSelect
-                param="role"
-                options={[
-                  { value: "", label: "Все роли" },
-                  { value: "CLIENT", label: "Клиенты" },
-                  { value: "PRACTITIONER", label: "Практики" },
-                  { value: "ADMIN", label: "Модераторы" },
-                  { value: "SUPERADMIN", label: "Суперадмины" },
-                ]}
-              />
+                <MultiSelectFilter
+                  param="role"
+                  placeholder="Все роли"
+                  options={[
+                    { value: "CLIENT", label: "Клиенты" },
+                    { value: "PRACTITIONER", label: "Практики" },
+                    { value: "ADMIN", label: "Модераторы" },
+                    { value: "SUPERADMIN", label: "Суперадмины" },
+                  ]}
+                />
               </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <HeaderCell field="channel" label="Канал">
-              <FilterSelect
-                param="channel"
-                options={[
-                  { value: "", label: "Все каналы" },
-                  { value: "web", label: "Web" },
-                  { value: "app", label: "App" },
-                  { value: "telegram", label: "Telegram" },
-                  { value: "vk", label: "VK" },
-                  { value: "manual", label: "Manual" },
-                ]}
-              />
+                <MultiSelectFilter
+                  param="channel"
+                  placeholder="Все каналы"
+                  options={[
+                    { value: "web", label: "Web" },
+                    { value: "app", label: "App" },
+                    { value: "telegram", label: "Telegram" },
+                    { value: "vk", label: "VK" },
+                    { value: "manual", label: "Manual" },
+                  ]}
+                />
               </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <HeaderCell field="status" label="Статус">
-              <FilterSelect
-                param="status"
-                options={[
-                  { value: "", label: "Все статусы" },
-                  { value: "active", label: "Активные" },
-                  { value: "blocked", label: "Блок" },
-                  { value: "deleted", label: "Удалённые" },
-                  { value: "unverified", label: "Email нет" },
-                ]}
-              />
+                <MultiSelectFilter
+                  param="status"
+                  placeholder="Все статусы"
+                  options={[
+                    { value: "active", label: "Активные" },
+                    { value: "blocked", label: "Блок" },
+                    { value: "deleted", label: "Удалённые" },
+                    { value: "unverified", label: "Email нет" },
+                  ]}
+                />
               </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <HeaderCell field="credits" label="Баллы" />
+              <HeaderCell field="credits" label="Баллы">
+                <FilterInput param="credits" placeholder="поиск" />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
               <HeaderCell field="createdAt" label="Регистрация">
@@ -667,16 +819,43 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <HeaderCell field="bookings" label="Брони" />
+              <HeaderCell field="bookings" label="Брони">
+                <FilterInput param="bookings" placeholder="поиск" />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <HeaderCell field="entitlements" label="Покупки" />
+              <HeaderCell field="entitlements" label="Покупки">
+                <FilterInput param="entitlements" placeholder="поиск" />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <HeaderCell field="subscriptions" label="Подписка" />
+              <HeaderCell field="subscriptions" label="Подписка">
+                <MultiSelectFilter
+                  param="subscription"
+                  placeholder="Все"
+                  options={[
+                    { value: "free", label: "Бесплатный" },
+                    { value: "plus", label: "Plus" },
+                    { value: "premium", label: "Premium" },
+                    { value: "practitioner_pro", label: "Практик Pro" },
+                    { value: "practitioner_pro_plus", label: "Практик Pro+" },
+                  ]}
+                />
+              </HeaderCell>
             </th>
             <th className={COMPACT_HEADER_CLASS}>
-              <HeaderCell field="antifraud" label="Антифрод" hint="Скоринг клиента 0–10: 10 = максимальный риск" />
+              <HeaderCell field="antifraud" label="Антифрод" hint="Скоринг клиента 0–10: 10 = максимальный риск">
+                <MultiSelectFilter
+                  param="antifraud"
+                  placeholder="Все"
+                  options={[
+                    { value: "0", label: "0/10" },
+                    { value: "1-4", label: "1–4" },
+                    { value: "5-7", label: "5–7" },
+                    { value: "8-10", label: "8–10" },
+                  ]}
+                />
+              </HeaderCell>
             </th>
             <th className={`${COMPACT_HEADER_CLASS} border-r-0`}><PlainHeader label="Действия" /></th>
           </tr>
@@ -719,10 +898,29 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   {row.role === "CLIENT" ? `${fraudScore}/10` : "—"}
                 </td>
                 <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                  <button type="button" className="soft-admin-action" onClick={() => setEditing(row)} title="Открыть карточку пользователя">
-                    <Pencil className="size-3.5" aria-hidden="true" />
-                    Изменить
-                  </button>
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      type="button"
+                      className="inline-flex size-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+                      onClick={() => setEditing(row)}
+                      title="Редактировать"
+                      aria-label={`Редактировать ${row.name || row.email}`}
+                    >
+                      <Pencil className="size-3.5" aria-hidden="true" />
+                    </button>
+                    {permissions.canImpersonate && row.role !== "SUPERADMIN" ? (
+                      <a
+                        className="inline-flex size-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+                        href={`/api/admin/impersonate?userId=${row.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Войти как пользователь"
+                        aria-label={`Войти как ${row.name || row.email}`}
+                      >
+                        <LogIn className="size-3.5" aria-hidden="true" />
+                      </a>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             );
@@ -730,14 +928,49 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
         </tbody>
       </CompactTableShell>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(searchParams, { page: String(Math.max(1, page - 1)) })} aria-disabled={page <= 1}>
-          Назад
-        </Link>
-        <div className="text-xs text-[var(--soft-ink-faint)]">{page} / {pageCount}</div>
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(searchParams, { page: String(Math.min(pageCount, page + 1)) })} aria-disabled={page >= pageCount}>
-          Вперёд
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="text-[var(--soft-ink-faint)]">
+          {total === 0 ? "0 из 0" : `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} из ${total.toLocaleString("ru-RU")}`}
+        </div>
+        {pageCount > 1 ? (
+          <div className="flex flex-wrap items-center gap-1">
+            {page > 1 ? (
+              <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(searchParams, { page: String(page - 1) })}>
+                Предыдущая
+              </Link>
+            ) : null}
+            {paginationItems(page, pageCount).map((item, index) => {
+              if (typeof item !== "number") {
+                return (
+                  <Link
+                    key={`${item.label}-${index}`}
+                    className="inline-flex h-7 min-w-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white px-2 text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)]"
+                    href={makeUrl(searchParams, { page: String(item.target) })}
+                    title={`Перейти на ${item.target} страницу`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+              const active = item === page;
+              return (
+                <Link
+                  key={item}
+                  className={`inline-flex h-7 min-w-7 items-center justify-center rounded border px-2 tabular-nums ${active ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] font-bold text-white" : "border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)]"}`}
+                  href={makeUrl(searchParams, { page: String(item) })}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {item}
+                </Link>
+              );
+            })}
+            {page < pageCount ? (
+              <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(searchParams, { page: String(page + 1) })}>
+                Следующая
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

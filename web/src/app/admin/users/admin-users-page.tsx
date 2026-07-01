@@ -17,6 +17,11 @@ type SearchParams = {
   channel?: string;
   created?: string;
   lastLogin?: string;
+  credits?: string;
+  bookings?: string;
+  entitlements?: string;
+  subscription?: string;
+  antifraud?: string;
   sort?: string;
   dir?: string;
   page?: string;
@@ -43,6 +48,24 @@ const SORT_FIELDS = {
   createdAt: "createdAt",
 } as const;
 
+function valuesOf(param: string | undefined) {
+  return (param ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function addAnd(where: Prisma.UserWhereInput, clause: Prisma.UserWhereInput) {
+  const current = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+  where.AND = [...current, clause];
+}
+
+function parseExactNumber(param: string | undefined) {
+  const value = param?.trim();
+  if (!value || !/^\d+$/.test(value)) return null;
+  return Number(value);
+}
+
 function allowedRoles(role: string, permissions: Permission[]) {
   if (role === "SUPERADMIN" || permissions.includes("users.view")) {
     return [Role.CLIENT, Role.PRACTITIONER, Role.ADMIN, Role.SUPERADMIN];
@@ -66,27 +89,37 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
     ];
   }
 
-  if (params.role && Object.values(Role).includes(params.role as Role) && roles.includes(params.role as Role)) {
-    where.role = params.role as Role;
+  const selectedRoles = valuesOf(params.role)
+    .filter((value): value is Role => Object.values(Role).includes(value as Role))
+    .filter((value) => roles.includes(value));
+  if (selectedRoles.length > 0) {
+    where.role = { in: selectedRoles };
   }
 
-  if (params.channel && CHANNEL_PROVIDERS[params.channel]) {
-    const providers = CHANNEL_PROVIDERS[params.channel];
-    where.provider = params.channel === "manual"
-      ? { in: [...providers, ""] }
-      : { in: providers };
+  const selectedChannels = valuesOf(params.channel).filter((value) => CHANNEL_PROVIDERS[value]);
+  if (selectedChannels.length > 0) {
+    const providerValues = new Set<string>();
+    let includeEmptyProvider = false;
+    for (const channel of selectedChannels) {
+      for (const provider of CHANNEL_PROVIDERS[channel]) providerValues.add(provider);
+      if (channel === "manual") includeEmptyProvider = true;
+    }
+    addAnd(where, {
+      OR: [
+        { provider: { in: [...providerValues] } },
+        ...(includeEmptyProvider ? [{ provider: null }, { provider: "" }] : []),
+      ],
+    });
   }
 
-  if (params.status === "active") {
-    where.deletedAt = null;
-    where.blockedAt = null;
-  } else if (params.status === "blocked") {
-    where.blockedAt = { not: null };
-  } else if (params.status === "deleted") {
-    where.deletedAt = { not: null };
-  } else if (params.status === "unverified") {
-    where.emailVerified = false;
-    where.deletedAt = null;
+  const selectedStatuses = valuesOf(params.status);
+  const statusClauses: Prisma.UserWhereInput[] = [];
+  if (selectedStatuses.includes("active")) statusClauses.push({ deletedAt: null, blockedAt: null });
+  if (selectedStatuses.includes("blocked")) statusClauses.push({ blockedAt: { not: null } });
+  if (selectedStatuses.includes("deleted")) statusClauses.push({ deletedAt: { not: null } });
+  if (selectedStatuses.includes("unverified")) statusClauses.push({ emailVerified: false, deletedAt: null });
+  if (statusClauses.length > 0) {
+    addAnd(where, { OR: statusClauses });
   }
 
   const created = params.created?.trim();
@@ -97,6 +130,119 @@ function buildWhere(params: SearchParams, role: string, permissions: Permission[
   }
 
   return where;
+}
+
+async function addExactCountFilters(where: Prisma.UserWhereInput, params: SearchParams) {
+  const credits = parseExactNumber(params.credits);
+  if (credits !== null) {
+    const creditRows = await db.clarityCreditLedgerEntry.groupBy({
+      by: ["userId"],
+      where: { status: { in: ["pending", "confirmed"] } },
+      _sum: { amount: true },
+    });
+    const matchingIds = creditRows
+      .filter((row) => (row._sum.amount ?? 0) === credits)
+      .map((row) => row.userId);
+    addAnd(where, credits === 0
+      ? {
+        role: Role.CLIENT,
+        OR: [
+          { id: { in: matchingIds } },
+          { clarityCreditLedgerEntries: { none: { status: { in: ["pending", "confirmed"] } } } },
+        ],
+      }
+      : { role: Role.CLIENT, id: { in: matchingIds } });
+  }
+
+  const bookings = parseExactNumber(params.bookings);
+  if (bookings !== null) {
+    const bookingRows = await db.booking.groupBy({
+      by: ["clientId"],
+      _count: { _all: true },
+    });
+    const matchingIds = bookingRows
+      .filter((row) => row._count._all === bookings)
+      .map((row) => row.clientId);
+    addAnd(where, bookings === 0
+      ? { OR: [{ id: { in: matchingIds } }, { bookingsAsClient: { none: {} } }] }
+      : { id: { in: matchingIds } });
+  }
+
+  const entitlements = parseExactNumber(params.entitlements);
+  if (entitlements !== null) {
+    const entitlementRows = await db.productEntitlement.groupBy({
+      by: ["userId"],
+      _count: { _all: true },
+    });
+    const matchingIds = entitlementRows
+      .filter((row) => row._count._all === entitlements)
+      .map((row) => row.userId);
+    addAnd(where, entitlements === 0
+      ? { OR: [{ id: { in: matchingIds } }, { entitlements: { none: {} } }] }
+      : { id: { in: matchingIds } });
+  }
+}
+
+function activeSubscriptionWhere(now: Date) {
+  return {
+    status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
+    OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
+  } satisfies Prisma.UserSubscriptionWhereInput;
+}
+
+function addSubscriptionFilter(where: Prisma.UserWhereInput, params: SearchParams, now: Date) {
+  const selected = valuesOf(params.subscription);
+  if (selected.length === 0) return;
+  const active = activeSubscriptionWhere(now);
+  const planKeys = selected.filter((value) => value !== "free");
+  const clauses: Prisma.UserWhereInput[] = [];
+  if (selected.includes("free")) clauses.push({ subscriptions: { none: active } });
+  if (planKeys.length > 0) clauses.push({ subscriptions: { some: { ...active, planKey: { in: planKeys } } } });
+  if (clauses.length > 0) addAnd(where, { OR: clauses });
+}
+
+async function addAntifraudFilter(where: Prisma.UserWhereInput, params: SearchParams) {
+  const selected = valuesOf(params.antifraud);
+  if (selected.length === 0) return;
+  const [fraudEvents, referralRisks] = await Promise.all([
+    db.fraudEvent.findMany({
+      where: { riskScore: { gt: 0 } },
+      select: { subjectId: true, actorUserId: true, riskScore: true },
+      take: 5000,
+    }),
+    db.referralAttribution.findMany({
+      where: { riskScore: { gt: 0 } },
+      select: { referrerUserId: true, referredUserId: true, riskScore: true },
+      take: 5000,
+    }),
+  ]);
+  const riskByUser = new Map<string, number>();
+  function addRisk(userId: string | null | undefined, rawScore: number) {
+    if (!userId) return;
+    const score = Math.max(0, Math.min(10, Math.ceil(rawScore / 10)));
+    riskByUser.set(userId, Math.max(riskByUser.get(userId) ?? 0, score));
+  }
+  for (const event of fraudEvents) {
+    addRisk(event.subjectId, event.riskScore);
+    addRisk(event.actorUserId, event.riskScore);
+  }
+  for (const item of referralRisks) {
+    addRisk(item.referrerUserId, item.riskScore);
+    addRisk(item.referredUserId, item.riskScore);
+  }
+  const riskIds = [...riskByUser.keys()];
+  const clauses: Prisma.UserWhereInput[] = [];
+  if (selected.includes("0")) clauses.push({ role: Role.CLIENT, id: { notIn: riskIds } });
+  const bucketMatches = (min: number, max: number) => [...riskByUser.entries()]
+    .filter(([, score]) => score >= min && score <= max)
+    .map(([userId]) => userId);
+  const riskyIds = [
+    ...(selected.includes("1-4") ? bucketMatches(1, 4) : []),
+    ...(selected.includes("5-7") ? bucketMatches(5, 7) : []),
+    ...(selected.includes("8-10") ? bucketMatches(8, 10) : []),
+  ];
+  if (riskyIds.length > 0) clauses.push({ role: Role.CLIENT, id: { in: riskyIds } });
+  addAnd(where, clauses.length > 0 ? { OR: clauses } : { id: { in: [] } });
 }
 
 function buildOrderBy(params: SearchParams): Prisma.UserOrderByWithRelationInput {
@@ -164,6 +310,10 @@ export default async function AdminUsersPage(props: {
 
   const page = Math.max(1, Number(params.page) || 1);
   const where = buildWhere(params, role, permissions);
+  const now = new Date();
+  await addExactCountFilters(where, params);
+  addSubscriptionFilter(where, params, now);
+  await addAntifraudFilter(where, params);
   const lastLogin = params.lastLogin?.trim();
   if (lastLogin && /^\d{4}-\d{2}-\d{2}$/.test(lastLogin)) {
     const start = new Date(`${lastLogin}T00:00:00.000Z`);
@@ -176,10 +326,9 @@ export default async function AdminUsersPage(props: {
       distinct: ["userId"],
       select: { userId: true },
     });
-    where.id = { in: loginUserRows.map((item) => item.userId).filter((id): id is string => Boolean(id)) };
+    addAnd(where, { id: { in: loginUserRows.map((item) => item.userId).filter((id): id is string => Boolean(id)) } });
   }
   const orderBy = buildOrderBy(params);
-  const now = new Date();
 
   const [users, total] = await Promise.all([
     db.user.findMany({
@@ -238,10 +387,7 @@ export default async function AdminUsersPage(props: {
           },
         },
         subscriptions: {
-          where: {
-            status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
-            OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: now } }],
-          },
+          where: activeSubscriptionWhere(now),
           orderBy: { createdAt: "desc" },
           take: 1,
           select: { planKey: true, status: true, currentPeriodEnd: true },

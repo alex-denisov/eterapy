@@ -12,7 +12,7 @@ const modal = fs.readFileSync(
 
 // M1 intent: the users table must never allow accidental in-place edits.
 // U1/U2 superseded inline edit-lock with a fully read-only table whose only
-// mutating affordance is the "Изменить" button that opens a dedicated modal.
+// mutating affordance is the pencil button that opens a dedicated modal.
 describe("M1/U1 — users table is read-only; edits happen in a modal", () => {
   it("tracks the row being edited and opens the modal for it", () => {
     expect(panel).toContain("const [editing, setEditing] = useState<AdminUserRow | null>(null)");
@@ -27,9 +27,10 @@ describe("M1/U1 — users table is read-only; edits happen in a modal", () => {
     expect(panel).not.toContain("editingId");
   });
 
-  it("keeps a single pencil (Изменить) affordance per row", () => {
-    expect(panel).toContain("Изменить");
+  it("keeps a compact pencil-only edit affordance per row", () => {
     expect(panel).toContain("Pencil");
+    expect(panel).toContain("aria-label={`Редактировать");
+    expect(panel).toContain('title="Редактировать"');
   });
 
   it("the modal owns its own Save button and entry/exit", () => {
