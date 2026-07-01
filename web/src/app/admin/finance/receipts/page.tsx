@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Download } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -13,6 +12,7 @@ import {
 import {
   AdminHero,
   DataTable,
+  LinkPagination,
   PeriodToolbar,
   StatusBadge,
   cardMask,
@@ -42,8 +42,8 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
     getFinanceRows(period, page, q),
     getAdminCurrencyRates(),
   ]);
-  const pages = Math.max(1, Math.ceil(total / take));
   const baseReport = `/api/admin/finance/management-report?start=${period.startInput}&end=${period.endInput}`;
+  const paginationHref = (nextPage: number) => `/admin/finance/receipts?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${nextPage}`;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6" data-testid="admin-finance-receipts">
@@ -92,11 +92,7 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
         })}
       />
 
-      <div className="mt-4 flex items-center justify-between text-xs text-[var(--soft-ink-soft)]">
-        <Link className="soft-admin-action" data-variant="subtle" href={`/admin/finance/receipts?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${Math.max(1, page - 1)}`}>Назад</Link>
-        <span>{page} / {pages} · всего {total}</span>
-        <Link className="soft-admin-action" data-variant="subtle" href={`/admin/finance/receipts?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${Math.min(pages, page + 1)}`}>Вперед</Link>
-      </div>
+      <LinkPagination page={page} pageSize={take} total={total} hrefForPage={paginationHref} />
     </main>
   );
 }

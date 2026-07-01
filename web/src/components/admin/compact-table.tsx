@@ -32,6 +32,29 @@ export function compactPageCount(total: number, pageSize = COMPACT_TABLE_PAGE_SI
   return Math.max(1, Math.ceil(total / pageSize));
 }
 
+type CompactPaginationItem = number | { type: "jump"; target: number; label: "..." };
+
+function compactPaginationItems(page: number, totalPages: number): CompactPaginationItem[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  const items: CompactPaginationItem[] = [1];
+  let start = Math.max(2, page - 1);
+  let end = Math.min(totalPages - 1, page + 1);
+
+  if (page <= 4) {
+    start = 2;
+    end = 5;
+  } else if (page >= totalPages - 3) {
+    start = totalPages - 4;
+    end = totalPages - 1;
+  }
+
+  if (start > 2) items.push({ type: "jump", target: Math.max(1, page - 3), label: "..." });
+  for (let item = start; item <= end; item += 1) items.push(item);
+  if (end < totalPages - 1) items.push({ type: "jump", target: Math.min(totalPages, page + 3), label: "..." });
+  items.push(totalPages);
+  return items;
+}
+
 export function CompactTableShell({
   children,
   minWidth = "1180px",
@@ -117,29 +140,64 @@ export function CompactPaginationBar({
   const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
   const end = Math.min(safePage * pageSize, total);
   return (
-    <div className="flex items-center justify-between gap-2 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 text-[11px] text-[var(--soft-ink-soft)]">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1.5 text-[11px] text-[var(--soft-ink-soft)]">
       <span>{start}-{end} из {total}</span>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          disabled={safePage <= 1}
-          onClick={() => onPage(safePage - 1)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white disabled:opacity-40"
-          aria-label="Предыдущая страница"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-        <span className="min-w-14 text-center">{safePage}/{totalPages}</span>
-        <button
-          type="button"
-          disabled={safePage >= totalPages}
-          onClick={() => onPage(safePage + 1)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white disabled:opacity-40"
-          aria-label="Следующая страница"
-        >
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </div>
+      {totalPages > 1 ? (
+        <div className="flex flex-wrap items-center gap-1">
+          {safePage > 1 ? (
+            <button
+              type="button"
+              onClick={() => onPage(safePage - 1)}
+              className="soft-admin-action h-7"
+              data-variant="subtle"
+              aria-label="Предыдущая страница"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              Предыдущая
+            </button>
+          ) : null}
+          {compactPaginationItems(safePage, totalPages).map((item, index) => {
+            if (typeof item !== "number") {
+              return (
+                <button
+                  key={`${item.label}-${index}`}
+                  type="button"
+                  className="soft-admin-pagination-page"
+                  onClick={() => onPage(item.target)}
+                  title={`Перейти на ${item.target} страницу`}
+                >
+                  {item.label}
+                </button>
+              );
+            }
+            const active = item === safePage;
+            return (
+              <button
+                key={item}
+                type="button"
+                className="soft-admin-pagination-page"
+                data-active={active}
+                onClick={() => onPage(item)}
+                aria-current={active ? "page" : undefined}
+              >
+                {item}
+              </button>
+            );
+          })}
+          {safePage < totalPages ? (
+            <button
+              type="button"
+              onClick={() => onPage(safePage + 1)}
+              className="soft-admin-action h-7"
+              data-variant="subtle"
+              aria-label="Следующая страница"
+            >
+              Следующая
+              <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

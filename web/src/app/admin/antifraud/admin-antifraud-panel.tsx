@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, FileWarning, RotateCcw, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 type EventRow = {
   id: string;
@@ -193,13 +192,29 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
                           {new Date(event.createdAt).toLocaleString("ru-RU")}
                         </p>
                       </div>
-                      <div className="flex shrink-0 gap-1">
-                        <Button size="sm" variant="outline" disabled={busy === event.id} onClick={() => decide(event.id, "resolved")}>
-                          Решено
-                        </Button>
-                        <Button size="sm" variant="outline" disabled={busy === event.id} onClick={() => decide(event.id, "blocked")}>
-                          Блок
-                        </Button>
+                      <div className="soft-admin-table-actions shrink-0">
+                        <button
+                          type="button"
+                          className="soft-admin-icon-button"
+                          data-variant="primary"
+                          disabled={busy === event.id}
+                          onClick={() => decide(event.id, "resolved")}
+                          title="Отметить решенным"
+                          aria-label="Отметить антифрод-событие решенным"
+                        >
+                          <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          className="soft-admin-icon-button"
+                          data-variant="danger"
+                          disabled={busy === event.id}
+                          onClick={() => decide(event.id, "blocked")}
+                          title="Заблокировать"
+                          aria-label="Заблокировать по антифрод-событию"
+                        >
+                          <ShieldCheck className="size-3.5" aria-hidden="true" />
+                        </button>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1">

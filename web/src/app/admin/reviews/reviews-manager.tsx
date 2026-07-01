@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, EyeOff, Pencil, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { CompactPaginationBar } from "@/components/admin/compact-table";
 
 interface AdminReview {
   id: string;
@@ -326,11 +327,7 @@ export function ReviewsManager({
           </div>
 
           {pageCount > 1 && (
-            <div className="mt-3 flex items-center justify-between gap-2 text-sm">
-              <button type="button" disabled={safePage <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="soft-admin-action" data-variant="subtle">Назад</button>
-              <span className="text-xs text-muted-foreground">Страница {safePage} / {pageCount}</span>
-              <button type="button" disabled={safePage >= pageCount} onClick={() => setPage((p) => Math.min(pageCount, p + 1))} className="soft-admin-action" data-variant="subtle">Вперёд</button>
-            </div>
+            <CompactPaginationBar page={safePage} total={visible.length} pageSize={PAGE_SIZE} onPage={setPage} />
           )}
         </>
       )}

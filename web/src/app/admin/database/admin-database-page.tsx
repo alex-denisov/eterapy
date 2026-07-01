@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
+import { LinkPagination } from "../admin-analytics-ui";
 
 type SearchParams = {
   table?: string;
@@ -261,7 +261,6 @@ export default async function AdminDatabasePage(props: {
   const q = params.q?.trim() ?? "";
   const { rows, total } = await fetchTable(table, q, page);
   const columns = rows[0] ? Object.keys(rows[0]) : [];
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <PageContainer maxWidth="full" className="py-8">
@@ -313,11 +312,7 @@ export default async function AdminDatabasePage(props: {
         </table>
       </section>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { table, page: String(Math.max(1, page - 1)) })}>Назад</Link>
-        <span className="text-xs text-[var(--soft-ink-faint)]">Показано {rows.length} из {total.toLocaleString("ru-RU")} · {page} / {pageCount}</span>
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { table, page: String(Math.min(pageCount, page + 1)) })}>Вперёд</Link>
-      </div>
+      <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { table, page: String(nextPage) })} />
     </PageContainer>
   );
 }

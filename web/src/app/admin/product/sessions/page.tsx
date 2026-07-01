@@ -6,7 +6,7 @@ import { ExternalLink, FileText, Sparkles } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getProductCenterData, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, DataTable, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, formatDateTime } from "../../admin-analytics-ui";
+import { AdminHero, DataTable, LinkPagination, MetricCard, MetricGrid, PeriodToolbar, StatusBadge, formatDateTime } from "../../admin-analytics-ui";
 import { BookingsManager, type AdminBookingRow } from "../../bookings/bookings-manager";
 import { SessionsTable, type VideoSessionRow } from "../../sessions/sessions-table";
 
@@ -68,8 +68,8 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
     ].some((value) => value?.toLowerCase().includes(q));
   });
   const take = 20;
-  const pages = Math.max(1, Math.ceil(filtered.length / take));
   const rows = filtered.slice((page - 1) * take, page * take);
+  const paginationHref = (nextPage: number) => `/admin/product/sessions?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${nextPage}`;
   const bookingRows: AdminBookingRow[] = bookings.map((booking) => ({
     id: booking.id,
     status: booking.status,
@@ -166,11 +166,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
             ) : "—",
           ])}
         />
-        <div className="mt-4 flex items-center justify-between text-xs text-[var(--soft-ink-soft)]">
-          <Link className="soft-admin-action" data-variant="subtle" href={`/admin/product/sessions?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${Math.max(1, page - 1)}`}>Назад</Link>
-          <span>{page} / {pages} · всего {filtered.length}</span>
-          <Link className="soft-admin-action" data-variant="subtle" href={`/admin/product/sessions?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${Math.min(pages, page + 1)}`}>Вперед</Link>
-        </div>
+        <LinkPagination page={page} pageSize={take} total={filtered.length} hrefForPage={paginationHref} />
       </section>
     </main>
   );

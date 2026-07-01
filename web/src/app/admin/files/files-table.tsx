@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CompactPaginationBar } from "@/components/admin/compact-table";
 
 export interface StoredFileRow {
   id: string;
@@ -140,15 +141,7 @@ export function FilesTable({ rows }: { rows: StoredFileRow[] }) {
       </div>
 
       {pageCount > 1 && (
-        <div className="mt-3 flex items-center justify-between text-xs text-[var(--soft-ink-faint)]">
-          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
-            Назад
-          </button>
-          <span>{safePage} / {pageCount}</span>
-          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPage((p) => Math.min(pageCount, p + 1))} disabled={safePage >= pageCount}>
-            Вперёд
-          </button>
-        </div>
+        <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
     </div>
   );

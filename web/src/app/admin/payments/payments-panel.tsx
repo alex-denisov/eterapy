@@ -6,6 +6,7 @@ import { CheckCircle2, Pause, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { CompactPaginationBar } from "@/components/admin/compact-table";
 
 interface Practitioner {
   id: string;
@@ -373,17 +374,7 @@ export function PaymentsPanel({
       </div>
 
       {pageCount > 1 && (
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <button type="button" className="soft-admin-action" data-variant="subtle"
-            onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}>
-            Назад
-          </button>
-          <span>{safePage} / {pageCount}</span>
-          <button type="button" className="soft-admin-action" data-variant="subtle"
-            onClick={() => setPage(p => Math.min(pageCount, p + 1))} disabled={safePage >= pageCount}>
-            Вперёд
-          </button>
-        </div>
+        <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
 
       <p className="text-xs text-muted-foreground">

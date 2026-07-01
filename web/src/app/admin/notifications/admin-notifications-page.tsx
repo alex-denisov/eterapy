@@ -10,6 +10,7 @@ import { NOTIFICATION_DELIVERY_JOB_TYPE } from "@/lib/notification-delivery";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { maskEmail, roleLabelRu } from "@/lib/mask-email";
 import { PageContainer } from "@/components/ui/page-container";
+import { LinkPagination } from "../admin-analytics-ui";
 import { JobActions } from "../jobs/job-actions";
 
 type SearchParams = {
@@ -185,7 +186,6 @@ export default async function AdminNotificationsPage(props: {
     return true;
   });
   const total = filtered.length;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const jobs = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // B359 / Баг 17: resolve «кому» for the visible page only — role + masked
@@ -269,14 +269,8 @@ export default async function AdminNotificationsPage(props: {
         </table>
       </section>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.max(1, page - 1)) })}>Назад</Link>
-        <span className="text-xs text-[var(--soft-ink-faint)]">
-          Показано {jobs.length} из {total.toLocaleString("ru-RU")} · {page} / {pageCount}
-          {scanned.length >= MAX_SCAN ? ` · скан ${MAX_SCAN}` : ""}
-        </span>
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.min(pageCount, page + 1)) })}>Вперёд</Link>
-      </div>
+      <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { page: String(nextPage) })} />
+      {scanned.length >= MAX_SCAN ? <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">Скан ограничен {MAX_SCAN.toLocaleString("ru-RU")} записями</p> : null}
     </PageContainer>
   );
 }

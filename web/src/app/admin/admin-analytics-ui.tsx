@@ -594,3 +594,89 @@ export function DataTable({
     </CompactTableShell>
   );
 }
+
+type LinkPaginationItem = number | { type: "jump"; target: number; label: "..." };
+
+function linkPaginationItems(page: number, pageCount: number): LinkPaginationItem[] {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
+  const items: LinkPaginationItem[] = [1];
+  let start = Math.max(2, page - 1);
+  let end = Math.min(pageCount - 1, page + 1);
+
+  if (page <= 4) {
+    start = 2;
+    end = 5;
+  } else if (page >= pageCount - 3) {
+    start = pageCount - 4;
+    end = pageCount - 1;
+  }
+
+  if (start > 2) items.push({ type: "jump", target: Math.max(1, page - 3), label: "..." });
+  for (let item = start; item <= end; item += 1) items.push(item);
+  if (end < pageCount - 1) items.push({ type: "jump", target: Math.min(pageCount, page + 3), label: "..." });
+  items.push(pageCount);
+  return items;
+}
+
+export function LinkPagination({
+  page,
+  pageSize,
+  total,
+  hrefForPage,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  hrefForPage: (page: number) => string;
+}) {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(page, 1), pageCount);
+  const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const end = Math.min(safePage * pageSize, total);
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="text-[var(--soft-ink-faint)]">{start}-{end} из {total.toLocaleString("ru-RU")}</div>
+      {pageCount > 1 ? (
+        <div className="flex flex-wrap items-center gap-1">
+          {safePage > 1 ? (
+            <Link className="soft-admin-action h-7" data-variant="subtle" href={hrefForPage(safePage - 1)}>
+              Предыдущая
+            </Link>
+          ) : null}
+          {linkPaginationItems(safePage, pageCount).map((item, index) => {
+            if (typeof item !== "number") {
+              return (
+                <Link
+                  key={`${item.label}-${index}`}
+                  className="soft-admin-pagination-page"
+                  href={hrefForPage(item.target)}
+                  title={`Перейти на ${item.target} страницу`}
+                >
+                  {item.label}
+                </Link>
+              );
+            }
+            const active = item === safePage;
+            return (
+              <Link
+                key={item}
+                className="soft-admin-pagination-page"
+                data-active={active}
+                href={hrefForPage(item)}
+                aria-current={active ? "page" : undefined}
+              >
+                {item}
+              </Link>
+            );
+          })}
+          {safePage < pageCount ? (
+            <Link className="soft-admin-action h-7" data-variant="subtle" href={hrefForPage(safePage + 1)}>
+              Следующая
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}

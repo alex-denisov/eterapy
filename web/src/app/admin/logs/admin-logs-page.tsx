@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { LogsTabs } from "./logs-viewer";
 import { PageContainer } from "@/components/ui/page-container";
+import { LinkPagination } from "../admin-analytics-ui";
 
 type SearchParams = {
   q?: string;
@@ -158,7 +159,6 @@ export default async function AdminLogsPage(props: {
     actorRole: userMap[log.userId]?.role ?? "",
     targetName: log.targetId ? (userMap[log.targetId]?.name ?? log.targetId) : null,
   }));
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <PageContainer maxWidth="full" className="py-8">
@@ -177,7 +177,7 @@ export default async function AdminLogsPage(props: {
         <>
       <section className="max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
         <div className="max-w-full overflow-auto">
-        <table className="w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth: "1120px" }} data-testid="admin-audit-log-table">
+        <table className="soft-admin-compact-table w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth: "1120px" }} data-testid="admin-audit-log-table">
           <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
               <th className={LOG_HEADER_CLASS}><SortLink params={params} field="createdAt">Время</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></th>
@@ -211,11 +211,7 @@ export default async function AdminLogsPage(props: {
         </div>
       </section>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.max(1, page - 1)) })}>Назад</Link>
-        <span className="text-xs text-[var(--soft-ink-faint)]">Показано {enriched.length} из {total.toLocaleString("ru-RU")} · {page} / {pageCount}</span>
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.min(pageCount, page + 1)) })}>Вперёд</Link>
-      </div>
+      <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { page: String(nextPage) })} />
         </>
       } />
     </PageContainer>

@@ -8,8 +8,6 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
-  ChevronLeft,
-  ChevronRight,
   ChevronsUpDown,
   DollarSign,
   GripVertical,
@@ -17,10 +15,13 @@ import {
   MessageSquareText,
   Plus,
   RefreshCw,
+  RotateCcw,
   Save,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CompactPaginationBar as SharedCompactPaginationBar } from "@/components/admin/compact-table";
 import {
   MODEL_PRICING_REFERENCE_USD_PER_MILLION,
   getReferenceModelPricing,
@@ -614,36 +615,7 @@ function PaginationBar({
   total: number;
   onPage: (page: number) => void;
 }) {
-  const totalPages = pageCount(total);
-  const safePage = clampPage(page, totalPages);
-  const start = total === 0 ? 0 : (safePage - 1) * TABLE_PAGE_SIZE + 1;
-  const end = Math.min(safePage * TABLE_PAGE_SIZE, total);
-  return (
-    <div className="flex items-center justify-between gap-2 border-t border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 text-[11px] text-[var(--soft-ink-soft)]">
-      <span>{start}-{end} из {total}</span>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          disabled={safePage <= 1}
-          onClick={() => onPage(safePage - 1)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white disabled:opacity-40"
-          aria-label="Предыдущая страница"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-        <span className="min-w-14 text-center">{safePage}/{totalPages}</span>
-        <button
-          type="button"
-          disabled={safePage >= totalPages}
-          onClick={() => onPage(safePage + 1)}
-          className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white disabled:opacity-40"
-          aria-label="Следующая страница"
-        >
-          <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-  );
+  return <SharedCompactPaginationBar page={page} total={total} onPage={onPage} pageSize={TABLE_PAGE_SIZE} />;
 }
 
 function MetricCard({
@@ -753,7 +725,7 @@ function ModelCostTableRow({
         {row.model.displayName ?? "-"}
       </td>
       <td className={COMPACT_CELL_CLASS}>{row.model.contextWindow ? formatTokens(row.model.contextWindow) : "-"}</td>
-      <td className={COMPACT_CELL_CLASS}>{row.pricing?.source ?? "provider default"}</td>
+      <td className={COMPACT_CELL_CLASS}>{row.pricing?.source === "database" ? "ручная цена" : "цена провайдера"}</td>
       <td className={COMPACT_CELL_CLASS}>{formatUsdPerMillionAsRub(row.pricing?.inputUsdPerMillion ?? 0, usdRub, currency)}</td>
       <td className={COMPACT_CELL_CLASS}>{formatUsdPerMillionAsRub(row.pricing?.outputUsdPerMillion ?? 0, usdRub, currency)}</td>
       <td className={COMPACT_CELL_CLASS}>
@@ -776,21 +748,23 @@ function ModelCostTableRow({
           aria-label={`${row.provider} ${row.model.modelId} output price micros`}
         />
       </td>
-      <td className={COMPACT_CELL_CLASS}>{row.model.fetchedAt === "reference" ? "reference seed" : formatDate(row.model.fetchedAt)}</td>
+      <td className={COMPACT_CELL_CLASS}>{row.model.fetchedAt === "reference" ? "справочник" : formatDate(row.model.fetchedAt)}</td>
       <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-        <Button
+        <button
           type="button"
-          size="sm"
-          variant="outline"
+          className="soft-admin-icon-button"
+          data-variant="primary"
           onClick={() => onSavePricing(
             row.provider,
             row.model.modelId,
             draft.input === "" ? null : Number(draft.input),
             draft.output === "" ? null : Number(draft.output),
           )}
+          title="Сохранить цену модели"
+          aria-label={`Сохранить цену модели ${row.model.modelId}`}
         >
-          Сохранить
-        </Button>
+          <Save className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
       </td>
     </tr>
   );
@@ -894,10 +868,11 @@ function ProviderTableRow({
         </div>
       </td>
       <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-        <div className="flex flex-col gap-1">
-          <Button
+        <div className="soft-admin-table-actions">
+          <button
             type="button"
-            size="sm"
+            className="soft-admin-icon-button"
+            data-variant="primary"
             disabled={disabled}
             onClick={() => onSave({
               type: "provider",
@@ -911,14 +886,21 @@ function ProviderTableRow({
               outputTokenCostMicros: draft.outputTokenCostMicros === "" ? null : Number(draft.outputTokenCostMicros),
               cloudflareGatewayEnabled: draft.cloudflareGatewayEnabled,
             })}
+            title="Сохранить провайдера"
+            aria-label={`Сохранить провайдера ${provider.displayName}`}
           >
-            <Save className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            Сохранить
-          </Button>
-          <Button type="button" size="sm" variant="outline" disabled={disabled || refreshing} onClick={() => onRefreshModels()}>
-            <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            {refreshing ? "..." : "Модели"}
-          </Button>
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="soft-admin-icon-button"
+            disabled={disabled || refreshing}
+            onClick={() => onRefreshModels()}
+            title="Обновить список моделей"
+            aria-label={`Обновить список моделей ${provider.displayName}`}
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       </td>
     </tr>
@@ -988,7 +970,7 @@ function CredentialTableRow({
       <td className={COMPACT_CELL_CLASS}>
         <label className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
           <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })} />
-          enabled
+          включен
         </label>
       </td>
       <td className={COMPACT_CELL_CLASS}><input value={draft.priority} type="number" onChange={(event) => setDraft({ ...draft, priority: Number(event.target.value) })} className={COMPACT_INPUT_CLASS} /></td>
@@ -1013,14 +995,21 @@ function CredentialTableRow({
         {credential.consecutiveFailures > 0 && <div className="text-red-700">{credential.consecutiveFailures} подряд</div>}
       </td>
       <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-        <div className="flex flex-col gap-1">
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onCheck()}>
-            <Activity className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            Check
-          </Button>
-          <Button
+        <div className="soft-admin-table-actions">
+          <button
             type="button"
-            size="sm"
+            className="soft-admin-icon-button"
+            disabled={disabled}
+            onClick={() => onCheck()}
+            title="Проверить ключ"
+            aria-label={`Проверить ключ ${draft.label}`}
+          >
+            <Activity className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="soft-admin-icon-button"
+            data-variant="primary"
             disabled={disabled}
             onClick={() => {
               const payload: Record<string, unknown> = {
@@ -1034,14 +1023,34 @@ function CredentialTableRow({
               if (nextKey && nextKey !== originalKey) payload.apiKey = nextKey;
               void onUpdate(payload, `Ключ ${draft.label} сохранён`);
             }}
+            title="Сохранить ключ"
+            aria-label={`Сохранить ключ ${draft.label}`}
           >
-            <Save className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            Save
-          </Button>
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
           {(credential.regionBlocked || credential.consecutiveFailures > 0) && (
-            <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onUpdate({ resetFailureState: true }, "Состояние ошибок сброшено")}>Сброс</Button>
+            <button
+              type="button"
+              className="soft-admin-icon-button"
+              disabled={disabled}
+              onClick={() => onUpdate({ resetFailureState: true }, "Состояние ошибок сброшено")}
+              title="Сбросить ошибки ключа"
+              aria-label={`Сбросить ошибки ключа ${draft.label}`}
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
           )}
-          <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => onDelete()}>Удалить</Button>
+          <button
+            type="button"
+            className="soft-admin-icon-button"
+            data-variant="danger"
+            disabled={disabled}
+            onClick={() => onDelete()}
+            title="Удалить ключ"
+            aria-label={`Удалить ключ ${draft.label}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       </td>
     </tr>
@@ -1127,7 +1136,7 @@ function PolicyTableRow({
         <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">{policy.tier ?? "-"}</SoftBadge>
       </td>
       <td className={COMPACT_CELL_CLASS}>
-        <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">{policy.source ?? "default"}</SoftBadge>
+        <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">{policy.source === "database" ? "ручная" : "по умолчанию"}</SoftBadge>
       </td>
       <td className={COMPACT_CELL_CLASS}>
         <label className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
@@ -1188,9 +1197,10 @@ function PolicyTableRow({
         <span className={errorCount > 0 ? "text-red-700" : "text-[var(--soft-ink-soft)]"}>{errorCount}</span>
       </td>
       <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-        <Button
+        <button
           type="button"
-          size="sm"
+          className="soft-admin-icon-button"
+          data-variant="primary"
           disabled={disabled}
           onClick={() => {
             const modelPreferences = Object.fromEntries(
@@ -1209,10 +1219,11 @@ function PolicyTableRow({
               perUserDailyTokenBudget: draft.perUserDailyTokenBudget === "" ? null : Number(draft.perUserDailyTokenBudget),
             });
           }}
+          title="Сохранить цепочку маршрутизации"
+          aria-label={`Сохранить цепочку маршрутизации ${policy.title ?? policy.feature}`}
         >
-          <Save className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-          Сохранить
-        </Button>
+          <Save className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
       </td>
     </tr>
   );
@@ -1265,11 +1276,11 @@ function PromptTableRow({
       <td className={COMPACT_CELL_CLASS}>
         <label className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
           <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })} />
-          enabled
+          включен
         </label>
       </td>
       <td className={COMPACT_CELL_CLASS}>
-        <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">{prompt.source === "database" ? "custom" : "default"}</SoftBadge>
+        <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">{prompt.source === "database" ? "ручной" : "по умолчанию"}</SoftBadge>
       </td>
       <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatDate(prompt.updatedAt)}</td>
       <td className={COMPACT_CELL_CLASS}>
@@ -1282,15 +1293,23 @@ function PromptTableRow({
         />
       </td>
       <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-        <div className="flex flex-col gap-1">
+        <div className="soft-admin-table-actions">
           {prompt.source === "database" && (
-            <Button type="button" size="sm" variant="outline" disabled={disabled} onClick={() => { void onReset(); }}>
-              Сброс
-            </Button>
+            <button
+              type="button"
+              className="soft-admin-icon-button"
+              disabled={disabled}
+              onClick={() => { void onReset(); }}
+              title="Сбросить промт к значению по умолчанию"
+              aria-label={`Сбросить промт ${prompt.title}`}
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
           )}
-          <Button
+          <button
             type="button"
-            size="sm"
+            className="soft-admin-icon-button"
+            data-variant="primary"
             disabled={disabled}
             onClick={() => {
               void onSave({
@@ -1301,10 +1320,11 @@ function PromptTableRow({
                 enabled: draft.enabled,
               });
             }}
+            title="Сохранить промт"
+            aria-label={`Сохранить промт ${prompt.title}`}
           >
-            <Save className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            Save
-          </Button>
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
         </div>
       </td>
     </tr>
@@ -1940,10 +1960,10 @@ export function AIControlCenter({
             <tr>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Провайдер</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Статус</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Priority</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Приоритет</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Таймаут</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Модель по умолчанию</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Base URL</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Базовый URL</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Базовая цена micros/1K</th>
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
@@ -1972,14 +1992,14 @@ export function AIControlCenter({
         <CompactTableShell minWidth="1680px">
           <thead className="bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Provider</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Label</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>API key</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Health</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Enabled</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Priority</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Model override</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Base URL override</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Провайдер</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Название</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>API-ключ</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Состояние</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Включен</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Приоритет</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Модель ключа</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>URL ключа</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Мониторинг</th>
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
@@ -2019,7 +2039,7 @@ export function AIControlCenter({
                     startTransition(() => { void createCredential(formData); });
                   }}
                 >
-                  <select name="provider" defaultValue={AIProvider.OPENROUTER} className={COMPACT_SELECT_CLASS} aria-label="Provider">
+                  <select name="provider" defaultValue={AIProvider.OPENROUTER} className={COMPACT_SELECT_CLASS} aria-label="Провайдер">
                     {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                   </select>
                   <input name="label" placeholder="Метка" required className={COMPACT_INPUT_CLASS} />
@@ -2062,7 +2082,7 @@ export function AIControlCenter({
                   <option value="reference">reference</option>
                   <option value="reference/free">reference/free</option>
                   <option value="catalog">catalog</option>
-                  <option value="provider default">provider default</option>
+                  <option value="provider default">цена провайдера</option>
                 </select>
               </CompactHeader>
               <CompactHeader label={`Вход, ${perMillionUnit}`} sortKey="input" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
@@ -2076,7 +2096,7 @@ export function AIControlCenter({
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Вход micros/1K</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Выход micros/1K</th>
               <CompactHeader label="Обновлено" sortKey="fetchedAt" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)} />
-              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Сохранить</th>
+              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
@@ -2127,13 +2147,13 @@ export function AIControlCenter({
                   {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                 </select>
               </th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Max tokens</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Temperature</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Timeout</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Feature budget</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>User budget</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Макс. токены</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Температура</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Таймаут</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Бюджет функции</th>
+              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Бюджет пользователя</th>
               <CompactHeader label="Errors" sortKey="errors" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)} />
-              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Save</th>
+              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
@@ -2181,8 +2201,8 @@ export function AIControlCenter({
               <CompactHeader label="Source" sortKey="source" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
                 <select value={promptFilters.source} onChange={(event) => { setPromptFilters({ ...promptFilters, source: event.target.value }); setPromptPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="database">custom</option>
-                  <option value="default">default</option>
+                  <option value="database">ручные</option>
+                  <option value="default">по умолчанию</option>
                 </select>
               </CompactHeader>
               <CompactHeader label="Updated" sortKey="updatedAt" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)} />
@@ -2190,7 +2210,7 @@ export function AIControlCenter({
                 <div className="px-1.5 py-2 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">Prompt text</div>
                 <input value={promptFilters.promptText} onChange={(event) => { setPromptFilters({ ...promptFilters, promptText: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
               </th>
-              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Actions</th>
+              <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">

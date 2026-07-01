@@ -263,6 +263,10 @@ jobs:
           rsync -az --human-readable -e "$SSH_CMD" \
             deploy/ecosystem.staging.config.js \
             "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/ecosystem.staging.config.js"
+          echo "rsync staging DB sync utility"
+          rsync -az --human-readable -e "$SSH_CMD" \
+            deploy/sync-staging-db-from-prod.sh \
+            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/sync-staging-db-from-prod.sh"
           echo "rsync web/ tree (including artifact)"
           rsync -az --delete --human-readable -e "$SSH_CMD" \
             --exclude='.env' \
@@ -308,6 +312,8 @@ jobs:
                 echo "::error::DATABASE_URL not found in staging .env.local"
                 exit 1
               fi
+              echo "sync staging DB from production"
+              bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh
               echo "npm ci --omit=dev"
               cd "$REPO_DIR"
               npm ci --omit=dev --prefer-offline --no-audit --no-fund

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
+import { LinkPagination } from "../admin-analytics-ui";
 import { JobActions } from "./job-actions";
 
 type SearchParams = {
@@ -166,7 +167,6 @@ export default async function AdminJobsPage(props: {
   ]);
 
   const [pending, running, failed, dead, succeeded] = stats;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const queueMap: Record<string, Record<string, number>> = {};
   for (const row of queueSummary) {
     if (!queueMap[row.queue]) queueMap[row.queue] = {};
@@ -257,11 +257,7 @@ export default async function AdminJobsPage(props: {
         </table>
       </section>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.max(1, page - 1)) })}>Назад</Link>
-        <span className="text-xs text-[var(--soft-ink-faint)]">Показано {jobs.length} из {total.toLocaleString("ru-RU")} · {page} / {pageCount}</span>
-        <Link className="soft-admin-action" data-variant="subtle" href={makeUrl(params, { page: String(Math.min(pageCount, page + 1)) })}>Вперёд</Link>
-      </div>
+      <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { page: String(nextPage) })} />
     </PageContainer>
   );
 }

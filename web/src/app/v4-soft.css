@@ -3084,6 +3084,11 @@
     table-layout: auto;
   }
 
+  .soft-admin-shell :where(.overflow-x-auto, .overflow-auto):has(> table),
+  .soft-admin-shell :where(section, div):has(> table.soft-admin-data-table) {
+    max-width: 100%;
+  }
+
   .soft-admin-shell thead {
     background: color-mix(in srgb, var(--soft-paper-deep) 78%, white);
     color: var(--soft-ink-soft);
@@ -3094,7 +3099,9 @@
     border-color: var(--soft-paper-edge) !important;
   }
 
-  .soft-admin-shell th {
+  .soft-admin-shell th,
+  .soft-admin-data-table th,
+  .soft-admin-compact-table th {
     border-right: 1px solid var(--soft-paper-edge);
     color: var(--soft-ink-soft);
     font-size: 0.625rem;
@@ -3106,7 +3113,9 @@
     white-space: nowrap;
   }
 
-  .soft-admin-shell td {
+  .soft-admin-shell td,
+  .soft-admin-data-table td,
+  .soft-admin-compact-table td {
     border-top: 1px solid var(--soft-paper-edge);
     border-right: 1px solid var(--soft-paper-edge);
     max-width: 18rem;
@@ -3115,14 +3124,26 @@
     text-overflow: ellipsis;
     vertical-align: middle;
     white-space: nowrap;
+    background: color-mix(in srgb, var(--soft-paper-card) 95%, white);
+  }
+
+  .soft-admin-data-table th,
+  .soft-admin-compact-table th {
+    padding: 0.32rem 0.45rem;
   }
 
   .soft-admin-shell td:last-child,
-  .soft-admin-shell th:last-child {
+  .soft-admin-shell th:last-child,
+  .soft-admin-data-table td:last-child,
+  .soft-admin-data-table th:last-child,
+  .soft-admin-compact-table td:last-child,
+  .soft-admin-compact-table th:last-child {
     border-right: 0;
   }
 
-  .soft-admin-shell tbody tr:hover td {
+  .soft-admin-shell tbody tr:hover td,
+  .soft-admin-data-table tbody tr:hover td,
+  .soft-admin-compact-table tbody tr:hover td {
     background: color-mix(in srgb, var(--soft-paper-card) 82%, var(--soft-apricot));
   }
 
@@ -3132,11 +3153,27 @@
   .soft-admin-shell td:has(details),
   .soft-admin-shell td:has(pre),
   .soft-admin-shell td[data-wrap="true"],
-  .soft-admin-shell .soft-admin-cell-wrap {
+  .soft-admin-shell .soft-admin-cell-wrap,
+  .soft-admin-shell td:has(.soft-admin-table-actions),
+  .soft-admin-shell td:has(.soft-admin-icon-button) {
     max-width: none;
     overflow: visible;
     text-overflow: clip;
     white-space: normal;
+  }
+
+  .soft-admin-shell table td > :where(p, span, code):not(.soft-admin-status-pill):not(.soft-admin-action):not(.soft-admin-icon-button),
+  .soft-admin-data-table td > :where(p, span, code):not(.soft-admin-status-pill):not(.soft-admin-action):not(.soft-admin-icon-button),
+  .soft-admin-compact-table td > :where(p, span, code):not(.soft-admin-status-pill):not(.soft-admin-action):not(.soft-admin-icon-button) {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .soft-admin-shell table td > code,
+  .soft-admin-data-table td > code,
+  .soft-admin-compact-table td > code {
+    display: inline-block;
   }
 
   .soft-admin-shell td pre,
@@ -3406,6 +3443,7 @@
   }
 
   .soft-admin-row-details td {
+    background: color-mix(in srgb, var(--soft-paper-card) 86%, white);
     max-width: none;
     overflow: visible;
     padding: 0;
@@ -3446,6 +3484,35 @@
   .soft-admin-icon-button:disabled {
     cursor: not-allowed;
     opacity: 0.48;
+  }
+
+  .soft-admin-pagination-page {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 0.25rem;
+    background: #fff;
+    padding-inline: 0.45rem;
+    color: var(--soft-ink-soft);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .soft-admin-pagination-page:hover {
+    background: var(--soft-surface);
+    color: var(--soft-bordeaux);
+  }
+
+  .soft-admin-pagination-page[data-active="true"] {
+    border-color: var(--soft-bordeaux);
+    background: #fff;
+    box-shadow: inset 0 0 0 1px var(--soft-bordeaux);
+    color: var(--soft-bordeaux);
+    font-weight: 800;
   }
 
   /* Unified admin segmented control / filter-tab button (D3, D5).

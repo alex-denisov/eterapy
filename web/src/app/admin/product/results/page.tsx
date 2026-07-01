@@ -1,12 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, AnalyticsSection, DataTable, PeriodToolbar, StackedBarChart, StatusBadge, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, DataTable, LinkPagination, PeriodToolbar, StackedBarChart, StatusBadge, VerticalBarChart, formatDateTime, formatNumber } from "../../admin-analytics-ui";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -35,8 +34,8 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
     ].some((value) => value?.toLowerCase().includes(q));
   });
   const take = 20;
-  const pages = Math.max(1, Math.ceil(filtered.length / take));
   const rows = filtered.slice((page - 1) * take, page * take);
+  const paginationHref = (nextPage: number) => `/admin/product/results?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${nextPage}`;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -88,11 +87,7 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
             </a>,
           ])}
         />
-        <div className="mt-4 flex items-center justify-between text-xs text-[var(--soft-ink-soft)]">
-          <Link className="soft-admin-action" data-variant="subtle" href={`/admin/product/results?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${Math.max(1, page - 1)}`}>Назад</Link>
-          <span>{page} / {pages} · всего {filtered.length}</span>
-          <Link className="soft-admin-action" data-variant="subtle" href={`/admin/product/results?start=${period.startInput}&end=${period.endInput}&q=${encodeURIComponent(q)}&page=${Math.min(pages, page + 1)}`}>Вперед</Link>
-        </div>
+        <LinkPagination page={page} pageSize={take} total={filtered.length} hrefForPage={paginationHref} />
       </div>
     </main>
   );
