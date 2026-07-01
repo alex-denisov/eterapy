@@ -911,10 +911,10 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                   {row.role === "CLIENT" ? `${fraudScore}/10` : "—"}
                 </td>
                 <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                  <div className="flex items-center justify-center gap-1">
+                  <div className="soft-admin-table-actions">
                     <button
                       type="button"
-                      className="inline-flex size-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+                      className="soft-admin-icon-button"
                       onClick={() => setEditing(row)}
                       title="Редактировать"
                       aria-label={`Редактировать ${row.name || row.email}`}
@@ -923,7 +923,7 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
                     </button>
                     {permissions.canImpersonate && row.role !== "SUPERADMIN" ? (
                       <a
-                        className="inline-flex size-7 items-center justify-center rounded border border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+                        className="soft-admin-icon-button"
                         href={`/api/admin/impersonate?userId=${row.id}`}
                         target="_blank"
                         rel="noopener noreferrer"

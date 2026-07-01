@@ -285,7 +285,7 @@ export function ReviewsManager({
                             </div>
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap break-words text-foreground">
+                          <p className="line-clamp-2 text-foreground" title={r.text ?? ""}>
                             {r.text ? r.text : <span className="italic text-muted-foreground">без текста</span>}
                           </p>
                         )}
