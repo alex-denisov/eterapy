@@ -646,6 +646,19 @@ function paginationItems(page: number, pageCount: number): PaginationItem[] {
   return items;
 }
 
+function PaginationPageLink({ pageNumber, active, href }: { pageNumber: number; active: boolean; href: string }) {
+  return (
+    <Link
+      className={`soft-admin-pagination-page inline-flex h-7 min-w-7 items-center justify-center rounded border px-2 tabular-nums ${active ? "font-bold shadow-sm" : "border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)]"}`}
+      style={active ? { outline: "2px solid #5c2a2c", outlineOffset: "-1px" } : undefined}
+      href={href}
+      aria-current={active ? "page" : undefined}
+    >
+      <span style={active ? { color: "#5c2a2c", fontWeight: 800 } : undefined}>{pageNumber}</span>
+    </Link>
+  );
+}
+
 export function UsersControlPanel({ rows, page, pageSize, total, permissions }: UsersControlPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -954,14 +967,12 @@ export function UsersControlPanel({ rows, page, pageSize, total, permissions }: 
               }
               const active = item === page;
               return (
-                <Link
+                <PaginationPageLink
                   key={item}
-                  className={`inline-flex h-7 min-w-7 items-center justify-center rounded border px-2 tabular-nums ${active ? "border-[var(--soft-bordeaux)] bg-[var(--soft-bordeaux)] font-bold text-white" : "border-[var(--soft-paper-edge)] bg-white text-[var(--soft-ink-soft)] hover:bg-[var(--soft-surface)]"}`}
+                  pageNumber={item}
+                  active={active}
                   href={makeUrl(searchParams, { page: String(item) })}
-                  aria-current={active ? "page" : undefined}
-                >
-                  {item}
-                </Link>
+                />
               );
             })}
             {page < pageCount ? (
