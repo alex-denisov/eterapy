@@ -1,0 +1,55 @@
+name: Sync Staging DB from Production
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */4 * * *'
+
+concurrency:
+  group: sync-staging-db-from-production
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  VPS_HOST: 192.144.14.146
+  VPS_USER: admin
+  VPS_DEPLOY_DIR: /home/admin/eterapy-staging/deploy
+
+jobs:
+  sync:
+    name: Refresh staging database
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.CLOUDRU_ETERAPY_WEB_DEPLOY_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            echo "::error::secret CLOUDRU_ETERAPY_WEB_DEPLOY_KEY is empty"
+            exit 1
+          fi
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if printf '%s' "$SSH_KEY" | grep -q "BEGIN.*PRIVATE KEY"; then
+            printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          else
+            printf '%s' "$SSH_KEY" | base64 -d > ~/.ssh/deploy_key
+          fi
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Sync utility and refresh DB
+        run: |
+          set -euo pipefail
+          SSH_CMD='ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o ConnectTimeout=20'
+          rsync -az --chmod=F755 -e "$SSH_CMD" \
+            deploy/sync-staging-db-from-prod.sh \
+            "$VPS_USER@$VPS_HOST:$VPS_DEPLOY_DIR/sync-staging-db-from-prod.sh"
+          $SSH_CMD "$VPS_USER@$VPS_HOST" \
+            'bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh --migrate --restart'
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

@@ -102,7 +102,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
   }));
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-w-0 max-w-7xl overflow-hidden px-4 py-8 sm:px-6">
       <AdminHero
         eyebrow="продукт"
         title="Сессии и транскрипты"
@@ -117,7 +117,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
         <MetricCard label="С AI-резюме" value={String(withSummary.length)} />
       </MetricGrid>
 
-      <section className="mt-6 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+      <section className="mt-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <div className="mb-4">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Бронирования и переносы</h2>
           <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Живое управление бронированиями: перенос слота, пересчет длительности и отмена доступных статусов.</p>
@@ -125,7 +125,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
         <BookingsManager initial={bookingRows} />
       </section>
 
-      <section className="mt-6 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+      <section className="mt-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <div className="mb-4">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Видеосессии и записи</h2>
           <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Текущие комнаты, статусы, длительность и файлы записей.</p>
@@ -133,7 +133,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
         <SessionsTable rows={videoRows} />
       </section>
 
-      <section className="mt-6 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
+      <section className="mt-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <div className="mb-4">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Транскрипты и AI-резюме</h2>
         </div>
