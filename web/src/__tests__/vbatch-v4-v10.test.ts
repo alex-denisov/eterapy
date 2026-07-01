@@ -13,7 +13,8 @@ describe("V4 — admin/reviews compact paginated table with in-row actions + edi
     expect(manager).toContain("practitionerQuery");
     // alphabetical dropdown retained
     expect(manager).toContain('localeCompare(b[1], "ru")');
-    expect(manager).toContain("Страница");
+    expect(manager).toContain("CompactPaginationBar");
+    expect(manager).toContain("visible.length");
   });
 
   it("keeps per-row Publish/Hide/Delete and adds Edit (redaction) inside the table", () => {
