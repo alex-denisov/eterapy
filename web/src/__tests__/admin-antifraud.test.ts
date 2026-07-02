@@ -39,7 +39,7 @@ describe("B220 admin anti-fraud dashboard", () => {
     expect(panel).toContain("Апелляции");
     expect(panel).toContain("Карта доказательств");
     expect(panel).toContain("Отметить решенным");
-    expect(panel).toContain("soft-admin-icon-button");
+    expect(panel).toContain("AdminCompactDataTable");
   });
 
   it("keeps the v4.2 antifraud console tied to monetization guardrails", () => {

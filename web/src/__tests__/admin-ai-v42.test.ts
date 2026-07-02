@@ -38,9 +38,9 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(center).toContain("data-testid=\"ai-credentials-create-manual\"");
     expect(center).not.toContain("data-testid=\"ai-policy-form\"");
     expect(center).not.toContain("ModelPricingPreview");
-    expect(center).toContain("free layer");
-    expect(center).toContain("paid layer");
-    expect(center).toContain("audit boundary");
+    expect(center).toContain("бесплатный слой");
+    expect(center).toContain("платный слой");
+    expect(center).toContain("контур аудита");
     expect(center).toContain("GEMINI");
     expect(route).toContain("updateAIRoutingPolicy");
     expect(route).toContain("cloudflareGatewayEnabled");
