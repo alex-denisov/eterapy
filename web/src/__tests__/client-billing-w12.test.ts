@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
-const page = read("src/app/cabinet/billing/page.tsx");
+const page = read("src/components/cabinet/billing-panel.tsx");
 
 describe("W12/Z1-Ф1 — billing saved-card wallet (no ₽ balance rail)", () => {
   it("removes the ₽ balance + top-up wallet block", () => {

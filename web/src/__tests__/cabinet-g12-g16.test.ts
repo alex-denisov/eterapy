@@ -53,13 +53,13 @@ describe("G13 — credits sells paid products with prices", () => {
 
 describe("G15 — billing card faces, top-up, and history", () => {
   it("darkens the card gradient and shadows the number for legibility", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     expect(page).toContain("linear-gradient(135deg, #4a2122");
     expect(page).toContain("textShadow");
   });
 
   it("Z1-Ф1: drops the ₽ top-up field — billing manages cards + subscription only", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     // The client ₽ balance rail is removed: no top-up input, no balance state.
     expect(page).not.toContain("topUpRaw");
     expect(page).not.toContain('data-testid="client-topup-amount"');

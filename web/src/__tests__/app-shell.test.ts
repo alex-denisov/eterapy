@@ -44,14 +44,18 @@ describe("v5 app shell", () => {
     expect(clientCabinet).not.toContain('mainUrl("/products/deep-report")');
   });
 
-  it("uses explicit B376 mobile tabs with a More destination", () => {
-    expect(shell).toContain("const mobileTabs =");
+  it("uses the shared nav-model mobile bar with an «Ещё» sheet (B464 IB0)", () => {
+    expect(shell).toContain("const mobileTabs");
+    // Client bar is sourced from the shared model (identical to the landing bar).
+    expect(shell).toContain("CLIENT_MOBILE_TABS");
+    expect(shell).toContain("CLIENT_MORE_ITEMS");
+    // The sidebar still exposes the primary personal destinations.
     expect(shell).toContain('label: "Главная"');
     expect(shell).toContain('label: "Дневник"');
     expect(shell).toContain('label: "Кошелёк"');
-    expect(shell).toContain('label: "Ещё"');
-    expect(shell).toContain("data-testid={item.label");
+    // «Ещё» opens a bottom sheet instead of navigating to a page.
     expect(shell).toContain('"app-shell-mobile-more"');
+    expect(shell).toContain('data-testid="app-shell-mobile-sheet"');
     expect(shell).not.toContain("nav.slice(0, 4)");
   });
 

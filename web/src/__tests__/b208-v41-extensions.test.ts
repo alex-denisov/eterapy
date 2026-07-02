@@ -30,7 +30,7 @@ describe("B208 auth/checkout/support/admin v4.1 extensions", () => {
   });
 
   it("keeps checkout/billing payment controls on a v4.1 secure-pay surface", () => {
-    const billing = source("src/app/cabinet/billing/page.tsx");
+    const billing = source("src/components/cabinet/billing-panel.tsx");
 
     // T21: the dead "1. Проверка / 2. Оплата / 3. Готово" stepper chips were removed.
     expect(billing).not.toContain("1. Проверка");

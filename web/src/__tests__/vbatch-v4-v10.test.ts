@@ -43,6 +43,6 @@ describe("V10 — client /credits surfaces paid recommendations", () => {
     expect(page).toContain("Записаться к специалисту");
     // Z1-Ф1: the ₽ top-up CTA is replaced by a subscription upsell.
     expect(page).not.toContain("Пополнить баланс");
-    expect(page).toContain("Выбрать подписку");
+    expect(page).toContain("Сравнить тарифы");
   });
 });

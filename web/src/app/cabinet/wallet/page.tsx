@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight, CheckCircle2, Clock, History, Sparkles, Users, Wallet } from "lucide-react";
 import { CreditPackPurchaseButton } from "@/components/cabinet/credit-pack-purchase-button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
+import { BillingPanel } from "@/components/cabinet/billing-panel";
 import { auth } from "@/lib/auth";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { creditsWord, getCreditWalletSnapshot } from "@/lib/credit-wallet";
@@ -79,26 +80,6 @@ function WalletBreakdown({ items }: { items: WalletBreakdownItem[] }) {
           </div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function SubscriptionCreditsCallout() {
-  return (
-    <section className="soft-card p-5">
-      <p className="soft-eyebrow">подписка</p>
-      <h2 className="soft-h3 mt-2">Plus и Premium пополняют кошелёк каждый месяц</h2>
-      <p className="mt-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-        Пакеты удобны для разовой дозаправки. Если баллы нужны регулярно, подписка
-        даёт месячный кошелёк и открывает якорные форматы без списания.
-      </p>
-      <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
-        Подписочные баллы сгорают в конце оплаченного периода. Купленные баллы действуют 12 месяцев с даты покупки.
-      </p>
-      <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5">
-        Выбрать подписку
-        <ArrowRight className="size-4" aria-hidden="true" />
-      </Link>
     </section>
   );
 }
@@ -233,12 +214,22 @@ export default async function CabinetWalletPage() {
         </section>
       )}
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
-        <WalletBreakdown items={wallet.breakdown} />
-        <SubscriptionCreditsCallout />
-      </section>
+      <WalletBreakdown items={wallet.breakdown} />
 
       <CreditPacksGrid packs={wallet.packs} />
+
+      {/* B464 IB3 — subscription + saved cards + payment history, merged from the
+          retired «Подписка и оплата» page (/billing → /wallet). */}
+      <section className="mt-8" data-testid="wallet-billing">
+        <div className="mb-3">
+          <p className="soft-eyebrow">подписка и платежи</p>
+          <h2 className="soft-h2 mt-1">Подписка и карты</h2>
+          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
+            Подписочные баллы сгорают в конце оплаченного периода. Купленные пакеты действуют 12 месяцев.
+          </p>
+        </div>
+        <BillingPanel />
+      </section>
 
       {/* Spend catalog (merged from the former /credits page) */}
       <div className="mb-3 mt-2">
@@ -274,9 +265,9 @@ export default async function CabinetWalletPage() {
             Подписка Plus и Premium пополняет баланс баллов каждый месяц и открывает
             включённые цифровые продукты. Подбор тарифа — на странице подписки.
           </p>
-          <Link href={appUrl("/billing")} className="soft-button soft-button-ghost mt-5 self-start">
+          <Link href={mainUrl("/pricing")} className="soft-button soft-button-ghost mt-5 self-start">
             <Wallet className="size-4" aria-hidden="true" />
-            Выбрать подписку
+            Сравнить тарифы
           </Link>
         </article>
       </section>

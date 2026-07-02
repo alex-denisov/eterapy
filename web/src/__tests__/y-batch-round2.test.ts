@@ -22,10 +22,13 @@ describe("Y6 — role-based client cabinet access control", () => {
     expect(src(file)).toContain("guardClientCabinet");
   });
 
-  it("billing (client component) routes non-CLIENT roles back to /cabinet", () => {
+  it("B464 IB3: /billing redirects into the client-guarded wallet money hub", () => {
     const billing = src("app/cabinet/billing/page.tsx");
-    expect(billing).toContain('sessionRole !== "CLIENT"');
-    expect(billing).toContain('router.replace("/cabinet")');
+    const wallet = src("app/cabinet/wallet/page.tsx");
+    // The separate «Подписка и оплата» page is retired → redirect to /wallet…
+    expect(billing).toContain('redirect(appUrl("/wallet"))');
+    // …where the server component enforces the client-only guard.
+    expect(wallet).toContain("guardClientCabinet");
   });
 });
 

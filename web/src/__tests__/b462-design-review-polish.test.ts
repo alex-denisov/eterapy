@@ -60,7 +60,7 @@ describe("B462 — deep design-review polish batch", () => {
   });
 
   describe("§3.4 client billing renders a shell, never a blank viewport (HIGH)", () => {
-    const billing = source("app/cabinet/billing/page.tsx");
+    const billing = source("components/cabinet/billing-panel.tsx");
 
     it("does not return null while the next-auth session is loading", () => {
       // Root cause of the blank screenshot: `if (status === "loading") return null;`.
@@ -115,8 +115,8 @@ describe("B462 — deep design-review polish batch", () => {
       expect(css).toContain(".soft-empty-stage::before");
     });
 
-    it("applies the halo to the diary «Карта пока пустая» empty state", () => {
-      const block = diary.slice(diary.indexOf("Карта пока пустая") - 200, diary.indexOf("Карта пока пустая"));
+    it("applies the halo to the diary «Здесь пока пусто» empty state", () => {
+      const block = diary.slice(diary.indexOf("Здесь пока пусто") - 200, diary.indexOf("Здесь пока пусто"));
       expect(block).toContain("soft-empty-stage");
     });
 

@@ -3051,6 +3051,41 @@
     backdrop-filter: blur(16px);
   }
 
+  /* B464 IB0 — «Ещё» bottom sheet (landing header + cabinet shell share it).
+     Sits just above the frosted bottom bar; reuses the same paper/blur look. */
+  .soft-mobile-sheet {
+    border-top: 1px solid var(--soft-paper-edge);
+    background: rgba(251, 246, 238, 0.98);
+    box-shadow: 0 -18px 48px -24px rgba(60, 30, 20, 0.4);
+    backdrop-filter: blur(16px);
+    padding: 0.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .soft-mobile-sheet-row {
+    width: 100%;
+    border-radius: var(--soft-radius-md);
+    padding: 0.75rem 0.85rem;
+    font-size: 0.9rem;
+    color: var(--soft-ink-soft);
+    transition: background var(--motion-base), color var(--motion-base);
+  }
+
+  .soft-mobile-sheet-row:hover,
+  .soft-mobile-sheet-row:focus-visible {
+    background: var(--soft-paper-deep);
+    color: var(--soft-bordeaux);
+  }
+
+  /* Reserve space so the fixed landing bottom bar never covers page content
+     (the cabinet reserves it via .soft-app-main / .soft-app-layout padding). */
+  @media (max-width: 767px) {
+    body:has(nav[data-testid="landing-mobile-nav"]) {
+      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    }
+  }
+
   .soft-product-purchase-controls {
     width: 100%;
   }

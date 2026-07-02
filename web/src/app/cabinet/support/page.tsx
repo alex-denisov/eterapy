@@ -1,19 +1,17 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Mail, MessageCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { mainUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
-import { SupportChat } from "@/components/support/support-chat";
-import { ComplaintForm } from "@/components/support/complaint-form";
+import { SupportHelpCenter } from "@/components/support/support-help-center";
 
 export const metadata: Metadata = {
   title: "Поддержка — кабинет ETerapy",
   robots: noIndexRobots,
 };
 
-// B333: deep-link the actual support bot. Previously this pointed at
-// /telegram which then redirected to telegram.org generic landing.
+// B333: deep-link the actual support bot with the user id as a /start payload.
 const TELEGRAM_BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? "eterapy_bot";
 
 export default async function CabinetSupportPage() {
@@ -22,75 +20,20 @@ export default async function CabinetSupportPage() {
   const telegramSupportUrl = userId
     ? `https://t.me/${TELEGRAM_BOT_USERNAME}?start=support_${userId}`
     : `https://t.me/${TELEGRAM_BOT_USERNAME}?start=support`;
+
   return (
     <main className="soft-clarity-page" data-testid="cabinet-support-page">
       <section className="soft-shell py-10 md:py-14">
         <p className="soft-eyebrow">поддержка</p>
         <h1 className="soft-h1 mt-2">Чем можем помочь?</h1>
         <p className="soft-lede mt-3 max-w-2xl">
-          Если что-то идёт не по плану — напишите нам напрямую. Среднее время первого ответа — до 4 часов
-          в будние дни. Для общих вопросов сначала посмотрите{" "}
-          <Link href={mainUrl("/help")} className="soft-italic underline">страницу частых вопросов</Link>:
-          в 80% случаев ответ уже там.
+          Найдите ответ в частых вопросах или выберите тему — подскажем самый быстрый способ связаться.
+          Прямой адрес: <a href="mailto:support@eterapy.com" className="soft-italic underline">support@eterapy.com</a>.
         </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2" data-testid="cabinet-support-channels">
-          <div className="soft-card p-6">
-            <Mail className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-            <h2 className="soft-h3 mt-3">Email</h2>
-            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              Любые вопросы про оплату, доступ, конфиденциальность.
-            </p>
-            <a
-              href="mailto:support@eterapy.com"
-              className="soft-button soft-button-primary mt-4 h-9 px-4 text-sm"
-              data-testid="cabinet-support-email"
-            >
-              support@eterapy.com
-            </a>
-          </div>
-
-          <div className="soft-card p-6">
-            <MessageCircle className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-            <h2 className="soft-h3 mt-3">Чат в Telegram</h2>
-            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              Быстрые вопросы прямо в Telegram. Отвечаем командой поддержки.
-            </p>
-            {/* B333: deep-link directly into our support bot with the
-                user's id encoded as a /start payload, so staff sees who
-                is writing in. */}
-            <a
-              href={telegramSupportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="soft-button soft-button-primary mt-4 h-9 px-4 text-sm"
-              data-testid="cabinet-support-telegram"
-            >
-              Открыть бот
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </a>
-          </div>
-        </div>
-
-        {/* G8: structured complaint intake. Replaces the old
-            mailto:safety@ card — captures a category + description and
-            routes through the same support pipeline (DB + Telegram). The
-            reply lands in the in-cabinet chat below, so no separate email
-            return address is needed. */}
-        <div className="mt-4">
-          <ComplaintForm />
-        </div>
-
-        {/* B333: in-cabinet chat MVP. The user types here; their message
-            is stored in the DB and forwarded to the support TG group via
-            sendTelegram(). Polling (3s) renders staff replies as they
-            land. SSE is the natural next step once traffic justifies it. */}
-        {userId && (
-          <div className="mt-8" data-testid="cabinet-support-chat-section">
-            <h2 className="soft-h3 mb-3">Чат с поддержкой</h2>
-            <SupportChat />
-          </div>
-        )}
+        {/* B464 IB6 (owner round-3 #8): Apple-style search gate → FAQ → escalation
+            gated by problem type (live chat only for the six sensitive topics). */}
+        <SupportHelpCenter telegramSupportUrl={telegramSupportUrl} showChat={!!userId} />
 
         <div className="soft-card mt-8 p-6" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
           <p className="soft-eyebrow">если сейчас тяжело</p>

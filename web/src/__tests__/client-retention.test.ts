@@ -21,15 +21,14 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain("getSubscriptionPlanLabel");
     expect(page).toContain("db.clarityRoute.findMany");
     expect(page).toContain('appUrl("/questions")');
-    // T16: the cabinet home shows a single "недавние разборы" block with an
+    // B464 IB1: the cabinet home shows a single «ваши результаты» block with an
     // "Все разборы →" link to the history page. The previously duplicated
     // in-page "История разборов" card was removed (the sidebar nav keeps that
     // label — see the cabinet-shell assertion below).
-    expect(page).toContain("недавние разборы");
+    expect(page).toContain("ваши результаты");
     expect(page).toContain("Все разборы");
     expect(page).not.toContain("История разборов");
-    expect(page).toContain("dialogueStatusLabelRu");
-    expect(page).toContain("mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`)");
+    expect(page).toContain("mainUrl(`/checkin?dialogueId=${d.id}`)");
   });
 
   it("adds v4.1 history navigation to the cabinet", () => {
@@ -127,10 +126,12 @@ describe("M11 client retention surfaces", () => {
   it("keeps milestones gentle and non-coercive", () => {
     const dashboard = source("src/app/cabinet/page.tsx");
 
-    expect(dashboard).toContain('data-testid="client-gentle-milestones"');
-    expect(dashboard).toContain("Мягкий ритм");
-    expect(dashboard).toContain("нет штрафов, дедлайнов и давления");
-    expect(dashboard).toContain("db.dailyCard.count");
+    // B464 IB1: vanity «Мягкий ритм» counts folded into a single non-shaming
+    // streak badge; the daily ritual stays free and pressure-free.
+    expect(dashboard).toContain('data-testid="client-streak-badge"');
+    expect(dashboard).toContain("видны только вам");
+    expect(dashboard).not.toContain("Мягкий ритм");
+    expect(dashboard).not.toContain('data-testid="client-gentle-milestones"');
   });
 
   it("keeps the B376 cabinet dashboard to one primary action and one points balance", () => {
@@ -142,7 +143,6 @@ describe("M11 client retention surfaces", () => {
     );
     expect(dashboard).toContain('data-testid="client-dashboard-balance"');
     expect(dashboard).toContain('<details className="soft-card mb-4 p-5" data-testid="client-first-steps"');
-    expect(dashboard).toContain('<details className="soft-card mb-4 p-5" data-testid="client-gentle-milestones"');
     expect(dashboard).toContain("open={false}");
     expect(dashboard).not.toContain('data-testid="client-clarity-credits"');
     expect(dashboard).not.toContain("<p className=\"font-heading text-3xl\" style={{ color: \"var(--soft-bordeaux)\" }}>{clarityCredits}</p>");
@@ -175,8 +175,9 @@ describe("M11 client retention surfaces", () => {
     expect(analytics).toContain("analyticsDialogueId");
     expect(analytics).toContain("analyticsOfferReason");
     expect(analytics).toContain("analyticsCreditCost");
-    expect(dashboard).toContain("daily_card_question_clicked");
-    expect(dashboard).toContain("daily_card_share_clicked");
+    // B464 IB1: the dashboard daily-Q now drives the in-cabinet reflect flow
+    // (DailyPracticeActions) instead of the two old «Разобрать/Поделиться»
+    // buttons, so those two analytics events moved off the dashboard.
     expect(map).toContain("my_map_share_clicked");
     expect(map).toContain("my_map_hide_clicked");
     expect(map).toContain("my_map_delete_clicked");
