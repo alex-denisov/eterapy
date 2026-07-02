@@ -33,6 +33,9 @@ export function DiaryPinButton() {
 
   useEffect(() => {
     try {
+      // Post-mount read of a client-only device flag (localStorage); server and
+      // first client render agree on `false`, matching the rest of the cabinet.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasPin(Boolean(localStorage.getItem(DIARY_PIN_STORAGE_KEY)));
     } catch {
       /* storage unavailable — treat as no PIN */
