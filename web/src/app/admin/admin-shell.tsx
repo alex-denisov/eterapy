@@ -231,8 +231,7 @@ export function AdminShell({
     <div data-testid="admin-shell" data-shell-role={role} className="soft-clarity-page soft-admin-shell flex min-h-screen">
       <aside
         data-testid="admin-shell-sidebar"
-        className="admin-shell-sidebar soft-admin-sidebar sticky hidden min-h-[calc(100vh-var(--header-height))] w-64 shrink-0 self-stretch overflow-y-auto px-3 py-5 md:flex md:flex-col"
-        style={{ top: "var(--header-height)" }}
+        className="admin-shell-sidebar soft-admin-sidebar hidden min-h-[calc(100vh-var(--header-height))] w-64 shrink-0 self-stretch overflow-y-auto px-3 py-5 md:flex md:flex-col"
       >
         {/* T10: logo intentionally omitted here — the public-shell-header
             already renders the brand mark, so a second copy in the sidebar

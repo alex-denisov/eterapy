@@ -1848,24 +1848,24 @@ export function AIControlCenter({
         data-testid="admin-ai-v42-guardrails"
       >
         <div>
-          <p className="soft-eyebrow">free layer</p>
+          <p className="soft-eyebrow">бесплатный слой</p>
           <p className="mt-2 text-sm font-medium">Бесплатный вход остается дешевым</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            Разбор, routing и уточнения идут через цепочку дешевых моделей с fallback между LLM.
+            Разбор, маршрутизация и уточнения идут через цепочку дешевых моделей с резервным переключением между LLM.
           </p>
         </div>
         <div>
-          <p className="soft-eyebrow">paid layer</p>
+          <p className="soft-eyebrow">платный слой</p>
           <p className="mt-2 text-sm font-medium">Платные продукты получают сильный слой</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
             Разборы, полная картина, совместимость и сессии настраиваются отдельно по цепочке провайдеров.
           </p>
         </div>
         <div>
-          <p className="soft-eyebrow">audit boundary</p>
+          <p className="soft-eyebrow">контур аудита</p>
           <p className="mt-2 text-sm font-medium">Промты, диалоги и ключи контролируются здесь</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            Суперадмин видит ключи и LLM-диалоги; секреты не пишутся в runtime logs и audit details.
+            Суперадмин видит ключи и LLM-диалоги; секреты не пишутся в runtime-логи и детали аудита.
           </p>
         </div>
       </section>
@@ -1882,7 +1882,7 @@ export function AIControlCenter({
       )}
       {!encryptionConfigured && (
         <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-800" data-testid="ai-encryption-warning">
-          AI_CREDENTIAL_KEY не настроен. Ключи нельзя расшифровать или проверить до настройки 32-байтного master key в env.
+          AI_CREDENTIAL_KEY не настроен. Ключи нельзя расшифровать или проверить до настройки 32-байтного мастер-ключа в окружении.
         </div>
       )}
 
@@ -1890,12 +1890,12 @@ export function AIControlCenter({
         <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800" data-testid="ai-cf-gateway-info">
           <div className="font-medium">Cloudflare AI Gateway настроен</div>
           <p className="mt-1 text-xs text-emerald-800/80">
-            gateway <code>{cloudflareGateway.gatewayId}</code> · account <code>{cloudflareGateway.accountId.slice(0, 8)}…</code> · token {cloudflareGateway.hasToken ? "есть" : "не задан"}
+            шлюз <code>{cloudflareGateway.gatewayId}</code> · аккаунт <code>{cloudflareGateway.accountId.slice(0, 8)}…</code> · токен {cloudflareGateway.hasToken ? "есть" : "не задан"}
           </p>
         </div>
       ) : (
         <div className="rounded-lg border border-sky-500/25 bg-sky-500/10 px-4 py-3 text-xs text-sky-800" data-testid="ai-cf-gateway-missing">
-          Cloudflare AI Gateway не настроен. Переключатели ниже можно оставить выключенными; прямые Base URL будут работать без доработки кода.
+          Cloudflare AI Gateway не настроен. Переключатели ниже можно оставить выключенными; прямые базовые URL будут работать без доработки кода.
         </div>
       )}
 
@@ -1990,9 +1990,9 @@ export function AIControlCenter({
                   </select>
                   <input name="label" placeholder="Метка" required className={COMPACT_INPUT_CLASS} />
                   <input name="apiKey" placeholder="API ключ" type={canViewSecrets ? "text" : "password"} required className={`${COMPACT_INPUT_CLASS} font-mono`} autoComplete="off" />
-                  <input name="modelOverride" placeholder="Model override" className={COMPACT_INPUT_CLASS} />
-                  <input name="baseUrlOverride" placeholder="Base URL override" className={`${COMPACT_INPUT_CLASS} font-mono`} />
-                  <input name="priority" type="number" placeholder="Priority" className={COMPACT_INPUT_CLASS} />
+                  <input name="modelOverride" placeholder="Модель ключа" className={COMPACT_INPUT_CLASS} />
+                  <input name="baseUrlOverride" placeholder="URL ключа" className={`${COMPACT_INPUT_CLASS} font-mono`} />
+                  <input name="priority" type="number" placeholder="Приоритет" className={COMPACT_INPUT_CLASS} />
                   <Button type="submit" size="sm" disabled={!canViewSecrets || !encryptionConfigured || isPending}>
                     <Plus className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                     Добавить
@@ -2023,11 +2023,11 @@ export function AIControlCenter({
               <CompactHeader label="Источник цены" sortKey="source" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
                 <select value={modelCostFilters.source} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, source: event.target.value }); setModelCostPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="free">free</option>
-                  <option value="model">model</option>
-                  <option value="reference">reference</option>
-                  <option value="reference/free">reference/free</option>
-                  <option value="catalog">catalog</option>
+                  <option value="free">бесплатно</option>
+                  <option value="model">модель</option>
+                  <option value="reference">справочник</option>
+                  <option value="reference/free">справочник / бесплатно</option>
+                  <option value="catalog">каталог</option>
                   <option value="provider default">цена провайдера</option>
                 </select>
               </CompactHeader>
@@ -2035,8 +2035,8 @@ export function AIControlCenter({
               <CompactHeader label={`Выход, ${perMillionUnit}`} sortKey="output" activeSortKey={modelCostSort.key} direction={modelCostSort.direction} onSort={(key) => toggleModelCostSort(key as typeof modelCostSort.key)}>
                 <select value={modelCostFilters.free} onChange={(event) => { setModelCostFilters({ ...modelCostFilters, free: event.target.value }); setModelCostPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="free">Free</option>
-                  <option value="paid">Paid</option>
+                  <option value="free">Бесплатные</option>
+                  <option value="paid">Платные</option>
                 </select>
               </CompactHeader>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Вход micros/1K</th>
@@ -2062,28 +2062,28 @@ export function AIControlCenter({
           <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
               <CompactHeader label="Продукт" sortKey="product" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
-                <input value={policyFilters.product} onChange={(event) => { setPolicyFilters({ ...policyFilters, product: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <input value={policyFilters.product} onChange={(event) => { setPolicyFilters({ ...policyFilters, product: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Название" sortKey="title" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
-                <input value={policyFilters.title} onChange={(event) => { setPolicyFilters({ ...policyFilters, title: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <input value={policyFilters.title} onChange={(event) => { setPolicyFilters({ ...policyFilters, title: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Feature" sortKey="feature" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
-                <input value={policyFilters.feature} onChange={(event) => { setPolicyFilters({ ...policyFilters, feature: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Функция" sortKey="feature" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
+                <input value={policyFilters.feature} onChange={(event) => { setPolicyFilters({ ...policyFilters, feature: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Назначение" sortKey="purpose" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
-                <input value={policyFilters.purpose} onChange={(event) => { setPolicyFilters({ ...policyFilters, purpose: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <input value={policyFilters.purpose} onChange={(event) => { setPolicyFilters({ ...policyFilters, purpose: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Tier" sortKey="tier" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
-                <input value={policyFilters.tier} onChange={(event) => { setPolicyFilters({ ...policyFilters, tier: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Уровень" sortKey="tier" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
+                <input value={policyFilters.tier} onChange={(event) => { setPolicyFilters({ ...policyFilters, tier: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Source" sortKey="source" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
-                <input value={policyFilters.source} onChange={(event) => { setPolicyFilters({ ...policyFilters, source: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Источник" sortKey="source" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
+                <input value={policyFilters.source} onChange={(event) => { setPolicyFilters({ ...policyFilters, source: event.target.value }); setPolicyPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Статус" sortKey="status" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
                 <select value={policyFilters.status} onChange={(event) => { setPolicyFilters({ ...policyFilters, status: event.target.value }); setPolicyPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="active">active</option>
-                  <option value="off">off</option>
+                  <option value="active">Включено</option>
+                  <option value="off">Отключено</option>
                 </select>
               </CompactHeader>
               <th className={`${COMPACT_HEADER_CLASS} p-0 align-top`}>
@@ -2098,7 +2098,7 @@ export function AIControlCenter({
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Таймаут</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Бюджет функции</th>
               <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Бюджет пользователя</th>
-              <CompactHeader label="Errors" sortKey="errors" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)} />
+              <CompactHeader label="Ошибки" sortKey="errors" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)} />
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
           </thead>
@@ -2115,7 +2115,7 @@ export function AIControlCenter({
                 currency={currency}
                 errorCount={featureErrors[policy.feature] ?? 0}
                 disabled={isPending}
-                onSave={(payload) => saveAIControlPayload(payload, "Routing policy сохранена")}
+                onSave={(payload) => saveAIControlPayload(payload, "Цепочка маршрутизации сохранена")}
               />
             ))}
           </tbody>
@@ -2128,33 +2128,33 @@ export function AIControlCenter({
         <CompactTableShell minWidth="1420px">
           <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
-              <CompactHeader label="Feature" sortKey="feature" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
-                <input value={promptFilters.feature} onChange={(event) => { setPromptFilters({ ...promptFilters, feature: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Функция" sortKey="feature" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
+                <input value={promptFilters.feature} onChange={(event) => { setPromptFilters({ ...promptFilters, feature: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Title" sortKey="title" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
-                <input value={promptFilters.title} onChange={(event) => { setPromptFilters({ ...promptFilters, title: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Название" sortKey="title" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
+                <input value={promptFilters.title} onChange={(event) => { setPromptFilters({ ...promptFilters, title: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Product" sortKey="productKey" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
-                <input value={promptFilters.productKey} onChange={(event) => { setPromptFilters({ ...promptFilters, productKey: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+              <CompactHeader label="Продукт" sortKey="productKey" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
+                <input value={promptFilters.productKey} onChange={(event) => { setPromptFilters({ ...promptFilters, productKey: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
-              <CompactHeader label="Status" sortKey="status" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
+              <CompactHeader label="Статус" sortKey="status" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
                 <select value={promptFilters.status} onChange={(event) => { setPromptFilters({ ...promptFilters, status: event.target.value }); setPromptPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="active">active</option>
-                  <option value="off">off</option>
+                  <option value="active">Включено</option>
+                  <option value="off">Отключено</option>
                 </select>
               </CompactHeader>
-              <CompactHeader label="Source" sortKey="source" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
+              <CompactHeader label="Источник" sortKey="source" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)}>
                 <select value={promptFilters.source} onChange={(event) => { setPromptFilters({ ...promptFilters, source: event.target.value }); setPromptPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   <option value="database">ручные</option>
                   <option value="default">по умолчанию</option>
                 </select>
               </CompactHeader>
-              <CompactHeader label="Updated" sortKey="updatedAt" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)} />
+              <CompactHeader label="Обновлено" sortKey="updatedAt" activeSortKey={promptSort.key} direction={promptSort.direction} onSort={(key) => togglePromptSort(key as typeof promptSort.key)} />
               <th className={`${COMPACT_HEADER_CLASS} p-0 align-top`}>
-                <div className="px-1.5 py-2 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">Prompt text</div>
-                <input value={promptFilters.promptText} onChange={(event) => { setPromptFilters({ ...promptFilters, promptText: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <div className="px-1.5 py-2 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">Текст промта</div>
+                <input value={promptFilters.promptText} onChange={(event) => { setPromptFilters({ ...promptFilters, promptText: event.target.value }); setPromptPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </th>
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
@@ -2188,7 +2188,7 @@ export function AIControlCenter({
                 <select value={usageFilters.provider} onChange={(event) => { setUsageFilters({ ...usageFilters, provider: event.target.value }); setUsagePage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
                   {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
-                  <option value="NO_PROVIDER">NO_PROVIDER</option>
+                  <option value="NO_PROVIDER">Провайдер не указан</option>
                 </select>
               </CompactHeader>
               <CompactHeader label="Модель" sortKey="model" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
@@ -2197,10 +2197,10 @@ export function AIControlCenter({
               <CompactHeader label="Статус" sortKey="status" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)}>
                 <select value={usageFilters.status} onChange={(event) => { setUsageFilters({ ...usageFilters, status: event.target.value }); setUsagePage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="SUCCEEDED">SUCCEEDED</option>
-                  <option value="FAILED">FAILED</option>
-                  <option value="RUNNING">RUNNING</option>
-                  <option value="TIMEOUT">TIMEOUT</option>
+                  <option value="SUCCEEDED">{statusLabel("SUCCEEDED")}</option>
+                  <option value="FAILED">{statusLabel("FAILED")}</option>
+                  <option value="RUNNING">{statusLabel("RUNNING")}</option>
+                  <option value="TIMEOUT">Таймаут</option>
                 </select>
               </CompactHeader>
               <CompactHeader label="Запросы / попытки" sortKey="requests" activeSortKey={usageSort.key} direction={usageSort.direction} onSort={(key) => toggleUsageSort(key as typeof usageSort.key)} />
@@ -2211,7 +2211,7 @@ export function AIControlCenter({
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
             {pagedUsageRows.length === 0 ? (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">За период и audit window пока нет LLM usage</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">За период и окно аудита пока нет LLM-расхода</td></tr>
             ) : pagedUsageRows.map((row) => (
               <tr key={`${row.feature}:${row.provider}:${row.model}:${row.status}`}>
                 <td className={`${COMPACT_CELL_CLASS} font-medium text-[var(--soft-ink)]`}>{row.feature}</td>
@@ -2238,20 +2238,20 @@ export function AIControlCenter({
           <thead className="bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
               <CompactHeader label="Время" sortKey="createdAt" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
-                <input value={interactionFilters.createdAt} onChange={(event) => { setInteractionFilters({ ...interactionFilters, createdAt: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <input value={interactionFilters.createdAt} onChange={(event) => { setInteractionFilters({ ...interactionFilters, createdAt: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Функция" sortKey="feature" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <input value={interactionFilters.feature} onChange={(event) => { setInteractionFilters({ ...interactionFilters, feature: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Пользователь" sortKey="user" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
-                <input value={interactionFilters.user} onChange={(event) => { setInteractionFilters({ ...interactionFilters, user: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <input value={interactionFilters.user} onChange={(event) => { setInteractionFilters({ ...interactionFilters, user: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </CompactHeader>
               <CompactHeader label="Статус" sortKey="status" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <select value={interactionFilters.status} onChange={(event) => { setInteractionFilters({ ...interactionFilters, status: event.target.value }); setInteractionPage(1); }} className={COMPACT_SELECT_CLASS}>
                   <option value="all">Все</option>
-                  <option value="SUCCEEDED">SUCCEEDED</option>
-                  <option value="FAILED">FAILED</option>
-                  <option value="RUNNING">RUNNING</option>
+                  <option value="SUCCEEDED">{statusLabel("SUCCEEDED")}</option>
+                  <option value="FAILED">{statusLabel("FAILED")}</option>
+                  <option value="RUNNING">{statusLabel("RUNNING")}</option>
                 </select>
               </CompactHeader>
               <CompactHeader label="Провайдер / модель" sortKey="provider" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
@@ -2264,7 +2264,7 @@ export function AIControlCenter({
               <CompactHeader label={`Стоимость, ${moneyUnit}`} sortKey="cost" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)} />
               <th className={`${COMPACT_HEADER_CLASS} p-0 align-top`}>
                 <div className="px-1.5 py-2 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">Ответ</div>
-                <input value={interactionFilters.answer} onChange={(event) => { setInteractionFilters({ ...interactionFilters, answer: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="filter" />
+                <input value={interactionFilters.answer} onChange={(event) => { setInteractionFilters({ ...interactionFilters, answer: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
               </th>
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Просмотр</th>
             </tr>
@@ -2276,7 +2276,7 @@ export function AIControlCenter({
               <tr key={interaction.id}>
                 <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatDate(interaction.createdAt)}</td>
                 <td className={`${COMPACT_CELL_CLASS} font-medium text-[var(--soft-ink)]`}>{interaction.feature}</td>
-                <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{interaction.userLabel ?? interaction.userId ?? "anonymous"}</td>
+                <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{interaction.userLabel ?? interaction.userId ?? "анонимно"}</td>
                 <td className={COMPACT_CELL_CLASS}><SoftBadge className={statusTone(interaction.status)}>{statusLabel(interaction.status)}</SoftBadge></td>
                 <td className={`${COMPACT_CELL_CLASS} max-w-[20rem] break-all font-mono text-[11px]`}>
                   {interaction.responseProvider ?? interaction.attempts.at(-1)?.provider ?? "провайдер не указан"} / {interaction.responseModel ?? interaction.attempts.at(-1)?.model ?? "модель не указана"}
@@ -2293,7 +2293,7 @@ export function AIControlCenter({
                           <div className="space-y-2">
                             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">
                               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                              User/context to LLM
+                              Запрос и контекст для LLM
                             </p>
                             <div className="max-h-96 min-w-[28rem] space-y-2 overflow-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3">
                               {interaction.messages.map((item, index) => (
@@ -2305,7 +2305,7 @@ export function AIControlCenter({
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">LLM answer and attempts</p>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Ответ LLM и попытки</p>
                             <pre className="max-h-72 min-w-[28rem] overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3 text-xs leading-relaxed text-[var(--soft-ink)]">
                               {interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
                             </pre>
@@ -2314,7 +2314,7 @@ export function AIControlCenter({
                                 <div key={`${interaction.id}:attempt:${index}`} className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--soft-surface)] px-3 py-2 text-xs">
                                   <SoftBadge className={statusTone(attempt.status)}>{statusLabel(attempt.status)}</SoftBadge>
                                   <span className="font-mono">{attempt.provider}/{attempt.model}</span>
-                                  <span className="text-[var(--soft-ink-soft)]">{attempt.totalTokens} токенов · {formatCost(attempt.estimatedCostMicros)} · {attempt.latencyMs ? `${attempt.latencyMs} ms` : "нет latency"}</span>
+                                  <span className="text-[var(--soft-ink-soft)]">{attempt.totalTokens} токенов · {formatCost(attempt.estimatedCostMicros)} · {attempt.latencyMs ? `${attempt.latencyMs} ms` : "нет времени ответа"}</span>
                                   {attempt.errorCode && <span className="text-red-700">{attempt.errorCode}</span>}
                                 </div>
                               ))}

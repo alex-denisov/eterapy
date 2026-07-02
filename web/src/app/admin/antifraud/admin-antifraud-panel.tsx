@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, FileWarning, RotateCcw, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 
 type EventRow = {
   id: string;
@@ -28,12 +28,12 @@ type AntifraudData = {
   recentEvents: EventRow[];
 };
 
-const STATUS_META: Record<string, { label: string; className: string }> = {
-  logged: { label: "лог", className: "bg-slate-500/10 text-slate-600" },
-  review: { label: "проверка", className: "bg-yellow-500/10 text-yellow-700" },
-  blocked: { label: "блок", className: "bg-red-500/10 text-red-700" },
-  clawback: { label: "clawback", className: "bg-orange-500/10 text-orange-700" },
-  resolved: { label: "решено", className: "bg-emerald-500/10 text-emerald-700" },
+const STATUS_META: Record<string, { label: string; tone: "ok" | "warn" | "danger" | "neutral" }> = {
+  logged: { label: "лог", tone: "neutral" },
+  review: { label: "проверка", tone: "warn" },
+  blocked: { label: "блок", tone: "danger" },
+  clawback: { label: "clawback", tone: "warn" },
+  resolved: { label: "решено", tone: "ok" },
 };
 
 const SECTION_CARDS = [
@@ -45,13 +45,6 @@ const SECTION_CARDS = [
   { key: "appealQueue", label: "Апелляции", hint: "апелляции" },
 ];
 
-function riskTone(score: number) {
-  if (score >= 80) return "text-red-700";
-  if (score >= 60) return "text-orange-700";
-  if (score >= 31) return "text-yellow-700";
-  return "text-emerald-700";
-}
-
 function evidenceText(evidence: Record<string, unknown>) {
   const entries = Object.entries(evidence).filter(([, value]) => value !== null && value !== undefined);
   if (entries.length === 0) return "Нет дополнительных данных";
@@ -61,18 +54,45 @@ function evidenceText(evidence: Record<string, unknown>) {
     .join(" · ");
 }
 
+function uniqueOptions(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((value) => ({ value, label: value }));
+}
+
+function eventStatusOptions(events: EventRow[]) {
+  return Array.from(new Set(events.map((event) => event.status)))
+    .sort((a, b) => (STATUS_META[a]?.label ?? a).localeCompare(STATUS_META[b]?.label ?? b, "ru"))
+    .map((value) => ({ value, label: STATUS_META[value]?.label ?? value }));
+}
+
+function formatEventTime(value: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
+}
+
 export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudData }) {
   const [events, setEvents] = useState(initialData.recentEvents);
-  const [filter, setFilter] = useState("review");
   const [note, setNote] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return events;
-    if (filter === "high") return events.filter((event) => event.riskScore >= 70);
-    if (filter === "appeals") return events.filter((event) => event.action === "appeal_submitted");
-    return events.filter((event) => event.status === filter);
-  }, [events, filter]);
+  const eventColumns = useMemo<AdminCompactColumn[]>(() => [
+    { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
+    { key: "risk", label: "Риск", sortable: true, align: "right" },
+    { key: "status", label: "Статус", sortable: true, filterKind: "select", options: eventStatusOptions(events) },
+    { key: "action", label: "Действие", sortable: true, filterKind: "select", options: uniqueOptions(events.map((event) => event.action)) },
+    { key: "actor", label: "Актор", sortable: true },
+    { key: "subject", label: "Объект", sortable: true },
+    { key: "flags", label: "Флаги и доказательства", sortable: true },
+    { key: "note", label: "Заметка к решению", sortable: false, filterKind: "none" },
+    { key: "actions", label: "Действия", filterKind: "none", align: "center" },
+  ], [events]);
 
   async function decide(eventId: string, status: string) {
     setBusy(eventId);
@@ -90,6 +110,89 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
     }
     setBusy(null);
   }
+
+  const eventRows = events.map((event) => {
+    const status = STATUS_META[event.status] ?? STATUS_META.logged;
+    const subject = `${event.subjectType}${event.subjectId ? `:${event.subjectId}` : ""}`;
+    const evidence = evidenceText(event.evidence);
+    const flags = event.riskFlags.length > 0 ? event.riskFlags.join(", ") : "Без кодов причины";
+    return {
+      id: event.id,
+      cells: {
+        createdAt: {
+          value: formatEventTime(event.createdAt),
+          filterValue: formatEventTime(event.createdAt),
+          sortValue: new Date(event.createdAt).getTime(),
+        },
+        risk: {
+          kind: "status" as const,
+          label: `${event.riskScore}/100`,
+          tone: event.riskScore >= 80 ? "danger" as const : event.riskScore >= 60 ? "warn" as const : "ok" as const,
+          filterValue: String(event.riskScore),
+          sortValue: event.riskScore,
+        },
+        status: {
+          kind: "status" as const,
+          label: status.label,
+          tone: status.tone,
+          filterValue: `${event.status} ${status.label}`,
+          sortValue: status.label,
+        },
+        action: event.action,
+        actor: {
+          value: event.actorName,
+          subvalue: event.actorRole ?? event.actorUserId ?? "",
+          filterValue: `${event.actorName} ${event.actorRole ?? ""} ${event.actorUserId ?? ""}`,
+          sortValue: event.actorName,
+        },
+        subject: {
+          value: subject,
+          title: subject,
+          filterValue: subject,
+          sortValue: subject,
+        },
+        flags: {
+          value: flags,
+          subvalue: evidence,
+          title: `${flags} · ${evidence}`,
+          filterValue: `${flags} ${evidence}`,
+          sortValue: flags,
+        },
+        note: {
+          kind: "node" as const,
+          filterValue: note[event.id] ?? "",
+          node: (
+            <input
+              value={note[event.id] ?? ""}
+              onChange={(e) => setNote((prev) => ({ ...prev, [event.id]: e.target.value }))}
+              placeholder="Заметка"
+              className="h-7 w-full min-w-[10rem] rounded border border-[var(--soft-paper-edge)] bg-white px-2 text-[11px] outline-none focus:ring-1 focus:ring-[var(--soft-bordeaux)]"
+              aria-label={`Заметка к решению ${event.id}`}
+            />
+          ),
+        },
+        actions: {
+          kind: "actions" as const,
+          actions: [
+            {
+              label: "Отметить решенным",
+              icon: "check" as const,
+              variant: "primary" as const,
+              disabled: busy === event.id,
+              onClick: () => { void decide(event.id, "resolved"); },
+            },
+            {
+              label: "Заблокировать",
+              icon: "cancel" as const,
+              variant: "danger" as const,
+              disabled: busy === event.id,
+              onClick: () => { void decide(event.id, "blocked"); },
+            },
+          ],
+        },
+      },
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -148,97 +251,20 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
         ))}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(18rem,0.75fr)]">
         <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)]">
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--soft-paper-edge)] px-4 py-3">
-            {[
-              ["review", "Проверка"],
-              ["blocked", "Блок"],
-              ["clawback", "Clawback"],
-              ["high", "Высокий риск"],
-              ["appeals", "Апелляции"],
-              ["all", "Все"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() => setFilter(value)}
-                className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
-                  filter === value ? "bg-[var(--soft-bordeaux)] text-white" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            <span className="ml-auto text-xs text-muted-foreground">{filtered.length} событий</span>
+          <div className="border-b border-[var(--soft-paper-edge)] px-4 py-3">
+            <h2 className="text-sm font-semibold">Очередь антифрод-событий</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Фильтры, сортировка, заметка и решение по каждому событию в едином формате таблиц суперадминки.</p>
           </div>
-
-          <div className="divide-y divide-[var(--soft-paper-edge)]">
-            {filtered.length === 0 ? (
-              <div className="px-4 py-12 text-center text-sm text-muted-foreground">Очередь пуста</div>
-            ) : (
-              filtered.map((event) => {
-                const status = STATUS_META[event.status] ?? STATUS_META.logged;
-                return (
-                  <div key={event.id} className="space-y-3 px-4 py-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge className={status.className}>{status.label}</Badge>
-                          <span className={`text-sm font-semibold ${riskTone(event.riskScore)}`}>риск {event.riskScore}</span>
-                          <span className="text-sm font-medium">{event.action}</span>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {event.subjectType}{event.subjectId ? `:${event.subjectId}` : ""} · {event.actorName} ·{" "}
-                          {new Date(event.createdAt).toLocaleString("ru-RU")}
-                        </p>
-                      </div>
-                      <div className="soft-admin-table-actions shrink-0">
-                        <button
-                          type="button"
-                          className="soft-admin-icon-button"
-                          data-variant="primary"
-                          disabled={busy === event.id}
-                          onClick={() => decide(event.id, "resolved")}
-                          title="Отметить решенным"
-                          aria-label="Отметить антифрод-событие решенным"
-                        >
-                          <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                        </button>
-                        <button
-                          type="button"
-                          className="soft-admin-icon-button"
-                          data-variant="danger"
-                          disabled={busy === event.id}
-                          onClick={() => decide(event.id, "blocked")}
-                          title="Заблокировать"
-                          aria-label="Заблокировать по антифрод-событию"
-                        >
-                          <ShieldCheck className="size-3.5" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {event.riskFlags.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">Без кодов причины</span>
-                      ) : (
-                        event.riskFlags.map((flag) => (
-                          <span key={flag} className="rounded-md bg-muted px-2 py-1 text-[11px] text-muted-foreground">
-                            {flag}
-                          </span>
-                        ))
-                      )}
-                    </div>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">{evidenceText(event.evidence)}</p>
-                    <input
-                      value={note[event.id] ?? ""}
-                      onChange={(e) => setNote((prev) => ({ ...prev, [event.id]: e.target.value }))}
-                      placeholder="Заметка к решению"
-                      className="h-9 w-full rounded-md border border-[var(--soft-paper-edge)] bg-background px-3 text-xs outline-none focus:border-[var(--soft-bordeaux)]"
-                    />
-                  </div>
-                );
-              })
-            )}
+          <div className="p-3">
+            <AdminCompactDataTable
+              columns={eventColumns}
+              rows={eventRows}
+              empty="Очередь пуста"
+              minWidth="1420px"
+              pageSize={20}
+            />
           </div>
         </section>
 

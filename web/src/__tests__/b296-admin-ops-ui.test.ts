@@ -32,7 +32,7 @@ describe("B296 admin operations UI", () => {
     expect(source("src/app/admin/logs/admin-logs-page.tsx")).toContain("const PAGE_SIZE = 50");
     expect(source("src/app/admin/database/admin-database-page.tsx")).toContain('data-testid="admin-database-browser"');
     expect(source("src/app/admin/database/admin-database-page.tsx")).toContain("AdminCompactDataTable");
-    expect(source("src/app/admin/database/admin-database-page.tsx")).toContain("read-only");
+    expect(source("src/app/admin/database/admin-database-page.tsx")).toContain("только чтение");
   });
 
   it("makes system health aware of AI-center credentials instead of env-only checks", () => {

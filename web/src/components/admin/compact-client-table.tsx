@@ -1,7 +1,15 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CheckCircle2, ChevronDown, Download, Edit3, ExternalLink, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Ban, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Download, Edit3, ExternalLink, RotateCcw, Search, Trash2, X } from "lucide-react";
+import {
+  adminMonthDays,
+  adminMonthTitle,
+  adminPeriodFromRuDate,
+  adminPeriodToIsoDate,
+  adminPeriodToRuDate,
+  adminShiftMonth,
+} from "@/app/admin/admin-period-utils";
 import {
   CompactHeader,
   CompactPaginationBar,
@@ -305,6 +313,16 @@ function HeaderFilter({
       />
     );
   }
+  if (filterKind === "date") {
+    return (
+      <DateHeaderFilter
+        label={column.label}
+        value={typeof value === "string" ? value : ""}
+        onChange={onChange}
+        onClear={onClear}
+      />
+    );
+  }
 
   const textValue = typeof value === "string" ? value : "";
   return (
@@ -313,10 +331,9 @@ function HeaderFilter({
         <Search className="pointer-events-none absolute left-1.5 top-1/2 size-3 -translate-y-1/2 text-[var(--soft-ink-faint)]" aria-hidden="true" />
         <input
           type="text"
-          inputMode={filterKind === "date" ? "numeric" : undefined}
           className={`${COMPACT_INPUT_CLASS} pl-5 pr-6`}
           value={textValue}
-          placeholder={filterKind === "date" ? "дд.мм.гггг" : "поиск"}
+          placeholder="поиск"
           autoComplete="off"
           onChange={(event) => onChange(event.target.value)}
           aria-label={`Фильтр: ${column.label}`}
@@ -332,6 +349,133 @@ function HeaderFilter({
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function todayIso() {
+  return adminPeriodToIsoDate(new Date());
+}
+
+function DateHeaderFilter({
+  label,
+  value,
+  onChange,
+  onClear,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [monthIso, setMonthIso] = useState(() => adminPeriodFromRuDate(value) ?? todayIso());
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selectedIso = adminPeriodFromRuDate(value);
+  const days = useMemo(() => adminMonthDays(monthIso), [monthIso]);
+
+  useEffect(() => {
+    if (!open) return;
+    function close(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    }
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
+  }, [open]);
+
+  function openCalendar() {
+    setMonthIso(adminPeriodFromRuDate(value) ?? todayIso());
+    setOpen((current) => !current);
+  }
+
+  function selectDay(iso: string) {
+    onChange(adminPeriodToRuDate(iso));
+    setMonthIso(iso);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={rootRef} className="relative grid gap-1 p-1 pt-0">
+      <div className="relative">
+        <input
+          type="text"
+          inputMode="numeric"
+          className={`${COMPACT_INPUT_CLASS} pr-12`}
+          value={value}
+          placeholder="дд.мм.гггг"
+          autoComplete="off"
+          onChange={(event) => onChange(event.target.value)}
+          aria-label={`Фильтр: ${label}`}
+        />
+        {value ? (
+          <button
+            type="button"
+            className="absolute right-6 top-1/2 inline-flex size-4 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+            onClick={onClear}
+            aria-label="Очистить фильтр"
+          >
+            <X className="size-3" aria-hidden="true" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="absolute right-1 top-1/2 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded text-[var(--soft-ink-faint)] hover:bg-[var(--soft-surface)] hover:text-[var(--soft-bordeaux)]"
+          onClick={openCalendar}
+          aria-label="Открыть календарь фильтра"
+        >
+          <CalendarDays className="size-3" aria-hidden="true" />
+        </button>
+      </div>
+      {open ? (
+        <div
+          className="absolute left-1 top-[calc(100%+1px)] z-[95] w-56 rounded-md border border-[var(--soft-paper-edge)] bg-white p-2 shadow-[var(--soft-shadow-sm)]"
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <div className="mb-1 flex items-center justify-between gap-1">
+            <button
+              type="button"
+              className="inline-flex size-6 items-center justify-center rounded hover:bg-[var(--soft-surface)]"
+              onClick={() => setMonthIso(adminShiftMonth(monthIso, -1))}
+              aria-label="Предыдущий месяц"
+            >
+              <ChevronLeft className="size-3" aria-hidden="true" />
+            </button>
+            <span className="text-[10px] font-semibold capitalize text-[var(--soft-ink-soft)]">
+              {adminMonthTitle(monthIso)}
+            </span>
+            <button
+              type="button"
+              className="inline-flex size-6 items-center justify-center rounded hover:bg-[var(--soft-surface)]"
+              onClick={() => setMonthIso(adminShiftMonth(monthIso, 1))}
+              aria-label="Следующий месяц"
+            >
+              <ChevronRight className="size-3" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-semibold uppercase text-[var(--soft-ink-faint)]">
+            {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day) => <span key={day}>{day}</span>)}
+          </div>
+          <div className="mt-1 grid grid-cols-7 gap-0.5">
+            {days.map((day) => {
+              const selected = day.iso === selectedIso;
+              return (
+                <button
+                  key={day.iso}
+                  type="button"
+                  className={[
+                    "h-6 rounded text-[10px] tabular-nums transition-colors",
+                    day.current ? "text-[var(--soft-ink)]" : "text-[var(--soft-ink-faint)]",
+                    selected ? "bg-[var(--soft-bordeaux)] font-semibold text-white hover:bg-[var(--soft-bordeaux)]" : "hover:bg-[var(--soft-surface)]",
+                  ].filter(Boolean).join(" ")}
+                  onClick={() => selectDay(day.iso)}
+                >
+                  {day.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

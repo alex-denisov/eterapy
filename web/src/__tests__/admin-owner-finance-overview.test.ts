@@ -39,6 +39,10 @@ describe("Admin owner finance overview", () => {
     expect(data).toContain('"dialogue-primary-answer": "Первичный разбор"');
     expect(data).toContain('"session-stt": "Транскрипция сессии"');
     expect(data).toContain('replaceAll("_", "-")');
+
+    const aiCost = source("src/app/admin/ops/ai-cost/page.tsx");
+    expect(aiCost).toContain("const exactTitle = productLabel(feature)");
+    expect(aiCost).toContain("if (exactTitle !== normalized) return exactTitle");
   });
 
   it("renders admin charts as SVG and exposes the finance currency selector", () => {
@@ -73,5 +77,25 @@ describe("Admin owner finance overview", () => {
 
     expect(rates.usdRub).toBeCloseTo(77.7539);
     expect(formatCbrRateLabel(rates)).toBe("$/₽ · 30.06.2026 · 77,75");
+  });
+
+  it("uses the official latest CBR endpoint by default for the admin currency selector", async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      text: async () => [
+        '<ValCurs Date="01.07.2026">',
+        '<Valute><CharCode>USD</CharCode><Nominal>1</Nominal><Value>78,1212</Value></Valute>',
+        "</ValCurs>",
+      ].join(""),
+    })) as unknown as typeof fetch;
+
+    const rates = await getAdminCurrencyRates();
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://www.cbr.ru/scripts/XML_daily.asp",
+      expect.any(Object),
+    );
+    expect(rates.usdRub).toBeCloseTo(78.1212);
+    expect(formatCbrRateLabel(rates)).toBe("$/₽ · 01.07.2026 · 78,12");
   });
 });

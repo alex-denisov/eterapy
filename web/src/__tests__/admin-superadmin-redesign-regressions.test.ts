@@ -27,6 +27,18 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(shell).not.toContain("activePathname.startsWith(itemPath)");
   });
 
+  it("lets the admin sidebar stretch with long pages instead of pinning it to viewport height", () => {
+    const shell = source("src/app/admin/admin-shell.tsx");
+    const sidebarMarkup = shell.slice(
+      shell.indexOf('data-testid="admin-shell-sidebar"'),
+      shell.indexOf('data-testid="admin-shell-user"'),
+    );
+
+    expect(sidebarMarkup).toContain("self-stretch");
+    expect(sidebarMarkup).not.toContain(" sticky ");
+    expect(sidebarMarkup).not.toContain('style={{ top: "var(--header-height)" }}');
+  });
+
   it("anchors chart date labels to the corresponding bar group and keeps tooltips", () => {
     const ui = source("src/app/admin/admin-analytics-ui.tsx");
     const css = source("src/app/v4-soft.css");
@@ -34,6 +46,9 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(ui).toContain("axisLabelY");
     expect(ui).toContain('textAnchor="middle"');
     expect(ui).not.toContain("rotate(-90");
+    expect(ui).toContain("width={width}");
+    expect(ui).toContain("height={height}");
+    expect(ui).toContain("className=\"block max-w-none\"");
     expect(ui).toContain("soft-chart-tooltip");
     expect(ui).toContain("aria-label={hit.tooltip}");
     expect(ui).toContain("min-w-0 scroll-mt-24 overflow-hidden");
@@ -78,6 +93,19 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(security).not.toContain("flex max-w-[34rem] flex-wrap");
   });
 
+  it("uses compact tables for system service and cron lists", () => {
+    const ops = source("src/app/admin/ops/page.tsx");
+    const system = source("src/app/admin/system/admin-system-page.tsx");
+
+    for (const page of [ops, system]) {
+      expect(page).toContain("AdminCompactDataTable");
+      expect(page).toContain("serviceColumns");
+      expect(page).toContain("cronColumns");
+      expect(page).not.toContain("divide-y divide-[var(--soft-paper-edge)]");
+      expect(page).not.toContain("divide-y divide-border/10");
+    }
+  });
+
   it("updates practitioner rights labels for the redesigned practitioner operations", () => {
     const display = source("src/app/admin/users/user-display.ts");
     const perms = source("src/lib/moderator-permissions.ts");
@@ -107,6 +135,9 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(compactClientTable).toContain("AdminCompactDataTable");
     expect(compactClientTable).toContain("filterKind");
     expect(compactClientTable).toContain("CompactPaginationBar");
+    expect(compactClientTable).toContain("DateHeaderFilter");
+    expect(compactClientTable).toContain("adminPeriodFromRuDate");
+    expect(compactClientTable).toContain("aria-label=\"Открыть календарь фильтра\"");
     expect(compactClientTable).toContain("Выбрано:");
     expect(compactClientTable).toContain("onClick?: () => void");
     expect(compactClientTable).toContain("onBulkAction?:");
@@ -138,6 +169,7 @@ describe("Superadmin redesign regression guardrails", () => {
       source("src/app/admin/applications/applications-manager.tsx"),
       source("src/app/admin/product/quality/library-requests-manager.tsx"),
       source("src/app/admin/reviews/reviews-manager.tsx"),
+      source("src/app/admin/antifraud/admin-antifraud-panel.tsx"),
     ];
 
     for (const manager of managers) {
@@ -145,6 +177,12 @@ describe("Superadmin redesign regression guardrails", () => {
       expect(manager).not.toContain("soft-admin-data-table");
       expect(manager).not.toContain("soft-admin-seg");
     }
+
+    const antifraud = source("src/app/admin/antifraud/admin-antifraud-panel.tsx");
+    expect(antifraud).toContain("eventColumns");
+    expect(antifraud).toContain("AdminCompactDataTable");
+    expect(antifraud).toContain("Заметка к решению");
+    expect(antifraud).not.toContain("divide-y divide-[var(--soft-paper-edge)]");
   });
 
   it("does not reintroduce legacy admin table wrappers in admin pages", () => {
@@ -155,5 +193,21 @@ describe("Superadmin redesign regression guardrails", () => {
     });
 
     expect(offenders).toEqual([]);
+  });
+
+  it("does not keep duplicate retired admin routes as redirects or re-export aliases", () => {
+    const appRoot = path.join(process.cwd(), "src/app/admin");
+
+    expect(fs.existsSync(path.join(appRoot, "metrics/page.tsx"))).toBe(false);
+    expect(fs.existsSync(path.join(appRoot, "finance/credits/page.tsx"))).toBe(false);
+    expect(fs.existsSync(path.join(appRoot, "finance/transactions/page.tsx"))).toBe(false);
+  });
+
+  it("removes legacy analytics table exports so new admin pages cannot use the old style", () => {
+    const ui = source("src/app/admin/admin-analytics-ui.tsx");
+
+    expect(ui).not.toContain("export function DataTable");
+    expect(ui).not.toContain("export function LinkPagination");
+    expect(ui).not.toContain("linkPaginationItems");
   });
 });

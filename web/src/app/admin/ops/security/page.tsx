@@ -240,7 +240,7 @@ export default async function AdminOpsSecurityPage() {
     { key: "score", label: "Скоринг", sortable: true, filterKind: "text", align: "right" },
     { key: "signal", label: "Сигнал", sortable: true, options: uniqueOptions(clientRiskRows.map((row) => row.signal)) },
     { key: "status", label: "Статус", sortable: true, options: uniqueOptions(clientRiskRows.map((row) => row.blocked ? "Заблокирован" : statusLabel(row.status))) },
-    { key: "time", label: "Timestamp", sortable: true, filterKind: "date" },
+    { key: "time", label: "Время", sortable: true, filterKind: "date" },
   ];
   const clientRiskTableRows = clientRiskRows.map((row) => {
     const status = row.blocked ? "Заблокирован" : statusLabel(row.status);
@@ -274,7 +274,7 @@ export default async function AdminOpsSecurityPage() {
     };
   });
   const riskActionColumns: AdminCompactColumn[] = [
-    { key: "time", label: "Timestamp", sortable: true, filterKind: "date" },
+    { key: "time", label: "Время", sortable: true, filterKind: "date" },
     { key: "action", label: "Действие", sortable: true, options: uniqueOptions(recentRiskActions.map((row) => actionLabel(row.action))) },
     { key: "admin", label: "Администратор", sortable: true, filterKind: "text" },
     { key: "target", label: "Цель", sortable: true, filterKind: "text" },
@@ -303,11 +303,11 @@ export default async function AdminOpsSecurityPage() {
     };
   });
   const deletionColumns: AdminCompactColumn[] = [
-    { key: "time", label: "Timestamp", sortable: true, filterKind: "date" },
+    { key: "time", label: "Время", sortable: true, filterKind: "date" },
     { key: "category", label: "Категория", sortable: true, options: uniqueOptions(deletionEvents.map((row) => row.category)) },
     { key: "action", label: "Действие", sortable: true, options: uniqueOptions(deletionEvents.map((row) => row.action)) },
     { key: "target", label: "Цель", sortable: true, filterKind: "text" },
-    { key: "policy", label: "Policy", sortable: true, filterKind: "text" },
+    { key: "policy", label: "Политика", sortable: true, filterKind: "text" },
     { key: "reason", label: "Причина", sortable: true, filterKind: "text" },
   ];
   const deletionRows = deletionEvents.map((row) => {
@@ -342,8 +342,8 @@ export default async function AdminOpsSecurityPage() {
         <AdminOpsMetric icon={FileSearch} label="Аудит 24ч" value={formatNumber(audit24h)} hint="Все события audit_logs за сутки" />
         <AdminOpsMetric icon={ShieldAlert} label="Риск-действия" value={formatNumber(riskActions24h)} hint="Удаления, роли, выплаты, возвраты, AI" tone={riskActions24h > 0 ? "warn" : "ok"} />
         <AdminOpsMetric icon={LockKeyhole} label="Доступ" value={formatNumber(loginActions24h)} hint="Login-события и смены доступа" tone={accessRisk > 0 ? "warn" : "neutral"} />
-        <AdminOpsMetric icon={Trash2} label="Retention" value={formatNumber(deletionEvents24h)} hint="Удаления и анонимизация по policy" tone={deletionEvents24h > 0 ? "warn" : "ok"} />
-        <AdminOpsMetric icon={AlertTriangle} label="AI-изменения" value={formatNumber(aiRisk)} hint="Настройки providers/routing/prompts/keys" tone={aiRisk > 0 ? "warn" : "ok"} />
+        <AdminOpsMetric icon={Trash2} label="Удаления" value={formatNumber(deletionEvents24h)} hint="Удаления и анонимизация по политике хранения" tone={deletionEvents24h > 0 ? "warn" : "ok"} />
+        <AdminOpsMetric icon={AlertTriangle} label="AI-изменения" value={formatNumber(aiRisk)} hint="Настройки провайдеров, маршрутов, промтов и ключей" tone={aiRisk > 0 ? "warn" : "ok"} />
         <AdminOpsMetric icon={ShieldAlert} label="Клиенты 8–10" value={formatNumber(highRiskClients)} hint={`${manualBlockCandidates} без блокировки`} tone={manualBlockCandidates > 0 ? "danger" : highRiskClients > 0 ? "warn" : "ok"} />
       </section>
 
@@ -368,11 +368,11 @@ export default async function AdminOpsSecurityPage() {
           />
         </AdminOpsSection>
 
-        <AdminOpsSection title="Retention и удаления" actionHref="/admin/ops/logs" actionLabel="Журнал">
+        <AdminOpsSection title="Хранение и удаления" actionHref="/admin/ops/logs" actionLabel="Журнал">
           <AdminCompactDataTable
             columns={deletionColumns}
             rows={deletionRows}
-            empty="Событий retention/deletion пока нет."
+            empty="Событий хранения и удаления пока нет."
             minWidth="1180px"
             pageSize={20}
           />
@@ -383,12 +383,12 @@ export default async function AdminOpsSecurityPage() {
             <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/ops/logs">
               <FileSearch className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
               <p className="text-sm font-semibold">Логи и аудит</p>
-              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Системные, runtime, diagnostics, audit.</p>
+              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Системные логи, живые логи, диагностика и аудит.</p>
             </Link>
             <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/product/quality">
               <ShieldAlert className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
               <p className="text-sm font-semibold">Антифрод</p>
-              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Referral risk, holds, appeals, payout risk.</p>
+              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Реферальные риски, удержания, обращения и риски выплат.</p>
             </Link>
             <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/product/users">
               <UserCog className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
@@ -397,8 +397,8 @@ export default async function AdminOpsSecurityPage() {
             </Link>
             <Link className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-4 hover:border-[var(--soft-bordeaux)]" href="/admin/ops/ai">
               <AlertTriangle className="mb-3 h-5 w-5 text-[var(--soft-bordeaux)]" />
-              <p className="text-sm font-semibold">AI governance</p>
-              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Ключи, routing, промты, аудит LLM.</p>
+              <p className="text-sm font-semibold">AI-контроль</p>
+              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Ключи, маршрутизация, промты и аудит LLM.</p>
             </Link>
           </div>
         </AdminOpsSection>

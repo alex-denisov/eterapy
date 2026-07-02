@@ -256,13 +256,13 @@ export default async function AdminDatabasePage(props: {
     <PageContainer maxWidth="full" className="py-8">
       <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="premium-eyebrow">database</p>
+          <p className="premium-eyebrow">база данных</p>
           <h1 className="premium-title mt-2 text-3xl md:text-4xl">База данных</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Безопасный read-only просмотр ключевых таблиц. Изменения выполняются через доменные админ-экраны.
+            Безопасный просмотр ключевых таблиц только на чтение. Изменения выполняются через доменные админ-экраны.
           </p>
         </div>
-        <span className="soft-admin-status-pill">read-only · до {MAX_ROWS}/table</span>
+        <span className="soft-admin-status-pill">только чтение · до {MAX_ROWS.toLocaleString("ru-RU")} строк</span>
       </div>
 
       <form action="/admin/ops/database" className="mb-4 flex flex-wrap items-end gap-3">

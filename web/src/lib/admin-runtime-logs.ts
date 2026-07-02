@@ -112,11 +112,32 @@ function configuredSources(): Array<{ key: string; label: string; path: string }
 
 function defaultSources(): Array<{ key: string; label: string; path: string }> {
   const pm2Home = process.env.PM2_HOME || path.join(os.homedir(), ".pm2");
+  const pm2Log = (file: string) => ({ key: normalizeSourceKey(`pm2-${file}`), label: `pm2/${file}`, path: path.join(pm2Home, "logs", file) });
+  const nginxLog = (file: string) => ({ key: normalizeSourceKey(`nginx-${file}`), label: `nginx/${file}`, path: path.join("/var/log/nginx", file) });
+  const systemLog = (file: string) => ({ key: normalizeSourceKey(`system-${file}`), label: `system/${file}`, path: path.join("/var/log", file) });
+  const deployLog = (label: string, filePath: string) => ({ key: normalizeSourceKey(`deploy-${label}`), label: `deploy/${label}`, path: filePath });
+
   return [
-    { key: "app-out", label: "ETerapy app stdout", path: path.join(pm2Home, "logs", "eterapy-out.log") },
-    { key: "app-error", label: "ETerapy app stderr", path: path.join(pm2Home, "logs", "eterapy-error.log") },
-    { key: "worker-out", label: "ETerapy worker stdout", path: path.join(pm2Home, "logs", "eterapy-worker-out.log") },
-    { key: "worker-error", label: "ETerapy worker stderr", path: path.join(pm2Home, "logs", "eterapy-worker-error.log") },
+    pm2Log("eterapy-out.log"),
+    pm2Log("eterapy-error.log"),
+    pm2Log("eterapy-worker-out.log"),
+    pm2Log("eterapy-worker-error.log"),
+    pm2Log("eterapy-staging-out.log"),
+    pm2Log("eterapy-staging-error.log"),
+    pm2Log("eterapy-staging-worker-out.log"),
+    pm2Log("eterapy-staging-worker-error.log"),
+    nginxLog("access.log"),
+    nginxLog("error.log"),
+    nginxLog("eterapy.access.log"),
+    nginxLog("eterapy.error.log"),
+    nginxLog("eterapy-staging.access.log"),
+    nginxLog("eterapy-staging.error.log"),
+    systemLog("syslog"),
+    systemLog("auth.log"),
+    systemLog("kern.log"),
+    systemLog("cloud-init.log"),
+    { key: "letsencrypt", label: "letsencrypt/letsencrypt.log", path: "/var/log/letsencrypt/letsencrypt.log" },
+    deployLog("sync-staging-db.log", "/home/admin/eterapy-staging/deploy/sync-staging-db.log"),
   ];
 }
 

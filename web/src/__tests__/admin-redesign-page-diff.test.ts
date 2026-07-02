@@ -30,16 +30,14 @@ describe("Admin redesign page diff guardrails", () => {
     expect(subscriptions).toContain("Баллы на балансе по дням");
   });
 
-  it("keeps legacy finance analytics URLs from turning into 404 pages", () => {
+  it("keeps finance analytics in the approved section routes without duplicate aliases", () => {
     const controls = source("src/app/admin/finance/controls/page.tsx");
-    const transactionsAlias = source("src/app/admin/finance/transactions/page.tsx");
     const pricingAlias = source("src/app/admin/finance/pricing/page.tsx");
-    const creditsAlias = source("src/app/admin/finance/credits/page.tsx");
 
     expect(controls).toContain('title="Контроль и журналы"');
-    expect(transactionsAlias).toContain('from "../receipts/page"');
     expect(pricingAlias).toContain('from "../../pricing/pricing-editor"');
-    expect(creditsAlias).toContain('from "../points/page"');
+    expect(fs.existsSync(path.join(process.cwd(), "src/app/admin/finance/transactions/page.tsx"))).toBe(false);
+    expect(fs.existsSync(path.join(process.cwd(), "src/app/admin/finance/credits/page.tsx"))).toBe(false);
   });
 
   it("keeps antifraud and system surfaces in Russian user-facing labels", () => {

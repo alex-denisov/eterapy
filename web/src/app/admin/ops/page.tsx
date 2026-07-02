@@ -16,6 +16,7 @@ import { getAdminSystemStatus } from "@/lib/admin-system-status";
 import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { requestContextFromHeaders } from "@/lib/request-context";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { PageContainer } from "@/components/ui/page-container";
 import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../admin-currency";
 import { AdminCurrencySelector } from "../admin-currency-selector";
@@ -38,6 +39,30 @@ function statusLabel(status: string) {
   if (status === "down") return "сбой";
   return "требует внимания";
 }
+
+const serviceColumns: AdminCompactColumn[] = [
+  { key: "name", label: "Сервис", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "ok", label: "работает" },
+      { value: "degraded", label: "требует внимания" },
+      { value: "missing_config", label: "требует внимания" },
+      { value: "down", label: "сбой" },
+    ],
+  },
+  { key: "latency", label: "Задержка", sortable: true, align: "right" },
+  { key: "detail", label: "Детали", sortable: true },
+];
+
+const cronColumns: AdminCompactColumn[] = [
+  { key: "path", label: "Задача", sortable: true },
+  { key: "cadence", label: "Расписание", sortable: true },
+  { key: "purpose", label: "Назначение", sortable: true },
+];
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -157,7 +182,7 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
         <AdminOpsSection title="Карта здоровья платформы">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             <AdminOpsLinkCard href="/admin/ops/ai-cost" title="AI-затраты и токены" value={formatAdminAiCost(aiCostMicros, currencyRates, currency)} hint="Детализация расхода по продуктам, моделям и статусам." />
-            <AdminOpsLinkCard href="/admin/ops/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, routing, промты." />
+            <AdminOpsLinkCard href="/admin/ops/ai" title="Провайдеры и модели" value={formatNumber(ai?.providers.length ?? 0)} hint="Cloudflare Gateway, ключи, стоимость моделей, маршрутизация, промты." />
             <AdminOpsLinkCard href="/admin/ops/notifications" title="Уведомления" value={formatNumber(status.stats.notificationPreferences)} hint="Диагностика доставок, очереди notification.delivery, Telegram/email." />
             <AdminOpsLinkCard href="/admin/ops/files" title="Файлы" value="просмотр" hint="Файловое хранилище, типы, владельцы, размеры, даты." />
             <AdminOpsLinkCard href="/admin/ops/database" title="База данных" value="read-only" hint="Табличный просмотр ключевых сущностей без ручного SQL." />
@@ -169,21 +194,26 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
         </AdminOpsSection>
 
         <AdminOpsSection title="Сервисы и зависимости" actionHref="/admin/ops/system" actionLabel="Открыть мониторинг">
-          <div className="divide-y divide-[var(--soft-paper-edge)]">
-            {status.services.slice(0, 10).map((service) => (
-              <div key={service.key} className="flex items-center justify-between gap-3 py-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{service.name}</p>
-                  <p className="truncate text-xs text-[var(--soft-ink-soft)]">
-                    {service.latencyMs !== undefined ? `${service.detail} · ${service.latencyMs} ms` : service.detail}
-                  </p>
-                </div>
-                <span className="soft-admin-status-pill shrink-0" data-tone={statusTone(service.status)}>
-                  {statusLabel(service.status)}
-                </span>
-              </div>
-            ))}
-          </div>
+          <AdminCompactDataTable
+            columns={serviceColumns}
+            rows={status.services.slice(0, 10).map((service) => ({
+              id: service.key,
+              cells: {
+                name: { value: service.name, sortValue: service.name, filterValue: `${service.name} ${service.key}` },
+                status: {
+                  kind: "status",
+                  label: statusLabel(service.status),
+                  tone: statusTone(service.status),
+                  filterValue: `${service.status} ${statusLabel(service.status)}`,
+                  sortValue: statusLabel(service.status),
+                },
+                latency: { value: service.latencyMs !== undefined ? `${service.latencyMs} ms` : "—", sortValue: service.latencyMs ?? -1, filterValue: service.latencyMs !== undefined ? String(service.latencyMs) : "" },
+                detail: { value: service.detail, title: service.detail, filterValue: service.detail, sortValue: service.detail },
+              },
+            }))}
+            empty="Сервисы не найдены"
+            minWidth="900px"
+          />
         </AdminOpsSection>
 
         <AdminOpsSection title="Очереди и cron-контур" actionHref="/admin/ops/jobs" actionLabel="Открыть задачи">
@@ -201,13 +231,20 @@ export default async function AdminOpsPage({ searchParams }: PageProps) {
               <p className="text-xs text-[var(--soft-ink-soft)]">Dead jobs</p>
             </div>
           </div>
-          <div className="mt-4 max-h-72 overflow-y-auto rounded-lg border border-[var(--soft-paper-edge)]">
-            {status.crons.map((cron) => (
-              <div key={cron.path} className="border-b border-[var(--soft-paper-edge)] px-3 py-2 last:border-b-0">
-                <p className="text-sm font-medium">{cron.path}</p>
-                <p className="mt-0.5 text-xs text-[var(--soft-ink-soft)]">{cron.cadence} · {cron.purpose}</p>
-              </div>
-            ))}
+          <div className="mt-4">
+            <AdminCompactDataTable
+              columns={cronColumns}
+              rows={status.crons.map((cron) => ({
+                id: cron.path,
+                cells: {
+                  path: { value: cron.path, title: cron.path, filterValue: cron.path, sortValue: cron.path },
+                  cadence: cron.cadence,
+                  purpose: { value: cron.purpose, title: cron.purpose, filterValue: cron.purpose, sortValue: cron.purpose },
+                },
+              }))}
+              empty="Cron-задачи не найдены"
+              minWidth="820px"
+            />
           </div>
         </AdminOpsSection>
 

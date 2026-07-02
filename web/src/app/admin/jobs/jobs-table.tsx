@@ -38,7 +38,7 @@ const statusOptions = [
   { value: "RUNNING", label: "В работе" },
   { value: "SUCCEEDED", label: "Успешно" },
   { value: "FAILED", label: "Ошибка" },
-  { value: "DEAD", label: "Dead" },
+  { value: "DEAD", label: "Не восстановлено" },
 ];
 
 const jobColumns: AdminCompactColumn[] = [
@@ -47,8 +47,8 @@ const jobColumns: AdminCompactColumn[] = [
   { key: "status", label: "Статус", sortable: true, filterKind: "select", options: statusOptions },
   { key: "attempts", label: "Попытки", sortable: true, align: "right" },
   { key: "priority", label: "Приоритет", sortable: true, align: "right" },
-  { key: "runAfter", label: "Run after", sortable: true, filterKind: "date" },
-  { key: "lockedBy", label: "Locked", sortable: true },
+  { key: "runAfter", label: "Запуск после", sortable: true, filterKind: "date" },
+  { key: "lockedBy", label: "Блокировка", sortable: true },
   { key: "updatedAt", label: "Обновлено", sortable: true, filterKind: "date" },
   { key: "error", label: "Ошибка", sortable: true },
   { key: "actions", label: "Действия", filterKind: "none", align: "center" },
@@ -59,9 +59,9 @@ const notificationColumns: AdminCompactColumn[] = [
   { key: "channel", label: "Канал", sortable: true },
   { key: "recipient", label: "Кому", sortable: true },
   { key: "status", label: "Статус", sortable: true, filterKind: "select", options: statusOptions },
-  { key: "attempts", label: "Retry", sortable: true, align: "right" },
-  { key: "requestId", label: "Request", sortable: true },
-  { key: "runAfter", label: "Run after", sortable: true, filterKind: "date" },
+  { key: "attempts", label: "Попытки", sortable: true, align: "right" },
+  { key: "requestId", label: "Запрос", sortable: true },
+  { key: "runAfter", label: "Запуск после", sortable: true, filterKind: "date" },
   { key: "updatedAt", label: "Обновлено", sortable: true, filterKind: "date" },
   { key: "error", label: "Ошибка", sortable: true },
   { key: "actions", label: "Действия", filterKind: "none", align: "center" },
@@ -179,7 +179,7 @@ export function AdminNotificationJobsTable({ rows }: { rows: AdminNotificationJo
           },
         },
       }))}
-      empty="Delivery jobs пока нет"
+      empty="Задач доставки пока нет"
       minWidth="1320px"
     />
   );

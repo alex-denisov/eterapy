@@ -19,18 +19,19 @@ import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber, formatPe
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function featureTitle(feature: string) {
+  const normalized = feature
+    .trim()
+    .replace(/^product[-_\s]+/i, "")
+    .replaceAll("_", "-")
+    .replace(/\s+/g, "-")
+    .toLowerCase();
+  const exactTitle = productLabel(feature);
+  if (exactTitle !== normalized) return exactTitle;
   const known: Record<string, string> = {
     "dialogue": "Диалоги",
-    "deep-report": "Глубокий разбор",
-    "reframe": "Переосмысление",
     "symbolic": "Символические продукты",
-    "chat-analysis": "Разбор переписки",
-    "compatibility": "Совместимость",
-    "synastry": "Синастрия",
-    "human-design": "Дизайн человека",
-    "surname-story": "История фамилии",
   };
-  const key = Object.keys(known).find((item) => feature.includes(item));
+  const key = Object.keys(known).find((item) => normalized.includes(item));
   return key ? known[key] : productLabel(feature);
 }
 

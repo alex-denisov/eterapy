@@ -3,90 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { restoreAdminPeriodPreference, saveAdminPeriodPreference } from "./admin-navigation-preferences";
+import {
+  adminMonthDays,
+  adminMonthTitle,
+  adminPeriodFromRuDate,
+  adminPeriodToRuDate,
+  adminPresetRange,
+  adminShiftMonth,
+} from "./admin-period-utils";
 
 type ActiveField = "start" | "end" | null;
-
-function parseIso(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function toIso(value: Date) {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function toRu(value: string) {
-  const date = parseIso(value);
-  if (!date) return "";
-  return new Intl.DateTimeFormat("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
-}
-
-function fromRu(value: string) {
-  const normalized = value.trim().replace(/[/-]/g, ".");
-  const match = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (!match) return null;
-  const [, d, m, y] = match;
-  const date = new Date(Number(y), Number(m) - 1, Number(d));
-  if (date.getFullYear() !== Number(y) || date.getMonth() !== Number(m) - 1 || date.getDate() !== Number(d)) return null;
-  return toIso(date);
-}
-
-function startOfToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function presetRange(period: string) {
-  const end = startOfToday();
-  let start = new Date(end);
-  if (period === "week") {
-    const weekday = end.getDay() || 7;
-    start.setDate(end.getDate() - weekday + 1);
-  } else if (period === "month") {
-    start = new Date(end.getFullYear(), end.getMonth(), 1);
-  } else if (period === "quarter") {
-    start = new Date(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
-  }
-  return { start: toIso(start), end: toIso(end) };
-}
-
-function monthDays(anchorIso: string) {
-  const anchor = parseIso(anchorIso) ?? startOfToday();
-  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
-  const last = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
-  const lead = (first.getDay() || 7) - 1;
-  const days: Array<{ iso: string; label: string; current: boolean }> = [];
-  for (let i = lead; i > 0; i -= 1) {
-    const date = new Date(first);
-    date.setDate(first.getDate() - i);
-    days.push({ iso: toIso(date), label: String(date.getDate()), current: false });
-  }
-  for (let day = 1; day <= last.getDate(); day += 1) {
-    const date = new Date(anchor.getFullYear(), anchor.getMonth(), day);
-    days.push({ iso: toIso(date), label: String(day), current: true });
-  }
-  const tail = (7 - (days.length % 7)) % 7;
-  for (let i = 1; i <= tail; i += 1) {
-    const date = new Date(last);
-    date.setDate(last.getDate() + i);
-    days.push({ iso: toIso(date), label: String(date.getDate()), current: false });
-  }
-  return days;
-}
-
-function monthTitle(anchorIso: string) {
-  const anchor = parseIso(anchorIso) ?? startOfToday();
-  return new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" }).format(anchor);
-}
-
-function shiftMonth(anchorIso: string, delta: number) {
-  const anchor = parseIso(anchorIso) ?? startOfToday();
-  return toIso(new Date(anchor.getFullYear(), anchor.getMonth() + delta, 1));
-}
 
 export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string; start: string; end: string }) {
   return <AdminPeriodToolbarInner key={`${start}:${end}`} basePath={basePath} start={start} end={end} />;
@@ -97,12 +23,12 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   const searchParams = useSearchParams();
   const [startIso, setStartIso] = useState(start);
   const [endIso, setEndIso] = useState(end);
-  const [startText, setStartText] = useState(toRu(start));
-  const [endText, setEndText] = useState(toRu(end));
+  const [startText, setStartText] = useState(adminPeriodToRuDate(start));
+  const [endText, setEndText] = useState(adminPeriodToRuDate(end));
   const [active, setActive] = useState<ActiveField>(null);
   const [monthIso, setMonthIso] = useState(start);
 
-  const days = useMemo(() => monthDays(monthIso), [monthIso]);
+  const days = useMemo(() => adminMonthDays(monthIso), [monthIso]);
 
   function buildParams(nextStart: string, nextEnd: string, period?: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -125,11 +51,11 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   }
 
   function applyPreset(period: string) {
-    const next = presetRange(period);
+    const next = adminPresetRange(period);
     setStartIso(next.start);
     setEndIso(next.end);
-    setStartText(toRu(next.start));
-    setEndText(toRu(next.end));
+    setStartText(adminPeriodToRuDate(next.start));
+    setEndText(adminPeriodToRuDate(next.end));
     setMonthIso(next.start);
     const params = buildParams(next.start, next.end, period);
     saveAdminPeriodPreference({ start: next.start, end: next.end, period });
@@ -152,15 +78,15 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   }, []);
 
   function commitText(field: "start" | "end", value: string) {
-    const iso = fromRu(value);
+    const iso = adminPeriodFromRuDate(value);
     if (!iso) return;
     if (field === "start") {
       setStartIso(iso);
-      setStartText(toRu(iso));
+      setStartText(adminPeriodToRuDate(iso));
       setMonthIso(iso);
     } else {
       setEndIso(iso);
-      setEndText(toRu(iso));
+      setEndText(adminPeriodToRuDate(iso));
       setMonthIso(iso);
     }
   }
@@ -168,17 +94,17 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   function selectDay(iso: string) {
     if (active === "start") {
       setStartIso(iso);
-      setStartText(toRu(iso));
+      setStartText(adminPeriodToRuDate(iso));
       if (iso > endIso) {
         setEndIso(iso);
-        setEndText(toRu(iso));
+        setEndText(adminPeriodToRuDate(iso));
       }
     } else {
       setEndIso(iso);
-      setEndText(toRu(iso));
+      setEndText(adminPeriodToRuDate(iso));
       if (iso < startIso) {
         setStartIso(iso);
-        setStartText(toRu(iso));
+        setStartText(adminPeriodToRuDate(iso));
       }
     }
   }
@@ -227,9 +153,9 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
           onMouseDown={(event) => event.preventDefault()}
         >
           <div className="mb-2 flex items-center justify-between gap-2">
-            <button type="button" className="soft-admin-action px-2 py-1" onClick={() => setMonthIso(shiftMonth(monthIso, -1))}>←</button>
-            <div className="font-medium capitalize text-[var(--soft-ink)]">{monthTitle(monthIso)}</div>
-            <button type="button" className="soft-admin-action px-2 py-1" onClick={() => setMonthIso(shiftMonth(monthIso, 1))}>→</button>
+            <button type="button" className="soft-admin-action px-2 py-1" onClick={() => setMonthIso(adminShiftMonth(monthIso, -1))}>←</button>
+            <div className="font-medium capitalize text-[var(--soft-ink)]">{adminMonthTitle(monthIso)}</div>
+            <button type="button" className="soft-admin-action px-2 py-1" onClick={() => setMonthIso(adminShiftMonth(monthIso, 1))}>→</button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-[var(--soft-ink-faint)]">
             {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((day) => <span key={day}>{day}</span>)}

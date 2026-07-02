@@ -1,24 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  CompactTableShell,
-  COMPACT_CELL_CLASS,
-  COMPACT_HEADER_CLASS,
-  COMPACT_INPUT_CLASS,
-  COMPACT_SELECT_CLASS,
-} from "@/components/admin/compact-table";
-
-// Header label cell for the compact diagnostics/runtime tables.
-function LogHeaderLabel({ label }: { label: string }) {
-  return (
-    <th className={COMPACT_HEADER_CLASS} scope="col">
-      <div className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
-        {label}
-      </div>
-    </th>
-  );
-}
+import { AdminCompactDataTable, type AdminCompactColumn, type AdminCompactRow } from "@/components/admin/compact-client-table";
+import { COMPACT_INPUT_CLASS } from "@/components/admin/compact-table";
 
 interface DiagnosticsSnapshot {
   timestamp?: string;
@@ -62,9 +46,54 @@ interface RuntimeLogSnapshot {
 
 const LOG_TABS = {
   audit: "Аудит",
-  diagnostics: "Диагностика (live)",
+  diagnostics: "Диагностика",
   runtime: "Runtime",
 } as const;
+
+const diagnosticsColumns: AdminCompactColumn[] = [
+  { key: "service", label: "Сервис", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "ok", label: "OK" },
+      { value: "down", label: "Сбой" },
+      { value: "unknown", label: "Неизвестно" },
+    ],
+  },
+  { key: "snapshot", label: "Снимок", sortable: true },
+];
+
+function runtimeColumns(sources: RuntimeLogSource[]): AdminCompactColumn[] {
+  return [
+    { key: "timestamp", label: "Время", sortable: true, filterKind: "date" },
+    {
+      key: "level",
+      label: "Уровень",
+      sortable: true,
+      filterKind: "select",
+      options: [
+        { value: "error", label: "Ошибка" },
+        { value: "warn", label: "Предупреждение" },
+        { value: "info", label: "Информация" },
+        { value: "debug", label: "Отладка" },
+        { value: "unknown", label: "Не распознано" },
+      ],
+    },
+    {
+      key: "source",
+      label: "Источник",
+      sortable: true,
+      filterKind: "select",
+      options: sources.map((item) => ({ value: item.label, label: item.label })),
+    },
+    { key: "event", label: "Событие", sortable: true },
+    { key: "file", label: "Файл", sortable: true },
+    { key: "actions", label: "Действия", filterKind: "none", align: "center" },
+  ];
+}
 
 function asStatus(value: Record<string, unknown> | undefined) {
   if (!value) return "unknown";
@@ -79,10 +108,27 @@ function diagTone(status: string): "ok" | "warn" | "danger" {
   return "warn";
 }
 
+function diagLabel(status: string) {
+  if (status === "ok") return "OK";
+  if (status === "down") return "Сбой";
+  return "Неизвестно";
+}
+
 function runtimeTone(level: RuntimeLogEntry["level"]): "ok" | "warn" | "danger" {
   if (level === "error") return "danger";
   if (level === "warn") return "warn";
   return "ok";
+}
+
+function runtimeLevelLabel(level: RuntimeLogEntry["level"]) {
+  const labels: Record<RuntimeLogEntry["level"], string> = {
+    debug: "Отладка",
+    info: "Информация",
+    warn: "Предупреждение",
+    error: "Ошибка",
+    unknown: "Не распознано",
+  };
+  return labels[level];
 }
 
 function formatBytes(value?: number) {
@@ -101,6 +147,10 @@ function prettyJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
+function sourceReadinessLabel(exists: boolean) {
+  return exists ? "доступен" : "не найден";
+}
+
 /**
  * T7: live infrastructure diagnostics rendered in the same soft-admin
  * data-table style as the audit log, so all observability surfaces share
@@ -117,11 +167,11 @@ function DiagnosticsPanel() {
     try {
       const response = await fetch("/api/diagnostics", { cache: "no-store" });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Diagnostics unavailable");
+      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Диагностика недоступна");
       setSnapshot(data as DiagnosticsSnapshot);
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось загрузить diagnostics");
+      setError(err instanceof Error ? err.message : "Не удалось загрузить диагностику");
     } finally {
       setLoading(false);
     }
@@ -139,11 +189,39 @@ function DiagnosticsPanel() {
   }, [autoRefresh, refresh]);
 
   const services = [
-    ["database", "Database", snapshot?.database],
-    ["yookassa", "YooKassa", snapshot?.yookassa],
+    ["database", "База данных", snapshot?.database],
+    ["yookassa", "ЮKassa", snapshot?.yookassa],
     ["telegram", "Telegram", snapshot?.telegram],
-    ["env", "Environment", snapshot?.env],
+    ["env", "Переменные окружения", snapshot?.env],
   ] as const;
+
+  const diagnosticsRows: AdminCompactRow[] = services.map(([key, label, value]) => {
+    const status = key === "env" ? (value ? "ok" : "unknown") : asStatus(value);
+    const snapshotText = prettyJson(value ?? { status: "loading" });
+    return {
+      id: key,
+      cells: {
+        service: label,
+        status: {
+          kind: "status",
+          label: diagLabel(status),
+          tone: diagTone(status),
+          filterValue: `${status} ${diagLabel(status)}`,
+          sortValue: diagLabel(status),
+        },
+        snapshot: {
+          kind: "node",
+          filterValue: snapshotText,
+          sortValue: snapshotText,
+          node: (
+            <pre className="max-h-44 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-2 text-[11px] leading-relaxed text-[var(--soft-ink-soft)]">
+              {snapshotText}
+            </pre>
+          ),
+        },
+      },
+    };
+  });
 
   return (
     <div className="space-y-4" data-testid="admin-diagnostics-live-panel">
@@ -160,40 +238,22 @@ function DiagnosticsPanel() {
           <input type="checkbox" checked={autoRefresh} onChange={(event) => setAutoRefresh(event.target.checked)} />
           автообновление 5 сек
         </label>
-        {snapshot?.timestamp && (
-          <span className="ml-auto text-xs text-[var(--soft-ink-faint)]">sample {formatDate(snapshot.timestamp)}</span>
-        )}
+            {snapshot?.timestamp && (
+              <span className="ml-auto text-xs text-[var(--soft-ink-faint)]">снимок {formatDate(snapshot.timestamp)}</span>
+            )}
       </div>
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</div>
       )}
 
-      <CompactTableShell minWidth="720px">
-          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
-            <tr>
-              <LogHeaderLabel label="Сервис" />
-              <LogHeaderLabel label="Статус" />
-              <LogHeaderLabel label="Снимок" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--soft-paper-edge)]">
-            {services.map(([key, label, value]) => {
-              const status = key === "env" ? (value ? "ok" : "unknown") : asStatus(value);
-              return (
-                <tr key={key} className="hover:bg-[var(--soft-surface)]">
-                  <td className={`${COMPACT_CELL_CLASS} font-medium`}>{label}</td>
-                  <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={diagTone(status)}>{status}</span></td>
-                  <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                    <pre className="max-h-44 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-2 text-[11px] leading-relaxed text-[var(--soft-ink-soft)]">
-                      {prettyJson(value ?? { status: "loading" })}
-                    </pre>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-      </CompactTableShell>
+      <AdminCompactDataTable
+        columns={diagnosticsColumns}
+        rows={diagnosticsRows}
+        empty="Диагностика еще не загружена"
+        minWidth="820px"
+        pageSize={20}
+      />
     </div>
   );
 }
@@ -204,8 +264,6 @@ function DiagnosticsPanel() {
  */
 function RuntimeLogsPanel() {
   const [snapshot, setSnapshot] = useState<RuntimeLogSnapshot | null>(null);
-  const [level, setLevel] = useState("all");
-  const [source, setSource] = useState("all");
   const [search, setSearch] = useState("");
   const [streamState, setStreamState] = useState<"connecting" | "live" | "polling" | "error">("connecting");
   const [error, setError] = useState("");
@@ -218,22 +276,22 @@ function RuntimeLogsPanel() {
   useEffect(() => { pausedRef.current = expandedId !== null; }, [expandedId]);
 
   const streamUrl = useMemo(() => {
-    const params = new URLSearchParams({ limit: "200", level, source, intervalMs: "3000" });
+    const params = new URLSearchParams({ limit: "500", level: "all", source: "all", intervalMs: "3000" });
     if (search.trim()) params.set("q", search.trim());
     return `/api/admin/logs/runtime/stream?${params.toString()}`;
-  }, [level, search, source]);
+  }, [search]);
 
   const snapshotUrl = useMemo(() => {
-    const params = new URLSearchParams({ limit: "200", level, source });
+    const params = new URLSearchParams({ limit: "500", level: "all", source: "all" });
     if (search.trim()) params.set("q", search.trim());
     return `/api/admin/logs/runtime?${params.toString()}`;
-  }, [level, search, source]);
+  }, [search]);
 
   const fetchSnapshot = useCallback(async () => {
     if (pausedRef.current) return; // B5: don't overwrite while reading an expanded log
     const response = await fetch(snapshotUrl, { cache: "no-store" });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Runtime logs unavailable");
+    if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Runtime logs недоступны");
     setSnapshot(data as RuntimeLogSnapshot);
     setError("");
   }, [snapshotUrl]);
@@ -256,12 +314,12 @@ function RuntimeLogsPanel() {
       setStreamState("polling");
       void fetchSnapshot().catch((err) => {
         setStreamState("error");
-        setError(err instanceof Error ? err.message : "Runtime logs unavailable");
+        setError(err instanceof Error ? err.message : "Runtime logs недоступны");
       });
       pollTimer = window.setInterval(() => {
         void fetchSnapshot().catch((err) => {
           setStreamState("error");
-          setError(err instanceof Error ? err.message : "Runtime logs unavailable");
+          setError(err instanceof Error ? err.message : "Runtime logs недоступны");
         });
       }, 5000);
     };
@@ -274,43 +332,87 @@ function RuntimeLogsPanel() {
 
   const sources = snapshot?.sources ?? [];
   const entries = snapshot?.entries ?? [];
+  const rows: AdminCompactRow[] = entries.map((entry) => {
+    const isExpanded = expandedId === entry.id;
+    const fieldsText = Object.keys(entry.fields).length > 0 ? prettyJson(entry.fields) : "нет дополнительных полей";
+    const eventText = `${entry.event} ${entry.raw} ${fieldsText}`;
+    return {
+      id: entry.id,
+      cells: {
+        timestamp: {
+          value: formatDate(entry.timestamp),
+          filterValue: formatDate(entry.timestamp),
+          sortValue: entry.timestamp ? new Date(entry.timestamp).getTime() : 0,
+        },
+        level: {
+          kind: "status",
+          label: runtimeLevelLabel(entry.level),
+          tone: runtimeTone(entry.level),
+          filterValue: `${entry.level} ${runtimeLevelLabel(entry.level)}`,
+          sortValue: runtimeLevelLabel(entry.level),
+        },
+        source: {
+          value: entry.sourceLabel,
+          filterValue: `${entry.source} ${entry.sourceLabel}`,
+          sortValue: entry.sourceLabel,
+        },
+        event: {
+          kind: "node",
+          filterValue: eventText,
+          sortValue: entry.event,
+          node: (
+            <span className="block min-w-[18rem] max-w-[42rem]">
+              <span className="soft-admin-cell-truncate font-medium text-[var(--soft-ink)]" title={entry.event}>{entry.event}</span>
+              {isExpanded ? (
+                <span className="mt-2 grid gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-2 text-[11px] leading-relaxed text-[var(--soft-ink)] lg:grid-cols-2">
+                  <span>
+                    <span className="mb-1 block font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Исходная запись</span>
+                    <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white/75 p-2">{entry.raw}</pre>
+                  </span>
+                  <span>
+                    <span className="mb-1 block font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Разобранные поля</span>
+                    <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white/75 p-2">{fieldsText}</pre>
+                  </span>
+                </span>
+              ) : null}
+            </span>
+          ),
+        },
+        file: {
+          value: entry.filePath,
+          title: entry.filePath,
+          filterValue: entry.filePath,
+          sortValue: entry.filePath,
+        },
+        actions: {
+          kind: "actions",
+          actions: [{
+            label: isExpanded ? "Свернуть запись" : "Открыть запись",
+            icon: isExpanded ? "cancel" : "open",
+            onClick: () => setExpandedId(isExpanded ? null : entry.id),
+          }],
+        },
+      },
+    };
+  });
 
   return (
     <div className="space-y-4" data-testid="admin-runtime-logs-panel">
       <div className="flex flex-wrap items-center gap-3">
         <input
-          placeholder="Поиск по event, requestId, provider, тексту..."
+          placeholder="Поиск по событию, requestId, провайдеру, тексту..."
           value={search}
           onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
           className={`${COMPACT_INPUT_CLASS} max-w-sm`}
+          aria-label="Полнотекстовый поиск по runtime-логам"
         />
-        <select
-          value={level}
-          onChange={(event) => { setStreamState("connecting"); setError(""); setLevel(event.target.value); }}
-          className={`${COMPACT_SELECT_CLASS} h-8`}
-        >
-          <option value="all">Все уровни</option>
-          <option value="error">error</option>
-          <option value="warn">warn</option>
-          <option value="info">info</option>
-          <option value="debug">debug</option>
-          <option value="unknown">unknown</option>
-        </select>
-        <select
-          value={source}
-          onChange={(event) => { setStreamState("connecting"); setError(""); setSource(event.target.value); }}
-          className={`${COMPACT_SELECT_CLASS} h-8`}
-        >
-          <option value="all">Все источники</option>
-          {sources.map((item) => (<option key={item.key} value={item.key}>{item.label}</option>))}
-        </select>
         <span
           className="soft-admin-status-pill ml-auto"
           data-tone={expandedId ? "warn" : streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}
         >
           {expandedId
             ? "пауза · читаете лог"
-            : streamState === "live" ? "live SSE" : streamState === "polling" ? "polling" : streamState}
+            : streamState === "live" ? "онлайн" : streamState === "polling" ? "опрос" : streamState === "connecting" ? "подключение" : "ошибка"}
         </span>
       </div>
 
@@ -325,62 +427,20 @@ function RuntimeLogsPanel() {
         <div className="flex flex-wrap gap-2 text-[11px] text-[var(--soft-ink-faint)]">
           {sources.map((item) => (
             <span key={item.key} className="inline-flex items-center gap-1 rounded-full border border-[var(--soft-paper-edge)] bg-white/65 px-2 py-0.5">
-              <span className="soft-admin-status-pill" data-tone={item.exists ? "ok" : "danger"}>{item.exists ? "ready" : "missing"}</span>
+              <span className="soft-admin-status-pill" data-tone={item.exists ? "ok" : "danger"}>{sourceReadinessLabel(item.exists)}</span>
               {item.label} · {formatBytes(item.sizeBytes)}
             </span>
           ))}
         </div>
       )}
 
-      <CompactTableShell minWidth="960px">
-          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
-            <tr>
-              <LogHeaderLabel label="Время" />
-              <LogHeaderLabel label="Уровень" />
-              <LogHeaderLabel label="Источник" />
-              <LogHeaderLabel label="Событие" />
-              <LogHeaderLabel label="Файл" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--soft-paper-edge)]">
-            {entries.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Нет runtime-записей или источники логов не найдены</td></tr>
-            ) : entries.map((entry) => {
-              const isExpanded = expandedId === entry.id;
-              return (
-                <>
-                  <tr
-                    key={entry.id}
-                    className="cursor-pointer hover:bg-[var(--soft-surface)]"
-                    onClick={() => setExpandedId(isExpanded ? null : entry.id)}
-                  >
-                    <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap font-mono text-[10px]`}>{formatDate(entry.timestamp)}</td>
-                    <td className={COMPACT_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={runtimeTone(entry.level)}>{entry.level}</span></td>
-                    <td className={COMPACT_CELL_CLASS}>{entry.sourceLabel}</td>
-                    <td className={`${COMPACT_CELL_CLASS} max-w-md truncate font-medium`}>{entry.event}</td>
-                    <td className={`${COMPACT_CELL_CLASS} max-w-xs truncate border-r-0 font-mono text-[10px] text-[var(--soft-ink-faint)]`}>{entry.filePath}</td>
-                  </tr>
-                  {isExpanded && (
-                    <tr key={`${entry.id}-detail`}>
-                      <td colSpan={5} className="border-r-0 px-1.5 py-2">
-                        <div className="grid gap-2 lg:grid-cols-2">
-                          <div>
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Raw</p>
-                            <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-3 text-[11px] leading-relaxed text-[var(--soft-ink)]">{entry.raw}</pre>
-                          </div>
-                          <div>
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Parsed fields</p>
-                            <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-[var(--soft-surface)] p-3 text-[11px] leading-relaxed text-[var(--soft-ink)]">{Object.keys(entry.fields).length > 0 ? prettyJson(entry.fields) : "нет дополнительных полей"}</pre>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              );
-            })}
-          </tbody>
-      </CompactTableShell>
+      <AdminCompactDataTable
+        columns={runtimeColumns(sources)}
+        rows={rows}
+        empty="Нет Runtime-записей или источники логов не найдены"
+        minWidth="1240px"
+        pageSize={20}
+      />
     </div>
   );
 }

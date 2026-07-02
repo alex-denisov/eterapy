@@ -19,7 +19,7 @@ function duration(start: Date | null, end: Date | null) {
 }
 
 const transcriptColumns: AdminCompactColumn[] = [
-  { key: "createdAt", label: "Timestamp", sortable: true, filterKind: "date" },
+  { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
   { key: "client", label: "Клиент", sortable: true },
   { key: "practitioner", label: "Практик", sortable: true },
   {

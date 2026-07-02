@@ -5,6 +5,7 @@ import { readRuntimeLogSnapshot, resolveRuntimeLogSources } from "@/lib/admin-ru
 
 describe("admin-runtime-logs", () => {
   const originalEnv = process.env.ETERAPY_RUNTIME_LOG_FILES;
+  const originalPm2Home = process.env.PM2_HOME;
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -13,7 +14,30 @@ describe("admin-runtime-logs", () => {
 
   afterEach(async () => {
     process.env.ETERAPY_RUNTIME_LOG_FILES = originalEnv;
+    process.env.PM2_HOME = originalPm2Home;
     await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it("exposes a broad infrastructure log allowlist with real source names", async () => {
+    delete process.env.ETERAPY_RUNTIME_LOG_FILES;
+    process.env.PM2_HOME = path.join(tmpDir, ".pm2");
+
+    const sources = await resolveRuntimeLogSources();
+    const labels = sources.map((source) => source.label);
+
+    expect(labels).toEqual(expect.arrayContaining([
+      "pm2/eterapy-out.log",
+      "pm2/eterapy-error.log",
+      "pm2/eterapy-worker-out.log",
+      "pm2/eterapy-staging-out.log",
+      "pm2/eterapy-staging-worker-error.log",
+      "nginx/access.log",
+      "nginx/error.log",
+      "system/syslog",
+      "system/auth.log",
+      "deploy/sync-staging-db.log",
+    ]));
+    expect(labels).not.toContain("ETerapy app stdout");
   });
 
   it("reads configured JSONL runtime logs and redacts sensitive values", async () => {

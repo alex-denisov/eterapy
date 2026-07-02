@@ -13,7 +13,7 @@ type PageProps = {
 };
 
 const reconciliationColumns: AdminCompactColumn[] = [
-  { key: "receivedAt", label: "Timestamp", sortable: true, filterKind: "date" },
+  { key: "receivedAt", label: "Дата и время", sortable: true, filterKind: "date" },
   { key: "eventType", label: "Событие", sortable: true },
   { key: "resourceId", label: "Resource ID", sortable: true },
   { key: "status", label: "Статус", sortable: true },

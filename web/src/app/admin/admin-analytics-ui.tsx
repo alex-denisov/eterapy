@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
 import { AdminPeriodToolbar } from "./admin-period-toolbar";
 
 export type ChartPoint = {
@@ -68,6 +67,7 @@ export function statusLabel(status: string | null | undefined) {
     FAILED: "Ошибка",
     DEAD: "Не восстановлено",
     RUNNING: "В работе",
+    TIMEOUT: "Таймаут",
     REFUNDED: "Возврат",
     DISPUTED: "Спор",
     READY: "Готово",
@@ -250,7 +250,7 @@ export function VerticalBarChart({
   const top = 12;
   const plotHeight = 212;
   const compactLabels = data.length > 18;
-  const bottom = 28;
+  const bottom = 30;
   const groupWidth = compactLabels ? (series.length > 1 ? 38 : 32) : (series.length > 1 ? 52 : 44);
   const width = Math.max(760, left + right + data.length * groupWidth);
   const height = top + plotHeight + bottom;
@@ -312,9 +312,10 @@ export function VerticalBarChart({
         <svg
           role="img"
           aria-label={label ?? "Гистограмма"}
-          className="block min-h-[272px] w-full min-w-[760px]"
+          className="block max-w-none"
+          width={width}
+          height={height}
           viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
           data-testid="admin-vertical-bar-chart-svg"
         >
           <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" />
@@ -323,7 +324,7 @@ export function VerticalBarChart({
             return (
               <g key={tick}>
                 <line x1={left} x2={width - right} y1={y} y2={y} stroke="#E5ECF6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[10px] tabular-nums">
+                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[13px] tabular-nums">
                   {formatValue(tick)}
                 </text>
               </g>
@@ -362,7 +363,7 @@ export function VerticalBarChart({
                   x={centerX}
                   y={axisLabelY}
                   textAnchor="middle"
-                  className="fill-[#667085] text-[10px] tabular-nums"
+                  className="fill-[#667085] text-[13px] tabular-nums"
                 >
                   {item.label}
                 </text>
@@ -380,8 +381,8 @@ export function VerticalBarChart({
                   fill="transparent"
                 />
                 <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
-                  <rect x={-hit.tooltipWidth / 2} y="-30" width={hit.tooltipWidth} height="26" rx="6" />
-                  <text x="0" y="-13" textAnchor="middle">{hit.tooltip}</text>
+                  <rect x={-hit.tooltipWidth / 2} y="-34" width={hit.tooltipWidth} height="30" rx="7" />
+                  <text x="0" y="-15" textAnchor="middle">{hit.tooltip}</text>
                 </g>
               </g>
             ))}
@@ -430,7 +431,7 @@ export function StackedBarChart({
   const right = 16;
   const top = 12;
   const plotHeight = 212;
-  const bottom = 28;
+  const bottom = 30;
   const slotWidth = data.length > 18 ? 34 : 42;
   const width = Math.max(760, left + right + data.length * slotWidth);
   const height = top + plotHeight + bottom;
@@ -497,9 +498,10 @@ export function StackedBarChart({
         <svg
           role="img"
           aria-label={label ?? "Гистограмма с накоплением"}
-          className="block min-h-[272px] w-full min-w-[760px]"
+          className="block max-w-none"
+          width={width}
+          height={height}
           viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
           data-testid="admin-stacked-bar-chart-svg"
         >
           <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" />
@@ -508,7 +510,7 @@ export function StackedBarChart({
             return (
               <g key={tick}>
                 <line x1={left} x2={width - right} y1={y} y2={y} stroke="#E5ECF6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[10px] tabular-nums">
+                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[13px] tabular-nums">
                   {formatValue(tick)}
                 </text>
               </g>
@@ -553,7 +555,7 @@ export function StackedBarChart({
                   x={centerX}
                   y={top + plotHeight + 11}
                   textAnchor="middle"
-                  className="fill-[#667085] text-[10px] tabular-nums"
+                  className="fill-[#667085] text-[13px] tabular-nums"
                 >
                   {item.label}
                 </text>
@@ -571,8 +573,8 @@ export function StackedBarChart({
                   fill="transparent"
                 />
                 <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
-                  <rect x={-hit.tooltipWidth / 2} y="-30" width={hit.tooltipWidth} height="26" rx="6" />
-                  <text x="0" y="-13" textAnchor="middle">{hit.tooltip}</text>
+                  <rect x={-hit.tooltipWidth / 2} y="-34" width={hit.tooltipWidth} height="30" rx="7" />
+                  <text x="0" y="-15" textAnchor="middle">{hit.tooltip}</text>
                 </g>
               </g>
             ))}
@@ -640,125 +642,6 @@ export function FunnelChart({ data }: { data: ChartPoint[] }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-export function DataTable({
-  columns,
-  rows,
-  empty,
-}: {
-  columns: string[];
-  rows: ReactNode[][];
-  empty?: ReactNode;
-}) {
-  return (
-    <CompactTableShell minWidth="980px">
-      <thead>
-        <tr>{columns.map((column) => <CompactHeader key={column} label={column} />)}</tr>
-      </thead>
-      <tbody>
-        {rows.length > 0 ? rows.map((row, index) => (
-          <tr key={index}>
-            {row.map((cell, cellIndex) => (
-              <td key={cellIndex} className={`${COMPACT_CELL_CLASS} max-w-[22rem]`}>
-                {typeof cell === "string" || typeof cell === "number" ? (
-                  <span className="soft-admin-cell-truncate" title={String(cell)}>{cell}</span>
-                ) : cell}
-              </td>
-            ))}
-          </tr>
-        )) : (
-          <tr><td colSpan={columns.length} className={`${COMPACT_CELL_CLASS} py-6 text-center text-[var(--soft-ink-soft)]`}>{empty ?? "Нет данных"}</td></tr>
-        )}
-      </tbody>
-    </CompactTableShell>
-  );
-}
-
-type LinkPaginationItem = number | { type: "jump"; target: number; label: "..." };
-
-function linkPaginationItems(page: number, pageCount: number): LinkPaginationItem[] {
-  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
-  const items: LinkPaginationItem[] = [1];
-  let start = Math.max(2, page - 1);
-  let end = Math.min(pageCount - 1, page + 1);
-
-  if (page <= 4) {
-    start = 2;
-    end = 5;
-  } else if (page >= pageCount - 3) {
-    start = pageCount - 4;
-    end = pageCount - 1;
-  }
-
-  if (start > 2) items.push({ type: "jump", target: Math.max(1, page - 3), label: "..." });
-  for (let item = start; item <= end; item += 1) items.push(item);
-  if (end < pageCount - 1) items.push({ type: "jump", target: Math.min(pageCount, page + 3), label: "..." });
-  items.push(pageCount);
-  return items;
-}
-
-export function LinkPagination({
-  page,
-  pageSize,
-  total,
-  hrefForPage,
-}: {
-  page: number;
-  pageSize: number;
-  total: number;
-  hrefForPage: (page: number) => string;
-}) {
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const safePage = Math.min(Math.max(page, 1), pageCount);
-  const start = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
-  const end = Math.min(safePage * pageSize, total);
-
-  return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs">
-      <div className="text-[var(--soft-ink-faint)]">{start}-{end} из {total.toLocaleString("ru-RU")}</div>
-      {pageCount > 1 ? (
-        <div className="flex flex-wrap items-center gap-1">
-          {safePage > 1 ? (
-            <Link className="soft-admin-action h-7" data-variant="subtle" href={hrefForPage(safePage - 1)}>
-              Предыдущая
-            </Link>
-          ) : null}
-          {linkPaginationItems(safePage, pageCount).map((item, index) => {
-            if (typeof item !== "number") {
-              return (
-                <Link
-                  key={`${item.label}-${index}`}
-                  className="soft-admin-pagination-page"
-                  href={hrefForPage(item.target)}
-                  title={`Перейти на ${item.target} страницу`}
-                >
-                  {item.label}
-                </Link>
-              );
-            }
-            const active = item === safePage;
-            return (
-              <Link
-                key={item}
-                className="soft-admin-pagination-page"
-                data-active={active}
-                href={hrefForPage(item)}
-                aria-current={active ? "page" : undefined}
-              >
-                {item}
-              </Link>
-            );
-          })}
-          {safePage < pageCount ? (
-            <Link className="soft-admin-action h-7" data-variant="subtle" href={hrefForPage(safePage + 1)}>
-              Следующая
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }

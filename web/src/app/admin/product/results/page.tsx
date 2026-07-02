@@ -12,7 +12,7 @@ type PageProps = {
 };
 
 const resultColumns: AdminCompactColumn[] = [
-  { key: "createdAt", label: "Timestamp", sortable: true, filterKind: "date" },
+  { key: "createdAt", label: "Дата и время", sortable: true, filterKind: "date" },
   { key: "client", label: "Клиент", sortable: true },
   { key: "product", label: "Продукт", sortable: true },
   { key: "title", label: "Название", sortable: true },

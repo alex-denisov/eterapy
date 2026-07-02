@@ -35,7 +35,7 @@ export default async function AdminFilesPage() {
         <div>
           <h1 className="font-heading text-2xl font-bold">Файлы</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {files.length} файлов · {totalMB.toFixed(1)} МБ total
+            {files.length} файлов · {totalMB.toFixed(1)} МБ всего
           </p>
         </div>
       </div>

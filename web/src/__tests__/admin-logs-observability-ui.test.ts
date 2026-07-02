@@ -15,12 +15,17 @@ describe("admin logs observability UI", () => {
     expect(page).toContain("LogsTabs");
     expect(page).toContain('data-testid="admin-audit-log-table"');
     expect(viewer).toContain("admin-observability-tabs");
-    expect(viewer).toContain("Диагностика (live)");
+    expect(viewer).toContain("Диагностика");
     expect(viewer).toContain("Runtime");
-    // T6: diagnostics + runtime tables migrated to the compact "Промты" style.
-    expect(viewer).toContain("CompactTableShell");
+    // T8: diagnostics + runtime tables use the same filtered/paginated
+    // AdminCompactDataTable surface as "Пользователи и сегменты".
+    expect(viewer).toContain("AdminCompactDataTable");
+    expect(viewer).not.toContain("function LogHeaderLabel");
+    expect(viewer).not.toContain("CompactTableShell");
     expect(viewer).toContain("fetch(\"/api/diagnostics\"");
     expect(viewer).toContain("new EventSource(streamUrl)");
     expect(viewer).toContain("/api/admin/logs/runtime/stream");
+    expect(viewer).toContain("diagnosticsColumns");
+    expect(viewer).toContain("runtimeColumns");
   });
 });

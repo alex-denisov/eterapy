@@ -24,7 +24,7 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(productLabel("seven-days")).toBe("Недельное резюме");
   });
 
-  it("aggregates long date ranges by week so chart axes stay readable", () => {
+  it("keeps every calendar day in chart data and lets the chart scroll horizontally", () => {
     const days = Array.from({ length: 40 }, (_, index) => {
       const date = new Date(2026, 5, 1 + index);
       return dayKey(date);
@@ -33,9 +33,9 @@ describe("Admin analytics shared controls and chart data", () => {
 
     const chart = chartFromMap(days, values);
 
-    expect(chart.length).toBeLessThan(days.length);
-    expect(chart[0]).toEqual({ label: "01.06-07.06", value: 7 });
-    expect(chart.at(-1)?.label).toBe("06.07-10.07");
+    expect(chart).toHaveLength(days.length);
+    expect(chart[0]).toEqual({ label: "01.06", value: 1 });
+    expect(chart.at(-1)).toEqual({ label: "10.07", value: 1 });
   });
 
   it("persists admin period and currency across sidebar navigation", () => {
@@ -60,6 +60,6 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(ui).toContain("buildVerticalTooltipHits");
     expect(ui).toContain("buildStackedTooltipHits");
     expect(css).toContain(".soft-chart-tooltip-layer .soft-chart-hit");
-    expect(css).toContain("font-size: 11px");
+    expect(css).toContain("font-size: 13px");
   });
 });

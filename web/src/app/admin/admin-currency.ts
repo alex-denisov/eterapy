@@ -36,9 +36,9 @@ function parseCbrAsOf(xml: string, fallback: Date) {
   return new Intl.DateTimeFormat("ru-RU").format(fallback);
 }
 
-export async function getAdminCurrencyRates(date = new Date()): Promise<AdminCurrencyRates> {
-  const dateReq = formatCbrDate(date);
-  const sourceUrl = `${CBR_DAILY_URL}?date_req=${dateReq}`;
+export async function getAdminCurrencyRates(date?: Date): Promise<AdminCurrencyRates> {
+  const fallbackDate = date ?? new Date();
+  const sourceUrl = date ? `${CBR_DAILY_URL}?date_req=${formatCbrDate(date)}` : CBR_DAILY_URL;
   try {
     const response = await fetch(sourceUrl, {
       cache: "no-store",
@@ -49,14 +49,14 @@ export async function getAdminCurrencyRates(date = new Date()): Promise<AdminCur
     return {
       source: "cbr",
       sourceUrl,
-      asOf: parseCbrAsOf(xml, date),
+      asOf: parseCbrAsOf(xml, fallbackDate),
       usdRub: parseCbrValue(xml, "USD"),
     };
   } catch (error) {
     return {
       source: "cbr",
       sourceUrl,
-      asOf: new Intl.DateTimeFormat("ru-RU").format(date),
+      asOf: new Intl.DateTimeFormat("ru-RU").format(fallbackDate),
       usdRub: null,
       error: error instanceof Error ? error.message : "CBR rate fetch failed",
     };
