@@ -14,7 +14,7 @@ import { listJournalEntries, type JournalEntry } from "@/lib/journal-entries";
 import { topObservation } from "@/lib/diary-recommendation";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
-import { DiaryPinButton } from "@/components/cabinet/diary-pin-button";
+import { DiaryPinControl } from "@/components/cabinet/diary-pin-control";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { DiaryPinGate } from "@/components/cabinet/diary-pin-gate";
@@ -214,14 +214,16 @@ function familyCountWord(n: number): string {
   return "раз";
 }
 
-export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string }> }) {
+export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string; pin?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
   guardClientCabinet(session.user.role); // Y6: client-only surface
   const userId = session.user.id;
 
-  const { showHidden } = await searchParams;
+  const { showHidden, pin } = await searchParams;
   const wantHidden = showHidden === "1";
+  // B464 round-4 #8: the sidebar lock deep-links straight into the PIN setup.
+  const autoOpenPin = pin === "setup";
 
   const [allItems, dailyCardResult, weekCards, practiceStreak, journalEntries] = await Promise.all([
     listDiaryItems(userId, { includeHidden: true }),
@@ -272,13 +274,9 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
             Личное пространство ваших вопросов, разборов и заметок. Видите только вы.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <DiaryPinButton />
-          <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary"
-            style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
-            Задать вопрос
-          </Link>
-        </div>
+        {/* round-4 #9/#10: ONE PIN control (modal), and no duplicate «Задать
+            вопрос» — the header CTA already carries that action. */}
+        <DiaryPinControl autoOpen={autoOpenPin} />
       </div>
 
       {/* Habit hero — the /practice reflect flow + week strip + streak ring. */}

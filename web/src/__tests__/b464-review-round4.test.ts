@@ -114,6 +114,33 @@ describe("R3 item 14 — bookings empty upcoming tab", () => {
   });
 });
 
+// ── R4 · items 9·10 — ONE PIN control (modal), no duplicated CTAs ──
+describe("R4 items 9·10 — diary PIN control", () => {
+  it("the gate only guards; set/change/disable live in the modal control", () => {
+    const gate = read("components/cabinet/diary-pin-gate.tsx");
+    expect(gate).not.toContain("Закрыть дневник PIN-кодом");
+    expect(gate).not.toContain("diary-pin-enable-cta");
+    expect(gate).not.toContain("PIN включён · отключить");
+    const control = read("components/cabinet/diary-pin-control.tsx");
+    expect(control).toContain("diary-pin-modal");
+    expect(control).toContain("Сменить PIN-код");
+    expect(control).toContain("Отключить PIN-код");
+    expect(control).toContain("notifyDiaryPinChanged");
+    expect(control).toContain("autoOpen");
+  });
+
+  it("the old inline-form button is gone and the page has no duplicate «Задать вопрос»", () => {
+    expect(fs.existsSync(path.join(__dirname, "..", "components/cabinet/diary-pin-button.tsx"))).toBe(false);
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("DiaryPinControl");
+    expect(diary).toContain('pin === "setup"');
+    // item 10: the header-dialogue-cta carries «Задать вопрос»; the page keeps
+    // it only in the empty state, not as a second header button.
+    const headerBlock = diary.slice(0, diary.indexOf("diary-habit-hero"));
+    expect(headerBlock).not.toContain("Задать вопрос");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {

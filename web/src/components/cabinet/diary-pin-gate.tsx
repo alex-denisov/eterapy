@@ -6,14 +6,11 @@
 // или перезапуска браузера. Не заменяет пароль аккаунта.
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Lock, LockOpen, ShieldCheck } from "lucide-react";
+import { Lock } from "lucide-react";
 import {
   DIARY_PIN_STORAGE_KEY,
   DIARY_PIN_UNLOCK_KEY,
-  hashDiaryPin,
-  isValidDiaryPin,
   parseDiaryPinRecord,
-  serializeDiaryPinRecord,
   shouldLockDiary,
   verifyDiaryPin,
 } from "@/lib/diary-pin";
@@ -32,9 +29,7 @@ function readUnlockedAt(): number | null {
 
 export function DiaryPinGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<GateState>("loading");
-  const [showSetup, setShowSetup] = useState(false);
   const [pin, setPin] = useState("");
-  const [pinRepeat, setPinRepeat] = useState("");
   const [error, setError] = useState<string | null>(null);
   const touchRef = useRef(0);
 
@@ -86,30 +81,6 @@ export function DiaryPinGate({ children }: { children: ReactNode }) {
     setState("unlocked");
   }, [pin]);
 
-  const savePin = useCallback(async () => {
-    setError(null);
-    if (!isValidDiaryPin(pin)) {
-      setError("PIN — от 4 до 6 цифр.");
-      return;
-    }
-    if (pin !== pinRepeat) {
-      setError("PIN не совпадает. Введите одинаковый код дважды.");
-      return;
-    }
-    localStorage.setItem(DIARY_PIN_STORAGE_KEY, serializeDiaryPinRecord(await hashDiaryPin(pin)));
-    sessionStorage.setItem(DIARY_PIN_UNLOCK_KEY, String(Date.now()));
-    setPin("");
-    setPinRepeat("");
-    setShowSetup(false);
-    setState("unlocked");
-  }, [pin, pinRepeat]);
-
-  const disablePin = useCallback(() => {
-    localStorage.removeItem(DIARY_PIN_STORAGE_KEY);
-    sessionStorage.removeItem(DIARY_PIN_UNLOCK_KEY);
-    setState("no-pin");
-  }, []);
-
   if (state === "loading") {
     return <div className="p-6 md:p-8" data-testid="diary-pin-loading" aria-busy="true" />;
   }
@@ -152,79 +123,8 @@ export function DiaryPinGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return (
-    <>
-      <div className="px-6 pt-6 md:px-8 md:pt-8">
-        {state === "no-pin" && !showSetup && (
-          <button
-            type="button"
-            onClick={() => setShowSetup(true)}
-            className="soft-chip inline-flex items-center gap-2"
-            data-testid="diary-pin-enable-cta"
-          >
-            <Lock className="size-3.5" aria-hidden="true" />
-            Закрыть дневник PIN-кодом
-          </button>
-        )}
-        {state === "no-pin" && showSetup && (
-          <div className="soft-card-flat max-w-md p-5" data-testid="diary-pin-setup">
-            <p className="inline-flex items-center gap-2 font-semibold text-[var(--soft-bordeaux)]">
-              <ShieldCheck className="size-4" aria-hidden="true" />
-              PIN для этого устройства
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{MICROCOPY}</p>
-            <form
-              className="mt-4 flex flex-col gap-3"
-              onSubmit={(event) => { event.preventDefault(); void savePin(); }}
-            >
-              <input
-                type="password" inputMode="numeric" autoComplete="off" maxLength={6}
-                value={pin}
-                onChange={(event) => setPin(event.target.value.replace(/\D/g, ""))}
-                placeholder="PIN (4–6 цифр)"
-                aria-label="Новый PIN"
-                className="soft-question-input"
-                data-testid="diary-pin-new"
-              />
-              <input
-                type="password" inputMode="numeric" autoComplete="off" maxLength={6}
-                value={pinRepeat}
-                onChange={(event) => setPinRepeat(event.target.value.replace(/\D/g, ""))}
-                placeholder="Ещё раз"
-                aria-label="Повтор PIN"
-                className="soft-question-input"
-                data-testid="diary-pin-repeat"
-              />
-              {error && <p className="text-sm text-[var(--soft-bordeaux)]" role="alert">{error}</p>}
-              <div className="flex gap-2">
-                <button type="submit" className="soft-button soft-button-primary" data-testid="diary-pin-save">
-                  Включить PIN
-                </button>
-                <button
-                  type="button"
-                  className="soft-button soft-button-ghost"
-                  onClick={() => { setShowSetup(false); setError(null); setPin(""); setPinRepeat(""); }}
-                >
-                  Отмена
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-        {state === "unlocked" && (
-          <button
-            type="button"
-            onClick={disablePin}
-            className="soft-chip inline-flex items-center gap-2"
-            data-testid="diary-pin-disable"
-            title={MICROCOPY}
-          >
-            <LockOpen className="size-3.5" aria-hidden="true" />
-            PIN включён · отключить
-          </button>
-        )}
-      </div>
-      {children}
-    </>
-  );
+  // B464 round-4 #9: the gate now ONLY guards (loading / locked / children).
+  // Setting, changing and disabling the PIN live in the single
+  // DiaryPinControl modal in the page header — no more duplicated toggles.
+  return <>{children}</>;
 }
