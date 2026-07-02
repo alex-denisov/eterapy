@@ -28,6 +28,37 @@ export function computeReferralStats(rows: ReadonlyArray<ReferralStatRow>): Refe
   return { invited, tried, stayed };
 }
 
+export interface ReferralCredits {
+  /** Spendable referral баллы already granted (confirmed). */
+  earned: number;
+  /** Referral баллы waiting to confirm (e.g. before the friend verifies). */
+  pending: number;
+}
+
+export interface ReferralCreditRow {
+  amount: number;
+  status: string;
+}
+
+export function computeReferralCredits(rows: ReadonlyArray<ReferralCreditRow>): ReferralCredits {
+  const sumBy = (status: string) =>
+    rows.filter((r) => r.status === status).reduce((sum, r) => sum + r.amount, 0);
+  return { earned: Math.max(0, sumBy("confirmed")), pending: Math.max(0, sumBy("pending")) };
+}
+
+export async function getReferralCredits(userId: string): Promise<ReferralCredits> {
+  try {
+    const rows = await db.clarityCreditLedgerEntry.findMany({
+      where: { userId, source: "referral", type: "grant" },
+      select: { amount: true, status: true },
+    });
+    return computeReferralCredits(rows);
+  } catch (error) {
+    log.warn("referral.credits_fallback", { error: serializeError(error) });
+    return { earned: 0, pending: 0 };
+  }
+}
+
 export async function getReferralStats(userId: string): Promise<ReferralStats> {
   try {
     const rows = await db.referralAttribution.findMany({

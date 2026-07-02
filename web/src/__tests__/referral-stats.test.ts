@@ -1,4 +1,4 @@
-import { computeReferralStats } from "@/lib/referral-stats";
+import { computeReferralStats, computeReferralCredits } from "@/lib/referral-stats";
 
 describe("B464 referral-stats — staged counter", () => {
   it("counts invited / tried / stayed as a funnel", () => {
@@ -20,5 +20,21 @@ describe("B464 referral-stats — staged counter", () => {
 
   it("returns zeros for a user who has not invited anyone", () => {
     expect(computeReferralStats([])).toEqual({ invited: 0, tried: 0, stayed: 0 });
+  });
+});
+
+describe("B464 IB5 referral-credits — earned vs pending", () => {
+  it("splits confirmed (earned) from pending referral grants", () => {
+    const credits = computeReferralCredits([
+      { amount: 2, status: "confirmed" },
+      { amount: 1, status: "confirmed" },
+      { amount: 2, status: "pending" },
+      { amount: 3, status: "spent" },
+    ]);
+    expect(credits).toEqual({ earned: 3, pending: 2 });
+  });
+
+  it("returns zeros when there are no referral grants", () => {
+    expect(computeReferralCredits([])).toEqual({ earned: 0, pending: 0 });
   });
 });
