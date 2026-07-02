@@ -6,7 +6,7 @@ import { AlertTriangle, FileSearch, LockKeyhole, ShieldAlert, Trash2, UserCog } 
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
-import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { PageContainer } from "@/components/ui/page-container";
 import { statusLabel } from "../../admin-analytics-ui";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber } from "../ops-ui";
@@ -92,32 +92,17 @@ function parseAuditDetails(details: string | null) {
   }
 }
 
-function AuditDetails({ details }: { details: string | null }) {
+function formatAuditDetailsText(details: string | null) {
   const parsed = parseAuditDetails(details);
-  if (parsed.text) {
-    return (
-      <details className="max-w-[24rem] text-xs">
-        <summary className="cursor-pointer text-[var(--soft-bordeaux)]">Показать детали</summary>
-        <pre className="mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words rounded border border-[var(--soft-paper-edge)] bg-white p-2 font-sans text-[11px] leading-snug text-[var(--soft-ink)]">
-          {parsed.text}
-        </pre>
-      </details>
-    );
-  }
-  if (parsed.entries.length === 0) return <span className="text-[var(--soft-ink-faint)]">—</span>;
-  return (
-    <details className="max-w-[24rem] text-xs">
-      <summary className="cursor-pointer text-[var(--soft-bordeaux)]">Показать детали ({parsed.entries.length})</summary>
-      <dl className="mt-2 grid max-h-40 gap-1 overflow-auto rounded border border-[var(--soft-paper-edge)] bg-white p-2 text-[11px] leading-snug">
-        {parsed.entries.map(([key, value]) => (
-          <div key={key} className="grid grid-cols-[6.5rem_1fr] gap-2">
-            <dt className="text-[var(--soft-ink-faint)]">{detailLabel(key)}</dt>
-            <dd className="min-w-0 break-words text-[var(--soft-ink)]">{formatDetailValue(value)}</dd>
-          </div>
-        ))}
-      </dl>
-    </details>
-  );
+  if (parsed.text) return parsed.text;
+  if (parsed.entries.length === 0) return "—";
+  return parsed.entries.map(([key, value]) => `${detailLabel(key)}: ${formatDetailValue(value)}`).join("; ");
+}
+
+function uniqueOptions(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((value) => ({ value, label: value }));
 }
 
 export default async function AdminOpsSecurityPage() {
@@ -250,6 +235,95 @@ export default async function AdminOpsSecurityPage() {
 
   const aiRisk = recentRiskActions.filter((row) => row.action.includes("AI_")).length;
   const accessRisk = recentRiskActions.filter((row) => /LOGIN|PASSWORD|ROLE|PERMISSION|IMPERSONATE/i.test(row.action)).length;
+  const clientRiskColumns: AdminCompactColumn[] = [
+    { key: "client", label: "Клиент", sortable: true, filterKind: "text" },
+    { key: "score", label: "Скоринг", sortable: true, filterKind: "text", align: "right" },
+    { key: "signal", label: "Сигнал", sortable: true, options: uniqueOptions(clientRiskRows.map((row) => row.signal)) },
+    { key: "status", label: "Статус", sortable: true, options: uniqueOptions(clientRiskRows.map((row) => row.blocked ? "Заблокирован" : statusLabel(row.status))) },
+    { key: "time", label: "Timestamp", sortable: true, filterKind: "date" },
+  ];
+  const clientRiskTableRows = clientRiskRows.map((row) => {
+    const status = row.blocked ? "Заблокирован" : statusLabel(row.status);
+    return {
+      id: row.userId,
+      cells: {
+        client: {
+          value: row.name,
+          subvalue: row.email,
+          title: `${row.name} · ${row.email}`,
+          filterValue: `${row.name} ${row.email}`,
+          sortValue: row.name || row.email,
+        },
+        score: {
+          kind: "status" as const,
+          label: `${row.score}/10`,
+          tone: row.score >= 8 ? "danger" as const : row.score >= 5 ? "warn" as const : "ok" as const,
+          filterValue: String(row.score),
+          sortValue: row.score,
+        },
+        signal: row.signal,
+        status: {
+          kind: "status" as const,
+          label: status,
+          tone: row.blocked ? "danger" as const : row.score >= 8 ? "warn" as const : "neutral" as const,
+          filterValue: status,
+          sortValue: status,
+        },
+        time: { value: formatDateTime(row.createdAt), filterValue: formatDateTime(row.createdAt), sortValue: row.createdAt.getTime() },
+      },
+    };
+  });
+  const riskActionColumns: AdminCompactColumn[] = [
+    { key: "time", label: "Timestamp", sortable: true, filterKind: "date" },
+    { key: "action", label: "Действие", sortable: true, options: uniqueOptions(recentRiskActions.map((row) => actionLabel(row.action))) },
+    { key: "admin", label: "Администратор", sortable: true, filterKind: "text" },
+    { key: "target", label: "Цель", sortable: true, filterKind: "text" },
+    { key: "ip", label: "IP", sortable: true, filterKind: "text" },
+    { key: "details", label: "Детали", sortable: true, filterKind: "text" },
+  ];
+  const riskActionTableRows = recentRiskActions.map((row) => {
+    const label = actionLabel(row.action);
+    const details = formatAuditDetailsText(row.details);
+    return {
+      id: row.id,
+      cells: {
+        time: { value: formatDateTime(row.createdAt), filterValue: formatDateTime(row.createdAt), sortValue: row.createdAt.getTime() },
+        action: {
+          kind: "status" as const,
+          label,
+          tone: actionTone(row.action),
+          filterValue: `${label} ${row.action}`,
+          sortValue: label,
+        },
+        admin: { value: row.userId, title: row.userId, filterValue: row.userId, sortValue: row.userId },
+        target: { value: row.targetId ?? "—", title: row.targetId ?? "—", filterValue: row.targetId ?? "", sortValue: row.targetId ?? "" },
+        ip: row.ip ?? "—",
+        details: { value: details, title: details, filterValue: details, sortValue: details },
+      },
+    };
+  });
+  const deletionColumns: AdminCompactColumn[] = [
+    { key: "time", label: "Timestamp", sortable: true, filterKind: "date" },
+    { key: "category", label: "Категория", sortable: true, options: uniqueOptions(deletionEvents.map((row) => row.category)) },
+    { key: "action", label: "Действие", sortable: true, options: uniqueOptions(deletionEvents.map((row) => row.action)) },
+    { key: "target", label: "Цель", sortable: true, filterKind: "text" },
+    { key: "policy", label: "Policy", sortable: true, filterKind: "text" },
+    { key: "reason", label: "Причина", sortable: true, filterKind: "text" },
+  ];
+  const deletionRows = deletionEvents.map((row) => {
+    const target = `${row.targetType}${row.targetId ? ` · ${row.targetId}` : ""}`;
+    return {
+      id: row.id,
+      cells: {
+        time: { value: formatDateTime(row.occurredAt), filterValue: formatDateTime(row.occurredAt), sortValue: row.occurredAt.getTime() },
+        category: row.category,
+        action: row.action,
+        target: { value: target, title: target, filterValue: target, sortValue: target },
+        policy: { value: row.policy, title: row.policy, filterValue: row.policy, sortValue: row.policy },
+        reason: { value: row.reason, title: row.reason, filterValue: row.reason, sortValue: row.reason },
+      },
+    };
+  });
 
   return (
     <PageContainer maxWidth="full">
@@ -275,106 +349,33 @@ export default async function AdminOpsSecurityPage() {
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <AdminOpsSection title="Антифрод клиентов" actionHref="/admin/product/users" actionLabel="Открыть пользователей">
-          <CompactTableShell minWidth="900px">
-            <thead>
-              <tr>
-                <CompactHeader label="Клиент" />
-                <CompactHeader label="Скоринг" />
-                <CompactHeader label="Сигнал" />
-                <CompactHeader label="Статус" />
-                <CompactHeader label="Timestamp" />
-              </tr>
-            </thead>
-            <tbody>
-              {clientRiskRows.map((row) => (
-                <tr key={row.userId}>
-                  <td className={`${COMPACT_CELL_CLASS} min-w-[14rem]`}>
-                    <p className="truncate font-medium text-[var(--soft-ink-strong)]">{row.name}</p>
-                    <p className="truncate text-[10px] text-[var(--soft-ink-faint)]">{row.email}</p>
-                  </td>
-                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap font-semibold tabular-nums ${row.score >= 8 ? "text-red-600" : row.score >= 5 ? "text-amber-600" : "text-emerald-600"}`}>
-                    {row.score}/10
-                  </td>
-                  <td className={COMPACT_CELL_CLASS}>{row.signal}</td>
-                  <td className={COMPACT_CELL_CLASS}>{row.blocked ? "Заблокирован" : statusLabel(row.status)}</td>
-                  <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatDateTime(row.createdAt)}</td>
-                </tr>
-              ))}
-              {clientRiskRows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>
-                    Клиентов с антифрод-скорингом 5+ не найдено.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </CompactTableShell>
+          <AdminCompactDataTable
+            columns={clientRiskColumns}
+            rows={clientRiskTableRows}
+            empty="Клиентов с антифрод-скорингом 5+ не найдено."
+            minWidth="900px"
+            pageSize={20}
+          />
         </AdminOpsSection>
 
         <AdminOpsSection title="Очередь риск-действий" actionHref="/admin/product/quality" actionLabel="Открыть антифрод">
-          <CompactTableShell minWidth="980px">
-              <colgroup>
-                <col className="w-[11rem]" />
-                <col className="w-[11rem]" />
-                <col className="w-[12rem]" />
-                <col className="w-[12rem]" />
-                <col className="w-[8rem]" />
-                <col />
-              </colgroup>
-              <thead>
-                <tr>
-                  <CompactHeader label="Timestamp" />
-                  <CompactHeader label="Действие" />
-                  <CompactHeader label="Администратор" />
-                  <CompactHeader label="Цель" />
-                  <CompactHeader label="IP" />
-                  <CompactHeader label="Детали" />
-                </tr>
-              </thead>
-              <tbody>
-                {recentRiskActions.map((row) => (
-                  <tr key={row.id}>
-                    <td className={COMPACT_CELL_CLASS}>{formatDateTime(row.createdAt)}</td>
-                    <td className={COMPACT_CELL_CLASS}>
-                      <span className="soft-admin-status-pill" data-tone={actionTone(row.action)}>
-                        {actionLabel(row.action)}
-                      </span>
-                      <p className="mt-1 break-all text-[10px] text-[var(--soft-ink-faint)]">{row.action}</p>
-                    </td>
-                    <td className={`${COMPACT_CELL_CLASS} break-all font-mono text-[10px]`}>{row.userId}</td>
-                    <td className={`${COMPACT_CELL_CLASS} break-all font-mono text-[10px]`}>{row.targetId ?? "—"}</td>
-                    <td className={`${COMPACT_CELL_CLASS} break-all`}>{row.ip ?? "—"}</td>
-                    <td className={`${COMPACT_CELL_CLASS} align-top`}><AuditDetails details={row.details} /></td>
-                  </tr>
-                ))}
-                {recentRiskActions.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>
-                      Риск-действий в audit_logs не найдено.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-          </CompactTableShell>
+          <AdminCompactDataTable
+            columns={riskActionColumns}
+            rows={riskActionTableRows}
+            empty="Риск-действий в audit_logs не найдено."
+            minWidth="1180px"
+            pageSize={20}
+          />
         </AdminOpsSection>
 
         <AdminOpsSection title="Retention и удаления" actionHref="/admin/ops/logs" actionLabel="Журнал">
-          <div className="space-y-3">
-            {deletionEvents.map((row) => (
-              <div key={row.id} className="rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold">{row.category} · {row.action}</p>
-                  <span className="text-xs text-[var(--soft-ink-soft)]">{formatDateTime(row.occurredAt)}</span>
-                </div>
-                <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{row.targetType} {row.targetId ?? ""}</p>
-                <p className="mt-2 text-xs">{row.policy}</p>
-                <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{row.reason}</p>
-              </div>
-            ))}
-            {deletionEvents.length === 0 && (
-              <p className="text-sm text-[var(--soft-ink-soft)]">Событий retention/deletion пока нет.</p>
-            )}
-          </div>
+          <AdminCompactDataTable
+            columns={deletionColumns}
+            rows={deletionRows}
+            empty="Событий retention/deletion пока нет."
+            minWidth="1180px"
+            pageSize={20}
+          />
         </AdminOpsSection>
 
         <AdminOpsSection title="Контуры контроля">

@@ -60,17 +60,21 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(aiCost).toContain("getAIUsageDetailsForRange");
     expect(aiCost).toContain("listAdminAIInteractions");
     expect(aiCost).toContain("usageDetails");
-    expect(aiCost).toContain("CompactTableShell");
+    expect(aiCost).toContain("AdminCompactDataTable");
+    expect(aiCost).toContain("modelDetailColumns");
+    expect(aiCost).toContain("interactionColumns");
     expect(aiCost).not.toContain("soft-admin-table min-w");
   });
 
   it("keeps ops security audit rows compact and human-readable", () => {
     const security = source("src/app/admin/ops/security/page.tsx");
 
-    expect(security).toContain("CompactTableShell");
-    expect(security).toContain("CompactHeader");
-    expect(security).toContain("<details");
-    expect(security).toContain("Показать детали");
+    expect(security).toContain("AdminCompactDataTable");
+    expect(security).toContain("clientRiskColumns");
+    expect(security).toContain("riskActionColumns");
+    expect(security).toContain("formatAuditDetailsText");
+    expect(security).not.toContain("<details");
+    expect(security).not.toContain("Показать детали");
     expect(security).not.toContain("flex max-w-[34rem] flex-wrap");
   });
 

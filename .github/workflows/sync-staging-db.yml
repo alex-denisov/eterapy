@@ -3,7 +3,7 @@ name: Sync Staging DB from Production
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '0 * * * *'
 
 concurrency:
   group: sync-staging-db-from-production

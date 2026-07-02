@@ -8,11 +8,11 @@ import { getAIControlCenterData } from "@/lib/ai-gateway/admin-config";
 import { listAdminAIInteractions } from "@/lib/ai-gateway/interactions";
 import { getAIUsageDetailsForRange } from "@/lib/ai-gateway/usage";
 import { getUserPermissions } from "@/lib/moderator-permissions";
-import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { PageContainer } from "@/components/ui/page-container";
 import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
-import { PeriodToolbar, StatusBadge } from "../../admin-analytics-ui";
+import { PeriodToolbar, statusLabel } from "../../admin-analytics-ui";
 import { productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber, formatPercent } from "../ops-ui";
 
@@ -38,6 +38,18 @@ function statusTone(value: number) {
   if (value >= 10) return "danger" as const;
   if (value > 0) return "warn" as const;
   return "ok" as const;
+}
+
+function rowStatusTone(status: string) {
+  if (/SUCCESS|OK|COMPLETED/i.test(status)) return "ok" as const;
+  if (/ERROR|FAIL|TIMEOUT|CANCEL/i.test(status)) return "danger" as const;
+  return "warn" as const;
+}
+
+function uniqueOptions(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((value) => ({ value, label: value }));
 }
 
 export default async function AdminOpsAICostPage(props: {
@@ -104,6 +116,74 @@ export default async function AdminOpsAICostPage(props: {
   const maxFeatureCost = Math.max(...byFeature.map((row) => row.cost), 1);
   const maxProviderCost = Math.max(...byProvider.map((row) => row.cost), 1);
   const recentInteractions = interactions.slice(0, 12);
+  const modelDetailColumns: AdminCompactColumn[] = [
+    { key: "product", label: "Продукт", sortable: true, options: uniqueOptions(usageDetails.map((row) => featureTitle(row.feature))) },
+    { key: "provider", label: "Провайдер", sortable: true, options: uniqueOptions(usageDetails.map((row) => row.provider)) },
+    { key: "model", label: "Модель", sortable: true, filterKind: "text" },
+    { key: "status", label: "Статус", sortable: true, options: uniqueOptions(usageDetails.map((row) => statusLabel(row.status))) },
+    { key: "requests", label: "Запросы", sortable: true, filterKind: "text", align: "right" },
+    { key: "tokens", label: "Токены", sortable: true, filterKind: "text", align: "right" },
+    { key: "cost", label: "Стоимость", sortable: true, filterKind: "text", align: "right" },
+    { key: "latency", label: "Время ответа", sortable: true, filterKind: "text", align: "right" },
+  ];
+  const modelDetailRows = usageDetails.map((row) => {
+    const product = featureTitle(row.feature);
+    const status = statusLabel(row.status);
+    return {
+      id: `${row.feature}-${row.provider}-${row.model}-${row.status}`,
+      cells: {
+        product: { value: product, filterValue: `${product} ${row.feature}`, sortValue: product },
+        provider: row.provider,
+        model: row.model,
+        status: { kind: "status" as const, label: status, tone: rowStatusTone(row.status), filterValue: status, sortValue: status },
+        requests: { value: formatNumber(row.requestCount), filterValue: String(row.requestCount), sortValue: row.requestCount },
+        tokens: { value: formatNumber(row.totalTokens), filterValue: String(row.totalTokens), sortValue: row.totalTokens },
+        cost: {
+          value: formatAdminAiCost(row.costMicros, currencyRates, currency),
+          filterValue: String(row.costMicros),
+          sortValue: row.costMicros,
+        },
+        latency: {
+          value: row.avgLatencyMs ? `${formatNumber(Math.round(row.avgLatencyMs))} ms` : "—",
+          filterValue: row.avgLatencyMs ? String(Math.round(row.avgLatencyMs)) : "",
+          sortValue: row.avgLatencyMs ?? 0,
+        },
+      },
+    };
+  });
+  const interactionColumns: AdminCompactColumn[] = [
+    { key: "time", label: "Время", sortable: true, filterKind: "date" },
+    { key: "product", label: "Продукт", sortable: true, options: uniqueOptions(recentInteractions.map((row) => featureTitle(row.feature))) },
+    { key: "user", label: "Пользователь", sortable: true, filterKind: "text" },
+    { key: "provider", label: "Провайдер", sortable: true, options: uniqueOptions(recentInteractions.map((row) => row.responseProvider ?? "—")) },
+    { key: "model", label: "Модель", sortable: true, filterKind: "text" },
+    { key: "status", label: "Статус", sortable: true, options: uniqueOptions(recentInteractions.map((row) => statusLabel(row.status))) },
+    { key: "tokens", label: "Токены", sortable: true, filterKind: "text", align: "right" },
+    { key: "cost", label: "Стоимость", sortable: true, filterKind: "text", align: "right" },
+  ];
+  const interactionRows = recentInteractions.map((row) => {
+    const product = featureTitle(row.feature);
+    const status = statusLabel(row.status);
+    const time = formatDateTime(row.createdAt);
+    const user = row.userLabel ?? row.userId ?? "—";
+    return {
+      id: row.id,
+      cells: {
+        time: { value: time, filterValue: time, sortValue: new Date(row.createdAt).getTime() },
+        product: { value: product, filterValue: `${product} ${row.feature}`, sortValue: product },
+        user: { value: user, title: user, filterValue: user, sortValue: user },
+        provider: row.responseProvider ?? "—",
+        model: row.responseModel ?? "—",
+        status: { kind: "status" as const, label: status, tone: rowStatusTone(row.status), filterValue: status, sortValue: status },
+        tokens: { value: formatNumber(row.totalTokens), filterValue: String(row.totalTokens), sortValue: row.totalTokens },
+        cost: {
+          value: formatAdminAiCost(row.estimatedCostMicros, currencyRates, currency),
+          filterValue: String(row.estimatedCostMicros),
+          sortValue: row.estimatedCostMicros,
+        },
+      },
+    };
+  });
 
   return (
     <PageContainer maxWidth="full">
@@ -178,78 +258,24 @@ export default async function AdminOpsAICostPage(props: {
 
       <div className="mt-4 grid gap-4">
       <AdminOpsSection title="Детализация по моделям" actionHref="/admin/ops/ai" actionLabel="Стоимость моделей">
-        <CompactTableShell minWidth="980px">
-            <thead>
-              <tr>
-                <CompactHeader label="Продукт" />
-                <CompactHeader label="Провайдер" />
-                <CompactHeader label="Модель" />
-                <CompactHeader label="Статус" />
-                <CompactHeader label="Запросы" />
-                <CompactHeader label="Токены" />
-                <CompactHeader label="Стоимость" />
-                <CompactHeader label="Время ответа" />
-              </tr>
-            </thead>
-            <tbody>
-              {usageDetails.map((row) => (
-                <tr key={`${row.feature}-${row.provider}-${row.model}-${row.status}`}>
-                  <td className={COMPACT_CELL_CLASS}>{featureTitle(row.feature)}</td>
-                  <td className={COMPACT_CELL_CLASS}>{row.provider}</td>
-                  <td className={COMPACT_CELL_CLASS}>{row.model}</td>
-                  <td className={COMPACT_CELL_CLASS}><StatusBadge status={row.status} /></td>
-                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatNumber(row.requestCount)}</td>
-                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatNumber(row.totalTokens)}</td>
-                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatAdminAiCost(row.costMicros, currencyRates, currency)}</td>
-                  <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{row.avgLatencyMs ? `${formatNumber(Math.round(row.avgLatencyMs))} ms` : "—"}</td>
-                </tr>
-              ))}
-              {usageDetails.length === 0 && (
-                <tr>
-                  <td colSpan={8} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>Нет AI-запросов за выбранный период.</td>
-                </tr>
-              )}
-            </tbody>
-        </CompactTableShell>
+        <AdminCompactDataTable
+          columns={modelDetailColumns}
+          rows={modelDetailRows}
+          empty="Нет AI-запросов за выбранный период."
+          minWidth="1180px"
+          pageSize={20}
+        />
       </AdminOpsSection>
 
       {role === "SUPERADMIN" && (
         <AdminOpsSection title="Аудит пользовательских LLM-диалогов" actionHref="/admin/ops/ai" actionLabel="Полный аудит">
-          <CompactTableShell minWidth="980px">
-              <thead>
-                <tr>
-                  <CompactHeader label="Время" />
-                  <CompactHeader label="Продукт" />
-                  <CompactHeader label="Пользователь" />
-                  <CompactHeader label="Провайдер" />
-                  <CompactHeader label="Модель" />
-                  <CompactHeader label="Статус" />
-                  <CompactHeader label="Токены" />
-                  <CompactHeader label="Стоимость" />
-                </tr>
-              </thead>
-              <tbody>
-                {recentInteractions.map((row) => (
-                  <tr key={row.id}>
-                    <td className={COMPACT_CELL_CLASS}>{formatDateTime(row.createdAt)}</td>
-                    <td className={COMPACT_CELL_CLASS}>{featureTitle(row.feature)}</td>
-                    <td className={`${COMPACT_CELL_CLASS} max-w-[18rem] break-words`}>{row.userLabel ?? row.userId ?? "—"}</td>
-                    <td className={COMPACT_CELL_CLASS}>{row.responseProvider ?? "—"}</td>
-                    <td className={COMPACT_CELL_CLASS}>{row.responseModel ?? "—"}</td>
-                    <td className={COMPACT_CELL_CLASS}><StatusBadge status={row.status} /></td>
-                    <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatNumber(row.totalTokens)}</td>
-                    <td className={`${COMPACT_CELL_CLASS} tabular-nums`}>{formatAdminAiCost(row.estimatedCostMicros, currencyRates, currency)}</td>
-                  </tr>
-                ))}
-                {recentInteractions.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className={`${COMPACT_CELL_CLASS} py-6 text-center text-sm text-[var(--soft-ink-soft)]`}>
-                      Аудит диалогов пуст или скрыт настройками доступа.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-          </CompactTableShell>
+          <AdminCompactDataTable
+            columns={interactionColumns}
+            rows={interactionRows}
+            empty="Аудит диалогов пуст или скрыт настройками доступа."
+            minWidth="1180px"
+            pageSize={20}
+          />
         </AdminOpsSection>
       )}
       </div>
