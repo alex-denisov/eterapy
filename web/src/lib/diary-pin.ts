@@ -10,6 +10,27 @@ export const DIARY_PIN_INACTIVITY_MS = 15 * 60 * 1000;
 export const DIARY_PIN_STORAGE_KEY = "eterapy.diary.pin.v1";
 export const DIARY_PIN_UNLOCK_KEY = "eterapy.diary.unlockedAt.v1";
 
+// B464 round-4 #8: the sidebar lock mirrors the PIN state live. Every surface
+// that sets or removes the PIN dispatches this window event after writing
+// localStorage (the native `storage` event only fires in OTHER tabs).
+export const DIARY_PIN_CHANGED_EVENT = "eterapy:diary-pin-changed";
+
+export function notifyDiaryPinChanged(): void {
+  try {
+    window.dispatchEvent(new Event(DIARY_PIN_CHANGED_EVENT));
+  } catch {
+    /* non-browser or CustomEvent unavailable — sidebar just reads on next mount */
+  }
+}
+
+export function hasDiaryPinStored(): boolean {
+  try {
+    return Boolean(localStorage.getItem(DIARY_PIN_STORAGE_KEY));
+  } catch {
+    return false;
+  }
+}
+
 export type DiaryPinRecord = {
   saltHex: string;
   hashHex: string;

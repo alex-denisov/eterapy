@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
+import { appUrl, adminUrl, getSubdomain, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { formatPoints } from "@/lib/points";
 import { BALANCE_CHANGED_EVENT } from "@/lib/balance-events";
 import { NotificationBell } from "@/components/notification-bell";
@@ -434,9 +434,14 @@ export function Header() {
   // Скрываем header на странице видеосессии
   if (mounted && livePathname.startsWith("/session")) return null;
 
+  // B464 round-4 #1: resolve the host against the CONFIGURED domains
+  // (NEXT_PUBLIC_APP_DOMAIN / NEXT_PUBLIC_ADMIN_DOMAIN) instead of a
+  // "app."/"admin." prefix — `staging.app.eterapy.com` fails the prefix
+  // check, which stripped the cabinet bridge on staging.
+  const subdomain = mounted ? getSubdomain(hostname) : "main";
   const isAdminArea = pathname.startsWith("/admin");
   const isSessionArea = pathname.startsWith("/session");
-  const isAdminHost = mounted && hostname.startsWith("admin.");
+  const isAdminHost = subdomain === "admin";
 
   // B305: header is now visible on admin too — user wanted consistency
   // across all cabinets (client, practitioner, admin). Only hide it on
@@ -445,7 +450,7 @@ export function Header() {
 
   if (shouldHideHeader) return null;
 
-  const isAppHost = mounted && hostname.startsWith("app.");
+  const isAppHost = subdomain === "app";
   // N7: /help on eterapy.com is a PUBLIC page — it must keep the landing nav
   // menu like every other non-cabinet surface. (It used to be bucketed as an
   // "app area", which stripped its navigation.) The cabinet/app/admin hosts

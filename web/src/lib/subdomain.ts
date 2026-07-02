@@ -7,6 +7,11 @@ export const USE_SUBDOMAINS =
 export const PROTOCOL = "https://";
 const APP_PATHS = ["/cabinet"];
 const ADMIN_PATHS = ["/admin"];
+// Cabinet-only routes reachable on the app subdomain without the /cabinet
+// prefix. ⚠ Never add a path that ALSO exists on the main domain (e.g.
+// /modalities, /practitioners) — toCabinetPathname() is host-agnostic, so an
+// overlapping path would misclassify the public page as an app area and strip
+// its landing nav (B464 round-4 #1).
 const APP_VISIBLE_PATHS = [
   "/diary",
   "/questions",
@@ -17,6 +22,10 @@ const APP_VISIBLE_PATHS = [
   "/billing",
   "/settings",
   "/practitioner",
+  "/invite",
+  "/support",
+  "/chat",
+  "/results",
 ];
 
 function normalizePath(pathname: string): string {
