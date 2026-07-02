@@ -10,6 +10,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  COMPLAINT_DESCRIPTION_MAX,
+  COMPLAINT_DESCRIPTION_MIN,
+  complaintValidationError,
+} from "@/lib/session-feedback";
 
 const REASONS = [
   { value: "PRACTITIONER_NO_SHOW", label: "Практик не явился на сессию" },
@@ -30,13 +35,17 @@ interface Props {
 }
 
 export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitted, open }: Props) {
+  // B464 round-4 #15: the reason is a compact select with NO pre-picked value —
+  // the previous radio list pushed the modal past the viewport.
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit() {
-    if (!reason) { toast.error("Выберите причину жалобы"); return; }
-    if (description.trim().length < 20) { toast.error("Опишите ситуацию подробнее (минимум 20 символов)"); return; }
+    const validationError = complaintValidationError(reason, description);
+    if (validationError) { setError(validationError); return; }
+    setError(null);
 
     setSubmitting(true);
     try {
@@ -59,72 +68,80 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="max-w-lg" showCloseButton={false} data-testid="support-complaint-flow">
+      <DialogContent className="max-w-md" showCloseButton={false} data-testid="support-complaint-flow">
         <DialogHeader>
           <DialogTitle>Подать жалобу</DialogTitle>
           <DialogDescription>
-            Сессия с {practitionerName}. Мы сохраним обращение как support-case и покажем статус в админской очереди.
+            Сессия с {practitionerName}. Обращение попадёт в очередь модерации.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
-          {/* Причина */}
+        <div className="space-y-4">
+          {/* Причина — select, без выбранного по умолчанию значения */}
           <div>
-            <label className="text-sm font-medium mb-3 block">Причина жалобы *</label>
-            <div className="space-y-2">
+            <label htmlFor="complaint-reason" className="mb-1.5 block text-sm font-medium">Причина жалобы *</label>
+            <select
+              id="complaint-reason"
+              value={reason}
+              onChange={(e) => { setReason(e.target.value); setError(null); }}
+              className="soft-input w-full text-sm"
+              data-testid="complaint-reason-select"
+            >
+              <option value="" disabled>Выберите причину</option>
               {REASONS.map((r) => (
-                <label key={r.value} className={`flex cursor-pointer items-center gap-3 rounded-[var(--radius-control)] border px-4 py-3 transition-colors ${
-                  reason === r.value ? "border-brand-soft-gold/45 bg-brand-soft-gold/10" : "border-border/20 hover:border-brand-soft-gold/30"
-                }`}>
-                  <input
-                    type="radio"
-                    name="complaint-reason"
-                    value={r.value}
-                    checked={reason === r.value}
-                    onChange={() => setReason(r.value)}
-                    className="accent-[var(--brand-warm-gold)]"
-                  />
-                  <span className="text-sm">{r.label}</span>
-                </label>
+                <option key={r.value} value={r.value}>{r.label}</option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Описание */}
           <div>
-            <label htmlFor="complaint-desc" className="text-sm font-medium mb-1.5 block">Опишите ситуацию *</label>
+            <label htmlFor="complaint-desc" className="mb-1.5 block text-sm font-medium">Опишите ситуацию *</label>
             <textarea
               id="complaint-desc"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => { setDescription(e.target.value.slice(0, COMPLAINT_DESCRIPTION_MAX)); setError(null); }}
               placeholder="Что именно произошло? Чем больше деталей, тем быстрее мы разберёмся..."
-              className="premium-input h-28 w-full resize-none px-3 py-2.5 text-sm"
+              maxLength={COMPLAINT_DESCRIPTION_MAX}
+              className="soft-input h-24 w-full resize-none text-sm"
+              data-testid="complaint-desc-input"
             />
-            <p className="text-xs text-muted-foreground/50 mt-1">{description.length} / минимум 20 символов</p>
+            <p className="mt-1 flex justify-between text-[11px] text-[var(--soft-ink-faint)]">
+              <span>минимум {COMPLAINT_DESCRIPTION_MIN} символов</span>
+              <span>{description.length} / {COMPLAINT_DESCRIPTION_MAX}</span>
+            </p>
           </div>
 
-          {/* Предупреждение */}
-          <div className="soft-card-flat px-4 py-3 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+          {error && (
+            <p className="text-sm text-[var(--soft-bordeaux)]" role="alert" data-testid="complaint-error">{error}</p>
+          )}
+
+          {/* Что дальше */}
+          <div className="rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-deep)]/50 px-4 py-3 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
             <p className="font-medium text-[var(--soft-bordeaux)]">Что произойдёт дальше</p>
             <p className="mt-1">
-              Жалоба попадает в очередь модерации, выплата по спорной встрече может быть временно удержана, а возврат решается после проверки.
-              Если есть риск для безопасности, напишите напрямую на support@eterapy.com или звоните в экстренные службы.
+              Жалоба уходит модератору; выплата по спорной встрече может быть удержана до решения.
+              Первичный ответ — до 24 часов. Если есть риск для безопасности — support@eterapy.com или экстренные службы.
             </p>
-            <p className="mt-2 text-[var(--soft-ink-faint)]">Стандартная эскалация: первичный ответ до 24 часов.</p>
           </div>
         </div>
 
         <DialogFooter>
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 rounded-full border border-border/40 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="soft-button soft-button-ghost"
+            style={{ minHeight: "2.5rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
           >
             Отмена
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="flex-1 rounded-full bg-[linear-gradient(180deg,#ef7777,#be3b3b)] py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(190,59,59,0.22)] transition-[filter,transform] hover:brightness-105 active:scale-[0.96] disabled:opacity-50"
+            className="soft-button soft-button-primary flex-1 justify-center"
+            style={{ minHeight: "2.5rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+            data-testid="complaint-submit"
           >
             {submitting ? "Отправка..." : "Подать жалобу"}
           </button>

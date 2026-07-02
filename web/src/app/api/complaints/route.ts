@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
+import { complaintValidationError } from "@/lib/session-feedback";
 import { Resend } from "resend";
 import { logFraudEvent } from "@/lib/antifraud";
 import {
@@ -35,8 +36,13 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { bookingId, reason, description } = await req.json();
-  if (!bookingId || !reason || !description?.trim()) {
+  if (!bookingId) {
     return NextResponse.json({ error: "Заполните все поля" }, { status: 400 });
+  }
+  // B464 round-4 #15: shared client/server rules — reason required, 20–1000 chars.
+  const validationError = complaintValidationError(reason, description);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   // Проверяем что бронирование принадлежит этому клиенту

@@ -53,6 +53,53 @@ describe("R1 item 8 — sidebar diary lock", () => {
   });
 });
 
+// ── R2 · item 15 — dialogs are Soft Clarity by default; review/complaint rules ──
+describe("R2 item 15 — dialog theme + feedback validation", () => {
+  it("ui/dialog defaults to the light Soft Clarity surface (dark theme retired)", () => {
+    const dialog = read("components/ui/dialog.tsx");
+    expect(dialog).not.toContain("bg-popover");
+    expect(dialog).not.toContain("brand-midnight");
+    expect(dialog).not.toContain("brand-warm-gold");
+    expect(dialog).toContain("--soft-paper-card");
+    expect(dialog).toContain("--soft-bordeaux");
+  });
+
+  it("review comment is required at ≤3★ and capped, shared client+server", async () => {
+    const { reviewValidationError, reviewCommentRequired, REVIEW_TEXT_MAX } = await import("@/lib/session-feedback");
+    expect(reviewCommentRequired(3)).toBe(true);
+    expect(reviewCommentRequired(4)).toBe(false);
+    expect(reviewValidationError(0, "")).toMatch(/оценку/i);
+    expect(reviewValidationError(2, "")).toMatch(/что пошло не так/);
+    expect(reviewValidationError(2, "коротко")).toMatch(/что пошло не так/);
+    expect(reviewValidationError(2, "достаточно подробный комментарий")).toBeNull();
+    expect(reviewValidationError(5, "")).toBeNull();
+    expect(reviewValidationError(5, "а".repeat(REVIEW_TEXT_MAX + 1))).toMatch(/до 800/);
+    const api = read("app/api/reviews/route.ts");
+    expect(api).toContain("reviewValidationError");
+  });
+
+  it("complaint requires a reason, 20–1000 chars, shared client+server", async () => {
+    const { complaintValidationError, COMPLAINT_DESCRIPTION_MAX } = await import("@/lib/session-feedback");
+    expect(complaintValidationError("", "какое-то длинное описание ситуации")).toMatch(/причину/);
+    expect(complaintValidationError("OTHER", "мало")).toMatch(/минимум 20/);
+    expect(complaintValidationError("OTHER", "б".repeat(COMPLAINT_DESCRIPTION_MAX + 1))).toMatch(/до 1000/);
+    expect(complaintValidationError("OTHER", "нормальное подробное описание ситуации")).toBeNull();
+    const api = read("app/api/complaints/route.ts");
+    expect(api).toContain("complaintValidationError");
+  });
+
+  it("complaint reasons are a select with no pre-picked value; old theme classes gone", () => {
+    const complaint = read("components/complaint-modal.tsx");
+    expect(complaint).toContain("<select");
+    expect(complaint).toContain('value=""');
+    expect(complaint).not.toContain("premium-input");
+    expect(complaint).not.toContain("brand-soft-gold");
+    const review = read("components/review-modal.tsx");
+    expect(review).not.toContain("text-navy");
+    expect(review).toContain("REVIEW_TEXT_MAX");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {

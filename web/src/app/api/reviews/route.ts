@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logFraudEvent } from "@/lib/antifraud";
 import { assessReviewRisk, PRACTITIONER_HIGH_RISK_SCORE } from "@/lib/practitioner-antifraud";
+import { reviewValidationError } from "@/lib/session-feedback";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -10,8 +11,14 @@ export async function POST(req: NextRequest) {
 
   const { bookingId, rating, text } = await req.json();
 
-  if (!bookingId || !rating || rating < 1 || rating > 5) {
-    return NextResponse.json({ error: "bookingId и rating (1-5) обязательны" }, { status: 400 });
+  if (!bookingId) {
+    return NextResponse.json({ error: "bookingId обязателен" }, { status: 400 });
+  }
+  // B464 round-4 #15: same rules as the modal — a 1–3★ rating must carry a
+  // comment, and the comment is capped. Shared via lib/session-feedback.
+  const validationError = reviewValidationError(rating, text);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   // Проверяем что бронирование завершено и принадлежит этому клиенту
