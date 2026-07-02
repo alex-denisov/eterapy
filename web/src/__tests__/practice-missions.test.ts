@@ -35,7 +35,8 @@ describe("B203 Practice and missions", () => {
     expect(dashboard).toContain("getClarityCreditBalance");
     expect(dashboard).toContain("<DailyPracticeActions");
     expect(dashboard).toContain('data-testid="client-dashboard-balance"');
-    expect(dashboard).toContain("Баланс:");
+    // B464 IB1: balance reframed as *spendable* («N баллов · на что потратить»).
+    expect(dashboard).toContain("на что потратить");
     expect(actions).toContain('action: "complete"');
     expect(actions).toContain("+1 балл");
   });

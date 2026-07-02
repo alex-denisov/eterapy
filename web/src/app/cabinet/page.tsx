@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, Leaf } from "lucide-react";
+import { CheckCircle2, Sparkles, Gift, ArrowRight, LifeBuoy } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import db from "@/lib/db";
@@ -13,20 +13,11 @@ import { listMissionChecklist } from "@/lib/missions";
 import { getPracticeStreakSnapshot, STREAK_REWARDS } from "@/lib/streaks";
 import { practiceWeekDays, startOfPracticeWeek, WEEKLY_SUMMARY_PRODUCT_KEY } from "@/lib/weekly-summary";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
-import { dialogueTopicLabelRu, dialogueStatusLabelRu } from "@/lib/dialogue-router";
+import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
 import { recommendForDiary, topObservation } from "@/lib/diary-recommendation";
+import { getReferralStats } from "@/lib/referral-stats";
 import { adminUrl, appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { log, serializeError } from "@/lib/logger";
-
-// G4: proper Russian pluralisation for "разбор" so the "текущая тема" card
-// reads naturally for 1 / 2–4 / 5+ / 11–14 cases (not the naive 2–4 check).
-function pluralRazbor(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "разбор";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "разбора";
-  return "разборов";
-}
 
 type RecommendedPractitioner = {
   slug: string;
@@ -35,11 +26,10 @@ type RecommendedPractitioner = {
   pricePerSession: number;
 };
 
-// G5: when the client has no upcoming booking we still want the "ближайшая
-// встреча" slot filled — with a gentle recommendation to talk to a real
-// specialist. We surface the single best-ranked ACTIVE + verified
-// practitioner (founding → reviewCount → ratingSum), and never let a DB
-// hiccup crash the cabinet: on any failure we just render nothing.
+// G5: when the client has no upcoming booking we still fill the "ближайшая
+// встреча" slot with a gentle recommendation to talk to a real specialist —
+// the single best-ranked ACTIVE + verified practitioner. A DB hiccup must
+// never crash the cabinet: on any failure we render nothing.
 async function loadRecommendedPractitioner(): Promise<RecommendedPractitioner | null> {
   try {
     const row = await db.practitioner.findFirst({
@@ -77,17 +67,15 @@ export default async function ClientCabinetPage() {
   }
   const userId = session.user.id;
 
-  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, dailyCardCount, weekCards, weeklySummary, clarityCredits, topicGroups, recommendedPractitioner, missionChecklist, practiceStreak] = await Promise.all([
+  const [recentDialogues, upcomingBooking, activeSubscription, dialogueCount, productCount, activeRoutes, dailyCardResult, weekCards, weeklySummary, clarityCredits, topicGroups, recommendedPractitioner, missionChecklist, practiceStreak, referralStats] = await Promise.all([
     db.dialogue.findMany({
       where: { userId, deletedAt: null },
       orderBy: { updatedAt: "desc" },
       take: 4,
-      select: { id: true, title: true, status: true, topic: true, updatedAt: true },
+      select: { id: true, title: true, status: true, topic: true, updatedAt: true, safetyLevel: true },
     }),
-    // B326: "ближайшая встреча" must be a real future appointment, not
-    // any past/cancelled record. The booking time lives on its TimeSlot —
-    // filter slot.startAt > now AND active statuses; order by the earliest
-    // upcoming slot.
+    // B326: "ближайшая встреча" must be a real future appointment. The booking
+    // time lives on its TimeSlot — filter slot.startAt > now AND active statuses.
     db.booking.findFirst({
       where: {
         clientId: userId,
@@ -118,8 +106,7 @@ export default async function ClientCabinetPage() {
       select: { id: true, title: true, status: true, currentDay: true },
     }),
     getOrCreateDailyCard(userId),
-    db.dailyCard.count({ where: { userId } }),
-    // B375: прогресс пн–вс и готовый «итог недели» для блока «Ежедневный вопрос».
+    // B375: прогресс пн–вс и готовый «итог недели» для блока «Вопрос дня».
     db.dailyCard.findMany({
       where: { userId, completedAt: { not: null }, cardDate: { gte: startOfPracticeWeek() } },
       select: { cardDate: true },
@@ -129,9 +116,8 @@ export default async function ClientCabinetPage() {
       select: { id: true },
     }),
     getClarityCreditBalance(userId),
-    // G4: count dialogues per topic across ALL history (not just the last 4),
-    // so the "текущая тема" card can show "N разборов на эту тему" instead of
-    // the misleading total "разборов за всё время".
+    // Count dialogues per topic across ALL history so the service-nudge can key
+    // off the dominant theme.
     db.dialogue.groupBy({
       by: ["topic"],
       where: { userId, deletedAt: null, topic: { not: null } },
@@ -140,6 +126,7 @@ export default async function ClientCabinetPage() {
     loadRecommendedPractitioner(),
     listMissionChecklist(userId),
     getPracticeStreakSnapshot(userId),
+    getReferralStats(userId),
   ]);
 
   const firstName = session.user?.name?.split(" ")[0] ?? "пользователь";
@@ -150,17 +137,20 @@ export default async function ClientCabinetPage() {
       : getSubscriptionStatusLabel(activeSubscription.status)
     : "Базовый доступ";
 
-  // G4: the dominant theme is the topic with the most dialogues across the
-  // whole history, and `currentThemeCount` is that topic's own count — so the
-  // card no longer mixes "тема X" with the grand total of all разборы.
+  // B464: crisis-guard — if the latest разбор was flagged sensitive/crisis/blocked
+  // (lib/dialogue-safety.ts), suppress ALL monetization (offers, service-nudge,
+  // referral, subscription) and lead with calm continuity + support. Safety above
+  // monetization (doc 18 §23.3).
+  const latestSafety = recentDialogues[0]?.safetyLevel ?? null;
+  const crisisGuard = latestSafety === "sensitive" || latestSafety === "crisis" || latestSafety === "blocked";
+  const showMonetization = !crisisGuard;
+
   const sortedTopics = [...topicGroups].sort((a, b) => b._count._all - a._count._all);
   const currentTopicKey = sortedTopics[0]?.topic ?? null;
-  const currentThemeCount = sortedTopics[0]?._count._all ?? 0;
-  // B325: resolve the topic enum (English) into a Russian label for the UI.
   const currentTheme = currentTopicKey ? dialogueTopicLabelRu(currentTopicKey) : null;
 
   // B389 (M26): рекомендательный движок Дневника — одна контекстная рекомендация
-  // за раз + игровое «наблюдение» (3 записи по теме → наблюдение).
+  // (the cabinet→services bridge) + a warm, un-quoted self-noticing line.
   const diaryTopicCounts: Record<string, number> = Object.fromEntries(
     topicGroups
       .filter((group) => group.topic)
@@ -172,177 +162,343 @@ export default async function ClientCabinetPage() {
     : mainUrl(diaryRecommendation.route);
   const diaryObservation = topObservation(diaryTopicCounts);
 
+  // B464 Triage next-step: resume the active route OR the last thread (explicit
+  // state, never a vague «продолжить» that dead-ends at a free checkin).
+  const lastDialogue = recentDialogues[0];
   const nextAction = activeRoutes[0]
-    ? { href: appUrl("/wallet"), label: `Продолжить ${activeRoutes[0].title}`, hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "пауза" : "активен"}` }
-    : recentDialogues[0]
-      ? { href: mainUrl(`/checkin?dialogueId=${recentDialogues[0].id}`), label: "Вернуться к последнему вопросу", hint: recentDialogues[0].status === "ANSWERED" ? "ответ уже готов" : "можно продолжить" }
-      : { href: mainUrl("/checkin"), label: "Задать первый вопрос", hint: "начните с бесплатного первичного ответа" };
+    ? {
+        href: appUrl("/wallet"),
+        eyebrow: "вы продолжаете маршрут",
+        title: activeRoutes[0].title,
+        cta: "Продолжить маршрут",
+        hint: `${activeRoutes[0].currentDay} день · ${activeRoutes[0].status === "PAUSED" ? "на паузе" : "активен"}`,
+      }
+    : lastDialogue
+      ? {
+          href: mainUrl(`/checkin?dialogueId=${lastDialogue.id}`),
+          eyebrow: currentTheme ? `вы остановились на теме «${currentTheme}»` : "вы остановились на разговоре",
+          title: lastDialogue.title,
+          cta: "Продолжить разбор",
+          hint: lastDialogue.status === "ANSWERED" ? "ответ уже готов" : "можно продолжить",
+        }
+      : {
+          href: mainUrl("/checkin"),
+          eyebrow: "с чего начать",
+          title: "Задайте первый вопрос — спокойно и своими словами",
+          cta: "Задать вопрос",
+          hint: "первичный разбор бесплатный",
+        };
 
   const dailyCard = dailyCardResult.card;
   const missionHref = (href: string) => (
     href.startsWith("/cabinet") ? appUrl(href.replace(/^\/cabinet/, "")) : mainUrl(href)
   );
 
+  // Quiet subscription offer only when the client has enough history to benefit
+  // (value before paywall) and is not already subscribed. Otherwise the card
+  // just states the current plan.
+  const subscriptionQualified = showMonetization && !activeSubscription && (dialogueCount >= 2 || productCount >= 2);
+
   return (
     <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
-      {/* v4: eyebrow "мой кабинет" + h1. B313: removed in-page "Новый разбор"
-          CTA — it duplicated the header CTA and visually crowded the H1 row. */}
-      <div className="mb-6">
-        <p className="soft-eyebrow">мой кабинет</p>
-        <h1 className="soft-h1 mt-2">
-          С возвращением, <span className="soft-italic">{firstName}</span>
-        </h1>
-      </div>
 
-      <section className="soft-card mb-4 p-5" data-testid="client-primary-action">
-        <p className="soft-eyebrow">Следующий шаг</p>
-        <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="soft-h3">{nextAction.label}</h2>
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{nextAction.hint}</p>
-          </div>
-          <Link href={nextAction.href} className="soft-button soft-button-primary shrink-0">
-            Продолжить
+      {/* ═══════ ZONE 1 · ACT — resume your thread ═══════ */}
+      <section
+        className="soft-card mb-4 p-6"
+        data-testid="client-primary-action"
+        style={{ background: "linear-gradient(155deg, var(--soft-paper-card) 0%, var(--soft-apricot) 100%)", border: "1px solid transparent" }}
+      >
+        <p className="soft-eyebrow">с возвращением</p>
+        <h1 className="soft-h1 mt-2">
+          <span className="soft-italic">{firstName}</span>, ваша работа продолжается
+        </h1>
+
+        {/* Spendable-balance pill (A3 reframed as spendable) */}
+        <div className="mt-4" data-testid="client-dashboard-balance">
+          <Link
+            href={appUrl("/wallet")}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-2 text-sm font-semibold"
+            style={{ color: "var(--soft-bordeaux)" }}
+          >
+            <Sparkles className="size-4" aria-hidden="true" />
+            {clarityCredits} {pointsWord(clarityCredits)} · на что потратить
           </Link>
         </div>
+
+        {crisisGuard ? (
+          /* Crisis-guard: calm continuity + support, no offers. */
+          <div className="mt-5 rounded-[16px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5" data-testid="client-crisis-continuity">
+            <h2 className="soft-h3">Вы можете вернуться к этому в своём темпе</h2>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+              Здесь нет спешки. Если сейчас тяжело — рядом есть живая поддержка.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link href={appUrl("/support")} className="soft-button soft-button-primary shrink-0">
+                <LifeBuoy className="size-4" aria-hidden="true" /> Поддержка
+              </Link>
+              {lastDialogue && (
+                <Link href={mainUrl(`/checkin?dialogueId=${lastDialogue.id}`)} className="soft-button soft-button-ghost shrink-0">
+                  Вернуться к разговору
+                </Link>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 rounded-[16px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
+            <p className="text-[13px]" style={{ color: "var(--soft-ink-faint)" }}>{nextAction.eyebrow}</p>
+            <p className="soft-italic mt-1.5" style={{ fontSize: 18, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>
+              {nextAction.title}
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <Link href={nextAction.href} className="soft-button soft-button-primary shrink-0">
+                {nextAction.cta} <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+              <span className="text-[13px]" style={{ color: "var(--soft-ink-faint)" }}>{nextAction.hint}</span>
+            </div>
+          </div>
+        )}
       </section>
 
-      <div
-        className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[var(--soft-paper-edge)] px-4 py-3 text-sm"
-        style={{ background: "var(--soft-paper-deep)" }}
-        data-testid="client-dashboard-balance"
-      >
-        <span className="font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
-          Баланс: {clarityCredits} {pointsWord(clarityCredits)}
-        </span>
-        <Link href={appUrl("/wallet")} className="soft-chip">
-          Открыть кошелёк →
-        </Link>
+      {/* ═══════ ZONE 2 · RESULTS + SERVICES ═══════ */}
+
+      {/* «ваши результаты» — recent 4, category inline-with-date (round-2 #3),
+          «все разборы» → /questions. */}
+      <div className="soft-card mb-4 p-5" data-testid="client-recent-questions">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <p className="soft-eyebrow">ваши результаты</p>
+          {recentDialogues.length > 0 && (
+            <Link href={appUrl("/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+              Все разборы →
+            </Link>
+          )}
+        </div>
+        {recentDialogues.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся ваши разборы.</p>
+        ) : recentDialogues.map((d, i) => (
+          <div
+            key={d.id}
+            className="flex items-center justify-between gap-3"
+            style={{ padding: "12px 0", borderTop: i > 0 ? "1px solid var(--soft-paper-edge)" : "none" }}
+          >
+            {/* min-w-0 lets a long title wrap (break-words) instead of pushing
+                «Открыть» out of the card. Category label sits inline before the
+                date (round-2 #3): «отношения · 2 июля». */}
+            <div className="min-w-0">
+              <p className="break-words" style={{ fontWeight: 500 }}>{d.title}</p>
+              <p className="mt-0.5 text-xs sm:w-[110px]" style={{ color: "var(--soft-ink-faint)" }}>
+                {dialogueTopicLabelRu(d.topic)} · {d.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+              </p>
+            </div>
+            <Link href={mainUrl(`/checkin?dialogueId=${d.id}`)} className="soft-chip shrink-0">Открыть →</Link>
+          </div>
+        ))}
       </div>
 
-      <div className="mb-4 grid gap-4 md:grid-cols-2">
+      {/* «что дальше по вашей теме» — the cabinet→services lilac bridge
+          (A12 promoted). Suppressed on crisis. */}
+      {showMonetization && (
         <div
-          className="soft-card p-5"
-          data-testid="client-map-preview"
-          style={{ background: "linear-gradient(140deg, #E8C4B8, #F4D5C8)" }}
+          className="soft-card mb-4 p-5"
+          data-testid="diary-recommendation"
+          style={{ background: "linear-gradient(155deg, #FBF8FE 0%, var(--soft-lilac-bg, #EFEAF6) 100%)", border: "1px solid rgba(168,155,201,0.28)" }}
         >
-          <p className="soft-eyebrow">текущая тема</p>
-          {currentTheme ? (
+          <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>что дальше по вашей теме</p>
+          <p className="soft-h3 mt-2 font-normal" style={{ color: "#43356E", lineHeight: 1.4 }}>
+            {diaryRecommendation.body}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link href={diaryRecommendationHref} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #A89BC9)", color: "#fff", fontSize: 13 }} data-testid="diary-recommendation-cta">
+              {diaryRecommendation.ctaLabel}
+            </Link>
+            <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost shrink-0" style={{ fontSize: 13 }}>
+              Подобрать специалиста
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* warm diary preview — self-noticing the user owns (un-quoted, no
+          «дневник заметил» surveillance framing, owner #4). Carries the map
+          preview slot → Дневник. */}
+      <div className="soft-card mb-4 flex items-center gap-4 p-5" data-testid="client-map-preview">
+        <div className="min-w-0 flex-1">
+          <p className="soft-eyebrow mb-2">ваш дневник</p>
+          <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
+            {diaryObservation
+              ? diaryObservation.text
+              : currentTheme
+                ? `В последнее время вы чаще возвращаетесь к теме «${currentTheme}» — кажется, это сейчас важно для вас.`
+                : "Здесь собираются ваши разборы и заметки — только для вас."}
+          </p>
+        </div>
+        <Link href={appUrl("/diary")} className="soft-button soft-button-ghost shrink-0">Открыть дневник</Link>
+      </div>
+
+      {/* ═══════ ZONE 3 · GROW (free) ═══════ */}
+      <div className="mb-4 grid gap-4 md:grid-cols-2">
+        {/* Daily-Q «по вашим разборам» → in-cabinet reflect (DailyPracticeActions),
+            NOT /checkin. Stays free (the retention ritual). */}
+        <section className="soft-card p-5" data-testid="client-daily-card">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="soft-eyebrow">вопрос дня · по вашим разборам</p>
+              <p className="soft-italic mt-2" style={{ fontSize: 18, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>{dailyCard.prompt}</p>
+            </div>
+            <div
+              className="grid size-12 shrink-0 place-items-center rounded-full text-sm font-semibold"
+              data-testid="client-streak-badge"
+              style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)", fontFamily: "var(--font-heading-v4, serif)" }}
+              aria-label={`Серия: ${practiceStreak.count} дней`}
+            >
+              {practiceStreak.count}
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-2" data-testid="practice-week-progress" aria-label="Прогресс недели">
+            {practiceWeekDays(weekCards.map((card) => card.cardDate)).map((day) => (
+              <span key={day.label} className="flex flex-col items-center gap-1">
+                <span
+                  className="grid size-6 place-items-center rounded-full text-[10px] font-semibold"
+                  style={{
+                    background: day.done ? "var(--soft-terracotta-dark)" : "var(--soft-paper-deep)",
+                    color: day.done ? "#FFFCF5" : "var(--soft-ink-faint)",
+                    outline: day.isToday ? "2px solid var(--soft-bordeaux)" : "none",
+                    outlineOffset: 2,
+                  }}
+                  data-done={day.done ? "1" : "0"}
+                >
+                  {day.done ? "✓" : ""}
+                </span>
+                <span className="text-[10px] text-[var(--soft-ink-faint)]">{day.label}</span>
+              </span>
+            ))}
+          </div>
+          <div className="mt-4">
+            <DailyPracticeActions completed={Boolean(dailyCard.completedAt)} />
+          </div>
+          <p className="mt-3 text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
+            записи остаются в дневнике и видны только вам · вехи: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")}
+          </p>
+          {weeklySummary && (
+            <Link href={appUrl("/diary")} className="soft-chip mt-3 inline-flex items-center gap-2" data-testid="weekly-summary-link">
+              <CheckCircle2 className="size-3.5" aria-hidden="true" />
+              Итог недели готов — открыть в Дневнике
+            </Link>
+          )}
+        </section>
+
+        {/* Referral card — warm gift framing + staged counter (owner copy locked).
+            Suppressed on crisis. Full copy/clipboard lives on /cabinet/invite. */}
+        {showMonetization ? (
+          <section
+            className="soft-card p-5"
+            data-testid="client-referral-card"
+            style={{ background: "linear-gradient(155deg, var(--soft-apricot) 0%, #F8E6D1 100%)", border: "1px solid transparent" }}
+          >
+            <p className="soft-eyebrow">подарите разбор — получите баллы</p>
+            <h2 className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>Подарите кому-то первый разбор — и пополните свой баланс</h2>
+            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-bordeaux)", opacity: 0.85 }}>
+              Когда тот, кого вы позвали, попробует разбор, баллы придут вам обоим.
+            </p>
+            <div className="mt-4 flex gap-6">
+              {[
+                { n: referralStats.invited, label: "приглашены" },
+                { n: referralStats.tried, label: "попробовали" },
+                { n: referralStats.stayed, label: "остались" },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p className="soft-italic" style={{ fontSize: 22, color: "var(--soft-bordeaux)" }}>{s.n}</p>
+                  <p className="text-[11px]" style={{ color: "var(--soft-ink-soft)" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <Link href={appUrl("/invite")} className="soft-button soft-button-primary mt-4 shrink-0">
+              <Gift className="size-4" aria-hidden="true" /> Пригласить друга
+            </Link>
+          </section>
+        ) : (
+          <section className="soft-card p-5" data-testid="client-referral-card-suppressed" style={{ background: "var(--soft-paper-deep)" }}>
+            <p className="soft-eyebrow">вы не одни</p>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+              Если сейчас непросто, можно написать в поддержку или вернуться к разбору позже.
+            </p>
+          </section>
+        )}
+      </div>
+
+      {/* Next meeting + quiet subscription. */}
+      <div className="mb-4 grid gap-4 md:grid-cols-2">
+        {upcomingBooking ? (
+          <section className="soft-card p-5" style={{ borderLeft: "3px solid var(--soft-bordeaux)" }} data-testid="client-next-meeting">
+            <p className="soft-eyebrow">ближайшая встреча</p>
+            <p className="mt-2" style={{ fontSize: 15, fontWeight: 600, color: "var(--soft-ink)" }}>{upcomingBooking.practitioner.user.name}</p>
+            <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+              {upcomingBooking.slot
+                ? `${upcomingBooking.slot.startAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, ${upcomingBooking.slot.startAt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })} · `
+                : ""}
+              {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
+            </p>
+            <Link href={appUrl("/bookings")} className="soft-button soft-button-ghost mt-4 shrink-0">К записи</Link>
+          </section>
+        ) : recommendedPractitioner && showMonetization ? (
+          <section className="soft-card p-5" data-testid="client-practitioner-suggestion">
+            <p className="soft-eyebrow">если хочется живого разговора</p>
+            <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
+              {currentTheme ? `Тема «${currentTheme}» возвращается — может, обсудить с человеком?` : "Можно обсудить ваш вопрос со специалистом"}
+            </p>
+            <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+              {recommendedPractitioner.name} · {recommendedPractitioner.title} · от {recommendedPractitioner.pricePerSession.toLocaleString("ru-RU")} ₽
+            </p>
+            <Link href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)} className="soft-button soft-button-primary mt-4 shrink-0">Записаться</Link>
+          </section>
+        ) : (
+          <section className="soft-card p-5" data-testid="client-support-card">
+            <p className="soft-eyebrow">рядом, если нужно</p>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>Живой разговор со специалистом всегда доступен — спокойно, в своём темпе.</p>
+            <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost mt-4 shrink-0">Посмотреть специалистов</Link>
+          </section>
+        )}
+
+        {/* Subscription: a quiet offer only when qualified, else the current plan. */}
+        <section className="soft-card p-5" data-testid="client-subscription-status">
+          {subscriptionQualified ? (
             <>
-              <p className="soft-h3 mt-2 font-medium" style={{ color: "var(--soft-bordeaux)" }}>
-                {currentTheme}
+              <p className="soft-eyebrow">если хотите возвращаться чаще</p>
+              <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                В подписке — больше баллов каждый месяц и расширенный дневник. Спокойно сравните, без спешки.
               </p>
-              <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-                {currentThemeCount} {pluralRazbor(currentThemeCount)} на эту тему
-              </p>
+              <Link href={appUrl("/wallet")} className="mt-3 inline-block text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+                Сравнить тарифы →
+              </Link>
             </>
           ) : (
-            <p className="soft-h3 mt-2 font-medium soft-italic" style={{ color: "var(--soft-bordeaux)" }}>
-              Начните первый разбор
-            </p>
+            <>
+              <p className="soft-eyebrow">подписка</p>
+              <p className="mt-2" style={{ fontFamily: "var(--font-heading-v4, serif)", fontSize: 22, color: "var(--soft-bordeaux)", fontWeight: 500 }}>{subscriptionLabel}</p>
+              <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
+                {subscriptionStatus}
+                {activeSubscription?.currentPeriodEnd
+                  ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
+                  : ""}
+              </p>
+              <Link href={appUrl("/wallet")} className="soft-chip mt-4 inline-block">Управлять →</Link>
+            </>
           )}
-          <Link href={appUrl("/diary")} className="soft-chip mt-4 inline-block">
-            Открыть дневник →
-          </Link>
-        </div>
-
-        <div className="soft-card p-5" data-testid="client-subscription-status">
-          <p className="soft-eyebrow">подписка</p>
-          <p
-            style={{
-              fontFamily: "var(--font-heading, serif)",
-              fontSize: 24,
-              color: "var(--soft-bordeaux)",
-              fontWeight: 500,
-              marginTop: 8,
-            }}
-          >
-            {subscriptionLabel}
-          </p>
-          <p className="mt-1 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-            {subscriptionStatus}
-            {activeSubscription?.currentPeriodEnd
-              ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
-              : ""}
-          </p>
-          <Link href={appUrl("/billing")} className="soft-chip mt-4 inline-block">
-            Управлять →
-          </Link>
-        </div>
+        </section>
       </div>
 
-      {/* v4.2: "ближайшая встреча" slot. B326: a real future appointment renders
-          as the dark bordeaux card. G5: when there is NO upcoming booking we
-          keep the slot alive with a softer recommendation card — nudging the
-          client toward a real specialist, themed around their dominant topic. */}
-      {upcomingBooking ? (
-        <div className="mb-4 rounded-[var(--soft-radius-xl)] p-5" style={{ background: "var(--soft-bordeaux)", color: "#FBF0E1" }}>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#F4D9C1", opacity: 0.7 }}>ближайшая встреча</p>
-              <p style={{ fontFamily: "var(--font-heading, serif)", fontSize: 22, color: "#FBF0E1", fontWeight: 500, marginTop: 6 }}>
-                {upcomingBooking.practitioner.user.name}
-              </p>
-              <p className="mt-1 text-[13px]" style={{ color: "#E8C4B8" }}>
-                {upcomingBooking.priceRub.toLocaleString("ru")} ₽ · {upcomingBooking.status === "CONFIRMED" ? "подтверждено" : "ожидает подтверждения"}
-              </p>
-            </div>
-            <Link href={appUrl("/bookings")} className="soft-chip shrink-0" style={{ background: "#F4D9C1", color: "var(--soft-bordeaux)" }}>
-              Все записи →
-            </Link>
-          </div>
-        </div>
-      ) : recommendedPractitioner ? (
-        <div
-          className="mb-4 rounded-[var(--soft-radius-xl)] border border-[var(--soft-paper-edge)] p-5"
-          style={{ background: "var(--soft-paper-deep)" }}
-          data-testid="client-practitioner-suggestion"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="soft-eyebrow">если хочется живого разговора</p>
-              <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
-                {currentTheme
-                  ? `Тема «${currentTheme}» возвращается — может, обсудить её с человеком?`
-                  : "Можно обсудить ваш вопрос с живым специалистом"}
-              </p>
-              <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
-                {recommendedPractitioner.name} · {recommendedPractitioner.title} · от{" "}
-                {recommendedPractitioner.pricePerSession.toLocaleString("ru-RU")} ₽
-              </p>
-            </div>
-            <Link
-              href={mainUrl(`/practitioners/${recommendedPractitioner.slug}`)}
-              className="soft-button soft-button-primary shrink-0"
-            >
-              Записаться
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
-      {/* #5: onboarding «первые шаги» lives high on the first screen, and
-          disappears once every mission reward has been granted. */}
+      {/* Time-boxed onboarding «первые шаги» — auto-hides once every reward is
+          granted; collapsed by default. */}
       {missionChecklist.completedCount < missionChecklist.totalCount && (
         <details className="soft-card mb-4 p-5" data-testid="client-first-steps" open={false}>
           <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="soft-eyebrow">первые шаги</p>
               <h2 className="soft-h3 mt-2">
-                {missionChecklist.completedCount} из {missionChecklist.totalCount} миссий пройдено
+                {missionChecklist.completedCount} из {missionChecklist.totalCount} — осталось немного
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-                Награды начисляются только за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)},
-                которые можно потратить на цифровые форматы.
+                Награды начисляются за реальные действия. Всего здесь {missionChecklist.totalRewardCredits} {pointsWord(missionChecklist.totalRewardCredits)}. Блок исчезнет, когда закончите.
               </p>
-            </div>
-            <div
-              className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--soft-paper-edge)] px-3 py-2 text-sm font-semibold"
-              data-testid="client-streak-badge"
-              style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)" }}
-            >
-              <Leaf className="size-4" aria-hidden="true" />
-              {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
             </div>
           </summary>
           <div className="mt-4 grid gap-3 md:grid-cols-5">
@@ -352,10 +508,7 @@ export default async function ClientCabinetPage() {
                 href={missionHref(mission.actionHref)}
                 className="rounded-[14px] border border-[var(--soft-paper-edge)] p-4 no-underline"
                 data-testid={`client-mission-${mission.key}`}
-                style={{
-                  background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)",
-                  color: "var(--soft-ink)",
-                }}
+                style={{ background: mission.completed ? "var(--soft-paper-deep)" : "var(--soft-paper-card)", color: "var(--soft-ink)" }}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--soft-ink-faint)" }}>
@@ -376,171 +529,6 @@ export default async function ClientCabinetPage() {
           </div>
         </details>
       )}
-
-      {/* v4: recent dialogues card — directly below stat grid. T16: показываем
-          последние 4 разбора с русскими ярлыками темы и статуса, плюс кнопка
-          «Все разборы» → история. Дублирующий блок со старым заголовком убран. */}
-      <div className="soft-card mb-4 p-5" data-testid="client-recent-questions">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <p className="soft-eyebrow">недавние разборы</p>
-          {recentDialogues.length > 0 && (
-            <Link href={appUrl("/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
-              Все разборы →
-            </Link>
-          )}
-        </div>
-        {recentDialogues.length === 0 ? (
-          <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся последние диалоги.</p>
-        ) : recentDialogues.map((d, i) => (
-          <div
-            key={d.id}
-            className="flex items-center justify-between gap-3"
-            style={{ padding: "12px 0", borderTop: i > 0 ? "1px solid var(--soft-paper-edge)" : "none" }}
-          >
-            {/* B462 §3.1: min-w-0 on the flex children lets a long title wrap
-                instead of pushing «Открыть» out of the card; the date column is
-                narrow on mobile (was a fixed 110px) and widens from sm: up. */}
-            <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-              <span
-                className="w-12 shrink-0 pt-0.5 text-[11px] sm:w-[110px] sm:text-xs"
-                style={{ color: "var(--soft-ink-faint)" }}
-              >
-                {d.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
-              </span>
-              <div className="min-w-0">
-                <p className="break-words" style={{ fontWeight: 500 }}>{d.title}</p>
-                <p style={{ fontSize: 12.5, color: "var(--soft-ink-faint)", marginTop: 2 }}>
-                  {dialogueTopicLabelRu(d.topic)} · {dialogueStatusLabelRu(d.status)}
-                </p>
-              </div>
-            </div>
-            <Link href={mainUrl(`/checkin?dialogueId=${d.id}`)} className="soft-chip shrink-0">Открыть →</Link>
-          </div>
-        ))}
-      </div>
-
-      {/* B375: «Ежедневный вопрос» — бесплатный блок дашборда с недельным
-          прогрессом пн–вс и наградами по вехам (3/7/14/30 дней). */}
-      <section className="soft-card soft-form-panel mb-4" data-testid="client-daily-card">
-        <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-          <div>
-            <p className="soft-eyebrow">Ежедневный вопрос</p>
-            <h2 className="mt-3 font-heading text-3xl font-medium" style={{ color: "var(--soft-bordeaux)" }}>{dailyCard.title}</h2>
-            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{dailyCard.body}</p>
-            <div className="mt-5 flex items-center gap-2" data-testid="practice-week-progress" aria-label="Прогресс недели">
-              {practiceWeekDays(weekCards.map((card) => card.cardDate)).map((day) => (
-                <span key={day.label} className="flex flex-col items-center gap-1">
-                  <span
-                    className="grid size-7 place-items-center rounded-full text-[11px] font-semibold"
-                    style={{
-                      background: day.done ? "var(--soft-terracotta-dark)" : "var(--soft-paper-deep)",
-                      color: day.done ? "#FFFCF5" : "var(--soft-ink-faint)",
-                      outline: day.isToday ? "2px solid var(--soft-bordeaux)" : "none",
-                      outlineOffset: 2,
-                    }}
-                    data-done={day.done ? "1" : "0"}
-                  >
-                    {day.done ? "✓" : ""}
-                  </span>
-                  <span className="text-[10px] text-[var(--soft-ink-faint)]">{day.label}</span>
-                </span>
-              ))}
-            </div>
-            <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
-              {practiceStreak.count > 0 ? `Серия: ${practiceStreak.count} дн. · ` : ""}
-              Награды по вехам: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")} баллов.
-            </p>
-            {weeklySummary && (
-              <Link
-                href={appUrl("/diary")}
-                className="soft-chip mt-3 inline-flex items-center gap-2"
-                data-testid="weekly-summary-link"
-              >
-                <CheckCircle2 className="size-3.5" aria-hidden="true" />
-                Итог недели готов — открыть в Дневнике
-              </Link>
-            )}
-          </div>
-          <div className="rounded-[16px] border border-[var(--soft-paper-edge)] p-5" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="soft-eyebrow">Вопрос для себя</p>
-            <p className="mt-3 font-heading text-2xl" style={{ color: "var(--soft-ink)" }}>{dailyCard.prompt}</p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Link
-                href={mainUrl(`/checkin?question=${encodeURIComponent(dailyCard.prompt)}`)}
-                className="soft-button soft-button-primary"
-                data-analytics-event="daily_card_question_clicked"
-                data-analytics-surface="client_dashboard"
-                data-analytics-target="daily_card_prompt"
-              >
-                Разобрать вопрос
-              </Link>
-              <a
-                href={mainUrl(`/share?from=daily-card&topic=${encodeURIComponent(dailyCard.title)}`)}
-                className="soft-button soft-button-ghost"
-                data-analytics-event="daily_card_share_clicked"
-                data-analytics-surface="client_dashboard"
-                data-analytics-target="daily_card_share"
-              >
-                Поделиться
-              </a>
-            </div>
-            <DailyPracticeActions completed={Boolean(dailyCard.completedAt)} />
-          </div>
-        </div>
-      </section>
-
-      <details className="soft-card mb-4 p-5" data-testid="client-gentle-milestones" open={false}>
-        <summary className="cursor-pointer list-none">
-          <p className="soft-eyebrow">Мягкий ритм</p>
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-            Статистика свернута, чтобы главная кабинета начиналась с действия и вопроса дня.
-          </p>
-        </summary>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{dailyCardCount}</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>карт дня открыто</p>
-          </div>
-          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{dialogueCount}</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>вопросов сохранено</p>
-          </div>
-          <div className="rounded-[12px] border border-[var(--soft-paper-edge)] p-4" style={{ background: "var(--soft-paper-deep)" }}>
-            <p className="font-heading text-3xl" style={{ color: "var(--soft-bordeaux)" }}>{productCount}</p>
-            <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>результатов в карте</p>
-          </div>
-        </div>
-        <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
-          Здесь нет штрафов, дедлайнов и давления. Ритм нужен только как напоминание,
-          что маленькие возвращения к себе тоже считаются.
-        </p>
-      </details>
-
-      {/* B389: игровое «наблюдение» Дневника — одно за раз, без перегруза. */}
-      {diaryObservation && (
-        <div className="soft-card-flat p-5" data-testid="diary-observation">
-          <p className="soft-eyebrow mb-2">дневник открыл наблюдение</p>
-          <p className="soft-h3 mt-1 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
-            {diaryObservation.text}
-          </p>
-        </div>
-      )}
-
-      {/* B389: рекомендательный движок Дневника — одна контекстная рекомендация. */}
-      <div className="soft-card-flat p-5" data-testid="diary-recommendation">
-        <p className="soft-eyebrow mb-3">{diaryRecommendation.eyebrow}</p>
-        <p className="soft-h3 mt-2 font-normal soft-italic" style={{ color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>
-          {diaryRecommendation.body}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href={diaryRecommendationHref} className="soft-button soft-button-primary" style={{ fontSize: 13 }} data-testid="diary-recommendation-cta">
-            {diaryRecommendation.ctaLabel}
-          </Link>
-          <Link href={mainUrl("/practitioners")} className="soft-button soft-button-ghost" style={{ fontSize: 13 }}>
-            Подобрать специалиста
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }
