@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AdminDisplayCurrency } from "./admin-currency";
+import { restoreAdminCurrencyPreference, saveAdminCurrencyPreference } from "./admin-navigation-preferences";
 
 const OPTIONS: Array<{ value: AdminDisplayCurrency; label: string }> = [
   { value: "RUB", label: "RUB · ₽" },
@@ -25,8 +27,24 @@ export function AdminCurrencySelector({
     if (nextCurrency === "RUB") params.delete("currency");
     else params.set("currency", nextCurrency);
     const query = params.toString();
+    saveAdminCurrencyPreference(nextCurrency);
     router.push(query ? `${basePath}?${query}` : basePath);
   }
+
+  useEffect(() => {
+    const explicit = searchParams.get("currency");
+    if (explicit === "USD" || explicit === "RUB") {
+      saveAdminCurrencyPreference(explicit);
+      return;
+    }
+    const restored = restoreAdminCurrencyPreference();
+    if (!restored || restored === currency || restored === "RUB") return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("currency", restored);
+    router.replace(`${basePath}?${params.toString()}`);
+  // The restore must run only when the selector mounts for the current page.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-xs text-[var(--soft-ink-soft)]">

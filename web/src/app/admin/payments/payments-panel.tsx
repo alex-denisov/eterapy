@@ -6,6 +6,7 @@ import { CheckCircle2, Pause, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import {
   CompactHeader,
   CompactPaginationBar,
@@ -54,6 +55,52 @@ interface PayoutRun {
   totalDisbursedKopecks: number;
   totalReserveKopecks: number;
   completedAt: string | null;
+}
+
+const payoutRunColumns: AdminCompactColumn[] = [
+  { key: "scheduledFor", label: "Дата", sortable: true, filterKind: "date" },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "PENDING", label: "Ожидает" },
+      { value: "RUNNING", label: "В работе" },
+      { value: "DONE", label: "Завершена" },
+      { value: "FAILED", label: "Ошибка" },
+    ],
+  },
+  { key: "candidateCount", label: "Кандидаты", sortable: true, align: "right" },
+  { key: "processingCount", label: "В обработке", sortable: true, align: "right" },
+  { key: "heldCount", label: "Удержано", sortable: true, align: "right" },
+  { key: "totalDisbursed", label: "К выплате", sortable: true, align: "right" },
+  { key: "totalReserve", label: "Резерв", sortable: true, align: "right" },
+];
+
+function payoutRunStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    PENDING: "Ожидает",
+    RUNNING: "В работе",
+    DONE: "Завершена",
+    FAILED: "Ошибка",
+  };
+  return labels[status] ?? status;
+}
+
+function payoutRunTone(status: string) {
+  if (status === "DONE") return "ok" as const;
+  if (status === "FAILED") return "danger" as const;
+  if (status === "PENDING" || status === "RUNNING") return "warn" as const;
+  return "neutral" as const;
+}
+
+function formatAdminDateTime(value: string | null) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("ru-RU", {
+    dateStyle: "short",
+    timeStyle: "medium",
+  }).format(new Date(value));
 }
 
 export function PaymentsPanel({
@@ -228,35 +275,38 @@ export function PaymentsPanel({
             {runProcessing ? "Запуск..." : "Запустить авто-выплаты"}
           </button>
         </div>
-        <CompactTableShell minWidth="760px">
-            <thead>
-              <tr>
-                <CompactHeader label="Дата" />
-                <CompactHeader label="Статус" />
-                <CompactHeader label="Кандидаты" />
-                <CompactHeader label="В обработке" />
-                <CompactHeader label="Удержано" />
-                <CompactHeader label="К выплате" />
-                <CompactHeader label="Резерв" />
-              </tr>
-            </thead>
-            <tbody>
-              {payoutRuns.map((run) => (
-                <tr key={run.id}>
-                  <td className={COMPACT_CELL_CLASS}>{new Date(run.scheduledFor).toLocaleDateString("ru-RU")}</td>
-                  <td className={COMPACT_CELL_CLASS}><Badge variant="outline">{run.status}</Badge></td>
-                  <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{run.candidateCount}</td>
-                  <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{run.processingCount}</td>
-                  <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{run.heldCount}</td>
-                  <td className={`${COMPACT_CELL_CLASS} text-right font-semibold tabular-nums`}>{formatMoney(Math.round(run.totalDisbursedKopecks / 100))}</td>
-                  <td className={`${COMPACT_CELL_CLASS} text-right text-muted-foreground tabular-nums`}>{formatMoney(Math.round(run.totalReserveKopecks / 100))}</td>
-                </tr>
-              ))}
-              {payoutRuns.length === 0 && (
-                <tr><td colSpan={7} className={`${COMPACT_CELL_CLASS} py-8 text-center text-sm text-muted-foreground`}>Авто-выплаты ещё не запускались</td></tr>
-              )}
-            </tbody>
-        </CompactTableShell>
+        <AdminCompactDataTable
+          columns={payoutRunColumns}
+          rows={payoutRuns.map((run) => ({
+            id: run.id,
+            cells: {
+              scheduledFor: {
+                value: formatAdminDateTime(run.scheduledFor),
+                sortValue: new Date(run.scheduledFor).getTime(),
+                filterValue: formatAdminDateTime(run.scheduledFor),
+              },
+              status: {
+                kind: "status",
+                label: payoutRunStatusLabel(run.status),
+                tone: payoutRunTone(run.status),
+                filterValue: `${run.status} ${payoutRunStatusLabel(run.status)}`,
+              },
+              candidateCount: { value: run.candidateCount, sortValue: run.candidateCount },
+              processingCount: { value: run.processingCount, sortValue: run.processingCount },
+              heldCount: { value: run.heldCount, sortValue: run.heldCount },
+              totalDisbursed: {
+                value: formatMoney(Math.round(run.totalDisbursedKopecks / 100)),
+                sortValue: run.totalDisbursedKopecks,
+              },
+              totalReserve: {
+                value: formatMoney(Math.round(run.totalReserveKopecks / 100)),
+                sortValue: run.totalReserveKopecks,
+              },
+            },
+          }))}
+          empty="Авто-выплаты ещё не запускались"
+          minWidth="980px"
+        />
       </div>
 
       <div className="flex min-h-8 items-center justify-end gap-3">

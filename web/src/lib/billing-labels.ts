@@ -27,8 +27,13 @@ export const PRODUCT_LABELS: Record<string, string> = {
   pair: "Разобраться вдвоём",
   tarot: "Расклад Таро",
   "natal-chart": "Натальная карта",
+  "family-scenarios": "Семейные сценарии",
+  "human-design": "Дизайн человека",
+  "surname-story": "История фамилии",
   synastry: "Совместимость по звёздам",
   numerology: "Числовой портрет",
+  perspectives: "Переосмысление",
+  "seven-days": "Недельное резюме",
 };
 
 // Credit-pack purchase descriptions, keyed by pack key (see lib/entitlements CREDIT_PACKS).

@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { restoreAdminPeriodPreference, saveAdminPeriodPreference } from "./admin-navigation-preferences";
 
 type ActiveField = "start" | "end" | null;
 
@@ -112,9 +113,15 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
     return params;
   }
 
+  function navigateToParams(params: URLSearchParams) {
+    const query = params.toString();
+    router.push(query ? `${basePath}?${query}` : basePath);
+  }
+
   function navigate(nextStart = startIso, nextEnd = endIso) {
     const params = buildParams(nextStart, nextEnd);
-    router.push(`${basePath}?${params.toString()}`);
+    saveAdminPeriodPreference({ start: nextStart, end: nextEnd, period: params.get("period") ?? undefined });
+    navigateToParams(params);
   }
 
   function applyPreset(period: string) {
@@ -124,8 +131,25 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
     setStartText(toRu(next.start));
     setEndText(toRu(next.end));
     setMonthIso(next.start);
-    router.push(`${basePath}?${buildParams(next.start, next.end, period).toString()}`);
+    const params = buildParams(next.start, next.end, period);
+    saveAdminPeriodPreference({ start: next.start, end: next.end, period });
+    navigateToParams(params);
   }
+
+  useEffect(() => {
+    const hasExplicitPeriod = searchParams.has("start") || searchParams.has("end") || searchParams.has("period");
+    if (hasExplicitPeriod) {
+      saveAdminPeriodPreference({ start, end, period: searchParams.get("period") ?? undefined });
+      return;
+    }
+
+    const restored = restoreAdminPeriodPreference();
+    if (!restored || restored.start === start && restored.end === end) return;
+    const params = buildParams(restored.start, restored.end, restored.period);
+    router.replace(`${basePath}?${params.toString()}`);
+  // The restore must run only when the toolbar mounts for the current page.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function commitText(field: "start" | "end", value: string) {
     const iso = fromRu(value);

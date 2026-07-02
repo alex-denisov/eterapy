@@ -26,9 +26,11 @@ export type AdminCompactColumn = {
 export type AdminCompactAction = {
   label: string;
   href?: string;
+  onClick?: () => void;
   icon?: "open" | "download" | "edit" | "delete" | "cancel" | "check";
   variant?: "default" | "primary" | "danger";
   external?: boolean;
+  disabled?: boolean;
 };
 
 export type AdminCompactCell =
@@ -424,8 +426,22 @@ function CompactCell({ cell }: { cell: AdminCompactCell | undefined }) {
     return (
       <div className="soft-admin-table-actions">
         {cell.actions.map((action) => (
-          <a
+          action.onClick ? (
+          <button
             key={`${action.label}-${action.href ?? action.icon ?? "button"}`}
+            type="button"
+            className="soft-admin-icon-button"
+            data-variant={action.variant}
+            onClick={action.onClick}
+            disabled={action.disabled}
+            title={action.label}
+            aria-label={action.label}
+          >
+            {actionIcon(action.icon)}
+          </button>
+          ) : (
+          <a
+            key={`${action.label}-${action.href ?? action.icon ?? "link"}`}
             className="soft-admin-icon-button"
             data-variant={action.variant}
             href={action.href ?? "#"}
@@ -436,6 +452,7 @@ function CompactCell({ cell }: { cell: AdminCompactCell | undefined }) {
           >
             {actionIcon(action.icon)}
           </a>
+          )
         ))}
       </div>
     );

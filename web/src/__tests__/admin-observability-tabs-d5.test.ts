@@ -15,12 +15,14 @@ describe("D5 — unify superadmin segmented-tab buttons (readable colors)", () =
 
   it("bookings management uses the shared compact admin table controls", () => {
     const page = source("src/app/admin/bookings/bookings-manager.tsx");
+    const compact = source("src/components/admin/compact-client-table.tsx");
     expect(page).toContain('data-testid="admin-bookings-table"');
-    expect(page).toContain("CompactTableShell");
-    expect(page).toContain("CompactHeader");
-    expect(page).toContain("CompactPaginationBar");
-    expect(page).toContain("COMPACT_SELECT_CLASS");
-    expect(page).toContain("toggleSort");
+    expect(page).toContain("AdminCompactDataTable");
+    expect(page).toContain("bookingColumns");
+    expect(page).toContain('filterKind: "select"');
+    expect(page).toContain("RescheduleControls");
+    expect(compact).toContain("CompactTableShell");
+    expect(compact).toContain("CompactPaginationBar");
     expect(page).not.toContain("bg-brand-soft-gold/15 text-brand-soft-gold");
   });
 

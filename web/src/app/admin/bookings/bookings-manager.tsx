@@ -1,17 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Ban, Edit3, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
-import {
-  CompactHeader,
-  CompactPaginationBar,
-  CompactTableShell,
-  COMPACT_CELL_CLASS,
-  COMPACT_INPUT_CLASS,
-  COMPACT_SELECT_CLASS,
-  type SortDirection,
-} from "@/components/admin/compact-table";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getBookingStatus } from "@/lib/booking-status";
 
 export interface AdminBookingRow {
@@ -34,7 +26,6 @@ interface AvailableSlot {
 }
 
 const DURATION_CHOICES = [30, 45, 60, 90];
-const PAGE_SIZE = 20;
 
 function todayInputDate() {
   const d = new Date();
@@ -42,10 +33,7 @@ function todayInputDate() {
   return d.toISOString().slice(0, 10);
 }
 
-type SortField = "createdAt" | "slotStartAt" | "client" | "practitioner" | "status" | "priceRub" | "durationMin";
-
 const STATUS_FILTERS = [
-  { value: "all", label: "Все статусы" },
   { value: "PENDING", label: "Ожидает" },
   { value: "CONFIRMED", label: "Подтверждено" },
   { value: "IN_PROGRESS", label: "Идет сессия" },
@@ -56,6 +44,23 @@ const STATUS_FILTERS = [
 ];
 
 const CANCELLABLE = new Set(["PENDING", "CONFIRMED"]);
+
+const bookingColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Создано", sortable: true, filterKind: "date" },
+  { key: "slotStartAt", label: "Сессия", sortable: true, filterKind: "date" },
+  { key: "client", label: "Клиент", sortable: true },
+  { key: "practitioner", label: "Практик", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: STATUS_FILTERS,
+  },
+  { key: "source", label: "Источник", sortable: true },
+  { key: "amount", label: "Сумма / длительность", sortable: true, align: "right" },
+  { key: "actions", label: "Действия", filterKind: "none", align: "center" },
+];
 
 function formatAdminDateTime(value: string | null) {
   if (!value) return "—";
@@ -69,83 +74,11 @@ function sourceLabel(source: string) {
   return source === "BYOC" ? "BYOC" : "Платформа";
 }
 
-function HeaderTextFilter({
-  value,
-  placeholder,
-  onChange,
-}: {
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="p-1 pt-0">
-      <input
-        className={COMPACT_INPUT_CLASS}
-        value={value}
-        placeholder={placeholder}
-        autoComplete="off"
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </div>
-  );
-}
-
 export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
   const [rows, setRows] = useState(initial);
-  const [sortField, setSortField] = useState<SortField>("createdAt");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-  const [page, setPage] = useState(1);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<AdminBookingRow | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<AdminBookingRow | null>(null);
-  const [filters, setFilters] = useState({
-    createdAt: "",
-    slotStartAt: "",
-    client: "",
-    practitioner: "",
-    status: "all",
-    source: "",
-    priceRub: "",
-  });
-
-  const filtered = useMemo(() => {
-    const list = rows.filter((row) => {
-      if (filters.status !== "all" && row.status !== filters.status) return false;
-      return [
-        [filters.createdAt, formatAdminDateTime(row.createdAt)],
-        [filters.slotStartAt, formatAdminDateTime(row.slotStartAt)],
-        [filters.client, `${row.client.name} ${row.client.email}`],
-        [filters.practitioner, row.practitioner.name],
-        [filters.source, sourceLabel(row.source)],
-        [filters.priceRub, `${row.priceRub} ${row.durationMin}`],
-      ].every(([filter, value]) => !filter || value.toLowerCase().includes(filter.toLowerCase()));
-    });
-    return [...list].sort((a, b) => {
-      let result = 0;
-      if (sortField === "client") result = a.client.name.localeCompare(b.client.name, "ru");
-      else if (sortField === "practitioner") result = a.practitioner.name.localeCompare(b.practitioner.name, "ru");
-      else if (sortField === "status") result = getBookingStatus(a.status).label.localeCompare(getBookingStatus(b.status).label, "ru");
-      else if (sortField === "priceRub") result = a.priceRub - b.priceRub;
-      else if (sortField === "durationMin") result = a.durationMin - b.durationMin;
-      else result = (a[sortField] ?? "").localeCompare(b[sortField] ?? "");
-      return sortDirection === "asc" ? result : -result;
-    });
-  }, [filters, rows, sortDirection, sortField]);
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  function toggleSort(key: string) {
-    const field = key as SortField;
-    if (field === sortField) {
-      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDirection(field === "createdAt" || field === "slotStartAt" ? "desc" : "asc");
-    }
-  }
 
   async function cancelBooking(id: string) {
     setPendingId(id);
@@ -167,105 +100,73 @@ export function BookingsManager({ initial }: { initial: AdminBookingRow[] }) {
 
   return (
     <div className="space-y-3" data-testid="admin-bookings-table">
-      <CompactTableShell minWidth="1120px">
-        <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
-          <tr>
-            <CompactHeader label="Создано" sortKey="createdAt" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
-              <HeaderTextFilter value={filters.createdAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, createdAt: value })); setPage(1); }} />
-            </CompactHeader>
-            <CompactHeader label="Сессия" sortKey="slotStartAt" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
-              <HeaderTextFilter value={filters.slotStartAt} placeholder="дд.мм.гггг" onChange={(value) => { setFilters((current) => ({ ...current, slotStartAt: value })); setPage(1); }} />
-            </CompactHeader>
-            <CompactHeader label="Клиент" sortKey="client" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
-              <HeaderTextFilter value={filters.client} placeholder="имя/email" onChange={(value) => { setFilters((current) => ({ ...current, client: value })); setPage(1); }} />
-            </CompactHeader>
-            <CompactHeader label="Практик" sortKey="practitioner" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
-              <HeaderTextFilter value={filters.practitioner} placeholder="практик" onChange={(value) => { setFilters((current) => ({ ...current, practitioner: value })); setPage(1); }} />
-            </CompactHeader>
-            <CompactHeader label="Статус" sortKey="status" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
-              <div className="p-1 pt-0">
-                <select
-                  className={COMPACT_SELECT_CLASS}
-                  value={filters.status}
-                  onChange={(event) => { setFilters((current) => ({ ...current, status: event.target.value })); setPage(1); }}
-                  aria-label="Фильтр статуса бронирования"
-                >
-                  {STATUS_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </div>
-            </CompactHeader>
-            <CompactHeader label="Источник">
-              <HeaderTextFilter value={filters.source} placeholder="источник" onChange={(value) => { setFilters((current) => ({ ...current, source: value })); setPage(1); }} />
-            </CompactHeader>
-            <CompactHeader label="Сумма / длительность" sortKey="priceRub" activeSortKey={sortField} direction={sortDirection} onSort={toggleSort}>
-              <HeaderTextFilter value={filters.priceRub} placeholder="сумма/мин" onChange={(value) => { setFilters((current) => ({ ...current, priceRub: value })); setPage(1); }} />
-            </CompactHeader>
-            <CompactHeader label="Действия" />
-          </tr>
-        </thead>
-        <tbody>
-          {visible.length === 0 ? (
-            <tr>
-              <td colSpan={8} className={`${COMPACT_CELL_CLASS} py-10 text-center text-sm text-muted-foreground`}>Нет бронирований</td>
-            </tr>
-          ) : visible.map((b) => {
-            const st = getBookingStatus(b.status);
-            const commissionLabel = b.commissionPercentApplied === null
-              ? "ставка не зафиксирована"
-              : `${b.commissionPercentApplied}% комиссия`;
-            return (
-              <tr key={b.id}>
-                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatAdminDateTime(b.createdAt)}</td>
-                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap`}>{formatAdminDateTime(b.slotStartAt)}</td>
-                <td className={COMPACT_CELL_CLASS}>
-                  <p className="font-medium text-[var(--soft-ink)]">{b.client.name}</p>
-                  <p className="text-[10px] text-[var(--soft-ink-faint)]">{b.client.email}</p>
-                </td>
-                <td className={COMPACT_CELL_CLASS}>{b.practitioner.name}</td>
-                <td className={COMPACT_CELL_CLASS}>
-                  <span className={`inline-flex rounded px-2 py-0.5 text-[10px] font-semibold ${st.color}`}>{st.label}</span>
-                </td>
-                <td className={COMPACT_CELL_CLASS}>
-                  <p>{sourceLabel(b.source)}</p>
-                  <p className="text-[10px] text-[var(--soft-ink-faint)]">{commissionLabel}</p>
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} whitespace-nowrap tabular-nums`}>
-                  {b.priceRub.toLocaleString("ru-RU")} ₽ · {b.durationMin} мин
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                  <div className="soft-admin-table-actions">
-                    <button
-                      type="button"
-                      className="soft-admin-icon-button"
-                      onClick={() => setRescheduleTarget(b)}
-                      disabled={!CANCELLABLE.has(b.status)}
-                      title="Перенести или изменить длительность"
-                      aria-label="Перенести или изменить длительность"
-                    >
-                      <Edit3 className="size-3.5" aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="soft-admin-icon-button"
-                      data-variant="danger"
-                      onClick={() => setCancelTarget(b)}
-                      disabled={!CANCELLABLE.has(b.status) || pendingId === b.id}
-                      title="Отменить бронирование"
-                      aria-label="Отменить бронирование"
-                    >
-                      <Ban className="size-3.5" aria-hidden="true" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </CompactTableShell>
-
-      {pageCount > 1 && (
-        <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
-      )}
+      <AdminCompactDataTable
+        columns={bookingColumns}
+        rows={rows.map((booking) => {
+          const status = getBookingStatus(booking.status);
+          const commissionLabel = booking.commissionPercentApplied === null
+            ? "ставка не зафиксирована"
+            : `${booking.commissionPercentApplied}% комиссия`;
+          const canEdit = CANCELLABLE.has(booking.status);
+          return {
+            id: booking.id,
+            cells: {
+              createdAt: {
+                value: formatAdminDateTime(booking.createdAt),
+                sortValue: new Date(booking.createdAt).getTime(),
+                filterValue: formatAdminDateTime(booking.createdAt),
+              },
+              slotStartAt: {
+                value: formatAdminDateTime(booking.slotStartAt),
+                sortValue: booking.slotStartAt ? new Date(booking.slotStartAt).getTime() : -1,
+                filterValue: formatAdminDateTime(booking.slotStartAt),
+              },
+              client: {
+                value: booking.client.name,
+                subvalue: booking.client.email,
+                filterValue: `${booking.client.name} ${booking.client.email}`,
+              },
+              practitioner: booking.practitioner.name,
+              status: {
+                kind: "status",
+                label: status.label,
+                tone: booking.status === "CANCELLED" || booking.status === "REFUNDED" ? "danger" : booking.status === "COMPLETED" ? "ok" : "warn",
+                filterValue: `${booking.status} ${status.label}`,
+              },
+              source: {
+                value: sourceLabel(booking.source),
+                subvalue: commissionLabel,
+                filterValue: `${sourceLabel(booking.source)} ${commissionLabel}`,
+              },
+              amount: {
+                value: `${booking.priceRub.toLocaleString("ru-RU")} ₽ · ${booking.durationMin} мин`,
+                sortValue: booking.priceRub,
+                filterValue: `${booking.priceRub} ${booking.durationMin}`,
+              },
+              actions: {
+                kind: "actions",
+                actions: [
+                  {
+                    label: "Перенести или изменить длительность",
+                    icon: "edit",
+                    onClick: () => setRescheduleTarget(booking),
+                    disabled: !canEdit,
+                  },
+                  {
+                    label: "Отменить бронирование",
+                    icon: "cancel",
+                    variant: "danger",
+                    onClick: () => setCancelTarget(booking),
+                    disabled: !canEdit || pendingId === booking.id,
+                  },
+                ],
+              },
+            },
+          };
+        })}
+        empty="Нет бронирований"
+        minWidth="1240px"
+      />
       {cancelTarget ? (
         <ConfirmCancelModal
           booking={cancelTarget}

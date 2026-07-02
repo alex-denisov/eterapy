@@ -264,6 +264,35 @@ export function VerticalBarChart({
     return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
   }
 
+  function buildVerticalTooltipHits() {
+    return data.flatMap((item, index) => {
+      const slotWidth = plotWidth / data.length;
+      const groupX = left + index * slotWidth;
+      const startX = groupX + (slotWidth - totalBarsWidth) / 2;
+      return series.flatMap((seriesItem, seriesIndex) => {
+        const raw = item[seriesItem.key] ?? 0;
+        if (raw <= 0) return [];
+        const barHeight = Math.max(2, (raw / max) * plotHeight);
+        const x = startX + seriesIndex * (barWidth + innerGap);
+        const y = top + plotHeight - barHeight;
+        const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)}`;
+        const tooltipWidth = Math.min(280, Math.max(150, tooltip.length * 6.4));
+        const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, x + barWidth / 2));
+        const tooltipY = Math.max(top + 34, y - 7);
+        return [{
+          key: `${item.label}-${seriesItem.key}`,
+          x,
+          y,
+          barHeight,
+          tooltip,
+          tooltipWidth,
+          tooltipX,
+          tooltipY,
+        }];
+      });
+    });
+  }
+
   return (
     <div className={chartCardClass()} data-testid="admin-vertical-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -307,7 +336,7 @@ export function VerticalBarChart({
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
-            const axisLabelY = top + plotHeight + 14;
+            const axisLabelY = top + plotHeight + 11;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -315,12 +344,8 @@ export function VerticalBarChart({
                   const barHeight = raw > 0 ? Math.max(2, (raw / max) * plotHeight) : 0;
                   const x = startX + seriesIndex * (barWidth + innerGap);
                   const y = top + plotHeight - barHeight;
-                  const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)}`;
-                  const tooltipWidth = Math.min(230, Math.max(124, tooltip.length * 5.8));
-                  const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, x + barWidth / 2));
-                  const tooltipY = Math.max(top + 28, y - 6);
                   return (
-                    <g key={seriesItem.key} className="soft-chart-hit" tabIndex={raw > 0 ? 0 : undefined} aria-label={tooltip}>
+                    <g key={seriesItem.key}>
                       <rect
                         x={x}
                         y={y}
@@ -330,12 +355,6 @@ export function VerticalBarChart({
                         fill={seriesItem.color}
                         opacity={raw > 0 ? 0.96 : 0}
                       />
-                      {raw > 0 ? (
-                        <g className="soft-chart-tooltip" transform={`translate(${tooltipX} ${tooltipY})`}>
-                          <rect x={-tooltipWidth / 2} y="-25" width={tooltipWidth} height="22" rx="5" />
-                          <text x="0" y="-10" textAnchor="middle">{tooltip}</text>
-                        </g>
-                      ) : null}
                     </g>
                   );
                 })}
@@ -350,6 +369,23 @@ export function VerticalBarChart({
               </g>
             );
           })}
+          <g className="soft-chart-tooltip-layer">
+            {buildVerticalTooltipHits().map((hit) => (
+              <g key={hit.key} className="soft-chart-hit" tabIndex={0} aria-label={hit.tooltip}>
+                <rect
+                  x={hit.x - 3}
+                  y={top}
+                  width={hit.barHeight > 0 ? barWidth + 6 : 0}
+                  height={plotHeight}
+                  fill="transparent"
+                />
+                <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
+                  <rect x={-hit.tooltipWidth / 2} y="-30" width={hit.tooltipWidth} height="26" rx="6" />
+                  <text x="0" y="-13" textAnchor="middle">{hit.tooltip}</text>
+                </g>
+              </g>
+            ))}
+          </g>
         </svg>
       </div>
     </div>
@@ -406,6 +442,44 @@ export function StackedBarChart({
     return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
   }
 
+  function buildStackedTooltipHits() {
+    return data.flatMap((item, index) => {
+      const currentSlotWidth = plotWidth / data.length;
+      const groupX = left + index * currentSlotWidth;
+      const centerX = groupX + currentSlotWidth / 2;
+      const x = centerX - barWidth / 2;
+      let accumulated = 0;
+      const total = totals[index] ?? 0;
+
+      return series.flatMap((seriesItem) => {
+        const segmentedValue = hasSegments
+          ? (item.segments ?? []).find((segment) => segment.label === seriesItem.label)?.value ?? 0
+          : Number(item[seriesItem.key as ChartSeriesKey] ?? 0);
+        const raw = Math.max(0, segmentedValue);
+        const from = accumulated;
+        accumulated += raw;
+        if (raw <= 0) return [];
+        const y = yFor(accumulated);
+        const previousY = yFor(from);
+        const segmentHeight = Math.max(2, previousY - y);
+        const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(total)}`;
+        const tooltipWidth = Math.min(300, Math.max(170, tooltip.length * 6.2));
+        const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, centerX));
+        const tooltipY = Math.max(top + 34, y - 7);
+        return [{
+          key: `${item.label}-${seriesItem.key}`,
+          x,
+          y,
+          segmentHeight,
+          tooltip,
+          tooltipWidth,
+          tooltipX,
+          tooltipY,
+        }];
+      });
+    });
+  }
+
   return (
     <div className={chartCardClass()} data-testid="admin-stacked-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -448,7 +522,6 @@ export function StackedBarChart({
             const centerX = groupX + currentSlotWidth / 2;
             const x = centerX - barWidth / 2;
             let accumulated = 0;
-            const total = totals[index] ?? 0;
             return (
               <g key={item.label}>
                 {series.map((seriesItem) => {
@@ -462,12 +535,8 @@ export function StackedBarChart({
                   const y = yFor(accumulated);
                   const previousY = yFor(from);
                   const segmentHeight = Math.max(2, previousY - y);
-                  const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(total)}`;
-                  const tooltipWidth = Math.min(260, Math.max(150, tooltip.length * 5.8));
-                  const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, centerX));
-                  const tooltipY = Math.max(top + 28, y - 6);
-                  return (
-                    <g key={seriesItem.key} className="soft-chart-hit" tabIndex={0} aria-label={tooltip}>
+                      return (
+                    <g key={seriesItem.key}>
                       <rect
                         x={x}
                         y={y}
@@ -477,16 +546,12 @@ export function StackedBarChart({
                         fill={seriesItem.color}
                         opacity={0.96}
                       />
-                      <g className="soft-chart-tooltip" transform={`translate(${tooltipX} ${tooltipY})`}>
-                        <rect x={-tooltipWidth / 2} y="-25" width={tooltipWidth} height="22" rx="5" />
-                        <text x="0" y="-10" textAnchor="middle">{tooltip}</text>
-                      </g>
                     </g>
                   );
                 })}
                 <text
                   x={centerX}
-                  y={top + plotHeight + 14}
+                  y={top + plotHeight + 11}
                   textAnchor="middle"
                   className="fill-[#667085] text-[10px] tabular-nums"
                 >
@@ -495,6 +560,23 @@ export function StackedBarChart({
               </g>
             );
           })}
+          <g className="soft-chart-tooltip-layer">
+            {buildStackedTooltipHits().map((hit) => (
+              <g key={hit.key} className="soft-chart-hit" tabIndex={0} aria-label={hit.tooltip}>
+                <rect
+                  x={hit.x - 4}
+                  y={hit.y}
+                  width={barWidth + 8}
+                  height={hit.segmentHeight}
+                  fill="transparent"
+                />
+                <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
+                  <rect x={-hit.tooltipWidth / 2} y="-30" width={hit.tooltipWidth} height="26" rx="6" />
+                  <text x="0" y="-13" textAnchor="middle">{hit.tooltip}</text>
+                </g>
+              </g>
+            ))}
+          </g>
         </svg>
       </div>
     </div>

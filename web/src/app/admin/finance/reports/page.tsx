@@ -49,7 +49,7 @@ export default async function FinanceReportsPage({ searchParams }: PageProps) {
     where: { periodStart: { gte: period.start }, periodEnd: { lte: period.end } },
     include: { practitioner: { include: { user: { select: { name: true, email: true } } } } },
     orderBy: { periodEnd: "desc" },
-    take: 20,
+    take: 500,
   }),
   getAdminCurrencyRates(),
   ]);

@@ -35,7 +35,7 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(ui).toContain('textAnchor="middle"');
     expect(ui).not.toContain("rotate(-90");
     expect(ui).toContain("soft-chart-tooltip");
-    expect(ui).toContain("aria-label={tooltip}");
+    expect(ui).toContain("aria-label={hit.tooltip}");
     expect(ui).toContain("min-w-0 scroll-mt-24 overflow-hidden");
     expect(ui).toContain("min-w-0 max-w-full overflow-hidden");
     expect(css).toContain(".soft-chart-hit rect:hover + .soft-chart-tooltip");
@@ -89,14 +89,19 @@ describe("Superadmin redesign regression guardrails", () => {
     const compactClientTable = source("src/components/admin/compact-client-table.tsx");
     const productResults = source("src/app/admin/product/results/page.tsx");
     const productSessions = source("src/app/admin/product/sessions/page.tsx");
+    const bookingsManager = source("src/app/admin/bookings/bookings-manager.tsx");
+    const sessionsTable = source("src/app/admin/sessions/sessions-table.tsx");
+    const libraryRequests = source("src/app/admin/product/quality/library-requests-manager.tsx");
     const financeReceipts = source("src/app/admin/finance/receipts/page.tsx");
     const financeReports = source("src/app/admin/finance/reports/page.tsx");
     const financePoints = source("src/app/admin/finance/points/page.tsx");
+    const paymentsPanel = source("src/app/admin/payments/payments-panel.tsx");
 
     expect(compactClientTable).toContain("AdminCompactDataTable");
     expect(compactClientTable).toContain("filterKind");
     expect(compactClientTable).toContain("CompactPaginationBar");
     expect(compactClientTable).toContain("Выбрано:");
+    expect(compactClientTable).toContain("onClick?: () => void");
 
     for (const page of [productResults, productSessions, financeReceipts, financeReports, financePoints]) {
       expect(page).toContain("AdminCompactDataTable");
@@ -104,6 +109,13 @@ describe("Superadmin redesign regression guardrails", () => {
       expect(page).not.toContain("<DataTable");
       expect(page).not.toContain("<form className=\"mb-4 flex flex-wrap items-center gap-2\"");
     }
+
+    for (const table of [bookingsManager, sessionsTable, libraryRequests, paymentsPanel]) {
+      expect(table).toContain("AdminCompactDataTable");
+    }
+
+    expect(financeReports).toContain("take: 500");
+    expect(financePoints).toContain("take: 500");
   });
 
   it("keeps product quality operation tables on the compact table system", () => {
@@ -115,7 +127,7 @@ describe("Superadmin redesign regression guardrails", () => {
     ];
 
     for (const manager of managers) {
-      expect(manager).toContain("CompactTableShell");
+      expect(manager.includes("AdminCompactDataTable") || manager.includes("CompactTableShell")).toBe(true);
       expect(manager).not.toContain("soft-admin-data-table");
       expect(manager).not.toContain("soft-admin-seg");
     }

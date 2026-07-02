@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useSyncExternalStore } from "react";
+import type { ElementType, ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   BellRing,
   BrainCircuit,
@@ -30,10 +32,19 @@ import {
 import type { Permission } from "@/lib/moderator-permissions";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import {
+  ADMIN_CURRENCY_STORAGE_KEY,
+  ADMIN_PERIOD_STORAGE_KEY,
+  adminNavigationPreferenceParams,
+  appendAdminNavigationParams,
+  restoreAdminCurrencyPreference,
+  restoreAdminPeriodPreference,
+  type AdminPeriodPreference,
+} from "./admin-navigation-preferences";
 
 interface NavItem {
   href: string;
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
   section: "workspace" | "product" | "finance" | "ops" | "support";
   level?: 0 | 1;
@@ -111,6 +122,50 @@ function visibleNavEntries(entries: NavItem[], permissions: Permission[], isSupe
   return entries.filter((entry) => canShowNavItem(entry, permissions, isSuperAdmin));
 }
 
+const ADMIN_PREFERENCE_STORAGE_KEYS = [ADMIN_PERIOD_STORAGE_KEY, ADMIN_CURRENCY_STORAGE_KEY] as const;
+
+function adminPreferenceSnapshot() {
+  return JSON.stringify({
+    period: restoreAdminPeriodPreference(),
+    currency: restoreAdminCurrencyPreference(),
+  });
+}
+
+function subscribeAdminPreferenceChanges(callback: () => void) {
+  function handlePreferenceChange(event?: StorageEvent | Event) {
+    if (
+      event instanceof StorageEvent
+      && event.key
+      && !ADMIN_PREFERENCE_STORAGE_KEYS.includes(event.key as (typeof ADMIN_PREFERENCE_STORAGE_KEYS)[number])
+    ) return;
+    callback();
+  }
+
+  window.addEventListener("storage", handlePreferenceChange);
+  window.addEventListener("eterapy-admin-preferences", handlePreferenceChange);
+  return () => {
+    window.removeEventListener("storage", handlePreferenceChange);
+    window.removeEventListener("eterapy-admin-preferences", handlePreferenceChange);
+  };
+}
+
+function useAdminNavigationHref() {
+  const searchParams = useSearchParams();
+  const preferenceSnapshot = useSyncExternalStore(subscribeAdminPreferenceChanges, adminPreferenceSnapshot, () => "{}");
+  const preferences = useMemo(() => {
+    try {
+      return JSON.parse(preferenceSnapshot) as { period?: AdminPeriodPreference | null; currency?: "RUB" | "USD" | null };
+    } catch {
+      return {};
+    }
+  }, [preferenceSnapshot]);
+
+  return useMemo(() => {
+    const params = adminNavigationPreferenceParams(new URLSearchParams(searchParams.toString()), preferences.period ?? null, preferences.currency ?? null);
+    return (href: string) => appendAdminNavigationParams(href, params);
+  }, [preferences.currency, preferences.period, searchParams]);
+}
+
 export function AdminShell({
   user,
   role,
@@ -122,9 +177,10 @@ export function AdminShell({
   role: string;
   permissions: Permission[];
   counts?: Record<string, number>;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const pathname = usePathname();
+  const hrefForNav = useAdminNavigationHref();
   const activePathname = canonicalAdminPath(pathname);
   const isSuperAdmin = role === "SUPERADMIN";
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
@@ -175,7 +231,7 @@ export function AdminShell({
     <div data-testid="admin-shell" data-shell-role={role} className="soft-clarity-page soft-admin-shell flex min-h-screen">
       <aside
         data-testid="admin-shell-sidebar"
-        className="admin-shell-sidebar soft-admin-sidebar sticky hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 flex-col overflow-y-auto px-3 py-5 md:flex"
+        className="admin-shell-sidebar soft-admin-sidebar sticky hidden min-h-[calc(100vh-var(--header-height))] w-64 shrink-0 self-stretch overflow-y-auto px-3 py-5 md:flex md:flex-col"
         style={{ top: "var(--header-height)" }}
       >
         {/* T10: logo intentionally omitted here — the public-shell-header
@@ -204,7 +260,7 @@ export function AdminShell({
             const parentActive = isSectionActive(item) && !exactActive;
             const navActive = active || ((item.level ?? 0) === 0 && parentActive);
             return (
-            <Link key={item.href} href={item.href}
+            <Link key={item.href} href={hrefForNav(item.href)}
               data-testid="admin-shell-nav-item"
               data-depth={depth}
               aria-current={exactActive ? "page" : undefined}
@@ -235,7 +291,7 @@ export function AdminShell({
         </nav>
 
         <div className="mt-2 border-t border-[var(--soft-paper-edge)] pt-2">
-          <Link href={adminUrl("/admin/settings")}
+          <Link href={hrefForNav(adminUrl("/admin/settings"))}
             aria-current={pathname === "/admin/settings" ? "page" : undefined}
             className={`soft-admin-nav-link flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
               activePathname === "/admin/settings" ? "is-active font-medium" : ""
@@ -256,7 +312,7 @@ export function AdminShell({
         {mobileNav.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.href} href={item.href}
+            <Link key={item.href} href={hrefForNav(item.href)}
               className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
                 isActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
               }`}>

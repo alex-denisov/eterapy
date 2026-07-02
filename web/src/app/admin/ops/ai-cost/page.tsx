@@ -13,7 +13,7 @@ import { PageContainer } from "@/components/ui/page-container";
 import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { PeriodToolbar, StatusBadge } from "../../admin-analytics-ui";
-import { resolveAdminPeriod } from "../../admin-analytics-data";
+import { productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber, formatPercent } from "../ops-ui";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -27,11 +27,11 @@ function featureTitle(feature: string) {
     "chat-analysis": "Разбор переписки",
     "compatibility": "Совместимость",
     "synastry": "Синастрия",
-    "human-design": "Human Design",
+    "human-design": "Дизайн человека",
     "surname-story": "История фамилии",
   };
   const key = Object.keys(known).find((item) => feature.includes(item));
-  return key ? known[key] : feature;
+  return key ? known[key] : productLabel(feature);
 }
 
 function statusTone(value: number) {

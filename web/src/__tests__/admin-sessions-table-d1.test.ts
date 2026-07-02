@@ -6,32 +6,27 @@ const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "
 describe("D1 — admin sessions table uses the minimalist standard", () => {
   it("renders the shared compact admin table with controls and pagination", () => {
     const table = source("src/app/admin/sessions/sessions-table.tsx");
+    const compact = source("src/components/admin/compact-client-table.tsx");
     expect(table).toContain('data-testid="admin-sessions-table"');
-    expect(table).toContain("CompactTableShell");
-    expect(table).toContain("CompactHeader");
-    expect(table).toContain("CompactPaginationBar");
-    // status and text filters live inside column headers.
-    expect(table).toContain("COMPACT_SELECT_CLASS");
-    expect(table).toContain("COMPACT_INPUT_CLASS");
-    // sortable columns
-    expect(table).toContain("dateSort");
-    expect(table).toContain("durationSort");
-    // compact admin pagination
-    expect(table).toContain("PAGE_SIZE = 20");
-    expect(table).toContain("pageCount");
+    expect(table).toContain("AdminCompactDataTable");
+    expect(table).toContain("sessionColumns");
+    expect(table).toContain('filterKind: "select"');
+    expect(table).toContain('filterKind: "date"');
+    expect(compact).toContain("CompactTableShell");
+    expect(compact).toContain("CompactHeader");
+    expect(compact).toContain("CompactPaginationBar");
+    expect(compact).toContain("pageSize = 20");
   });
 
   it("renders bookings and reschedules as the same compact searchable table", () => {
     const bookings = source("src/app/admin/bookings/bookings-manager.tsx");
 
     expect(bookings).toContain('data-testid="admin-bookings-table"');
-    expect(bookings).toContain("CompactTableShell");
-    expect(bookings).toContain("CompactHeader");
-    expect(bookings).toContain("CompactPaginationBar");
-    expect(bookings).toContain("COMPACT_INPUT_CLASS");
-    expect(bookings).toContain("COMPACT_SELECT_CLASS");
+    expect(bookings).toContain("AdminCompactDataTable");
+    expect(bookings).toContain("bookingColumns");
+    expect(bookings).toContain('filterKind: "select"');
+    expect(bookings).toContain('filterKind: "date"');
     expect(bookings).toContain("RescheduleControls");
-    expect(bookings).toContain("PAGE_SIZE = 20");
     expect(bookings).not.toContain('className="rounded-xl border border-border/20 bg-card/20 overflow-hidden"');
   });
 

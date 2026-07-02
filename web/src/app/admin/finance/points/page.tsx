@@ -42,7 +42,7 @@ export default async function FinancePointsPage({ searchParams }: PageProps) {
     where: { createdAt: { gte: period.start, lte: period.end } },
     include: { user: { select: { name: true, email: true } } },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: 500,
   });
 
   return (

@@ -15,8 +15,10 @@ export const PRODUCT_NAMES: Record<string, string> = {
   "map-upgrade": "Апгрейд карты",
   "natal-chart": "Натальная карта",
   "family-scenarios": "Семейные сценарии",
-  "human-design": "Human Design",
+  "human-design": "Дизайн человека",
   "surname-story": "История фамилии",
+  perspectives: "Переосмысление",
+  "seven-days": "Недельное резюме",
   numerology: "Числовой портрет",
   tarot: "Расклад Таро",
   synastry: "Совместимость по звёздам",
@@ -47,7 +49,10 @@ export type AdminPeriod = {
 };
 
 export function dayKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function inputDate(value: Date) {
@@ -86,11 +91,11 @@ export function resolveAdminPeriod(params: SearchParams = {}): AdminPeriod {
   const explicitStart = firstParam(params.start);
   const explicitEnd = firstParam(params.end);
   if (explicitStart) {
-    const parsed = new Date(`${explicitStart}T00:00:00`);
+    const parsed = parseInputDate(explicitStart, "start");
     if (!Number.isNaN(parsed.getTime())) start = parsed;
   }
   if (explicitEnd) {
-    const parsed = new Date(`${explicitEnd}T23:59:59.999`);
+    const parsed = parseInputDate(explicitEnd, "end");
     if (!Number.isNaN(parsed.getTime())) end = parsed;
   }
   if (start > end) [start, end] = [startOfDay(end), endOfDay(start)];
@@ -108,6 +113,15 @@ export function resolveAdminPeriod(params: SearchParams = {}): AdminPeriod {
   return { start, end, startInput: inputDate(start), endInput: inputDate(end), days };
 }
 
+function parseInputDate(value: string, edge: "start" | "end") {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return new Date(Number.NaN);
+  const [, y, m, d] = match;
+  return edge === "start"
+    ? new Date(Number(y), Number(m) - 1, Number(d), 0, 0, 0, 0)
+    : new Date(Number(y), Number(m) - 1, Number(d), 23, 59, 59, 999);
+}
+
 function rubFromKopecks(value: number) {
   return Math.round(value / 100);
 }
@@ -116,12 +130,45 @@ function addTo(map: Map<string, number>, key: string, value: number) {
   map.set(key, (map.get(key) ?? 0) + value);
 }
 
-function chartFromMap(days: string[], map: Map<string, number>) {
-  return days.map((day) => ({ label: chartDayLabel(day), value: map.get(day) ?? 0 }));
+export function chartFromMap(days: string[], map: Map<string, number>) {
+  return chartBuckets(days).map((bucket) => ({
+    label: bucket.label,
+    value: bucket.days.reduce((sum, day) => sum + (map.get(day) ?? 0), 0),
+  }));
 }
 
-function chartDayLabel(day: string) {
+export function chartDayLabel(day: string) {
   return `${day.slice(8, 10)}.${day.slice(5, 7)}`;
+}
+
+function chartRangeLabel(days: string[]) {
+  const first = days[0];
+  const last = days.at(-1);
+  if (!first || !last || first === last) return first ? chartDayLabel(first) : "";
+  return `${chartDayLabel(first)}-${chartDayLabel(last)}`;
+}
+
+export function chartBuckets(days: string[]) {
+  if (days.length <= 31) return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
+  const buckets: Array<{ label: string; days: string[] }> = [];
+  for (let index = 0; index < days.length; index += 7) {
+    const bucketDays = days.slice(index, index + 7);
+    buckets.push({ label: chartRangeLabel(bucketDays), days: bucketDays });
+  }
+  return buckets;
+}
+
+function chartPlanBuckets(days: string[], map: Map<string, { free: number; plus: number; premium: number }>) {
+  return chartBuckets(days).map((bucket) => {
+    const totals = bucket.days.reduce((acc, day) => {
+      const row = map.get(day);
+      acc.free += row?.free ?? 0;
+      acc.plus += row?.plus ?? 0;
+      acc.premium += row?.premium ?? 0;
+      return acc;
+    }, { free: 0, plus: 0, premium: 0 });
+    return { label: bucket.label, value: totals.free, secondary: totals.plus, tertiary: totals.premium };
+  });
 }
 
 function stringFromJson(value: unknown, keys: string[]) {
@@ -474,9 +521,9 @@ export async function getProductCenterData(period: AdminPeriod) {
       addTo(creditDeltaDay, dayKey(entry.createdAt), entry.amount);
     }
   }
-  const creditsBalanceByDay = period.days.map((day) => {
-    creditBalance += creditDeltaDay.get(day) ?? 0;
-    return { label: chartDayLabel(day), value: Math.max(0, creditBalance) };
+  const creditsBalanceByDay = chartBuckets(period.days).map((bucket) => {
+    for (const day of bucket.days) creditBalance += creditDeltaDay.get(day) ?? 0;
+    return { label: bucket.label, value: Math.max(0, creditBalance) };
   });
 
   const topReferrers = new Map<string, number>();
@@ -499,30 +546,28 @@ export async function getProductCenterData(period: AdminPeriod) {
     charts: {
       referralRegistrations: chartFromMap(period.days, referralDay),
       referralSubscriptions: chartFromMap(period.days, referralSubscriptionDay),
-      subscriptionPurchases: period.days.map((day) => {
-        const row = subscriptionPurchaseDay.get(day) ?? { free: 0, plus: 0, premium: 0 };
-        return { label: chartDayLabel(day), value: row.free, secondary: row.plus, tertiary: row.premium };
-      }),
+      subscriptionPurchases: chartPlanBuckets(period.days, subscriptionPurchaseDay),
       creditsBalanceByDay,
       topReferrers: [...topReferrers.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 10),
-      productByDay: period.days.map((day) => {
-        const map = productByDay.get(day);
+      productByDay: chartBuckets(period.days).map((bucket) => {
         const topKeys = [...new Set(results.map((result) => result.productKey))].slice(0, 3);
         return {
-          label: chartDayLabel(day),
-          value: map?.get(topKeys[0] ?? "") ?? 0,
-          secondary: map?.get(topKeys[1] ?? "") ?? 0,
-          tertiary: map?.get(topKeys[2] ?? "") ?? 0,
+          label: bucket.label,
+          value: bucket.days.reduce((sum, day) => sum + (productByDay.get(day)?.get(topKeys[0] ?? "") ?? 0), 0),
+          secondary: bucket.days.reduce((sum, day) => sum + (productByDay.get(day)?.get(topKeys[1] ?? "") ?? 0), 0),
+          tertiary: bucket.days.reduce((sum, day) => sum + (productByDay.get(day)?.get(topKeys[2] ?? "") ?? 0), 0),
         };
       }),
-      productByDayStacked: period.days.map((day) => {
-        const map = productByDay.get(day);
+      productByDayStacked: chartBuckets(period.days).map((bucket) => {
         return {
-          label: chartDayLabel(day),
-          value: productKeysByVolume.reduce((sum, productKey) => sum + (map?.get(productKey) ?? 0), 0),
+          label: bucket.label,
+          value: productKeysByVolume.reduce(
+            (sum, productKey) => sum + bucket.days.reduce((daySum, day) => daySum + (productByDay.get(day)?.get(productKey) ?? 0), 0),
+            0,
+          ),
           segments: productKeysByVolume.map((productKey) => ({
             label: productLabel(productKey),
-            value: map?.get(productKey) ?? 0,
+            value: bucket.days.reduce((sum, day) => sum + (productByDay.get(day)?.get(productKey) ?? 0), 0),
           })),
         };
       }),
@@ -532,10 +577,7 @@ export async function getProductCenterData(period: AdminPeriod) {
           productKey,
           label: productLabel(productKey),
           total: [...dayMap.values()].reduce((sum, row) => sum + row.free + row.plus + row.premium, 0),
-          chart: period.days.map((day) => {
-            const row = dayMap.get(day) ?? { free: 0, plus: 0, premium: 0 };
-            return { label: chartDayLabel(day), value: row.free, secondary: row.plus, tertiary: row.premium };
-          }),
+          chart: chartPlanBuckets(period.days, dayMap),
         }))
         .sort((a, b) => b.total - a.total),
     },
