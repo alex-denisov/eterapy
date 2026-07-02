@@ -175,7 +175,8 @@ describe("v5 product pages", () => {
   });
 
   it("links public shell product navigation to durable product pages", () => {
-    expect(source("components/header.tsx")).toContain('href: "/pricing"');
+    // B464 IB0: the landing nav lives in the shared nav-model.
+    expect(source("lib/nav-model.ts")).toContain('href: "/pricing"');
     expect(source("components/footer.tsx")).toContain('mainUrl("/products")');
   });
 });

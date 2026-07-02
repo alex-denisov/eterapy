@@ -13,7 +13,8 @@ describe("v5 pricing page", () => {
   it("is included in public SEO and navigation", () => {
     expect(publicSeoRoutes).toContain("/pricing");
     expect(publicPageSeo["/pricing"].title).toBe("Цены и тарифы ETerapy");
-    expect(source("components/header.tsx")).toContain('href: "/pricing"');
+    // B464 IB0: the landing nav lives in the shared nav-model.
+    expect(source("lib/nav-model.ts")).toContain('href: "/pricing"');
     expect(source("components/footer.tsx")).toContain('mainUrl("/pricing")');
   });
 

@@ -36,7 +36,7 @@ describe("design v4 rollout", () => {
     // longer bucketed as an "app area".
     expect(header).toContain('isAppArea = cabinetPathname.startsWith("/cabinet") || isAppHost');
     expect(header).not.toContain('pathname.startsWith("/help") || isAppHost');
-    expect(header).toContain("<UserMenu session={session}");
+    expect(header).toContain("<UserMenu");
     expect(header).toContain("Дневник");
     expect(header).toContain('data-testid="header-dialogue-cta"');
     expect(register).toContain("<VKIDButton");

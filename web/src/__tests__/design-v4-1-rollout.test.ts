@@ -20,10 +20,12 @@ describe("design v4.2 rollout", () => {
     // clarity-practice is no longer a public SEO route after B373.
     expect(publicSeoRoutes).not.toContain("/products/clarity-practice");
 
-    const header = source("components/header.tsx");
+    const navModel = source("lib/nav-model.ts");
     const footer = source("components/footer.tsx");
 
-    expect(header).toContain('label: "Продукты"');
+    // B464 IB0: the landing nav moved to the shared model; «Продукты» → «Услуги».
+    expect(navModel).toContain('label: "Услуги"');
+    expect(navModel).not.toContain('label: "Продукты"');
     // B380 (M26): the footer was condensed to the catalogue groups and no longer
     // links the removed growth routes (circle / clarity-practice / telegram).
     // The «Вместе» entry (→ /products/pair) stays.

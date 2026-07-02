@@ -1,0 +1,42 @@
+import {
+  ArrowLeft,
+  BookOpen,
+  CalendarDays,
+  Compass,
+  Gift,
+  LayoutDashboard,
+  LibraryBig,
+  LifeBuoy,
+  LogIn,
+  LogOut,
+  MessageCircle,
+  MoreHorizontal,
+  Settings,
+  Sparkles,
+  Tag,
+  Users,
+  Wallet,
+} from "lucide-react";
+import type { NavIconKey } from "@/lib/nav-model";
+
+// B464 IB0 — maps the pure nav-model icon keys to real lucide components,
+// keeping lucide out of the testable data layer (lib/nav-model.ts).
+export const NAV_ICONS: Record<NavIconKey, React.ElementType> = {
+  home: LayoutDashboard,
+  question: MessageCircle,
+  services: Sparkles,
+  specialists: Users,
+  diary: BookOpen,
+  more: MoreHorizontal,
+  wallet: Wallet,
+  bookings: CalendarDays,
+  invite: Gift,
+  settings: Settings,
+  support: LifeBuoy,
+  login: LogIn,
+  back: ArrowLeft,
+  logout: LogOut,
+  library: LibraryBig,
+  how: Compass,
+  pricing: Tag,
+};

@@ -34,8 +34,7 @@ describe("v5 how-it-works page", () => {
   });
 
   it("links public navigation to the durable route, not only the home anchor", () => {
-    const header = source("components/header.tsx");
-
-    expect(header).toContain('href: "/how-it-works"');
+    // B464 IB0: the landing nav lives in the shared nav-model.
+    expect(source("lib/nav-model.ts")).toContain('href: "/how-it-works"');
   });
 });

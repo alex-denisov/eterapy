@@ -17,11 +17,19 @@ import {
   Bookmark,
   Lock,
   LogOut,
+  LifeBuoy,
+  Gift,
   Crown,
   Handshake,
-  MoreHorizontal,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
+import {
+  CLIENT_MOBILE_TABS,
+  CLIENT_MORE_ITEMS,
+  MORE_LABEL,
+  LOGOUT_LABEL,
+} from "@/lib/nav-model";
+import { NAV_ICONS } from "@/components/nav/nav-icons";
 
 interface NavItem {
   href: string;
@@ -29,19 +37,26 @@ interface NavItem {
   label: string;
 }
 
-interface MobileNavItem extends NavItem {
+interface MobileRenderTab {
+  href: string;
+  label: string;
+  Icon: React.ElementType;
+  isMore: boolean;
   activeHrefs?: string[];
 }
 
+// B464 IB0 — 6-item client cabinet sidebar. «Подписка и оплата» merged into
+// «Кошелёк» (IB3); «Приглашения» added; distinct icons (no Wallet duplicate).
+// The cross-shell «Услуги/Специалисты/Библиотека» links live in the header
+// bridge, not the sidebar. «Помощь»/«Выйти» render as utility rows below.
 const CLIENT_NAV: NavItem[] = [
   { href: appUrl("/"), icon: LayoutDashboard, label: "Главная" },
   // M26/B369: «Моя карта» + «История разборов» слиты в один пункт «Дневник».
   { href: appUrl("/diary"), icon: BookOpen, label: "Дневник" },
-  { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
   // B349/Механика 2: /credits merged into /wallet — one «Кошелёк» nav item.
   { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
-  // B375 (M26): практика живёт блоком «Ежедневный вопрос» на дашборде — отдельного пункта нет.
-  { href: appUrl("/billing"), icon: Wallet, label: "Подписка и оплата" },
+  { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
+  { href: appUrl("/invite"), icon: Gift, label: "Приглашения" },
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];
 
@@ -88,9 +103,12 @@ export function CabinetShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isClient = role === "CLIENT";
   const nav = (role === "ADMIN" || role === "SUPERADMIN")
     ? []
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
+  const diaryHref = appUrl("/diary");
+  const supportHref = appUrl("/support");
   const initial = user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? "?";
   // Wait until after hydration before reading usePathname(): on the
   // app subdomain SSR sees the proxy-rewritten "/cabinet" path while
@@ -99,6 +117,7 @@ export function CabinetShell({
   // caused React #418. Once mounted the proxy contract guarantees
   // both server and client converge on the cabinet pathname.
   const [hydrated, setHydrated] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     // Intentional post-mount flip — see header.tsx comment. Required
     // to keep `usePathname()` consistent between SSR (proxy-rewritten
@@ -150,28 +169,31 @@ export function CabinetShell({
     return normActive.startsWith(normItem);
   }
 
-  const mobileTabs = (role === "CLIENT"
-    ? [
-        { href: appUrl("/"), icon: LayoutDashboard, label: "Главная" },
-        { href: appUrl("/diary"), icon: BookOpen, label: "Дневник" },
-        { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
-        {
-          href: appUrl("/settings"),
-          icon: MoreHorizontal,
-          label: "Ещё",
-          activeHrefs: [
-            appUrl("/settings"),
-            appUrl("/billing"),
-            appUrl("/bookings"),
-            appUrl("/support"),
-          ],
-        },
-      ]
-    : nav.filter((_, index) => index < 4)) satisfies MobileNavItem[];
+  // B464 IB0 — the client mobile bar is sourced from the shared nav-model so it
+  // is byte-identical to the landing bar; practitioner/admin keep their first-4
+  // nav items. The «Ещё» tab opens a bottom sheet instead of navigating.
+  const mobileTabs: MobileRenderTab[] = isClient
+    ? CLIENT_MOBILE_TABS.map((t) => ({
+        href: t.href,
+        label: t.label,
+        Icon: NAV_ICONS[t.iconKey],
+        isMore: t.label === MORE_LABEL,
+        activeHrefs:
+          t.label === MORE_LABEL
+            ? CLIENT_MORE_ITEMS.map((m) => m.href).filter(Boolean)
+            : undefined,
+      }))
+    : nav.filter((_, index) => index < 4).map((n) => ({
+        href: n.href,
+        label: n.label,
+        Icon: n.icon,
+        isMore: false,
+      }));
 
-  function isMobileActive(item: MobileNavItem) {
-    if (isActive(item.href)) return true;
-    return item.activeHrefs?.some((href) => isActive(href)) ?? false;
+  function isMobileActive(item: MobileRenderTab) {
+    if (item.isMore) return (item.activeHrefs ?? []).some((href) => isActive(href));
+    if (!item.href) return false;
+    return isActive(item.href);
   }
 
   return (
@@ -203,6 +225,9 @@ export function CabinetShell({
               const Icon = item.icon;
               const countKey = navCountKey(item.href);
               const count = countKey ? (counts?.[countKey] ?? 0) : 0;
+              // B464 round-2 #4: the «Дневник» item carries a small lock glyph
+              // inviting the user to set their own PIN (device-level privacy).
+              const isDiary = isClient && item.href === diaryHref;
               return (
                 <Link key={item.href} href={item.href}
                   data-testid="app-shell-nav-item"
@@ -213,6 +238,13 @@ export function CabinetShell({
                   }`}>
                   <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
+                  {isDiary && (
+                    <Lock
+                      className="ml-auto h-3.5 w-3.5 shrink-0 text-[var(--soft-ink-faint)]"
+                      aria-label="Можно закрыть PIN-кодом"
+                      data-testid="app-shell-diary-lock"
+                    />
+                  )}
                   {count > 0 && (
                     <span
                       className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
@@ -227,8 +259,20 @@ export function CabinetShell({
             })}
           </nav>
 
-          {/* Sign out */}
-          <div className="mt-2 border-t border-border/20 pt-2">
+          {/* Utility rows — Помощь + Выйти, present on every cabinet page (B464 #9/#10) */}
+          <div className="mt-2 space-y-1 border-t border-border/20 pt-2">
+            {isClient && (
+              <Link
+                href={supportHref}
+                data-testid="app-shell-nav-help"
+                className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
+                  isActive(supportHref) ? "is-active font-medium" : ""
+                }`}
+              >
+                <LifeBuoy className="h-4 w-4 shrink-0" />
+                Помощь
+              </Link>
+            )}
             <button
               onClick={() => { window.location.href = logoutUrl(); }}
               className="soft-app-nav-link flex min-h-11 w-full items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)]"
@@ -240,18 +284,79 @@ export function CabinetShell({
         </div>
       </aside>
 
+      {/* Mobile «Ещё» bottom sheet — client only */}
+      {isClient && moreOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Закрыть меню"
+            className="fixed inset-0 z-40 bg-[rgba(60,30,20,0.28)] md:hidden"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div
+            data-testid="app-shell-mobile-sheet"
+            className="soft-mobile-sheet fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-50 md:hidden"
+          >
+            {CLIENT_MORE_ITEMS.map((item) => {
+              const Icon = NAV_ICONS[item.iconKey];
+              if (item.label === LOGOUT_LABEL) {
+                return (
+                  <button
+                    key="more-logout"
+                    type="button"
+                    onClick={() => { setMoreOpen(false); window.location.href = logoutUrl(); }}
+                    className="soft-mobile-sheet-row flex w-full items-center gap-3"
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
+                    {item.label}
+                  </button>
+                );
+              }
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMoreOpen(false)}
+                  className="soft-mobile-sheet-row flex items-center gap-3"
+                >
+                  <Icon className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Mobile nav */}
       <div data-testid="app-shell-mobile-nav" className="soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
         {mobileTabs.map((item) => {
-          const Icon = item.icon;
+          const Icon = item.Icon;
+          const activeClass = isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]";
+          const base = `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${activeClass}`;
+          if (item.isMore) {
+            return (
+              <button
+                key="more"
+                type="button"
+                data-testid="app-shell-mobile-more"
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((v) => !v)}
+                className={base}
+              >
+                <Icon className="h-5 w-5" />
+                {item.label}
+              </button>
+            );
+          }
           return (
             <Link
               key={item.href}
               href={item.href}
-              data-testid={item.label === "Ещё" ? "app-shell-mobile-more" : "app-shell-mobile-tab"}
-              className={`flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
-                isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
-              }`}>
+              data-testid="app-shell-mobile-tab"
+              onClick={() => setMoreOpen(false)}
+              className={base}
+            >
               <Icon className="h-5 w-5" />
               {item.label.split(" ")[0]}
             </Link>

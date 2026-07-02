@@ -24,12 +24,16 @@ describe("v5 public shell", () => {
 
   it("keeps public navigation question-first", () => {
     const header = source("src/components/header.tsx");
+    const navModel = source("src/lib/nav-model.ts");
 
+    // B464 IB0: «Задать вопрос» is the free entry CTA, not a nav label.
     expect(header).not.toContain('label: "Задать вопрос"');
     expect(header).toContain('href={mainUrl("/checkin")}');
-    expect(header).toContain("Начать диалог");
-    expect(header.indexOf('label: "Продукты"')).toBeLessThan(header.indexOf('label: "Библиотека"'));
-    expect(header).toContain('label: "Продукты"');
+    expect(header).toContain("Задать вопрос");
+    // The landing nav lives in the shared model now; «Продукты» → «Услуги».
+    expect(navModel.indexOf('label: "Услуги"')).toBeLessThan(navModel.indexOf('label: "Библиотека"'));
+    expect(navModel).toContain('label: "Услуги"');
+    expect(navModel).not.toContain('label: "Продукты"');
     expect(header).toContain('data-testid="public-shell-header"');
     expect(source("src/components/footer.tsx")).toContain('data-testid="public-shell-footer"');
   });
@@ -51,7 +55,9 @@ describe("v5 public shell", () => {
     expect(header).toContain("Баланс:");
     // B375: практика живёт блоком на дашборде — отдельного nav-пункта нет.
     expect(header).not.toContain("Ежедневная практика");
-    expect(header).toContain("Подписка и оплата");
+    // B464 IB3: «Подписка и оплата» merged into «Кошелёк»; «Приглашения» added.
+    expect(header).not.toContain("Подписка и оплата");
+    expect(header).toContain("Приглашения");
     expect(footer).toContain("soft-footer-columns");
     // B380 (M26): footer condensed 5 → 4 thematic columns aligned to the
     // catalogue groups; free entries are communicated on each product page,
@@ -75,15 +81,16 @@ describe("v5 public shell", () => {
   it("keeps the authenticated right cluster inside a 360px viewport", () => {
     const header = source("src/components/header.tsx");
 
-    // The logged-in client cluster (balance + help + bell + avatar + CTA +
-    // burger) overflowed 360px and produced horizontal scroll. Below md the
-    // CTA «Новый разбор» and the help icon must collapse — both are
-    // duplicated inside the burger menu («Начать диалог» / «Помощь»).
+    // The logged-in client cluster (balance + help + bell + avatar + CTA)
+    // overflows 360px, so below md the desktop CTA «Задать вопрос» and the help
+    // icon collapse — the state-aware mobile bottom bar carries them instead
+    // (B464 IB0 retired the burger).
     expect(header).toContain('className="soft-header-cta soft-header-cta-primary hidden md:inline-flex"');
     expect(header).toContain('className="soft-user-icon hidden md:inline-flex"');
-    // The mobile burger menu keeps both actions reachable.
-    expect(header).toContain("Помощь");
-    expect(header).toContain("Начать диалог");
+    // The bottom bar keeps the actions reachable: «Вопрос» (→ /checkin) as a
+    // tab and «Поддержка» inside the «Ещё» sheet.
+    expect(header).toContain('data-testid="landing-mobile-nav"');
+    expect(header).toContain("Задать вопрос");
   });
 
   it("defers session and host-specific header branches until after mount", () => {

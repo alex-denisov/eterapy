@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { buttonVariants } from "@/lib/button-variants";
 import { cn } from "@/lib/utils";
-import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname } from "@/lib/subdomain";
+import { appUrl, adminUrl, logoutUrl, mainUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { formatPoints } from "@/lib/points";
 import { BALANCE_CHANGED_EVENT } from "@/lib/balance-events";
 import { NotificationBell } from "@/components/notification-bell";
 import { useMiniApp } from "@/components/miniapp-provider";
 import {
+  ArrowLeft,
   Banknote,
   BookOpen,
   Bookmark,
@@ -19,6 +19,7 @@ import {
   ChevronDown,
   CircleHelp,
   CreditCard,
+  Gift,
   LayoutDashboard,
   Lock,
   LogOut,
@@ -31,14 +32,17 @@ import {
   Wallet,
 } from "lucide-react";
 import { VectorBrandLogo } from "@/components/brand/brand-mark";
-
-const GUEST_NAV = [
-  { href: "/how-it-works", label: "Как работает" },
-  { href: "/products", label: "Продукты" },
-  { href: "/library", label: "Библиотека" },
-  { href: "/practitioners", label: "Специалисты" },
-  { href: "/pricing", label: "Тарифы" },
-];
+import {
+  LANDING_NAV,
+  CABINET_BRIDGE,
+  CLIENT_MOBILE_TABS,
+  GUEST_MOBILE_TABS,
+  CLIENT_MORE_ITEMS,
+  GUEST_MORE_ITEMS,
+  MORE_LABEL,
+  LOGOUT_LABEL,
+} from "@/lib/nav-model";
+import { NAV_ICONS } from "@/components/nav/nav-icons";
 
 function useHostname() {
   const [hostname, setHostname] = useState("");
@@ -171,7 +175,7 @@ function MoneyBalanceLink({
   );
 }
 
-function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSession>["data"]> }) {
+function UserMenu({ session, cabinetDoor }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string } }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -211,11 +215,13 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
     { href: adminUrl("/admin/bookings"), label: "Бронирования", icon: CalendarDays },
     { href: adminUrl("/admin/settings"), label: "Настройки", icon: Settings },
   ] : [
+    // T11/B464 IB0: mirrors CLIENT_NAV (cabinet-shell) one-to-one. «Подписка и
+    // оплата» merged into «Кошелёк» (IB3); «Приглашения» added.
     { href: appUrl(""), label: "Главная", icon: LayoutDashboard },
     { href: appUrl("/diary"), label: "Дневник", icon: BookOpen },
+    { href: appUrl("/wallet"), label: "Кошелёк", icon: Wallet },
     { href: appUrl("/bookings"), label: "Записи", icon: CalendarDays },
-    { href: appUrl("/wallet"), label: "Кошелёк", icon: Sparkles },
-    { href: appUrl("/billing"), label: "Подписка и оплата", icon: Wallet },
+    { href: appUrl("/invite"), label: "Приглашения", icon: Gift },
     { href: appUrl("/settings"), label: "Настройки", icon: Settings },
   ];
 
@@ -285,21 +291,51 @@ function UserMenu({ session }: { session: NonNullable<ReturnType<typeof useSessi
   }
 
   return (
-    <div ref={ref} className="relative" onKeyDown={handleKeyDown}>
-      <button
-        ref={triggerRef}
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        aria-label="Меню пользователя"
-        className="soft-user-pill"
-      >
-        <span className="-ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[11px] font-bold text-[var(--soft-bordeaux)]">
-          {name.charAt(0).toUpperCase()}
-        </span>
-        <span className="hidden md:block">{name}</span>
-        <ChevronDown className={cn("size-3.5 text-[var(--soft-ink-faint)] transition-transform", open && "rotate-180")} aria-hidden="true" />
-      </button>
+    <div ref={ref} className="relative flex items-center gap-1" onKeyDown={handleKeyDown}>
+      {/* B464 IB0: on the landing a client gets a labeled «Кабинет» DOOR (click →
+          cabinet) plus a chevron that opens the quick-jump dropdown. Elsewhere
+          (inside the cabinet, or for practitioner/staff) the pill keeps the
+          account-menu behaviour and shows the user's name. */}
+      {cabinetDoor ? (
+        <>
+          <Link
+            href={cabinetDoor.href}
+            prefetch={false}
+            className="soft-user-pill"
+            data-testid="header-cabinet-door"
+          >
+            <span className="-ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[11px] font-bold text-[var(--soft-bordeaux)]">
+              {name.charAt(0).toUpperCase()}
+            </span>
+            <span className="hidden md:block">Кабинет</span>
+          </Link>
+          <button
+            ref={triggerRef}
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            aria-haspopup="menu"
+            aria-label="Меню кабинета"
+            className="soft-user-icon"
+          >
+            <ChevronDown className={cn("size-3.5 text-[var(--soft-ink-faint)] transition-transform", open && "rotate-180")} aria-hidden="true" />
+          </button>
+        </>
+      ) : (
+        <button
+          ref={triggerRef}
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label="Меню пользователя"
+          className="soft-user-pill"
+        >
+          <span className="-ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[11px] font-bold text-[var(--soft-bordeaux)]">
+            {name.charAt(0).toUpperCase()}
+          </span>
+          <span className="hidden md:block">{name}</span>
+          <ChevronDown className={cn("size-3.5 text-[var(--soft-ink-faint)] transition-transform", open && "rotate-180")} aria-hidden="true" />
+        </button>
+      )}
 
       {open && (
         <div
@@ -416,7 +452,23 @@ export function Header() {
   // still suppress the public nav.
   const isAppArea = cabinetPathname.startsWith("/cabinet") || isAppHost || isAdminArea || isAdminHost;
   const showPublicNav = !isAppArea;
-  const nav = showPublicNav ? GUEST_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
+  const nav = showPublicNav ? LANDING_NAV.map(item => ({ ...item, href: mainUrl(item.href) })) : [];
+
+  // B464 IB0 — the platform header is now continuous across landing ↔ cabinet:
+  //   • in the cabinet a client sees a cross-shell service BRIDGE in the centre
+  //     (the previously-empty nav track);
+  //   • ONE state-aware mobile bottom bar replaces the burger on the landing
+  //     (the cabinet shell renders its own bar inside /cabinet, so the header
+  //     bar is landing-only to avoid a double bar).
+  const isClientPersona = !isAuthenticated || (!isStaff && !isPractitioner);
+  const showCabinetBridge = isAuthenticated && !isStaff && !isPractitioner && isAppArea;
+  const showMobileBar = showPublicNav && isClientPersona;
+  const mobileTabs = isAuthenticated ? CLIENT_MOBILE_TABS : GUEST_MOBILE_TABS;
+  const moreItems = isAuthenticated ? CLIENT_MORE_ITEMS : GUEST_MORE_ITEMS;
+  const tabActive = (href: string) => {
+    const p = toPathname(href);
+    return p !== "/" && (pathname === p || pathname.startsWith(`${p}/`));
+  };
 
   // Keep the soft-paper styling on every surface — including admin —
   // so the visual baseline is identical across all logged-in areas.
@@ -457,25 +509,45 @@ export function Header() {
           <VectorBrandLogo height={28} theme={softPublicHeader ? "light" : "dark"} />
         </Link>
 
-        {/* Public navigation stays on eterapy.com even inside app.eterapy.com cabinets.
-            B315: justify-center so the nav sits in the middle of the 1fr grid track —
-            previously it stuck to the left edge of column 2 after the B298 grid rework. */}
-        <nav className="hidden items-center justify-center gap-1 md:flex">
-          {nav.map((item) => {
-            const itemPathname = new URL(item.href, "https://eterapy.com").pathname;
-            const active = pathname === itemPathname || pathname.startsWith(itemPathname + "/");
-            return (
-              <Link key={item.href} href={item.href}
+        {/* Centre track: public nav on the landing, OR the cross-shell service
+            bridge inside the cabinet (B464 IB0). Exactly one renders, so the
+            3-column grid — and the byte-identical right cluster — stays stable.
+            B315: justify-center keeps the nav in the middle of the 1fr track. */}
+        {showCabinetBridge ? (
+          <nav data-testid="cabinet-service-bridge" className="hidden items-center justify-center gap-1 md:flex">
+            {CABINET_BRIDGE.map((item, i) => (
+              <Link key={item.href} href={item.href} prefetch={false}
                 data-soft-nav="link"
-                data-active={active ? "true" : undefined}
                 className={cn("rounded-full px-3 py-2 text-sm transition-colors",
-                  active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                  i === 0
+                    ? "inline-flex items-center gap-1 text-[var(--soft-ink-faint)] hover:text-foreground"
+                    : item.label === "Услуги"
+                      ? "font-medium text-[#6E5BA6] hover:bg-white/5"
+                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
                 )}>
+                {i === 0 && <ArrowLeft className="size-3.5" aria-hidden="true" />}
                 {item.label}
               </Link>
-            );
-          })}
-        </nav>
+            ))}
+          </nav>
+        ) : (
+          <nav className="hidden items-center justify-center gap-1 md:flex">
+            {nav.map((item) => {
+              const itemPathname = new URL(item.href, "https://eterapy.com").pathname;
+              const active = pathname === itemPathname || pathname.startsWith(itemPathname + "/");
+              return (
+                <Link key={item.href} href={item.href}
+                  data-soft-nav="link"
+                  data-active={active ? "true" : undefined}
+                  className={cn("rounded-full px-3 py-2 text-sm transition-colors",
+                    active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                  )}>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        )}
 
         {/* Right side: authenticated actions or guest auth buttons.
             justify-end keeps the cluster pinned to the right edge of
@@ -509,14 +581,17 @@ export function Header() {
                   prefetch={false}
                   aria-label="Поддержка и помощь"
                   // 360px fix: below md the right cluster overflows the
-                  // viewport; the burger menu carries «Помощь» instead.
+                  // viewport; the mobile «Ещё» sheet carries «Поддержка» instead.
                   className="soft-user-icon hidden md:inline-flex"
                 >
                   <CircleHelp className="size-4" />
                 </Link>
               )}
               <NotificationBell variant="header" />
-              <UserMenu session={session} />
+              <UserMenu
+                session={session}
+                cabinetDoor={showPublicNav && !isStaff && !isPractitioner ? { href: cabinetHref } : undefined}
+              />
               {/* B321: ALL header items at canonical v4.2 user-pill height —
                   h-7 (28px), text-[13px], px-3 (12px). Matches
                   docs/Design/v4.2/style.css .user-pill spec exactly so
@@ -525,14 +600,14 @@ export function Header() {
                 <Link
                   href={mainUrl("/checkin")}
                   // 360px fix: below md the CTA pushed the cluster past the
-                  // right edge (horizontal scroll); the burger menu carries
-                  // «Начать диалог» for clients instead.
+                  // right edge (horizontal scroll); the mobile bottom bar
+                  // «Вопрос» tab carries it for clients instead.
                   className="soft-header-cta soft-header-cta-primary hidden md:inline-flex"
                   data-testid="header-dialogue-cta"
                   data-analytics-event="dialogue_cta_clicked"
                   data-analytics-target="/checkin"
                 >
-                  Новый разбор
+                  Задать вопрос
                 </Link>
               )}
             </>
@@ -547,80 +622,99 @@ export function Header() {
                 href={mainUrl("/checkin")}
                 className="soft-header-cta soft-header-cta-primary"
               >
-                Начать диалог
+                Задать вопрос
               </Link>
             </>
           )}
-          <button
-            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full border border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] transition-colors hover:border-[var(--soft-terracotta)] hover:text-[var(--soft-bordeaux)] md:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Меню"
-          >
-            {mobileOpen ? "✕" : "☰"}
-          </button>
         </div>
       </div>
 
-      {mobileOpen && (
-        <div className="border-t border-[var(--soft-paper-edge)]/60 bg-[var(--soft-paper)]/96 px-4 py-4 shadow-[0_18px_50px_rgba(60,30,20,0.12)] backdrop-blur-xl md:hidden animate-in slide-in-from-top-2 duration-200 soft-mobile-menu">
-          <nav className="flex flex-col gap-1">
-            {nav.map((item) => (
-              <Link key={item.href} href={item.href}
+      {/* B464 IB0 — ONE state-aware, iOS-frosted mobile bottom bar replaces the
+          burger on the landing. Inside /cabinet the cabinet shell renders its
+          own identical bar, so this one is landing-only (no double bar). The
+          «Ещё» tab opens a bottom sheet instead of navigating. */}
+      {showMobileBar && (
+        <>
+          {mobileOpen && (
+            <>
+              <button
+                type="button"
+                aria-label="Закрыть меню"
+                className="fixed inset-0 z-40 bg-[rgba(60,30,20,0.28)] md:hidden"
                 onClick={() => setMobileOpen(false)}
-                className={cn("rounded-xl px-3 py-2.5 text-sm transition-colors",
-                  pathname === new URL(item.href, "https://eterapy.com").pathname ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                )}>
-                {item.label}
-              </Link>
-            ))}
-            {isAuthenticated && session ? (
-              <>
-                <Link href={appUrl("/help")} prefetch={false} onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
-                  Помощь
-                </Link>
-                {isPractitioner ? (
-                  <Link href={appUrl("/practitioner/earnings")} prefetch={false} onClick={() => setMobileOpen(false)}
-                    className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
-                    <CreditCard className="size-4" aria-hidden="true" />
-                    {formatBalanceRub(practitionerBalanceKopecks)} ₽
-                  </Link>
-                ) : (
-                  <Link href={appUrl("/wallet")} prefetch={false} onClick={() => setMobileOpen(false)}
-                    className="flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary transition-colors hover:bg-[var(--soft-paper-card)]">
-                    <Sparkles className="size-4" aria-hidden="true" />
-                    Баланс: {formatPoints(clarityCredits)}
-                  </Link>
-                )}
-                <Link href={cabinetHref} prefetch={false} onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm font-semibold text-[var(--soft-bordeaux)] transition-colors hover:bg-[var(--soft-paper-card)]">
-                  Личный кабинет
-                </Link>
-                {/* G16: «Начать диалог» mirrors the desktop «Новый разбор» gate —
-                    client-only, hidden for practitioners and staff. */}
-                {showNewDialogueCta && (
-                  <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
-                    className="rounded-lg bg-[var(--soft-terracotta)] px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--soft-terracotta-dark)]">
-                    Начать диалог
-                  </Link>
-                )}
-                {isAppArea && (
-                  <button onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
-                    className="mt-2 rounded-lg border border-border/30 px-3 py-2.5 text-left text-sm text-muted-foreground">
-                    Выйти
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="mt-3 flex gap-2 border-t border-border/30 pt-3">
-                <Link href={mainUrl("/login")} prefetch={false} onClick={() => setMobileOpen(false)}
-                  className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "flex-1 text-muted-foreground")}>Войти</Link>
-                <Link href={mainUrl("/checkin")} onClick={() => setMobileOpen(false)}
-                  className={cn(buttonVariants({ size: "sm" }), "flex-1 !bg-[var(--soft-terracotta)] !text-white")}>Начать диалог</Link>
+              />
+              <div
+                data-testid="landing-mobile-sheet"
+                className="soft-mobile-sheet fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-50 md:hidden"
+              >
+                {moreItems.map((item) => {
+                  const Icon = NAV_ICONS[item.iconKey];
+                  if (item.label === LOGOUT_LABEL) {
+                    return (
+                      <button
+                        key="more-logout"
+                        type="button"
+                        onClick={() => { setMobileOpen(false); window.location.href = logoutUrl(); }}
+                        className="soft-mobile-sheet-row flex w-full items-center gap-3"
+                      >
+                        <Icon className="size-4 shrink-0 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+                        {item.label}
+                      </button>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      prefetch={false}
+                      onClick={() => setMobileOpen(false)}
+                      className="soft-mobile-sheet-row flex items-center gap-3"
+                    >
+                      <Icon className="size-4 shrink-0 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </div>
-            )}
+            </>
+          )}
+          <nav
+            data-testid="landing-mobile-nav"
+            className="soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden"
+          >
+            {mobileTabs.map((item) => {
+              const Icon = NAV_ICONS[item.iconKey];
+              const base = "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors";
+              if (item.label === MORE_LABEL) {
+                return (
+                  <button
+                    key="more"
+                    type="button"
+                    aria-expanded={mobileOpen}
+                    aria-label="Ещё"
+                    onClick={() => setMobileOpen((v) => !v)}
+                    className={cn(base, mobileOpen ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]")}
+                  >
+                    <Icon className="size-5" aria-hidden="true" />
+                    {item.label}
+                  </button>
+                );
+              }
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(base, tabActive(item.href) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]")}
+                >
+                  <Icon className="size-5" aria-hidden="true" />
+                  {item.label}
+                </Link>
+              );
+            })}
           </nav>
-        </div>
+        </>
       )}
     </header>
   );
