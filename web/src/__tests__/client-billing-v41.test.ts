@@ -9,12 +9,12 @@ function source(relativePath: string) {
 
 describe("B206 client billing v4.1 cabinet", () => {
   it("surfaces subscription status, balance, cards, and billing history from live APIs", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     const creditsPage = source("src/app/cabinet/wallet/page.tsx");
     const transactionsRoute = source("src/app/api/billing/transactions/route.ts");
     const entitlementsRoute = source("src/app/api/billing/entitlements/route.ts");
 
-    expect(page).toContain('data-testid="client-billing-subscription"');
+    expect(page).toContain('client-billing-subscription');
     expect(page).toContain('data-testid="client-saved-cards"');
     expect(page).toContain('data-testid="client-billing-history"');
     expect(page).toContain("fetch(\"/api/billing/entitlements\")");
@@ -32,7 +32,7 @@ describe("B206 client billing v4.1 cabinet", () => {
   });
 
   it("T21/Z1-Ф1: billing manages cards + subscription, no ₽ top-up, unified history table", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     const table = source("src/components/cabinet/billing-history-table.tsx");
     const cardsRoute = source("src/app/api/billing/cards/route.ts");
 
@@ -59,7 +59,7 @@ describe("B206 client billing v4.1 cabinet", () => {
   });
 
   it("makes plan upgrade and cancellation controls actionable instead of decorative", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     const subscriptionsRoute = source("src/app/api/billing/subscriptions/route.ts");
 
     expect(page).toContain("async function handleStartSubscription");

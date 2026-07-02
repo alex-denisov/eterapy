@@ -11,7 +11,7 @@ describe("W10 — /credits title, products anchor, balance-aware CTA", () => {
     // Z1-Ф1: the client ₽ balance rail is removed — no rubBalance, the second
     // recommendation card is a subscription upsell.
     expect(page).not.toContain("rubBalance");
-    expect(page).toContain("Выбрать подписку");
+    expect(page).toContain("Сравнить тарифы");
     expect(page).toContain('id="credits-products"');
   });
 });

@@ -99,7 +99,7 @@ describe("v5 billing entitlements", () => {
     const entitlements = fs.readFileSync(path.join(process.cwd(), "src/lib/entitlements.ts"), "utf8");
     const pricingPlans = fs.readFileSync(path.join(process.cwd(), "src/app/pricing/pricing-plans.tsx"), "utf8");
     const pricingCompare = fs.readFileSync(path.join(process.cwd(), "src/app/pricing/compare/page.tsx"), "utf8");
-    const cabinetBilling = fs.readFileSync(path.join(process.cwd(), "src/app/cabinet/billing/page.tsx"), "utf8");
+    const cabinetBilling = fs.readFileSync(path.join(process.cwd(), "src/components/cabinet/billing-panel.tsx"), "utf8");
     const platformSettings = fs.readFileSync(path.join(process.cwd(), "src/lib/platform-settings.ts"), "utf8");
     const adminPricing = fs.readFileSync(path.join(process.cwd(), "src/app/admin/pricing/pricing-editor.tsx"), "utf8");
     const checked = [entitlements, pricingPlans, pricingCompare, cabinetBilling, platformSettings, adminPricing].join("\n");
@@ -113,7 +113,7 @@ describe("v5 billing entitlements", () => {
     expect(pricingPlans).toContain("+20 баллов каждый месяц");
     expect(pricingCompare).toContain('"20 / месяц"');
     expect(cabinetBilling).toContain("amountKopecks: 149000");
-    expect(cabinetBilling).toContain("creditsPerPeriod: 20");
+    expect(cabinetBilling).toContain("+20 баллов");
     expect(platformSettings).toContain('"subscription.premium.price":   "1490"');
     expect(adminPricing).toContain("recommended: 1490");
 

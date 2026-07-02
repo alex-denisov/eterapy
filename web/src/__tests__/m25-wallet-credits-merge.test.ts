@@ -49,14 +49,13 @@ describe("B349 — wallet/credits merge", () => {
     expect(dashboard).toContain('appUrl("/wallet")');
   });
 
-  it("/billing: current subscription shares the plan-cards row + a credits CTA", () => {
-    const billing = source("src/app/cabinet/billing/page.tsx");
-    // Current subscription is the first cell of the 3-col plans grid (apricot).
+  it("B464 IB3: the merged billing panel renders 3 fixed plan cards, current highlighted", () => {
+    const billing = source("src/components/cabinet/billing-panel.tsx");
+    // 3-col plans grid; the current/base card is highlighted apricot.
     expect(billing).toContain('className="grid gap-4 md:grid-cols-3"');
-    expect(billing).toContain('data-testid="client-billing-subscription"');
+    expect(billing).toContain('client-billing-subscription');
     expect(billing).toContain("linear-gradient(160deg, #F4D9C1, #F8E6D1)");
-    // Attractive credit-purchase block routing to the wallet top-up.
-    expect(billing).toContain('data-testid="client-billing-credits-cta"');
-    expect(billing).toContain('appUrl("/wallet#wallet-topup")');
+    // The «докупить баллы» CTA is dropped — packs live on the same /wallet page.
+    expect(billing).not.toContain('client-billing-credits-cta');
   });
 });

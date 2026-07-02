@@ -60,7 +60,7 @@ describe("B435 clarity credit point types and burn priority", () => {
     const spendRoute = source("src/app/api/billing/spend-credits/route.ts");
     const wallet = source("src/lib/credit-wallet.ts");
     const walletPage = source("src/app/cabinet/wallet/page.tsx");
-    const billingPage = source("src/app/cabinet/billing/page.tsx");
+    const billingPage = source("src/components/cabinet/billing-panel.tsx");
 
     expect(spendRoute).toContain("planClarityCreditSpend");
     expect(spendRoute).toContain("allocations");

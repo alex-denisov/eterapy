@@ -5,14 +5,14 @@ const source = (relativePath: string) => fs.readFileSync(path.join(process.cwd()
 
 describe("Issues 30.05 — Wave 0 quick fixes", () => {
   it("Баг 8: billing renders compact cards (short tail), 3 per row", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     // compact card faces so three fit per row (was a full 4-group mask)
     expect(page).toContain("•••• {card.last4}");
     expect(page).toContain("sm:grid-cols-3");
   });
 
   it("Z1-Ф1: the ₽ top-up field is removed from billing (no client balance rail)", () => {
-    const page = source("src/app/cabinet/billing/page.tsx");
+    const page = source("src/components/cabinet/billing-panel.tsx");
     expect(page).not.toContain("const [topUpRaw, setTopUpRaw] = useState");
     expect(page).not.toContain("client-topup-amount");
     expect(page).not.toContain('type="number"');

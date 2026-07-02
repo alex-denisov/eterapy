@@ -60,7 +60,7 @@ describe("B462 — deep design-review polish batch", () => {
   });
 
   describe("§3.4 client billing renders a shell, never a blank viewport (HIGH)", () => {
-    const billing = source("app/cabinet/billing/page.tsx");
+    const billing = source("components/cabinet/billing-panel.tsx");
 
     it("does not return null while the next-auth session is loading", () => {
       // Root cause of the blank screenshot: `if (status === "loading") return null;`.
