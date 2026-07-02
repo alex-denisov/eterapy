@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Fragment } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronRight, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { PriceRatesEditor } from "@/components/schedule/price-rates-editor";
 import { COMPACT_INPUT_CLASS } from "@/components/admin/compact-table";
+import { AdminCompactDataTable, type AdminCompactColumn, type AdminCompactRow } from "@/components/admin/compact-client-table";
 
 interface PriceRate {
   durationMin: number;
@@ -102,39 +102,12 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
     120: { price: 0, enabled: false },
   });
   const [applyingBulk, setApplyingBulk] = useState(false);
-  // M6/M7: per-practitioner commission editing + search/sort on the rates table.
+  // M6/M7: per-practitioner commission editing.
   const [commissionDraft, setCommissionDraft] = useState<Record<string, string>>({});
   const [savingCommission, setSavingCommission] = useState<string | null>(null);
   const [basePriceDraft, setBasePriceDraft] = useState<Record<string, string>>({});
   const [editingBasePrice, setEditingBasePrice] = useState<string | null>(null);
   const [savingBasePrice, setSavingBasePrice] = useState<string | null>(null);
-  const [pracQuery, setPracQuery] = useState("");
-  const [pracSort, setPracSort] = useState<"name" | "price" | "commission">("price");
-  const [pracDir, setPracDir] = useState<"asc" | "desc">("asc");
-
-  function togglePracSort(field: "name" | "price" | "commission") {
-    if (pracSort === field) {
-      setPracDir((current) => (current === "asc" ? "desc" : "asc"));
-    } else {
-      setPracSort(field);
-      setPracDir("asc");
-    }
-  }
-
-  const visiblePractitioners = useMemo(() => {
-    const query = pracQuery.trim().toLowerCase();
-    const filtered = query
-      ? practitioners.filter(
-          (p) => p.user.name.toLowerCase().includes(query) || p.user.email.toLowerCase().includes(query),
-        )
-      : practitioners;
-    const sorted = [...filtered].sort((a, b) => {
-      if (pracSort === "name") return a.user.name.localeCompare(b.user.name, "ru");
-      if (pracSort === "commission") return (a.commissionPercent ?? 0) - (b.commissionPercent ?? 0);
-      return (basePrice60(a) ?? Number.POSITIVE_INFINITY) - (basePrice60(b) ?? Number.POSITIVE_INFINITY);
-    });
-    return pracDir === "desc" ? sorted.reverse() : sorted;
-  }, [practitioners, pracQuery, pracSort, pracDir]);
 
   async function saveCommission(id: string) {
     const raw = commissionDraft[id];
@@ -265,33 +238,55 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
   }
 
   function settingsTable(title: string, rows: PriceKey[], scope: string) {
+    const columns: AdminCompactColumn[] = [
+      { key: "label", label: "Параметр", sortable: true, filterKind: "text" },
+      { key: "key", label: "Ключ", sortable: true, filterKind: "text" },
+      { key: "value", label: "Значение", sortable: true, filterKind: "text" },
+      { key: "unit", label: "Ед.", sortable: true, filterKind: "select" },
+    ];
+    const unitOptions = [...new Set(rows.map((row) => row.unit))]
+      .sort((a, b) => a.localeCompare(b, "ru"))
+      .map((unit) => ({ value: unit, label: unit }));
+    const tableRows: AdminCompactRow[] = rows.map(({ key, label, unit, recommended }) => {
+      const current = settings[key] ?? "";
+      return {
+        id: key,
+        cells: {
+          label,
+          key: {
+            kind: "node",
+            node: <code>{key}</code>,
+            filterValue: key,
+            sortValue: key,
+          },
+          value: {
+            kind: "node",
+            node: (
+              <input
+                type="number"
+                min={0}
+                value={current}
+                placeholder={recommended !== undefined ? `реком. ${recommended}` : ""}
+                onChange={(event) => setSettings((currentSettings) => ({ ...currentSettings, [key]: event.target.value }))}
+                className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-32 min-w-32`}
+              />
+            ),
+            filterValue: current || String(recommended ?? ""),
+            sortValue: Number(current || recommended || 0),
+          },
+          unit,
+        },
+      };
+    });
     return (
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
         <h2 className="mb-3 font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
-        <div className="overflow-x-auto">
-          <table className="soft-admin-compact-table min-w-[720px] w-full border-collapse text-left text-[11px] leading-tight">
-            <thead><tr><th>Параметр</th><th>Ключ</th><th>Значение</th><th>Ед.</th></tr></thead>
-            <tbody>
-              {rows.map(({ key, label, unit, recommended }) => (
-                <tr key={key}>
-                  <td>{label}</td>
-                  <td><code>{key}</code></td>
-                  <td>
-                    <input
-                      type="number"
-                      min={0}
-                      value={settings[key] ?? ""}
-                      placeholder={recommended !== undefined ? `реком. ${recommended}` : ""}
-                      onChange={(event) => setSettings((current) => ({ ...current, [key]: event.target.value }))}
-                      className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-32 min-w-32`}
-                    />
-                  </td>
-                  <td>{unit}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <AdminCompactDataTable
+          columns={columns.map((column) => column.key === "unit" ? { ...column, options: unitOptions } : column)}
+          rows={tableRows}
+          minWidth="720px"
+          pageSize={20}
+        />
         {/* M5/B2: each editable table saves its own values. */}
         <div className="mt-3 flex justify-end">
           <button
@@ -333,14 +328,6 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
             <p className="text-xs text-[var(--soft-ink-faint)]">Базовая цена (60 мин), индивидуальная комиссия и ставки по длительности.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="search"
-              value={pracQuery}
-              onChange={(event) => setPracQuery(event.target.value)}
-              placeholder="Поиск: имя или email"
-              className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-56`}
-              aria-label="Поиск практика"
-            />
             <button onClick={() => setBulkMode(!bulkMode)} className="soft-admin-action">
               {bulkMode ? "Закрыть массовое" : "Массовое применение"}
             </button>
@@ -348,24 +335,36 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
         </div>
 
         {bulkMode && (
-          <div className="mb-4 overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-white/55 p-3">
-            <table className="soft-admin-compact-table min-w-[760px] w-full border-collapse text-left text-[11px] leading-tight">
-              <thead><tr><th>Длительность</th><th>Включить</th><th>Цена</th></tr></thead>
-              <tbody>
-                {Object.entries(DURATION_LABELS).map(([duration, label]) => {
-                  const durationMin = Number(duration);
-                  const rate = bulkRates[durationMin];
-                  return (
-                    <tr key={duration}>
-                      <td>{label}</td>
-                      <td>
+          <div className="mb-4 rounded-lg border border-[var(--soft-paper-edge)] bg-white/55 p-3">
+            <AdminCompactDataTable
+              columns={[
+                { key: "duration", label: "Длительность", sortable: true, filterKind: "select", options: Object.entries(DURATION_LABELS).map(([, label]) => ({ value: label, label })) },
+                { key: "enabled", label: "Включить", sortable: true, filterKind: "select", options: [{ value: "да", label: "Да" }, { value: "нет", label: "Нет" }] },
+                { key: "price", label: "Цена", sortable: true, filterKind: "text" },
+              ]}
+              rows={Object.entries(DURATION_LABELS).map(([duration, label]) => {
+                const durationMin = Number(duration);
+                const rate = bulkRates[durationMin];
+                return {
+                  id: duration,
+                  cells: {
+                    duration: label,
+                    enabled: {
+                      kind: "node",
+                      node: (
                         <input
                           type="checkbox"
                           checked={rate.enabled}
                           onChange={() => setBulkRates((current) => ({ ...current, [durationMin]: { ...current[durationMin], enabled: !current[durationMin].enabled } }))}
+                          aria-label={`Включить ${label}`}
                         />
-                      </td>
-                      <td>
+                      ),
+                      filterValue: rate.enabled ? "да" : "нет",
+                      sortValue: rate.enabled ? 1 : 0,
+                    },
+                    price: {
+                      kind: "node",
+                      node: (
                         <input
                           type="number"
                           min={0}
@@ -375,54 +374,52 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                           onChange={(event) => setBulkRates((current) => ({ ...current, [durationMin]: { ...current[durationMin], price: Number(event.target.value) } }))}
                           className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-32 min-w-32`}
                         />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      ),
+                      filterValue: String(rate.price),
+                      sortValue: rate.price,
+                    },
+                  },
+                };
+              })}
+              minWidth="760px"
+              pageSize={20}
+            />
             <button onClick={handleBulkApply} disabled={applyingBulk} className="soft-admin-action mt-3" data-variant="primary">
               {applyingBulk ? "Применяем..." : `Применить к ${practitioners.length} практикам`}
             </button>
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="soft-admin-compact-table min-w-[980px] w-full border-collapse text-left text-[11px] leading-tight">
-            <thead>
-              <tr>
-                <th>
-                  <button type="button" className="font-inherit cursor-pointer bg-transparent" onClick={() => togglePracSort("name")}>
-                    Практик{pracSort === "name" ? (pracDir === "asc" ? " ▲" : " ▼") : ""}
-                  </button>
-                </th>
-                <th>Email</th>
-                <th>Статус</th>
-                <th>
-                  <button type="button" className="font-inherit cursor-pointer bg-transparent" onClick={() => togglePracSort("price")}>
-                    Базовая цена (60 мин){pracSort === "price" ? (pracDir === "asc" ? " ▲" : " ▼") : ""}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" className="font-inherit cursor-pointer bg-transparent" onClick={() => togglePracSort("commission")}>
-                    Комиссия{pracSort === "commission" ? (pracDir === "asc" ? " ▲" : " ▼") : ""}
-                  </button>
-                </th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiblePractitioners.map((practitioner) => {
+        <AdminCompactDataTable
+          columns={[
+            { key: "practitioner", label: "Практик", sortable: true, filterKind: "text" },
+            { key: "email", label: "Email", sortable: true, filterKind: "text" },
+            { key: "status", label: "Статус", sortable: true, filterKind: "select", options: [...new Set(practitioners.map((item) => item.status))].sort().map((status) => ({ value: status, label: status })) },
+            { key: "base", label: "Базовая цена (60 мин)", sortable: true, filterKind: "text", align: "right" },
+            { key: "commission", label: "Комиссия", sortable: true, filterKind: "text", align: "right" },
+            { key: "rates", label: "Ставки", sortable: false, filterKind: "none" },
+          ]}
+          rows={practitioners.map((practitioner) => {
                 const base = basePrice60(practitioner);
                 const expanded = expandedPrac === practitioner.id;
-                return (
-                  <Fragment key={practitioner.id}>
-                    <tr>
-                      <td>{practitioner.user.name}</td>
-                      <td>{practitioner.user.email}</td>
-                      <td><span className="soft-admin-status-pill" data-tone={practitioner.status === "ACTIVE" ? "ok" : "warn"}>{practitioner.status}</span></td>
-                      <td>
-                        <div className="relative inline-flex items-center gap-1.5">
+                return {
+                  id: practitioner.id,
+                  cells: {
+                    practitioner: practitioner.user.name,
+                    email: practitioner.user.email,
+                    status: {
+                      kind: "status",
+                      label: practitioner.status,
+                      tone: practitioner.status === "ACTIVE" ? "ok" : "warn",
+                      filterValue: practitioner.status,
+                      sortValue: practitioner.status,
+                    },
+                    base: {
+                      kind: "node",
+                      filterValue: base !== null ? String(base) : "",
+                      sortValue: base ?? 0,
+                      node: (
+                        <div className="relative inline-flex items-center justify-end gap-1.5">
                           <span className="whitespace-nowrap tabular-nums">
                             {base !== null ? `${base.toLocaleString("ru-RU")} ₽` : "—"}
                           </span>
@@ -471,14 +468,19 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                             </div>
                           )}
                         </div>
-                      </td>
-                      <td>
-                        <div className="flex items-center gap-1">
+                      ),
+                    },
+                    commission: {
+                      kind: "node",
+                      filterValue: String(commissionDraft[practitioner.id] ?? practitioner.commissionPercent ?? 35),
+                      sortValue: Number(commissionDraft[practitioner.id] ?? practitioner.commissionPercent ?? 35),
+                      node: (
+                        <div className="flex items-center justify-end gap-1">
                           <input
                             type="number"
                             min={0}
                             max={100}
-	                            value={commissionDraft[practitioner.id] ?? String(practitioner.commissionPercent ?? 35)}
+                            value={commissionDraft[practitioner.id] ?? String(practitioner.commissionPercent ?? 35)}
                             onChange={(event) => setCommissionDraft((current) => ({ ...current, [practitioner.id]: event.target.value }))}
                             className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-16 min-w-16`}
                             aria-label={`Комиссия ${practitioner.user.email}`}
@@ -496,31 +498,36 @@ export function PricingEditor({ initialSettings, practitioners }: Props) {
                             {savingCommission === practitioner.id ? "…" : <Check className="size-3.5" aria-hidden="true" />}
                           </button>
                         </div>
-                      </td>
-                      <td>
-                        <button
-                          className="soft-admin-icon-button"
-                          onClick={() => setExpandedPrac(expanded ? null : practitioner.id)}
-                          title={expanded ? "Скрыть ставки" : "Показать ставки"}
-                          aria-label={expanded ? "Скрыть ставки" : "Показать ставки"}
-                        >
-                          {expanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
-                        </button>
-                      </td>
-                    </tr>
-                    {expanded && (
-                      <tr key={`${practitioner.id}-rates`}>
-                        <td colSpan={6}>
-                          <PriceRatesEditor practitionerId={practitioner.id} initialRates={practitioner.priceRates} />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
+                      ),
+                    },
+                    rates: {
+                      kind: "node",
+                      node: (
+                        <div className="grid gap-2">
+                          <button
+                            type="button"
+                            className="soft-admin-icon-button"
+                            onClick={() => setExpandedPrac(expanded ? null : practitioner.id)}
+                            title={expanded ? "Скрыть ставки" : "Показать ставки"}
+                            aria-label={expanded ? "Скрыть ставки" : "Показать ставки"}
+                          >
+                            {expanded ? <ChevronDown className="size-3.5" aria-hidden="true" /> : <ChevronRight className="size-3.5" aria-hidden="true" />}
+                          </button>
+                          {expanded ? (
+                            <div className="min-w-[28rem]">
+                              <PriceRatesEditor practitionerId={practitioner.id} initialRates={practitioner.priceRates} />
+                            </div>
+                          ) : null}
+                        </div>
+                      ),
+                      filterValue: practitioner.priceRates.map((rate) => `${DURATION_LABELS[rate.durationMin] ?? rate.durationMin} ${rate.priceRub}`).join(" "),
+                    },
+                  },
+                };
               })}
-            </tbody>
-          </table>
-        </div>
+          minWidth="1180px"
+          pageSize={20}
+        />
       </section>
     </div>
   );

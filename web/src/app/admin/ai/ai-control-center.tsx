@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
-  ChevronsUpDown,
   DollarSign,
   GripVertical,
   KeyRound,
@@ -21,7 +20,16 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CompactPaginationBar as SharedCompactPaginationBar } from "@/components/admin/compact-table";
+import {
+  CompactHeader,
+  CompactPaginationBar as SharedCompactPaginationBar,
+  CompactTableShell,
+  COMPACT_CELL_CLASS,
+  COMPACT_HEADER_CLASS,
+  COMPACT_INPUT_CLASS,
+  COMPACT_SELECT_CLASS,
+  type SortDirection,
+} from "@/components/admin/compact-table";
 import {
   MODEL_PRICING_REFERENCE_USD_PER_MILLION,
   getReferenceModelPricing,
@@ -193,12 +201,6 @@ type CloudflareGatewayState =
 
 const PROVIDERS = Object.values(AIProvider);
 const TABLE_PAGE_SIZE = 25;
-const COMPACT_INPUT_CLASS = "h-7 w-full min-w-0 border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
-const COMPACT_SELECT_CLASS = "h-7 w-full min-w-0 border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
-const COMPACT_CELL_CLASS = "border-r border-[var(--soft-paper-edge)] px-1.5 py-1 align-top";
-const COMPACT_HEADER_CLASS = "border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium";
-
-type SortDirection = "asc" | "desc";
 type SortState<K extends string> = { key: K; direction: SortDirection };
 type DisplayCurrency = "RUB" | "USD";
 
@@ -547,62 +549,6 @@ function SoftBadge({ children, className = "" }: { children: ReactNode; classNam
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${className}`}>
       {children}
     </span>
-  );
-}
-
-function CompactTableShell({
-  children,
-  minWidth = "1180px",
-}: {
-  children: ReactNode;
-  minWidth?: string;
-}) {
-  return (
-    <div className="max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
-      <div className="max-w-full overflow-auto">
-        <table className="soft-admin-compact-table w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth }}>
-          {children}
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function CompactHeader({
-  label,
-  sortKey,
-  activeSortKey,
-  direction,
-  onSort,
-  children,
-}: {
-  label: string;
-  sortKey?: string;
-  activeSortKey?: string;
-  direction?: SortDirection;
-  onSort?: (key: string) => void;
-  children?: ReactNode;
-}) {
-  const active = sortKey && activeSortKey === sortKey;
-  return (
-    <th className={COMPACT_HEADER_CLASS} scope="col">
-      <button
-        type="button"
-        disabled={!sortKey || !onSort}
-        onClick={() => sortKey && onSort?.(sortKey)}
-        className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)] disabled:cursor-default"
-      >
-        <span>{label}</span>
-        {sortKey && (
-          <ChevronsUpDown
-            className={`h-3 w-3 ${active ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-soft)]"}`}
-            aria-hidden="true"
-          />
-        )}
-        {active && <span className="sr-only">sorted {direction}</span>}
-      </button>
-      {children}
-    </th>
   );
 }
 

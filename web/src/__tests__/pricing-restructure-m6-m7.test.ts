@@ -42,10 +42,11 @@ describe("M7 — single base price (60 min) per practitioner", () => {
     expect(editor).toContain("function basePrice60(practitioner: Practitioner)");
     expect(editor).toContain("durationMin === 60");
     expect(editor).toContain("Базовая цена (60 мин)");
-    // sortable + searchable practitioner table
-    expect(editor).toContain("togglePracSort");
-    expect(editor).toContain("visiblePractitioners");
-    expect(editor).toContain("setPracQuery");
+    // sortable + searchable practitioner table now uses the shared admin table
+    // contract instead of a local query/sort implementation.
+    expect(editor).toContain("AdminCompactDataTable");
+    expect(editor).toContain('filterKind: "text"');
+    expect(editor).toContain("sortValue: base ?? 0");
   });
 
   it("edits the 60-minute base price inline from the practitioner table", () => {

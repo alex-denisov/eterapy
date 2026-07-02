@@ -4,6 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { DURATION_LABELS } from "@/lib/duration-labels";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { COMPACT_INPUT_CLASS } from "@/components/admin/compact-table";
+import { AdminCompactDataTable, type AdminCompactColumn, type AdminCompactRow } from "@/components/admin/compact-client-table";
 
 interface Rate {
   durationMin: number;
@@ -79,6 +81,63 @@ export function PriceRatesEditor({ practitionerId, initialRates, onSaved }: Prop
 
   const enabledRates = rates.filter((r) => r.enabled && r.priceRub > 0);
   const minRate = enabledRates.length > 0 ? enabledRates.reduce((m, r) => (r.priceRub < m.priceRub ? r : m)) : null;
+  const columns: AdminCompactColumn[] = [
+    { key: "duration", label: "Формат", sortable: true, filterKind: "select", options: ALL_DURATIONS.map((duration) => ({ value: DURATION_LABELS[duration], label: DURATION_LABELS[duration] })) },
+    { key: "enabled", label: "Включён", sortable: true, filterKind: "select", options: [{ value: "включено", label: "Включено" }, { value: "выключено", label: "Выключено" }] },
+    { key: "price", label: "Цена, ₽", sortable: true, filterKind: "text", align: "right" },
+    { key: "status", label: "Статус", sortable: true, filterKind: "select", options: [{ value: "доступен", label: "Доступен" }, { value: "отключён", label: "Отключён" }, { value: "нужна цена", label: "Нужна цена" }] },
+  ];
+  const rows: AdminCompactRow[] = rates.map((rate) => {
+    const status = !rate.enabled ? "отключён" : rate.priceRub > 0 ? "доступен" : "нужна цена";
+    return {
+      id: String(rate.durationMin),
+      cells: {
+        duration: {
+          kind: "text",
+          value: DURATION_LABELS[rate.durationMin],
+          sortValue: rate.durationMin,
+          filterValue: DURATION_LABELS[rate.durationMin],
+        },
+        enabled: {
+          kind: "node",
+          node: (
+            <ToggleSwitch
+              enabled={rate.enabled}
+              onToggle={() => toggleRate(rate.durationMin)}
+              label={`${DURATION_LABELS[rate.durationMin]} — ${rate.enabled ? "включено" : "выключено"}`}
+            />
+          ),
+          filterValue: rate.enabled ? "включено" : "выключено",
+          sortValue: rate.enabled ? 1 : 0,
+        },
+        price: {
+          kind: "node",
+          node: (
+            <input
+              type="number"
+              min={0}
+              step={50}
+              value={rate.priceRub || ""}
+              disabled={!rate.enabled}
+              placeholder={rate.enabled ? "цена" : "—"}
+              onChange={(event) => updateRate(rate.durationMin, { priceRub: Number(event.target.value) || 0 })}
+              className={`${COMPACT_INPUT_CLASS} mt-0 h-8 w-32 min-w-32 disabled:opacity-40`}
+              aria-label={`Цена за ${DURATION_LABELS[rate.durationMin]}`}
+            />
+          ),
+          filterValue: String(rate.priceRub || ""),
+          sortValue: rate.priceRub,
+        },
+        status: {
+          kind: "status",
+          label: status,
+          tone: status === "доступен" ? "ok" : status === "нужна цена" ? "danger" : "warn",
+          filterValue: status,
+          sortValue: status,
+        },
+      },
+    };
+  });
 
   return (
     <div className="space-y-3 py-1">
@@ -95,54 +154,7 @@ export function PriceRatesEditor({ practitionerId, initialRates, onSaved }: Prop
         )}
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-[var(--soft-paper-edge)] bg-white/55">
-        <table className="soft-admin-data-table min-w-[560px]">
-          <thead>
-            <tr>
-              <th className="w-28">Формат</th>
-              <th className="w-24">Включён</th>
-              <th className="w-40">Цена, ₽</th>
-              <th>Статус</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rates.map((rate) => (
-              <tr key={rate.durationMin}>
-                <td className="font-medium">{DURATION_LABELS[rate.durationMin]}</td>
-                <td>
-                  <ToggleSwitch
-                    enabled={rate.enabled}
-                    onToggle={() => toggleRate(rate.durationMin)}
-                    label={`${DURATION_LABELS[rate.durationMin]} — ${rate.enabled ? "включено" : "выключено"}`}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="number"
-                    min={0}
-                    step={50}
-                    value={rate.priceRub || ""}
-                    disabled={!rate.enabled}
-                    placeholder={rate.enabled ? "цена" : "—"}
-                    onChange={(event) => updateRate(rate.durationMin, { priceRub: Number(event.target.value) || 0 })}
-                    className="soft-admin-table-filter mt-0 h-8 w-32 min-w-32 disabled:opacity-40"
-                    aria-label={`Цена за ${DURATION_LABELS[rate.durationMin]}`}
-                  />
-                </td>
-                <td>
-                  {!rate.enabled ? (
-                    <span className="soft-admin-status-pill" data-tone="warn">отключён</span>
-                  ) : rate.priceRub > 0 ? (
-                    <span className="soft-admin-status-pill" data-tone="ok">доступен</span>
-                  ) : (
-                    <span className="soft-admin-status-pill" data-tone="danger">нужна цена</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <AdminCompactDataTable columns={columns} rows={rows} minWidth="560px" pageSize={20} />
 
       <button
         onClick={handleSave}

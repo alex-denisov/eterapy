@@ -1,13 +1,12 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { LogsTabs } from "./logs-viewer";
 import { PageContainer } from "@/components/ui/page-container";
-import { LinkPagination } from "../admin-analytics-ui";
+import { AdminCompactDataTable, type AdminCompactColumn, type AdminCompactRow } from "@/components/admin/compact-client-table";
 
 type SearchParams = {
   q?: string;
@@ -20,71 +19,8 @@ type SearchParams = {
 };
 
 const PAGE_SIZE = 50;
+const AUDIT_LIMIT = 500;
 const SORT_FIELDS = ["createdAt", "action", "userId", "targetId"] as const;
-
-function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
-  const next = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value) next.set(key, value);
-  }
-  for (const [key, value] of Object.entries(patch)) {
-    if (value) next.set(key, value);
-    else next.delete(key);
-  }
-  if (!("page" in patch)) next.set("page", "1");
-  const query = next.toString();
-  return query ? `/admin/ops/logs?${query}` : "/admin/ops/logs";
-}
-
-function HiddenParams({ params, except = [] }: { params: SearchParams; except?: string[] }) {
-  return (
-    <>
-      {Object.entries(params).map(([key, value]) => {
-        if (!value || key === "page" || except.includes(key)) return null;
-        return <input key={key} type="hidden" name={key} value={value} />;
-      })}
-    </>
-  );
-}
-
-// Compact table style shared with the "Промты продуктов" table on /admin/ai.
-const LOG_CELL_CLASS = "border-r border-[var(--soft-paper-edge)] px-1.5 py-1 align-top";
-const LOG_HEADER_CLASS = "border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium";
-const LOG_INPUT_CLASS = "h-7 w-full min-w-0 border-0 border-t border-[var(--soft-paper-edge)] bg-white px-1.5 text-[11px] text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]";
-
-function HeaderInput({ params, name, placeholder }: { params: SearchParams; name: keyof SearchParams; placeholder: string }) {
-  return (
-    <form action="/admin/ops/logs">
-      <HiddenParams params={params} except={[name]} />
-      <input className={LOG_INPUT_CLASS} name={name} defaultValue={params[name] ?? ""} placeholder={placeholder} />
-    </form>
-  );
-}
-
-function SortLink({ params, field, children }: { params: SearchParams; field: string; children: React.ReactNode }) {
-  const active = params.sort === field;
-  const dir = params.dir === "asc" ? "asc" : "desc";
-  const nextDir = active && dir === "asc" ? "desc" : "asc";
-  return (
-    <Link
-      className="flex h-7 w-full items-center justify-between gap-1 px-1.5 text-left text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]"
-      href={makeUrl(params, { sort: field, dir: nextDir })}
-    >
-      <span>{children}</span>
-      <span className={active ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"}>
-        {active ? (dir === "asc" ? "↑" : "↓") : "↕"}
-      </span>
-    </Link>
-  );
-}
-
-function PlainLogHeader({ label }: { label: string }) {
-  return (
-    <div className="flex h-7 items-center px-1.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
-      {label}
-    </div>
-  );
-}
 
 function buildWhere(params: SearchParams): Prisma.AuditLogWhereInput {
   const where: Prisma.AuditLogWhereInput = {};
@@ -117,6 +53,16 @@ function actionTone(action: string) {
   return "ok";
 }
 
+const auditColumns: AdminCompactColumn[] = [
+  { key: "createdAt", label: "Время", sortable: true, filterKind: "date" },
+  { key: "action", label: "Действие", sortable: true, filterKind: "select" },
+  { key: "actor", label: "Актор", sortable: true, filterKind: "text" },
+  { key: "target", label: "Цель", sortable: true, filterKind: "text" },
+  { key: "ip", label: "IP", sortable: true, filterKind: "text" },
+  { key: "details", label: "Детали", sortable: true, filterKind: "text" },
+  { key: "id", label: "ID", sortable: true, filterKind: "text" },
+];
+
 export default async function AdminLogsPage(props: {
   searchParams: Promise<SearchParams>;
 }) {
@@ -124,18 +70,13 @@ export default async function AdminLogsPage(props: {
   const session = await auth();
   if (session?.user?.role !== "SUPERADMIN") redirect("/admin");
 
-  const page = Math.max(1, Number(params.page) || 1);
   const where = buildWhere(params);
-  const [logs, total] = await Promise.all([
-    db.auditLog.findMany({
-      where,
-      orderBy: buildOrderBy(params),
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: { id: true, userId: true, targetId: true, action: true, details: true, ip: true, createdAt: true },
-    }),
-    db.auditLog.count({ where }),
-  ]);
+  const logs = await db.auditLog.findMany({
+    where,
+    orderBy: buildOrderBy(params),
+    take: AUDIT_LIMIT,
+    select: { id: true, userId: true, targetId: true, action: true, details: true, ip: true, createdAt: true },
+  });
 
   const userIds = [...new Set(logs.flatMap((log) => [log.userId, log.targetId]).filter(Boolean))] as string[];
   const users = userIds.length > 0
@@ -159,6 +100,60 @@ export default async function AdminLogsPage(props: {
     actorRole: userMap[log.userId]?.role ?? "",
     targetName: log.targetId ? (userMap[log.targetId]?.name ?? log.targetId) : null,
   }));
+  const actionOptions = [...new Set(enriched.map((log) => log.action))]
+    .sort((a, b) => a.localeCompare(b, "ru"))
+    .map((action) => ({ value: action, label: action }));
+  const rows: AdminCompactRow[] = enriched.map((log) => {
+    const createdAt = new Date(log.createdAt);
+    const createdAtLabel = createdAt.toLocaleString("ru-RU");
+    return {
+      id: log.id,
+      cells: {
+        createdAt: {
+          kind: "text",
+          value: createdAtLabel,
+          filterValue: createdAtLabel,
+          sortValue: createdAt.getTime(),
+        },
+        action: {
+          kind: "status",
+          label: log.action,
+          tone: actionTone(log.action),
+          filterValue: log.action,
+          sortValue: log.action,
+        },
+        actor: {
+          kind: "text",
+          value: log.actorName,
+          subvalue: log.actorEmail || log.userId || "",
+          filterValue: [log.actorName, log.actorEmail, log.userId, log.actorRole].filter(Boolean).join(" "),
+          sortValue: log.actorName,
+        },
+        target: {
+          kind: "text",
+          value: log.targetName ?? "нет",
+          filterValue: [log.targetName, log.targetId].filter(Boolean).join(" "),
+          sortValue: log.targetName ?? "",
+        },
+        ip: log.ip ?? "нет",
+        details: {
+          kind: "text",
+          value: log.details ?? "нет",
+          title: log.details ?? undefined,
+          filterValue: log.details ?? "",
+          sortValue: log.details ?? "",
+        },
+        id: {
+          kind: "text",
+          value: log.id,
+          title: log.id,
+          filterValue: log.id,
+          sortValue: log.id,
+        },
+      },
+    };
+  });
+  const columns = auditColumns.map((column) => column.key === "action" ? { ...column, options: actionOptions } : column);
 
   return (
     <PageContainer maxWidth="full" className="py-8">
@@ -170,49 +165,19 @@ export default async function AdminLogsPage(props: {
             Audit, live diagnostics и runtime-логи приложения для суперадмина.
           </p>
         </div>
-        <span className="soft-admin-status-pill">50 событий на страницу</span>
+        <span className="soft-admin-status-pill">последние {AUDIT_LIMIT} событий</span>
       </div>
 
       <LogsTabs auditTable={
-        <>
-      <section className="max-w-full overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
-        <div className="max-w-full overflow-auto">
-        <table className="soft-admin-compact-table w-full border-collapse text-left text-[11px] leading-tight" style={{ minWidth: "1120px" }} data-testid="admin-audit-log-table">
-          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
-            <tr>
-              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="createdAt">Время</SortLink><HeaderInput params={params} name="q" placeholder="поиск" /></th>
-              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="action">Действие</SortLink><HeaderInput params={params} name="action" placeholder="action" /></th>
-              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="userId">Актор</SortLink><HeaderInput params={params} name="actor" placeholder="userId" /></th>
-              <th className={LOG_HEADER_CLASS}><SortLink params={params} field="targetId">Цель</SortLink><HeaderInput params={params} name="target" placeholder="targetId" /></th>
-              <th className={LOG_HEADER_CLASS}><PlainLogHeader label="IP" /></th>
-              <th className={LOG_HEADER_CLASS}><PlainLogHeader label="Детали" /></th>
-              <th className={`${LOG_HEADER_CLASS} border-r-0`}><PlainLogHeader label="ID" /></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--soft-paper-edge)]">
-            {enriched.length === 0 ? (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">События не найдены</td></tr>
-            ) : enriched.map((log) => (
-              <tr key={log.id} className="hover:bg-[var(--soft-surface)]">
-                <td className={`${LOG_CELL_CLASS} whitespace-nowrap text-[var(--soft-ink-soft)]`}>{new Date(log.createdAt).toLocaleString("ru-RU")}</td>
-                <td className={LOG_CELL_CLASS}><span className="soft-admin-status-pill" data-tone={actionTone(log.action)}>{log.action}</span></td>
-                <td className={LOG_CELL_CLASS}>
-                  <div>{log.actorName}</div>
-                  <div className="text-[10px] text-[var(--soft-ink-faint)]">{log.actorEmail || log.userId}</div>
-                </td>
-                <td className={LOG_CELL_CLASS}>{log.targetName ?? "нет"}</td>
-                <td className={LOG_CELL_CLASS}>{log.ip ?? "нет"}</td>
-                <td className={`${LOG_CELL_CLASS} max-w-lg truncate`}>{log.details ?? "нет"}</td>
-                <td className={`${LOG_CELL_CLASS} max-w-44 truncate border-r-0 font-mono text-[10px] text-[var(--soft-ink-faint)]`}>{log.id}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div data-testid="admin-audit-log-table">
+          <AdminCompactDataTable
+            columns={columns}
+            rows={rows}
+            empty="События не найдены"
+            minWidth="1220px"
+            pageSize={PAGE_SIZE}
+          />
         </div>
-      </section>
-
-      <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { page: String(nextPage) })} />
-        </>
       } />
     </PageContainer>
   );
