@@ -194,6 +194,21 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
         ))}
       </div>
 
+      {/* B464 IB6: surface the «О себе» extended profile — the personalization
+          store the cabinet never pointed users to. «заполните, чтобы результаты
+          были точнее». */}
+      {role === "CLIENT" && activeTab === "profile" && (
+        <div className="soft-card mb-4 flex flex-wrap items-center justify-between gap-3 p-4" data-testid="settings-extended-nudge" style={{ background: "var(--soft-paper-deep)" }}>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">Заполните «О себе»</p>
+            <p className="text-xs" style={{ color: "var(--soft-ink-soft)" }}>Дата рождения, цели и контекст — чтобы результаты были точнее.</p>
+          </div>
+          <button type="button" onClick={() => setActiveTab("extended")} className="soft-button soft-button-primary shrink-0" style={{ minHeight: "2rem", padding: "0.4rem 0.9rem", fontSize: "0.85rem" }}>
+            Заполнить
+          </button>
+        </div>
+      )}
+
       {/* Профиль */}
       {activeTab === "profile" && (
         <div className="soft-card p-6">
