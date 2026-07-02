@@ -100,6 +100,20 @@ describe("R2 item 15 — dialog theme + feedback validation", () => {
   });
 });
 
+// ── R3 · item 14 — empty «Предстоящие» invites the next session ──
+describe("R3 item 14 — bookings empty upcoming tab", () => {
+  it("renders the invite block instead of «Здесь пока пусто» on the upcoming tab", () => {
+    const bookings = read("app/cabinet/bookings/page.tsx");
+    expect(bookings).toContain('filter === "upcoming" ? (');
+    expect(bookings).toContain("<InviteBlock hasPast={pastDone.length > 0} />");
+    // The bottom invite no longer duplicates on the upcoming tab.
+    expect(bookings).toContain('!hasUpcoming && filter !== "upcoming"');
+    // The invite copy adapts: continue vs first meeting.
+    expect(bookings).toContain("Хотите продолжить работу со специалистом?");
+    expect(bookings).toContain("Иногда живой разговор помогает больше всего");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {
