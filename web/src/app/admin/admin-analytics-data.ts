@@ -201,7 +201,12 @@ export function cardPartsFromMetadata(metadata: unknown) {
 
 export function productLabel(productKey: string | null | undefined) {
   if (!productKey) return "Не указан";
-  const normalized = productKey.replace(/^product-/, "").replaceAll("_", "-");
+  const normalized = productKey
+    .trim()
+    .replace(/^product[-_\s]+/i, "")
+    .replaceAll("_", "-")
+    .replace(/\s+/g, "-")
+    .toLowerCase();
   return PRODUCT_NAMES[normalized] ?? getProductLabel(normalized);
 }
 

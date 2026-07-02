@@ -2,18 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Pause, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
-import {
-  CompactHeader,
-  CompactPaginationBar,
-  CompactTableShell,
-  COMPACT_CELL_CLASS,
-  COMPACT_INPUT_CLASS,
-} from "@/components/admin/compact-table";
 
 interface Practitioner {
   id: string;
@@ -78,6 +69,57 @@ const payoutRunColumns: AdminCompactColumn[] = [
   { key: "totalReserve", label: "Резерв", sortable: true, align: "right" },
 ];
 
+const practitionerPayoutColumns: AdminCompactColumn[] = [
+  { key: "practitioner", label: "Практик", sortable: true },
+  { key: "sessionCount", label: "Сессий", sortable: true, align: "right" },
+  { key: "totalRevenue", label: "Оборот", sortable: true, align: "right" },
+  { key: "commission", label: "Комиссия", sortable: true, align: "right" },
+  { key: "available", label: "Доступно", sortable: true, align: "right" },
+  { key: "held", label: "Удержано", sortable: true, align: "right" },
+  {
+    key: "payoutDetails",
+    label: "Реквизиты",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "CARD", label: "Карта" },
+      { value: "SBP", label: "СБП" },
+      { value: "ENTITY", label: "Расчётный счёт" },
+      { value: "NONE", label: "Не указаны" },
+    ],
+  },
+  {
+    key: "kycStatus",
+    label: "KYC",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "VERIFIED", label: "Проверен" },
+      { value: "PENDING", label: "Проверка" },
+      { value: "NONE", label: "Не требуется" },
+    ],
+  },
+  { key: "actions", label: "Действия", filterKind: "none", align: "center" },
+];
+
+const clarityCreditColumns: AdminCompactColumn[] = [
+  { key: "user", label: "Пользователь", sortable: true },
+  { key: "amount", label: "Баллы", sortable: true, align: "right" },
+  { key: "source", label: "Тип / источник", sortable: true },
+  {
+    key: "status",
+    label: "Статус",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "confirmed", label: "Подтверждено" },
+      { value: "pending", label: "Ожидает" },
+      { value: "failed", label: "Ошибка" },
+    ],
+  },
+  { key: "expiresAt", label: "Срок", sortable: true, filterKind: "date" },
+];
+
 function payoutRunStatusLabel(status: string) {
   const labels: Record<string, string> = {
     PENDING: "Ожидает",
@@ -119,15 +161,8 @@ export function PaymentsPanel({
   usdRub?: number | null;
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [comment, setComment] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<string | null>(null);
   const [runProcessing, setRunProcessing] = useState(false);
-  const [sortKey, setSortKey] = useState<"earnings" | "revenue">("earnings");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 20;
   const formatMoney = (valueRub: number) => {
     const converted = currency === "USD" ? (usdRub ? valueRub / usdRub : null) : valueRub;
     if (converted === null) return "Курс ЦБ недоступен";
@@ -137,42 +172,6 @@ export function PaymentsPanel({
       maximumFractionDigits: converted > 0 && converted < 100 ? 2 : 0,
     }).format(converted);
   };
-
-  const filtered = practitioners
-    .filter(p =>
-      !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.email.toLowerCase().includes(search.toLowerCase()),
-    )
-    .sort((a, b) => {
-      const av = sortKey === "earnings" ? a.practitionerEarnings : a.totalRevenue;
-      const bv = sortKey === "earnings" ? b.practitionerEarnings : b.totalRevenue;
-      return sortDir === "asc" ? av - bv : bv - av;
-    });
-
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  function toggleSort(key: "earnings" | "revenue") {
-    if (sortKey === key) {
-      setSortDir(d => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
-    }
-  }
-  const mark = (key: "earnings" | "revenue") => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-
-  function toggleSelect(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }
 
   // B352/Баг 12: реальная выплата практику через ЮKassa (по реквизитам).
   // Возвращает true при успехе — массовая выплата по галочкам считает успешные.
@@ -198,20 +197,19 @@ export function PaymentsPanel({
 
   // Массовая выплата по выбранным практикам — последовательно, чтобы не ловить
   // rate-limit и показать корректный итог.
-  async function markSelectedPaid() {
-    const ids = [...selected];
+  async function markSelectedPaid(ids: string[]) {
     let done = 0;
     for (const id of ids) {
       if (await markPaid(id)) done++;
     }
-    setSelected(new Set());
     toast.success(`Выплачено: ${done} из ${ids.length}`);
     router.refresh();
   }
 
   async function pausePayout(practitionerId: string) {
-    const c = comment[practitionerId];
-    if (!c?.trim()) { toast.error("Укажите причину приостановки выплаты"); return; }
+    const reason = window.prompt("Причина приостановки выплаты", "Проверка документов");
+    if (reason === null) return;
+    if (!reason.trim()) { toast.error("Укажите причину приостановки выплаты"); return; }
     setProcessing(practitionerId);
     // TODO: запись в PayoutRecord с паузой
     await new Promise(r => setTimeout(r, 400));
@@ -251,10 +249,72 @@ export function PaymentsPanel({
     }
   }
 
-  const totalSelected = [...selected].reduce((sum, id) => {
-    const p = practitioners.find(x => x.id === id);
-    return sum + (p?.practitionerEarnings ?? 0);
-  }, 0);
+  const practitionerPayoutRows = practitioners.map((p) => {
+    const payoutType = p.payoutDetailsType ?? "NONE";
+    const kycStatus = p.payoutDetailsType === "ENTITY" ? (p.kycStatus ?? "PENDING") : "NONE";
+    return {
+      id: p.id,
+      cells: {
+        practitioner: {
+          value: p.name,
+          subvalue: p.email,
+          filterValue: `${p.name} ${p.email}`,
+          sortValue: p.name,
+        },
+        sessionCount: { value: p.sessionCount, sortValue: p.sessionCount },
+        totalRevenue: { value: formatMoney(p.totalRevenue), sortValue: p.totalRevenue },
+        commission: {
+          value: `${formatMoney(p.platformFee)} (${p.commissionPercent}%)`,
+          filterValue: `${p.platformFee} ${p.commissionPercent}`,
+          sortValue: p.platformFee,
+        },
+        available: { value: formatMoney(p.practitionerEarnings), sortValue: p.practitionerEarnings },
+        held: {
+          value: formatMoney(p.heldPayout),
+          subvalue: p.reservePayout > 0 ? `резерв ${formatMoney(p.reservePayout)}` : null,
+          sortValue: p.heldPayout + p.reservePayout,
+        },
+        payoutDetails: {
+          kind: "status" as const,
+          label: payoutType === "CARD" ? "Карта" : payoutType === "SBP" ? "СБП" : payoutType === "ENTITY" ? "Расчётный счёт" : "Не указаны",
+          tone: payoutType === "NONE" ? "warn" as const : "ok" as const,
+          filterValue: payoutType,
+          sortValue: payoutType,
+        },
+        kycStatus: {
+          kind: "status" as const,
+          label: kycStatus === "VERIFIED" ? "Проверен" : kycStatus === "PENDING" ? "Проверка" : "Не требуется",
+          tone: kycStatus === "VERIFIED" || kycStatus === "NONE" ? "ok" as const : "warn" as const,
+          filterValue: kycStatus,
+          sortValue: kycStatus,
+        },
+        actions: {
+          kind: "actions" as const,
+          actions: [
+            {
+              label: `Выплатить ${p.name}`,
+              icon: "check" as const,
+              variant: "primary" as const,
+              disabled: processing === p.id || p.practitionerEarnings === 0,
+              onClick: async () => { if (await markPaid(p.id)) router.refresh(); },
+            },
+            {
+              label: `Приостановить выплату ${p.name}`,
+              icon: "cancel" as const,
+              disabled: processing === p.id,
+              onClick: () => { void pausePayout(p.id); },
+            },
+            ...(p.payoutDetailsType === "ENTITY" && p.kycStatus !== "VERIFIED" ? [{
+              label: `Проверить KYC ${p.name}`,
+              icon: "check" as const,
+              disabled: processing === p.id,
+              onClick: () => { void verifyKyc(p.id); },
+            }] : []),
+          ],
+        },
+      },
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -309,125 +369,17 @@ export function PaymentsPanel({
         />
       </div>
 
-      <div className="flex min-h-8 items-center justify-end gap-3">
-        {selected.size > 0 && (
-          <div className="mr-auto flex flex-wrap items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              Выбрано: {selected.size} · {formatMoney(totalSelected)}
-            </span>
-            <button onClick={markSelectedPaid}
-              className="rounded-lg bg-[var(--soft-terracotta)] px-4 py-1.5 text-xs font-semibold text-[#fff8f1] transition-colors hover:bg-[var(--soft-terracotta-dark)]">
-              Запустить выбранные выплаты
-            </button>
-          </div>
-        )}
-      </div>
-
-      <CompactTableShell minWidth="980px">
-          <thead>
-            <tr>
-              <th className="border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium">
-                <div className="flex h-14 items-center justify-center px-1.5">
-                <input type="checkbox"
-                  checked={selected.size === filtered.length && filtered.length > 0}
-                  onChange={e => setSelected(e.target.checked ? new Set(filtered.map(p => p.id)) : new Set())}
-                  className="accent-primary" />
-                </div>
-              </th>
-              <CompactHeader label="Практик">
-                <div className="p-1 pt-0">
-                  <input
-                    className={COMPACT_INPUT_CLASS}
-                    value={search}
-                    onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-                    placeholder="имя/email"
-                  />
-                </div>
-              </CompactHeader>
-              <CompactHeader label="Сессий" />
-              <CompactHeader label={`Оборот${mark("revenue")}`} sortKey="revenue" activeSortKey={sortKey} direction={sortDir} onSort={() => toggleSort("revenue")} />
-              <CompactHeader label="Комиссия" />
-              <CompactHeader label={`Доступно${mark("earnings")}`} sortKey="earnings" activeSortKey={sortKey} direction={sortDir} onSort={() => toggleSort("earnings")} />
-              <CompactHeader label="Удержано" />
-              <CompactHeader label="Действия" />
-            </tr>
-          </thead>
-          <tbody>
-            {paged.map(p => (
-              <tr key={p.id} className={`hover:bg-white/2 ${selected.has(p.id) ? "bg-primary/3" : ""}`}>
-                <td className={`${COMPACT_CELL_CLASS} text-center`}>
-                  <input type="checkbox" checked={selected.has(p.id)}
-                    onChange={() => toggleSelect(p.id)} className="accent-primary" />
-                </td>
-                <td className={COMPACT_CELL_CLASS}>
-                  <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.email}</p>
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} text-right text-muted-foreground tabular-nums`}>{p.sessionCount}</td>
-                <td className={`${COMPACT_CELL_CLASS} text-right tabular-nums`}>{formatMoney(p.totalRevenue)}</td>
-                <td className={`${COMPACT_CELL_CLASS} text-right text-primary tabular-nums`}>{formatMoney(p.platformFee)} <span className="text-[10px] text-muted-foreground/50">({p.commissionPercent}%)</span></td>
-                <td className={`${COMPACT_CELL_CLASS} text-right font-semibold text-green-400 tabular-nums`}>
-                  {formatMoney(p.practitionerEarnings)}
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} text-right text-yellow-400 tabular-nums`}>
-                  {formatMoney(p.heldPayout)}
-                  {p.reservePayout > 0 && (
-                    <span className="block text-[10px] text-muted-foreground">резерв {formatMoney(p.reservePayout)}</span>
-                  )}
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                  <div className="soft-admin-table-actions">
-                    <button onClick={async () => { if (await markPaid(p.id)) router.refresh(); }}
-                      disabled={processing === p.id || p.practitionerEarnings === 0}
-                      className="soft-admin-icon-button"
-                      data-variant="primary"
-                      title="Выплатить"
-                      aria-label={`Выплатить ${p.name}`}>
-                      {processing === p.id ? "..." : <CheckCircle2 className="size-3.5" aria-hidden="true" />}
-                    </button>
-                    <div className="relative group">
-                      <button className="soft-admin-icon-button" title="Приостановить выплату" aria-label={`Приостановить выплату ${p.name}`}>
-                        <Pause className="size-3.5" aria-hidden="true" />
-                      </button>
-                      {/* Всплывающая форма приостановки */}
-                      <div className="absolute right-0 top-full mt-1 z-10 hidden group-focus-within:block w-56 rounded-xl border border-border/40 bg-card p-3 shadow-xl">
-                        <p className="text-xs font-semibold mb-2">Причина приостановки</p>
-                        <Input
-                          value={comment[p.id] ?? ""}
-                          onChange={e => setComment(prev => ({ ...prev, [p.id]: e.target.value }))}
-                          placeholder="Напр.: проверка документов"
-                          className="h-7 text-xs bg-card/50 mb-2" />
-                        <button onClick={() => pausePayout(p.id)}
-                          className="w-full rounded-lg bg-orange-500/15 px-3 py-1 text-xs text-orange-400 hover:bg-orange-500/25">
-                          Приостановить
-                        </button>
-                      </div>
-                    </div>
-                    {p.payoutDetailsType === "ENTITY" && p.kycStatus !== "VERIFIED" && (
-                      <button
-                        type="button"
-                        onClick={() => verifyKyc(p.id)}
-                        disabled={processing === p.id}
-                        className="soft-admin-icon-button disabled:opacity-40"
-                        title="Проверить KYC"
-                        aria-label={`Проверить KYC ${p.name}`}
-                      >
-                        <ShieldCheck className="size-3.5" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} className={`${COMPACT_CELL_CLASS} py-10 text-center text-sm text-muted-foreground`}>Нет практиков</td></tr>
-            )}
-          </tbody>
-      </CompactTableShell>
-
-      {pageCount > 1 && (
-        <CompactPaginationBar page={safePage} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
-      )}
+      <AdminCompactDataTable
+        columns={practitionerPayoutColumns}
+        rows={practitionerPayoutRows}
+        selectable
+        bulkActions={[{ key: "pay-selected", label: "Запустить выбранные выплаты", variant: "primary" }]}
+        onBulkAction={(actionKey, selectedIds) => {
+          if (actionKey === "pay-selected") void markSelectedPaid(selectedIds);
+        }}
+        empty="Нет практиков"
+        minWidth="1180px"
+      />
 
       <p className="text-xs text-muted-foreground">
         * Оборот считается по всем завершённым сессиям за всё время. Фактические выплаты
@@ -442,45 +394,36 @@ export function PaymentsPanel({
           </div>
           <Badge variant="outline">{clarityCredits.length}</Badge>
         </div>
-        <CompactTableShell minWidth="760px">
-          <thead>
-            <tr>
-              <CompactHeader label="Пользователь" />
-              <CompactHeader label="Баллы" />
-              <CompactHeader label="Тип / источник" />
-              <CompactHeader label="Статус" />
-              <CompactHeader label="Срок" />
-            </tr>
-          </thead>
-          <tbody>
-            {clarityCredits.map((entry) => (
-              <tr key={entry.id} className="hover:bg-white/2">
-                <td className={COMPACT_CELL_CLASS}>
-                  <p className="font-medium">{entry.userName}</p>
-                  <p className="text-xs text-muted-foreground">{entry.userEmail}</p>
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} text-right font-semibold tabular-nums`}>
-                  {entry.amount > 0 ? "+" : ""}{entry.amount}
-                  {entry.balanceAfter !== null && (
-                    <span className="ml-1 text-[10px] text-muted-foreground">→ {entry.balanceAfter}</span>
-                  )}
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} text-muted-foreground`}>
-                  {entry.type} · {entry.source}
-                </td>
-                <td className={COMPACT_CELL_CLASS}>
-                  <Badge variant={entry.status === "confirmed" ? "default" : "outline"}>{entry.status}</Badge>
-                </td>
-                <td className={`${COMPACT_CELL_CLASS} text-muted-foreground`}>
-                  {entry.expiresAt ? new Date(entry.expiresAt).toLocaleDateString("ru-RU") : "без срока"}
-                </td>
-              </tr>
-            ))}
-            {clarityCredits.length === 0 && (
-              <tr><td colSpan={5} className={`${COMPACT_CELL_CLASS} py-10 text-center text-sm text-muted-foreground`}>Пока нет операций по баллам</td></tr>
-            )}
-          </tbody>
-        </CompactTableShell>
+        <div className="p-3">
+          <AdminCompactDataTable
+            columns={clarityCreditColumns}
+            rows={clarityCredits.map((entry) => ({
+              id: entry.id,
+              cells: {
+                user: { value: entry.userName, subvalue: entry.userEmail, filterValue: `${entry.userName} ${entry.userEmail}` },
+                amount: {
+                  value: `${entry.amount > 0 ? "+" : ""}${entry.amount}${entry.balanceAfter !== null ? ` -> ${entry.balanceAfter}` : ""}`,
+                  sortValue: entry.amount,
+                  filterValue: `${entry.amount} ${entry.balanceAfter ?? ""}`,
+                },
+                source: { value: `${entry.type} · ${entry.source}`, filterValue: `${entry.type} ${entry.source}` },
+                status: {
+                  kind: "status",
+                  label: entry.status,
+                  tone: entry.status === "confirmed" ? "ok" : entry.status === "failed" ? "danger" : "warn",
+                  filterValue: entry.status,
+                },
+                expiresAt: {
+                  value: entry.expiresAt ? new Date(entry.expiresAt).toLocaleDateString("ru-RU") : "без срока",
+                  sortValue: entry.expiresAt ? new Date(entry.expiresAt).getTime() : 0,
+                  filterValue: entry.expiresAt ? new Date(entry.expiresAt).toLocaleDateString("ru-RU") : "без срока",
+                },
+              },
+            }))}
+            empty="Пока нет операций по баллам"
+            minWidth="820px"
+          />
+        </div>
       </div>}
     </div>
   );

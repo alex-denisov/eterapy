@@ -17,8 +17,10 @@ describe("Admin analytics shared controls and chart data", () => {
 
   it("renders product and AI service keys with Russian labels", () => {
     expect(productLabel("human-design")).toBe("Дизайн человека");
+    expect(productLabel("Human Design")).toBe("Дизайн человека");
     expect(productLabel("product-human-design")).toBe("Дизайн человека");
     expect(productLabel("perspectives")).toBe("Переосмысление");
+    expect(productLabel("seven_days")).toBe("Недельное резюме");
     expect(productLabel("seven-days")).toBe("Недельное резюме");
   });
 

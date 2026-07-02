@@ -96,7 +96,10 @@ describe("Superadmin redesign regression guardrails", () => {
     const bookingsManager = source("src/app/admin/bookings/bookings-manager.tsx");
     const sessionsTable = source("src/app/admin/sessions/sessions-table.tsx");
     const libraryRequests = source("src/app/admin/product/quality/library-requests-manager.tsx");
-    const financeReceipts = source("src/app/admin/finance/receipts/page.tsx");
+    const financeReceipts = [
+      source("src/app/admin/finance/receipts/page.tsx"),
+      source("src/app/admin/finance/receipts/receipts-table.tsx"),
+    ].join("\n");
     const financeReports = source("src/app/admin/finance/reports/page.tsx");
     const financePoints = source("src/app/admin/finance/points/page.tsx");
     const paymentsPanel = source("src/app/admin/payments/payments-panel.tsx");
@@ -106,6 +109,8 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(compactClientTable).toContain("CompactPaginationBar");
     expect(compactClientTable).toContain("Выбрано:");
     expect(compactClientTable).toContain("onClick?: () => void");
+    expect(compactClientTable).toContain("onBulkAction?:");
+    expect(compactClientTable).toContain("onBulkAction(action.key, Array.from(selectedIds))");
 
     for (const page of [productResults, productSessions, financeReceipts, financeReports, financePoints]) {
       expect(page).toContain("AdminCompactDataTable");
@@ -118,6 +123,11 @@ describe("Superadmin redesign regression guardrails", () => {
       expect(table).toContain("AdminCompactDataTable");
     }
 
+    expect(financeReceipts).toContain("onBulkAction");
+    expect(financeReceipts).toContain("Проверить выбранные у провайдера");
+    expect(paymentsPanel).toContain("practitionerPayoutColumns");
+    expect(paymentsPanel).toContain("practitionerPayoutRows");
+    expect(paymentsPanel).not.toContain("<CompactTableShell minWidth=\"980px\">");
     expect(financeReports).toContain("take: 500");
     expect(financePoints).toContain("take: 500");
   });

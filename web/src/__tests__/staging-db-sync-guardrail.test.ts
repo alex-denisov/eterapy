@@ -14,8 +14,8 @@ describe("Staging database sync guardrails", () => {
     expect(script).toContain("pg_restore --no-owner --no-acl");
     expect(script).toContain("refusing to sync because production and staging DB names are identical");
     expect(script).toContain("does not look like staging");
-    expect(workflow).toContain("cron: '0 * * * *'");
-    expect(deployStaging).toContain("17 * * * * flock -n /tmp/eterapy-staging-db-sync.lock");
+    expect(workflow).toContain("cron: '*/15 * * * *'");
+    expect(deployStaging).toContain("*/15 * * * * flock -n /tmp/eterapy-staging-db-sync.lock");
     expect(workflow).toContain("sync-staging-db-from-prod.sh --migrate --restart");
     expect(deployStaging).toContain("install staging DB sync cron");
     expect(deployStaging).toContain("sync-staging-db-from-prod.sh --migrate --restart");

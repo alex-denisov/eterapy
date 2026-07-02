@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Ban, CheckCircle2, ChevronDown, Download, Edit3, ExternalLink, Search, Trash2, X } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Ban, CheckCircle2, ChevronDown, Download, Edit3, ExternalLink, RotateCcw, Search, Trash2, X } from "lucide-react";
 import {
   CompactHeader,
   CompactPaginationBar,
@@ -27,9 +27,16 @@ export type AdminCompactAction = {
   label: string;
   href?: string;
   onClick?: () => void;
-  icon?: "open" | "download" | "edit" | "delete" | "cancel" | "check";
+  icon?: "open" | "download" | "edit" | "delete" | "cancel" | "check" | "refresh";
   variant?: "default" | "primary" | "danger";
   external?: boolean;
+  disabled?: boolean;
+};
+
+export type AdminCompactBulkAction = {
+  key: string;
+  label: string;
+  variant?: "subtle" | "danger" | "primary";
   disabled?: boolean;
 };
 
@@ -67,6 +74,12 @@ export type AdminCompactCell =
       actions: AdminCompactAction[];
       filterValue?: string;
       sortValue?: string | number;
+    }
+  | {
+      kind: "node";
+      node: ReactNode;
+      filterValue?: string;
+      sortValue?: string | number;
     };
 
 export type AdminCompactRow = {
@@ -82,6 +95,7 @@ export function AdminCompactDataTable({
   pageSize = 20,
   selectable = false,
   bulkActions = [],
+  onBulkAction,
 }: {
   columns: AdminCompactColumn[];
   rows: AdminCompactRow[];
@@ -89,7 +103,8 @@ export function AdminCompactDataTable({
   minWidth?: string;
   pageSize?: number;
   selectable?: boolean;
-  bulkActions?: Array<{ key: string; label: string; variant?: "subtle" | "danger" | "primary" }>;
+  bulkActions?: AdminCompactBulkAction[];
+  onBulkAction?: (actionKey: string, selectedIds: string[]) => void;
 }) {
   const [filters, setFilters] = useState<Record<string, string | string[]>>({});
   const [sortKey, setSortKey] = useState(columns.find((column) => column.sortable)?.key ?? columns[0]?.key ?? "");
@@ -171,6 +186,11 @@ export function AdminCompactDataTable({
                 className="soft-admin-action"
                 data-variant={action.variant ?? "subtle"}
                 title={action.label}
+                disabled={action.disabled || !onBulkAction}
+                onClick={() => {
+                  if (!onBulkAction) return;
+                  onBulkAction(action.key, Array.from(selectedIds));
+                }}
               >
                 {action.label}
               </button>
@@ -457,6 +477,7 @@ function CompactCell({ cell }: { cell: AdminCompactCell | undefined }) {
       </div>
     );
   }
+  if (cell.kind === "node") return <>{cell.node}</>;
   return (
     <span title={cell.title ?? String(cell.value ?? "")}>
       <span className="soft-admin-cell-truncate font-medium text-[var(--soft-ink)]">{cell.value ?? "—"}</span>
@@ -471,6 +492,7 @@ function actionIcon(icon: AdminCompactAction["icon"]) {
   if (icon === "delete") return <Trash2 className="size-3.5" aria-hidden="true" />;
   if (icon === "cancel") return <Ban className="size-3.5" aria-hidden="true" />;
   if (icon === "check") return <CheckCircle2 className="size-3.5" aria-hidden="true" />;
+  if (icon === "refresh") return <RotateCcw className="size-3.5" aria-hidden="true" />;
   return <ExternalLink className="size-3.5" aria-hidden="true" />;
 }
 
@@ -481,6 +503,7 @@ function cellFilterValue(cell: AdminCompactCell | undefined) {
   if (cell.kind === "status") return cell.label.toLowerCase();
   if (cell.kind === "link") return [cell.label, cell.title, cell.href].filter(Boolean).join(" ").toLowerCase();
   if (cell.kind === "actions") return cell.actions.map((action) => action.label).join(" ").toLowerCase();
+  if (cell.kind === "node") return (cell.filterValue ?? "").toLowerCase();
   return [cell.value, cell.subvalue, cell.title].filter(Boolean).join(" ").toLowerCase();
 }
 
@@ -491,5 +514,6 @@ function cellSortValue(cell: AdminCompactCell | undefined) {
   if (cell.kind === "status") return cell.label;
   if (cell.kind === "link") return cell.label ?? cell.title ?? cell.href;
   if (cell.kind === "actions") return cell.actions.map((action) => action.label).join(" ");
+  if (cell.kind === "node") return cell.sortValue ?? cell.filterValue ?? "";
   return cell.value ?? "";
 }

@@ -63,7 +63,13 @@ export function getSubscriptionStatusLabel(status: string | null | undefined): s
 }
 
 export function getProductLabel(productKey: string): string {
-  return PRODUCT_LABELS[productKey] ?? productKey;
+  const normalized = productKey
+    .trim()
+    .replace(/^product[-_\s]+/i, "")
+    .replaceAll("_", "-")
+    .replace(/\s+/g, "-")
+    .toLowerCase();
+  return PRODUCT_LABELS[normalized] ?? productKey;
 }
 
 export function getLedgerTypeLabel(type: string): string {

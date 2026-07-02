@@ -50,10 +50,14 @@ describe("B359/Баг17 wiring", () => {
       path.join(process.cwd(), "src/app/admin/notifications/admin-notifications-page.tsx"),
       "utf8",
     );
-    expect(page).toContain("maskEmail");
-    expect(page).toContain("Кому");
+    const table = fs.readFileSync(
+      path.join(process.cwd(), "src/app/admin/jobs/jobs-table.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("roleLabelRu");
+    expect(table).toContain("Кому");
     expect(page).toContain("recipientLabel");
-    // colspan kept in sync with the new column count
-    expect(page).toContain("colSpan={10}");
+    expect(page).toContain("user.email");
+    expect(page).toContain("AdminNotificationJobsTable");
   });
 });

@@ -7,12 +7,12 @@ describe("D1 — admin files table uses the minimalist standard", () => {
   it("renders the shared compact admin table with filter/sort/pagination", () => {
     const table = source("src/app/admin/files/files-table.tsx");
     expect(table).toContain('data-testid="admin-files-table"');
-    expect(table).toContain("CompactTableShell");
-    expect(table).toContain("CompactHeader");
-    expect(table).toContain("COMPACT_INPUT_CLASS");
-    expect(table).toContain("COMPACT_SELECT_CLASS");
-    expect(table).toContain("size-desc");
-    expect(table).toContain("PAGE_SIZE = 25");
+    expect(table).toContain("AdminCompactDataTable");
+    expect(table).toContain("AdminCompactColumn");
+    expect(table).toContain('filterKind: "select"');
+    expect(table).toContain('filterKind: "date"');
+    expect(table).not.toContain("CompactTableShell");
+    expect(table).not.toContain("COMPACT_INPUT_CLASS");
   });
 
   it("page serializes rows and delegates to the client table", () => {

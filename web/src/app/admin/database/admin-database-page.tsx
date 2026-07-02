@@ -6,18 +6,15 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getUserPermissions } from "@/lib/moderator-permissions";
 import { PageContainer } from "@/components/ui/page-container";
-import { CompactHeader, CompactTableShell, COMPACT_CELL_CLASS, COMPACT_INPUT_CLASS, COMPACT_SELECT_CLASS } from "@/components/admin/compact-table";
-import { LinkPagination } from "../admin-analytics-ui";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 
 type SearchParams = {
   table?: string;
-  q?: string;
-  page?: string;
 };
 
 type DbRow = Record<string, string | number | boolean | null>;
 
-const PAGE_SIZE = 50;
+const MAX_ROWS = 500;
 
 const TABLES = [
   "users",
@@ -33,20 +30,6 @@ const TABLES = [
 
 type TableName = typeof TABLES[number];
 
-function makeUrl(params: SearchParams, patch: Record<string, string | null>) {
-  const next = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value) next.set(key, value);
-  }
-  for (const [key, value] of Object.entries(patch)) {
-    if (value) next.set(key, value);
-    else next.delete(key);
-  }
-  if (!("page" in patch)) next.set("page", "1");
-  const query = next.toString();
-  return query ? `/admin/ops/database?${query}` : "/admin/ops/database";
-}
-
 function stringify(value: unknown): string | number | boolean | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -59,7 +42,7 @@ function toRows<T extends Record<string, unknown>>(rows: T[]): DbRow[] {
 }
 
 async function fetchTable(table: TableName, q: string, page: number) {
-  const skip = (page - 1) * PAGE_SIZE;
+  const skip = (page - 1) * MAX_ROWS;
   if (table === "users") {
     const where: Prisma.UserWhereInput = q ? {
       OR: [
@@ -73,7 +56,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, email: true, name: true, role: true, blockedAt: true, deletedAt: true, createdAt: true },
       }),
       db.user.count({ where }),
@@ -93,7 +76,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, userId: true, slug: true, status: true, title: true, pricePerSession: true, commissionPercent: true, riskScore: true, createdAt: true },
       }),
       db.practitioner.count({ where }),
@@ -113,7 +96,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, clientId: true, practitionerId: true, status: true, priceRub: true, createdAt: true, updatedAt: true },
       }),
       db.booking.count({ where }),
@@ -134,7 +117,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, userId: true, amount: true, currency: true, status: true, provider: true, description: true, createdAt: true },
       }),
       db.transaction.count({ where }),
@@ -155,7 +138,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, userId: true, productKey: true, source: true, status: true, transactionId: true, consumedAt: true, createdAt: true },
       }),
       db.productEntitlement.count({ where }),
@@ -176,7 +159,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { updatedAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, userId: true, status: true, title: true, topic: true, safetyLevel: true, createdAt: true, updatedAt: true },
       }),
       db.dialogue.count({ where }),
@@ -196,7 +179,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, feature: true, userId: true, status: true, totalTokens: true, estimatedCostMicros: true, createdAt: true, finishedAt: true },
       }),
       db.aIRequest.count({ where }),
@@ -217,7 +200,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
         where,
         orderBy: { updatedAt: "desc" },
         skip,
-        take: PAGE_SIZE,
+        take: MAX_ROWS,
         select: { id: true, queue: true, type: true, status: true, attempts: true, maxAttempts: true, runAfter: true, error: true, updatedAt: true },
       }),
       db.job.count({ where }),
@@ -238,7 +221,7 @@ async function fetchTable(table: TableName, q: string, page: number) {
       where,
       orderBy: { createdAt: "desc" },
       skip,
-      take: PAGE_SIZE,
+      take: MAX_ROWS,
       select: { id: true, userId: true, targetId: true, action: true, details: true, ip: true, createdAt: true },
     }),
     db.auditLog.count({ where }),
@@ -258,10 +241,16 @@ export default async function AdminDatabasePage(props: {
   if (!permissions.includes("system.read")) redirect("/admin");
 
   const table = TABLES.includes(params.table as TableName) ? params.table as TableName : "users";
-  const page = Math.max(1, Number(params.page) || 1);
-  const q = params.q?.trim() ?? "";
-  const { rows, total } = await fetchTable(table, q, page);
+  const { rows, total } = await fetchTable(table, "", 1);
   const columns = rows[0] ? Object.keys(rows[0]) : [];
+  const tableColumns: AdminCompactColumn[] = columns.length > 0
+    ? columns.map((column) => ({
+      key: column,
+      label: column,
+      sortable: true,
+      filterKind: column.toLowerCase().includes("at") ? "date" : "text",
+    }))
+    : [{ key: "empty", label: table, filterKind: "none" }];
 
   return (
     <PageContainer maxWidth="full" className="py-8">
@@ -273,47 +262,46 @@ export default async function AdminDatabasePage(props: {
             Безопасный read-only просмотр ключевых таблиц. Изменения выполняются через доменные админ-экраны.
           </p>
         </div>
-        <span className="soft-admin-status-pill">read-only · {PAGE_SIZE}/page</span>
+        <span className="soft-admin-status-pill">read-only · до {MAX_ROWS}/table</span>
       </div>
 
       <form action="/admin/ops/database" className="mb-4 flex flex-wrap items-end gap-3">
         <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
           Таблица
-          <select className={`${COMPACT_SELECT_CLASS} mt-1 h-9 min-w-56`} name="table" defaultValue={table}>
+          <select className="mt-1 h-9 min-w-56 rounded border border-[var(--soft-paper-edge)] bg-white/85 px-2 text-xs text-[var(--soft-ink)] outline-none focus:bg-white focus:ring-1 focus:ring-[var(--soft-bordeaux)]" name="table" defaultValue={table}>
             {TABLES.map((item) => (
               <option key={item} value={item}>{item}</option>
             ))}
           </select>
         </label>
-        <label className="text-xs font-semibold text-[var(--soft-ink-soft)]">
-          Поиск
-          <input className={`${COMPACT_INPUT_CLASS} mt-1 h-9 min-w-80`} name="q" defaultValue={q} placeholder="id, email, статус, описание" />
-        </label>
         <button className="soft-admin-action" data-variant="primary" type="submit">Открыть</button>
       </form>
 
       <section data-testid="admin-database-browser">
-        <CompactTableShell minWidth="1080px">
-          <thead>
-            <tr>
-              {columns.length === 0 ? <CompactHeader label={table} /> : columns.map((column) => <CompactHeader key={column} label={column} />)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr><td colSpan={Math.max(1, columns.length)} className={`${COMPACT_CELL_CLASS} py-8 text-center`}>Строки не найдены</td></tr>
-            ) : rows.map((row, index) => (
-              <tr key={`${table}-${index}`}>
-                {columns.map((column) => (
-                  <td key={column} className={`${COMPACT_CELL_CLASS} max-w-md truncate`}>{String(row[column] ?? "null")}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </CompactTableShell>
+        <AdminCompactDataTable
+          columns={tableColumns}
+          rows={rows.map((row, index) => ({
+            id: `${table}-${index}`,
+            cells: Object.fromEntries(columns.map((column) => {
+              const raw = row[column];
+              const value = String(raw ?? "null");
+              const dateValue = column.toLowerCase().includes("at") ? new Date(value).getTime() : Number.NaN;
+              return [column, {
+                value,
+                title: value,
+                filterValue: value,
+                sortValue: typeof raw === "number" ? raw : Number.isFinite(dateValue) ? dateValue : value,
+              }];
+            })),
+          }))}
+          empty="Строки не найдены"
+          minWidth="1080px"
+        />
       </section>
 
-      <LinkPagination page={page} pageSize={PAGE_SIZE} total={total} hrefForPage={(nextPage) => makeUrl(params, { table, page: String(nextPage) })} />
+      {total > MAX_ROWS ? (
+        <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">Показаны последние {MAX_ROWS.toLocaleString("ru-RU")} строк из {total.toLocaleString("ru-RU")}.</p>
+      ) : null}
     </PageContainer>
   );
 }

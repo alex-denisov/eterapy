@@ -6,7 +6,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
-import { CompactTableShell, COMPACT_CELL_CLASS } from "@/components/admin/compact-table";
+import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+
+const accountColumns: AdminCompactColumn[] = [
+  { key: "field", label: "Поле", sortable: true },
+  { key: "value", label: "Значение", sortable: true },
+];
 
 export function AdminSettingsClient({
   email,
@@ -56,14 +61,17 @@ export function AdminSettingsClient({
       <section className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5 shadow-[var(--soft-shadow-sm)]">
         <h2 className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">Аккаунт</h2>
         <div className="mt-4">
-          <CompactTableShell minWidth="420px">
-            <tbody>
-              <tr><td className={COMPACT_CELL_CLASS}>Имя</td><td className={COMPACT_CELL_CLASS}>{name}</td></tr>
-              <tr><td className={COMPACT_CELL_CLASS}>Email</td><td className={COMPACT_CELL_CLASS}>{email}</td></tr>
-              <tr><td className={COMPACT_CELL_CLASS}>Роль</td><td className={COMPACT_CELL_CLASS}>{role === "SUPERADMIN" ? "Суперадминистратор" : "Администратор"}</td></tr>
-              <tr><td className={COMPACT_CELL_CLASS}>Доступ</td><td className={COMPACT_CELL_CLASS}>{role === "SUPERADMIN" ? "Суперадминистратор" : "По назначенным правам"}</td></tr>
-            </tbody>
-          </CompactTableShell>
+          <AdminCompactDataTable
+            columns={accountColumns}
+            rows={[
+              { id: "name", cells: { field: "Имя", value: name } },
+              { id: "email", cells: { field: "Email", value: email } },
+              { id: "role", cells: { field: "Роль", value: role === "SUPERADMIN" ? "Суперадминистратор" : "Администратор" } },
+              { id: "access", cells: { field: "Доступ", value: role === "SUPERADMIN" ? "Суперадминистратор" : "По назначенным правам" } },
+            ]}
+            empty="Данные аккаунта не найдены"
+            minWidth="420px"
+          />
         </div>
         <p className="mt-4 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
           Имя, email и полномочия администратора меняются через раздел пользователей и модераторов, чтобы все действия оставались в audit log.

@@ -23,12 +23,15 @@ describe("B296 admin operations UI", () => {
 
   it("adds paginated operational tables for jobs, notifications, logs, and database", () => {
     expect(source("src/app/admin/jobs/admin-jobs-page.tsx")).toContain('data-testid="admin-jobs-table"');
-    expect(source("src/app/admin/jobs/admin-jobs-page.tsx")).toContain("const PAGE_SIZE = 25");
+    expect(source("src/app/admin/jobs/admin-jobs-page.tsx")).toContain("AdminJobsTable");
+    expect(source("src/app/admin/jobs/jobs-table.tsx")).toContain("AdminCompactDataTable");
     expect(source("src/app/admin/notifications/admin-notifications-page.tsx")).toContain('data-testid="admin-notification-jobs-table"');
-    expect(source("src/app/admin/notifications/admin-notifications-page.tsx")).toContain("label=\"Отправить\"");
+    expect(source("src/app/admin/notifications/admin-notifications-page.tsx")).toContain("AdminNotificationJobsTable");
+    expect(source("src/app/admin/jobs/jobs-table.tsx")).toContain('label: "Отправить"');
     expect(source("src/app/admin/logs/admin-logs-page.tsx")).toContain('data-testid="admin-audit-log-table"');
     expect(source("src/app/admin/logs/admin-logs-page.tsx")).toContain("const PAGE_SIZE = 50");
     expect(source("src/app/admin/database/admin-database-page.tsx")).toContain('data-testid="admin-database-browser"');
+    expect(source("src/app/admin/database/admin-database-page.tsx")).toContain("AdminCompactDataTable");
     expect(source("src/app/admin/database/admin-database-page.tsx")).toContain("read-only");
   });
 

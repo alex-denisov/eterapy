@@ -7,19 +7,17 @@ describe("V4 — admin/reviews compact paginated table with in-row actions + edi
   const manager = read("src/app/admin/reviews/reviews-manager.tsx");
 
   it("renders a table paginated at 20 rows with searchable practitioner filter", () => {
-    expect(manager).toContain("const PAGE_SIZE = 20");
-    expect(manager).toContain("CompactTableShell");
-    expect(manager).toContain("COMPACT_HEADER_CLASS");
-    expect(manager).toContain('data-testid="reviews-filter-practitioner-search"');
-    expect(manager).toContain("practitionerQuery");
+    expect(manager).toContain("AdminCompactDataTable");
+    expect(manager).toContain("AdminCompactColumn");
+    expect(manager).toContain('filterKind: "select"');
+    expect(manager).toContain('filterKind: "date"');
     // alphabetical dropdown retained
     expect(manager).toContain('localeCompare(b[1], "ru")');
-    expect(manager).toContain("CompactPaginationBar");
-    expect(manager).toContain("visible.length");
+    expect(manager).not.toContain("CompactTableShell");
   });
 
   it("keeps per-row Publish/Hide/Delete and adds Edit (redaction) inside the table", () => {
-    expect(manager).toContain('data-testid="admin-review-row"');
+    expect(manager).toContain('data-testid="admin-reviews-manager"');
     expect(manager).toContain("Опубликовать");
     expect(manager).toContain("Скрыть");
     expect(manager).toContain("Удалить");

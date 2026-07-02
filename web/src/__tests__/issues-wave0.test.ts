@@ -37,8 +37,8 @@ describe("Issues 30.05 — Wave 0 quick fixes", () => {
       "src/app/admin/complaints/complaints-manager.tsx",
     ]) {
       const content = source(file);
-      expect(content).toContain("CompactTableShell");
-      expect(content).toContain("COMPACT_SELECT_CLASS");
+      expect(content).toContain("AdminCompactDataTable");
+      expect(content).toContain('filterKind: "select"');
       expect(content).not.toContain("bg-primary/15 text-primary");
     }
     const bookings = source("src/app/admin/bookings/bookings-manager.tsx");

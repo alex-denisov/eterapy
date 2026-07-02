@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
+import { type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import {
   cardPartsFromMetadata,
   getFinanceRows,
@@ -19,6 +19,7 @@ import {
 import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { FinanceExportMenu } from "../export-menu";
+import { FinanceReceiptsTable } from "./receipts-table";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -84,10 +85,8 @@ export default async function FinanceReceiptsPage({ searchParams }: PageProps) {
         Таблица показывает 20 операций на страницу, дату и время с секундами, способ оплаты и доступный источник оплаты без скрытия клиентских данных.
       </AdminHero>
 
-      <AdminCompactDataTable
+      <FinanceReceiptsTable
         columns={receiptColumns}
-        selectable
-        bulkActions={[{ key: "provider-check", label: "Проверить выбранные у провайдера", variant: "subtle" }]}
         rows={transactions.map((tx) => {
           const parts = cardPartsFromMetadata(tx.metadata);
           const method = paymentMethodFromMetadata(tx.provider, tx.metadata);

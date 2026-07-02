@@ -29,12 +29,12 @@ describe("M14 — admin reviews moderation", () => {
 
     const manager = source("src/app/admin/reviews/reviews-manager.tsx");
     expect(manager).toContain('data-testid="admin-reviews-manager"');
-    expect(manager).toContain('data-testid="admin-review-row"');
+    expect(manager).toContain("AdminCompactDataTable");
     // R1: practitioner + author filters and sort.
-    expect(manager).toContain('data-testid="reviews-filter-practitioner"');
-    expect(manager).toContain('data-testid="reviews-filter-author"');
-    expect(manager).toContain('data-testid="reviews-sort"');
-    expect(manager).toContain('toggleSort("rating")');
+    expect(manager).toContain('key: "practitioner"');
+    expect(manager).toContain('key: "author"');
+    expect(manager).toContain('filterKind: "select"');
+    expect(manager).toContain('sortable: true');
     // R2: exact time, not just date.
     expect(manager).toContain("function formatDateTime");
     expect(manager).toContain('hour: "2-digit"');

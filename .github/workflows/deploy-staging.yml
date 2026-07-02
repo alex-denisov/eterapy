@@ -313,7 +313,7 @@ jobs:
                 exit 1
               fi
               echo "install staging DB sync cron"
-              SYNC_CRON='17 * * * * flock -n /tmp/eterapy-staging-db-sync.lock bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh --migrate --restart >> /home/admin/eterapy-staging/deploy/sync-staging-db.log 2>&1'
+              SYNC_CRON='*/15 * * * * flock -n /tmp/eterapy-staging-db-sync.lock bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh --migrate --restart >> /home/admin/eterapy-staging/deploy/sync-staging-db.log 2>&1'
               (crontab -l 2>/dev/null | grep -v 'sync-staging-db-from-prod.sh --migrate --restart' || true; printf '%s\n' "$SYNC_CRON") | crontab -
               echo "sync staging DB from production"
               bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh
