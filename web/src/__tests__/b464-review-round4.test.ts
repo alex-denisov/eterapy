@@ -290,6 +290,24 @@ describe("R9 item 13 — wallet money hub", () => {
   });
 });
 
+// ── R10 · item 16 — Настройки: grouped rows on one scroll ──
+describe("R10 item 16 — settings grouped rows", () => {
+  it("replaces the tabs with anchored section groups", () => {
+    const settings = read("app/cabinet/settings/settings-client.tsx");
+    expect(settings).not.toContain("setActiveTab");
+    expect(settings).toContain('data-testid="settings-anchors"');
+    for (const id of ["settings-group-profile", "settings-group-about", "settings-group-security", "settings-group-notifications", "settings-group-danger"]) {
+      expect(settings).toContain(`data-testid="${id}"`);
+    }
+    // Handlers and security testids preserved.
+    expect(settings).toContain('data-testid="linked-login-methods"');
+    expect(settings).toContain('data-testid="set-password-panel"');
+    expect(settings).toContain("/api/auth/set-password-request");
+    // Old-theme premium-input select is gone.
+    expect(settings).not.toContain("premium-input");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {
