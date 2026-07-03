@@ -6,7 +6,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { ReviewModal } from "@/components/review-modal";
-import { appUrl } from "@/lib/subdomain";
+import { mainUrl } from "@/lib/subdomain";
 import { ComplaintModal } from "@/components/complaint-modal";
 import { getBookingStatus } from "@/lib/booking-status";
 import { canJoinBooking, canCancelBooking, bookingDurationMin } from "@/lib/booking-actions";
@@ -84,7 +84,9 @@ function InviteBlock({ hasPast, className = "" }: { hasPast: boolean; className?
           ? "Регулярные встречи помогают удержать найденное и двигаться дальше в своём темпе."
           : "Выберите специалиста и удобное время — спокойно, без обязательств."}
       </p>
-      <Link href={appUrl("/practitioners")} className="soft-button soft-button-primary mt-4 inline-flex">
+      {/* mainUrl: /practitioners живёт на лендинге — appUrl-ссылка давала
+          редирект app→main и CORS-ошибку префетча в консоли. */}
+      <Link href={mainUrl("/practitioners")} className="soft-button soft-button-primary mt-4 inline-flex">
         Выбрать специалиста
       </Link>
     </section>
@@ -290,7 +292,7 @@ export default function ClientBookingsPage() {
           <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
             Живой разговор со специалистом помогает там, где одного разбора мало.
           </p>
-          <Link href={appUrl("/practitioners")} className="soft-button soft-button-primary mt-5 inline-flex">
+          <Link href={mainUrl("/practitioners")} className="soft-button soft-button-primary mt-5 inline-flex">
             Записаться к специалисту
           </Link>
         </div>

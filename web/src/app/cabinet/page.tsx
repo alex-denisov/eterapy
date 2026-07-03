@@ -526,8 +526,10 @@ export default async function ClientCabinetPage() {
              still matches — continuing beats a cold new pick. */
           <section className="soft-card p-5" data-testid="client-practitioner-suggestion" data-practitioner-mode="continue">
             <p className="soft-eyebrow">продолжить работу со специалистом</p>
+            {/* Имя в именительном падеже — произвольные ФИО нельзя надёжно
+                склонять («встречались с Ирина…»). */}
             <p className="soft-h3 mt-2" style={{ color: "var(--soft-bordeaux)" }}>
-              Вы уже встречались с {practitionerPlan.continueWith.name} — можно продолжить в своём темпе
+              {practitionerPlan.continueWith.name} уже знает вашу историю — можно продолжить в своём темпе
             </p>
             <p className="mt-2 text-[13px]" style={{ color: "var(--soft-ink-soft)" }}>
               {practitionerPlan.topicLabel

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { mainUrl } from "@/lib/subdomain";
 
 const CONSENT_KEY = "eterapy_cookie_consent";
 
@@ -132,8 +133,12 @@ export function CookieBanner() {
       >
         <p className="min-w-0 flex-1 text-xs" style={{ color: "var(--soft-ink-soft)" }}>
           Cookies для входа и аналитики.{" "}
+          {/* B464 round-4: absolute main-domain URL — a relative href on the
+              app subdomain made Next prefetch /legal/privacy?_rsc, which the
+              proxy redirects cross-origin → a CORS console error on EVERY
+              cabinet page for consent-less visitors. */}
           <Link
-            href="/legal/privacy"
+            href={mainUrl("/legal/privacy")}
             className="underline underline-offset-2 hover:no-underline"
             style={{ color: "var(--soft-bordeaux)" }}
           >
