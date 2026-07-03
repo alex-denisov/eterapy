@@ -195,6 +195,48 @@ describe("R6 items 2-5 — engine-driven Главная", () => {
   });
 });
 
+// ── R7 · item 7 — missions complete on real actions with clear goals ──
+describe("R7 item 7 — first-steps goal set", () => {
+  it("«Рассказать о себе» requires ≥2 meaningful profile fields", async () => {
+    const { extendedProfileMissionReady } = await import("@/lib/missions");
+    expect(extendedProfileMissionReady({})).toBe(false);
+    expect(extendedProfileMissionReady({ occupation: "дизайнер" })).toBe(false);
+    expect(extendedProfileMissionReady({ birthDate: new Date("1990-01-01"), aiGoals: ["career"] })).toBe(true);
+    expect(extendedProfileMissionReady({ birthPlace: "Москва", maritalStatus: "married" })).toBe(true);
+    expect(extendedProfileMissionReady({ birthPlace: "  ", aiGoals: [] })).toBe(false);
+  });
+
+  it("only the invite mission can be self-reported from the browser", async () => {
+    const { SELF_REPORTABLE_MISSIONS } = await import("@/lib/missions");
+    expect(SELF_REPORTABLE_MISSIONS).toEqual(["invite_shared"]);
+    const api = read("app/api/cabinet/missions/route.ts");
+    expect(api).toContain("SELF_REPORTABLE_MISSIONS.includes");
+    expect(api).toContain("Эта цель начисляется автоматически");
+  });
+
+  it("the invite card reports the share on copy AND on Telegram", () => {
+    const card = read("components/cabinet/invite-link-card.tsx");
+    expect(card).toContain('missionKey: "invite_shared"');
+    expect(card.split("reportShareMission()").length - 1).toBeGreaterThanOrEqual(2);
+  });
+
+  it("a bare name save no longer completes «Рассказать о себе»; extended save is gated", () => {
+    expect(read("app/api/auth/update-profile/route.ts")).not.toContain("completeMission");
+    const extended = read("app/api/auth/extended-profile/route.ts");
+    expect(extended).toContain("extendedProfileMissionReady(saved)");
+  });
+
+  it("goal descriptions name the exact completing action", async () => {
+    const { ONBOARDING_MISSIONS } = await import("@/lib/missions");
+    const byKey = Object.fromEntries(ONBOARDING_MISSIONS.map((m) => [m.key, m]));
+    expect(byKey.first_practice.description).toContain("Засчитывается именно запись");
+    expect(byKey.complete_profile.description).toContain("минимум два поля");
+    expect(byKey.invite_shared.description).toContain("баллы придут вам обоим");
+    // No unexplained jargon in titles.
+    expect(byKey.first_product.title).not.toContain("формат");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {

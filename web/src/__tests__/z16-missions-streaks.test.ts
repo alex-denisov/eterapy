@@ -73,16 +73,17 @@ describe("Y10 Z16 missions and streaks", () => {
     mockDb.clarityCreditLedgerEntry.findMany.mockResolvedValue([]);
   });
 
-  it("defines five onboarding missions worth 10 credits total", () => {
+  it("defines five onboarding missions worth 11 credits total (B464 round-4 #7)", () => {
     expect(ONBOARDING_MISSIONS.map((mission) => mission.key)).toEqual([
-      "complete_profile",
-      "first_practice",
       "first_dialogue",
+      "first_practice",
+      "complete_profile",
       "first_product",
-      "enable_notifications",
+      "invite_shared",
     ]);
-    expect(ONBOARDING_MISSIONS.every((mission) => mission.rewardCredits === 2)).toBe(true);
-    expect(ONBOARDING_MISSIONS.reduce((sum, mission) => sum + mission.rewardCredits, 0)).toBe(10);
+    // The referral goal (the K-factor lever) carries the biggest reward.
+    expect(ONBOARDING_MISSIONS.find((m) => m.key === "invite_shared")?.rewardCredits).toBe(3);
+    expect(ONBOARDING_MISSIONS.reduce((sum, mission) => sum + mission.rewardCredits, 0)).toBe(11);
   });
 
   it("lists a cabinet checklist by merging static mission definitions with persisted progress", async () => {
@@ -101,7 +102,7 @@ describe("Y10 Z16 missions and streaks", () => {
       completedCount: 1,
       totalCount: 5,
       earnedCredits: 2,
-      totalRewardCredits: 10,
+      totalRewardCredits: 11,
       items: expect.arrayContaining([
         expect.objectContaining({
           key: "first_practice",
@@ -307,10 +308,14 @@ describe("Y10 Z16 missions and streaks", () => {
     expect(migration).toContain("practice_streak_count");
 
     expect(dailyCardRoute).toContain("bumpPracticeStreak");
+    // B464 round-4 #7: «Ответить на вопрос дня» completes ONLY in the reflect
+    // branch (the user wrote their own question) — exactly one call site.
     expect(dailyCardRoute).toContain('missionKey: "first_practice"');
+    expect(dailyCardRoute.split('missionKey: "first_practice"').length - 1).toBe(1);
     expect(dialoguesRoute).toContain('missionKey: "first_dialogue"');
     expect(entitlements).toContain('missionKey: "first_product"');
-    expect(notificationPrefsRoute).toContain('missionKey: "enable_notifications"');
+    // «Настроить уведомления» retired from the goal set.
+    expect(notificationPrefsRoute).not.toContain("completeMission");
 
     expect(cabinet).toContain("listMissionChecklist");
     expect(cabinet).toContain('data-testid="client-first-steps"');

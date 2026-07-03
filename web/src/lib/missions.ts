@@ -3,43 +3,78 @@ import db from "@/lib/db";
 import { recordClarityCreditEntry } from "@/lib/clarity-credits";
 import { creditExpiryFor } from "@/lib/credit-expiry";
 
+// B464 round-4 #7 — the onboarding goal set, redesigned around what actually
+// grew the fastest engagement/K-factor products (Hamster Kombat: staged
+// referral rewards; Duolingo: reward the CORE value action + come-back-tomorrow;
+// Revolut: verify the real action, never the page visit):
+//   1. every goal completes on a VERIFIED action (API hook), never a page open;
+//   2. the title names the exact action, the description names the exact
+//      completing condition — no jargon («формат», «практика») without context;
+//   3. the referral goal carries the biggest reward — it is the K-factor lever
+//      and feeds the B464 win-win economics (баллы придут обоим).
 export const ONBOARDING_MISSIONS = [
-  {
-    key: "complete_profile",
-    title: "Заполнить профиль",
-    description: "Добавьте пару деталей о себе, чтобы разборы и карта были точнее.",
-    actionHref: "/cabinet/settings",
-    rewardCredits: 2,
-  },
-  {
-    key: "first_practice",
-    title: "Завершить первую практику",
-    description: "Один вопрос дня, один взгляд со стороны и один маленький шаг.",
-    actionHref: "/cabinet/practice",
-    rewardCredits: 2,
-  },
   {
     key: "first_dialogue",
     title: "Задать первый вопрос",
-    description: "Начните с бесплатного разбора, без обязательной покупки.",
+    description: "Напишите, что вас волнует, — первый разбор бесплатный. Баллы придут, когда разбор начнётся.",
     actionHref: "/checkin",
     rewardCredits: 2,
   },
   {
+    key: "first_practice",
+    title: "Ответить на вопрос дня",
+    description: "Запишите свой вопрос дня своими словами — в ответ придут взгляд дня и маленький шаг. Засчитывается именно запись, не открытие страницы.",
+    actionHref: "/cabinet/practice",
+    rewardCredits: 2,
+  },
+  {
+    key: "complete_profile",
+    title: "Рассказать о себе",
+    description: "Заполните «О себе» в настройках: дата рождения и то, что вас интересует, делают разборы точнее. Засчитывается, когда заполнено минимум два поля.",
+    actionHref: "/cabinet/settings",
+    rewardCredits: 2,
+  },
+  {
     key: "first_product",
-    title: "Открыть первый цифровой формат",
-    description: "Попробуйте полную картину, разбор, карту или другой формат из каталога.",
+    title: "Открыть платный разбор",
+    description: "Потратьте баллы на любое углубление — например, «Переосмысление». Засчитывается сама покупка.",
     actionHref: "/products",
     rewardCredits: 2,
   },
   {
-    key: "enable_notifications",
-    title: "Настроить уведомления",
-    description: "Выберите, где получать мягкие напоминания и новости по своим действиям.",
-    actionHref: "/cabinet/settings",
-    rewardCredits: 2,
+    key: "invite_shared",
+    title: "Позвать близкого человека",
+    description: "Скопируйте личную ссылку-приглашение или отправьте её в Telegram. Когда друг попробует разбор — баллы придут вам обоим.",
+    actionHref: "/cabinet/invite",
+    rewardCredits: 3,
   },
 ] as const;
+
+// The invite mission is completed by a client-reported share action — the API
+// route only accepts keys from this whitelist so no other mission can be
+// self-completed from the browser.
+export const SELF_REPORTABLE_MISSIONS: readonly OnboardingMissionKey[] = ["invite_shared"];
+
+/**
+ * «Рассказать о себе» counts only when the saved profile actually carries
+ * meaningful personalisation data (≥2 of: дата рождения, место, занятие,
+ * интересы, семейное положение) — not on any save (B464 round-4 #7).
+ */
+export function extendedProfileMissionReady(profile: {
+  birthDate?: Date | string | null;
+  birthPlace?: string | null;
+  occupation?: string | null;
+  maritalStatus?: string | null;
+  aiGoals?: string[] | null;
+}): boolean {
+  let filled = 0;
+  if (profile.birthDate) filled += 1;
+  if (profile.birthPlace?.trim()) filled += 1;
+  if (profile.occupation?.trim()) filled += 1;
+  if (profile.maritalStatus?.trim()) filled += 1;
+  if ((profile.aiGoals?.length ?? 0) > 0) filled += 1;
+  return filled >= 2;
+}
 
 export type OnboardingMissionKey = typeof ONBOARDING_MISSIONS[number]["key"];
 

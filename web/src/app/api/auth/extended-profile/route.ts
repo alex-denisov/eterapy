@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { logAudit } from "@/lib/audit";
-import { completeMission } from "@/lib/missions";
+import { completeMission, extendedProfileMissionReady } from "@/lib/missions";
 import { sanitizeName, sanitizeText } from "@/lib/validation";
 
 export async function GET() {
@@ -88,12 +88,24 @@ export async function PATCH(req: NextRequest) {
     surface: "extended_profile",
     ...(birthDate !== undefined ? { birthDateSource: utcBirthDate ? "manual" : null } : {}),
   }));
-  void completeMission({
-    userId: session.user.id,
-    missionKey: "complete_profile",
-    metadata: { surface: "extended_profile" },
-  }).catch(() => {
+  // B464 round-4 #7: «Рассказать о себе» counts only when the SAVED profile
+  // actually carries meaningful data (≥2 fields) — not on any save.
+  try {
+    const saved = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { birthDate: true, birthPlace: true, occupation: true, maritalStatus: true, aiGoals: true },
+    });
+    if (saved && extendedProfileMissionReady(saved)) {
+      void completeMission({
+        userId: session.user.id,
+        missionKey: "complete_profile",
+        metadata: { surface: "extended_profile" },
+      }).catch(() => {
+        // Mission bookkeeping must not break profile updates.
+      });
+    }
+  } catch {
     // Mission bookkeeping must not break profile updates.
-  });
+  }
   return NextResponse.json({ ok: true });
 }

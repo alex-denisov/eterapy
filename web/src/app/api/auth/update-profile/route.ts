@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { storeFile } from "@/lib/file-storage";
-import { completeMission } from "@/lib/missions";
 import { validateName } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
@@ -37,13 +36,9 @@ export async function POST(req: NextRequest) {
 
   await db.user.update({ where: { id: session.user!.id }, data });
   await logAudit(session.user!.id!, "PROFILE_UPDATE", undefined, avatarUrl ? "Профиль + аватар" : "Профиль");
-  void completeMission({
-    userId: session.user!.id!,
-    missionKey: "complete_profile",
-    metadata: { surface: "profile" },
-  }).catch(() => {
-    // Mission bookkeeping must not break profile updates.
-  });
+  // B464 round-4 #7: a bare name/avatar save no longer completes the
+  // «Рассказать о себе» mission — it counts only when the extended profile
+  // carries meaningful personalisation data (see extended-profile route).
 
   return NextResponse.json({ ok: true, avatarUrl });
 }
