@@ -47,15 +47,19 @@ describe("N5/N7/N8 — header", () => {
 
 describe("N6 — /help content + pagination", () => {
   const help = source("src/app/help/page.tsx");
+  // B464 round-4 #18: the FAQ data moved to the shared lib so the cabinet
+  // support centre can offer «5 случайных вопросов по теме» from the same base.
+  const faqData = source("src/lib/help-faq-data.ts");
 
   it("renames Safety to Russian + adds an account category", () => {
-    expect(help).not.toContain('"Safety"');
-    expect(help).toContain("Безопасность и кризис");
-    expect(help).toContain('["account", "Аккаунт и кабинет"]');
+    expect(faqData).not.toContain('"Safety"');
+    expect(faqData).toContain("Безопасность и кризис");
+    expect(faqData).toContain('["account", "Аккаунт и кабинет"]');
+    expect(help).toContain('from "@/lib/help-faq-data"');
   });
 
   it("ships ~100+ Q&A entries", () => {
-    const count = (help.match(/cat:\s*"/g) ?? []).length;
+    const count = (faqData.match(/cat:\s*"/g) ?? []).length;
     expect(count).toBeGreaterThanOrEqual(100);
   });
 

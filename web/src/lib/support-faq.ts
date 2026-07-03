@@ -2,6 +2,8 @@
 // first; escalate by problem type. Live chat is offered ONLY for the six
 // sensitive categories; everything else routes to email + web form.
 
+import { HELP_FAQS, type HelpFaqItem } from "@/lib/help-faq-data";
+
 export interface FaqEntry {
   id: string;
   q: string;
@@ -30,6 +32,40 @@ export const SUPPORT_CATEGORIES: SupportCategory[] = [
 
 export function categoryAllowsChat(id: string): boolean {
   return SUPPORT_CATEGORIES.find((c) => c.id === id)?.liveChat ?? false;
+}
+
+// B464 round-4 #18 — support theme → help-centre FAQ categories, so a picked
+// theme surfaces 5 random questions from the shared knowledge base.
+const SUPPORT_TO_HELP_CATS: Record<string, string[]> = {
+  finance: ["payments"],
+  refunds: ["payments"],
+  cancellations: ["payments", "specialists"],
+  privacy: ["privacy"],
+  specialist: ["specialists"],
+  account: ["account", "privacy"],
+  product: ["product", "esoteric"],
+  technical: ["product", "account"],
+  other: [],
+};
+
+/**
+ * Pick `count` random questions for a support theme from the help-centre base.
+ * The rng is injectable so tests stay deterministic; UI uses Math.random.
+ */
+export function pickThemeQuestions(
+  categoryId: string,
+  count = 5,
+  rng: () => number = Math.random,
+  faqs: ReadonlyArray<HelpFaqItem> = HELP_FAQS,
+): HelpFaqItem[] {
+  const cats = SUPPORT_TO_HELP_CATS[categoryId] ?? [];
+  const pool = cats.length > 0 ? faqs.filter((f) => cats.includes(f.cat)) : [...faqs];
+  const copy = [...pool];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, count);
 }
 
 export const SUPPORT_FAQ: FaqEntry[] = [

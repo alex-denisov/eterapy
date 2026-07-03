@@ -308,6 +308,56 @@ describe("R10 item 16 — settings grouped rows", () => {
   });
 });
 
+// ── R11 · item 18 — Центр поддержки + telegram-чат ──
+describe("R11 item 18 — support centre", () => {
+  it("the search card is the «Центр поддержки» hero with a clickable right-side loupe", () => {
+    const center = read("components/support/support-help-center.tsx");
+    expect(center).toContain("Центр поддержки");
+    expect(center).toContain('data-testid="support-search-submit"');
+    // The loupe sits AFTER the input in the form (right side).
+    expect(center.indexOf("support-search-input")).toBeLessThan(center.indexOf("support-search-submit"));
+    // Calm focus: wrapper focus-within + the global terracotta outline suppressed.
+    expect(center).toContain("focus-within:border-[var(--soft-bordeaux)]/40");
+    expect(center).toContain("focus-visible:outline-none");
+  });
+
+  it("theme chips surface 5 random questions from the shared help base", async () => {
+    const { pickThemeQuestions } = await import("@/lib/support-faq");
+    const seq = [0.1, 0.9, 0.3, 0.7, 0.5];
+    let i = 0;
+    const rng = () => seq[i++ % seq.length];
+    const picked = pickThemeQuestions("finance", 5, rng);
+    expect(picked).toHaveLength(5);
+    expect(picked.every((q) => q.cat === "payments")).toBe(true);
+    // Deterministic with the same rng.
+    i = 0;
+    expect(pickThemeQuestions("finance", 5, rng).map((q) => q.id)).toEqual(picked.map((q) => q.id));
+    const center = read("components/support/support-help-center.tsx");
+    expect(center).toContain("pickThemeQuestions");
+    expect(center).toContain('data-testid="support-theme-questions"');
+    expect(center).toContain("Показать другие вопросы");
+  });
+
+  it("ONE chips row gates escalation; chat only for sensitive topics", async () => {
+    const center = read("components/support/support-help-center.tsx");
+    // No second chips row inside the escalation block.
+    expect(center.split("SUPPORT_CATEGORIES.map").length - 1).toBe(1);
+    expect(center).toContain("Выберите тему выше");
+    const { categoryAllowsChat } = await import("@/lib/support-faq");
+    expect(categoryAllowsChat("finance")).toBe(true);
+    expect(categoryAllowsChat("technical")).toBe(false);
+  });
+
+  it("the chat is Telegram-like: day separators, tailed bubbles, round send, Enter-to-send", () => {
+    const chat = read("components/support/support-chat.tsx");
+    expect(chat).toContain('data-testid="support-chat-day"');
+    expect(chat).toContain("rounded-[16px_16px_4px_16px]");
+    expect(chat).toContain('aria-label="Отправить сообщение"');
+    expect(chat).toContain('event.key === "Enter" && !event.shiftKey');
+    expect(chat).toContain("groupByDay");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {

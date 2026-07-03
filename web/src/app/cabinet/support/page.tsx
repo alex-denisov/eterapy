@@ -24,15 +24,9 @@ export default async function CabinetSupportPage() {
   return (
     <main className="soft-clarity-page" data-testid="cabinet-support-page">
       <section className="soft-shell py-10 md:py-14">
-        <p className="soft-eyebrow">поддержка</p>
-        <h1 className="soft-h1 mt-2">Чем можем помочь?</h1>
-        <p className="soft-lede mt-3 max-w-2xl">
-          Найдите ответ в частых вопросах или выберите тему — подскажем самый быстрый способ связаться.
-          Прямой адрес: <a href="mailto:support@eterapy.com" className="soft-italic underline">support@eterapy.com</a>.
-        </p>
-
-        {/* B464 IB6 (owner round-3 #8): Apple-style search gate → FAQ → escalation
-            gated by problem type (live chat only for the six sensitive topics). */}
+        {/* B464 IB6 + round-4 #18: the search card IS the hero («Центр
+            поддержки») — search gate → theme suggestions → escalation gated by
+            problem type (live chat only for the six sensitive topics). */}
         <SupportHelpCenter telegramSupportUrl={telegramSupportUrl} showChat={!!userId} />
 
         <div className="soft-card mt-8 p-6" style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}>
@@ -45,7 +39,11 @@ export default async function CabinetSupportPage() {
           </p>
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-3">
+        <p className="mt-6 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+          Прямой адрес: <a href="mailto:support@eterapy.com" className="soft-italic underline">support@eterapy.com</a>.
+        </p>
+
+        <div className="mt-4 flex flex-wrap gap-3">
           <Link href={mainUrl("/help")} className="soft-button soft-button-ghost h-9 px-4 text-sm">
             Все частые вопросы
             <ArrowRight className="size-4" aria-hidden="true" />
