@@ -312,6 +312,30 @@ jobs:
                 echo "::error::DATABASE_URL not found in staging .env.local"
                 exit 1
               fi
+              echo "configure staging runtime log read access"
+              sudo usermod -aG adm admin || true
+              if ! command -v setfacl >/dev/null 2>&1; then
+                sudo DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null
+                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y acl >/dev/null
+              fi
+              for dir in /var/log /var/log/nginx /var/log/postgresql /var/log/letsencrypt; do
+                if [ -d "$dir" ]; then
+                  sudo setfacl -m u:admin:rx "$dir" || true
+                  sudo setfacl -d -m u:admin:rx "$dir" || true
+                fi
+              done
+              for file in \
+                /var/log/nginx/access.log \
+                /var/log/nginx/error.log \
+                /var/log/syslog \
+                /var/log/auth.log \
+                /var/log/kern.log \
+                /var/log/cloud-init.log \
+                /var/log/ufw.log \
+                /var/log/postgresql/postgresql-16-main.log \
+                /var/log/letsencrypt/letsencrypt.log; do
+                [ -e "$file" ] && sudo setfacl -m u:admin:r "$file" || true
+              done
               echo "install staging DB sync cron"
               SYNC_CRON='*/15 * * * * flock -n /tmp/eterapy-staging-db-sync.lock bash /home/admin/eterapy-staging/deploy/sync-staging-db-from-prod.sh --migrate --restart >> /home/admin/eterapy-staging/deploy/sync-staging-db.log 2>&1'
               (crontab -l 2>/dev/null | grep -v 'sync-staging-db-from-prod.sh --migrate --restart' || true; printf '%s\n' "$SYNC_CRON") | crontab -
