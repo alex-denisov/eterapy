@@ -129,7 +129,7 @@ describe("M11 client retention surfaces", () => {
     // B464 IB1: vanity «Мягкий ритм» counts folded into a single non-shaming
     // streak badge; the daily ritual stays free and pressure-free.
     expect(dashboard).toContain('data-testid="client-streak-badge"');
-    expect(dashboard).toContain("видны только вам");
+    expect(dashboard).toContain("их видите только вы");
     expect(dashboard).not.toContain("Мягкий ритм");
     expect(dashboard).not.toContain('data-testid="client-gentle-milestones"');
   });
@@ -166,7 +166,6 @@ describe("M11 client retention surfaces", () => {
 
   it("tracks retention actions through the global analytics listener", () => {
     const analytics = source("src/components/analytics.tsx");
-    const dashboard = source("src/app/cabinet/page.tsx");
     const map = source("src/app/cabinet/diary/page.tsx");
 
     expect(analytics).toContain("[data-analytics-event]");

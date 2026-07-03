@@ -496,6 +496,7 @@ export function Header() {
   const showNewDialogueCta = isAuthenticated && !isStaff && !isPractitioner;
 
   return (
+    <>
     <header
       data-testid="public-shell-header"
       data-site-chrome="header"
@@ -633,11 +634,18 @@ export function Header() {
           )}
         </div>
       </div>
+    </header>
 
       {/* B464 IB0 — ONE state-aware, iOS-frosted mobile bottom bar replaces the
           burger on the landing. Inside /cabinet the cabinet shell renders its
           own identical bar, so this one is landing-only (no double bar). The
-          «Ещё» tab opens a bottom sheet instead of navigating. */}
+          «Ещё» tab opens a bottom sheet instead of navigating.
+          Round-5 #1/#2: the bar + sheet MUST render OUTSIDE the <header> —
+          its backdrop-blur creates a CSS containing block for position:fixed,
+          which pinned the «bottom» bar to the header box (top of the page) and
+          pushed the «Ещё» sheet above the viewport, invisible. As header
+          siblings they are fixed to the real viewport bottom, byte-identical
+          to the cabinet shell bar. */}
       {showMobileBar && (
         <>
           {mobileOpen && (
@@ -721,6 +729,6 @@ export function Header() {
           </nav>
         </>
       )}
-    </header>
+    </>
   );
 }

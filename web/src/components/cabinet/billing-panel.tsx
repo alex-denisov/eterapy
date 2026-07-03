@@ -302,10 +302,11 @@ export function BillingPanel() {
     <div className="space-y-6">
       {/* Подписка — 3 fixed plan cards, current highlighted (round-2 #2 / round-3 #2) */}
       <div>
+        {/* Round-5 #9: ONE heading per block — the wallet wrapper eyebrow/h2 and
+            the panel's «подписка» eyebrow collapsed into this single line. */}
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
-            <p className="soft-eyebrow">подписка</p>
-            <h2 className="soft-h2 mt-1">Ваш тариф — {getSubscriptionPlanLabel(activeSub?.planKey)}</h2>
+            <h2 className="soft-h3">Ваш тариф — {getSubscriptionPlanLabel(activeSub?.planKey)}</h2>
             <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">{currentSubscriptionStatus}
               {activeSub?.currentPeriodEnd ? ` · ${activeSub.cancelAtPeriodEnd ? "доступ до" : "следующее списание"} ${new Date(activeSub.currentPeriodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : ""}
             </p>
@@ -330,8 +331,9 @@ export function BillingPanel() {
                     <div className="soft-eyebrow">{isCurrent ? "ваш тариф" : plan.eyebrow}</div>
                     <div className="mt-2" style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--soft-bordeaux)", fontWeight: 600 }}>{plan.name}</div>
                   </div>
-                  <div className="text-right">
-                    <div style={{ fontFamily: "var(--font-heading)", fontSize: 24, color: "var(--soft-bordeaux)", fontWeight: 600 }}>{priceRub} ₽</div>
+                  <div className="shrink-0 text-right">
+                    {/* Round-5 #10: цена всегда одной строкой — NBSP перед ₽ + nowrap. */}
+                    <div className="whitespace-nowrap" style={{ fontFamily: "var(--font-heading)", fontSize: 24, color: "var(--soft-bordeaux)", fontWeight: 600 }}>{priceRub}{" "}₽</div>
                     {plan.perMonth && <div className="text-xs text-[var(--soft-ink-faint)]">в месяц</div>}
                   </div>
                 </div>

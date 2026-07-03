@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -143,6 +143,7 @@ export function ServiceCatalog({
   className?: string;
 }) {
   const [active, setActive] = useState<string>(GROUPS[0]?.id ?? "");
+  const navRef = useRef<HTMLElement | null>(null);
 
   // B456: scroll-spy. The sticky category bar (mobile) highlights whichever
   // section has scrolled up under it; at the very top the first category stays
@@ -175,6 +176,25 @@ export function ServiceCatalog({
     };
   }, []);
 
+  // Round-5 #3: the sticky chip bar follows the scroll-spy — when a section
+  // highlights its chip, the strip itself scrolls so the active chip is
+  // actually visible (scrollTo on the strip only; scrollIntoView would hijack
+  // the page scroll the user is in the middle of).
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav || nav.scrollWidth <= nav.clientWidth) return;
+    const chip = nav.querySelector<HTMLElement>(".soft-catalog-chip.is-active");
+    if (!chip) return;
+    const pad = 16;
+    const chipLeft = chip.offsetLeft;
+    const chipRight = chipLeft + chip.offsetWidth;
+    if (chipLeft - pad < nav.scrollLeft) {
+      nav.scrollTo({ left: Math.max(0, chipLeft - pad), behavior: "smooth" });
+    } else if (chipRight + pad > nav.scrollLeft + nav.clientWidth) {
+      nav.scrollTo({ left: chipRight + pad - nav.clientWidth, behavior: "smooth" });
+    }
+  }, [active]);
+
   const jumpTo = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -184,7 +204,7 @@ export function ServiceCatalog({
 
   return (
     <div className={`soft-catalog ${className}`.trim()} data-testid="v4-service-catalog">
-      <nav className="soft-catalog-nav md:hidden" aria-label="Категории услуг">
+      <nav ref={navRef} className="soft-catalog-nav md:hidden" aria-label="Категории услуг">
         {GROUPS.map((group) => (
           <button
             key={group.id}

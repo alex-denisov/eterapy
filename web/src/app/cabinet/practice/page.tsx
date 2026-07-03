@@ -5,6 +5,7 @@ import { PageContainer } from "@/components/ui/page-container";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { getOrCreateDailyCard, dailyCardDate, dailyCardBeats } from "@/lib/daily-card";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
+import { daysWord, effectivePracticeStreak } from "@/lib/streak-display";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 
 // Monday-based weekday labels for the «эта неделя» calendar.
@@ -105,10 +106,13 @@ export default async function ClarityPracticePage() {
           <aside className="rounded-[1.5rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
             <div className="flex items-center justify-between">
               <p className="soft-eyebrow">эта неделя</p>
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-terracotta-dark)]" data-testid="practice-streak-total">
-                <Sparkles className="size-3" aria-hidden="true" />
-                {practiceStreak.count} {practiceStreak.count === 1 ? "день" : practiceStreak.count >= 2 && practiceStreak.count <= 4 ? "дня" : "дней"} подряд
-              </span>
+              {/* Round-5 #6a: счётчик показываем только для живой серии. */}
+              {effectivePracticeStreak(practiceStreak.count, practiceStreak.lastDoneDate) > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--soft-terracotta-dark)]" data-testid="practice-streak-total">
+                  <Sparkles className="size-3" aria-hidden="true" />
+                  {practiceStreak.count} {daysWord(practiceStreak.count)} подряд
+                </span>
+              )}
             </div>
             {/* G14: real Mon→Sun week — done days fill terracotta with a check,
                 today gets a ringed apricot tile, future days read as dashed/muted. */}
@@ -152,7 +156,7 @@ export default async function ClarityPracticePage() {
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--soft-ink-faint)]">мягкий ритм</p>
                 <p className="mt-1 text-sm font-semibold text-[var(--soft-bordeaux)]">
-                  Лучший стрик: {practiceStreak.longest} {practiceStreak.longest === 1 ? "день" : practiceStreak.longest >= 2 && practiceStreak.longest <= 4 ? "дня" : "дней"}
+                  Лучший стрик: {practiceStreak.longest} {daysWord(practiceStreak.longest)}
                 </p>
               </div>
               <Leaf className="size-5 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
