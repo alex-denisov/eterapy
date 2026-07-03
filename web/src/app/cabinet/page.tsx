@@ -6,7 +6,7 @@ import { CheckCircle2, Sparkles, Gift, ArrowRight, LifeBuoy } from "lucide-react
 import { auth } from "@/lib/auth";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import db from "@/lib/db";
-import { getOrCreateDailyCard } from "@/lib/daily-card";
+import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { pointsWord } from "@/lib/points";
 import { listMissionChecklist } from "@/lib/missions";
@@ -190,6 +190,7 @@ export default async function ClientCabinetPage() {
         };
 
   const dailyCard = dailyCardResult.card;
+  const dailyBeats = dailyCardBeats(dailyCard.metadata);
   const missionHref = (href: string) => (
     href.startsWith("/cabinet") ? appUrl(href.replace(/^\/cabinet/, "")) : mainUrl(href)
   );
@@ -336,13 +337,13 @@ export default async function ClientCabinetPage() {
 
       {/* ═══════ ZONE 3 · GROW (free) ═══════ */}
       <div className="mb-4 grid gap-4 md:grid-cols-2">
-        {/* Daily-Q «по вашим разборам» → in-cabinet reflect (DailyPracticeActions),
-            NOT /checkin. Stays free (the retention ritual). */}
+        {/* Daily-Q «по вашим разборам» — the FULL ritual right here (round-4 #6):
+            the client writes their answer/question, gets взгляд+шаг immediately,
+            and the entry lands in «ваши записи» Дневника. NOT /checkin. */}
         <section className="soft-card p-5" data-testid="client-daily-card">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="soft-eyebrow">вопрос дня · по вашим разборам</p>
-              <p className="soft-italic mt-2" style={{ fontSize: 18, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>{dailyCard.prompt}</p>
             </div>
             <div
               className="grid size-12 shrink-0 place-items-center rounded-full text-sm font-semibold"
@@ -353,6 +354,14 @@ export default async function ClientCabinetPage() {
               {practiceStreak.count}
             </div>
           </div>
+          <DailyPracticeActions
+            completed={Boolean(dailyCard.completedAt)}
+            variant="full"
+            prompt={dailyCard.prompt}
+            perspective={dailyBeats.perspective}
+            step={dailyBeats.step}
+            initialReflection={dailyCard.reflectionText}
+          />
           <div className="mt-4 flex items-center gap-2" data-testid="practice-week-progress" aria-label="Прогресс недели">
             {practiceWeekDays(weekCards.map((card) => card.cardDate)).map((day) => (
               <span key={day.label} className="flex flex-col items-center gap-1">
@@ -372,11 +381,8 @@ export default async function ClientCabinetPage() {
               </span>
             ))}
           </div>
-          <div className="mt-4">
-            <DailyPracticeActions completed={Boolean(dailyCard.completedAt)} />
-          </div>
           <p className="mt-3 text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
-            записи остаются в дневнике и видны только вам · вехи: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")}
+            запись сохранится в «ваших записях» Дневника (виден только вам) · на 7-й день серии придёт итог недели · вехи: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")}
           </p>
           {weeklySummary && (
             <Link href={appUrl("/diary")} className="soft-chip mt-3 inline-flex items-center gap-2" data-testid="weekly-summary-link">

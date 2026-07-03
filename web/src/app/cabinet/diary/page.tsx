@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { listDiaryItems, mergeDiaryMetadata, type DiaryItemKind } from "@/lib/diary";
 import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
-import { getOrCreateDailyCard } from "@/lib/daily-card";
+import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { practiceWeekDays, startOfPracticeWeek } from "@/lib/weekly-summary";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { listJournalEntries, type JournalEntry } from "@/lib/journal-entries";
@@ -259,6 +259,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
   const familyCount = dialogueTopicCounts.get("family")?.count ?? 0;
 
   const dailyCard = dailyCardResult.card;
+  const diaryBeats = dailyCardBeats(dailyCard.metadata);
   const journalLead = journalEntries.slice(0, 3);
   const journalRest = journalEntries.slice(3);
 
@@ -288,9 +289,17 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
         <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <div>
             <p className="soft-eyebrow">вопрос дня · по вашим разборам</p>
-            <p className="soft-italic mt-2" style={{ fontSize: 19, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>{dailyCard.prompt}</p>
-            <div className="mt-4"><DailyPracticeActions completed={Boolean(dailyCard.completedAt)} /></div>
-            <p className="mt-2 text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>останется в записях ниже · виден только вам</p>
+            {/* round-4 #11: the FULL ritual (textarea → взгляд+шаг), same as
+                Главная — not a dead «отметить» button. */}
+            <DailyPracticeActions
+              completed={Boolean(dailyCard.completedAt)}
+              variant="full"
+              prompt={dailyCard.prompt}
+              perspective={diaryBeats.perspective}
+              step={diaryBeats.step}
+              initialReflection={dailyCard.reflectionText}
+            />
+            <p className="mt-2 text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>останется в записях ниже · виден только вам · на 7-й день серии придёт итог недели</p>
           </div>
           <aside className="rounded-[16px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
             <div className="mb-3 flex items-center justify-between">

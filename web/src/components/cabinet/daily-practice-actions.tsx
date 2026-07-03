@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { CheckCircle2, Loader2, Compass, Footprints, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 const QUESTION_LIMIT = 600;
 
@@ -109,7 +108,10 @@ export function DailyPracticeActions({
   if (!isFull) {
     return (
       <div className="mt-3">
-        <Button
+        {/* B464 round-4 #6: plain .soft-button — the shadcn <Button> mixed the
+            old theme's bg-primary hover utilities into the soft palette and
+            the hover state lost contrast. */}
+        <button
           type="button"
           onClick={completePractice}
           disabled={done || loading}
@@ -117,7 +119,7 @@ export function DailyPracticeActions({
         >
           {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <CheckCircle2 className="size-4" aria-hidden="true" />}
           {done ? "Практика завершена" : "Отметить практику"}
-        </Button>
+        </button>
         {message && (
           <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
             {message}
@@ -207,7 +209,7 @@ export function DailyPracticeActions({
         </button>
       )}
 
-      <Button
+      <button
         type="button"
         onClick={reflect}
         disabled={loading || question.trim().length < 3}
@@ -216,7 +218,7 @@ export function DailyPracticeActions({
       >
         {loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Compass className="size-4" aria-hidden="true" />}
         Получить взгляд и шаг
-      </Button>
+      </button>
       {message && (
         <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{message}</p>
       )}

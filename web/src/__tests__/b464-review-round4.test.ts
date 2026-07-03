@@ -141,6 +141,30 @@ describe("R4 items 9·10 — diary PIN control", () => {
   });
 });
 
+// ── R5 · items 6·11 — вопрос дня is the full ritual on Главная + Дневник ──
+describe("R5 items 6·11 — functional вопрос дня", () => {
+  it("Главная renders the full ritual (textarea → взгляд+шаг), not a bare mark-done", () => {
+    const home = read("app/cabinet/page.tsx");
+    expect(home).toContain('variant="full"');
+    expect(home).toContain("initialReflection={dailyCard.reflectionText}");
+    expect(home).toContain("dailyCardBeats");
+    // The lifecycle is explained: stored in the diary + weekly summary.
+    expect(home).toContain("итог недели");
+  });
+
+  it("Дневник habit hero renders the same full ritual", () => {
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain('variant="full"');
+    expect(diary).toContain("initialReflection={dailyCard.reflectionText}");
+  });
+
+  it("practice actions use plain soft-buttons (hover contrast fix)", () => {
+    const actions = read("components/cabinet/daily-practice-actions.tsx");
+    expect(actions).not.toContain('from "@/components/ui/button"');
+    expect(actions).toContain('className={done ? "soft-button soft-button-ghost" : "soft-button soft-button-primary"}');
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {
