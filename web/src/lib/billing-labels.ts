@@ -34,6 +34,13 @@ export const PRODUCT_LABELS: Record<string, string> = {
   numerology: "Числовой портрет",
   perspectives: "Переосмысление",
   "seven-days": "Недельное резюме",
+  "seven-days-report": "Недельное резюме",
+  "seven-days-route": "Недельное резюме",
+  "weekly-report": "Недельное резюме",
+  "weekly-summary": "Недельное резюме",
+  human_design: "Дизайн человека",
+  natal: "Натальная карта",
+  "product-reframe-v5": "Переосмысление",
 };
 
 // Credit-pack purchase descriptions, keyed by pack key (see lib/entitlements CREDIT_PACKS).
@@ -68,6 +75,7 @@ export function getProductLabel(productKey: string): string {
     .replace(/^product[-_\s]+/i, "")
     .replaceAll("_", "-")
     .replace(/\s+/g, "-")
+    .replace(/[-\s]?v\d+$/i, "")
     .toLowerCase();
   return PRODUCT_LABELS[normalized] ?? productKey;
 }

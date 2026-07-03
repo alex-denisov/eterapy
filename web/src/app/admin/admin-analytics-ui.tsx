@@ -235,10 +235,11 @@ function tooltipSize(text: string) {
 
 function axisLabelLayout(labels: string[], slotWidth: number) {
   const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
-  const vertical = labels.length > 18 || longest * 7.2 > slotWidth - 8;
+  const requiredSlotWidth = Math.ceil(longest * 7.2) + 14;
   return {
-    vertical,
-    bottom: vertical ? Math.min(112, Math.max(58, Math.ceil(longest * 7.2) + 22)) : 30,
+    vertical: false,
+    bottom: 24,
+    slotWidth: Math.max(slotWidth, requiredSlotWidth),
   };
 }
 
@@ -277,12 +278,13 @@ export function VerticalBarChart({
     compactLabels ? (series.length > 1 ? 38 : 32) : (series.length > 1 ? 52 : 44),
   );
   const labelLayout = axisLabelLayout(labels, groupWidth);
+  const resolvedGroupWidth = labelLayout.slotWidth;
   const bottom = labelLayout.bottom;
   const widestTooltip = Math.max(...data.flatMap((item) => series.map((seriesItem) => {
     const raw = Math.max(0, Number(item[seriesItem.key] ?? 0));
     return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)}`).width;
   })), 172);
-  const width = Math.max(760, left + right + data.length * groupWidth, left + right + widestTooltip + 16);
+  const width = Math.max(760, left + right + data.length * resolvedGroupWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
@@ -367,7 +369,7 @@ export function VerticalBarChart({
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
-            const axisLabelY = top + plotHeight + 13;
+            const axisLabelY = top + plotHeight + 14;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -392,9 +394,8 @@ export function VerticalBarChart({
                 <text
                   x={centerX}
                   y={axisLabelY}
-                  textAnchor={labelLayout.vertical ? "start" : "middle"}
-                  transform={labelLayout.vertical ? `rotate(90 ${centerX} ${axisLabelY})` : undefined}
-                  className="fill-[#667085] text-[13px] tabular-nums"
+                  textAnchor="middle"
+                  className="fill-[#667085] text-[11px] tabular-nums"
                 >
                   {item.label}
                 </text>
@@ -465,6 +466,7 @@ export function StackedBarChart({
   const labels = data.map((item) => item.label);
   const slotWidth = axisSlotWidth(labels, data.length > 18 ? 34 : 42);
   const labelLayout = axisLabelLayout(labels, slotWidth);
+  const resolvedSlotWidth = labelLayout.slotWidth;
   const bottom = labelLayout.bottom;
   const widestTooltip = Math.max(...data.flatMap((item, index) => series.map((seriesItem) => {
     const raw = hasSegments
@@ -472,7 +474,7 @@ export function StackedBarChart({
       : Number(item[seriesItem.key as ChartSeriesKey] ?? 0);
     return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(totals[index] ?? 0)}`).width;
   })), 172);
-  const width = Math.max(760, left + right + data.length * slotWidth, left + right + widestTooltip + 16);
+  const width = Math.max(760, left + right + data.length * resolvedSlotWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
@@ -592,10 +594,9 @@ export function StackedBarChart({
                 })}
                 <text
                   x={centerX}
-                  y={top + plotHeight + 13}
-                  textAnchor={labelLayout.vertical ? "start" : "middle"}
-                  transform={labelLayout.vertical ? `rotate(90 ${centerX} ${top + plotHeight + 13})` : undefined}
-                  className="fill-[#667085] text-[13px] tabular-nums"
+                  y={top + plotHeight + 14}
+                  textAnchor="middle"
+                  className="fill-[#667085] text-[11px] tabular-nums"
                 >
                   {item.label}
                 </text>

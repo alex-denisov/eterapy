@@ -45,7 +45,9 @@ describe("Superadmin redesign regression guardrails", () => {
 
     expect(ui).toContain("axisLabelY");
     expect(ui).toContain('textAnchor="middle"');
+    expect(ui).toContain("vertical: false");
     expect(ui).not.toContain("rotate(-90");
+    expect(ui).not.toContain("rotate(90");
     expect(ui).toContain("width={width}");
     expect(ui).toContain("height={height}");
     expect(ui).toContain("className=\"block max-w-none\"");
@@ -64,8 +66,8 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(results).toContain("StackedBarChart");
     expect(results).toContain('label="Все заказанные продукты по календарным дням"');
     expect(results).toContain("data.charts.productByDayStacked");
-    expect(results).toContain("`/api/admin/product-results/${result.id}`");
-    expect(results).not.toContain("appUrl(`/cabinet/results/${result.id}`)");
+    expect(results).toContain("appUrl(`/cabinet/results/${result.id}`)");
+    expect(results).not.toContain("`/api/admin/product-results/${result.id}`");
     expect(data).toContain("normalizeAdminProductKey");
     expect(data).toContain("catalogProductKeys");
     expect(data).toContain("productPlanByDay.get(normalizedProductKey)");

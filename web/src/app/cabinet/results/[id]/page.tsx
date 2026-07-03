@@ -7,16 +7,7 @@ import { PageContainer } from "@/components/ui/page-container";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { reframeToMarkdown } from "@/lib/reframe-format";
 import { loginUrl, appUrl } from "@/lib/subdomain";
-
-const PRODUCT_LABELS: Record<string, string> = {
-  "deep-report": "Подробный разбор",
-  "reframe": "Переосмысление",
-  "compatibility": "Совместимость",
-  "tarot": "Расклад Таро",
-  "natal-chart": "Натальная карта",
-  "synastry": "Совместимость по звёздам",
-  "numerology": "Числовой портрет",
-};
+import { getProductLabel } from "@/lib/billing-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +30,7 @@ export default async function CabinetResultPage({
     notFound();
   }
 
-  const productLabel = PRODUCT_LABELS[result.productKey] ?? "Результат разбора";
+  const productLabel = getProductLabel(result.productKey) || "Результат разбора";
   const isReady = result.status === "READY";
   const rawBody = result.resultText ?? result.previewText ?? "";
   // «Переосмысление» хранится как JSON углов — переводим в markdown, иначе на

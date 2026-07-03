@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { reframeToMarkdown } from "@/lib/reframe-format";
+import { getProductLabel } from "@/lib/billing-labels";
 
 function escapeHtml(value: unknown) {
   return String(value ?? "")
@@ -10,19 +11,6 @@ function escapeHtml(value: unknown) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-function productLabel(key: string) {
-  const labels: Record<string, string> = {
-    reframe: "Переосмысление",
-    compatibility: "Совместимость",
-    tarot: "Таро-разбор",
-    natal: "Натальная карта",
-    synastry: "Синастрия",
-    human_design: "Human Design",
-    dialogue: "Диалог",
-  };
-  return labels[key] ?? key;
 }
 
 function renderBody(raw: string) {
@@ -88,7 +76,7 @@ function pageHtml(input: {
       <dl class="meta">
         <div><dt>Клиент</dt><dd>${escapeHtml(input.clientName || input.clientEmail)}</dd></div>
         <div><dt>Email</dt><dd>${escapeHtml(input.clientEmail)}</dd></div>
-        <div><dt>Продукт</dt><dd>${escapeHtml(productLabel(input.productKey))}</dd></div>
+        <div><dt>Продукт</dt><dd>${escapeHtml(getProductLabel(input.productKey))}</dd></div>
         <div><dt>Статус</dt><dd>${escapeHtml(input.status)}</dd></div>
         <div><dt>Обновлено</dt><dd>${escapeHtml(new Intl.DateTimeFormat("ru-RU", { dateStyle: "short", timeStyle: "medium" }).format(input.updatedAt))}</dd></div>
       </dl>
