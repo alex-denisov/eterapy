@@ -164,11 +164,12 @@ describe("v5 product pages", () => {
     // Y7: the duplicate /cabinet/products page is fully removed — not even a
     // redirect stub remains. Old links must point straight at /cabinet/credits.
     expect(fs.existsSync(path.join(srcDir, "app/cabinet/products/page.tsx"))).toBe(false);
-    // the product catalog + purchase funnel lives on /credits
+    // B464 round-4 #13: the wallet is the money hub; the spend catalog lives on
+    // the landing «Услуги» and the wallet bridges to it.
     expect(credits).toContain('data-testid="cabinet-wallet-page"');
     expect(credits).toContain("getCreditWalletSnapshot");
-    expect(credits).toContain("<ProductPurchaseControls");
-    expect(credits).toContain('id="credits-products"');
+    expect(credits).toContain('data-testid="wallet-spend-bridge"');
+    expect(credits).not.toContain('id="credits-products"');
     expect(source("components/products/product-purchase-controls.tsx")).toContain('variant?: "default" | "catalog"');
     // nav points to the single funnel page
     expect(shell).toContain('appUrl("/wallet")');

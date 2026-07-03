@@ -269,6 +269,27 @@ describe("R8 item 12 — diary lists", () => {
   });
 });
 
+// ── R9 · item 13 — Кошелёк per blueprint: no catalog, calm history ──
+describe("R9 item 13 — wallet money hub", () => {
+  it("drops the spend catalog and keeps a slim bridge to the landing «Услуги»", () => {
+    const wallet = read("app/cabinet/wallet/page.tsx");
+    expect(wallet).not.toContain("Платные форматы и услуги");
+    expect(wallet).not.toContain("credits-paid-recommendations");
+    expect(wallet).not.toContain("ProductPurchaseControls");
+    expect(wallet).toContain('data-testid="wallet-spend-bridge"');
+    expect(wallet).toContain("Открыть каталог услуг");
+  });
+
+  it("histories render as calm rows, recent 4 + показать ещё", () => {
+    const wallet = read("app/cabinet/wallet/page.tsx");
+    const table = read("components/cabinet/billing-history-table.tsx");
+    expect(wallet).toContain("<RevealList");
+    expect(table).toContain("<RevealList");
+    expect(table).not.toContain("<table");
+    expect(table).not.toContain("billing-history-sort");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {
