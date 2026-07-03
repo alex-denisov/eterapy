@@ -31,7 +31,9 @@ describe("v5 app shell", () => {
   });
 
   it("keeps product actions inside the app cabinet instead of sending clients to the landing", () => {
-    expect(clientCabinet).toContain('mainUrl("/checkin")');
+    // B464 round-4: the hero next-step is engine-driven; the crisis branch
+    // still routes the continue action through the main /checkin funnel.
+    expect(clientCabinet).toContain("mainUrl(`/checkin?dialogueId=");
     // X11: product actions point to the single in-cabinet funnel (/credits),
     // not the removed duplicate /products and not the landing.
     expect(clientCabinet).toContain('appUrl("/wallet")');

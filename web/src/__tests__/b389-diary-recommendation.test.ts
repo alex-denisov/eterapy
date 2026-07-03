@@ -1,10 +1,9 @@
 import {
-  recommendForDiary,
   dominantTopic,
   buildObservations,
   topObservation,
   tallyDiaryTopics,
-  FAMILY_SCENARIOS_MIN,
+  entriesWord,
   OBSERVATION_MIN,
 } from "@/lib/diary-recommendation";
 import {
@@ -16,42 +15,9 @@ import { isSymbolicProductKey, getSymbolicProductDefinition } from "@/lib/symbol
 import { getV5Product } from "@/lib/v5-products";
 import { isKnownPaidProduct } from "@/lib/entitlements";
 
-describe("B389 diary recommendation engine — 4 canonical cases", () => {
-  it("family ≥3 → «Семейные сценарии» (paid)", () => {
-    const rec = recommendForDiary({ family: 3, relationships: 2, anxiety: 1 });
-    expect(rec.key).toBe("family-scenarios");
-    expect(rec.paid).toBe(true);
-    expect(rec.route).toBe("/products/family-scenarios");
-  });
-
-  it("dominant relationships → «Вместе»", () => {
-    const rec = recommendForDiary({ relationships: 4, anxiety: 1, family: 1 });
-    expect(rec.key).toBe("together");
-    expect(rec.route).toBe("/products/pair");
-  });
-
-  it("dominant anxiety → «Подробный разбор»", () => {
-    const rec = recommendForDiary({ anxiety: 3, self: 1 });
-    expect(rec.key).toBe("deep-report");
-    expect(rec.route).toBe("/products/deep-report");
-  });
-
-  it("few/no themes → «Ежедневный вопрос» (free)", () => {
-    expect(recommendForDiary({}).key).toBe("daily-question");
-    expect(recommendForDiary({ self: 1 }).key).toBe("daily-question");
-    expect(recommendForDiary({ relationships: 1 }).paid).toBe(false);
-  });
-
-  it("family threshold is exclusive below 3", () => {
-    const rec = recommendForDiary({ family: 2 });
-    expect(rec.key).not.toBe("family-scenarios");
-  });
-
-  it("a dominant non-special topic still earns a разбор", () => {
-    expect(recommendForDiary({ career: 4 }).key).toBe("deep-report");
-    expect(recommendForDiary({ money: 3 }).key).toBe("deep-report");
-  });
-});
+// The topic→service recommendation cases moved to the B464 engine
+// (lib/cabinet-recommendations.ts, b464-cabinet-recommendations.test.ts) —
+// this file keeps the diary-side primitives.
 
 describe("B389 dominant topic + observations", () => {
   it("picks the highest-count topic, tie-broken by priority", () => {
@@ -79,8 +45,12 @@ describe("B389 dominant topic + observations", () => {
     expect(counts).toEqual({ family: 2, relationships: 1 });
   });
 
-  it("exposes the family threshold constant", () => {
-    expect(FAMILY_SCENARIOS_MIN).toBe(3);
+  it("observation copy is a warm mirror with correct plurals (round-4 #12)", () => {
+    const obs = topObservation({ relationships: 13 });
+    expect(obs?.text).toContain("13 записей");
+    expect(obs?.text).not.toContain("дневник открыл наблюдение");
+    expect(entriesWord(13)).toBe("записей");
+    expect(entriesWord(3)).toBe("записи");
   });
 });
 

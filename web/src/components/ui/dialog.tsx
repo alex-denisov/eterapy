@@ -57,7 +57,7 @@ function DialogContent({
         className={cn(
           // B464 round-4 #15: Soft Clarity light surface by default. Vars carry
           // :root fallbacks so the body-portal renders correctly on every page.
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-[20px] border border-[var(--soft-paper-edge,#e9ddc6)] bg-[var(--soft-paper-card,#fffcf5)] p-5 text-sm text-[var(--soft-ink,#2a2422)] shadow-[0_28px_80px_-24px_rgba(60,30,20,0.45)] duration-[var(--motion-base)] outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-[var(--radius-sheet)] border border-[var(--soft-paper-edge,#e9ddc6)] bg-[var(--soft-paper-card,#fffcf5)] p-5 text-sm text-[var(--soft-ink,#2a2422)] shadow-[0_28px_80px_-24px_rgba(60,30,20,0.45)] duration-[var(--motion-base)] outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -106,7 +106,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-5 -mb-5 flex flex-col-reverse gap-2 rounded-b-[20px] border-t border-[var(--soft-paper-edge,#e9ddc6)] bg-[var(--soft-paper-deep,#f3ead9)]/60 p-4 sm:flex-row sm:justify-end",
+        "-mx-5 -mb-5 flex flex-col-reverse gap-2 rounded-b-[var(--radius-sheet)] border-t border-[var(--soft-paper-edge,#e9ddc6)] bg-[var(--soft-paper-deep,#f3ead9)]/60 p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}

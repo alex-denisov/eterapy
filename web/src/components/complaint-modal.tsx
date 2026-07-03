@@ -121,7 +121,7 @@ export function ComplaintModal({ bookingId, practitionerName, onClose, onSubmitt
             <p className="font-medium text-[var(--soft-bordeaux)]">Что произойдёт дальше</p>
             <p className="mt-1">
               Жалоба уходит модератору; выплата по спорной встрече может быть удержана до решения.
-              Первичный ответ — до 24 часов. Если есть риск для безопасности — support@eterapy.com или экстренные службы.
+              Стандартная эскалация: первичный ответ до 24 часов. Если есть риск для безопасности — support@eterapy.com или экстренные службы.
             </p>
           </div>
         </div>

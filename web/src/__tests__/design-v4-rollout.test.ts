@@ -31,7 +31,8 @@ describe("design v4 rollout", () => {
 
     expect(layout).toContain('url: "/icon.svg"');
     expect(header).toContain("toCabinetPathname(pathname)");
-    expect(header).toContain('isAdminHost = mounted && hostname.startsWith("admin.")');
+    // B464 round-4 #1: host detection via configured domains (staging-safe).
+    expect(header).toContain('isAdminHost = subdomain === "admin"');
     // N7: /help is a public page and must show the landing nav, so it is no
     // longer bucketed as an "app area".
     expect(header).toContain('isAppArea = cabinetPathname.startsWith("/cabinet") || isAppHost');

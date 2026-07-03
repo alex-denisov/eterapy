@@ -165,6 +165,36 @@ describe("R5 items 6·11 — functional вопрос дня", () => {
   });
 });
 
+// ── R6 · items 2·3·4·5 — the home page runs on the recommendation engine ──
+describe("R6 items 2-5 — engine-driven Главная", () => {
+  it("hero, nudge, diary card and practitioner plan come from cabinet-recommendations", () => {
+    const home = read("app/cabinet/page.tsx");
+    expect(home).toContain("buildHeroAction(signals, seed)");
+    expect(home).toContain("buildServiceNudge(signals, seed)");
+    expect(home).toContain("buildDiaryCard(signals, seed)");
+    expect(home).toContain("planPractitionerCard(signals)");
+    expect(home).toContain("daySeed(userId, now)");
+    // Booking-aware practitioner card: continue-with-the-same-specialist mode.
+    expect(home).toContain('data-practitioner-mode="continue"');
+    expect(home).toContain("Записаться снова");
+  });
+
+  it("«ваши результаты» merge dialogues + product разборы, meta = datetime → category", () => {
+    const home = read("app/cabinet/page.tsx");
+    expect(home).toContain("db.productResult.findMany");
+    expect(home).toContain("resultWhen(item.when)");
+    expect(home).toContain("PRODUCT_LABELS[r.productKey]");
+    // datetime carries minutes and comes BEFORE the category label.
+    expect(home).toContain('hour: "2-digit", minute: "2-digit"');
+    expect(home).toContain("{resultWhen(item.when)} · {item.label}");
+  });
+
+  it("the self topic label reads «Про себя», not «Я и опоры»", () => {
+    const router = read("lib/dialogue-router.ts");
+    expect(router).toContain('self: "Про себя"');
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {
