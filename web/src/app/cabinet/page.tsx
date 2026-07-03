@@ -382,7 +382,7 @@ export default async function ClientCabinetPage() {
             ))}
           </div>
           <p className="mt-3 text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
-            запись сохранится в «ваших записях» Дневника (виден только вам) · на 7-й день серии придёт итог недели · вехи: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")}
+            записи сохраняются в Дневнике и видны только вам · на 7-й день серии придёт итог недели · вехи: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")}
           </p>
           {weeklySummary && (
             <Link href={appUrl("/diary")} className="soft-chip mt-3 inline-flex items-center gap-2" data-testid="weekly-summary-link">
