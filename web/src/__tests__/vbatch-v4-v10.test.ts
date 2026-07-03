@@ -34,15 +34,14 @@ describe("V4 — admin/reviews compact paginated table with in-row actions + edi
   });
 });
 
-describe("V10 — client /credits surfaces paid recommendations", () => {
+describe("V10/B464 round-4 #13 — the wallet bridges spending to the landing catalog", () => {
   const page = read("src/app/cabinet/wallet/page.tsx");
 
-  it("adds an always-visible paid CTA block (specialist session + subscription upsell)", () => {
-    expect(page).toContain('data-testid="credits-paid-recommendations"');
-    expect(page).toContain('mainUrl("/practitioners")');
-    expect(page).toContain("Записаться к специалисту");
-    // Z1-Ф1: the ₽ top-up CTA is replaced by a subscription upsell.
+  it("keeps a slim spend bridge instead of the duplicated paid-CTA block", () => {
+    expect(page).not.toContain('data-testid="credits-paid-recommendations"');
+    expect(page).toContain('data-testid="wallet-spend-bridge"');
+    expect(page).toContain('mainUrl("/products")');
+    // Z1-Ф1: still no ₽ top-up CTA on the wallet.
     expect(page).not.toContain("Пополнить баланс");
-    expect(page).toContain("Сравнить тарифы");
   });
 });

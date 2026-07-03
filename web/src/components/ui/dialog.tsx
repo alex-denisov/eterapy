@@ -31,7 +31,9 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-brand-midnight/55 duration-[var(--motion-base)] supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // B464 round-4 #15: warm paper scrim (Soft Clarity) — the old dark
+        // navy overlay is retired platform-wide.
+        "fixed inset-0 isolate z-50 bg-[rgba(60,30,20,0.38)] duration-[var(--motion-base)] supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -53,7 +55,9 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[var(--radius-sheet)] bg-popover p-4 text-sm text-popover-foreground shadow-[var(--shadow-surface)] ring-1 ring-brand-warm-gold/20 duration-[var(--motion-base)] outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // B464 round-4 #15: Soft Clarity light surface by default. Vars carry
+          // :root fallbacks so the body-portal renders correctly on every page.
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-[var(--radius-sheet)] border border-[var(--soft-paper-edge,#e9ddc6)] bg-[var(--soft-paper-card,#fffcf5)] p-5 text-sm text-[var(--soft-ink,#2a2422)] shadow-[0_28px_80px_-24px_rgba(60,30,20,0.45)] duration-[var(--motion-base)] outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -102,7 +106,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-[var(--radius-sheet)] border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-5 -mb-5 flex flex-col-reverse gap-2 rounded-b-[var(--radius-sheet)] border-t border-[var(--soft-paper-edge,#e9ddc6)] bg-[var(--soft-paper-deep,#f3ead9)]/60 p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -122,7 +126,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "font-heading text-lg leading-snug font-medium text-[var(--soft-bordeaux,#5c2a2c)]",
         className
       )}
       {...props}
@@ -138,7 +142,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-sm text-[var(--soft-ink-soft,#5b514c)] *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-[var(--soft-bordeaux,#5c2a2c)]",
         className
       )}
       {...props}

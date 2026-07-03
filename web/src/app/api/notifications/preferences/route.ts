@@ -14,7 +14,6 @@ import {
   quietHoursSchema,
   setUserQuietHours,
 } from "@/lib/notification-preference-settings";
-import { completeMission } from "@/lib/missions";
 
 const channels = ["EMAIL", "TELEGRAM", "WEB"] as const;
 const events = ALL_EVENTS.map(({ event }) => event) as [string, ...string[]];
@@ -91,15 +90,8 @@ export async function PATCH(req: NextRequest) {
     create: { userId, event: typedEvent, channel: typedChannel, enabled: nextEnabled, remindBeforeHours: nextReminder },
     update: { enabled: nextEnabled, remindBeforeHours: nextReminder },
   });
-  if (nextEnabled) {
-    void completeMission({
-      userId,
-      missionKey: "enable_notifications",
-      metadata: { event: typedEvent, channel: typedChannel },
-    }).catch(() => {
-      // Mission bookkeeping must not break notification preferences.
-    });
-  }
+  // B464 round-4 #7: «Настроить уведомления» retired from the goal set — the
+  // referral goal replaced it (see lib/missions.ts).
 
   return NextResponse.json({ ok: true });
 }
@@ -129,15 +121,6 @@ export async function PUT(req: NextRequest) {
 
   await db.$transaction(writes);
   if (quietHours) await setUserQuietHours(userId, quietHours);
-  if (prefs.some((pref) => pref.enabled)) {
-    void completeMission({
-      userId,
-      missionKey: "enable_notifications",
-      metadata: { action: "bulk_preferences_update" },
-    }).catch(() => {
-      // Mission bookkeeping must not break notification preferences.
-    });
-  }
 
   return NextResponse.json({ ok: true });
 }

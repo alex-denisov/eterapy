@@ -19,15 +19,15 @@ describe("B349 — wallet/credits merge", () => {
     expect(credits).not.toContain("ProductPurchaseControls");
   });
 
-  it("/wallet holds both top-up packs and the spend catalog", () => {
+  it("/wallet holds top-up packs and bridges to the landing catalog (round-4 #13)", () => {
     const wallet = source("src/app/cabinet/wallet/page.tsx");
     expect(wallet).toContain('data-testid="cabinet-wallet-page"');
     // top-up
     expect(wallet).toContain("CreditPackPurchaseButton");
     expect(wallet).toContain('id="wallet-topup"');
-    // spend catalog (merged from /credits)
-    expect(wallet).toContain("ProductPurchaseControls");
-    expect(wallet).toContain('id="credits-products"');
+    // the spend catalog moved to the landing «Услуги»; a slim bridge remains
+    expect(wallet).not.toContain("ProductPurchaseControls");
+    expect(wallet).toContain('data-testid="wallet-spend-bridge"');
     expect(wallet).toContain("welcome-credits-card");
     expect(wallet).toContain("getCreditWalletSnapshot");
   });

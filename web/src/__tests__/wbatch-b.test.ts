@@ -11,8 +11,10 @@ describe("W10 — /credits title, products anchor, balance-aware CTA", () => {
     // Z1-Ф1: the client ₽ balance rail is removed — no rubBalance, the second
     // recommendation card is a subscription upsell.
     expect(page).not.toContain("rubBalance");
-    expect(page).toContain("Сравнить тарифы");
-    expect(page).toContain('id="credits-products"');
+    // B464 round-4 #13: the spend catalog moved to the landing «Услуги» — the
+    // wallet keeps a slim bridge, «Сравнить тарифы» lives in BillingPanel.
+    expect(page).toContain('data-testid="wallet-spend-bridge"');
+    expect(page).not.toContain('id="credits-products"');
   });
 });
 

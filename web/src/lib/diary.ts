@@ -34,7 +34,8 @@ export type DiaryItem = {
   libraryStatus?: string | null;
 };
 
-const PRODUCT_LABELS: Record<string, string> = {
+// Exported for the cabinet-home unified «ваши результаты» list (B464 round-4 #3).
+export const PRODUCT_LABELS: Record<string, string> = {
   "deep-report": "Подробный разбор",
   reframe: "Переосмысление",
   "chat-analysis": "Разбор переписки",

@@ -48,11 +48,12 @@ describe("B206 client billing v4.1 cabinet", () => {
     expect(page).toContain('action: "set_default"');
     // Dead stepper chips removed.
     expect(page).not.toContain('"1. Проверка"');
-    // Unified deposits + spends history table.
+    // Unified deposits + spends history — calm rows, recent 4 + «показать ещё»
+    // (B464 round-4 #13: the search/sort data-grid chrome is retired).
     expect(page).toContain("<BillingHistoryTable");
     expect(table).toContain("client-billing-history-table");
-    expect(table).toContain("billing-history-search");
-    expect(table).toContain("billing-history-sort");
+    expect(table).toContain("<RevealList");
+    expect(table).not.toContain("billing-history-search");
     // PATCH set_default handler exists on the cards API.
     expect(cardsRoute).toContain("export async function PATCH");
     expect(cardsRoute).toContain("set_default");

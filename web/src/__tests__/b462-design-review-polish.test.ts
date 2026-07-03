@@ -34,12 +34,14 @@ describe("B462 — deep design-review polish batch", () => {
       expect(row).toContain("break-words");
     });
 
-    it("shrinks the date column on mobile rather than pinning a fixed 110px", () => {
+    it("keeps the meta line fluid on mobile rather than pinning a fixed 110px", () => {
       const row = page.slice(page.indexOf("client-recent-questions"));
-      // The old fixed inline width:110 pushed the button out at 390px — replaced by
-      // a responsive width that is narrow on mobile and 110px from sm: up.
-      expect(row).toContain("sm:w-[110px]");
+      // The old fixed inline width:110 pushed the button out at 390px. Since
+      // B464 round-4 #3 the meta is a fluid full-width line (datetime first,
+      // category after) — no fixed column at any breakpoint.
       expect(row).not.toMatch(/width:\s*110\b/);
+      expect(row).not.toContain("w-[110px]");
+      expect(row).toContain("min-w-0");
     });
 
     it("keeps «Открыть» inside the card with shrink-0", () => {

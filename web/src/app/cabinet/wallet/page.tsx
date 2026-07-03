@@ -2,23 +2,20 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, CheckCircle2, Clock, History, Sparkles, Users, Wallet } from "lucide-react";
+import { ArrowRight, Clock, History, Wallet } from "lucide-react";
 import { CreditPackPurchaseButton } from "@/components/cabinet/credit-pack-purchase-button";
-import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { BillingPanel } from "@/components/cabinet/billing-panel";
+import { RevealList } from "@/components/cabinet/reveal-list";
 import { auth } from "@/lib/auth";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { creditsWord, getCreditWalletSnapshot } from "@/lib/credit-wallet";
 import db from "@/lib/db";
-import { getProductCreditCost, getProductPriceKopecks, getSubscriptionPlan, listUserEntitlements } from "@/lib/entitlements";
-import { v5Products } from "@/lib/v5-products";
-import { formatSessionFloor } from "@/lib/session-pricing";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
-// B349 / Механика 2: /wallet and /credits used to be two near-identical pages.
-// They are now merged into this single "Кошелёк" page: balance + срок-разбивка +
-// пополнение пакетами (top-up) AND the spend catalog (открыть продукты за
-// баллы). `/credits` redirects here, and the nav shows one item.
+// B349 / Механика 2: /wallet and /credits merged into the single «Кошелёк».
+// B464 round-4 #13: the money hub per the approved blueprint — Баланс →
+// подарок → Разбивка → Пакеты → Подписка/Карты → История. The spend CATALOG
+// lives on the landing «Услуги» (round-2 #6) — only a slim bridge link here.
 
 type CreditWalletSnapshot = Awaited<ReturnType<typeof getCreditWalletSnapshot>>;
 type WalletPack = CreditWalletSnapshot["packs"][number];
@@ -123,30 +120,34 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
   );
 }
 
+// B464 round-4 #13: history rows follow the owner's «recent 4 + показать ещё»
+// pattern — no endless scroll of ledger rows.
 function WalletHistory({ items }: { items: WalletHistoryItem[] }) {
   return (
     <section className="soft-card p-5" data-testid="wallet-history">
       <div className="flex items-center gap-2">
         <History className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-        <h2 className="soft-h3">История операций</h2>
+        <h2 className="soft-h3">История операций с баллами</h2>
       </div>
-      <div className="mt-3 divide-y divide-[var(--soft-paper-edge)]">
-        {items.length === 0 ? (
-          <p className="py-4 text-sm text-[var(--soft-ink-soft)]">Операций пока нет.</p>
-        ) : items.map((entry) => (
-          <div key={entry.id} className="flex items-center justify-between gap-4 py-3 text-sm">
-            <div className="min-w-0">
-              <p className="font-medium text-[var(--soft-ink)]">{entry.typeLabel}</p>
-              <p className="text-xs text-[var(--soft-ink-faint)]">
-                {entry.sourceLabel} · {entry.createdAt.toLocaleDateString("ru-RU")}
-              </p>
+      {items.length === 0 ? (
+        <p className="py-4 text-sm text-[var(--soft-ink-soft)]">Операций пока нет.</p>
+      ) : (
+        <RevealList initial={4} step={4} className="mt-3 divide-y divide-[var(--soft-paper-edge)]" moreLabel="Показать ещё">
+          {items.map((entry) => (
+            <div key={entry.id} className="flex items-center justify-between gap-4 py-3 text-sm">
+              <div className="min-w-0">
+                <p className="font-medium text-[var(--soft-ink)]">{entry.typeLabel}</p>
+                <p className="text-xs text-[var(--soft-ink-faint)]">
+                  {entry.sourceLabel} · {entry.createdAt.toLocaleDateString("ru-RU")}
+                </p>
+              </div>
+              <span className={entry.amount >= 0 ? "text-[var(--soft-terracotta-dark)]" : "text-[var(--soft-bordeaux)]"}>
+                {entry.amount > 0 ? "+" : ""}{entry.amount}
+              </span>
             </div>
-            <span className={entry.amount >= 0 ? "text-[var(--soft-terracotta-dark)]" : "text-[var(--soft-bordeaux)]"}>
-              {entry.amount > 0 ? "+" : ""}{entry.amount}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </RevealList>
+      )}
     </section>
   );
 }
@@ -158,31 +159,14 @@ export default async function CabinetWalletPage() {
   const userId = session.user.id;
   const now = new Date();
 
-  const [wallet, welcomeGrant, access] = await Promise.all([
+  const [wallet, welcomeGrant] = await Promise.all([
     getCreditWalletSnapshot(userId),
     db.clarityCreditLedgerEntry.findFirst({
       where: { userId, source: "welcome", type: "grant", status: "confirmed", expiresAt: { gt: now } },
       orderBy: { createdAt: "desc" },
       select: { expiresAt: true },
     }),
-    listUserEntitlements(userId),
   ]);
-
-  const activeProducts = new Set(access.entitlements.filter((item) => item.active).map((item) => item.productKey));
-  const activeSubscriptions = access.subscriptions.filter((item) => item.active);
-  const subscriptionProducts = new Set<string>();
-  for (const subscription of activeSubscriptions) {
-    const plan = getSubscriptionPlan(subscription.planKey);
-    plan?.includedProducts.forEach((key) => subscriptionProducts.add(key));
-  }
-
-  const creditProducts = v5Products
-    .map((product) => ({
-      product,
-      creditCost: product.productKey ? getProductCreditCost(product.productKey) : null,
-      priceKopecks: product.productKey ? getProductPriceKopecks(product.productKey) : null,
-    }))
-    .filter((item) => item.product.productKey && item.creditCost);
 
   return (
     <main className="max-w-6xl px-4 py-8 sm:px-6" data-testid="cabinet-wallet-page" style={{ paddingBottom: 80 }}>
@@ -216,6 +200,21 @@ export default async function CabinetWalletPage() {
 
       <WalletBreakdown items={wallet.breakdown} />
 
+      {/* Slim spend-bridge: the catalog itself lives on the landing «Услуги»
+          (round-2 #6) — the wallet only points there, no duplicated grid. */}
+      <section className="soft-card mt-5 flex flex-wrap items-center justify-between gap-3 p-5" data-testid="wallet-spend-bridge">
+        <div className="min-w-0">
+          <p className="soft-eyebrow">на что потратить баллы</p>
+          <p className="mt-1 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+            Все разборы и форматы — в каталоге услуг. Баллы спишутся при открытии.
+          </p>
+        </div>
+        <Link href={mainUrl("/products")} className="soft-button soft-button-primary shrink-0">
+          Открыть каталог услуг
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </section>
+
       <CreditPacksGrid packs={wallet.packs} />
 
       {/* B464 IB3 — subscription + saved cards + payment history, merged from the
@@ -231,122 +230,9 @@ export default async function CabinetWalletPage() {
         <BillingPanel />
       </section>
 
-      {/* Spend catalog (merged from the former /credits page) */}
-      <div className="mb-3 mt-2">
-        <p className="soft-eyebrow">рекомендуем</p>
-        <h2 className="soft-h2 mt-1">Платные форматы и услуги</h2>
-      </div>
-      <section className="mb-6 grid gap-4 sm:grid-cols-2" data-testid="credits-paid-recommendations">
-        <article className="soft-card flex flex-col p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="soft-eyebrow">живая сессия</p>
-              <h3 className="soft-h3 mt-2">Записаться к специалисту</h3>
-            </div>
-            <span className="soft-badge shrink-0 whitespace-nowrap">{formatSessionFloor()}</span>
-          </div>
-          <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Разбор с проверенным практиком — таролог, астролог или психолог. Подберите специалиста и удобное время.
-          </p>
-          <Link href={mainUrl("/practitioners")} className="soft-button soft-button-primary mt-5 self-start">
-            <Users className="size-4" aria-hidden="true" />
-            Выбрать специалиста
-          </Link>
-        </article>
-        <article className="soft-card flex flex-col p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="soft-eyebrow">подписка</p>
-              <h3 className="soft-h3 mt-2">Больше баллов каждый месяц</h3>
-            </div>
-            <span className="soft-badge shrink-0 whitespace-nowrap">от 12 баллов/мес</span>
-          </div>
-          <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-            Подписка Plus и Premium пополняет баланс баллов каждый месяц и открывает
-            включённые цифровые продукты. Подбор тарифа — на странице подписки.
-          </p>
-          <Link href={mainUrl("/pricing")} className="soft-button soft-button-ghost mt-5 self-start">
-            <Wallet className="size-4" aria-hidden="true" />
-            Сравнить тарифы
-          </Link>
-        </article>
-      </section>
-
-      <div id="credits-products" className="mb-3 mt-2 flex flex-wrap items-end justify-between gap-2 scroll-mt-24">
-        <div>
-          <p className="soft-eyebrow">углубления и форматы</p>
-          <h2 className="soft-h2 mt-1">Откройте больше форматов</h2>
-        </div>
-        <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
-          Спишите баллы или оплатите картой. Продукты из вашего тарифа открыты сразу.
-        </p>
-      </div>
-      <section className="grid gap-4 lg:grid-cols-2">
-        {creditProducts.map(({ product, creditCost, priceKopecks }) => {
-          const productKey = product.productKey!;
-          const includedInPlan = subscriptionProducts.has(productKey);
-          const unlocked = activeProducts.has(productKey) || includedInPlan;
-          const priceRub = priceKopecks ? Math.round(priceKopecks / 100).toLocaleString("ru-RU") : null;
-          const creditLine = creditCost ? `или −${creditCost} ${creditsWord(creditCost)}` : null;
-          const badge = includedInPlan
-            ? { label: "входит в подписку", className: "soft-badge soft-badge-warm" }
-            : unlocked
-              ? { label: "доступ открыт", className: "soft-badge soft-badge-warm" }
-              : { label: priceRub ? `${priceRub} ₽` : `${creditCost} ${creditsWord(creditCost ?? 0)}`, className: "soft-badge" };
-          return (
-            <article key={product.slug} className="soft-card flex flex-col p-5" data-testid={`credits-product-${product.slug}`}>
-              <div className="flex flex-nowrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="soft-eyebrow">{product.eyebrow}</p>
-                  <h2 className="soft-h3 mt-2">{product.name}</h2>
-                </div>
-                <span className={`${badge.className} shrink-0 whitespace-nowrap`} data-testid={`credits-badge-${product.slug}`}>
-                  {badge.label}
-                </span>
-              </div>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">{product.summary}</p>
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                {unlocked ? (
-                  <Link href={appUrl(product.route)} className="soft-button soft-button-primary">
-                    Перейти к разбору
-                    <ArrowRight className="size-4" aria-hidden="true" />
-                  </Link>
-                ) : (
-                  <>
-                    <ProductPurchaseControls
-                      productKey={productKey}
-                      label="Открыть за баллы"
-                      checkoutSource={`cabinet-wallet-${product.slug}`}
-                      creditCost={creditCost}
-                    />
-                    {(priceRub || creditLine) && (
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-[var(--soft-ink-faint)]">
-                        <Sparkles className="size-3.5" aria-hidden="true" />
-                        {priceRub ? `${priceRub} ₽ ` : ""}{creditLine}
-                      </span>
-                    )}
-                  </>
-                )}
-                {unlocked && (
-                  <span className="inline-flex items-center gap-1 text-xs text-[var(--soft-ink-faint)]">
-                    <Sparkles className="size-3.5" aria-hidden="true" />
-                    {includedInPlan ? "открыто по подписке" : "доступ уже открыт"}
-                  </span>
-                )}
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
       <section className="mt-6">
         <WalletHistory items={wallet.history} />
       </section>
-
-      <div className="mt-3 flex items-center gap-2 text-sm text-[var(--soft-ink-soft)]">
-        <CheckCircle2 className="size-4 shrink-0 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-        Если баллов не хватает — пополните кошелёк выше или оплатите продукт картой.
-      </div>
     </main>
   );
 }

@@ -29,7 +29,9 @@ const DIALOGUE_TOPIC_LABELS_RU: Record<DialogueTopic, string> = {
   career: "Карьера",
   money: "Деньги",
   family: "Семья",
-  self: "Я и опоры",
+  // B464 round-4 #3: «Я и опоры» read as jargon next to a question title —
+  // «Про себя» is the calm, self-explanatory label for the self topic.
+  self: "Про себя",
   anxiety: "Тревога",
   other: "Другое",
 };

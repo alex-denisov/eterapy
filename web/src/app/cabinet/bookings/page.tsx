@@ -70,6 +70,27 @@ function rowMeta(b: Booking): string {
   return parts.join(" · ");
 }
 
+// «живой разговор» invite (round-3 #6 / round-4 #14): the copy adapts to the
+// history — «продолжить работу» once the client has met a specialist, a warmer
+// first-invite otherwise. Replaces the dead «Здесь пока пусто» on «Предстоящие».
+function InviteBlock({ hasPast, className = "" }: { hasPast: boolean; className?: string }) {
+  return (
+    <section className={`soft-card p-5 text-center ${className}`} data-testid="bookings-invite">
+      <p className="soft-h3" style={{ color: "var(--soft-bordeaux)" }}>
+        {hasPast ? "Хотите продолжить работу со специалистом?" : "Иногда живой разговор помогает больше всего"}
+      </p>
+      <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+        {hasPast
+          ? "Регулярные встречи помогают удержать найденное и двигаться дальше в своём темпе."
+          : "Выберите специалиста и удобное время — спокойно, без обязательств."}
+      </p>
+      <Link href={appUrl("/practitioners")} className="soft-button soft-button-primary mt-4 inline-flex">
+        Выбрать специалиста
+      </Link>
+    </section>
+  );
+}
+
 // «Войти в сессию» rail, shown only inside the 30-мин join window.
 function JoinRail({ b }: { b: Booking }) {
   if (!canJoinBooking(b)) return null;
@@ -318,9 +339,15 @@ export default function ClientBookingsPage() {
             </div>
 
             {activeRows.length === 0 ? (
-              <div className="soft-card-flat py-10 text-center">
-                <p style={{ color: "var(--soft-ink-faint)" }}>Здесь пока пусто</p>
-              </div>
+              // round-4 #14: an empty «Предстоящие» never shows a dead
+              // placeholder — it invites the next session instead.
+              filter === "upcoming" ? (
+                <InviteBlock hasPast={pastDone.length > 0} />
+              ) : (
+                <div className="soft-card-flat py-10 text-center">
+                  <p style={{ color: "var(--soft-ink-faint)" }}>Здесь пока пусто</p>
+                </div>
+              )
             ) : (
               <>
                 <div className="space-y-2">
@@ -338,18 +365,10 @@ export default function ClientBookingsPage() {
           </section>
 
           {/* «живой разговор» invite — 3-state (round-3 #6): hidden while an
-              upcoming session exists; shown with «продолжить» copy once only past
-              sessions remain. */}
-          {!hasUpcoming && (
-            <section className="soft-card mt-6 p-5 text-center" data-testid="bookings-invite">
-              <p className="soft-h3" style={{ color: "var(--soft-bordeaux)" }}>Хотите продолжить работу со специалистом?</p>
-              <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-                Регулярные встречи помогают удержать найденное и двигаться дальше в своём темпе.
-              </p>
-              <Link href={appUrl("/practitioners")} className="soft-button soft-button-primary mt-4 inline-flex">
-                Выбрать специалиста
-              </Link>
-            </section>
+              upcoming session exists; on the «Предстоящие» tab it already fills
+              the empty slot above, so the bottom copy renders on other tabs only. */}
+          {!hasUpcoming && filter !== "upcoming" && (
+            <InviteBlock hasPast={pastDone.length > 0} className="mt-6" />
           )}
         </>
       )}

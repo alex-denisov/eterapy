@@ -143,8 +143,9 @@ export async function POST(request: NextRequest) {
       });
 
       // B375 (M26): начисление по вехам — см. STREAK_REWARDS.
+      // B464 round-4 #7: миссия «Ответить на вопрос дня» засчитывается ТОЛЬКО
+      // в reflect-ветке (человек написал свой вопрос) — не за «отметить».
       const streak = await bumpPracticeStreak({ userId, completedAt: updated.completedAt ?? new Date(), tx });
-      await completeMission({ userId, missionKey: "first_practice", tx });
 
       return { card: updated, rewardGranted: streak.rewardsGranted.length > 0, milestones: streak.rewardsGranted, streakCount: streak.count };
     });

@@ -18,6 +18,7 @@
  * legacy esoteric surfaces (showcase, specialty labels) keep working while the
  * richer category/direction model is layered on top.
  */
+import type { DialogueTopic } from "@/lib/product-format-recommendations";
 
 export type CategoryId =
   | "psychology"
@@ -257,3 +258,17 @@ export function effectiveCategories(input: {
   }
   return detectCategoriesFromLegacy({ specialties: input.specialties, title: input.title });
 }
+
+// W17 (moved from dialogue-recommendations so PURE modules can share it):
+// dialogue topic → practitioner categories used to match humans to a theme.
+// Lets a "money" question surface a financial coach, not the top-reviewed
+// tarot reader.
+export const TOPIC_CATEGORIES: Record<DialogueTopic, CategoryId[]> = {
+  relationships: ["psychology", "esoteric"],
+  family: ["psychology", "legal"],
+  career: ["coaching", "psychology"],
+  money: ["finance", "coaching"],
+  anxiety: ["psychology"],
+  self: ["psychology", "coaching", "esoteric"],
+  other: ["psychology"],
+};

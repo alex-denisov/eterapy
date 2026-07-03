@@ -16,13 +16,15 @@ import {
   Banknote,
   Bookmark,
   Lock,
+  LockOpen,
   LogOut,
-  LifeBuoy,
+  CircleHelp,
   Gift,
   Crown,
   Handshake,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
+import { DIARY_PIN_CHANGED_EVENT, hasDiaryPinStored } from "@/lib/diary-pin";
 import {
   CLIENT_MOBILE_TABS,
   CLIENT_MORE_ITEMS,
@@ -126,6 +128,22 @@ export function CabinetShell({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHydrated(true);
   }, []);
+
+  // B464 round-4 #8: the Дневник lock mirrors the device PIN — open when no
+  // PIN is set, closed once it is. localStorage is client-only, so SSR and the
+  // first client render agree on `false` (open) and the real state lands
+  // post-mount; PIN set/disable surfaces dispatch DIARY_PIN_CHANGED_EVENT.
+  const [diaryPinSet, setDiaryPinSet] = useState(false);
+  useEffect(() => {
+    const sync = () => setDiaryPinSet(hasDiaryPinStored());
+    sync();
+    window.addEventListener(DIARY_PIN_CHANGED_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(DIARY_PIN_CHANGED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
   const activePathname = hydrated ? toCabinetPathname(pathname) : "";
 
   const [fetchedSubLabel, setFetchedSubLabel] = useState<string | null>(null);
@@ -225,9 +243,36 @@ export function CabinetShell({
               const Icon = item.icon;
               const countKey = navCountKey(item.href);
               const count = countKey ? (counts?.[countKey] ?? 0) : 0;
-              // B464 round-2 #4: the «Дневник» item carries a small lock glyph
-              // inviting the user to set their own PIN (device-level privacy).
+              // B464 round-4 #8: the «Дневник» row carries a LIVE lock — open
+              // (LockOpen) until the user sets a device PIN, closed (Lock) once
+              // set. The glyph is its own link straight into the PIN setup.
               const isDiary = isClient && item.href === diaryHref;
+              if (isDiary) {
+                return (
+                  <div key={item.href}
+                    data-testid="app-shell-nav-item"
+                    className={`soft-app-nav-link flex min-h-11 items-center rounded-[var(--soft-radius-md)] text-sm transition-colors duration-[var(--motion-base)] ${
+                      isActive(item.href) ? "is-active font-medium" : ""
+                    }`}>
+                    <Link href={item.href} className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2">
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                    <Link
+                      href={appUrl("/diary?pin=setup")}
+                      data-testid="app-shell-diary-lock"
+                      data-pin-set={diaryPinSet ? "1" : "0"}
+                      aria-label={diaryPinSet ? "Дневник закрыт PIN-кодом — настроить" : "Закрыть Дневник PIN-кодом"}
+                      title={diaryPinSet ? "Дневник закрыт PIN-кодом — настроить" : "Закрыть Дневник PIN-кодом"}
+                      className="mr-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-faint)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)]"
+                    >
+                      {diaryPinSet
+                        ? <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                        : <LockOpen className="h-3.5 w-3.5" aria-hidden="true" />}
+                    </Link>
+                  </div>
+                );
+              }
               return (
                 <Link key={item.href} href={item.href}
                   data-testid="app-shell-nav-item"
@@ -238,13 +283,6 @@ export function CabinetShell({
                   }`}>
                   <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
-                  {isDiary && (
-                    <Lock
-                      className="ml-auto h-3.5 w-3.5 shrink-0 text-[var(--soft-ink-faint)]"
-                      aria-label="Можно закрыть PIN-кодом"
-                      data-testid="app-shell-diary-lock"
-                    />
-                  )}
                   {count > 0 && (
                     <span
                       className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
@@ -269,7 +307,7 @@ export function CabinetShell({
                   isActive(supportHref) ? "is-active font-medium" : ""
                 }`}
               >
-                <LifeBuoy className="h-4 w-4 shrink-0" />
+                <CircleHelp className="h-4 w-4 shrink-0" />
                 Помощь
               </Link>
             )}

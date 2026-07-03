@@ -99,8 +99,11 @@ describe("v5 public shell", () => {
     expect(header).toContain("const [mounted, setMounted] = useState(false)");
     expect(header).toContain('setMounted(true)');
     expect(header).toContain('const isAuthenticated = mounted && status === "authenticated" && !!session');
-    expect(header).toContain('const isAdminHost = mounted && hostname.startsWith("admin.")');
-    expect(header).toContain('const isAppHost = mounted && hostname.startsWith("app.")');
+    // B464 round-4 #1: host detection is mounted-gated AND goes through the
+    // configured domains (getSubdomain) so staging.app.eterapy.com matches too.
+    expect(header).toContain('const subdomain = mounted ? getSubdomain(hostname) : "main"');
+    expect(header).toContain('const isAdminHost = subdomain === "admin"');
+    expect(header).toContain('const isAppHost = subdomain === "app"');
     expect(header).toContain("toCabinetPathname(pathname)");
     expect(header).toContain('cabinetPathname.startsWith("/cabinet")');
   });

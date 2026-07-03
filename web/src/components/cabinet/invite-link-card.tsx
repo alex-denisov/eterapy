@@ -19,12 +19,23 @@ export function InviteLinkCard() {
     return () => { cancelled = true; };
   }, []);
 
+  // B464 round-4 #7: the «Позвать близкого человека» goal completes on the
+  // REAL share action (link copied / Telegram opened) — fire-and-forget.
+  function reportShareMission() {
+    fetch("/api/cabinet/missions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ missionKey: "invite_shared" }),
+    }).catch(() => {});
+  }
+
   async function copy() {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       toast.success("Ссылка скопирована");
+      reportShareMission();
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Не удалось скопировать");
@@ -64,6 +75,7 @@ export function InviteLinkCard() {
           target="_blank"
           rel="noopener noreferrer"
           aria-disabled={!telegramHref}
+          onClick={() => { if (telegramHref) reportShareMission(); }}
           className="soft-button soft-button-ghost"
           data-testid="invite-telegram"
         >

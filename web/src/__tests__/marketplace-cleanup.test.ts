@@ -36,7 +36,8 @@ describe("B048 marketplace-first cleanup", () => {
     const notFound = source("src/app/not-found.tsx");
     const about = source("src/app/about/page.tsx");
     const chooser = source("src/app/how-to-choose/page.tsx");
-    const help = source("src/app/help/page.tsx");
+    // B464 round-4 #18: the help FAQ content moved to the shared data module.
+    const help = source("src/lib/help-faq-data.ts");
 
     expect(notFound).toContain('href="/checkin"');
     expect(about).toContain('href="/checkin"');

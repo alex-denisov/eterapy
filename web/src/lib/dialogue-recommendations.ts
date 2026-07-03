@@ -15,8 +15,6 @@
  * both layers share one source of truth.
  */
 import { V5_SUBSCRIPTION_PLANS } from "@/lib/entitlements";
-import type { CategoryId } from "@/lib/practitioner-taxonomy";
-import type { DialogueTopic } from "@/lib/product-format-recommendations";
 
 // Product recommendations live in the client-safe module (no entitlements/db);
 // re-export them so existing importers of this module keep working.
@@ -34,20 +32,9 @@ export interface SubscriptionRecommendation {
   reason: string;
 }
 
-/**
- * Topic → practitioner specializations (W3 categories) used to score humans.
- * Lets a "money" question surface a financial coach, not the top-reviewed tarot
- * reader.
- */
-export const TOPIC_CATEGORIES: Record<DialogueTopic, CategoryId[]> = {
-  relationships: ["psychology", "esoteric"],
-  family: ["psychology", "legal"],
-  career: ["coaching", "psychology"],
-  money: ["finance", "coaching"],
-  anxiety: ["psychology"],
-  self: ["psychology", "coaching", "esoteric"],
-  other: ["psychology"],
-};
+// Topic → practitioner categories: moved to the PURE taxonomy module so
+// client-safe engines can share it; re-exported so importers keep working.
+export { TOPIC_CATEGORIES } from "@/lib/practitioner-taxonomy";
 
 /**
  * Choose which subscription tier (if any) to surface as a calm bundle note.

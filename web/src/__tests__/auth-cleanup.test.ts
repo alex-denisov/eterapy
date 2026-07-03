@@ -34,7 +34,8 @@ describe("B055 obsolete auth UI cleanup", () => {
   });
 
   it("updates public help registration guidance to value-moment registration", () => {
-    const help = source("src/app/help/page.tsx");
+    // B464 round-4 #18: the help FAQ content moved to the shared data module.
+    const help = source("src/lib/help-faq-data.ts");
 
     expect(help).toContain("Начните с вопроса и первичного ответа");
     expect(help).not.toContain("доступ ко всем бесплатным сессиям");
