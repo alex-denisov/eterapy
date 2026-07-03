@@ -46,6 +46,7 @@ export default async function CabinetResultPage({
     <PageContainer>
       <Link
         href={appUrl("")}
+        prefetch={false}
         className="inline-flex items-center gap-2 text-sm text-[var(--soft-ink-faint)] hover:text-[var(--soft-bordeaux)]"
         data-testid="result-back"
       >
@@ -92,6 +93,7 @@ export default async function CabinetResultPage({
         <section className="mt-4 flex flex-wrap gap-3" data-testid="cabinet-result-actions">
           <Link
             href={appUrl("/diary")}
+            prefetch={false}
             className="soft-button soft-button-ghost inline-flex"
           >
             <Sparkles className="size-4" aria-hidden="true" />
