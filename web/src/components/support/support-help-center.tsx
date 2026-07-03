@@ -1,42 +1,92 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, Mail, MessageCircle, Search } from "lucide-react";
+import { ArrowRight, ChevronDown, FileText, Mail, MessageCircle } from "lucide-react";
+import { Search } from "lucide-react";
 import {
   searchFaq,
   categoryAllowsChat,
-  pickThemeQuestions,
+  listThemeQuestions,
   SUPPORT_CATEGORIES,
 } from "@/lib/support-faq";
-import type { HelpFaqItem } from "@/lib/help-faq-data";
-import { ComplaintForm } from "@/components/support/complaint-form";
 import { SupportChat } from "@/components/support/support-chat";
+import { SupportRequestForm } from "@/components/support/support-request-form";
 
-// B464 IB6 + round-4 #18 — «Центр поддержки», Apple-style: a search gate with
-// the loupe on the RIGHT (clickable), theme chips that surface 5 random
-// questions from the help-centre base, and escalation gated by problem type
-// (live chat ONLY for the six sensitive categories). ONE chips row drives both
-// the suggestions and the escalation.
+// B464 IB6 + round-4 #18 + round-5 #13 — «Центр поддержки», staged flow:
+//   1) изначально ТОЛЬКО «Поиск по базе знаний»;
+//   2) после поиска — найденные статьи (аккордеон, раскрыт максимум один) и,
+//      если ответа нет, «Не нашли нужный вопрос?» + карточки категорий;
+//   3) категория → её вопросы (первые 5, «Показать ещё вопросы» ДОБАВЛЯЕТ);
+//   4) под списком — «Не нашли ответ на свой вопрос?» + карточки эскалации:
+//      почта (mailto) · веб-форма (inline) · чат (ТОЛЬКО финансовые/срочные
+//      темы — six sensitive categories).
+
+const THEME_PAGE = 5;
+
+type FaqLike = { id: string; q: string; a: string };
+
+// Round-5 #13: раскрыт максимум ОДИН вопрос одновременно.
+function FaqAccordion({ items, testId }: { items: FaqLike[]; testId: string }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  return (
+    <div className="grid gap-2" data-testid={testId}>
+      {items.map((item) => {
+        const open = openId === item.id;
+        return (
+          <div key={item.id} className="rounded-[12px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]/60">
+            <button
+              type="button"
+              onClick={() => setOpenId(open ? null : item.id)}
+              aria-expanded={open}
+              className="flex w-full items-center justify-between gap-3 p-3 text-left text-sm font-medium"
+              style={{ color: "var(--soft-bordeaux)" }}
+            >
+              {item.q}
+              <ChevronDown
+                className={`size-4 shrink-0 text-[var(--soft-ink-faint)] transition-transform ${open ? "rotate-180" : ""}`}
+                aria-hidden="true"
+              />
+            </button>
+            {open && (
+              <p className="whitespace-pre-line px-3 pb-3 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+                {item.a}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSupportUrl: string; showChat: boolean }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
-  const [themeQuestions, setThemeQuestions] = useState<HelpFaqItem[]>([]);
+  const [visibleCount, setVisibleCount] = useState(THEME_PAGE);
+  const [channel, setChannel] = useState<"form" | "chat" | null>(null);
+
+  const trimmedQuery = query.trim();
+  const searched = trimmedQuery.length > 0;
   const results = useMemo(() => searchFaq(query), [query]);
+  const themePool = useMemo(() => (category ? listThemeQuestions(category) : []), [category]);
+  const themeQuestions = themePool.slice(0, visibleCount);
   const allowsChat = category ? categoryAllowsChat(category) : false;
+  const activeCategory = SUPPORT_CATEGORIES.find((c) => c.id === category) ?? null;
 
   function pickCategory(id: string) {
     setCategory(id);
-    setThemeQuestions(pickThemeQuestions(id, 5));
+    setVisibleCount(THEME_PAGE);
+    setChannel(null);
   }
 
   return (
     <div>
-      {/* Search gate — the support centre hero */}
+      {/* Stage 1 — the search gate is the ONLY thing on the page initially. */}
       <div className="soft-card p-6" data-testid="support-search">
         <p className="soft-eyebrow">поддержка eterapy</p>
         <h1 className="soft-h1 mt-2" data-testid="support-hero-title">Центр поддержки</h1>
         <p className="mt-2 max-w-2xl text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-          Опишите вопрос — покажем ответ. Или выберите тему ниже.
+          Опишите вопрос своими словами — покажем ответ из базы знаний.
         </p>
 
         {/* Calm focus lives on the wrapper (:focus-within), the global
@@ -49,9 +99,9 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
             id="support-search-input"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="например: возврат, подписка, доступ к аккаунту"
+            placeholder="Поиск по базе знаний: возврат, подписка, доступ…"
             className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none focus-visible:outline-none"
-            aria-label="Опишите вопрос"
+            aria-label="Поиск по базе знаний"
             data-testid="support-search-input"
           />
           <button
@@ -64,115 +114,146 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
           </button>
         </form>
 
-        {query.trim() && (
-          results.length > 0 ? (
-            <div className="mt-4 grid gap-2" data-testid="support-faq-results">
-              {results.map((r) => (
-                <details key={r.id} className="rounded-[12px] border border-[var(--soft-paper-edge)] p-3">
-                  <summary className="cursor-pointer list-none text-sm font-medium" style={{ color: "var(--soft-bordeaux)" }}>{r.q}</summary>
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{r.a}</p>
-                </details>
+        {searched && results.length > 0 && (
+          <div className="mt-4" data-testid="support-faq-results">
+            <FaqAccordion items={results} testId="support-faq-results-list" />
+          </div>
+        )}
+
+        {/* Stage 2 — категории появляются после поиска: сразу при промахе, а при
+            найденных статьях — ниже, для тех, кому ответ не подошёл. */}
+        {searched && (
+          <div className="mt-5" data-testid="support-categories">
+            <p className="text-sm font-medium" style={{ color: "var(--soft-ink)" }}>
+              {results.length === 0
+                ? "Не нашли нужный вопрос? Выберите из категории ниже"
+                : "Не подошёл ответ? Выберите категорию вопроса"}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3" role="tablist">
+              {SUPPORT_CATEGORIES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="tab"
+                  onClick={() => pickCategory(c.id)}
+                  className={`rounded-[12px] border p-3 text-left text-sm transition-colors ${
+                    category === c.id
+                      ? "border-[var(--soft-terracotta)] bg-[var(--soft-surface)] font-medium text-[var(--soft-bordeaux)]"
+                      : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] text-[var(--soft-ink-soft)] hover:border-[var(--soft-bordeaux)]/40 hover:text-[var(--soft-bordeaux)]"
+                  }`}
+                  data-testid={`support-cat-${c.id}`}
+                  aria-selected={category === c.id}
+                >
+                  {c.label}
+                </button>
               ))}
             </div>
-          ) : (
-            <p className="mt-4 text-sm" style={{ color: "var(--soft-ink-soft)" }} data-testid="support-faq-empty">
-              Ничего не нашли по запросу. Выберите тему ниже — подскажем ответы и самый быстрый способ связаться.
-            </p>
-          )
+          </div>
         )}
 
-        {/* Theme chips — ONE row: picks the 5 random questions AND gates the
-            escalation channels below. */}
-        <div className="mt-5">
-          <p className="text-xs font-medium" style={{ color: "var(--soft-ink-faint)" }}>подсказки по темам</p>
-          <div className="mt-2 flex flex-wrap gap-2" role="tablist">
-            {SUPPORT_CATEGORIES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                onClick={() => pickCategory(c.id)}
-                className={category === c.id ? "soft-chip soft-chip-warm" : "soft-chip"}
-                data-testid={`support-cat-${c.id}`}
-                aria-selected={category === c.id}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {category && themeQuestions.length > 0 && (
+        {/* Stage 3 — вопросы выбранной категории: аккордеон, «Показать ещё»
+            ДОБАВЛЯЕТ следующие 5 (не перелистывает). */}
+        {searched && category && themeQuestions.length > 0 && (
           <div className="mt-4 grid gap-2" data-testid="support-theme-questions">
-            {themeQuestions.map((r) => (
-              <details key={r.id} className="rounded-[12px] border border-[var(--soft-paper-edge)] p-3">
-                <summary className="cursor-pointer list-none text-sm font-medium" style={{ color: "var(--soft-bordeaux)" }}>{r.q}</summary>
-                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>{r.a}</p>
-              </details>
-            ))}
-            <button
-              type="button"
-              onClick={() => setThemeQuestions(pickThemeQuestions(category, 5))}
-              className="justify-self-start text-sm font-medium"
-              style={{ color: "var(--soft-bordeaux)" }}
-              data-testid="support-theme-refresh"
-            >
-              Показать другие вопросы →
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Escalation — channels adapt to the picked theme */}
-      <div className="soft-card mt-4 p-6" data-testid="support-escalation">
-        <h2 className="soft-h3">Всё ещё остались вопросы?</h2>
-        <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-          {category
-            ? "Мы на связи — выберите удобный способ."
-            : "Выберите тему выше — предложим подходящий способ связи."}
-        </p>
-
-        {category && (
-          <div className="mt-5 space-y-4" data-testid="support-escalation-actions">
-            <div className="flex flex-wrap gap-2">
-              <a href="mailto:support@eterapy.com" className="soft-button soft-button-ghost" data-testid="support-email">
-                <Mail className="size-4" aria-hidden="true" /> Написать в поддержку
-              </a>
-              <span className="text-xs" style={{ color: "var(--soft-ink-faint)", alignSelf: "center" }}>
-                ответ до 4 часов в будни
-              </span>
-            </div>
-
-            {/* Web form — always available («Оставить запрос на сайте»). */}
-            <ComplaintForm />
-
-            {/* Live chat — only for the sensitive categories, and only for a
-                signed-in user (the chat needs an account). */}
-            {allowsChat ? (
-              showChat ? (
-                <div data-testid="support-live-chat">
-                  <h3 className="soft-h3 mb-2 flex items-center gap-2">
-                    <MessageCircle className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" /> Написать в чат
-                  </h3>
-                  <p className="mb-3 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-                    По этой теме можно написать нам напрямую — отвечаем командой поддержки.
-                  </p>
-                  <SupportChat />
-                  <a href={telegramSupportUrl} target="_blank" rel="noopener noreferrer" className="soft-button soft-button-ghost mt-3" data-testid="support-telegram">
-                    Открыть в Telegram <ArrowRight className="size-4" aria-hidden="true" />
-                  </a>
-                </div>
-              ) : (
-                <p className="text-sm" style={{ color: "var(--soft-ink-faint)" }}>Войдите в аккаунт, чтобы открыть чат с поддержкой по этой теме.</p>
-              )
-            ) : (
-              <p className="text-sm" style={{ color: "var(--soft-ink-faint)" }} data-testid="support-no-chat">
-                По этой теме отвечаем по почте или через форму выше — так быстрее и надёжнее.
-              </p>
+            <FaqAccordion items={themeQuestions} testId="support-theme-questions-list" />
+            {themePool.length > visibleCount && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + THEME_PAGE)}
+                className="justify-self-start text-sm font-medium"
+                style={{ color: "var(--soft-bordeaux)" }}
+                data-testid="support-theme-more"
+              >
+                Показать ещё вопросы →
+              </button>
             )}
           </div>
         )}
       </div>
+
+      {/* Stage 4 — эскалация ТОЛЬКО после того, как клиент прошёл категорию и
+          не нашёл ответ (owner round-5 #13). */}
+      {searched && category && (
+        <div className="soft-card mt-4 p-6" data-testid="support-escalation">
+          <h2 className="soft-h3">Не нашли ответ на свой вопрос?</h2>
+          <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+            Мы на связи — выберите удобный способ по теме «{activeCategory?.label}».
+          </p>
+
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3" data-testid="support-escalation-actions">
+            <a
+              href="mailto:support@eterapy.com"
+              className="rounded-[12px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-left transition-colors hover:border-[var(--soft-bordeaux)]/40"
+              data-testid="support-email"
+            >
+              <Mail className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+              <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Обратиться по почте</span>
+              <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>ответ до 4 часов в будни</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setChannel(channel === "form" ? null : "form")}
+              className={`rounded-[12px] border p-4 text-left transition-colors ${
+                channel === "form"
+                  ? "border-[var(--soft-terracotta)] bg-[var(--soft-surface)]"
+                  : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] hover:border-[var(--soft-bordeaux)]/40"
+              }`}
+              data-testid="support-open-form"
+              aria-expanded={channel === "form"}
+            >
+              <FileText className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+              <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Заполнить форму</span>
+              <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>категория + описание, ответ в чате</span>
+            </button>
+
+            {allowsChat && (
+              <button
+                type="button"
+                onClick={() => setChannel(channel === "chat" ? null : "chat")}
+                className={`rounded-[12px] border p-4 text-left transition-colors ${
+                  channel === "chat"
+                    ? "border-[var(--soft-terracotta)] bg-[var(--soft-surface)]"
+                    : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] hover:border-[var(--soft-bordeaux)]/40"
+                }`}
+                data-testid="support-open-chat"
+                aria-expanded={channel === "chat"}
+              >
+                <MessageCircle className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Написать в чат</span>
+                <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>для срочных и финансовых вопросов</span>
+              </button>
+            )}
+          </div>
+
+          {!allowsChat && (
+            <p className="mt-3 text-xs" style={{ color: "var(--soft-ink-faint)" }} data-testid="support-no-chat">
+              По этой теме отвечаем по почте или через форму — так быстрее и надёжнее.
+            </p>
+          )}
+
+          {channel === "form" && (
+            <div className="mt-4">
+              <SupportRequestForm defaultCategory={category} />
+            </div>
+          )}
+
+          {channel === "chat" && allowsChat && (
+            showChat ? (
+              <div className="mt-4" data-testid="support-live-chat">
+                <SupportChat />
+                <a href={telegramSupportUrl} target="_blank" rel="noopener noreferrer" className="soft-button soft-button-ghost mt-3" data-testid="support-telegram">
+                  Открыть в Telegram <ArrowRight className="size-4" aria-hidden="true" />
+                </a>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm" style={{ color: "var(--soft-ink-faint)" }}>
+                Войдите в аккаунт, чтобы открыть чат с поддержкой по этой теме.
+              </p>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }

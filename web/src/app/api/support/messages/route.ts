@@ -7,6 +7,7 @@ import { requestContextFromHeaders } from "@/lib/request-context";
 import { log, serializeError } from "@/lib/logger";
 import { sendTelegramSupport, createSupportForumTopic } from "@/lib/telegram";
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
+import { canReuseSupportSession, isSupportSessionStale } from "@/lib/support-sessions";
 
 // B333 · Cabinet ↔ Telegram support chat.
 //
@@ -27,6 +28,11 @@ const RETURN_LIMIT = 100;
 
 const postSchema = z.object({
   content: z.string().trim().min(1).max(MESSAGE_MAX),
+  // B464 round-5 #13 — сессии: продолжить конкретную (только последнюю) или
+  // явно начать новую. Без обоих полей действует legacy-поведение: свежая
+  // открытая сессия переиспользуется, устаревшая закрывается и создаётся новая.
+  conversationId: z.string().trim().min(1).optional(),
+  newSession: z.boolean().optional(),
 });
 
 type SerializedMessage = {
@@ -50,13 +56,85 @@ function serializeMessage(message: {
   };
 }
 
-async function ensureOpenConversation(userId: string) {
+async function lastActivityAt(conversation: { id: string; createdAt: Date }): Promise<Date> {
+  const last = await db.supportMessage.findFirst({
+    where: { conversationId: conversation.id },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  return last?.createdAt ?? conversation.createdAt;
+}
+
+// B464 round-5 #13: сессии поддержки.
+//   conversationId → продолжить конкретную сессию (разрешено только для
+//     ПОСЛЕДНЕЙ; закрытая по таймауту переоткрывается);
+//   newSession → всегда новая сессия;
+//   иначе legacy: свежая (< 30 мин активности) открытая сессия
+//     переиспользуется, устаревшая лениво закрывается и создаётся новая.
+type ConversationResolution =
+  | { ok: true; conversation: { id: string; status: string; telegramChatId: string | null; telegramThreadId: number | null; createdAt: Date } }
+  | { ok: false; status: number; code: string; message: string };
+
+async function resolveConversation(
+  userId: string,
+  input: { conversationId?: string; newSession?: boolean },
+): Promise<ConversationResolution> {
+  const now = new Date();
+
+  if (input.conversationId) {
+    const conversation = await db.supportConversation.findFirst({
+      where: { id: input.conversationId, userId },
+    });
+    if (!conversation) {
+      return { ok: false, status: 404, code: "NOT_FOUND", message: "Сессия не найдена" };
+    }
+    const latest = await db.supportConversation.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (latest && latest.id !== conversation.id) {
+      return {
+        ok: false,
+        status: 409,
+        code: "NOT_LATEST_SESSION",
+        message: "Продолжить можно только последнюю сессию — начните новую",
+      };
+    }
+    if (conversation.status !== "OPEN") {
+      const reopened = await db.supportConversation.update({
+        where: { id: conversation.id },
+        data: { status: "OPEN", closedAt: null },
+      });
+      return { ok: true, conversation: reopened };
+    }
+    return { ok: true, conversation };
+  }
+
   const open = await db.supportConversation.findFirst({
     where: { userId, status: "OPEN" },
     orderBy: { createdAt: "desc" },
   });
-  if (open) return open;
-  return db.supportConversation.create({ data: { userId, status: "OPEN" } });
+
+  if (open) {
+    const activity = await lastActivityAt(open);
+    if (!input.newSession && canReuseSupportSession(open.status, activity, now)) {
+      return { ok: true, conversation: open };
+    }
+    // Явный запрос новой сессии ИЛИ таймаут 30 минут: старую закрываем.
+    if (input.newSession || isSupportSessionStale(activity, now)) {
+      await db.supportConversation.update({
+        where: { id: open.id },
+        data: { status: "CLOSED", closedAt: now },
+      });
+    } else {
+      // Свежая открытая сессия без явного newSession — переиспользуем.
+      return { ok: true, conversation: open };
+    }
+  }
+
+  const created = await db.supportConversation.create({ data: { userId, status: "OPEN" } });
+  return { ok: true, conversation: created };
 }
 
 export async function GET(request: NextRequest) {
@@ -65,10 +143,21 @@ export async function GET(request: NextRequest) {
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
 
-  const conversation = await db.supportConversation.findFirst({
-    where: { userId, status: "OPEN" },
-    orderBy: { createdAt: "desc" },
-  });
+  // Round-5 #13: ?conversationId= читает конкретную сессию (включая закрытые —
+  // история доступна на просмотр). Без параметра — legacy: последняя открытая.
+  const conversationIdParam = request.nextUrl.searchParams.get("conversationId");
+  const conversation = conversationIdParam
+    ? await db.supportConversation.findFirst({
+        where: { id: conversationIdParam, userId },
+      })
+    : await db.supportConversation.findFirst({
+        where: { userId, status: "OPEN" },
+        orderBy: { createdAt: "desc" },
+      });
+
+  if (conversationIdParam && !conversation) {
+    return errorWithRequestContext("NOT_FOUND", "Сессия не найдена", 404, context);
+  }
 
   if (!conversation) {
     return jsonWithRequestContext(
@@ -120,7 +209,18 @@ export async function POST(request: NextRequest) {
     return errorWithRequestContext("VALIDATION_ERROR", "Empty or oversized message", 400, context);
   }
 
-  const conversation = await ensureOpenConversation(userId);
+  const resolution = await resolveConversation(userId, {
+    conversationId: parsed.data.conversationId,
+    newSession: parsed.data.newSession,
+  });
+  if (!resolution.ok) {
+    return jsonWithRequestContext(
+      { error: resolution.message, code: resolution.code },
+      { status: resolution.status },
+      context,
+    );
+  }
+  const conversation = resolution.conversation;
   const message = await db.supportMessage.create({
     data: {
       conversationId: conversation.id,

@@ -49,6 +49,19 @@ const SUPPORT_TO_HELP_CATS: Record<string, string[]> = {
 };
 
 /**
+ * Round-5 #13: полный детерминированный список вопросов темы. Аккордеон
+ * показывает первые 5 и ДОБАВЛЯЕТ следующие по «Показать ещё вопросы» —
+ * вместо случайной перетасовки, которая просто перелистывала пятёрки.
+ */
+export function listThemeQuestions(
+  categoryId: string,
+  faqs: ReadonlyArray<HelpFaqItem> = HELP_FAQS,
+): HelpFaqItem[] {
+  const cats = SUPPORT_TO_HELP_CATS[categoryId] ?? [];
+  return cats.length > 0 ? faqs.filter((f) => cats.includes(f.cat)) : [...faqs];
+}
+
+/**
  * Pick `count` random questions for a support theme from the help-centre base.
  * The rng is injectable so tests stay deterministic; UI uses Math.random.
  */

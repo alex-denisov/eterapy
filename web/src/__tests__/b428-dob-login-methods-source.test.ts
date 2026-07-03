@@ -28,7 +28,7 @@ describe("B428 DOB source, set password, and social unlink surfaces", () => {
     const settingsClient = source("src/app/cabinet/settings/settings-client.tsx");
     expect(settingsClient).toContain("/api/auth/set-password-request");
     expect(settingsClient).toContain("/api/auth/social-link/");
-    expect(settingsClient).toContain('data-testid="linked-login-methods"');
+    expect(settingsClient).toMatch(/(data-testid|testId)="linked-login-methods"/);
     expect(settingsClient).toContain('data-testid="set-password-panel"');
   });
 

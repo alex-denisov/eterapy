@@ -7,6 +7,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -28,6 +29,86 @@ const LOGIN_PROVIDER_LABELS: Record<LoginProvider, string> = {
   telegram: "Telegram",
   apple: "Apple",
 };
+
+// Round-5 #11 — grouped rows по утверждённому направлению: карточка-группа =
+// шапка + список строк «название · текущее значение · шеврон», редактор
+// раскрывается прямо в строке (<details>). Обработчики и поля сохранены 1:1 —
+// меняется только компоновка.
+function SettingsGroup({
+  id,
+  eyebrow,
+  title,
+  intro,
+  testId,
+  children,
+}: {
+  id: string;
+  eyebrow: string;
+  title?: string;
+  intro?: React.ReactNode;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="soft-card scroll-mt-24 overflow-hidden p-0" data-testid={testId}>
+      <div className="border-b border-[var(--soft-paper-edge)] px-5 py-4">
+        <p className="soft-eyebrow">{eyebrow}</p>
+        {title && <h2 className="soft-h3 mt-1">{title}</h2>}
+        {intro}
+      </div>
+      <div className="divide-y divide-[var(--soft-paper-edge)]">{children}</div>
+    </section>
+  );
+}
+
+function SettingsRow({
+  label,
+  value,
+  danger = false,
+  defaultOpen = false,
+  testId,
+  children,
+}: {
+  label: string;
+  value?: React.ReactNode;
+  danger?: boolean;
+  defaultOpen?: boolean;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group" open={defaultOpen} data-testid={testId}>
+      <summary className="flex cursor-pointer select-none list-none items-center gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--soft-paper-card)] [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0 flex-1">
+          <span className={`block text-sm font-medium ${danger ? "text-[#b02020]" : "text-[var(--soft-ink)]"}`}>{label}</span>
+          {value ? <span className="mt-0.5 block truncate text-xs text-[var(--soft-ink-soft)]">{value}</span> : null}
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-[var(--soft-ink-faint)] transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+      <div className="px-5 pb-5 pt-1">{children}</div>
+    </details>
+  );
+}
+
+function SettingsStaticRow({
+  label,
+  value,
+  action,
+}: {
+  label: string;
+  value?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-5 py-3.5">
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-[var(--soft-ink)]">{label}</span>
+        {value ? <span className="mt-0.5 block truncate text-xs text-[var(--soft-ink-soft)]">{value}</span> : null}
+      </span>
+      {action}
+    </div>
+  );
+}
 
 export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = [] }: { telegramStatus: TelegramStatus, hasPassword?: boolean, linkedProviders?: LoginProvider[] }) {
   const { data: session, status, update } = useSession();
@@ -192,9 +273,8 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
 
       <div className="grid gap-5">
         {/* ── Профиль ── */}
-        <section id="settings-profile" className="soft-card scroll-mt-24 p-6" data-testid="settings-group-profile">
-          <p className="soft-eyebrow">профиль</p>
-          <h2 className="soft-h3 mb-4 mt-1">Имя и фото</h2>
+        <SettingsGroup id="settings-profile" eyebrow="профиль" testId="settings-group-profile">
+          <SettingsRow label="Имя и фото" value={currentName || "не заполнено"} testId="settings-row-name">
           <form onSubmit={handleSaveProfile} className="space-y-5">
             <div className="flex items-center gap-4">
               <button type="button" onClick={() => fileRef.current?.click()} className="relative group shrink-0">
@@ -233,38 +313,46 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
             </div>
             {nameError && <p className="-mt-3 text-xs text-destructive">{nameError}</p>}
 
-            <div>
-              <label className="mb-1 block text-sm text-[var(--soft-ink-soft)]">Email</label>
-              <Input value={email} disabled className="opacity-60" />
-              <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
-                Для изменения email напишите: support@eterapy.com
-              </p>
-            </div>
-
             <button type="submit" disabled={saving} className="soft-button soft-button-primary">
               {saving ? "Сохранение..." : "Сохранить профиль"}
             </button>
           </form>
-        </section>
+          </SettingsRow>
+          <SettingsStaticRow
+            label="Email"
+            value={email}
+            action={
+              <span className="shrink-0 text-xs text-[var(--soft-ink-faint)]">
+                изменить — через support@eterapy.com
+              </span>
+            }
+          />
+        </SettingsGroup>
 
         {/* ── О себе (клиент) — the personalization store ── */}
         {isClient && (
-          <section id="settings-about" className="soft-card scroll-mt-24 p-6" data-testid="settings-group-about">
-            <p className="soft-eyebrow">о себе</p>
-            <h2 className="soft-h3 mb-1 mt-1">Чтобы результаты были точнее</h2>
-            <p className="mb-5 text-sm text-[var(--soft-ink-soft)]">
-              Эти данные используются только для персонализации результатов.
-              Они не передаются практикам и не отображаются публично.
-            </p>
+          <SettingsGroup
+            id="settings-about"
+            eyebrow="о себе"
+            title="Чтобы результаты были точнее"
+            intro={
+              <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">
+                Используется только для персонализации результатов — не передаётся практикам и не видно другим.
+              </p>
+            }
+            testId="settings-group-about"
+          >
             <ExtendedProfileFields />
-          </section>
+          </SettingsGroup>
         )}
 
         {/* ── Безопасность ── */}
-        <section id="settings-security" className="soft-card scroll-mt-24 space-y-6 p-6" data-testid="settings-group-security">
-          <div>
-            <p className="soft-eyebrow">безопасность</p>
-            <h2 className="soft-h3 mb-4 mt-1">{hasPassword === false ? "Пароль для входа" : "Смена пароля"}</h2>
+        <SettingsGroup id="settings-security" eyebrow="безопасность" testId="settings-group-security">
+          <SettingsRow
+            label={hasPassword === false ? "Пароль для входа" : "Пароль"}
+            value={hasPassword === false ? "не назначен — вход через внешний сервис" : "сменить пароль для входа"}
+            testId="settings-row-password"
+          >
             {hasPassword === false ? (
               <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-sm text-[var(--soft-ink-soft)]" data-testid="set-password-panel">
                 <p>Сейчас вход привязан к внешнему сервису. Назначьте пароль по email, чтобы входить напрямую и безопасно отключать соцлогины.</p>
@@ -291,10 +379,15 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
                 </button>
               </form>
             )}
-          </div>
+          </SettingsRow>
 
-          <div data-testid="linked-login-methods">
-            <h3 className="soft-h3 mb-3">Способы входа</h3>
+          <SettingsRow
+            label="Способы входа"
+            value={connectedProviders.length > 0
+              ? connectedProviders.map((p) => LOGIN_PROVIDER_LABELS[p]).join(", ")
+              : "социальные входы не подключены"}
+            testId="linked-login-methods"
+          >
             <div className="space-y-2">
               {connectedProviders.length === 0 ? (
                 <p className="text-sm text-[var(--soft-ink-soft)]">Социальные входы не подключены.</p>
@@ -315,8 +408,8 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
                 </div>
               ))}
             </div>
-          </div>
-        </section>
+          </SettingsRow>
+        </SettingsGroup>
 
         {/* ── Уведомления ── */}
         <section id="settings-notifications" className="scroll-mt-24" data-testid="settings-group-notifications">
@@ -325,21 +418,23 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
 
         {/* ── Удаление ── */}
         {showDanger && (
-          <section id="settings-danger" className="soft-card-flat scroll-mt-24 p-6" data-testid="settings-group-danger" style={{ border: "1px solid rgba(176,32,32,.15)" }}>
-            <p className="soft-eyebrow">данные и удаление</p>
-            <h2 className="soft-h3 mb-3 mt-1" style={{ color: "#b02020" }}>
-              {role === "PRACTITIONER" ? "Деактивация аккаунта" : "Удаление аккаунта"}
-            </h2>
-            <div className="mb-5 rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
-              <p className="text-sm font-semibold text-[var(--soft-ink)]">Экспорт личных данных</p>
-              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
-                Скачайте копию профиля, вопросов, результатов, маршрутов, записей и уведомлений перед удалением.
-              </p>
-              <button type="button" onClick={() => { window.location.href = "/api/auth/export-data"; }}
-                className="soft-button soft-button-ghost mt-3 inline-flex">
-                Скачать JSON
-              </button>
-            </div>
+          <SettingsGroup id="settings-danger" eyebrow="данные и удаление" testId="settings-group-danger">
+            <SettingsStaticRow
+              label="Экспорт личных данных"
+              value="профиль, вопросы, результаты, маршруты, записи и уведомления"
+              action={
+                <button type="button" onClick={() => { window.location.href = "/api/auth/export-data"; }}
+                  className="soft-button soft-button-ghost h-9 shrink-0 px-4 text-sm">
+                  Скачать JSON
+                </button>
+              }
+            />
+            <SettingsRow
+              label={role === "PRACTITIONER" ? "Деактивация аккаунта" : "Удаление аккаунта"}
+              value={role === "PRACTITIONER" ? "аккаунт будет скрыт из каталога" : "деактивация сразу, полное удаление через 10 дней"}
+              danger
+              testId="settings-row-delete"
+            >
             {role === "PRACTITIONER" ? (
               <p className="mb-4 text-sm text-[var(--soft-ink-soft)]">
                 Аккаунт будет скрыт из каталога. Для восстановления или полного удаления данных напишите на{" "}
@@ -364,7 +459,8 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
                 {deleting ? "Деактивация..." : role === "PRACTITIONER" ? "Деактивировать аккаунт" : "Удалить аккаунт"}
               </button>
             </div>
-          </section>
+            </SettingsRow>
+          </SettingsGroup>
         )}
       </div>
     </div>
@@ -493,13 +589,20 @@ function ExtendedProfileFields() {
     }
   }
 
-  if (!loaded) return <div className="animate-pulse text-sm text-[var(--soft-ink-soft)]">Загружаем...</div>;
+  if (!loaded) return <div className="animate-pulse px-5 py-4 text-sm text-[var(--soft-ink-soft)]">Загружаем...</div>;
+
+  // Round-5 #11: краткие «текущие значения» в строках-группах.
+  const maritalLabel = MARITAL_OPTIONS.find((option) => option.value === maritalStatus)?.label;
+  const birthSummary = [birthDate, birthPlace].filter(Boolean).join(" · ") || "не заполнено";
+  const lifeSummary = [maritalLabel, occupation].filter(Boolean).join(" · ") || "не заполнено";
+  const goalsSummary = aiGoals.length > 0
+    ? GOALS.filter((goal) => aiGoals.includes(goal.value)).map((goal) => goal.label).join(", ")
+    : "не выбраны";
 
   return (
-    <div className="space-y-6">
-      {/* Дата и время рождения */}
-      <div>
-        <p className="mb-3 text-sm font-medium">Дата и время рождения</p>
+    <>
+      <SettingsRow label="Дата, время и место рождения" value={birthSummary} testId="settings-row-birth">
+      <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-[var(--soft-ink-soft)]">Дата рождения</label>
@@ -531,7 +634,6 @@ function ExtendedProfileFields() {
             <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">Нужно для точной натальной карты</p>
           </div>
         </div>
-      </div>
 
       {/* Место рождения */}
       <div>
@@ -579,7 +681,11 @@ function ExtendedProfileFields() {
           </p>
         )}
       </div>
+      </div>
+      </SettingsRow>
 
+      <SettingsRow label="Семейное положение и занятость" value={lifeSummary} testId="settings-row-life">
+      <div className="space-y-4">
       {/* Семейное положение */}
       <div>
         <label className="mb-2 block text-sm font-medium">Семейное положение</label>
@@ -604,7 +710,10 @@ function ExtendedProfileFields() {
           placeholder="Предприниматель, дизайнер, менеджер..." />
         <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">{occupation.length} / 100 символов</p>
       </div>
+      </div>
+      </SettingsRow>
 
+      <SettingsRow label="Темы, которые вас интересуют" value={goalsSummary} testId="settings-row-goals">
       {/* Цели */}
       <div>
         <label className="mb-2 block text-sm font-medium">Что вас интересует больше всего</label>
@@ -622,10 +731,13 @@ function ExtendedProfileFields() {
         </div>
         <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">Выберите все что подходит — это помогает давать более точные результаты</p>
       </div>
+      </SettingsRow>
 
-      <button type="button" onClick={handleSave} disabled={saving} className="soft-button soft-button-primary">
-        {saving ? "Сохранение..." : "Сохранить"}
-      </button>
-    </div>
+      <div className="px-5 py-4">
+        <button type="button" onClick={handleSave} disabled={saving} className="soft-button soft-button-primary">
+          {saving ? "Сохранение..." : "Сохранить"}
+        </button>
+      </div>
+    </>
   );
 }
