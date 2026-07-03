@@ -21,31 +21,23 @@ describe("G16 — practitioner header hides «Новый разбор»", () => 
   });
 });
 
-describe("G12 — action-history «все элементы карты» readable cards", () => {
-  it("renders a full-width break-words body with a description fallback", () => {
+describe("G12 — diary «ваши разборы» readable rows (superseded by B464 round-4 #12)", () => {
+  it("renders compact break-words rows with a clamped description", () => {
     const page = source("src/app/cabinet/diary/page.tsx");
-    expect(page).toContain("const previewBody = item.bodyMarkdown?.trim();");
     expect(page).toContain("[overflow-wrap:anywhere]");
-    // single-column card, body no longer trapped in a narrow flex track
-    expect(page).toContain("soft-card flex flex-col gap-4 p-5 md:p-6");
+    // one card of divide-y rows instead of a gappy card stack
+    expect(page).toContain('data-testid="diary-items-section"');
+    expect(page).toContain("line-clamp-2");
   });
 });
 
-describe("G13 — credits sells paid products with prices", () => {
-  it("uses the real ₽ price and keeps the badge on one line", () => {
+describe("G13 — spending moved to the landing catalog (B464 round-4 #13)", () => {
+  it("the wallet keeps баллы vocabulary and a slim spend bridge, no product grid", () => {
     const page = source("src/app/cabinet/wallet/page.tsx");
-    expect(page).toContain("getProductPriceKopecks");
     expect(page).toContain("creditsWord");
-    expect(page).toContain("priceKopecks");
-    expect(page).toContain("shrink-0 whitespace-nowrap");
-    // purchasable products surface the price as the badge headline
-    expect(page).toContain("${priceRub} ₽");
-  });
-
-  it("Z4 dependency: does not reopen circle or pair through a Premium special case", () => {
-    const page = source("src/app/cabinet/wallet/page.tsx");
-
-    expect(page).toContain("plan?.includedProducts.forEach");
+    expect(page).toContain('data-testid="wallet-spend-bridge"');
+    expect(page).not.toContain("getProductPriceKopecks");
+    // Z4 stays honoured: no Premium special case re-opening circle/pair here.
     expect(page).not.toContain('subscriptionProducts.add("circle")');
     expect(page).not.toContain('subscriptionProducts.add("pair")');
   });
@@ -73,8 +65,8 @@ describe("G15 — billing card faces, top-up, and history", () => {
     expect(table).not.toContain("ArrowUp");
     expect(table).not.toContain("ArrowDown");
     expect(table).toContain("size-2 shrink-0 rounded-full");
-    // compact segmented direction filter instead of the old oversized chip row
-    expect(table).toContain("inline-flex shrink-0 rounded-full border");
+    // B464 round-4 #13: calm rows + «показать ещё» instead of the filter chrome.
+    expect(table).toContain("<RevealList");
   });
 });
 

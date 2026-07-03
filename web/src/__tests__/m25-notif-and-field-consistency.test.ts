@@ -24,9 +24,10 @@ describe("B358 payment notifications", () => {
 
 // B342 / Интерфейс 4-5 and B344 / Интерфейс 15 — form fields share one look.
 describe("field styling consistency", () => {
-  it("settings timezone select uses the premium-input field family", () => {
+  it("settings timezone select uses the soft-input field family (B464 round-4 #15/#16)", () => {
     const settings = source("src/app/cabinet/settings/settings-client.tsx");
-    expect(settings).toMatch(/<select[\s\S]{0,200}premium-input/);
+    expect(settings).toMatch(/<select[\s\S]{0,200}soft-input/);
+    expect(settings).not.toContain("premium-input");
   });
 
   it("practitioner bio textarea uses the premium-input field family", () => {
