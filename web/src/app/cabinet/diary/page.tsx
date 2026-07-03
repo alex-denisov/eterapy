@@ -12,9 +12,10 @@ import { practiceWeekDays, startOfPracticeWeek } from "@/lib/weekly-summary";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
 import { listJournalEntries, type JournalEntry } from "@/lib/journal-entries";
 import { topObservation } from "@/lib/diary-recommendation";
-import { SoftMarkdown } from "@/components/ui/soft-markdown";
+import { deepeningForTopic } from "@/lib/cabinet-recommendations";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
 import { DiaryPinControl } from "@/components/cabinet/diary-pin-control";
+import { RevealList } from "@/components/cabinet/reveal-list";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { DiaryPinGate } from "@/components/cabinet/diary-pin-gate";
@@ -47,7 +48,7 @@ function JournalEntryCard({ entry }: { entry: JournalEntry }) {
     <details className="rounded-[14px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4" data-testid="diary-journal-entry">
       <summary className="cursor-pointer list-none">
         <span className="text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }}>
-          {entry.date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+          {entry.date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })} · {entry.own ? "ваш вопрос" : "вопрос дня"}
         </span>
         <p className="soft-italic mt-1" style={{ fontSize: 16, color: "var(--soft-bordeaux)", lineHeight: 1.4 }}>«{entry.question}»</p>
         {hasBeats && (
@@ -206,6 +207,16 @@ async function withdrawLibraryConsent(formData: FormData) {
   revalidatePath("/cabinet/diary");
 }
 
+// round-4 #12: build /diary hrefs preserving the active topic filter and the
+// hidden toggle together.
+function diaryHref({ topic, hidden }: { topic?: string | null; hidden?: boolean }): string {
+  const params = new URLSearchParams();
+  if (hidden) params.set("showHidden", "1");
+  if (topic) params.set("topic", topic);
+  const qs = params.toString();
+  return appUrl(`/diary${qs ? `?${qs}` : ""}`);
+}
+
 function familyCountWord(n: number): string {
   const mod10 = n % 10;
   const mod100 = n % 100;
@@ -214,13 +225,13 @@ function familyCountWord(n: number): string {
   return "раз";
 }
 
-export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string; pin?: string }> }) {
+export default async function MyMapPage({ searchParams }: { searchParams: Promise<{ showHidden?: string; pin?: string; topic?: string }> }) {
   const session = await auth();
   if (!session?.user?.id) redirect(loginUrl());
   guardClientCabinet(session.user.role); // Y6: client-only surface
   const userId = session.user.id;
 
-  const { showHidden, pin } = await searchParams;
+  const { showHidden, pin, topic: topicParam } = await searchParams;
   const wantHidden = showHidden === "1";
   // B464 round-4 #8: the sidebar lock deep-links straight into the PIN setup.
   const autoOpenPin = pin === "setup";
@@ -237,10 +248,17 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
   ]);
 
   const hiddenCount = allItems.filter((item) => item.hidden).length;
-  const items = wantHidden ? allItems : allItems.filter((item) => !item.hidden);
+  const visibleItems = wantHidden ? allItems : allItems.filter((item) => !item.hidden);
+  // round-4 #12: the topic chips FILTER the list. A topic filter shows the
+  // dialogue разборы of that theme (products/routes carry no topic).
+  const activeTopic = topicParam?.trim() || null;
+  const items = activeTopic
+    ? visibleItems.filter((item) => item.kind === "dialogue" && item.topic === activeTopic)
+    : visibleItems;
 
+  // Chips count from the UNFILTERED list so a picked topic keeps all chips visible.
   const dialogueTopicCounts = new Map<string, { value: string; label: string; count: number }>();
-  for (const item of items) {
+  for (const item of visibleItems) {
     if (item.kind !== "dialogue" || !item.topic || !item.topicLabel) continue;
     const current = dialogueTopicCounts.get(item.topic);
     dialogueTopicCounts.set(item.topic, {
@@ -260,8 +278,11 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
 
   const dailyCard = dailyCardResult.card;
   const diaryBeats = dailyCardBeats(dailyCard.metadata);
-  const journalLead = journalEntries.slice(0, 3);
-  const journalRest = journalEntries.slice(3);
+  // round-4 #12: the observation is informational — but it offers one gentle,
+  // optional action matched to the theme (the Triage deepening).
+  const observationOffer = observation
+    ? deepeningForTopic(observation.topic, dialogueTopicCounts.get("family")?.count ?? 0)
+    : null;
 
   return (
     <DiaryPinGate>
@@ -336,112 +357,127 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
         </div>
       </section>
 
-      {/* Journaling history «ваши записи» (owner #1) — the missing past-entries view. */}
+      {/* Journaling history «ваши записи» (owner #1) — EVERY completed practice
+          day (round-4 #12): свой вопрос или вопрос дня, recent 4 + «показать ещё». */}
       {journalEntries.length > 0 && (
         <section className="soft-card mb-4 p-5" data-testid="diary-journal-history">
-          <p className="soft-eyebrow mb-3">ваши записи</p>
-          <div className="grid gap-2.5">
-            {journalLead.map((entry) => (
+          <p className="soft-eyebrow">ваши записи</p>
+          <p className="mb-3 mt-1 text-[12.5px]" style={{ color: "var(--soft-ink-faint)" }}>
+            Здесь каждый день, когда вы отвечали на вопрос дня, — ваш вопрос, взгляд и маленький шаг.
+          </p>
+          <RevealList initial={4} step={4} className="grid gap-2.5" moreLabel="Показать ещё">
+            {journalEntries.map((entry) => (
               <JournalEntryCard key={entry.id} entry={entry} />
             ))}
-          </div>
-          {journalRest.length > 0 && (
-            <details className="mt-2.5">
-              <summary className="cursor-pointer list-none py-2 text-center text-sm" style={{ color: "var(--soft-bordeaux)" }}>
-                показать все записи ({journalEntries.length}) →
-              </summary>
-              <div className="mt-2.5 grid gap-2.5">
-                {journalRest.map((entry) => (
-                  <JournalEntryCard key={entry.id} entry={entry} />
-                ))}
-              </div>
-            </details>
-          )}
+          </RevealList>
         </section>
       )}
 
-      {/* Warm, un-quoted self-noticing (owner #4) — no «дневник заметил» surveillance. */}
+      {/* Warm, un-quoted self-noticing (owner #4). round-4 #12: it explains
+          itself and offers ONE optional action — nothing is required. */}
       {observation && (
         <section className="soft-card mb-4 p-5" data-testid="diary-observation" style={{ background: "linear-gradient(155deg, var(--soft-paper-card), var(--soft-paper-deep))" }}>
           <p className="soft-italic" style={{ fontSize: 16, color: "var(--soft-ink-soft)", lineHeight: 1.5 }}>{observation.text}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {observationOffer && (
+              <Link href={mainUrl(observationOffer.route)} className="soft-chip" data-testid="diary-observation-cta">
+                {observationOffer.cta} →
+              </Link>
+            )}
+            <span className="text-[12px]" style={{ color: "var(--soft-ink-faint)" }}>
+              это просто наблюдение — можно ничего не делать
+            </span>
+          </div>
         </section>
       )}
 
-      {/* «ваши разборы» — topic chips + the full item list with per-item actions. */}
-      <div className="soft-eyebrow mb-3">ваши разборы</div>
+      {/* «ваши разборы» — ONE card: clickable topic filters + compact rows,
+          recent 4 + «показать ещё» (round-4 #12). */}
+      <section className="soft-card mb-4 p-5" data-testid="diary-items-section">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="soft-eyebrow">{wantHidden ? "скрытые разборы" : "ваши разборы"}</div>
+          {hiddenCount > 0 && (
+            <a
+              href={diaryHref({ topic: activeTopic, hidden: !wantHidden })}
+              className="soft-button soft-button-ghost"
+              style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
+            >
+              {wantHidden ? "← Показать активные" : `Показать скрытые (${hiddenCount})`}
+            </a>
+          )}
+        </div>
 
-      {dialogueTopics.length > 0 && (
-        <section className="soft-card mb-4 p-5" data-testid="diary-dialogue-topics">
-          <div className="flex flex-wrap gap-2">
+        {dialogueTopics.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2" data-testid="diary-dialogue-topics" role="group" aria-label="Фильтр по темам">
+            <Link
+              href={diaryHref({ hidden: wantHidden })}
+              className={!activeTopic ? "soft-chip soft-chip-warm" : "soft-chip"}
+              aria-pressed={!activeTopic}
+              data-testid="diary-topic-all"
+            >
+              все темы
+            </Link>
             {dialogueTopics.map((topic) => (
-              <span key={topic.value} className="soft-chip" data-topic-key={topic.value}>
+              <Link
+                key={topic.value}
+                href={diaryHref({ topic: topic.value, hidden: wantHidden })}
+                className={activeTopic === topic.value ? "soft-chip soft-chip-warm" : "soft-chip"}
+                data-topic-key={topic.value}
+                aria-pressed={activeTopic === topic.value}
+              >
                 {topic.label}
                 <span className="text-xs opacity-60">{topic.count}</span>
-              </span>
+              </Link>
             ))}
           </div>
-        </section>
-      )}
+        )}
 
-      {items.length === 0 ? (
-        <div className="soft-card soft-empty-stage p-12 text-center">
-          <h2 className="soft-h3">Здесь пока пусто</h2>
-          <p className="mt-3 mx-auto max-w-md text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-            Начните с вопроса или сохраните готовый результат — и он появится здесь.
-          </p>
-          <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-6">Задать вопрос</Link>
-        </div>
-      ) : (
-        <>
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="soft-eyebrow">{wantHidden ? "скрытые элементы" : "все элементы"}</div>
-            {hiddenCount > 0 && (
-              <a
-                href={wantHidden ? appUrl("/diary") : appUrl("/diary?showHidden=1")}
-                className="soft-button soft-button-ghost"
-                style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
-              >
-                {wantHidden ? "← Показать активные" : `Показать скрытые (${hiddenCount})`}
-              </a>
+        {items.length === 0 ? (
+          <div className="soft-empty-stage rounded-[16px] p-10 text-center">
+            <h2 className="soft-h3">{activeTopic ? "По этой теме пока нет разборов" : "Здесь пока пусто"}</h2>
+            <p className="mt-3 mx-auto max-w-md text-sm" style={{ color: "var(--soft-ink-soft)" }}>
+              {activeTopic
+                ? "Выберите другую тему или сбросьте фильтр."
+                : "Начните с вопроса или сохраните готовый результат — и он появится здесь."}
+            </p>
+            {activeTopic ? (
+              <Link href={diaryHref({ hidden: wantHidden })} className="soft-button soft-button-ghost mt-5">Сбросить фильтр</Link>
+            ) : (
+              <Link href={mainUrl("/checkin")} className="soft-button soft-button-primary mt-5">Задать вопрос</Link>
             )}
           </div>
-          {/* T12: single-column cards — meta chips → title → full-width body → actions.
-              Category label sits inline with the date (round-2 #3). */}
-          <div className="grid gap-3" data-testid="diary-items">
+        ) : (
+          <RevealList initial={4} step={4} className="divide-y divide-[var(--soft-paper-edge)]" moreLabel="Показать ещё">
             {items.map((item) => {
-              const previewBody = item.bodyMarkdown?.trim();
               return (
-                <article key={`${item.kind}:${item.id}`} className="soft-card flex flex-col gap-4 p-5 md:p-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {item.topicLabel && <span className="soft-chip" data-topic-key={item.topic}>{item.topicLabel}</span>}
-                    <span className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                      {mapItemStatusRu(item.kind, item.status)} · {item.updatedAt.toLocaleDateString("ru-RU")}
-                    </span>
-                  </div>
+                <article key={`${item.kind}:${item.id}`} className="flex flex-col gap-2.5 py-4 first:pt-0 last:pb-0" data-testid="diary-items">
                   <div className="min-w-0">
-                    <h2 className="font-heading text-xl font-medium break-words" style={{ color: "var(--soft-ink)" }}>{item.title}</h2>
-                    {previewBody ? (
-                      <SoftMarkdown content={previewBody.slice(0, 460)} className="mt-2 break-words [overflow-wrap:anywhere]" />
-                    ) : (
-                      <p className="mt-2 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
+                    {/* Meta: datetime first, then category + status (round-4 #3 format). */}
+                    <p className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
+                      {item.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, {item.updatedAt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                      {" · "}{item.topicLabel ?? item.eyebrow}{" · "}{mapItemStatusRu(item.kind, item.status)}
+                    </p>
+                    <h2 className="mt-1 font-heading text-lg font-medium break-words" style={{ color: "var(--soft-ink)" }}>{item.title}</h2>
+                    {item.description && (
+                      <p className="mt-1 line-clamp-2 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-2 border-t border-[var(--soft-paper-edge)] pt-4">
+                  <div className="flex flex-wrap gap-2">
                     <Link href={item.href} className="soft-button soft-button-primary"
-                      style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+                      style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
                       Открыть
                     </Link>
                     {item.kind === "product" && (
                       <form action={saveMapItem}>
                         <input type="hidden" name="id" value={item.id} />
                         <button type="submit" className="soft-button soft-button-ghost"
-                          style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+                          style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
                           Сохранить
                         </button>
                       </form>
                     )}
                     <a href={shareHref(item.title, item.shareTopic)} className="soft-button soft-button-ghost"
-                      style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                      style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
                       data-analytics-event="my_map_share_clicked"
                       data-analytics-surface="my_map"
                       data-analytics-target={item.kind}>
@@ -456,7 +492,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                           <form action={grantLibraryConsent}>
                             <input type="hidden" name="id" value={item.id} />
                             <button type="submit" className="soft-button soft-button-ghost"
-                              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                              style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
                               title="Анонимно опубликовать этот вопрос в библиотеке. Перед публикацией он проходит модерацию, согласие можно отозвать в любой момент."
                               data-analytics-event="my_map_library_consent_granted"
                               data-analytics-surface="my_map"
@@ -493,7 +529,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="id" value={item.id} />
                       <button type="submit" className="soft-button soft-button-ghost"
-                        style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+                        style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
                         data-analytics-event={item.hidden ? "my_map_unhide_clicked" : "my_map_hide_clicked"}
                         data-analytics-surface="my_map"
                         data-analytics-target={item.kind}>
@@ -505,7 +541,7 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                       <input type="hidden" name="kind" value={item.kind} />
                       <input type="hidden" name="id" value={item.id} />
                       <button type="submit" className="soft-button soft-button-ghost"
-                        style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem", color: "var(--soft-bordeaux)" }}
+                        style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem", color: "var(--soft-bordeaux)" }}
                         data-analytics-event="my_map_delete_clicked"
                         data-analytics-surface="my_map"
                         data-analytics-target={item.kind}>
@@ -517,9 +553,9 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
                 </article>
               );
             })}
-          </div>
-        </>
-      )}
+          </RevealList>
+        )}
+      </section>
 
       {/* «Тема рода» — the family-lineage standing card (owner #5). */}
       {familyCount >= 2 && (
@@ -531,10 +567,10 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
           <div className="min-w-0 flex-1">
             <p className="soft-eyebrow" style={{ color: "#6E5BA6" }}>тема рода</p>
             <p className="mt-1" style={{ fontSize: 15, fontWeight: 600, color: "#43356E" }}>
-              Тема семьи и рода возвращается в ваших разборах ({familyCount} {familyCountWord(familyCount)})
+              Тема семьи возвращается в ваших разборах ({familyCount} {familyCountWord(familyCount)})
             </p>
             <p className="text-[12.5px]" style={{ color: "var(--soft-ink-soft)" }}>
-              Можно собрать это в один разбор — увидеть повторяющиеся сценарии рода спокойно и бережно.
+              Можно собрать это в один разбор — спокойно рассмотреть, как складываются отношения с родителями и близкими и какие сценарии в них повторяются.
             </p>
           </div>
           <Link href={mainUrl("/products/family-scenarios")} className="soft-button shrink-0" style={{ background: "var(--soft-lilac, #9B86C9)", color: "#fff" }}>

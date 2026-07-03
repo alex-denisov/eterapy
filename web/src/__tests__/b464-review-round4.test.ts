@@ -237,6 +237,38 @@ describe("R7 item 7 — first-steps goal set", () => {
   });
 });
 
+// ── R8 · item 12 — diary lists: principle, filters, compact 4+ещё ──
+describe("R8 item 12 — diary lists", () => {
+  it("journal explains its principle and reveals 4 at a time", () => {
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("Здесь каждый день, когда вы отвечали на вопрос дня");
+    expect(diary).toContain("<RevealList");
+    // Entries distinguish the user's own question from the suggested prompt.
+    expect(diary).toContain('entry.own ? "ваш вопрос" : "вопрос дня"');
+  });
+
+  it("topic chips are links that filter the list and preserve state", () => {
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("diaryHref({ topic: topic.value, hidden: wantHidden })");
+    expect(diary).toContain('data-testid="diary-topic-all"');
+    expect(diary).toContain('item.kind === "dialogue" && item.topic === activeTopic');
+  });
+
+  it("the observation offers one optional action and asks nothing", () => {
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain("это просто наблюдение — можно ничего не делать");
+    expect(diary).toContain('data-testid="diary-observation-cta"');
+  });
+
+  it("items render as compact rows inside ONE card (no gappy card stack)", () => {
+    const diary = read("app/cabinet/diary/page.tsx");
+    expect(diary).toContain('data-testid="diary-items-section"');
+    expect(diary).toContain("divide-y divide-[var(--soft-paper-edge)]");
+    expect(diary).toContain("line-clamp-2");
+    expect(diary).not.toContain("SoftMarkdown");
+  });
+});
+
 // ── R1 · item 17 — «Помощь» uses the question-mark glyph like the header ──
 describe("R1 item 17 — Помощь icon is a question mark", () => {
   it("sidebar and nav-icon map use CircleHelp, not LifeBuoy", () => {
