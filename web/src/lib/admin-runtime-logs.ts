@@ -4,8 +4,9 @@ import path from "node:path";
 import { redactForLog } from "@/lib/logger";
 
 const DEFAULT_MAX_LINES = 200;
-const MAX_LINES = 500;
-const MAX_TAIL_BYTES = 512 * 1024;
+const MAX_LINES = 1000;
+const DEFAULT_TAIL_BYTES = 2 * 1024 * 1024;
+const MAX_TAIL_BYTES = 5 * 1024 * 1024;
 const MAX_RAW_LENGTH = 3000;
 
 const STRING_REDACTIONS: Array<[RegExp, string]> = [
@@ -49,6 +50,7 @@ export interface RuntimeLogQuery {
   source?: string;
   level?: string;
   search?: string;
+  tailBytes?: number;
 }
 
 function sanitizeString(value: string) {
@@ -74,6 +76,11 @@ function stripAnsi(value: string) {
 function clampLimit(value: number | undefined) {
   if (!Number.isFinite(value) || !value || value < 1) return DEFAULT_MAX_LINES;
   return Math.min(Math.floor(value), MAX_LINES);
+}
+
+function clampTailBytes(value: number | undefined) {
+  if (!Number.isFinite(value) || !value || value < 1) return DEFAULT_TAIL_BYTES;
+  return Math.min(Math.floor(value), MAX_TAIL_BYTES);
 }
 
 function normalizeSourceKey(value: string) {
@@ -115,6 +122,8 @@ function defaultSources(): Array<{ key: string; label: string; path: string }> {
   const pm2Log = (file: string) => ({ key: normalizeSourceKey(`pm2-${file}`), label: `pm2/${file}`, path: path.join(pm2Home, "logs", file) });
   const nginxLog = (file: string) => ({ key: normalizeSourceKey(`nginx-${file}`), label: `nginx/${file}`, path: path.join("/var/log/nginx", file) });
   const systemLog = (file: string) => ({ key: normalizeSourceKey(`system-${file}`), label: `system/${file}`, path: path.join("/var/log", file) });
+  const postgresLog = (file: string) => ({ key: normalizeSourceKey(`postgresql-${file}`), label: `postgresql/${file}`, path: path.join("/var/log/postgresql", file) });
+  const redisLog = (file: string) => ({ key: normalizeSourceKey(`redis-${file}`), label: `redis/${file}`, path: path.join("/var/log/redis", file) });
   const deployLog = (label: string, filePath: string) => ({ key: normalizeSourceKey(`deploy-${label}`), label: `deploy/${label}`, path: filePath });
 
   return [
@@ -136,6 +145,9 @@ function defaultSources(): Array<{ key: string; label: string; path: string }> {
     systemLog("auth.log"),
     systemLog("kern.log"),
     systemLog("cloud-init.log"),
+    systemLog("ufw.log"),
+    postgresLog("postgresql-16-main.log"),
+    redisLog("redis-server.log"),
     { key: "letsencrypt", label: "letsencrypt/letsencrypt.log", path: "/var/log/letsencrypt/letsencrypt.log" },
     deployLog("sync-staging-db.log", "/home/admin/eterapy-staging/deploy/sync-staging-db.log"),
   ];
@@ -272,6 +284,7 @@ function compareEntriesDesc(a: RuntimeLogEntry, b: RuntimeLogEntry) {
 
 export async function readRuntimeLogSnapshot(query: RuntimeLogQuery = {}): Promise<RuntimeLogSnapshot> {
   const limit = clampLimit(query.limit);
+  const tailBytes = clampTailBytes(query.tailBytes);
   const level = query.level && query.level !== "all" ? query.level.toLowerCase() : null;
   const sourceFilter = query.source && query.source !== "all" ? query.source : null;
   const search = query.search?.trim().toLowerCase() || null;
@@ -282,7 +295,7 @@ export async function readRuntimeLogSnapshot(query: RuntimeLogQuery = {}): Promi
 
   await Promise.all(readableSources.map(async (source) => {
     try {
-      const lines = await tailFile(source.path);
+      const lines = await tailFile(source.path, tailBytes);
       const parsed = lines.slice(-limit).map((line, index) => parseLogLine(source, line, index));
       entries.push(...parsed);
     } catch (error) {

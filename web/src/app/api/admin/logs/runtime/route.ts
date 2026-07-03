@@ -10,7 +10,13 @@ export const runtime = "nodejs";
 function parseLimit(value: string | null) {
   const parsed = Number(value ?? "200");
   if (!Number.isFinite(parsed) || parsed < 1) return 200;
-  return Math.min(Math.floor(parsed), 500);
+  return Math.min(Math.floor(parsed), 1000);
+}
+
+function parseTailBytes(value: string | null) {
+  const parsed = Number(value ?? 2 * 1024 * 1024);
+  if (!Number.isFinite(parsed) || parsed < 1) return 2 * 1024 * 1024;
+  return Math.min(Math.floor(parsed), 5 * 1024 * 1024);
 }
 
 export async function GET(request: NextRequest) {
@@ -26,6 +32,7 @@ export async function GET(request: NextRequest) {
     source: url.searchParams.get("source") ?? "all",
     level: url.searchParams.get("level") ?? "all",
     search: url.searchParams.get("q") ?? "",
+    tailBytes: parseTailBytes(url.searchParams.get("tailBytes")),
   });
 
   return jsonWithRequestContext(snapshot, { status: 200 }, context);

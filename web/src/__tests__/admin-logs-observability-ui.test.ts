@@ -27,5 +27,11 @@ describe("admin logs observability UI", () => {
     expect(viewer).toContain("/api/admin/logs/runtime/stream");
     expect(viewer).toContain("diagnosticsColumns");
     expect(viewer).toContain("runtimeColumns");
+    expect(viewer).toContain('limit: "1000"');
+    expect(viewer).toContain('tailBytes: "2097152"');
+    expect(viewer).toContain("Полнотекстовый поиск в реальном времени");
+    expect(viewer).toContain("sourcesColumns");
+    expect(viewer).toContain("Runtime");
+    expect(viewer).not.toContain("Рантайм");
   });
 });

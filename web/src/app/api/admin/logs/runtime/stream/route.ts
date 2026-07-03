@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
   }
   const url = request.nextUrl ?? new URL(request.url);
 
-  const limit = parseNumber(url.searchParams.get("limit"), 200, 500);
+  const limit = parseNumber(url.searchParams.get("limit"), 200, 1000);
   const intervalMs = parseNumber(url.searchParams.get("intervalMs"), 3000, 15_000);
+  const tailBytes = parseNumber(url.searchParams.get("tailBytes"), 2 * 1024 * 1024, 5 * 1024 * 1024);
   const source = url.searchParams.get("source") ?? "all";
   const level = url.searchParams.get("level") ?? "all";
   const search = url.searchParams.get("q") ?? "";
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     async start(controller) {
       const sendSnapshot = async () => {
         try {
-          const snapshot = await readRuntimeLogSnapshot({ limit, source, level, search });
+          const snapshot = await readRuntimeLogSnapshot({ limit, source, level, search, tailBytes });
           controller.enqueue(encoder.encode(`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`));
         } catch (error) {
           controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({

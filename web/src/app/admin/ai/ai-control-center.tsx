@@ -532,6 +532,57 @@ function renderAuditContent(content: unknown) {
   return JSON.stringify(content, null, 2);
 }
 
+function renderAuditLines(lines: string[]) {
+  return lines.map((line, index) => (
+    <span key={`${line}:${index}`}>
+      {index > 0 && <br />}
+      {line}
+    </span>
+  ));
+}
+
+function RenderedAuditText({ content, className = "" }: { content: unknown; className?: string }) {
+  const text = renderAuditContent(content);
+  const blocks = text
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (blocks.length === 0) {
+    return <div className={`soft-admin-rendered-text ${className}`}>Нет ответа</div>;
+  }
+
+  return (
+    <div className={`soft-admin-rendered-text ${className}`}>
+      {blocks.map((block, index) => {
+        const heading = block.match(/^(#{1,4})\s+(.+)$/);
+        if (heading) {
+          return <h4 key={`${block}:${index}`}>{heading[2]}</h4>;
+        }
+
+        const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+        if (lines.length > 0 && lines.every((line) => /^[-*]\s+/.test(line))) {
+          return (
+            <ul key={`${block}:${index}`}>
+              {lines.map((line, itemIndex) => <li key={`${line}:${itemIndex}`}>{line.replace(/^[-*]\s+/, "")}</li>)}
+            </ul>
+          );
+        }
+
+        if (lines.length > 0 && lines.every((line) => /^\d+[.)]\s+/.test(line))) {
+          return (
+            <ol key={`${block}:${index}`}>
+              {lines.map((line, itemIndex) => <li key={`${line}:${itemIndex}`}>{line.replace(/^\d+[.)]\s+/, "")}</li>)}
+            </ol>
+          );
+        }
+
+        return <p key={`${block}:${index}`}>{renderAuditLines(lines.length > 0 ? lines : [block])}</p>;
+      })}
+    </div>
+  );
+}
+
 async function patchAIControl(payload: unknown) {
   const response = await fetch("/api/admin/ai/control", {
     method: "PATCH",
@@ -2284,7 +2335,7 @@ export function AIControlCenter({
                 <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatTokens(interaction.totalTokens)}</td>
                 <td className={`${COMPACT_CELL_CLASS} text-[var(--soft-ink-soft)]`}>{formatCost(interaction.estimatedCostMicros)}</td>
                 <td className={`${COMPACT_CELL_CLASS} max-w-[24rem] whitespace-normal break-words text-[var(--soft-ink)]`}>
-                  {interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
+                  <RenderedAuditText content={interaction.responseText ?? interaction.errorText ?? "Нет ответа"} className="max-h-24 overflow-hidden" />
                 </td>
                 <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
                       <details>
@@ -2306,9 +2357,10 @@ export function AIControlCenter({
                           </div>
                           <div className="space-y-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Ответ LLM и попытки</p>
-                            <pre className="max-h-72 min-w-[28rem] overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3 text-xs leading-relaxed text-[var(--soft-ink)]">
-                              {interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
-                            </pre>
+                            <RenderedAuditText
+                              content={interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
+                              className="max-h-72 min-w-[28rem] overflow-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3"
+                            />
                             <div className="space-y-1">
                               {interaction.attempts.map((attempt, index) => (
                                 <div key={`${interaction.id}:attempt:${index}`} className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--soft-surface)] px-3 py-2 text-xs">

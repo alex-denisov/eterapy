@@ -3345,9 +3345,55 @@
 
   .soft-chart-tooltip text {
     fill: #fff;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: 0;
+  }
+
+  .soft-admin-rendered-text {
+    color: var(--soft-ink);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    white-space: normal;
+  }
+
+  .soft-admin-rendered-text > :first-child {
+    margin-top: 0;
+  }
+
+  .soft-admin-rendered-text > :last-child {
+    margin-bottom: 0;
+  }
+
+  .soft-admin-rendered-text h4 {
+    margin: 0.45rem 0 0.25rem;
+    color: var(--soft-bordeaux);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .soft-admin-rendered-text p {
+    margin: 0 0 0.45rem;
+  }
+
+  .soft-admin-rendered-text ul,
+  .soft-admin-rendered-text ol {
+    margin: 0 0 0.45rem;
+    padding-left: 1rem;
+  }
+
+  .soft-admin-rendered-text ul {
+    list-style: disc;
+  }
+
+  .soft-admin-rendered-text ol {
+    list-style: decimal;
+  }
+
+  .soft-admin-rendered-text li {
+    margin-bottom: 0.18rem;
   }
 
   .soft-chart-html-hit {

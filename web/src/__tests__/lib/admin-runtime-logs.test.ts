@@ -93,4 +93,25 @@ describe("admin-runtime-logs", () => {
       fields: { tags: ["auth", "error"] },
     }));
   });
+
+  it("supports full-text search across a larger tail window without exposing arbitrary paths", async () => {
+    const file = path.join(tmpDir, "large.log");
+    const lines = Array.from({ length: 750 }, (_, index) => JSON.stringify({
+      ts: `2026-06-01T10:${String(index % 60).padStart(2, "0")}:00.000Z`,
+      level: "info",
+      event: index === 42 ? "needle-payment-reconcile" : "routine-event",
+      requestId: `req-${index}`,
+    }));
+    await writeFile(file, lines.join("\n"));
+    process.env.ETERAPY_RUNTIME_LOG_FILES = `Runtime=${file}`;
+
+    const snapshot = await readRuntimeLogSnapshot({ limit: 1000, search: "needle-payment-reconcile", tailBytes: 2 * 1024 * 1024 });
+
+    expect(snapshot.entries).toHaveLength(1);
+    expect(snapshot.entries[0]).toEqual(expect.objectContaining({
+      sourceLabel: "Runtime",
+      event: "needle-payment-reconcile",
+    }));
+    expect(snapshot.sources[0]).toEqual(expect.objectContaining({ label: "Runtime", exists: true }));
+  });
 });

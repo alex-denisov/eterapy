@@ -141,8 +141,21 @@ export function chartDayLabel(day: string) {
   return `${day.slice(8, 10)}.${day.slice(5, 7)}`;
 }
 
+function chartRangeLabel(bucketDays: string[]) {
+  const first = bucketDays[0];
+  const last = bucketDays[bucketDays.length - 1];
+  if (!first || !last || first === last) return first ? chartDayLabel(first) : "";
+  return `${chartDayLabel(first)}-${chartDayLabel(last)}`;
+}
+
 export function chartBuckets(days: string[]) {
-  return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
+  if (days.length <= 31) return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
+  const buckets: Array<{ label: string; days: string[] }> = [];
+  for (let index = 0; index < days.length; index += 7) {
+    const bucketDays = days.slice(index, index + 7);
+    buckets.push({ label: chartRangeLabel(bucketDays), days: bucketDays });
+  }
+  return buckets;
 }
 
 function chartPlanBuckets(days: string[], map: Map<string, { free: number; plus: number; premium: number }>) {

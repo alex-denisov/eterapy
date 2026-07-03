@@ -18,7 +18,7 @@ jest.mock("@/lib/admin-runtime-logs", () => ({
 const mockAuth = auth as jest.MockedFunction<typeof auth>;
 const mockReadRuntimeLogSnapshot = readRuntimeLogSnapshot as jest.MockedFunction<typeof readRuntimeLogSnapshot>;
 
-function request(path = "https://admin.eterapy.com/api/admin/logs/runtime?limit=900&level=error&source=app-out&q=ai") {
+function request(path = "https://admin.eterapy.com/api/admin/logs/runtime?limit=1200&level=error&source=app-out&q=ai&tailBytes=2097152") {
   return new Request(path, {
     headers: { [REQUEST_ID_HEADER]: "runtime-logs-123" },
   }) as NextRequest;
@@ -38,17 +38,18 @@ describe("admin runtime logs API", () => {
     });
   });
 
-  it("returns runtime logs for superadmins and clamps the limit", async () => {
+  it("returns runtime logs for superadmins with a larger searchable tail window", async () => {
     const response = await GET(request());
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.requestId).toBe("runtime-logs-123");
     expect(mockReadRuntimeLogSnapshot).toHaveBeenCalledWith({
-      limit: 500,
+      limit: 1000,
       source: "app-out",
       level: "error",
       search: "ai",
+      tailBytes: 2_097_152,
     });
   });
 

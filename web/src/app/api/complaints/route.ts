@@ -17,8 +17,13 @@ import { log } from "@/lib/logger";
 import { notify } from "@/lib/notifications";
 import { ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "@/lib/env";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = ADMIN_NOTIFICATION_EMAIL;
+
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
+  return new Resend(apiKey);
+}
 
 const COMPLAINT_REASON_LABELS: Record<string, string> = {
   PRACTITIONER_NO_SHOW: "Практик не явился",
@@ -144,7 +149,7 @@ export async function POST(req: NextRequest) {
   if (process.env.RESEND_API_KEY) {
     const REASON_LABELS = COMPLAINT_REASON_LABELS;
     const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    resend.emails.send({
+    getResendClient().emails.send({
       from: EMAIL_FROM,
       to: ADMIN_EMAIL,
       subject: `⚠️ Новая жалоба: ${REASON_LABELS[reason] ?? reason}`,

@@ -35,6 +35,9 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(center).toContain("Рекомендовано:");
     expect(center).toContain("TABLE_PAGE_SIZE = 25");
     expect(center).toContain("<PaginationBar");
+    expect(center).toContain("function RenderedAuditText");
+    expect(center).toContain("soft-admin-rendered-text ${className}");
+    expect(center).not.toContain('className="max-h-72 min-w-[28rem] overflow-auto whitespace-pre-wrap rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3 text-xs leading-relaxed text-[var(--soft-ink)]"');
     expect(center).toContain("data-testid=\"ai-credentials-create-manual\"");
     expect(center).not.toContain("data-testid=\"ai-policy-form\"");
     expect(center).not.toContain("ModelPricingPreview");

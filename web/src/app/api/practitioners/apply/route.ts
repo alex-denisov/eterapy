@@ -12,9 +12,14 @@ import { checkRequestAuthRateLimit, authRateLimitResponse } from "@/lib/auth-rat
 import { log } from "@/lib/logger";
 import { ADMIN_NOTIFICATION_EMAIL, EMAIL_FROM } from "@/lib/env";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const ADMIN_EMAIL = ADMIN_NOTIFICATION_EMAIL;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("RESEND_API_KEY is not configured");
+  return new Resend(apiKey);
+}
 
 export async function POST(req: NextRequest) {
   // B341 / Баг 7: this anonymous endpoint writes a DB row AND sends an email,
@@ -80,7 +85,7 @@ export async function POST(req: NextRequest) {
 
   // Уведомляем суперадмина
   if (process.env.RESEND_API_KEY) {
-    await resend.emails.send({
+    await getResendClient().emails.send({
       from: EMAIL_FROM,
       to: ADMIN_EMAIL,
       subject: `Новая заявка практика: ${name}`,

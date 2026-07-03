@@ -166,7 +166,6 @@ describe("M11 client retention surfaces", () => {
 
   it("tracks retention actions through the global analytics listener", () => {
     const analytics = source("src/components/analytics.tsx");
-    const dashboard = source("src/app/cabinet/page.tsx");
     const map = source("src/app/cabinet/diary/page.tsx");
 
     expect(analytics).toContain("[data-analytics-event]");

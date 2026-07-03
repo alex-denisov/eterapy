@@ -66,6 +66,23 @@ const diagnosticsColumns: AdminCompactColumn[] = [
   { key: "snapshot", label: "Снимок", sortable: true },
 ];
 
+const sourcesColumns: AdminCompactColumn[] = [
+  { key: "label", label: "Источник", sortable: true },
+  {
+    key: "exists",
+    label: "Доступ",
+    sortable: true,
+    filterKind: "select",
+    options: [
+      { value: "доступен", label: "Доступен" },
+      { value: "не найден", label: "Не найден" },
+    ],
+  },
+  { key: "size", label: "Размер", sortable: true, align: "right" },
+  { key: "updatedAt", label: "Обновлен", sortable: true, filterKind: "date" },
+  { key: "path", label: "Путь", sortable: true },
+];
+
 function runtimeColumns(sources: RuntimeLogSource[]): AdminCompactColumn[] {
   return [
     { key: "timestamp", label: "Время", sortable: true, filterKind: "date" },
@@ -276,13 +293,13 @@ function RuntimeLogsPanel() {
   useEffect(() => { pausedRef.current = expandedId !== null; }, [expandedId]);
 
   const streamUrl = useMemo(() => {
-    const params = new URLSearchParams({ limit: "500", level: "all", source: "all", intervalMs: "3000" });
+    const params = new URLSearchParams({ limit: "1000", tailBytes: "2097152", level: "all", source: "all", intervalMs: "3000" });
     if (search.trim()) params.set("q", search.trim());
     return `/api/admin/logs/runtime/stream?${params.toString()}`;
   }, [search]);
 
   const snapshotUrl = useMemo(() => {
-    const params = new URLSearchParams({ limit: "500", level: "all", source: "all" });
+    const params = new URLSearchParams({ limit: "1000", tailBytes: "2097152", level: "all", source: "all" });
     if (search.trim()) params.set("q", search.trim());
     return `/api/admin/logs/runtime?${params.toString()}`;
   }, [search]);
@@ -332,6 +349,31 @@ function RuntimeLogsPanel() {
 
   const sources = snapshot?.sources ?? [];
   const entries = snapshot?.entries ?? [];
+  const sourceRows: AdminCompactRow[] = sources.map((source) => ({
+    id: source.key,
+    cells: {
+      label: {
+        value: source.label,
+        subvalue: source.key,
+        filterValue: `${source.label} ${source.key}`,
+        sortValue: source.label,
+      },
+      exists: {
+        kind: "status",
+        label: sourceReadinessLabel(source.exists),
+        tone: source.exists ? "ok" : "danger",
+        filterValue: sourceReadinessLabel(source.exists),
+        sortValue: source.exists ? 1 : 0,
+      },
+      size: { value: formatBytes(source.sizeBytes), sortValue: source.sizeBytes ?? 0, filterValue: formatBytes(source.sizeBytes) },
+      updatedAt: {
+        value: formatDate(source.updatedAt),
+        sortValue: source.updatedAt ? new Date(source.updatedAt).getTime() : 0,
+        filterValue: formatDate(source.updatedAt),
+      },
+      path: { value: source.path, title: source.path, filterValue: source.path, sortValue: source.path },
+    },
+  }));
   const rows: AdminCompactRow[] = entries.map((entry) => {
     const isExpanded = expandedId === entry.id;
     const fieldsText = Object.keys(entry.fields).length > 0 ? prettyJson(entry.fields) : "нет дополнительных полей";
@@ -399,6 +441,9 @@ function RuntimeLogsPanel() {
   return (
     <div className="space-y-4" data-testid="admin-runtime-logs-panel">
       <div className="flex flex-wrap items-center gap-3">
+        <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
+          Полнотекстовый поиск в реальном времени
+        </span>
         <input
           placeholder="Поиск по событию, requestId, провайдеру, тексту..."
           value={search}
@@ -424,13 +469,15 @@ function RuntimeLogsPanel() {
       )}
 
       {sources.length > 0 && (
-        <div className="flex flex-wrap gap-2 text-[11px] text-[var(--soft-ink-faint)]">
-          {sources.map((item) => (
-            <span key={item.key} className="inline-flex items-center gap-1 rounded-full border border-[var(--soft-paper-edge)] bg-white/65 px-2 py-0.5">
-              <span className="soft-admin-status-pill" data-tone={item.exists ? "ok" : "danger"}>{sourceReadinessLabel(item.exists)}</span>
-              {item.label} · {formatBytes(item.sizeBytes)}
-            </span>
-          ))}
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источники Runtime</h3>
+          <AdminCompactDataTable
+            columns={sourcesColumns}
+            rows={sourceRows}
+            empty="Источники Runtime пока не обнаружены"
+            minWidth="980px"
+            pageSize={20}
+          />
         </div>
       )}
 
