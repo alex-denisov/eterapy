@@ -58,11 +58,31 @@ describe("Superadmin redesign regression guardrails", () => {
 
   it("adds an overall stacked daily product histogram before per-product charts", () => {
     const results = source("src/app/admin/product/results/page.tsx");
+    const data = source("src/app/admin/admin-analytics-data.ts");
 
     expect(results).toContain('title="Все продукты по дням"');
     expect(results).toContain("StackedBarChart");
     expect(results).toContain('label="Все заказанные продукты по календарным дням"');
     expect(results).toContain("data.charts.productByDayStacked");
+    expect(results).toContain("`/api/admin/product-results/${result.id}`");
+    expect(results).not.toContain("appUrl(`/cabinet/results/${result.id}`)");
+    expect(data).toContain("normalizeAdminProductKey");
+    expect(data).toContain("catalogProductKeys");
+    expect(data).toContain("productPlanByDay.get(normalizedProductKey)");
+    expect(data).toContain("productByDay.get(day)?.get(productKey)");
+  });
+
+  it("keeps all active products in pricing and unit-economics without duplicate legacy keys", () => {
+    const pricing = source("src/app/admin/pricing/pricing-editor.tsx");
+    const data = source("src/app/admin/admin-analytics-data.ts");
+    const unitEconomics = source("src/app/admin/finance/unit-economics/page.tsx");
+
+    for (const product of ["tarot", "natal-chart", "synastry", "numerology", "family-scenarios", "human-design", "surname-story"]) {
+      expect(pricing).toContain(`product.${product}.price`);
+    }
+    expect(data).toContain('"seven-days-report": "weekly-summary"');
+    expect(data).toContain('"perspectives": "reframe"');
+    expect(unitEconomics).toContain("productLabel(row.feature)");
   });
 
   it("loads AI cost details for the selected date range and renders uniform compact tables", () => {
@@ -83,11 +103,16 @@ describe("Superadmin redesign regression guardrails", () => {
 
   it("keeps ops security audit rows compact and human-readable", () => {
     const security = source("src/app/admin/ops/security/page.tsx");
+    const compactTable = source("src/components/admin/compact-client-table.tsx");
 
     expect(security).toContain("AdminCompactDataTable");
     expect(security).toContain("clientRiskColumns");
     expect(security).toContain("riskActionColumns");
     expect(security).toContain("formatAuditDetailsText");
+    expect(security).toContain('key: "open", label: "Действия"');
+    expect(security).toContain('kind: "details"');
+    expect(compactTable).toContain('kind: "details"');
+    expect(compactTable).toContain("<dialog");
     expect(security).not.toContain("<details");
     expect(security).not.toContain("Показать детали");
     expect(security).not.toContain("flex max-w-[34rem] flex-wrap");
@@ -104,6 +129,31 @@ describe("Superadmin redesign regression guardrails", () => {
       expect(page).not.toContain("divide-y divide-[var(--soft-paper-edge)]");
       expect(page).not.toContain("divide-y divide-border/10");
     }
+  });
+
+  it("keeps problematic admin detail actions in modal or block anchors instead of raw inline expansion", () => {
+    const applications = source("src/app/admin/applications/applications-manager.tsx");
+    const library = source("src/app/admin/product/quality/library-requests-manager.tsx");
+    const reviews = source("src/app/admin/reviews/reviews-manager.tsx");
+    const payouts = source("src/app/admin/finance/payouts/page.tsx");
+    const reports = source("src/app/admin/finance/reports/page.tsx");
+    const ai = source("src/app/admin/ai/ai-control-center.tsx");
+    const aiCost = source("src/app/admin/ops/ai-cost/page.tsx");
+    const database = source("src/app/admin/database/admin-database-page.tsx");
+
+    expect(applications).toContain("application-detail-grid");
+    expect(library).toContain("editQuestion");
+    expect(library).toContain("textarea");
+    expect(reviews).toContain("RATING_OPTIONS");
+    expect(reviews).toContain('filterKind: "select"');
+    expect(payouts).not.toContain("В таблице выводится 20 практиков на страницу");
+    expect(reports).toContain("calculatedReports");
+    expect(reports).toContain("booking.findMany");
+    expect(ai).toContain("RoutingChainModal");
+    expect(ai).toContain("provider-logo-chain");
+    expect(ai).not.toContain("<details>");
+    expect(aiCost).toContain('/admin/ops/ai#admin-ai-interactions');
+    expect(database).toContain("const MAX_ROWS = 2000");
   });
 
   it("updates practitioner rights labels for the redesigned practitioner operations", () => {

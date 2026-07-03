@@ -15,6 +15,15 @@ describe("admin logs observability UI", () => {
     expect(page).toContain("LogsTabs");
     expect(page).toContain('data-testid="admin-audit-log-table"');
     expect(viewer).toContain("admin-observability-tabs");
+    expect(viewer).toContain("Все логи");
+    expect(viewer).toContain("Kibana-like");
+    expect(viewer).toContain("pm2/");
+    expect(viewer).toContain("nginx/");
+    expect(viewer).toContain("system/");
+    expect(viewer).toContain("postgresql/");
+    expect(viewer).toContain("redis/");
+    expect(viewer).toContain("deploy/");
+    expect(viewer).toContain("audit_logs");
     expect(viewer).toContain("Диагностика");
     expect(viewer).toContain("Runtime");
     // T8: diagnostics + runtime tables use the same filtered/paginated

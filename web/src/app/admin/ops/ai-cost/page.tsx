@@ -269,7 +269,7 @@ export default async function AdminOpsAICostPage(props: {
       </AdminOpsSection>
 
       {role === "SUPERADMIN" && (
-        <AdminOpsSection title="Аудит пользовательских LLM-диалогов" actionHref="/admin/ops/ai" actionLabel="Полный аудит">
+        <AdminOpsSection title="Аудит пользовательских LLM-диалогов" actionHref="/admin/ops/ai#admin-ai-interactions" actionLabel="Полный аудит">
           <AdminCompactDataTable
             columns={interactionColumns}
             rows={interactionRows}

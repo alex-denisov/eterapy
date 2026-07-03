@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { appUrl } from "@/lib/subdomain";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
 import { AdminHero, AnalyticsSection, PeriodToolbar, StackedBarChart, VerticalBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
@@ -80,7 +79,7 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
                 product: { value: productLabel(result.productKey), filterValue: `${productLabel(result.productKey)} ${result.productKey}` },
                 title: result.title,
                 status: { kind: "status", label: statusLabel(result.status), tone: resultStatus === "FAILED" ? "danger" : resultStatus === "READY" ? "ok" : "warn", filterValue: `${result.status} ${statusLabel(result.status)}` },
-                open: { kind: "link", href: appUrl(`/cabinet/results/${result.id}`), icon: "open", external: true, title: `Открыть результат ${result.title}` },
+                open: { kind: "link", href: `/api/admin/product-results/${result.id}`, icon: "open", external: true, title: `Открыть результат ${result.title}` },
               },
             };
           })}

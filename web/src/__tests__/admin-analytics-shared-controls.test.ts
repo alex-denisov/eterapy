@@ -20,8 +20,10 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(productLabel("Human Design")).toBe("Дизайн человека");
     expect(productLabel("product-human-design")).toBe("Дизайн человека");
     expect(productLabel("perspectives")).toBe("Переосмысление");
+    expect(productLabel("product-reframe-v5")).toBe("Переосмысление");
     expect(productLabel("seven_days")).toBe("Недельное резюме");
     expect(productLabel("seven-days")).toBe("Недельное резюме");
+    expect(productLabel("seven-days-report")).toBe("Недельное резюме");
   });
 
   it("keeps daily chart buckets for one month or less", () => {
@@ -38,7 +40,7 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(chart.at(-1)).toEqual({ label: "01.07", value: 1 });
   });
 
-  it("aggregates chart buckets by calendar weeks for periods longer than one month", () => {
+  it("keeps daily chart buckets for long periods so date labels match bars", () => {
     const days = Array.from({ length: 40 }, (_, index) => {
       const date = new Date(2026, 5, 1 + index);
       return dayKey(date);
@@ -48,13 +50,13 @@ describe("Admin analytics shared controls and chart data", () => {
     const buckets = chartBuckets(days);
     const chart = chartFromMap(days, values);
 
-    expect(buckets).toHaveLength(6);
+    expect(buckets).toHaveLength(days.length);
     expect(buckets[0]).toEqual({
-      label: "01.06-07.06",
-      days: ["2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-06", "2026-06-07"],
+      label: "01.06",
+      days: ["2026-06-01"],
     });
-    expect(chart[0]).toEqual({ label: "01.06-07.06", value: 7 });
-    expect(chart.at(-1)).toEqual({ label: "06.07-10.07", value: 5 });
+    expect(chart[0]).toEqual({ label: "01.06", value: 1 });
+    expect(chart.at(-1)).toEqual({ label: "10.07", value: 1 });
   });
 
   it("persists admin period and currency across sidebar navigation", () => {
@@ -78,6 +80,10 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(ui).toContain("soft-chart-tooltip-layer");
     expect(ui).toContain("buildVerticalTooltipHits");
     expect(ui).toContain("buildStackedTooltipHits");
+    expect(ui).toContain("axisSlotWidth");
+    expect(ui).toContain("tooltipSize");
+    expect(ui).not.toContain("Math.min(280");
+    expect(ui).not.toContain("Math.min(300");
     expect(css).toContain(".soft-chart-tooltip-layer .soft-chart-hit");
     expect(css).toContain("font-size: 14px");
   });

@@ -1,6 +1,7 @@
 import { BookingStatus, TransactionStatus } from "@prisma/client";
 import db from "@/lib/db";
 import { getProductLabel } from "@/lib/billing-labels";
+import { v5Products } from "@/lib/v5-products";
 
 export const PRODUCT_NAMES: Record<string, string> = {
   reframe: "Переосмысление",
@@ -37,6 +38,33 @@ export const PRODUCT_NAMES: Record<string, string> = {
   session: "Сессия с практиком",
   subscription: "Подписка",
 };
+
+const PRODUCT_KEY_ALIASES: Record<string, string> = {
+  "perspectives": "reframe",
+  "seven-days": "weekly-summary",
+  "seven-days-report": "weekly-summary",
+  "seven-days-route": "weekly-summary",
+  "weekly-report": "weekly-summary",
+  human_design: "human-design",
+  natal: "natal-chart",
+  "product-reframe-v5": "reframe",
+};
+
+export function normalizeAdminProductKey(productKey: string | null | undefined) {
+  if (!productKey) return "unknown";
+  const normalized = productKey
+    .trim()
+    .replace(/^product[-_\s]+/i, "")
+    .replaceAll("_", "-")
+    .replace(/\s+/g, "-")
+    .replace(/[-\s]?v\d+$/i, "")
+    .toLowerCase();
+  return PRODUCT_KEY_ALIASES[normalized] ?? normalized;
+}
+
+export function catalogProductKeys() {
+  return [...new Set(v5Products.map((product) => normalizeAdminProductKey(product.productKey ?? product.slug)))];
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -141,21 +169,8 @@ export function chartDayLabel(day: string) {
   return `${day.slice(8, 10)}.${day.slice(5, 7)}`;
 }
 
-function chartRangeLabel(bucketDays: string[]) {
-  const first = bucketDays[0];
-  const last = bucketDays[bucketDays.length - 1];
-  if (!first || !last || first === last) return first ? chartDayLabel(first) : "";
-  return `${chartDayLabel(first)}-${chartDayLabel(last)}`;
-}
-
 export function chartBuckets(days: string[]) {
-  if (days.length <= 31) return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
-  const buckets: Array<{ label: string; days: string[] }> = [];
-  for (let index = 0; index < days.length; index += 7) {
-    const bucketDays = days.slice(index, index + 7);
-    buckets.push({ label: chartRangeLabel(bucketDays), days: bucketDays });
-  }
-  return buckets;
+  return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
 }
 
 function chartPlanBuckets(days: string[], map: Map<string, { free: number; plus: number; premium: number }>) {
@@ -201,12 +216,7 @@ export function cardPartsFromMetadata(metadata: unknown) {
 
 export function productLabel(productKey: string | null | undefined) {
   if (!productKey) return "Не указан";
-  const normalized = productKey
-    .trim()
-    .replace(/^product[-_\s]+/i, "")
-    .replaceAll("_", "-")
-    .replace(/\s+/g, "-")
-    .toLowerCase();
+  const normalized = normalizeAdminProductKey(productKey);
   return PRODUCT_NAMES[normalized] ?? getProductLabel(normalized);
 }
 
@@ -322,8 +332,8 @@ export async function getDashboardAnalytics(period: AdminPeriod) {
   const aiCostMicros = aiRequests.reduce((sum, request) => sum + request.estimatedCostMicros, 0);
 
   const productCounts = new Map<string, number>();
-  for (const result of productResults) addTo(productCounts, result.productKey, 1);
-  for (const entitlement of entitlements) addTo(productCounts, entitlement.productKey, 1);
+  for (const result of productResults) addTo(productCounts, normalizeAdminProductKey(result.productKey), 1);
+  for (const entitlement of entitlements) addTo(productCounts, normalizeAdminProductKey(entitlement.productKey), 1);
 
   const paymentMix = new Map<string, number>();
   for (const tx of transactions.filter((item) => item.status === TransactionStatus.SUCCEEDED && item.amount > 0)) {
@@ -487,16 +497,17 @@ export async function getProductCenterData(period: AdminPeriod) {
   const productByDay = new Map<string, Map<string, number>>();
   const productPlanByDay = new Map<string, Map<string, { free: number; plus: number; premium: number }>>();
   for (const result of results) {
+    const normalizedProductKey = normalizeAdminProductKey(result.productKey);
     const day = dayKey(result.createdAt);
     const map = productByDay.get(day) ?? new Map<string, number>();
-    addTo(map, result.productKey, 1);
+    addTo(map, normalizedProductKey, 1);
     productByDay.set(day, map);
 
-    const byProduct = productPlanByDay.get(result.productKey) ?? new Map<string, { free: number; plus: number; premium: number }>();
+    const byProduct = productPlanByDay.get(normalizedProductKey) ?? new Map<string, { free: number; plus: number; premium: number }>();
     const bucket = byProduct.get(day) ?? { free: 0, plus: 0, premium: 0 };
     bucket[activePlanAt(subscriptions, result.userId, result.createdAt)] += 1;
     byProduct.set(day, bucket);
-    productPlanByDay.set(result.productKey, byProduct);
+    productPlanByDay.set(normalizedProductKey, byProduct);
   }
   const referralDay = new Map<string, number>();
   const referralSubscriptionDay = new Map<string, number>();
@@ -534,13 +545,17 @@ export async function getProductCenterData(period: AdminPeriod) {
   const topReferrers = new Map<string, number>();
   for (const item of referrals) addTo(topReferrers, item.referrer?.name ?? item.referrer?.email ?? "Не указан", 1);
   for (const item of inviteVisits) addTo(topReferrers, item.invite.practitioner.user.name ?? item.invite.practitioner.user.email ?? "Не указан", 1);
-  const productKeysByVolume = [...productPlanByDay.entries()]
-    .map(([productKey, dayMap]) => ({
+  const productTotals = new Map([...productPlanByDay.entries()]
+    .map(([productKey, dayMap]) => [
       productKey,
-      total: [...dayMap.values()].reduce((sum, row) => sum + row.free + row.plus + row.premium, 0),
-    }))
-    .sort((a, b) => b.total - a.total)
-    .map((item) => item.productKey);
+      [...dayMap.values()].reduce((sum, row) => sum + row.free + row.plus + row.premium, 0),
+    ] as const));
+  const productKeysByVolume = [
+    ...new Set([
+      ...[...productTotals.entries()].sort((a, b) => b[1] - a[1]).map(([productKey]) => productKey),
+      ...catalogProductKeys(),
+    ]),
+  ];
 
   return {
     funnel,
@@ -555,7 +570,7 @@ export async function getProductCenterData(period: AdminPeriod) {
       creditsBalanceByDay,
       topReferrers: [...topReferrers.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 10),
       productByDay: chartBuckets(period.days).map((bucket) => {
-        const topKeys = [...new Set(results.map((result) => result.productKey))].slice(0, 3);
+        const topKeys = productKeysByVolume.slice(0, 3);
         return {
           label: bucket.label,
           value: bucket.days.reduce((sum, day) => sum + (productByDay.get(day)?.get(topKeys[0] ?? "") ?? 0), 0),
@@ -576,14 +591,17 @@ export async function getProductCenterData(period: AdminPeriod) {
           })),
         };
       }),
-      productByDayLabels: [...new Set(results.map((result) => result.productKey))].slice(0, 3).map(productLabel) as [string, string?, string?],
-      productUsageByProduct: [...productPlanByDay.entries()]
-        .map(([productKey, dayMap]) => ({
+      productByDayLabels: productKeysByVolume.slice(0, 3).map(productLabel) as [string, string?, string?],
+      productUsageByProduct: productKeysByVolume
+        .map((productKey) => {
+          const dayMap = productPlanByDay.get(productKey) ?? new Map<string, { free: number; plus: number; premium: number }>();
+          return ({
           productKey,
           label: productLabel(productKey),
-          total: [...dayMap.values()].reduce((sum, row) => sum + row.free + row.plus + row.premium, 0),
+          total: productTotals.get(productKey) ?? 0,
           chart: chartPlanBuckets(period.days, dayMap),
-        }))
+        });
+        })
         .sort((a, b) => b.total - a.total),
     },
   };
@@ -638,7 +656,7 @@ export async function getUnitEconomicsData(period: AdminPeriod) {
   });
   const byFeatureDay = new Map<string, Map<string, number>>();
   for (const request of aiRequests) {
-    const feature = request.feature || "Не указан";
+    const feature = normalizeAdminProductKey(request.feature || "Не указан");
     const map = byFeatureDay.get(feature) ?? new Map<string, number>();
     addTo(map, dayKey(request.createdAt), request.estimatedCostMicros);
     byFeatureDay.set(feature, map);

@@ -31,6 +31,11 @@ const STATUS_OPTIONS = [
   { value: "HIDDEN", label: "Скрытые" },
 ];
 
+const RATING_OPTIONS = [5, 4, 3, 2, 1].map((rating) => ({
+  value: String(rating),
+  label: `${rating}`,
+}));
+
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("ru-RU", {
     day: "2-digit",
@@ -62,7 +67,7 @@ export function ReviewsManager({
   }, [reviews]);
 
   const columns = useMemo<AdminCompactColumn[]>(() => [
-    { key: "rating", label: "Оценка", sortable: true },
+    { key: "rating", label: "Оценка", sortable: true, filterKind: "select", options: RATING_OPTIONS },
     { key: "text", label: "Отзыв", sortable: true },
     { key: "author", label: "Автор", sortable: true },
     {

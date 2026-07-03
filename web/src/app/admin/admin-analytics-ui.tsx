@@ -221,6 +221,27 @@ function chartCardClass() {
   return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D9E2F2] bg-gradient-to-b from-white to-[#F7FAFF] p-4 shadow-[0_18px_44px_-36px_rgba(17,24,39,0.55)]";
 }
 
+function axisSlotWidth(labels: string[], baseWidth: number) {
+  const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
+  return Math.max(baseWidth, Math.ceil(longest * 7.2) + 14);
+}
+
+function tooltipSize(text: string) {
+  return {
+    width: Math.max(172, Math.ceil(text.length * 7.2) + 26),
+    height: 34,
+  };
+}
+
+function axisLabelLayout(labels: string[], slotWidth: number) {
+  const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
+  const vertical = labels.length > 18 || longest * 7.2 > slotWidth - 8;
+  return {
+    vertical,
+    bottom: vertical ? Math.min(112, Math.max(58, Math.ceil(longest * 7.2) + 22)) : 30,
+  };
+}
+
 export function VerticalBarChart({
   data,
   unit,
@@ -250,9 +271,18 @@ export function VerticalBarChart({
   const top = 12;
   const plotHeight = 212;
   const compactLabels = data.length > 18;
-  const bottom = 30;
-  const groupWidth = compactLabels ? (series.length > 1 ? 38 : 32) : (series.length > 1 ? 52 : 44);
-  const width = Math.max(760, left + right + data.length * groupWidth);
+  const labels = data.map((item) => item.label);
+  const groupWidth = axisSlotWidth(
+    labels,
+    compactLabels ? (series.length > 1 ? 38 : 32) : (series.length > 1 ? 52 : 44),
+  );
+  const labelLayout = axisLabelLayout(labels, groupWidth);
+  const bottom = labelLayout.bottom;
+  const widestTooltip = Math.max(...data.flatMap((item) => series.map((seriesItem) => {
+    const raw = Math.max(0, Number(item[seriesItem.key] ?? 0));
+    return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)}`).width;
+  })), 172);
+  const width = Math.max(760, left + right + data.length * groupWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
@@ -276,7 +306,7 @@ export function VerticalBarChart({
         const x = startX + seriesIndex * (barWidth + innerGap);
         const y = top + plotHeight - barHeight;
         const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)}`;
-        const tooltipWidth = Math.min(280, Math.max(150, tooltip.length * 6.4));
+        const { width: tooltipWidth } = tooltipSize(tooltip);
         const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, x + barWidth / 2));
         const tooltipY = Math.max(top + 34, y - 7);
         return [{
@@ -337,7 +367,7 @@ export function VerticalBarChart({
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
-            const axisLabelY = top + plotHeight + 11;
+            const axisLabelY = top + plotHeight + 13;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -362,7 +392,8 @@ export function VerticalBarChart({
                 <text
                   x={centerX}
                   y={axisLabelY}
-                  textAnchor="middle"
+                  textAnchor={labelLayout.vertical ? "start" : "middle"}
+                  transform={labelLayout.vertical ? `rotate(90 ${centerX} ${axisLabelY})` : undefined}
                   className="fill-[#667085] text-[13px] tabular-nums"
                 >
                   {item.label}
@@ -431,9 +462,17 @@ export function StackedBarChart({
   const right = 16;
   const top = 12;
   const plotHeight = 212;
-  const bottom = 30;
-  const slotWidth = data.length > 18 ? 34 : 42;
-  const width = Math.max(760, left + right + data.length * slotWidth);
+  const labels = data.map((item) => item.label);
+  const slotWidth = axisSlotWidth(labels, data.length > 18 ? 34 : 42);
+  const labelLayout = axisLabelLayout(labels, slotWidth);
+  const bottom = labelLayout.bottom;
+  const widestTooltip = Math.max(...data.flatMap((item, index) => series.map((seriesItem) => {
+    const raw = hasSegments
+      ? (item.segments ?? []).find((segment) => segment.label === seriesItem.label)?.value ?? 0
+      : Number(item[seriesItem.key as ChartSeriesKey] ?? 0);
+    return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(totals[index] ?? 0)}`).width;
+  })), 172);
+  const width = Math.max(760, left + right + data.length * slotWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
@@ -464,7 +503,7 @@ export function StackedBarChart({
         const previousY = yFor(from);
         const segmentHeight = Math.max(2, previousY - y);
         const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(total)}`;
-        const tooltipWidth = Math.min(300, Math.max(170, tooltip.length * 6.2));
+        const { width: tooltipWidth } = tooltipSize(tooltip);
         const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, centerX));
         const tooltipY = Math.max(top + 34, y - 7);
         return [{
@@ -553,8 +592,9 @@ export function StackedBarChart({
                 })}
                 <text
                   x={centerX}
-                  y={top + plotHeight + 11}
-                  textAnchor="middle"
+                  y={top + plotHeight + 13}
+                  textAnchor={labelLayout.vertical ? "start" : "middle"}
+                  transform={labelLayout.vertical ? `rotate(90 ${centerX} ${top + plotHeight + 13})` : undefined}
                   className="fill-[#667085] text-[13px] tabular-nums"
                 >
                   {item.label}

@@ -14,7 +14,7 @@ type SearchParams = {
 
 type DbRow = Record<string, string | number | boolean | null>;
 
-const MAX_ROWS = 500;
+const MAX_ROWS = 2000;
 
 const TABLES = [
   "users",

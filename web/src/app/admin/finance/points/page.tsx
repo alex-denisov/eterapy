@@ -46,7 +46,7 @@ export default async function FinancePointsPage({ searchParams }: PageProps) {
   });
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <main className="mx-auto min-w-0 max-w-7xl overflow-hidden px-4 py-8 sm:px-6">
       <AdminHero
         eyebrow="финансы"
         title="Баллы"
@@ -65,7 +65,7 @@ export default async function FinancePointsPage({ searchParams }: PageProps) {
         <MetricCard label="Net изменение" value={formatNumber(totals.creditsBalanceDelta)} />
         <MetricCard label="Операций" value={formatNumber(entries.length)} />
       </MetricGrid>
-      <div className="mt-6 grid gap-4">
+      <div className="mt-6 grid min-w-0 gap-4 overflow-hidden">
         <VerticalBarChart label="Баллы на балансе по дням: дневное изменение" data={charts.creditsByDay} integerTicks />
         <AdminCompactDataTable
           columns={pointColumns}

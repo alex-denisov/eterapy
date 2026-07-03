@@ -198,7 +198,7 @@ export function AdminAntifraudPanel({ initialData }: { initialData: AntifraudDat
     <div className="space-y-6">
       <section
         className="grid gap-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4 md:grid-cols-3"
-        data-testid="admin-antifraud-v42-guardrails"
+        data-testid="admin-antifraud-guardrails"
       >
         <div>
           <p className="soft-eyebrow">значимое действие</p>

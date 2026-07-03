@@ -120,7 +120,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
       </MetricGrid>
 
       <section className="mt-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
-        <div className="mb-4">
+        <div className="mb-2">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Бронирования и переносы</h2>
           <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Живое управление бронированиями: перенос слота, пересчет длительности и отмена доступных статусов.</p>
         </div>
@@ -128,7 +128,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
       </section>
 
       <section className="mt-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
-        <div className="mb-4">
+        <div className="mb-2">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Видеосессии и записи</h2>
           <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Текущие комнаты, статусы, длительность и файлы записей.</p>
         </div>
@@ -136,7 +136,7 @@ export default async function ProductSessionsPage({ searchParams }: PageProps) {
       </section>
 
       <section className="mt-6 min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
-        <div className="mb-4">
+        <div className="mb-2">
           <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">Транскрипты и AI-резюме</h2>
         </div>
         <AdminCompactDataTable

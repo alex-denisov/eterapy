@@ -78,6 +78,15 @@ export type AdminCompactCell =
       sortValue?: string | number;
     }
   | {
+      kind: "details";
+      label?: string;
+      title: string;
+      body: string;
+      meta?: string;
+      filterValue?: string;
+      sortValue?: string | number;
+    }
+  | {
       kind: "actions";
       actions: AdminCompactAction[];
       filterValue?: string;
@@ -586,6 +595,9 @@ function CompactCell({ cell }: { cell: AdminCompactCell | undefined }) {
       </a>
     );
   }
+  if (cell.kind === "details") {
+    return <CompactDetailsCell cell={cell} />;
+  }
   if (cell.kind === "actions") {
     return (
       <div className="soft-admin-table-actions">
@@ -630,6 +642,60 @@ function CompactCell({ cell }: { cell: AdminCompactCell | undefined }) {
   );
 }
 
+function CompactDetailsCell({
+  cell,
+}: {
+  cell: Extract<AdminCompactCell, { kind: "details" }>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="soft-admin-icon-button"
+        onClick={() => setOpen(true)}
+        title={cell.title}
+        aria-label={cell.title}
+      >
+        <ExternalLink className="size-3.5" aria-hidden="true" />
+        {cell.label ? <span className="sr-only">{cell.label}</span> : null}
+      </button>
+      {open ? (
+        <dialog
+          open
+          className="soft-admin-detail-dialog"
+          aria-modal="true"
+          aria-label={cell.title}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setOpen(false);
+          }}
+        >
+          <div className="soft-admin-detail-dialog__panel">
+            <div className="flex items-start justify-between gap-3 border-b border-[var(--soft-paper-edge)] px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">{cell.title}</h3>
+                {cell.meta ? <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{cell.meta}</p> : null}
+              </div>
+              <button
+                type="button"
+                className="soft-admin-icon-button shrink-0"
+                onClick={() => setOpen(false)}
+                aria-label="Закрыть"
+                title="Закрыть"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words px-4 py-3 text-xs leading-relaxed text-[var(--soft-ink)]">
+              {cell.body || "Нет деталей"}
+            </pre>
+          </div>
+        </dialog>
+      ) : null}
+    </>
+  );
+}
+
 function actionIcon(icon: AdminCompactAction["icon"]) {
   if (icon === "download") return <Download className="size-3.5" aria-hidden="true" />;
   if (icon === "edit") return <Edit3 className="size-3.5" aria-hidden="true" />;
@@ -646,6 +712,7 @@ function cellFilterValue(cell: AdminCompactCell | undefined) {
   if ("filterValue" in cell && cell.filterValue) return cell.filterValue.toLowerCase();
   if (cell.kind === "status") return cell.label.toLowerCase();
   if (cell.kind === "link") return [cell.label, cell.title, cell.href].filter(Boolean).join(" ").toLowerCase();
+  if (cell.kind === "details") return [cell.title, cell.meta, cell.body, cell.filterValue].filter(Boolean).join(" ").toLowerCase();
   if (cell.kind === "actions") return cell.actions.map((action) => action.label).join(" ").toLowerCase();
   if (cell.kind === "node") return (cell.filterValue ?? "").toLowerCase();
   return [cell.value, cell.subvalue, cell.title].filter(Boolean).join(" ").toLowerCase();
@@ -657,6 +724,7 @@ function cellSortValue(cell: AdminCompactCell | undefined) {
   if ("sortValue" in cell && cell.sortValue !== undefined) return cell.sortValue;
   if (cell.kind === "status") return cell.label;
   if (cell.kind === "link") return cell.label ?? cell.title ?? cell.href;
+  if (cell.kind === "details") return cell.sortValue ?? cell.title;
   if (cell.kind === "actions") return cell.actions.map((action) => action.label).join(" ");
   if (cell.kind === "node") return cell.sortValue ?? cell.filterValue ?? "";
   return cell.value ?? "";

@@ -48,7 +48,7 @@ describe("B220 admin anti-fraud dashboard", () => {
 
     expect(page).toContain("Антифрод");
     expect(page).toContain("AdminAntifraudPanel");
-    expect(panel).toContain('data-testid="admin-antifraud-v42-guardrails"');
+    expect(panel).toContain('data-testid="admin-antifraud-guardrails"');
     expect(panel).toContain("значимое действие");
     expect(panel).toContain("контур баллов");
     expect(panel).toContain("доверие к практикам");

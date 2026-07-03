@@ -45,10 +45,23 @@ interface RuntimeLogSnapshot {
 }
 
 const LOG_TABS = {
-  audit: "Аудит",
+  all: "Все логи",
+  audit: "audit_logs",
   diagnostics: "Диагностика",
   runtime: "Runtime",
 } as const;
+
+const LOG_SOURCE_FAMILIES = [
+  "Runtime",
+  "pm2/",
+  "nginx/",
+  "system/",
+  "postgresql/",
+  "redis/",
+  "deploy/",
+  "letsencrypt/",
+  "audit_logs",
+] as const;
 
 const diagnosticsColumns: AdminCompactColumn[] = [
   { key: "service", label: "Сервис", sortable: true },
@@ -279,7 +292,7 @@ function DiagnosticsPanel() {
  * T7: runtime log files rendered in the soft-admin data-table style with the
  * same level/search/source filtering the legacy console offered.
  */
-function RuntimeLogsPanel() {
+function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
   const [snapshot, setSnapshot] = useState<RuntimeLogSnapshot | null>(null);
   const [search, setSearch] = useState("");
   const [streamState, setStreamState] = useState<"connecting" | "live" | "polling" | "error">("connecting");
@@ -440,6 +453,26 @@ function RuntimeLogsPanel() {
 
   return (
     <div className="space-y-4" data-testid="admin-runtime-logs-panel">
+      {unified ? (
+        <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Kibana-like поиск</p>
+              <h3 className="mt-1 text-base font-semibold text-[var(--soft-ink)]">Единый поиск по инфраструктурным и runtime-логам</h3>
+            </div>
+            <div className="flex flex-wrap gap-1.5" aria-label="Семейства источников логов">
+              {LOG_SOURCE_FAMILIES.map((family) => (
+                <span key={family} className="rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-mono text-[11px] text-[var(--soft-ink-soft)]">
+                  {family}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
+            Поиск ниже читает только allowlist-файлы из Runtime, pm2/, nginx/, system/, postgresql/, redis/, deploy/ и letsencrypt/; audit_logs доступен на этой же странице отдельной таблицей.
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
           Полнотекстовый поиск в реальном времени
@@ -499,7 +532,7 @@ function RuntimeLogsPanel() {
  * the legacy dark console table was removed.
  */
 export function LogsTabs({ auditTable }: { auditTable: React.ReactNode }) {
-  const [tab, setTab] = useState<keyof typeof LOG_TABS>("audit");
+  const [tab, setTab] = useState<keyof typeof LOG_TABS>("all");
 
   return (
     <div className="space-y-5">
@@ -520,6 +553,15 @@ export function LogsTabs({ auditTable }: { auditTable: React.ReactNode }) {
           );
         })}
       </div>
+      {tab === "all" && (
+        <div className="space-y-6">
+          <RuntimeLogsPanel unified />
+          <section aria-label="audit_logs">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">audit_logs</h3>
+            {auditTable}
+          </section>
+        </div>
+      )}
       <div hidden={tab !== "audit"}>{auditTable}</div>
       {tab === "diagnostics" && <DiagnosticsPanel />}
       {tab === "runtime" && <RuntimeLogsPanel />}

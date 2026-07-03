@@ -279,7 +279,8 @@ export default async function AdminOpsSecurityPage() {
     { key: "admin", label: "Администратор", sortable: true, filterKind: "text" },
     { key: "target", label: "Цель", sortable: true, filterKind: "text" },
     { key: "ip", label: "IP", sortable: true, filterKind: "text" },
-    { key: "details", label: "Детали", sortable: true, filterKind: "text" },
+    { key: "summary", label: "Кратко", sortable: true, filterKind: "text" },
+    { key: "open", label: "Действия", filterKind: "none", align: "center" },
   ];
   const riskActionTableRows = recentRiskActions.map((row) => {
     const label = actionLabel(row.action);
@@ -298,7 +299,16 @@ export default async function AdminOpsSecurityPage() {
         admin: { value: row.userId, title: row.userId, filterValue: row.userId, sortValue: row.userId },
         target: { value: row.targetId ?? "—", title: row.targetId ?? "—", filterValue: row.targetId ?? "", sortValue: row.targetId ?? "" },
         ip: row.ip ?? "—",
-        details: { value: details, title: details, filterValue: details, sortValue: details },
+        summary: { value: details, title: details, filterValue: details, sortValue: details },
+        open: {
+          kind: "details" as const,
+          label: "Открыть",
+          title: label,
+          meta: `${formatDateTime(row.createdAt)} · ${row.userId}${row.targetId ? ` → ${row.targetId}` : ""}`,
+          body: row.details ?? "Детали не указаны",
+          filterValue: details,
+          sortValue: details,
+        },
       },
     };
   });

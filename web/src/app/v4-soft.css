@@ -3593,6 +3593,29 @@
     opacity: 0.48;
   }
 
+  .soft-admin-detail-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border: 0;
+    background: rgba(45, 35, 31, 0.28);
+    padding: min(6vh, 3rem) 1rem;
+  }
+
+  .soft-admin-detail-dialog__panel {
+    width: min(980px, 100%);
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 0.75rem;
+    background: var(--soft-paper-card);
+    box-shadow: 0 24px 70px -36px rgba(51, 31, 28, 0.56);
+  }
+
   .soft-admin-pagination-page {
     display: inline-flex;
     align-items: center;

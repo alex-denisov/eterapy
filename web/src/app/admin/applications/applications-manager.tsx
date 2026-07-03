@@ -122,7 +122,7 @@ export function ApplicationsManager({ applications: initial, adminRole }: { appl
                     <span className="font-medium">{app.name}</span>
                     {app.kind === "VERIFICATION" ? <span className="ml-2 soft-admin-status-pill">Верификация</span> : null}
                     {isExpanded ? (
-                      <span className="mt-3 grid gap-3 rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3 text-xs text-[var(--soft-ink-soft)]">
+                      <span className="application-detail-grid mt-3 grid max-w-[46rem] gap-3 whitespace-normal break-words rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3 text-xs text-[var(--soft-ink-soft)]">
                         <span><b className="text-[var(--soft-ink)]">О себе:</b> {app.about}</span>
                         {app.kind === "VERIFICATION" ? <span>Практик просит подтвердить личность/документы.</span> : null}
                         {app.why && app.kind !== "VERIFICATION" ? <span><b className="text-[var(--soft-ink)]">Почему ETerapy:</b> {app.why}</span> : null}

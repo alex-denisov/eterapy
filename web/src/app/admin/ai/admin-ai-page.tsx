@@ -130,6 +130,12 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+function formatUsagePeriod(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value;
+  return `${match[3]}.${match[2]}.${match[1]}`;
+}
+
 export default async function AdminAIPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const session = await auth();
@@ -276,6 +282,7 @@ export default async function AdminAIPage({ searchParams }: PageProps) {
         usdRub={currencyRates.usdRub}
         currency={currency}
         currencyRateLabel={formatCbrRateLabel(currencyRates)}
+        usagePeriod={formatUsagePeriod(data.period)}
       />
     </PageContainer>
   );

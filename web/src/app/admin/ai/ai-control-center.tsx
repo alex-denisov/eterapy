@@ -18,6 +18,7 @@ import {
   Save,
   ShieldCheck,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,6 +79,44 @@ type PolicyRow = {
   timeoutMs?: number | null;
   dailyTokenBudget?: number | null;
   perUserDailyTokenBudget?: number | null;
+};
+
+type NumericDraft = number | "";
+
+type RoutingPolicyDraft = {
+  enabled: boolean;
+  providerOrder: AIProvider[];
+  modelPreferences: Partial<Record<AIProvider, string>>;
+  maxTokens: NumericDraft;
+  temperature: NumericDraft;
+  timeoutMs: NumericDraft;
+  dailyTokenBudget: NumericDraft;
+  perUserDailyTokenBudget: NumericDraft;
+};
+
+type ModelPricingDraft = {
+  input: NumericDraft;
+  output: NumericDraft;
+};
+
+type ProviderConfigDraft = {
+  enabled: boolean;
+  cloudflareGatewayEnabled: boolean;
+  priority: number;
+  timeoutMs: number;
+  defaultModel: string;
+  baseUrl: string;
+  inputTokenCostMicros: NumericDraft;
+  outputTokenCostMicros: NumericDraft;
+};
+
+type CredentialDraft = {
+  label: string;
+  apiKey: string;
+  enabled: boolean;
+  priority: number;
+  modelOverride: string;
+  baseUrlOverride: string;
 };
 
 type UsageRow = {
@@ -603,6 +642,70 @@ function SoftBadge({ children, className = "" }: { children: ReactNode; classNam
   );
 }
 
+function InteractionAuditModal({
+  interaction,
+  formatCost,
+  onClose,
+}: {
+  interaction: InteractionRow;
+  formatCost: (value: number) => string;
+  onClose: () => void;
+}) {
+  return (
+    <dialog open className="soft-admin-detail-dialog" aria-label={`Аудит LLM-диалога ${interaction.id}`}>
+      <div className="soft-admin-detail-dialog__panel w-[min(1120px,calc(100vw-32px))]">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">LLM-аудит</p>
+            <h3 className="mt-1 text-lg font-semibold text-[var(--soft-ink)]">{interaction.feature}</h3>
+            <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">
+              {formatDate(interaction.createdAt)} · {interaction.userLabel ?? interaction.userId ?? "анонимно"} · {interaction.requestId ?? interaction.id}
+            </p>
+          </div>
+          <button type="button" className="soft-admin-icon-button" onClick={onClose} aria-label="Закрыть аудит">
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Запрос и контекст для LLM
+            </p>
+            <div className="max-h-[32rem] space-y-2 overflow-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3">
+              {interaction.messages.map((item, index) => (
+                <div key={`${interaction.id}:message:${index}`} className="rounded-md bg-white/80 p-2">
+                  <p className="mb-1 text-[11px] font-semibold uppercase text-[var(--soft-bordeaux)]">{item.role}</p>
+                  <pre className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--soft-ink)]">{renderAuditContent(item.content)}</pre>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Ответ LLM и попытки</p>
+            <RenderedAuditText
+              content={interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
+              className="max-h-80 overflow-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3"
+            />
+            <div className="space-y-1">
+              {interaction.attempts.map((attempt, index) => (
+                <div key={`${interaction.id}:attempt:${index}`} className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--soft-surface)] px-3 py-2 text-xs">
+                  <SoftBadge className={statusTone(attempt.status)}>{statusLabel(attempt.status)}</SoftBadge>
+                  <span className="font-mono">{attempt.provider}/{attempt.model}</span>
+                  <span className="text-[var(--soft-ink-soft)]">{formatTokens(attempt.totalTokens)} токенов · {formatCost(attempt.estimatedCostMicros)} · {attempt.latencyMs ? `${attempt.latencyMs} ms` : "нет времени ответа"}</span>
+                  {attempt.errorCode && <span className="text-red-700">{attempt.errorCode}</span>}
+                </div>
+              ))}
+              {interaction.attempts.length === 0 ? <p className="text-xs text-[var(--soft-ink-soft)]">Попытки маршрутизации не записаны.</p> : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
 function PaginationBar({
   page,
   total,
@@ -708,7 +811,7 @@ function ModelCostTableRow({
   currency: DisplayCurrency;
   onSavePricing: (provider: AIProvider, modelId: string, inputTokenCostMicros: number | null, outputTokenCostMicros: number | null) => Promise<void> | void;
 }) {
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<ModelPricingDraft>({
     input: row.model.inputTokenCostMicros ?? "",
     output: row.model.outputTokenCostMicros ?? "",
   });
@@ -790,7 +893,7 @@ function ProviderTableRow({
 }) {
   const cfUrl = cloudflareGateway.configured ? cloudflareGateway.providerUrls?.[provider.provider] ?? null : null;
   const directUrl = DIRECT_PROVIDER_BASE_URLS[provider.provider];
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<ProviderConfigDraft>({
     enabled: provider.enabled,
     cloudflareGatewayEnabled: provider.cloudflareGatewayEnabled ?? false,
     priority: provider.priority,
@@ -928,7 +1031,7 @@ function CredentialTableRow({
   canViewSecrets: boolean;
 }) {
   const originalKey = credential.apiKey ?? "";
-  const [draft, setDraft] = useState({
+  const [draft, setDraft] = useState<CredentialDraft>({
     label: credential.label,
     apiKey: originalKey,
     enabled: credential.enabled,
@@ -1073,7 +1176,8 @@ function PolicyTableRow({
   disabled: boolean;
   onSave: (payload: Record<string, unknown>) => Promise<void> | void;
 }) {
-  const [draft, setDraft] = useState({
+  const [openModal, setOpenModal] = useState(false);
+  const [draft, setDraft] = useState<RoutingPolicyDraft>({
     enabled: policy.enabled,
     providerOrder: providerOrderWithAllProviders(policy.providerOrder),
     modelPreferences: modelPreferencesWithRecommendations(policy, models),
@@ -1084,8 +1188,8 @@ function PolicyTableRow({
     perUserDailyTokenBudget: policy.perUserDailyTokenBudget ?? "",
   });
   const [draggedProvider, setDraggedProvider] = useState<AIProvider | null>(null);
-  const providerConfigById = useMemo(() => new Map(providers.map((provider) => [provider.provider, provider])), [providers]);
   const product = productFromFeature(policy.feature);
+  const providerLabelById = useMemo(() => new Map(providers.map((provider) => [provider.provider, provider.displayName])), [providers]);
 
   function moveProvider(provider: AIProvider, direction: -1 | 1) {
     const index = draft.providerOrder.indexOf(provider);
@@ -1115,6 +1219,24 @@ function PolicyTableRow({
     });
   }
 
+  function saveDraft() {
+    const modelPreferences = Object.fromEntries(
+      Object.entries(draft.modelPreferences).filter(([, value]) => typeof value === "string" && value.trim()),
+    );
+    void Promise.resolve(onSave({
+      type: "policy",
+      feature: policy.feature,
+      enabled: draft.enabled,
+      providerOrder: draft.providerOrder,
+      modelPreferences,
+      maxTokens: draft.maxTokens === "" ? null : Number(draft.maxTokens),
+      temperature: draft.temperature === "" ? null : Number(draft.temperature),
+      timeoutMs: draft.timeoutMs === "" ? null : Number(draft.timeoutMs),
+      dailyTokenBudget: draft.dailyTokenBudget === "" ? null : Number(draft.dailyTokenBudget),
+      perUserDailyTokenBudget: draft.perUserDailyTokenBudget === "" ? null : Number(draft.perUserDailyTokenBudget),
+    })).then(() => setOpenModal(false));
+  }
+
   return (
     <tr data-testid={`ai-policy-${policy.feature}`}>
       <td className={COMPACT_CELL_CLASS}>
@@ -1136,59 +1258,22 @@ function PolicyTableRow({
         <SoftBadge className="border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]">{policy.source === "database" ? "ручная" : "по умолчанию"}</SoftBadge>
       </td>
       <td className={COMPACT_CELL_CLASS}>
-        <label className="flex items-center gap-2 text-xs text-[var(--soft-ink-soft)]">
-          <input type="checkbox" checked={draft.enabled} onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })} />
-          active
-        </label>
+        <SoftBadge className={draft.enabled ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)]"}>
+          {draft.enabled ? "Включено" : "Отключено"}
+        </SoftBadge>
       </td>
       <td className={COMPACT_CELL_CLASS}>
-        <div className="grid min-w-[34rem] gap-1">
+        <div className="provider-logo-chain flex max-w-[22rem] flex-wrap items-center gap-1" title={draft.providerOrder.join(" → ")}>
           {draft.providerOrder.map((provider, index) => (
-            <div
-              key={provider}
-              draggable
-              onDragStart={() => setDraggedProvider(provider)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => dropOn(provider)}
-              className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-1"
-              title="Перетащите, чтобы изменить порядок"
-            >
-              <div className="inline-flex min-w-0 items-center gap-1 rounded border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-1 py-0.5 font-mono text-[10px] text-[var(--soft-ink)]">
-                <GripVertical className="h-3 w-3 shrink-0 text-[var(--soft-ink-soft)]" aria-hidden="true" />
-                <span className="truncate">{index + 1}. {provider}</span>
-              </div>
-              <ModelSelect
-                value={draft.modelPreferences[provider] ?? ""}
-                models={models[provider] ?? []}
-                provider={providerConfigById.get(provider)}
-                usdRub={usdRub}
-                currency={currency}
-                onChange={(value) => updateModel(provider, value)}
-                placeholder="модель провайдера"
-                recommendedValue={pickRecommendedModel(provider, policy, models[provider] ?? [])}
-              />
-              <span className="inline-flex items-center justify-end gap-0.5">
-                <button type="button" onClick={() => moveProvider(provider, -1)} disabled={index === 0} aria-label={`Поднять ${provider}`} className="rounded border border-[var(--soft-paper-edge)] bg-white p-0.5 disabled:opacity-35"><ArrowUp className="h-3 w-3" /></button>
-                <button type="button" onClick={() => moveProvider(provider, 1)} disabled={index === draft.providerOrder.length - 1} aria-label={`Опустить ${provider}`} className="rounded border border-[var(--soft-paper-edge)] bg-white p-0.5 disabled:opacity-35"><ArrowDown className="h-3 w-3" /></button>
+            <span key={provider} className="inline-flex items-center gap-1 rounded-full border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-[10px] font-semibold text-[var(--soft-ink)]">
+              <span className="inline-flex size-5 items-center justify-center rounded-full bg-[var(--soft-bordeaux)] text-[9px] font-bold text-white" aria-hidden="true">
+                {provider.slice(0, 2)}
               </span>
-            </div>
+              <span className="sr-only">{index + 1}. </span>
+              {providerLabelById.get(provider) ?? provider}
+            </span>
           ))}
         </div>
-      </td>
-      <td className={COMPACT_CELL_CLASS}>
-        <input value={draft.maxTokens} type="number" onChange={(event) => setDraft({ ...draft, maxTokens: event.target.value === "" ? "" : Number(event.target.value) })} placeholder="max" className={COMPACT_INPUT_CLASS} />
-      </td>
-      <td className={COMPACT_CELL_CLASS}>
-        <input value={draft.temperature} type="number" step="0.1" onChange={(event) => setDraft({ ...draft, temperature: event.target.value === "" ? "" : Number(event.target.value) })} placeholder="temp" className={COMPACT_INPUT_CLASS} />
-      </td>
-      <td className={COMPACT_CELL_CLASS}>
-        <input value={draft.timeoutMs} type="number" onChange={(event) => setDraft({ ...draft, timeoutMs: event.target.value === "" ? "" : Number(event.target.value) })} placeholder="timeout" className={COMPACT_INPUT_CLASS} />
-      </td>
-      <td className={COMPACT_CELL_CLASS}>
-        <input value={draft.dailyTokenBudget} type="number" onChange={(event) => setDraft({ ...draft, dailyTokenBudget: event.target.value === "" ? "" : Number(event.target.value) })} placeholder="feature/day" className={COMPACT_INPUT_CLASS} />
-      </td>
-      <td className={COMPACT_CELL_CLASS}>
-        <input value={draft.perUserDailyTokenBudget} type="number" onChange={(event) => setDraft({ ...draft, perUserDailyTokenBudget: event.target.value === "" ? "" : Number(event.target.value) })} placeholder="user/day" className={COMPACT_INPUT_CLASS} />
       </td>
       <td className={COMPACT_CELL_CLASS}>
         <span className={errorCount > 0 ? "text-red-700" : "text-[var(--soft-ink-soft)]"}>{errorCount}</span>
@@ -1199,30 +1284,189 @@ function PolicyTableRow({
           className="soft-admin-icon-button"
           data-variant="primary"
           disabled={disabled}
-          onClick={() => {
-            const modelPreferences = Object.fromEntries(
-              Object.entries(draft.modelPreferences).filter(([, value]) => typeof value === "string" && value.trim()),
-            );
-            void onSave({
-              type: "policy",
-              feature: policy.feature,
-              enabled: draft.enabled,
-              providerOrder: draft.providerOrder,
-              modelPreferences,
-              maxTokens: draft.maxTokens === "" ? null : Number(draft.maxTokens),
-              temperature: draft.temperature === "" ? null : Number(draft.temperature),
-              timeoutMs: draft.timeoutMs === "" ? null : Number(draft.timeoutMs),
-              dailyTokenBudget: draft.dailyTokenBudget === "" ? null : Number(draft.dailyTokenBudget),
-              perUserDailyTokenBudget: draft.perUserDailyTokenBudget === "" ? null : Number(draft.perUserDailyTokenBudget),
-            });
-          }}
-          title="Сохранить цепочку маршрутизации"
-          aria-label={`Сохранить цепочку маршрутизации ${policy.title ?? policy.feature}`}
+          onClick={() => setOpenModal(true)}
+          title="Изменить цепочку маршрутизации"
+          aria-label={`Изменить цепочку маршрутизации ${policy.title ?? policy.feature}`}
         >
-          <Save className="h-3.5 w-3.5" aria-hidden="true" />
+          Изменить
         </button>
+        {openModal ? (
+          <RoutingChainModal
+            title={policy.title ?? policy.feature}
+            feature={policy.feature}
+            enabled={draft.enabled}
+            providerOrder={draft.providerOrder}
+            modelPreferences={draft.modelPreferences}
+            maxTokens={draft.maxTokens}
+            temperature={draft.temperature}
+            timeoutMs={draft.timeoutMs}
+            dailyTokenBudget={draft.dailyTokenBudget}
+            perUserDailyTokenBudget={draft.perUserDailyTokenBudget}
+            providers={providers}
+            models={models}
+            usdRub={usdRub}
+            currency={currency}
+            draggedProvider={draggedProvider}
+            setDraggedProvider={setDraggedProvider}
+            onEnabledChange={(enabled) => setDraft({ ...draft, enabled })}
+            onDropProvider={dropOn}
+            onMoveProvider={moveProvider}
+            onModelChange={updateModel}
+            onMaxTokensChange={(value) => setDraft({ ...draft, maxTokens: value })}
+            onTemperatureChange={(value) => setDraft({ ...draft, temperature: value })}
+            onTimeoutChange={(value) => setDraft({ ...draft, timeoutMs: value })}
+            onDailyBudgetChange={(value) => setDraft({ ...draft, dailyTokenBudget: value })}
+            onUserBudgetChange={(value) => setDraft({ ...draft, perUserDailyTokenBudget: value })}
+            onClose={() => setOpenModal(false)}
+            onSave={saveDraft}
+            disabled={disabled}
+          />
+        ) : null}
       </td>
     </tr>
+  );
+}
+
+function RoutingChainModal({
+  title,
+  feature,
+  enabled,
+  providerOrder,
+  modelPreferences,
+  maxTokens,
+  temperature,
+  timeoutMs,
+  dailyTokenBudget,
+  perUserDailyTokenBudget,
+  providers,
+  models,
+  usdRub,
+  currency,
+  draggedProvider,
+  setDraggedProvider,
+  onEnabledChange,
+  onDropProvider,
+  onMoveProvider,
+  onModelChange,
+  onMaxTokensChange,
+  onTemperatureChange,
+  onTimeoutChange,
+  onDailyBudgetChange,
+  onUserBudgetChange,
+  onClose,
+  onSave,
+  disabled,
+}: {
+  title: string;
+  feature: string;
+  enabled: boolean;
+  providerOrder: AIProvider[];
+  modelPreferences: Partial<Record<AIProvider, string>>;
+  maxTokens: number | "";
+  temperature: number | "";
+  timeoutMs: number | "";
+  dailyTokenBudget: number | "";
+  perUserDailyTokenBudget: number | "";
+  providers: ProviderRow[];
+  models: ModelsByProvider;
+  usdRub: number | null;
+  currency: DisplayCurrency;
+  draggedProvider: AIProvider | null;
+  setDraggedProvider: (provider: AIProvider | null) => void;
+  onEnabledChange: (enabled: boolean) => void;
+  onDropProvider: (provider: AIProvider) => void;
+  onMoveProvider: (provider: AIProvider, direction: -1 | 1) => void;
+  onModelChange: (provider: AIProvider, value: string) => void;
+  onMaxTokensChange: (value: number | "") => void;
+  onTemperatureChange: (value: number | "") => void;
+  onTimeoutChange: (value: number | "") => void;
+  onDailyBudgetChange: (value: number | "") => void;
+  onUserBudgetChange: (value: number | "") => void;
+  onClose: () => void;
+  onSave: () => void;
+  disabled: boolean;
+}) {
+  const providerConfigById = useMemo(() => new Map(providers.map((provider) => [provider.provider, provider])), [providers]);
+  void draggedProvider;
+  return (
+    <dialog open className="soft-admin-detail-dialog" aria-label={`Редактирование маршрута ${title}`}>
+      <div className="soft-admin-detail-dialog__panel w-[min(1040px,calc(100vw-32px))]">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Цепочка маршрутизации</p>
+            <h3 className="mt-1 text-lg font-semibold text-[var(--soft-ink)]">{title}</h3>
+            <p className="mt-1 font-mono text-xs text-[var(--soft-ink-soft)]">{feature}</p>
+          </div>
+          <button type="button" className="soft-admin-icon-button" onClick={onClose} aria-label="Закрыть">
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 text-sm text-[var(--soft-ink)]">
+            <input type="checkbox" checked={enabled} onChange={(event) => onEnabledChange(event.target.checked)} />
+            Цепочка включена
+          </label>
+          <span className="text-xs text-[var(--soft-ink-soft)]">Перетащите провайдера, чтобы изменить приоритет fallback.</span>
+        </div>
+        <div className="grid gap-2">
+          {providerOrder.map((provider, index) => (
+            <div
+              key={provider}
+              draggable
+              onDragStart={() => setDraggedProvider(provider)}
+              onDragEnd={() => setDraggedProvider(null)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => onDropProvider(provider)}
+              className="grid grid-cols-[9rem_minmax(0,1fr)_4rem] items-center gap-2 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-2"
+              title="Перетащите, чтобы изменить порядок"
+            >
+              <div className="inline-flex min-w-0 items-center gap-2 rounded border border-[var(--soft-paper-edge)] bg-white px-2 py-1 font-mono text-[11px] text-[var(--soft-ink)]">
+                <GripVertical className="h-3.5 w-3.5 shrink-0 text-[var(--soft-ink-soft)]" aria-hidden="true" />
+                <span className="truncate">{index + 1}. {provider}</span>
+              </div>
+              <ModelSelect
+                value={modelPreferences[provider] ?? ""}
+                models={models[provider] ?? []}
+                provider={providerConfigById.get(provider)}
+                usdRub={usdRub}
+                currency={currency}
+                onChange={(value) => onModelChange(provider, value)}
+                placeholder="модель провайдера"
+                recommendedValue={pickRecommendedModel(provider, { feature, enabled, providerOrder }, models[provider] ?? [])}
+              />
+              <span className="inline-flex items-center justify-end gap-0.5">
+                <button type="button" onClick={() => onMoveProvider(provider, -1)} disabled={index === 0} aria-label={`Поднять ${provider}`} className="rounded border border-[var(--soft-paper-edge)] bg-white p-1 disabled:opacity-35"><ArrowUp className="h-3 w-3" /></button>
+                <button type="button" onClick={() => onMoveProvider(provider, 1)} disabled={index === providerOrder.length - 1} aria-label={`Опустить ${provider}`} className="rounded border border-[var(--soft-paper-edge)] bg-white p-1 disabled:opacity-35"><ArrowDown className="h-3 w-3" /></button>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-5">
+          <label className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">Макс. токены
+            <input value={maxTokens} type="number" onChange={(event) => onMaxTokensChange(event.target.value === "" ? "" : Number(event.target.value))} className={COMPACT_INPUT_CLASS} />
+          </label>
+          <label className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">Температура
+            <input value={temperature} type="number" step="0.1" onChange={(event) => onTemperatureChange(event.target.value === "" ? "" : Number(event.target.value))} className={COMPACT_INPUT_CLASS} />
+          </label>
+          <label className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">Таймаут, ms
+            <input value={timeoutMs} type="number" onChange={(event) => onTimeoutChange(event.target.value === "" ? "" : Number(event.target.value))} className={COMPACT_INPUT_CLASS} />
+          </label>
+          <label className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">Бюджет функции
+            <input value={dailyTokenBudget} type="number" onChange={(event) => onDailyBudgetChange(event.target.value === "" ? "" : Number(event.target.value))} className={COMPACT_INPUT_CLASS} />
+          </label>
+          <label className="grid gap-1 text-xs text-[var(--soft-ink-soft)]">Бюджет пользователя
+            <input value={perUserDailyTokenBudget} type="number" onChange={(event) => onUserBudgetChange(event.target.value === "" ? "" : Number(event.target.value))} className={COMPACT_INPUT_CLASS} />
+          </label>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={onClose}>Отмена</button>
+          <button type="button" className="soft-admin-action" data-variant="primary" disabled={disabled} onClick={onSave}>
+            <Save className="size-4" aria-hidden="true" />
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </dialog>
   );
 }
 
@@ -1343,6 +1587,7 @@ export function AIControlCenter({
   usdRub,
   currency,
   currencyRateLabel,
+  usagePeriod,
 }: {
   providers: ProviderRow[];
   policies: PolicyRow[];
@@ -1358,6 +1603,7 @@ export function AIControlCenter({
   usdRub: number | null;
   currency: DisplayCurrency;
   currencyRateLabel: string;
+  usagePeriod: string;
 }) {
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -1412,6 +1658,7 @@ export function AIControlCenter({
   });
   const [interactionSort, setInteractionSort] = useState<SortState<"createdAt" | "feature" | "user" | "status" | "provider" | "tokens" | "cost">>({ key: "createdAt", direction: "desc" });
   const [interactionPage, setInteractionPage] = useState(1);
+  const [openInteractionId, setOpenInteractionId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -1896,7 +2143,7 @@ export function AIControlCenter({
 
       <section
         className="grid gap-3 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4 md:grid-cols-3"
-        data-testid="admin-ai-v42-guardrails"
+        data-testid="admin-ai-guardrails"
       >
         <div>
           <p className="soft-eyebrow">бесплатный слой</p>
@@ -2109,7 +2356,7 @@ export function AIControlCenter({
 
       <section data-testid="admin-ai-policies">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Цепочки маршрутизации по продуктам</h2>
-        <CompactTableShell minWidth="2100px">
+        <CompactTableShell minWidth="1320px">
           <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
               <CompactHeader label="Продукт" sortKey="product" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)}>
@@ -2144,18 +2391,13 @@ export function AIControlCenter({
                   {PROVIDERS.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
                 </select>
               </th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Макс. токены</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Температура</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Таймаут</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Бюджет функции</th>
-              <th className={`${COMPACT_HEADER_CLASS} px-1.5 py-2`}>Бюджет пользователя</th>
               <CompactHeader label="Ошибки" sortKey="errors" activeSortKey={policySort.key} direction={policySort.direction} onSort={(key) => togglePolicySort(key as typeof policySort.key)} />
               <th className={`${COMPACT_HEADER_CLASS} border-r-0 px-1.5 py-2`}>Действия</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--soft-paper-edge)]">
             {pagedPolicies.length === 0 ? (
-              <tr><td colSpan={15} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Цепочек по фильтрам нет</td></tr>
+              <tr><td colSpan={10} className="px-3 py-8 text-center text-[var(--soft-ink-soft)]">Цепочек по фильтрам нет</td></tr>
             ) : pagedPolicies.map((policy) => (
               <PolicyTableRow
                 key={policy.feature}
@@ -2228,7 +2470,12 @@ export function AIControlCenter({
       </section>
 
       <section data-testid="admin-ai-usage-details">
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Расход токенов и денег</h2>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Расход токенов и денег</h2>
+          <p className="text-xs text-[var(--soft-ink-soft)]">
+            Период: {usagePeriod} · AIRequest + аудит взаимодействий
+          </p>
+        </div>
         <CompactTableShell minWidth="1120px">
           <thead className="bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
@@ -2289,7 +2536,7 @@ export function AIControlCenter({
           <thead className="bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
             <tr>
               <CompactHeader label="Время" sortKey="createdAt" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
-                <input value={interactionFilters.createdAt} onChange={(event) => { setInteractionFilters({ ...interactionFilters, createdAt: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
+                <input type="date" value={interactionFilters.createdAt} onChange={(event) => { setInteractionFilters({ ...interactionFilters, createdAt: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} aria-label="Фильтр по дате LLM-аудита" />
               </CompactHeader>
               <CompactHeader label="Функция" sortKey="feature" activeSortKey={interactionSort.key} direction={interactionSort.direction} onSort={(key) => toggleInteractionSort(key as typeof interactionSort.key)}>
                 <input value={interactionFilters.feature} onChange={(event) => { setInteractionFilters({ ...interactionFilters, feature: event.target.value }); setInteractionPage(1); }} className={COMPACT_INPUT_CLASS} placeholder="Фильтр" />
@@ -2338,44 +2585,14 @@ export function AIControlCenter({
                   <RenderedAuditText content={interaction.responseText ?? interaction.errorText ?? "Нет ответа"} className="max-h-24 overflow-hidden" />
                 </td>
                 <td className={`${COMPACT_CELL_CLASS} border-r-0`}>
-                      <details>
-                        <summary className="cursor-pointer text-[var(--soft-bordeaux)]">Открыть</summary>
-                        <div className="mt-3 grid gap-3 xl:grid-cols-2">
-                          <div className="space-y-2">
-                            <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">
-                              <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                              Запрос и контекст для LLM
-                            </p>
-                            <div className="max-h-96 min-w-[28rem] space-y-2 overflow-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3">
-                              {interaction.messages.map((item, index) => (
-                                <div key={`${interaction.id}:message:${index}`} className="rounded-md bg-white/70 p-2">
-                                  <p className="mb-1 text-[11px] font-semibold uppercase text-[var(--soft-bordeaux)]">{item.role}</p>
-                                  <pre className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--soft-ink)]">{renderAuditContent(item.content)}</pre>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Ответ LLM и попытки</p>
-                            <RenderedAuditText
-                              content={interaction.responseText ?? interaction.errorText ?? "Нет ответа"}
-                              className="max-h-72 min-w-[28rem] overflow-auto rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3"
-                            />
-                            <div className="space-y-1">
-                              {interaction.attempts.map((attempt, index) => (
-                                <div key={`${interaction.id}:attempt:${index}`} className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--soft-surface)] px-3 py-2 text-xs">
-                                  <SoftBadge className={statusTone(attempt.status)}>{statusLabel(attempt.status)}</SoftBadge>
-                                  <span className="font-mono">{attempt.provider}/{attempt.model}</span>
-                                  <span className="text-[var(--soft-ink-soft)]">{attempt.totalTokens} токенов · {formatCost(attempt.estimatedCostMicros)} · {attempt.latencyMs ? `${attempt.latencyMs} ms` : "нет времени ответа"}</span>
-                                  {attempt.errorCode && <span className="text-red-700">{attempt.errorCode}</span>}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </details>
-                    </td>
-                  </tr>
+                  <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setOpenInteractionId(interaction.id)}>
+                    Открыть
+                  </button>
+                  {openInteractionId === interaction.id ? (
+                    <InteractionAuditModal interaction={interaction} formatCost={formatCost} onClose={() => setOpenInteractionId(null)} />
+                  ) : null}
+                </td>
+              </tr>
             ))}
           </tbody>
         </CompactTableShell>

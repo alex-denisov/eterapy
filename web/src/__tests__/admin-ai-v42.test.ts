@@ -15,7 +15,7 @@ describe("B229 admin AI v4.2 routing console", () => {
     expect(page).toContain("маршрутизация LLM · контроль затрат");
     expect(page).toContain("free, paid, sensitive, speech");
     expect(page).not.toContain("font-heading text-2xl font-bold");
-    expect(center).toContain('data-testid="admin-ai-v42-guardrails"');
+    expect(center).toContain('data-testid="admin-ai-guardrails"');
     expect(center).toContain('data-testid="admin-ai-ops-metrics"');
     expect(center).toContain('data-testid="admin-ai-prompts"');
     expect(center).toContain('data-testid="admin-ai-interactions"');

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { computePractitionerBalances } from "@/lib/practitioner-balance";
-import { AdminHero, MetricCard, MetricGrid, formatNumber } from "../../admin-analytics-ui";
+import { AdminHero, MetricCard, MetricGrid } from "../../admin-analytics-ui";
 import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { FinanceExportMenu } from "../export-menu";
@@ -122,10 +122,6 @@ export default async function FinancePayoutsPage({ searchParams }: PageProps) {
         />
       </div>
 
-      <p className="mt-4 text-xs text-[var(--soft-ink-soft)]">
-        В таблице выводится 20 практиков на страницу; выбранные чекбоксы сохраняются при переходе между страницами внутри текущей сессии страницы.
-        Всего активных практиков: {formatNumber(list.length)}.
-      </p>
     </main>
   );
 }
