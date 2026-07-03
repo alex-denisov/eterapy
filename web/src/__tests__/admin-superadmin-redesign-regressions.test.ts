@@ -61,6 +61,7 @@ describe("Superadmin redesign regression guardrails", () => {
   it("adds an overall stacked daily product histogram before per-product charts", () => {
     const results = source("src/app/admin/product/results/page.tsx");
     const data = source("src/app/admin/admin-analytics-data.ts");
+    const proxy = source("src/proxy.ts");
 
     expect(results).toContain('title="Все продукты по дням"');
     expect(results).toContain("StackedBarChart");
@@ -68,6 +69,8 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(results).toContain("data.charts.productByDayStacked");
     expect(results).toContain("appUrl(`/cabinet/results/${result.id}`)");
     expect(results).not.toContain("`/api/admin/product-results/${result.id}`");
+    expect(proxy).toContain("isAdminResultInspectionPath");
+    expect(proxy).toContain('pathname.startsWith("/cabinet/results/")');
     expect(data).toContain("normalizeAdminProductKey");
     expect(data).toContain("catalogProductKeys");
     expect(data).toContain("productPlanByDay.get(normalizedProductKey)");

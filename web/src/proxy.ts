@@ -160,6 +160,10 @@ function isRemovedPath(pathname: string): boolean {
   return REMOVED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 }
 
+function isAdminResultInspectionPath(pathname: string): boolean {
+  return pathname.startsWith("/cabinet/results/") || pathname.startsWith("/results/");
+}
+
 export default async function proxy(request: NextRequest) {
   const context = requestContextFromHeaders(request.headers);
   const requestHeaders = new Headers(request.headers);
@@ -265,6 +269,14 @@ export default async function proxy(request: NextRequest) {
       return applyRobotsPolicy(redirectAbs(MAIN_DOMAIN, `/login?next=${encodedNext(nextPath, request.nextUrl.search)}`, context), host, pathname);
     }
     if (isAdminRole(appRole)) {
+      if (isAdminResultInspectionPath(pathname)) {
+        if (pathname.startsWith("/results/")) {
+          const rewriteUrl = internalRewriteUrl(request, `/cabinet${pathname}`);
+          rewriteUrl.search = request.nextUrl.search;
+          return applyRobotsPolicy(rewriteWithContext(rewriteUrl, requestHeaders, context), host, pathname);
+        }
+        return applyRobotsPolicy(nextWithContext(requestHeaders, context), host, pathname);
+      }
       return applyRobotsPolicy(redirectAbs(ADMIN_DOMAIN, "/admin", context), host, pathname);
     }
     // CLIENT or PRACTITIONER (or an admin/superadmin impersonating one)
