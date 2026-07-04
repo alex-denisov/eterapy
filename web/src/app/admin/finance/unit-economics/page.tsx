@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { getUnitEconomicsData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
 import { adminCurrencyUnit, formatAdminAiCost, formatAdminCurrencyNumber, formatCbrRateLabel, getAdminCurrencyRates, microsUsdToDisplayCurrency, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
-import { AdminHero, AnalyticsSection, PeriodToolbar, VerticalBarChart } from "../../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, PeriodToolbar, SmallMultiplesBarGrid } from "../../admin-analytics-ui";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -31,20 +31,19 @@ export default async function UnitEconomicsPage({ searchParams }: PageProps) {
       >
         Фактические затраты платформы на оказание услуг считаются по AIRequest. Для каждой услуги показана отдельная дневная гистограмма.
       </AdminHero>
-      <div className="grid gap-4">
-        {rows.length === 0 ? (
-          <AnalyticsSection title="Нет AI-затрат за период">Нет данных за выбранный период.</AnalyticsSection>
-        ) : rows.map((row) => (
-          <AnalyticsSection key={row.feature} title={`${productLabel(row.feature)} · ${formatAdminAiCost(row.totalMicros, currencyRates, currency)}`}>
-            <VerticalBarChart
-              label="Фактические AI-затраты по дням"
-              unit={adminCurrencyUnit(currency)}
-              data={row.chart.map((point) => ({ ...point, value: microsUsdToDisplayCurrency(point.value, currency, currencyRates) ?? 0 }))}
-              valueFormatter={(value) => formatAdminCurrencyNumber(value, currency)}
-            />
-          </AnalyticsSection>
-        ))}
-      </div>
+      <AnalyticsSection title="Фактические AI-затраты по услугам">
+        <SmallMultiplesBarGrid
+          items={rows.map((row) => ({
+            key: row.feature,
+            title: productLabel(row.feature),
+            value: formatAdminAiCost(row.totalMicros, currencyRates, currency),
+            unit: adminCurrencyUnit(currency),
+            data: row.chart.map((point) => ({ ...point, value: microsUsdToDisplayCurrency(point.value, currency, currencyRates) ?? 0 })),
+            valueFormatter: (value) => formatAdminCurrencyNumber(value, currency),
+          }))}
+          empty="Нет AI-затрат за выбранный период."
+        />
+      </AnalyticsSection>
     </main>
   );
 }

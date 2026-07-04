@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chartBuckets, chartFromMap, dayKey, productLabel, resolveAdminPeriod } from "@/app/admin/admin-analytics-data";
+import { ADMIN_PLATFORM_FIRST_DEPLOY_ISO } from "@/app/admin/admin-period-utils";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
@@ -62,8 +63,9 @@ describe("Admin analytics shared controls and chart data", () => {
   it("resolves all-time periods without silently truncating days and uses monthly chart buckets", () => {
     const period = resolveAdminPeriod({ period: "all" });
 
-    expect(period.startInput).toBe("2020-01-01");
-    expect(period.days.length).toBeGreaterThan(370);
+    expect(period.startInput).toBe(ADMIN_PLATFORM_FIRST_DEPLOY_ISO);
+    expect(period.startInput).not.toBe("2020-01-01");
+    expect(period.days.length).toBeGreaterThan(30);
 
     const longDays = Array.from({ length: 430 }, (_, index) => {
       const date = new Date(2025, 0, 1 + index);
@@ -91,7 +93,14 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(shell).toContain("ADMIN_CURRENCY_STORAGE_KEY");
     expect(periodToolbar).toContain("saveAdminPeriodPreference");
     expect(periodToolbar).toContain("restoreAdminPeriodPreference");
-    expect(periodToolbar).toContain('["all", "Все время"]');
+    expect(periodToolbar).toContain('data-testid="admin-period-mode-today"');
+    expect(periodToolbar).toContain('data-testid="admin-period-mode-day"');
+    expect(periodToolbar).toContain('data-testid="admin-period-mode-week"');
+    expect(periodToolbar).toContain('data-testid="admin-period-mode-quarter"');
+    expect(periodToolbar).toContain('data-testid="admin-period-mode-all"');
+    expect(periodToolbar).toContain('type="week"');
+    expect(periodToolbar).toContain("quarterOptions");
+    expect(periodToolbar).not.toContain('["month", "Месяц"]');
     expect(currencySelector).toContain("saveAdminCurrencyPreference");
     expect(currencySelector).toContain("restoreAdminCurrencyPreference");
   });
@@ -110,6 +119,10 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(ui).toContain("buildVerticalTooltipHits");
     expect(ui).toContain("buildStackedTooltipHits");
     expect(ui).toContain("axisSlotWidth");
+    expect(ui).toContain("axisLabelStep");
+    expect(ui).toContain("SmallMultiplesBarGrid");
+    expect(ui).toContain("MiniBarSparkline");
+    expect(ui).toContain("data-testid=\"admin-small-multiples-grid\"");
     expect(ui).toContain("tooltipSize");
     expect(ui).not.toContain("Math.min(280");
     expect(ui).not.toContain("Math.min(300");

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { LogsTabs } from "./logs-viewer";
+import { LogsCenter } from "./logs-viewer";
 import { PageContainer } from "@/components/ui/page-container";
 import { AdminCompactDataTable, type AdminCompactColumn, type AdminCompactRow } from "@/components/admin/compact-client-table";
 
@@ -168,7 +168,7 @@ export default async function AdminLogsPage(props: {
         <span className="soft-admin-status-pill">последние {AUDIT_LIMIT} событий</span>
       </div>
 
-      <LogsTabs auditTable={
+      <LogsCenter auditTable={
         <div data-testid="admin-audit-log-table">
           <AdminCompactDataTable
             columns={columns}

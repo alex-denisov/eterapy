@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { appUrl } from "@/lib/subdomain";
 import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/admin/compact-client-table";
 import { getProductCenterData, productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
-import { AdminHero, AnalyticsSection, PeriodToolbar, StackedBarChart, VerticalBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
+import { AdminHero, AnalyticsSection, PeriodToolbar, SmallMultiplesBarGrid, StackedBarChart, formatDateTime, formatNumber, statusLabel } from "../../admin-analytics-ui";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -54,18 +54,19 @@ export default async function ProductResultsPage({ searchParams }: PageProps) {
             integerTicks
           />
         </AnalyticsSection>
-        {data.charts.productUsageByProduct.length === 0 ? (
-          <AnalyticsSection title="Использование продуктов">Нет результатов за выбранный период.</AnalyticsSection>
-        ) : data.charts.productUsageByProduct.map((item) => (
-          <AnalyticsSection key={item.productKey} title={`${item.label} · ${formatNumber(item.total)}`}>
-            <VerticalBarChart
-              label="Заказы по календарным дням в разрезе тарифа клиента"
-              data={item.chart}
-              seriesLabels={["Free / без подписки", "Plus", "Premium"]}
-              integerTicks
-            />
-          </AnalyticsSection>
-        ))}
+        <AnalyticsSection title="Использование каждого продукта">
+          <SmallMultiplesBarGrid
+            items={data.charts.productUsageByProduct.map((item) => ({
+              key: item.productKey,
+              title: item.label,
+              value: `${formatNumber(item.total)} заказов`,
+              data: item.chart,
+              seriesLabels: ["Free / без подписки", "Plus", "Premium"],
+              integerTicks: true,
+            }))}
+            empty="Нет результатов за выбранный период."
+          />
+        </AnalyticsSection>
       </div>
       <div className="mt-6">
         <AdminCompactDataTable

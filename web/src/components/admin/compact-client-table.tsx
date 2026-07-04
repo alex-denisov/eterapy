@@ -155,6 +155,7 @@ export function AdminCompactDataTable({
   const visibleRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
   const selectableIds = visibleRows.map((row) => row.id);
   const allVisibleSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+  const hasBulkActions = selectable && selectedIds.size > 0;
 
   function updateFilter(key: string, value: string | string[]) {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -192,109 +193,219 @@ export function AdminCompactDataTable({
 
   return (
     <div className="space-y-2" data-testid="admin-compact-data-table">
-      <div className="flex min-h-8 flex-wrap items-center justify-between gap-2">
-        {selectable && selectedIds.size > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="font-medium text-[var(--soft-ink-soft)]">Выбрано: {selectedIds.size}</span>
-            {bulkActions.map((action) => (
-              <button
-                key={action.key}
-                type="button"
-                className="soft-admin-action"
-                data-variant={action.variant ?? "subtle"}
-                title={action.label}
-                disabled={action.disabled || !onBulkAction}
-                onClick={() => {
-                  if (!onBulkAction) return;
-                  onBulkAction(action.key, Array.from(selectedIds));
-                }}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        ) : <span />}
-      </div>
+      {hasBulkActions ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs" data-testid="admin-compact-bulk-actions">
+          <span className="font-medium text-[var(--soft-ink-soft)]">Выбрано: {selectedIds.size}</span>
+          {bulkActions.map((action) => (
+            <button
+              key={action.key}
+              type="button"
+              className="soft-admin-action"
+              data-variant={action.variant ?? "subtle"}
+              title={action.label}
+              disabled={action.disabled || !onBulkAction}
+              onClick={() => {
+                if (!onBulkAction) return;
+                onBulkAction(action.key, Array.from(selectedIds));
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-      <CompactTableShell minWidth={minWidth}>
-        <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
-          <tr>
-            {selectable ? (
-              <th className="border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium">
-                <div className="grid gap-1 p-1">
-                  <div className="flex h-7 items-center justify-center">
+      <div className="hidden md:block">
+        <CompactTableShell minWidth={minWidth}>
+          <thead className="sticky top-0 z-10 bg-[var(--soft-surface)] text-[var(--soft-ink-soft)]">
+            <tr>
+              {selectable ? (
+                <th className="border-r border-[var(--soft-paper-edge)] p-0 align-top font-medium">
+                  <div className="grid gap-1 p-1">
+                    <div className="flex h-7 items-center justify-center">
+                      <input
+                        type="checkbox"
+                        className="accent-[var(--soft-bordeaux)]"
+                        checked={allVisibleSelected}
+                        disabled={selectableIds.length === 0}
+                        onChange={(event) => toggleVisibleRows(event.target.checked)}
+                        aria-label="Выбрать строки на странице"
+                      />
+                    </div>
+                  </div>
+                </th>
+              ) : null}
+              {columns.map((column) => (
+                <CompactHeader
+                  key={column.key}
+                  label={column.label}
+                  sortKey={column.sortable ? column.key : undefined}
+                  activeSortKey={sortKey}
+                  direction={sortDirection}
+                  onSort={column.sortable ? toggleSort : undefined}
+                >
+                  <HeaderFilter
+                    column={column}
+                    value={filters[column.key]}
+                    onChange={(value) => updateFilter(column.key, value)}
+                    onClear={() => clearFilter(column.key)}
+                  />
+                </CompactHeader>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + (selectable ? 1 : 0)} className={`${COMPACT_CELL_CLASS} py-8 text-center text-sm text-[var(--soft-ink-soft)]`}>
+                  {empty}
+                </td>
+              </tr>
+            ) : visibleRows.map((row) => (
+              <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
+                {selectable ? (
+                  <td className={`${COMPACT_CELL_CLASS} text-center`}>
                     <input
                       type="checkbox"
                       className="accent-[var(--soft-bordeaux)]"
-                      checked={allVisibleSelected}
-                      disabled={selectableIds.length === 0}
-                      onChange={(event) => toggleVisibleRows(event.target.checked)}
-                      aria-label="Выбрать строки на странице"
+                      checked={selectedIds.has(row.id)}
+                      onChange={(event) => {
+                        setSelectedIds((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.add(row.id);
+                          else next.delete(row.id);
+                          return next;
+                        });
+                      }}
+                      aria-label="Выбрать строку"
                     />
-                  </div>
-                </div>
-              </th>
-            ) : null}
-            {columns.map((column) => (
-              <CompactHeader
-                key={column.key}
-                label={column.label}
-                sortKey={column.sortable ? column.key : undefined}
-                activeSortKey={sortKey}
-                direction={sortDirection}
-                onSort={column.sortable ? toggleSort : undefined}
-              >
+                  </td>
+                ) : null}
+                {columns.map((column) => (
+                  <td
+                    key={column.key}
+                    className={`${COMPACT_CELL_CLASS} ${column.align === "right" ? "text-right tabular-nums" : column.align === "center" ? "text-center" : ""}`}
+                  >
+                    <CompactCell cell={row.cells[column.key]} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </CompactTableShell>
+      </div>
+
+      <div className="grid gap-2 md:hidden" data-testid="admin-compact-mobile-cards">
+        <details className="rounded-md border border-[var(--soft-paper-edge)] bg-white p-2">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Фильтры и сортировка</summary>
+          <div className="mt-2 grid gap-2">
+            {columns.filter((column) => (column.filterKind ?? (column.options ? "select" : "text")) !== "none").map((column) => (
+              <label key={column.key} className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+                <span>{column.label}</span>
                 <HeaderFilter
                   column={column}
                   value={filters[column.key]}
                   onChange={(value) => updateFilter(column.key, value)}
                   onClear={() => clearFilter(column.key)}
                 />
-              </CompactHeader>
+              </label>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {visibleRows.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length + (selectable ? 1 : 0)} className={`${COMPACT_CELL_CLASS} py-8 text-center text-sm text-[var(--soft-ink-soft)]`}>
-                {empty}
-              </td>
-            </tr>
-          ) : visibleRows.map((row) => (
-            <tr key={row.id} className="hover:bg-[var(--soft-surface)]">
-              {selectable ? (
-                <td className={`${COMPACT_CELL_CLASS} text-center`}>
-                  <input
-                    type="checkbox"
-                    className="accent-[var(--soft-bordeaux)]"
-                    checked={selectedIds.has(row.id)}
-                    onChange={(event) => {
-                      setSelectedIds((current) => {
-                        const next = new Set(current);
-                        if (event.target.checked) next.add(row.id);
-                        else next.delete(row.id);
-                        return next;
-                      });
-                    }}
-                    aria-label="Выбрать строку"
-                  />
-                </td>
-              ) : null}
-              {columns.map((column) => (
-                <td
-                  key={column.key}
-                  className={`${COMPACT_CELL_CLASS} ${column.align === "right" ? "text-right tabular-nums" : column.align === "center" ? "text-center" : ""}`}
-                >
-                  <CompactCell cell={row.cells[column.key]} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </CompactTableShell>
+            <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--soft-ink-soft)]">
+              <span>Сортировка</span>
+              <select
+                className={COMPACT_SELECT_CLASS}
+                value={`${sortKey}:${sortDirection}`}
+                onChange={(event) => {
+                  const [nextKey, nextDirection] = event.target.value.split(":");
+                  setSortKey(nextKey);
+                  setSortDirection(nextDirection === "asc" ? "asc" : "desc");
+                }}
+              >
+                {columns.filter((column) => column.sortable).flatMap((column) => [
+                  <option key={`${column.key}:asc`} value={`${column.key}:asc`}>{column.label}: по возрастанию</option>,
+                  <option key={`${column.key}:desc`} value={`${column.key}:desc`}>{column.label}: по убыванию</option>,
+                ])}
+              </select>
+            </label>
+          </div>
+        </details>
+        {visibleRows.length === 0 ? (
+          <div className="rounded-md border border-[var(--soft-paper-edge)] bg-white px-3 py-8 text-center text-sm text-[var(--soft-ink-soft)]">{empty}</div>
+        ) : visibleRows.map((row) => (
+          <CompactMobileCard
+            key={row.id}
+            row={row}
+            columns={columns}
+            selectable={selectable}
+            selected={selectedIds.has(row.id)}
+            onToggle={(checked) => {
+              setSelectedIds((current) => {
+                const next = new Set(current);
+                if (checked) next.add(row.id);
+                else next.delete(row.id);
+                return next;
+              });
+            }}
+          />
+        ))}
+      </div>
       <CompactPaginationBar page={safePage} total={filteredRows.length} pageSize={pageSize} onPage={setPage} />
     </div>
+  );
+}
+
+function CompactMobileCard({
+  row,
+  columns,
+  selectable,
+  selected,
+  onToggle,
+}: {
+  row: AdminCompactRow;
+  columns: AdminCompactColumn[];
+  selectable: boolean;
+  selected: boolean;
+  onToggle: (checked: boolean) => void;
+}) {
+  const actionColumns = columns.filter((column) => column.filterKind === "none" || column.key === "actions" || column.key === "open");
+  const valueColumns = columns.filter((column) => !actionColumns.includes(column));
+  const titleColumn = valueColumns[0];
+  return (
+    <article className="admin-compact-mobile-card rounded-md border border-[var(--soft-paper-edge)] bg-white p-3 shadow-[var(--soft-shadow-sm)]" data-testid="admin-compact-mobile-card">
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          {titleColumn ? (
+            <div className="text-sm font-semibold text-[var(--soft-ink)]">
+              <CompactCell cell={row.cells[titleColumn.key]} />
+            </div>
+          ) : null}
+        </div>
+        {selectable ? (
+          <input
+            type="checkbox"
+            className="mt-1 shrink-0 accent-[var(--soft-bordeaux)]"
+            checked={selected}
+            onChange={(event) => onToggle(event.target.checked)}
+            aria-label="Выбрать строку"
+          />
+        ) : null}
+      </div>
+      <dl className="grid gap-2">
+        {valueColumns.slice(titleColumn ? 1 : 0).map((column) => (
+          <div key={column.key} className="grid gap-0.5">
+            <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{column.label}</dt>
+            <dd className="min-w-0 text-xs text-[var(--soft-ink)]">
+              <CompactCell cell={row.cells[column.key]} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+      {actionColumns.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-1 border-t border-[var(--soft-paper-edge)] pt-2">
+          {actionColumns.map((column) => <CompactCell key={column.key} cell={row.cells[column.key]} />)}
+        </div>
+      ) : null}
+    </article>
   );
 }
 

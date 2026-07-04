@@ -44,13 +44,6 @@ interface RuntimeLogSnapshot {
   requestId?: string;
 }
 
-const LOG_TABS = {
-  all: "Все логи",
-  audit: "audit_logs",
-  diagnostics: "Диагностика",
-  runtime: "Runtime",
-} as const;
-
 const LOG_SOURCE_FAMILIES = [
   "Runtime",
   "pm2/",
@@ -316,7 +309,7 @@ function DiagnosticsPanel() {
  * T7: runtime log files rendered in the soft-admin data-table style with the
  * same level/search/source filtering the legacy console offered.
  */
-function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
+function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
   const [snapshot, setSnapshot] = useState<RuntimeLogSnapshot | null>(null);
   const [search, setSearch] = useState("");
   const [sourceFamily, setSourceFamily] = useState<LogCenterFacetKey>("all");
@@ -420,7 +413,6 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
     },
   }));
   const rows: AdminCompactRow[] = filteredEntries.map((entry) => {
-    const isExpanded = expandedId === entry.id;
     const fieldsText = Object.keys(entry.fields).length > 0 ? prettyJson(entry.fields) : "нет дополнительных полей";
     const eventText = `${entry.event} ${entry.raw} ${fieldsText}`;
     return {
@@ -450,18 +442,6 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
           node: (
             <span className="block min-w-[18rem] max-w-[42rem]">
               <span className="soft-admin-cell-truncate font-medium text-[var(--soft-ink)]" title={entry.event}>{entry.event}</span>
-              {isExpanded ? (
-                <span className="mt-2 grid gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-2 text-[11px] leading-relaxed text-[var(--soft-ink)] lg:grid-cols-2">
-                  <span>
-                    <span className="mb-1 block font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Исходная запись</span>
-                    <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white/75 p-2">{entry.raw}</pre>
-                  </span>
-                  <span>
-                    <span className="mb-1 block font-semibold uppercase tracking-wide text-[var(--soft-ink-soft)]">Разобранные поля</span>
-                    <pre className="max-h-56 overflow-auto whitespace-pre-wrap rounded bg-white/75 p-2">{fieldsText}</pre>
-                  </span>
-                </span>
-              ) : null}
             </span>
           ),
         },
@@ -474,53 +454,46 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
         actions: {
           kind: "actions",
           actions: [{
-            label: isExpanded ? "Свернуть запись" : "Открыть запись",
-            icon: isExpanded ? "cancel" : "open",
-            onClick: () => setExpandedId(isExpanded ? null : entry.id),
+            label: expandedId === entry.id ? "Запись выбрана" : "Открыть запись",
+            icon: "open",
+            onClick: () => setExpandedId(entry.id),
           }],
         },
       },
     };
   });
+  const selectedEntry = filteredEntries.find((entry) => entry.id === expandedId) ?? filteredEntries[0] ?? null;
+  const selectedFieldsText = selectedEntry && Object.keys(selectedEntry.fields).length > 0
+    ? prettyJson(selectedEntry.fields)
+    : "нет дополнительных полей";
 
   return (
-    <div className="space-y-4" data-testid="admin-runtime-logs-panel">
-      {unified ? (
-        <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Kibana-like поиск</p>
-                <h3 className="mt-1 text-base font-semibold text-[var(--soft-ink)]">Единый поиск по инфраструктурным и runtime-логам</h3>
-              </div>
-              <div className="flex flex-wrap gap-1.5" aria-label="Семейства источников логов">
-                {LOG_SOURCE_FAMILIES.map((family) => (
-                  <span key={family} className="rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-mono text-[11px] text-[var(--soft-ink-soft)]">
-                    {family}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-testid="admin-log-center-summary">
-              {[
-                ["Источники", filteredSources.length, "доступных и недоступных файлов"],
-                ["Записи", filteredEntries.length, "в текущем поиске и фасете"],
-                ["Ошибки", visibleErrors, "error за выбранный срез"],
-                ["Warnings", visibleWarnings, "warn за выбранный срез"],
-              ].map(([label, value, hint]) => (
-                <div key={label} className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">{label}</p>
-                  <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--soft-ink)]">{value}</p>
-                  <p className="text-[11px] text-[var(--soft-ink-faint)]">{hint}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2" data-testid="admin-log-source-family-filter" aria-label="Фильтр семейств источников">
+    <div className="space-y-4" data-testid="admin-log-center">
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" data-testid="admin-log-center-summary">
+        {[
+          ["Источники", filteredSources.length, "Runtime, pm2, nginx, system"],
+          ["Записи", filteredEntries.length, "в текущем поиске"],
+          ["Ошибки", visibleErrors, "level=error"],
+          ["Warnings", visibleWarnings, "level=warn"],
+        ].map(([label, value, hint]) => (
+          <div key={label} className="rounded-lg border border-[#D6DEE9] bg-white px-3 py-2 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">{label}</p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--soft-ink)]">{value}</p>
+            <p className="text-[11px] text-[var(--soft-ink-faint)]">{hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[17rem_minmax(0,1fr)_24rem]">
+        <aside className="space-y-3 rounded-xl border border-[#D6DEE9] bg-white p-3" data-testid="admin-log-center-source-rail">
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Фасеты</p>
+            <div className="grid gap-1.5" data-testid="admin-log-source-family-filter" aria-label="Фильтр семейств источников">
               {LOG_CENTER_FACETS.map((facet) => (
                 <button
                   key={facet.key}
                   type="button"
-                  className="soft-admin-action"
+                  className="soft-admin-action justify-start"
                   data-variant={sourceFamily === facet.key ? "primary" : "subtle"}
                   title={facet.hint}
                   onClick={() => setSourceFamily(facet.key)}
@@ -530,59 +503,118 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
               ))}
             </div>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-[var(--soft-ink-soft)]">
-            Поиск ниже читает только allowlist-файлы из Runtime, pm2/, nginx/, system/, postgresql/, redis/, deploy/ и letsencrypt/; audit_logs доступен на этой же странице отдельной таблицей.
-          </p>
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
-          Полнотекстовый поиск в реальном времени
-        </span>
-        <input
-          placeholder="Поиск по событию, requestId, провайдеру, тексту..."
-          value={search}
-          onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
-          className={`${COMPACT_INPUT_CLASS} max-w-sm`}
-          aria-label="Полнотекстовый поиск по runtime-логам"
-        />
-        <span
-          className="soft-admin-status-pill ml-auto"
-          data-tone={expandedId ? "warn" : streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}
-        >
-          {expandedId
-            ? "пауза · читаете лог"
-            : streamState === "live" ? "онлайн" : streamState === "polling" ? "опрос" : streamState === "connecting" ? "подключение" : "ошибка"}
-        </span>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источники</p>
+            <div className="grid gap-1.5" aria-label="Семейства источников логов">
+              {LOG_SOURCE_FAMILIES.map((family) => (
+                <span key={family} className="rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-mono text-[11px] text-[var(--soft-ink-soft)]">
+                  {family}
+                </span>
+              ))}
+            </div>
+          </div>
+          <details className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-2">
+            <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Файлы Runtime</summary>
+            <div className="mt-2">
+              <AdminCompactDataTable
+                columns={sourcesColumns}
+                rows={sourceRows}
+                empty="Источники Runtime пока не обнаружены"
+                minWidth="760px"
+                pageSize={20}
+              />
+            </div>
+          </details>
+        </aside>
+
+        <section className="min-w-0 space-y-3" data-testid="admin-log-center-stream">
+          <div className="rounded-xl border border-[#D6DEE9] bg-white p-3">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
+                Полнотекстовый поиск в реальном времени
+              </span>
+              <input
+                placeholder="Событие, requestId, провайдер, текст..."
+                value={search}
+                onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
+                className={`${COMPACT_INPUT_CLASS} max-w-sm`}
+                aria-label="Полнотекстовый поиск по runtime-логам"
+              />
+              <span
+                className="soft-admin-status-pill ml-auto"
+                data-tone={expandedId ? "warn" : streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}
+              >
+                {expandedId
+                  ? "пауза · читаете лог"
+                  : streamState === "live" ? "онлайн" : streamState === "polling" ? "опрос" : streamState === "connecting" ? "подключение" : "ошибка"}
+              </span>
+            </div>
+            {error && (
+              <div className="mb-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</div>
+            )}
+            {snapshot?.warning && (
+              <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700">{snapshot.warning}</div>
+            )}
+            <AdminCompactDataTable
+              columns={runtimeColumns(filteredSources)}
+              rows={rows}
+              empty="Нет Runtime-записей или источники логов не найдены"
+              minWidth="1240px"
+              pageSize={20}
+            />
+          </div>
+        </section>
+
+        <aside className="min-w-0 rounded-xl border border-[#D6DEE9] bg-white p-3" data-testid="admin-log-center-detail">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Детали записи</p>
+              <h3 className="mt-1 truncate text-sm font-semibold text-[var(--soft-ink)]" title={selectedEntry?.event ?? undefined}>
+                {selectedEntry?.event ?? "Выберите запись"}
+              </h3>
+            </div>
+            {selectedEntry ? <span className="soft-admin-status-pill" data-tone={runtimeTone(selectedEntry.level)}>{runtimeLevelLabel(selectedEntry.level)}</span> : null}
+          </div>
+          {selectedEntry ? (
+            <div className="grid gap-3 text-xs text-[var(--soft-ink)]">
+              <div className="grid gap-1">
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Время</span>
+                <span>{formatDate(selectedEntry.timestamp)}</span>
+              </div>
+              <div className="grid gap-1">
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Источник</span>
+                <span className="break-all font-mono">{selectedEntry.sourceLabel}</span>
+              </div>
+              <div className="grid gap-1">
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Файл</span>
+                <span className="break-all font-mono">{selectedEntry.filePath}</span>
+              </div>
+              <div className="grid gap-1">
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Исходная запись</span>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-[var(--soft-surface)] p-2">{selectedEntry.raw}</pre>
+              </div>
+              <div className="grid gap-1">
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Поля</span>
+                <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-[var(--soft-surface)] p-2">{selectedFieldsText}</pre>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4 text-sm text-[var(--soft-ink-soft)]">
+              Записи появятся после загрузки runtime-логов.
+            </div>
+          )}
+        </aside>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</div>
-      )}
-      {snapshot?.warning && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700">{snapshot.warning}</div>
-      )}
+      <section className="rounded-xl border border-[#D6DEE9] bg-white p-3" aria-label="Диагностика">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Диагностика</h3>
+        <DiagnosticsPanel />
+      </section>
 
-      {filteredSources.length > 0 && (
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источники Runtime</h3>
-          <AdminCompactDataTable
-            columns={sourcesColumns}
-            rows={sourceRows}
-            empty="Источники Runtime пока не обнаружены"
-            minWidth="980px"
-            pageSize={20}
-          />
-        </div>
-      )}
-
-      <AdminCompactDataTable
-        columns={runtimeColumns(filteredSources)}
-        rows={rows}
-        empty="Нет Runtime-записей или источники логов не найдены"
-        minWidth="1240px"
-        pageSize={20}
-      />
+      <section className="rounded-xl border border-[#D6DEE9] bg-white p-3" aria-label="audit_logs">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">audit_logs</h3>
+        {auditTable}
+      </section>
     </div>
   );
 }
@@ -593,40 +625,6 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
  * runtime render client-side. All three share the new soft-admin table style;
  * the legacy dark console table was removed.
  */
-export function LogsTabs({ auditTable }: { auditTable: React.ReactNode }) {
-  const [tab, setTab] = useState<keyof typeof LOG_TABS>("all");
-
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap gap-2 rounded-xl border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-1" data-testid="admin-observability-tabs">
-        {Object.entries(LOG_TABS).map(([key, label]) => {
-          const active = tab === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setTab(key as keyof typeof LOG_TABS)}
-              data-active={active}
-              className="soft-admin-action"
-              data-variant={active ? "primary" : "subtle"}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
-      {tab === "all" && (
-        <div className="space-y-6">
-          <RuntimeLogsPanel unified />
-          <section aria-label="audit_logs">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">audit_logs</h3>
-            {auditTable}
-          </section>
-        </div>
-      )}
-      <div hidden={tab !== "audit"}>{auditTable}</div>
-      {tab === "diagnostics" && <DiagnosticsPanel />}
-      {tab === "runtime" && <RuntimeLogsPanel />}
-    </div>
-  );
+export function LogsCenter({ auditTable }: { auditTable: React.ReactNode }) {
+  return <RuntimeLogsPanel auditTable={auditTable} />;
 }

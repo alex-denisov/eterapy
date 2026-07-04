@@ -27,4 +27,19 @@ describe("v5 admin shell", () => {
     expect(shell).toContain("Текущий раздел");
     expect(shell).toContain("Страница раздела");
   });
+
+  it("renders desktop navigation as a fixed accordion with pinned account actions", () => {
+    expect(shell).toContain("useState");
+    expect(shell).toContain("openSections");
+    expect(shell).toContain("admin-shell-nav-section-toggle");
+    expect(shell).toContain("aria-expanded");
+    expect(shell).toContain("ChevronDown");
+    expect(shell).toContain("rotate-180");
+    expect(shell).toContain("h-[calc(100vh-var(--header-height))]");
+    expect(shell).toContain("overflow-hidden");
+    expect(shell).toContain('data-testid="admin-shell-nav-scroll"');
+    expect(shell).toContain("overflow-y-auto");
+    expect(shell).toContain('data-testid="admin-shell-sidebar-footer"');
+    expect(shell).toContain("mt-auto");
+  });
 });

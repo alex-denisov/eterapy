@@ -9,10 +9,14 @@ import {
   adminPeriodFromRuDate,
   adminPeriodToRuDate,
   adminPresetRange,
+  adminQuarterInputFromIso,
+  adminRangeFromQuarterInput,
+  adminRangeFromWeekInput,
   adminShiftMonth,
+  adminWeekInputFromIso,
 } from "./admin-period-utils";
 
-type ActiveField = "start" | "end" | null;
+type PickerMode = "day" | "week" | "quarter" | null;
 
 export function AdminPeriodToolbar({ basePath, start, end }: { basePath: string; start: string; end: string }) {
   return <AdminPeriodToolbarInner key={`${start}:${end}`} basePath={basePath} start={start} end={end} />;
@@ -25,10 +29,21 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   const [endIso, setEndIso] = useState(end);
   const [startText, setStartText] = useState(adminPeriodToRuDate(start));
   const [endText, setEndText] = useState(adminPeriodToRuDate(end));
-  const [active, setActive] = useState<ActiveField>(null);
+  const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [monthIso, setMonthIso] = useState(start);
+  const [dayIso, setDayIso] = useState(start);
+  const [weekInput, setWeekInput] = useState(adminWeekInputFromIso(start));
+  const [quarterInput, setQuarterInput] = useState(adminQuarterInputFromIso(start));
 
   const days = useMemo(() => adminMonthDays(monthIso), [monthIso]);
+  const quarterOptions = useMemo(() => {
+    const now = new Date();
+    const years = Array.from({ length: 7 }, (_, index) => now.getFullYear() - 3 + index);
+    return years.flatMap((year) => [1, 2, 3, 4].map((quarter) => ({
+      value: `${year}-Q${quarter}`,
+      label: `${year} · ${quarter} квартал`,
+    })));
+  }, []);
 
   function buildParams(nextStart: string, nextEnd: string, period?: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -44,22 +59,41 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
     router.push(query ? `${basePath}?${query}` : basePath);
   }
 
-  function navigate(nextStart = startIso, nextEnd = endIso) {
-    const params = buildParams(nextStart, nextEnd);
+  function updateLocalRange(nextStart: string, nextEnd: string) {
+    setStartIso(nextStart);
+    setEndIso(nextEnd);
+    setStartText(adminPeriodToRuDate(nextStart));
+    setEndText(adminPeriodToRuDate(nextEnd));
+    setMonthIso(nextStart);
+    setDayIso(nextStart);
+    setWeekInput(adminWeekInputFromIso(nextStart));
+    setQuarterInput(adminQuarterInputFromIso(nextStart));
+  }
+
+  function navigate(nextStart = startIso, nextEnd = endIso, period?: string) {
+    const params = buildParams(nextStart, nextEnd, period);
     saveAdminPeriodPreference({ start: nextStart, end: nextEnd, period: params.get("period") ?? undefined });
     navigateToParams(params);
   }
 
   function applyPreset(period: string) {
     const next = adminPresetRange(period);
-    setStartIso(next.start);
-    setEndIso(next.end);
-    setStartText(adminPeriodToRuDate(next.start));
-    setEndText(adminPeriodToRuDate(next.end));
-    setMonthIso(next.start);
-    const params = buildParams(next.start, next.end, period);
-    saveAdminPeriodPreference({ start: next.start, end: next.end, period });
-    navigateToParams(params);
+    updateLocalRange(next.start, next.end);
+    setPickerMode(null);
+    navigate(next.start, next.end, period);
+  }
+
+  function openPicker(mode: Exclude<PickerMode, null>) {
+    if (mode === "day") {
+      setMonthIso(dayIso);
+    }
+    if (mode === "week") {
+      setWeekInput(adminWeekInputFromIso(startIso));
+    }
+    if (mode === "quarter") {
+      setQuarterInput(adminQuarterInputFromIso(startIso));
+    }
+    setPickerMode((current) => current === mode ? null : mode);
   }
 
   useEffect(() => {
@@ -91,37 +125,73 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
     }
   }
 
-  function selectDay(iso: string) {
-    if (active === "start") {
-      setStartIso(iso);
-      setStartText(adminPeriodToRuDate(iso));
-      if (iso > endIso) {
-        setEndIso(iso);
-        setEndText(adminPeriodToRuDate(iso));
-      }
-    } else {
-      setEndIso(iso);
-      setEndText(adminPeriodToRuDate(iso));
-      if (iso < startIso) {
-        setStartIso(iso);
-        setStartText(adminPeriodToRuDate(iso));
-      }
-    }
+  function applyDay(iso: string) {
+    updateLocalRange(iso, iso);
+    setPickerMode(null);
+    navigate(iso, iso, "day");
+  }
+
+  function applyWeek() {
+    const next = adminRangeFromWeekInput(weekInput);
+    updateLocalRange(next.start, next.end);
+    setPickerMode(null);
+    navigate(next.start, next.end, "week");
+  }
+
+  function applyQuarter() {
+    const next = adminRangeFromQuarterInput(quarterInput);
+    updateLocalRange(next.start, next.end);
+    setPickerMode(null);
+    navigate(next.start, next.end, "quarter");
   }
 
   return (
     <div className="relative flex flex-wrap items-center gap-2 text-xs" data-testid="admin-period-toolbar">
-      {[
-        ["today", "Сегодня"],
-        ["week", "Неделя"],
-        ["month", "Месяц"],
-        ["quarter", "Квартал"],
-        ["all", "Все время"],
-      ].map(([period, label]) => (
-        <button key={period} type="button" className="soft-admin-action" data-variant="subtle" onClick={() => applyPreset(period)}>
-          {label}
-        </button>
-      ))}
+      <button
+        type="button"
+        className="soft-admin-action"
+        data-variant="subtle"
+        data-testid="admin-period-mode-today"
+        onClick={() => applyPreset("today")}
+      >
+        Сегодня
+      </button>
+      <button
+        type="button"
+        className="soft-admin-action"
+        data-variant={pickerMode === "day" ? "primary" : "subtle"}
+        data-testid="admin-period-mode-day"
+        onClick={() => openPicker("day")}
+      >
+        День
+      </button>
+      <button
+        type="button"
+        className="soft-admin-action"
+        data-variant={pickerMode === "week" ? "primary" : "subtle"}
+        data-testid="admin-period-mode-week"
+        onClick={() => openPicker("week")}
+      >
+        Неделя
+      </button>
+      <button
+        type="button"
+        className="soft-admin-action"
+        data-variant={pickerMode === "quarter" ? "primary" : "subtle"}
+        data-testid="admin-period-mode-quarter"
+        onClick={() => openPicker("quarter")}
+      >
+        Квартал
+      </button>
+      <button
+        type="button"
+        className="soft-admin-action"
+        data-variant="subtle"
+        data-testid="admin-period-mode-all"
+        onClick={() => applyPreset("all")}
+      >
+        Все время
+      </button>
       <div className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="start" value={startIso} />
         <input type="hidden" name="end" value={endIso} />
@@ -130,7 +200,6 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
           className="w-28 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-2 py-1 tabular-nums"
           value={startText}
           placeholder="дд.мм.гггг"
-          onFocus={() => { setActive("start"); setMonthIso(startIso); }}
           onChange={(event) => setStartText(event.target.value)}
           onBlur={() => commitText("start", startText)}
         />
@@ -140,7 +209,6 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
           className="w-28 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-2 py-1 tabular-nums"
           value={endText}
           placeholder="дд.мм.гггг"
-          onFocus={() => { setActive("end"); setMonthIso(endIso); }}
           onChange={(event) => setEndText(event.target.value)}
           onBlur={() => commitText("end", endText)}
         />
@@ -148,10 +216,11 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
           Применить
         </button>
       </div>
-      {active && (
+      {pickerMode === "day" && (
         <div
           className="absolute right-0 top-full z-30 mt-2 w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3 shadow-xl"
           onMouseDown={(event) => event.preventDefault()}
+          data-testid="admin-period-day-picker"
         >
           <div className="mb-2 flex items-center justify-between gap-2">
             <button type="button" className="soft-admin-action px-2 py-1" onClick={() => setMonthIso(adminShiftMonth(monthIso, -1))}>←</button>
@@ -175,7 +244,10 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
                     inRange ? "bg-[var(--soft-surface)]" : "hover:bg-[var(--soft-surface)]",
                     selected ? "bg-[var(--soft-bordeaux)] font-semibold text-white hover:bg-[var(--soft-bordeaux)]" : "",
                   ].filter(Boolean).join(" ")}
-                  onClick={() => selectDay(day.iso)}
+                  onClick={() => {
+                    setDayIso(day.iso);
+                    applyDay(day.iso);
+                  }}
                 >
                   {day.label}
                 </button>
@@ -183,8 +255,50 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
             })}
           </div>
           <div className="mt-3 flex justify-end gap-2">
-            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setActive(null)}>Закрыть</button>
-            <button type="button" className="soft-admin-action" onClick={() => { setActive(null); navigate(); }}>Применить</button>
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPickerMode(null)}>Закрыть</button>
+          </div>
+        </div>
+      )}
+      {pickerMode === "week" && (
+        <div
+          className="absolute right-0 top-full z-30 mt-2 w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3 shadow-xl"
+          data-testid="admin-period-week-picker"
+        >
+          <label className="grid gap-1 text-xs font-medium text-[var(--soft-ink-soft)]">
+            <span>Выберите неделю</span>
+            <input
+              type="week"
+              className="h-9 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-2 text-sm text-[var(--soft-ink)]"
+              value={weekInput}
+              onChange={(event) => setWeekInput(event.target.value)}
+            />
+          </label>
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPickerMode(null)}>Закрыть</button>
+            <button type="button" className="soft-admin-action" onClick={applyWeek}>Применить</button>
+          </div>
+        </div>
+      )}
+      {pickerMode === "quarter" && (
+        <div
+          className="absolute right-0 top-full z-30 mt-2 w-72 rounded-lg border border-[var(--soft-paper-edge)] bg-white p-3 shadow-xl"
+          data-testid="admin-period-quarter-picker"
+        >
+          <label className="grid gap-1 text-xs font-medium text-[var(--soft-ink-soft)]">
+            <span>Выберите квартал</span>
+            <select
+              className="h-9 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-2 text-sm text-[var(--soft-ink)]"
+              value={quarterInput}
+              onChange={(event) => setQuarterInput(event.target.value)}
+            >
+              {quarterOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setPickerMode(null)}>Закрыть</button>
+            <button type="button" className="soft-admin-action" onClick={applyQuarter}>Применить</button>
           </div>
         </div>
       )}

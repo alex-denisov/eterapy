@@ -156,16 +156,16 @@ export function MetricCard({
   const body = (
     <>
       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{label}</p>
-      <p className={`mt-2 font-heading text-2xl font-semibold tabular-nums ${toneClass[tone]}`}>{value}</p>
-      {hint ? <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">{hint}</p> : null}
+      <p className={`mt-1 font-heading text-xl font-semibold leading-tight tabular-nums ${toneClass[tone]}`}>{value}</p>
+      {hint ? <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--soft-ink-soft)]">{hint}</p> : null}
     </>
   );
-  const className = "block rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)] transition-colors hover:border-[var(--soft-bordeaux)]";
+  const className = "block rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)] transition-colors hover:border-[#2563EB]";
   return href ? <Link className={className} href={href}>{body}</Link> : <div className={className}>{body}</div>;
 }
 
 export function MetricGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{children}</div>;
+  return <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">{children}</div>;
 }
 
 export function AnalyticsSection({
@@ -220,7 +220,7 @@ function chartSeries(data: ChartPoint[], labels?: [string, string?, string?]): C
 }
 
 function chartCardClass() {
-  return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D6DEE9] bg-white p-4 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
+  return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
 }
 
 function axisSlotWidth(labels: string[], baseWidth: number) {
@@ -230,9 +230,14 @@ function axisSlotWidth(labels: string[], baseWidth: number) {
 
 function tooltipSize(text: string) {
   return {
-    width: Math.max(178, Math.ceil(text.length * 6.7) + 30),
-    height: 32,
+    width: Math.max(192, Math.ceil(text.length * 7.4) + 34),
+    height: 34,
   };
+}
+
+function axisLabelStep(labels: string[], slotWidth: number) {
+  if (labels.length <= 31 || slotWidth >= 34) return 1;
+  return Math.max(1, Math.ceil(34 / Math.max(slotWidth, 1)));
 }
 
 function axisLabelLayout(labels: string[], slotWidth: number) {
@@ -240,7 +245,7 @@ function axisLabelLayout(labels: string[], slotWidth: number) {
   const requiredSlotWidth = Math.ceil(longest * 6.8) + 18;
   return {
     vertical: false,
-    bottom: 26,
+    bottom: 22,
     slotWidth: Math.max(slotWidth, requiredSlotWidth),
   };
 }
@@ -291,7 +296,8 @@ export function VerticalBarChart({
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
   const innerGap = 2;
-  const barWidth = Math.max(3, Math.min(14, (groupWidth - 8 - innerGap * (series.length - 1)) / series.length));
+  const labelStep = axisLabelStep(labels, resolvedGroupWidth);
+  const barWidth = Math.max(3, Math.min(14, (resolvedGroupWidth - 8 - innerGap * (series.length - 1)) / series.length));
   const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
 
   function yFor(value: number) {
@@ -372,7 +378,7 @@ export function VerticalBarChart({
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
-            const axisLabelY = top + plotHeight + 14;
+            const axisLabelY = top + plotHeight + 10;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -395,14 +401,17 @@ export function VerticalBarChart({
                     </g>
                   );
                 })}
-                <text
-                  x={centerX}
-                  y={axisLabelY}
-                  textAnchor="middle"
-                  className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
-                >
-                  {item.label}
-                </text>
+                {index % labelStep === 0 ? (
+                  <text
+                    x={centerX}
+                    y={axisLabelY}
+                    textAnchor="middle"
+                    dominantBaseline="hanging"
+                    className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
+                  >
+                    {item.label}
+                  </text>
+                ) : null}
               </g>
             );
           })}
@@ -417,8 +426,8 @@ export function VerticalBarChart({
                   fill="transparent"
                 />
                 <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
-                  <rect x={-hit.tooltipWidth / 2} y="-32" width={hit.tooltipWidth} height="28" rx="7" />
-                  <text x="0" y="-14" textAnchor="middle">{hit.tooltip}</text>
+                  <rect x={-hit.tooltipWidth / 2} y="-34" width={hit.tooltipWidth} height="30" rx="7" />
+                  <text x="0" y="-15" textAnchor="middle">{hit.tooltip}</text>
                 </g>
               </g>
             ))}
@@ -482,7 +491,8 @@ export function StackedBarChart({
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
-  const barWidth = Math.max(7, Math.min(20, slotWidth * 0.56));
+  const labelStep = axisLabelStep(labels, resolvedSlotWidth);
+  const barWidth = Math.max(7, Math.min(20, resolvedSlotWidth * 0.56));
 
   function yFor(value: number) {
     return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
@@ -598,14 +608,17 @@ export function StackedBarChart({
                     </g>
                   );
                 })}
-                <text
-                  x={centerX}
-                  y={top + plotHeight + 14}
-                  textAnchor="middle"
-                  className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
-                >
-                  {item.label}
-                </text>
+                {index % labelStep === 0 ? (
+                  <text
+                    x={centerX}
+                    y={top + plotHeight + 10}
+                    textAnchor="middle"
+                    dominantBaseline="hanging"
+                    className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
+                  >
+                    {item.label}
+                  </text>
+                ) : null}
               </g>
             );
           })}
@@ -620,8 +633,8 @@ export function StackedBarChart({
                   fill="transparent"
                 />
                 <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
-                  <rect x={-hit.tooltipWidth / 2} y="-32" width={hit.tooltipWidth} height="28" rx="7" />
-                  <text x="0" y="-14" textAnchor="middle">{hit.tooltip}</text>
+                  <rect x={-hit.tooltipWidth / 2} y="-34" width={hit.tooltipWidth} height="30" rx="7" />
+                  <text x="0" y="-15" textAnchor="middle">{hit.tooltip}</text>
                 </g>
               </g>
             ))}
@@ -629,6 +642,150 @@ export function StackedBarChart({
         </svg>
       </div>
     </div>
+  );
+}
+
+export type SmallMultipleChartItem = {
+  key: string;
+  title: string;
+  value?: string;
+  data: ChartPoint[];
+  unit?: string;
+  seriesLabels?: [string, string?, string?];
+  valueFormatter?: (value: number) => string;
+  integerTicks?: boolean;
+};
+
+export function SmallMultiplesBarGrid({
+  items,
+  empty = "Нет данных за выбранный период",
+}: {
+  items: SmallMultipleChartItem[];
+  empty?: ReactNode;
+}) {
+  if (items.length === 0) return <EmptyState>{empty}</EmptyState>;
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="admin-small-multiples-grid">
+      {items.map((item) => (
+        <div key={item.key} className="min-w-0 rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_42px_-36px_rgba(15,23,42,0.5)]">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold uppercase tracking-[0.04em] text-[#0F172A]" title={item.title}>{item.title}</p>
+              {item.value ? <p className="mt-0.5 text-sm font-semibold tabular-nums text-[#2563EB]">{item.value}</p> : null}
+            </div>
+            {item.seriesLabels ? (
+              <div className="flex shrink-0 flex-wrap justify-end gap-1.5 text-[9px] text-[#64748B]">
+                {chartSeries(item.data, item.seriesLabels).map((series, index) => (
+                  <span key={series.key} className="inline-flex items-center gap-1">
+                    <i className="h-1.5 w-1.5 rounded-sm" style={{ backgroundColor: CHART_KIT_PALETTE[index % CHART_KIT_PALETTE.length] }} />
+                    {series.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <MiniBarSparkline
+            data={item.data}
+            unit={item.unit}
+            seriesLabels={item.seriesLabels}
+            valueFormatter={item.valueFormatter}
+            integerTicks={item.integerTicks}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function MiniBarSparkline({
+  data,
+  unit,
+  seriesLabels,
+  valueFormatter,
+  integerTicks = false,
+}: {
+  data: ChartPoint[];
+  unit?: string;
+  seriesLabels?: [string, string?, string?];
+  valueFormatter?: (value: number) => string;
+  integerTicks?: boolean;
+}) {
+  const series = chartSeries(data, seriesLabels);
+  const rawMax = Math.max(...data.flatMap((item) => [item.value, item.secondary ?? 0, item.tertiary ?? 0]), 1);
+  const max = integerTicks ? Math.max(1, Math.ceil(rawMax)) : rawMax;
+  const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
+  if (data.length === 0 || !data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0)) {
+    return <div className="grid h-32 place-items-center rounded-md bg-[#F8FAFC] text-xs text-[#64748B]">Нет событий</div>;
+  }
+
+  const width = 420;
+  const height = 138;
+  const left = 34;
+  const right = 8;
+  const top = 8;
+  const plotHeight = 96;
+  const plotWidth = width - left - right;
+  const slotWidth = plotWidth / data.length;
+  const innerGap = 1;
+  const barWidth = Math.max(1.5, Math.min(7, (slotWidth - 3 - innerGap * (series.length - 1)) / series.length));
+  const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
+  const tickValues = chartTickValues(max, integerTicks).slice(0, 4);
+  const labelIndexes = [...new Set([0, Math.floor((data.length - 1) / 2), data.length - 1])];
+
+  function yFor(value: number) {
+    return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
+  }
+
+  return (
+    <svg
+      role="img"
+      aria-label="Компактная гистограмма"
+      className="block h-32 w-full overflow-visible"
+      viewBox={`0 0 ${width} ${height}`}
+      data-testid="admin-mini-bar-sparkline"
+      shapeRendering="geometricPrecision"
+    >
+      {tickValues.map((tick) => {
+        const y = yFor(tick);
+        return (
+          <g key={tick}>
+            <line x1={left} x2={width - right} y1={y} y2={y} stroke={CHART_KIT_GRID} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            <text x={left - 6} y={y + 3} textAnchor="end" className="fill-[#64748B] text-[9px] tabular-nums">
+              {formatValue(tick)}
+            </text>
+          </g>
+        );
+      })}
+      <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke={CHART_KIT_AXIS} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      {data.map((item, index) => {
+        const groupX = left + index * slotWidth;
+        const centerX = groupX + slotWidth / 2;
+        const startX = groupX + (slotWidth - totalBarsWidth) / 2;
+        return (
+          <g key={`${item.label}-${index}`}>
+            {series.map((seriesItem, seriesIndex) => {
+              const raw = Number(item[seriesItem.key] ?? 0);
+              const barHeight = raw > 0 ? Math.max(1.5, (raw / max) * plotHeight) : 0;
+              const x = startX + seriesIndex * (barWidth + innerGap);
+              const y = top + plotHeight - barHeight;
+              const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)}`;
+              return (
+                <g key={seriesItem.key} className="soft-chart-hit" tabIndex={0} aria-label={tooltip}>
+                  <rect x={x} y={y} width={barWidth} height={barHeight} rx="1.5" fill={seriesItem.color} opacity={raw > 0 ? 0.96 : 0} />
+                  <rect x={groupX} y={top} width={slotWidth} height={plotHeight} fill="transparent" />
+                  <title>{tooltip}</title>
+                </g>
+              );
+            })}
+            {labelIndexes.includes(index) ? (
+              <text x={centerX} y={top + plotHeight + 8} textAnchor="middle" dominantBaseline="hanging" className="fill-[#64748B] text-[9px] tabular-nums">
+                {item.label}
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 

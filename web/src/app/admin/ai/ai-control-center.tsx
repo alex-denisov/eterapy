@@ -12,6 +12,7 @@ import {
   GripVertical,
   KeyRound,
   MessageSquareText,
+  Pencil,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -1288,7 +1289,7 @@ function PolicyTableRow({
           title="Изменить цепочку маршрутизации"
           aria-label={`Изменить цепочку маршрутизации ${policy.title ?? policy.feature}`}
         >
-          Изменить
+          <Pencil className="size-3.5" aria-hidden="true" />
         </button>
         {openModal ? (
           <RoutingChainModal
@@ -1390,7 +1391,7 @@ function RoutingChainModal({
   void draggedProvider;
   return (
     <dialog open className="soft-admin-detail-dialog" aria-label={`Редактирование маршрута ${title}`}>
-      <div className="soft-admin-detail-dialog__panel w-[min(1040px,calc(100vw-32px))]">
+      <div className="soft-admin-detail-dialog__panel max-h-[calc(100vh-48px)] w-[min(1040px,calc(100vw-32px))] overflow-y-auto">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Цепочка маршрутизации</p>

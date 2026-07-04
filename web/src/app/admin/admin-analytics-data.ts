@@ -108,7 +108,7 @@ export function resolveAdminPeriod(params: SearchParams = {}): AdminPeriod {
 
   if (period === "all") {
     start = parseInputDate(ADMIN_ALL_TIME_START_ISO, "start");
-  } else if (period === "today") {
+  } else if (period === "day" || period === "today") {
     start = startOfDay(now);
   } else if (period === "week") {
     const day = now.getDay() || 7;

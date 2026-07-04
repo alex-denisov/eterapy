@@ -10,13 +10,16 @@ describe("admin logs observability UI", () => {
     const page = source("src/app/admin/logs/admin-logs-page.tsx");
     const viewer = source("src/app/admin/logs/logs-viewer.tsx");
 
-    // T7: audit/diagnostics/runtime now live in one tabbed surface rendered
+    // T7: audit/diagnostics/runtime now live in one log-center surface rendered
     // in the new soft-admin table style; the legacy dark console was removed.
-    expect(page).toContain("LogsTabs");
+    expect(page).toContain("LogsCenter");
     expect(page).toContain('data-testid="admin-audit-log-table"');
-    expect(viewer).toContain("admin-observability-tabs");
-    expect(viewer).toContain("Все логи");
-    expect(viewer).toContain("Kibana-like");
+    expect(viewer).toContain('data-testid="admin-log-center"');
+    expect(viewer).toContain('data-testid="admin-log-center-source-rail"');
+    expect(viewer).toContain('data-testid="admin-log-center-stream"');
+    expect(viewer).toContain('data-testid="admin-log-center-detail"');
+    expect(viewer).not.toContain("Kibana-like");
+    expect(viewer).not.toContain("kibana-like");
     expect(viewer).toContain("pm2/");
     expect(viewer).toContain("nginx/");
     expect(viewer).toContain("system/");
@@ -57,5 +60,7 @@ describe("admin logs observability UI", () => {
     expect(viewer).toContain("Jobs");
     expect(viewer).toContain("Database");
     expect(viewer).toContain("System");
+    expect(viewer).not.toContain("setTab");
+    expect(viewer).not.toContain("LOG_TABS");
   });
 });

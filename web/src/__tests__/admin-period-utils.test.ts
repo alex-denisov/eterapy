@@ -1,4 +1,5 @@
 import {
+  ADMIN_PLATFORM_FIRST_DEPLOY_ISO,
   adminMonthDays,
   adminPeriodFromRuDate,
   adminPeriodToIsoDate,
@@ -37,7 +38,9 @@ describe("admin period date utilities", () => {
   it("exposes an all-time preset for superadmin analytics", () => {
     const allTime = adminPresetRange("all");
 
-    expect(allTime.start).toBe("2020-01-01");
+    expect(ADMIN_PLATFORM_FIRST_DEPLOY_ISO).toBe("2026-04-03");
+    expect(allTime.start).toBe(ADMIN_PLATFORM_FIRST_DEPLOY_ISO);
+    expect(allTime.start).not.toBe("2020-01-01");
     expect(allTime.end).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

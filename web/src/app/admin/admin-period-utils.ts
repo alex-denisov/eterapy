@@ -4,7 +4,8 @@ export type AdminCalendarDay = {
   current: boolean;
 };
 
-export const ADMIN_ALL_TIME_START_ISO = "2020-01-01";
+export const ADMIN_PLATFORM_FIRST_DEPLOY_ISO = "2026-04-03";
+export const ADMIN_ALL_TIME_START_ISO = ADMIN_PLATFORM_FIRST_DEPLOY_ISO;
 
 export function adminPeriodParseIso(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -50,15 +51,54 @@ export function adminPresetRange(period: string) {
   const end = adminStartOfToday();
   let start = new Date(end);
   if (period === "all") {
-    start = adminPeriodParseIso(ADMIN_ALL_TIME_START_ISO) ?? new Date(2020, 0, 1);
+    start = adminPeriodParseIso(ADMIN_ALL_TIME_START_ISO) ?? new Date(2026, 3, 3);
+  } else if (period === "day" || period === "today") {
+    start = adminStartOfToday();
   } else if (period === "week") {
     const weekday = end.getDay() || 7;
     start.setDate(end.getDate() - weekday + 1);
-  } else if (period === "month") {
-    start = new Date(end.getFullYear(), end.getMonth(), 1);
   } else if (period === "quarter") {
     start = new Date(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
   }
+  return { start: adminPeriodToIsoDate(start), end: adminPeriodToIsoDate(end) };
+}
+
+export function adminWeekInputFromIso(value: string) {
+  const date = adminPeriodParseIso(value) ?? adminStartOfToday();
+  const target = new Date(date);
+  target.setDate(target.getDate() + 3 - ((target.getDay() + 6) % 7));
+  const week1 = new Date(target.getFullYear(), 0, 4);
+  const week = 1 + Math.round(((target.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+  return `${target.getFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+export function adminRangeFromWeekInput(value: string) {
+  const match = value.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return adminPresetRange("week");
+  const [, yearRaw, weekRaw] = match;
+  const year = Number(yearRaw);
+  const week = Number(weekRaw);
+  const jan4 = new Date(year, 0, 4);
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { start: adminPeriodToIsoDate(monday), end: adminPeriodToIsoDate(sunday) };
+}
+
+export function adminQuarterInputFromIso(value: string) {
+  const date = adminPeriodParseIso(value) ?? adminStartOfToday();
+  return `${date.getFullYear()}-Q${Math.floor(date.getMonth() / 3) + 1}`;
+}
+
+export function adminRangeFromQuarterInput(value: string) {
+  const match = value.match(/^(\d{4})-Q([1-4])$/);
+  if (!match) return adminPresetRange("quarter");
+  const [, yearRaw, quarterRaw] = match;
+  const year = Number(yearRaw);
+  const quarter = Number(quarterRaw);
+  const start = new Date(year, (quarter - 1) * 3, 1);
+  const end = new Date(year, quarter * 3, 0);
   return { start: adminPeriodToIsoDate(start), end: adminPeriodToIsoDate(end) };
 }
 

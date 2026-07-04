@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import type { ElementType, ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -28,6 +28,7 @@ import {
   Landmark,
   FileSpreadsheet,
   Coins,
+  ChevronDown,
 } from "lucide-react";
 import type { Permission } from "@/lib/moderator-permissions";
 import { adminUrl, logoutUrl, toPathname } from "@/lib/subdomain";
@@ -207,6 +208,21 @@ export function AdminShell({
     return navItems.some((candidate) => candidate.section === item.section && isActive(candidate.href));
   }
 
+  const topLevelNav = navItems.filter((item) => (item.level ?? 0) === 0);
+  const activeSectionKey = navItems.find((item) => item.section !== "workspace" && isActive(item.href))?.section
+    ?? navItems.find((item) => isExactActive(item.href))?.section
+    ?? "workspace";
+  const [openSections, setOpenSections] = useState<Set<NavItem["section"]>>(() => new Set(["workspace", activeSectionKey]));
+
+  function toggleSection(section: NavItem["section"]) {
+    setOpenSections((current) => {
+      const next = new Set(current);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      return next;
+    });
+  }
+
   const navLabelByPath = new Map(navItems.map((item) => [toPathname(item.href), item.label]));
   const currentTopLevelItem = mobileSectionNav.find((item) => item.section !== "workspace" && isActive(item.href))
     ?? mobileSectionNav.find((item) => isExactActive(item.href))
@@ -236,7 +252,7 @@ export function AdminShell({
     <div data-testid="admin-shell" data-shell-role={role} className="soft-clarity-page soft-admin-shell flex min-h-screen">
       <aside
         data-testid="admin-shell-sidebar"
-        className="admin-shell-sidebar soft-admin-sidebar hidden min-h-[calc(100vh-var(--header-height))] w-64 shrink-0 self-stretch overflow-y-auto px-3 py-5 md:flex md:flex-col"
+        className="admin-shell-sidebar soft-admin-sidebar hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 self-stretch overflow-hidden px-3 py-5 md:flex md:flex-col"
       >
         {/* T10: logo intentionally omitted here — the public-shell-header
             already renders the brand mark, so a second copy in the sidebar
@@ -253,48 +269,89 @@ export function AdminShell({
           </div>
         </div>
 
-        <nav className="flex-1 space-y-0.5">
-          {nav.map((item) => {
+        <nav data-testid="admin-shell-nav-scroll" className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+          {topLevelNav.map((item) => {
             const Icon = item.icon;
             const countKey = navCountKey(item.href);
             const count = countKey ? (counts?.[countKey] ?? 0) : 0;
-            const depth = item.level ?? 0;
             const exactActive = isExactActive(item.href);
             const active = isActive(item.href);
             const parentActive = isSectionActive(item) && !exactActive;
-            const navActive = active || ((item.level ?? 0) === 0 && parentActive);
+            const navActive = active || parentActive;
+            const childrenForSection = navItems.filter((candidate) => candidate.section === item.section && (candidate.level ?? 0) === 1);
+            const expanded = childrenForSection.length === 0 || openSections.has(item.section) || item.section === activeSectionKey;
             return (
-            <Link key={item.href} href={hrefForNav(item.href)}
-              data-testid="admin-shell-nav-item"
-              data-depth={depth}
-              aria-current={exactActive ? "page" : undefined}
-              className={`admin-shell-item soft-admin-nav-link flex items-center rounded-[var(--radius-control)] transition-colors duration-[var(--motion-base)] ${
-                depth === 1
-                  ? "ml-5 min-h-8 gap-2 px-2 py-1.5 text-xs"
-                  : "mt-2 min-h-10 gap-2.5 px-3 py-2 text-sm font-semibold"
-              } ${
-                navActive
-                  ? "is-active font-medium"
-                  : parentActive
-                    ? "is-section-active"
-                    : ""
-              }`}>
-              <Icon className={`${depth === 1 ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0`} />
-              {item.label}
-              {count > 0 && (
-                <span
-                  className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
-                  data-testid="admin-nav-counter"
-                  aria-label={`${count} новых`}
-                >
-                  {count > 99 ? "99+" : count}
-                </span>
-              )}
-            </Link>
+              <div key={item.href} className="space-y-0.5">
+                <Link key={item.href} href={hrefForNav(item.href)}
+                  data-testid={childrenForSection.length > 0 ? "admin-shell-nav-section-toggle" : "admin-shell-nav-item"}
+                  data-depth={0}
+                  aria-current={exactActive ? "page" : undefined}
+                  aria-expanded={childrenForSection.length > 0 ? expanded : undefined}
+                  onClick={() => {
+                    if (childrenForSection.length > 0) toggleSection(item.section);
+                  }}
+                  className={`admin-shell-item soft-admin-nav-link mt-2 flex min-h-10 items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold transition-colors duration-[var(--motion-base)] ${
+                    navActive
+                      ? "is-active font-medium"
+                      : parentActive
+                        ? "is-section-active"
+                        : ""
+                  }`}>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  {count > 0 && (
+                    <span
+                      className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
+                      data-testid="admin-nav-counter"
+                      aria-label={`${count} новых`}
+                    >
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  )}
+                  {childrenForSection.length > 0 ? (
+                    <ChevronDown className={`h-4 w-4 shrink-0 transition-transform duration-[var(--motion-base)] ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+                  ) : null}
+                </Link>
+                {childrenForSection.length > 0 && expanded ? (
+                  <div className="space-y-0.5 pb-1" data-testid="admin-shell-nav-section-items">
+                    {childrenForSection.map((child) => {
+                      const ChildIcon = child.icon;
+                      const childCountKey = navCountKey(child.href);
+                      const childCount = childCountKey ? (counts?.[childCountKey] ?? 0) : 0;
+                      const childExactActive = isExactActive(child.href);
+                      const childActive = isActive(child.href);
+                      return (
+                        <Link
+                          key={child.href}
+                          href={hrefForNav(child.href)}
+                          data-testid="admin-shell-nav-item"
+                          data-depth={1}
+                          aria-current={childExactActive ? "page" : undefined}
+                          className={`admin-shell-item soft-admin-nav-link ml-5 flex min-h-8 items-center gap-2 rounded-[var(--radius-control)] px-2 py-1.5 text-xs transition-colors duration-[var(--motion-base)] ${
+                            childActive ? "is-active font-medium" : ""
+                          }`}
+                        >
+                          <ChildIcon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">{child.label}</span>
+                          {childCount > 0 && (
+                            <span
+                              className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--soft-apricot)] px-1.5 text-[11px] font-bold text-[var(--soft-bordeaux)] tabular-nums"
+                              data-testid="admin-nav-counter"
+                              aria-label={`${childCount} новых`}
+                            >
+                              {childCount > 99 ? "99+" : childCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
           )})}
         </nav>
 
-        <div className="mt-2 border-t border-[var(--soft-paper-edge)] pt-2">
+        <div data-testid="admin-shell-sidebar-footer" className="mt-auto shrink-0 border-t border-[var(--soft-paper-edge)] pt-2">
           <Link href={hrefForNav(adminUrl("/admin/settings"))}
             aria-current={pathname === "/admin/settings" ? "page" : undefined}
             className={`soft-admin-nav-link flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${

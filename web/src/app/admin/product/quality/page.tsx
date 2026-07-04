@@ -30,13 +30,13 @@ function MetricCard({
   hint: string;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
-      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">
-        <Icon className="h-4 w-4 text-[var(--soft-bordeaux)]" />
+    <div className="rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)]">
+      <div className="mb-1.5 flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">
+        <Icon className="h-3.5 w-3.5 text-[#2563EB]" />
         {label}
       </div>
-      <p className="text-2xl font-semibold text-[var(--soft-bordeaux)] tabular-nums">{value}</p>
-      <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">{hint}</p>
+      <p className="font-heading text-xl font-semibold leading-tight text-[var(--soft-bordeaux)] tabular-nums">{value}</p>
+      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--soft-ink-soft)]">{hint}</p>
     </div>
   );
 }
@@ -255,7 +255,7 @@ export default async function ProductQualityPage() {
         </div>
       </div>
 
-      <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <section className="mb-6 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard icon={MessageSquareWarning} label="Жалобы" value={formatNumber(openComplaints)} hint="Новые и рассматриваемые обращения." />
         <MetricCard icon={FileText} label="Заявки практиков" value={formatNumber(pendingApplications)} hint="Регистрация и валидация документов." />
         <MetricCard icon={Star} label="Отзывы" value={formatNumber(pendingReviews)} hint="Модерация, публикация, скрытие и правка." />
