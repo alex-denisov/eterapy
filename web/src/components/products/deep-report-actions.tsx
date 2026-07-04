@@ -306,6 +306,10 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
           specialistHref="/practitioners"
         />
 
+        {/* Round-5 #5: decoy-ладдер (отчёт / бандл / Premium) живёт ТОЛЬКО на
+            результирующем экране — после ценности, не перед разбором. */}
+        <FullQuestionBundleOffer />
+
         <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
           <BookOpen className="size-3.5" aria-hidden="true" />
           <span>Разбор сохранён в</span>
@@ -377,10 +381,6 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
         </div>
       </div>
 
-      {/* Decoy-ладдер (отчёт / бандл / Premium) — апселл для неоплативших. */}
-      {!hasEntitlement && (
-        <FullQuestionBundleOffer onUnlocked={() => { setHasEntitlement(true); void generateReport(); }} />
-      )}
     </div>
   );
 }

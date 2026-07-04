@@ -10,6 +10,7 @@ import { dialogueStatusLabelRu } from "@/lib/dialogue-router";
 import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { practiceWeekDays, startOfPracticeWeek } from "@/lib/weekly-summary";
 import { getPracticeStreakSnapshot } from "@/lib/streaks";
+import { daysWord, effectivePracticeStreak } from "@/lib/streak-display";
 import { listJournalEntries, type JournalEntry } from "@/lib/journal-entries";
 import { topObservation } from "@/lib/diary-recommendation";
 import { deepeningForTopic } from "@/lib/cabinet-recommendations";
@@ -325,14 +326,17 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
           <aside className="rounded-[16px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4">
             <div className="mb-3 flex items-center justify-between">
               <span className="soft-eyebrow">эта неделя</span>
-              <div
-                className="grid size-12 place-items-center rounded-full text-sm font-semibold"
-                data-testid="diary-streak-ring"
-                style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)", fontFamily: "var(--font-heading-v4, serif)" }}
-                aria-label={`Серия: ${practiceStreak.count} дней`}
-              >
-                {practiceStreak.count}
-              </div>
+              {/* Round-5 #6a: кольцо серии видно только при живой серии. */}
+              {effectivePracticeStreak(practiceStreak.count, practiceStreak.lastDoneDate) > 0 && (
+                <div
+                  className="grid size-12 place-items-center rounded-full text-sm font-semibold"
+                  data-testid="diary-streak-ring"
+                  style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)", fontFamily: "var(--font-heading-v4, serif)" }}
+                  aria-label={`Серия: ${practiceStreak.count} ${daysWord(practiceStreak.count)} подряд`}
+                >
+                  {practiceStreak.count}
+                </div>
+              )}
             </div>
             <div className="flex gap-1.5" data-testid="diary-week-strip">
               {practiceWeekDays(weekCards.map((c) => c.cardDate)).map((day) => (

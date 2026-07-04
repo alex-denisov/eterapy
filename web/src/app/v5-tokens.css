@@ -127,3 +127,14 @@
   outline: var(--focus-outline);
   outline-offset: 2px;
 }
+
+/* B464 round-5 #12: text fields on the support surface keep their own calm
+   focus styling (border/ring/focus-within shadow) — the global terracotta
+   outline reads as an alarming orange ring around the input. This rule is
+   intentionally UNLAYERED next to the global one above: Tailwind's layered
+   `outline-none` utilities lose to it, so the suppression must live here. */
+[data-testid="cabinet-support-page"] input:focus-visible,
+[data-testid="cabinet-support-page"] textarea:focus-visible,
+[data-testid="cabinet-support-page"] select:focus-visible {
+  outline: none;
+}

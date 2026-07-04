@@ -11,6 +11,7 @@ import { getClarityCreditBalance } from "@/lib/clarity-credits";
 import { pointsWord } from "@/lib/points";
 import { listMissionChecklist } from "@/lib/missions";
 import { getPracticeStreakSnapshot, STREAK_REWARDS } from "@/lib/streaks";
+import { daysWord, effectivePracticeStreak } from "@/lib/streak-display";
 import { practiceWeekDays, startOfPracticeWeek, WEEKLY_SUMMARY_PRODUCT_KEY } from "@/lib/weekly-summary";
 import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
 import { dialogueTopicLabelRu } from "@/lib/dialogue-router";
@@ -193,6 +194,10 @@ export default async function ClientCabinetPage() {
   // one signals snapshot so the surfaces rotate together and never freeze on a
   // single suggestion.
   const now = new Date();
+  // Round-5 #6a: показываем только ЖИВУЮ серию (последняя отметка сегодня или
+  // вчера); stale-счётчик из БД без активной серии читается как «Серия: 1» и
+  // вводит в заблуждение.
+  const liveStreak = effectivePracticeStreak(practiceStreak.count, practiceStreak.lastDoneDate, now);
   const diaryTopicCounts: Record<string, number> = Object.fromEntries(
     topicGroups
       .filter((group) => group.topic)
@@ -225,7 +230,7 @@ export default async function ClientCabinetPage() {
     journal: {
       total: journalTotal,
       entryToday: Boolean(dailyCard.completedAt),
-      streak: practiceStreak.count,
+      streak: liveStreak,
     },
     crisisGuard,
   };
@@ -421,14 +426,18 @@ export default async function ClientCabinetPage() {
             <div className="min-w-0">
               <p className="soft-eyebrow">вопрос дня · по вашим разборам</p>
             </div>
-            <div
-              className="grid size-12 shrink-0 place-items-center rounded-full text-sm font-semibold"
-              data-testid="client-streak-badge"
-              style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)", fontFamily: "var(--font-heading-v4, serif)" }}
-              aria-label={`Серия: ${practiceStreak.count} дней`}
-            >
-              {practiceStreak.count}
-            </div>
+            {/* Round-5 #6a: бейдж серии виден только при ЖИВОЙ серии ≥ 1. */}
+            {liveStreak > 0 && (
+              <div
+                className="grid size-12 shrink-0 place-items-center rounded-full text-sm font-semibold"
+                data-testid="client-streak-badge"
+                style={{ background: "var(--soft-paper-deep)", color: "var(--soft-bordeaux)", fontFamily: "var(--font-heading-v4, serif)" }}
+                aria-label={`Серия: ${liveStreak} ${daysWord(liveStreak)} подряд`}
+                title={`Серия: ${liveStreak} ${daysWord(liveStreak)} подряд`}
+              >
+                {liveStreak}
+              </div>
+            )}
           </div>
           <DailyPracticeActions
             completed={Boolean(dailyCard.completedAt)}
@@ -457,9 +466,15 @@ export default async function ClientCabinetPage() {
               </span>
             ))}
           </div>
-          <p className="mt-3 text-[11.5px]" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
-            записи сохраняются в Дневнике и видны только вам · на 7-й день серии придёт итог недели · вехи: {Object.entries(STREAK_REWARDS).map(([d, r]) => `${d} дн. +${r.creditAmount}`).join(" · ")}
-          </p>
+          {/* Round-5 #6c: без жаргона «вехи» — два коротких понятных предложения. */}
+          <div className="mt-3 grid gap-1 text-[11.5px] leading-relaxed" style={{ color: "var(--soft-ink-faint)" }} data-testid="practice-milestones-hint">
+            <p>Ответы сохраняются в Дневнике — их видите только вы.</p>
+            <p>
+              За регулярность приходят баллы: {Object.entries(STREAK_REWARDS)
+                .map(([d, r], index) => `${index === 0 ? `${d} ${daysWord(Number(d))} подряд` : `${d} ${daysWord(Number(d))}`} — +${r.creditAmount} ${pointsWord(r.creditAmount ?? 0)}`)
+                .join(", ")}. На 7-й день подряд дополнительно придёт «итог недели».
+            </p>
+          </div>
           {weeklySummary && (
             <Link href={appUrl("/diary")} className="soft-chip mt-3 inline-flex items-center gap-2" data-testid="weekly-summary-link">
               <CheckCircle2 className="size-3.5" aria-hidden="true" />

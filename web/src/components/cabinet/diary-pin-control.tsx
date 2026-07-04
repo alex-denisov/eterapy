@@ -23,7 +23,9 @@ import {
   hashDiaryPin,
   isValidDiaryPin,
   notifyDiaryPinChanged,
+  parseDiaryPinRecord,
   serializeDiaryPinRecord,
+  verifyDiaryPin,
 } from "@/lib/diary-pin";
 
 const MICROCOPY =
@@ -142,16 +144,36 @@ export function DiaryPinControl({ autoOpen = false }: { autoOpen?: boolean }) {
     }
   }
 
-  function handleDisable() {
+  // Round-5 #7: выключение PIN подтверждается ТЕКУЩИМ PIN-кодом — одна кнопка
+  // «Да, отключить» позволяла снять защиту любому, у кого в руках устройство.
+  async function handleDisable(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    if (!isValidDiaryPin(pin)) {
+      setError("Введите текущий PIN — от 4 до 6 цифр.");
+      return;
+    }
+    setBusy(true);
     try {
+      const record = parseDiaryPinRecord(localStorage.getItem(DIARY_PIN_STORAGE_KEY));
+      const verified = record ? await verifyDiaryPin(pin, record) : true;
+      if (!verified) {
+        setError("Неверный PIN. Попробуйте ещё раз.");
+        return;
+      }
       localStorage.removeItem(DIARY_PIN_STORAGE_KEY);
       sessionStorage.removeItem(DIARY_PIN_UNLOCK_KEY);
+      notifyDiaryPinChanged();
+      setHasPin(false);
+      setOpen(false);
     } catch {
       /* storage unavailable — treat as removed */
+      notifyDiaryPinChanged();
+      setHasPin(false);
+      setOpen(false);
+    } finally {
+      setBusy(false);
     }
-    notifyDiaryPinChanged();
-    setHasPin(false);
-    setOpen(false);
   }
 
   const showForm = view === "set" || view === "change";
@@ -222,7 +244,7 @@ export function DiaryPinControl({ autoOpen = false }: { autoOpen?: boolean }) {
               <button
                 type="button"
                 className="soft-button soft-button-ghost justify-center"
-                onClick={() => setView("confirm-disable")}
+                onClick={() => { setPin(""); setError(null); setView("confirm-disable"); }}
                 data-testid="diary-pin-disable"
               >
                 Отключить PIN-код
@@ -231,24 +253,42 @@ export function DiaryPinControl({ autoOpen = false }: { autoOpen?: boolean }) {
           )}
 
           {view === "confirm-disable" && (
-            <div className="grid gap-3" data-testid="diary-pin-confirm-disable">
+            <form onSubmit={handleDisable} className="grid gap-3" data-testid="diary-pin-confirm-disable">
               <p className="text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-                Дневник снова будет открываться без PIN на этом устройстве. Отключить?
+                Дневник снова будет открываться без PIN на этом устройстве.
+                Чтобы отключить защиту, введите текущий PIN.
               </p>
+              <label className="grid gap-1.5 text-sm text-[var(--soft-ink-soft)]">
+                Текущий PIN
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={6}
+                  value={pin}
+                  onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                  className="soft-input w-full text-center text-lg tracking-[0.5em]"
+                  data-testid="diary-pin-disable-current"
+                  autoFocus
+                />
+              </label>
+              {error && (
+                <p className="text-sm text-[var(--soft-bordeaux)]" role="alert">{error}</p>
+              )}
               <div className="flex gap-2">
                 <button
-                  type="button"
+                  type="submit"
+                  disabled={busy || pin.length < 4}
                   className="soft-button soft-button-primary flex-1 justify-center"
-                  onClick={handleDisable}
                   data-testid="diary-pin-disable-confirm"
                 >
-                  Да, отключить
+                  {busy ? "Проверяем..." : "Да, отключить"}
                 </button>
-                <button type="button" className="soft-button soft-button-ghost" onClick={() => setView("manage")}>
+                <button type="button" className="soft-button soft-button-ghost" onClick={() => { setPin(""); setError(null); setView("manage"); }}>
                   Оставить
                 </button>
               </div>
-            </div>
+            </form>
           )}
         </DialogContent>
       </Dialog>

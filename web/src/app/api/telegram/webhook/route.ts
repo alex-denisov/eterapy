@@ -89,7 +89,9 @@ export async function POST(req: NextRequest) {
       const conversationId = conversationIdMatch?.[1];
       if (conversationId) {
         const conversation = await db.supportConversation.findUnique({ where: { id: conversationId } });
-        if (conversation && conversation.status === "OPEN") {
+        // Round-5 #13: ответ поддержки доходит и в сессию, закрытую 30-минутным
+        // таймаутом — статус здесь не фильтруем (id из маркера точен).
+        if (conversation) {
           // Dedupe — Telegram retries can re-deliver the same update.
           const existing = msg.message_id !== undefined
             ? await db.supportMessage.findFirst({

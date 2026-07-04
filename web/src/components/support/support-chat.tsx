@@ -1,16 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Send, MessageCircle } from "lucide-react";
+import { ArrowLeft, ChevronRight, MessageCircle, Plus, Send } from "lucide-react";
+import type { SupportSessionSummary } from "@/lib/support-sessions";
 
 // B333: in-cabinet support chat widget. Polls /api/support/messages every
 // 3 seconds for staff replies that arrive through the Telegram webhook;
 // POSTs user messages to the same endpoint, which forwards to the support
 // TG group.
 //
-// SSE is the natural future upgrade — for now polling is good enough
-// given typical support response latency (minutes, not seconds) and keeps
-// us on Vercel-edge-friendly request-response semantics.
+// B464 round-5 #13 — СЕССИИ: если у клиента ещё не было обращений, чат
+// стартует сессию автоматически первым сообщением. Если сессии были — сначала
+// список: любую можно посмотреть, продолжить можно ТОЛЬКО последнюю; явная
+// кнопка начинает новую. Сессия без активности 30 минут закрывается по
+// таймауту (сервер), но ответы поддержки продолжают приходить и в закрытую.
 
 const POLL_INTERVAL_MS = 3000;
 const MESSAGE_MAX = 2000;
@@ -22,7 +25,21 @@ type Message = {
   createdAt: string;
 };
 
+type ChatView =
+  | { kind: "loading" }
+  | { kind: "picker" }
+  | { kind: "thread"; conversationId: string | null; writable: boolean; isNew: boolean };
+
+function formatSessionDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) +
+    ", " + date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
 export function SupportChat() {
+  const [view, setView] = useState<ChatView>({ kind: "loading" });
+  const [sessions, setSessions] = useState<SupportSessionSummary[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -30,10 +47,50 @@ export function SupportChat() {
   const lastSeenRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  const loadMessages = useCallback(async () => {
+  const activeConversationId = view.kind === "thread" ? view.conversationId : null;
+  const writable = view.kind === "thread" && view.writable;
+
+  // Навигация между списком и тредом сбрасывает ленту здесь (в обработчике),
+  // а не в effect-теле — загрузка истории остаётся асинхронной в effect ниже.
+  function openThread(next: { conversationId: string | null; writable: boolean; isNew: boolean }) {
+    setMessages([]);
+    lastSeenRef.current = null;
+    setError(null);
+    setView({ kind: "thread", ...next });
+  }
+
+  // Session list → decides between auto-start (no sessions) and the picker.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/support/conversations", { cache: "no-store" });
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { sessions?: SupportSessionSummary[] };
+        if (cancelled) return;
+        const list = data.sessions ?? [];
+        setSessions(list);
+        if (list.length === 0) {
+          // Auto-start: первый заход в чат — сразу композер, сессия создастся
+          // первым сообщением.
+          setView({ kind: "thread", conversationId: null, writable: true, isNew: true });
+        } else {
+          setView({ kind: "picker" });
+        }
+      } catch {
+        if (!cancelled) setView({ kind: "thread", conversationId: null, writable: true, isNew: true });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadMessages = useCallback(async (conversationId: string, since: string | null) => {
     try {
       const url = new URL("/api/support/messages", window.location.origin);
-      if (lastSeenRef.current) url.searchParams.set("since", lastSeenRef.current);
+      url.searchParams.set("conversationId", conversationId);
+      if (since) url.searchParams.set("since", since);
       const res = await fetch(url.toString(), { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as { messages: Message[] };
@@ -54,33 +111,28 @@ export function SupportChat() {
     }
   }, []);
 
-  // Initial load — no `since` cursor so we pull the whole open thread.
+  // Thread open — initial full load (no `since` cursor). The message list is
+  // reset in openThread(); here we only fetch.
   useEffect(() => {
+    if (view.kind !== "thread" || !view.conversationId) return;
+    const conversationId = view.conversationId;
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch("/api/support/messages", { cache: "no-store" });
-        if (!res.ok) return;
-        const data = (await res.json()) as { messages: Message[] };
-        if (cancelled) return;
-        setMessages(data.messages);
-        lastSeenRef.current = data.messages.at(-1)?.createdAt ?? null;
-      } catch {
-        // ignore
-      }
+      if (!cancelled) await loadMessages(conversationId, null);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [view, loadMessages]);
 
-  // Poll for new staff replies.
+  // Poll for new staff replies while a thread is open.
   useEffect(() => {
+    if (!activeConversationId) return;
     const timer = window.setInterval(() => {
-      void loadMessages();
+      void loadMessages(activeConversationId, lastSeenRef.current);
     }, POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
-  }, [loadMessages]);
+  }, [activeConversationId, loadMessages]);
 
   // Auto-scroll to bottom when messages change.
   useEffect(() => {
@@ -88,7 +140,19 @@ export function SupportChat() {
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages]);
 
+  async function refreshSessions() {
+    try {
+      const res = await fetch("/api/support/conversations", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { sessions?: SupportSessionSummary[] };
+      setSessions(data.sessions ?? []);
+    } catch {
+      // ignore
+    }
+  }
+
   async function sendMessage() {
+    if (view.kind !== "thread" || !view.writable) return;
     const content = draft.trim();
     if (!content || sending) return;
     setSending(true);
@@ -108,17 +172,25 @@ export function SupportChat() {
       const res = await fetch("/api/support/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content,
+          ...(view.conversationId ? { conversationId: view.conversationId } : {}),
+          ...(view.isNew && !view.conversationId ? { newSession: sessions.length > 0 } : {}),
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Не удалось отправить сообщение");
       }
-      const data = (await res.json()) as { message: Message };
+      const data = (await res.json()) as { conversationId?: string; message: Message };
       setMessages((prev) =>
         prev.map((m) => (m.id === optimistic.id ? data.message : m)),
       );
       lastSeenRef.current = data.message.createdAt;
+      if (!view.conversationId && data.conversationId) {
+        setView({ kind: "thread", conversationId: data.conversationId, writable: true, isNew: false });
+        void refreshSessions();
+      }
     } catch (sendError) {
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setDraft(content);
@@ -128,6 +200,62 @@ export function SupportChat() {
     }
   }
 
+  if (view.kind === "loading") {
+    return (
+      <div className="rounded-[18px] border border-[var(--soft-paper-edge)] p-6 text-center text-sm text-[var(--soft-ink-faint)]" data-testid="support-chat-loading">
+        Открываем чат…
+      </div>
+    );
+  }
+
+  // ── Session picker: были обращения → просмотр любой, продолжить — последнюю ──
+  if (view.kind === "picker") {
+    return (
+      <div className="overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)]" data-testid="support-chat-picker">
+        <div className="border-b border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-4 py-3">
+          <p className="text-sm font-medium text-[var(--soft-ink)]">Ваши обращения</p>
+          <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
+            Продолжить можно последнее обращение; остальные доступны для просмотра.
+          </p>
+        </div>
+        <div className="divide-y divide-[var(--soft-paper-edge)]">
+          {sessions.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => openThread({ conversationId: s.id, writable: s.canContinue, isNew: false })}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--soft-paper-card)]"
+              data-testid="support-chat-session"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm text-[var(--soft-ink)]">{s.preview}</span>
+                <span className="mt-0.5 block text-xs text-[var(--soft-ink-faint)]">
+                  {formatSessionDate(s.lastActivityAt)} · {s.status === "OPEN" ? "открыта" : "завершена"}
+                </span>
+              </span>
+              <span className="shrink-0 text-xs font-medium text-[var(--soft-bordeaux)]">
+                {s.canContinue ? "Продолжить" : "Посмотреть"}
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-[var(--soft-ink-faint)]" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+        <div className="border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
+          <button
+            type="button"
+            onClick={() => openThread({ conversationId: null, writable: true, isNew: true })}
+            className="soft-button soft-button-primary w-full justify-center"
+            data-testid="support-chat-new-session"
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Начать новое обращение
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Thread ──
   // B464 round-4 #18 — Telegram-like: date separators, tailed bubbles with an
   // in-bubble timestamp, a pill composer with a round icon send button, and
   // Enter-to-send (Shift+Enter = newline).
@@ -135,6 +263,22 @@ export function SupportChat() {
 
   return (
     <div className="overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)]" data-testid="support-chat">
+      {sessions.length > 0 && (
+        <div className="flex items-center gap-2 border-b border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-3 py-2">
+          <button
+            type="button"
+            onClick={() => { void refreshSessions(); setView({ kind: "picker" }); }}
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-deep)] hover:text-[var(--soft-bordeaux)]"
+            data-testid="support-chat-back"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            К обращениям
+          </button>
+          {!writable && (
+            <span className="text-xs text-[var(--soft-ink-faint)]">просмотр — продолжить можно только последнее обращение</span>
+          )}
+        </div>
+      )}
       <div
         ref={scrollRef}
         className="flex max-h-[420px] min-h-[280px] flex-col gap-2 overflow-y-auto p-4"
@@ -192,44 +336,58 @@ export function SupportChat() {
         )}
       </div>
 
-      <div className="border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
-        {error && (
-          <p className="mb-2 text-xs text-[var(--soft-bordeaux)]" data-testid="support-chat-error">
-            {error}
+      {writable ? (
+        <div className="border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
+          {error && (
+            <p className="mb-2 text-xs text-[var(--soft-bordeaux)]" data-testid="support-chat-error">
+              {error}
+            </p>
+          )}
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_MAX))}
+              placeholder="Сообщение…"
+              className="max-h-32 flex-1 resize-none rounded-[20px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5 text-sm leading-relaxed text-[var(--soft-ink)] outline-none transition-colors focus:border-[var(--soft-bordeaux)]/40 focus-visible:outline-none"
+              rows={1}
+              maxLength={MESSAGE_MAX}
+              disabled={sending}
+              data-testid="support-chat-input"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void sendMessage();
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void sendMessage()}
+              disabled={sending || draft.trim().length === 0}
+              aria-label="Отправить сообщение"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--soft-terracotta)] text-[#FFF8F1] shadow-[0_6px_16px_-6px_rgba(214,117,88,0.7)] transition-[filter,transform] hover:brightness-105 active:scale-95 disabled:opacity-40"
+              data-testid="support-chat-send"
+            >
+              <Send className="size-4 -translate-x-px" aria-hidden="true" />
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11px] text-[var(--soft-ink-faint)]">
+            Enter — отправить, Shift+Enter — новая строка · без сообщений 30 минут сессия закрывается.
           </p>
-        )}
-        <div className="flex items-end gap-2">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_MAX))}
-            placeholder="Сообщение…"
-            className="max-h-32 flex-1 resize-none rounded-[20px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5 text-sm leading-relaxed text-[var(--soft-ink)] outline-none transition-colors focus-visible:outline-none focus:border-[var(--soft-bordeaux)]/40"
-            rows={1}
-            maxLength={MESSAGE_MAX}
-            disabled={sending}
-            data-testid="support-chat-input"
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void sendMessage();
-              }
-            }}
-          />
+        </div>
+      ) : (
+        <div className="border-t border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-3">
           <button
             type="button"
-            onClick={() => void sendMessage()}
-            disabled={sending || draft.trim().length === 0}
-            aria-label="Отправить сообщение"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--soft-terracotta)] text-[#FFF8F1] shadow-[0_6px_16px_-6px_rgba(214,117,88,0.7)] transition-[filter,transform] hover:brightness-105 active:scale-95 disabled:opacity-40"
-            data-testid="support-chat-send"
+            onClick={() => openThread({ conversationId: null, writable: true, isNew: true })}
+            className="soft-button soft-button-ghost w-full justify-center"
+            data-testid="support-chat-readonly-new"
           >
-            <Send className="size-4 -translate-x-px" aria-hidden="true" />
+            <Plus className="size-4" aria-hidden="true" />
+            Начать новое обращение
           </button>
         </div>
-        <p className="mt-1.5 text-[11px] text-[var(--soft-ink-faint)]">
-          Enter — отправить, Shift+Enter — новая строка · ответы появляются здесь автоматически.
-        </p>
-      </div>
+      )}
     </div>
   );
 }

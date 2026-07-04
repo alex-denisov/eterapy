@@ -296,11 +296,13 @@ describe("R10 item 16 — settings grouped rows", () => {
     const settings = read("app/cabinet/settings/settings-client.tsx");
     expect(settings).not.toContain("setActiveTab");
     expect(settings).toContain('data-testid="settings-anchors"');
+    // Round-5 #11: groups render through <SettingsGroup testId=…> which sets
+    // data-testid at runtime — assert the id regardless of the prop spelling.
     for (const id of ["settings-group-profile", "settings-group-about", "settings-group-security", "settings-group-notifications", "settings-group-danger"]) {
-      expect(settings).toContain(`data-testid="${id}"`);
+      expect(settings).toMatch(new RegExp(`(data-testid|testId)="${id}"`));
     }
     // Handlers and security testids preserved.
-    expect(settings).toContain('data-testid="linked-login-methods"');
+    expect(settings).toMatch(/(data-testid|testId)="linked-login-methods"/);
     expect(settings).toContain('data-testid="set-password-panel"');
     expect(settings).toContain("/api/auth/set-password-request");
     // Old-theme premium-input select is gone.
@@ -321,28 +323,26 @@ describe("R11 item 18 — support centre", () => {
     expect(center).toContain("focus-visible:outline-none");
   });
 
-  it("theme chips surface 5 random questions from the shared help base", async () => {
-    const { pickThemeQuestions } = await import("@/lib/support-faq");
-    const seq = [0.1, 0.9, 0.3, 0.7, 0.5];
-    let i = 0;
-    const rng = () => seq[i++ % seq.length];
-    const picked = pickThemeQuestions("finance", 5, rng);
-    expect(picked).toHaveLength(5);
-    expect(picked.every((q) => q.cat === "payments")).toBe(true);
-    // Deterministic with the same rng.
-    i = 0;
-    expect(pickThemeQuestions("finance", 5, rng).map((q) => q.id)).toEqual(picked.map((q) => q.id));
+  // Round-5 #13 superseded the random 5: категория показывает детерминированный
+  // список (первые 5 + «Показать ещё вопросы» ДОБАВЛЯЕТ следующие).
+  it("a picked theme lists its questions deterministically with an additive «показать ещё»", async () => {
+    const { listThemeQuestions } = await import("@/lib/support-faq");
+    const pool = listThemeQuestions("finance");
+    expect(pool.length).toBeGreaterThan(0);
+    expect(pool.every((q) => q.cat === "payments")).toBe(true);
+    expect(listThemeQuestions("finance").map((q) => q.id)).toEqual(pool.map((q) => q.id));
     const center = read("components/support/support-help-center.tsx");
-    expect(center).toContain("pickThemeQuestions");
+    expect(center).toContain("listThemeQuestions");
     expect(center).toContain('data-testid="support-theme-questions"');
-    expect(center).toContain("Показать другие вопросы");
+    expect(center).toContain("Показать ещё вопросы");
+    expect(center).toContain("setVisibleCount((count) => count + THEME_PAGE)");
   });
 
-  it("ONE chips row gates escalation; chat only for sensitive topics", async () => {
+  it("category cards gate escalation; chat only for sensitive topics", async () => {
     const center = read("components/support/support-help-center.tsx");
-    // No second chips row inside the escalation block.
+    // ONE categories grid drives suggestions and escalation gating.
     expect(center.split("SUPPORT_CATEGORIES.map").length - 1).toBe(1);
-    expect(center).toContain("Выберите тему выше");
+    expect(center).toContain("Не нашли нужный вопрос? Выберите из категории ниже");
     const { categoryAllowsChat } = await import("@/lib/support-faq");
     expect(categoryAllowsChat("finance")).toBe(true);
     expect(categoryAllowsChat("technical")).toBe(false);

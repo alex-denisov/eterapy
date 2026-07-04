@@ -34,7 +34,9 @@ describe("G12 — diary «ваши разборы» readable rows (superseded by
 describe("G13 — spending moved to the landing catalog (B464 round-4 #13)", () => {
   it("the wallet keeps баллы vocabulary and a slim spend bridge, no product grid", () => {
     const page = source("src/app/cabinet/wallet/page.tsx");
-    expect(page).toContain("creditsWord");
+    // Round-5 #8: подпись «+N баллов…» убрана как дубль заголовка — словарь баллов
+    // остаётся в шапке и лиде секции.
+    expect(page).toContain("Кошелёк баллов");
     expect(page).toContain('data-testid="wallet-spend-bridge"');
     expect(page).not.toContain("getProductPriceKopecks");
     // Z4 stays honoured: no Premium special case re-opening circle/pair here.

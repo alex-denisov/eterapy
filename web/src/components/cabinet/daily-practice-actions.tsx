@@ -1,21 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, Compass, Footprints, Sparkles } from "lucide-react";
+import { daysWord } from "@/lib/streak-display";
 
 const QUESTION_LIMIT = 600;
 
 // B375 (M26): баллы начисляются по вехам серии (3/7/14/30 дней), не за каждый
 // день. API возвращает milestones: number[] — собираем тёплое сообщение.
+// Round-5 #6c: без слова «веха» — человеческим языком, с подсказкой, когда
+// придёт следующая награда.
+const MILESTONE_REWARDS: Record<number, string> = {
+  3: "+1 балл",
+  7: "+2 балла и «итог недели»",
+  14: "+2 балла",
+  30: "+3 балла",
+};
+
 function milestoneMessage(payload: { milestones?: number[]; streakCount?: number | null }): string | null {
   const milestones = payload.milestones ?? [];
   if (milestones.length > 0) {
-    const rewards: Record<number, string> = { 3: "+1 балл", 7: "+2 балла и итог недели", 14: "+2 балла", 30: "+3 балла" };
-    const parts = milestones.map((m) => `${m} дней подряд — ${rewards[m] ?? "награда"}`);
-    return `День отмечен. Веха: ${parts.join("; ")}!`;
+    const parts = milestones.map((m) => `${MILESTONE_REWARDS[m] ?? "награда"} за ${m} ${daysWord(m)} подряд`);
+    return `День отмечен — вам начислено ${parts.join("; ")}!`;
   }
-  if (typeof payload.streakCount === "number" && payload.streakCount > 0) {
-    return `День отмечен. Серия: ${payload.streakCount} дн. — баллы приходят на вехах 3, 7, 14 и 30 дней.`;
+  const streak = typeof payload.streakCount === "number" ? payload.streakCount : 0;
+  if (streak === 1) {
+    return "День отмечен — это первый день вашей серии. Возвращайтесь завтра: за 3 дня подряд придёт +1 балл.";
+  }
+  if (streak > 1) {
+    const next = Object.keys(MILESTONE_REWARDS).map(Number).find((m) => m > streak);
+    return next
+      ? `День отмечен. Ваша серия — ${streak} ${daysWord(streak)} подряд; на ${next}-й день придёт ${MILESTONE_REWARDS[next]}.`
+      : `День отмечен. Ваша серия — ${streak} ${daysWord(streak)} подряд: все награды серии уже ваши!`;
   }
   return null;
 }
@@ -50,6 +67,7 @@ export function DailyPracticeActions({
   const [message, setMessage] = useState<string | null>(
     completed ? "Практика на сегодня завершена." : null,
   );
+  const router = useRouter();
 
   const isFull = variant === "full";
 
@@ -67,6 +85,9 @@ export function DailyPracticeActions({
       if (!response.ok) throw new Error(payload.error ?? "Не удалось завершить практику");
       setDone(true);
       setMessage(milestoneMessage(payload) ?? "Практика уже была завершена сегодня.");
+      // Round-5 #6b: server-rendered недельная полоска и бейдж серии обновляются
+      // сразу, без ручного refresh страницы.
+      router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось завершить практику");
     } finally {
@@ -98,6 +119,8 @@ export function DailyPracticeActions({
         step: payload.card?.step ?? beats.step,
       });
       setMessage(milestoneMessage(payload) ?? "Практика на сегодня уже пройдена.");
+      // Round-5 #6b: день в недельной полоске отмечается сразу после ответа.
+      router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Не удалось обработать вопрос");
     } finally {

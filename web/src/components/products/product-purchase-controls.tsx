@@ -228,33 +228,45 @@ export function ProductPurchaseControls({
     );
   }
 
+  // Round-5 #4: «Открыть …» и «Картой» always share ONE row; on phones the
+  // primary label collapses to «Открыть за N баллов» so the pair fits without
+  // wrapping or an oversized button.
+  const mobileCreditsLabel = hasCredits
+    ? `Открыть за ${creditCost} ${pointsWord(creditCost as number)}`
+    : label;
+
   return (
     <div className="soft-product-purchase-controls" data-testid={`product-purchase-${productKey}`}>
-      <div className="flex flex-wrap gap-2">
+      <div className={hasCredits ? "soft-purchase-row" : "flex flex-wrap gap-2"}>
         {hasCredits && (
           <button
             type="button"
-            className={cn("soft-button soft-button-primary", className)}
+            className={cn("soft-button soft-button-primary min-w-0 flex-1 justify-center", className)}
             disabled={busy}
             onClick={payWithCredits}
             data-analytics-event="credits_spend_clicked"
             data-analytics-product={productKey}
             data-analytics-checkout-source={checkoutSource}
           >
-            {action === "credits" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <Coins className="size-4" aria-hidden="true" />}
-            {action === "credits" ? "Списываем баллы" : creditsLabel}
+            {action === "credits" ? <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" /> : <Coins className="size-4 shrink-0" aria-hidden="true" />}
+            {action === "credits" ? "Списываем баллы" : (
+              <>
+                <span className="min-w-0 truncate sm:hidden">{mobileCreditsLabel}</span>
+                <span className="hidden min-w-0 truncate sm:inline">{creditsLabel}</span>
+              </>
+            )}
           </button>
         )}
         <button
           type="button"
-          className={cn(hasCredits ? "soft-button soft-button-ghost" : "soft-button soft-button-primary", !hasCredits ? className : undefined)}
+          className={cn(hasCredits ? "soft-button soft-button-ghost shrink-0" : "soft-button soft-button-primary", !hasCredits ? className : undefined)}
           disabled={busy}
           onClick={payWithCard}
           data-analytics-event="direct_product_checkout_clicked"
           data-analytics-product={productKey}
           data-analytics-checkout-source={checkoutSource}
         >
-          {action === "card" ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <CreditCard className="size-4" aria-hidden="true" />}
+          {action === "card" ? <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" /> : <CreditCard className="size-4 shrink-0" aria-hidden="true" />}
           {action === "card" ? "Открываем оплату" : hasCredits ? "Картой" : label}
         </button>
       </div>

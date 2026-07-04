@@ -77,11 +77,15 @@ export async function POST(req: NextRequest) {
     //   1) by forum topic (message_thread_id) — staff just type in the client's
     //      topic and the reply is routed by thread;
     //   2) by the `conversation:<id>` marker in a Reply — the fallback.
+    // B464 round-5 #13: сессии закрываются по 30-минутному таймауту, но ответ
+    // поддержки, пришедший позже, обязан дойти клиенту — маршрутизируем БЕЗ
+    // фильтра по статусу (forum topic уникален для каждой сессии, коллизий нет).
     let conversation: { id: string; telegramThreadId: number | null } | null = null;
     if (inSupportGroup && !fromBot && !isOwnForward) {
       if (typeof msg.message_thread_id === "number") {
         conversation = await db.supportConversation.findFirst({
-          where: { telegramChatId: chatId, telegramThreadId: msg.message_thread_id, status: "OPEN" },
+          where: { telegramChatId: chatId, telegramThreadId: msg.message_thread_id },
+          orderBy: { createdAt: "desc" },
           select: { id: true, telegramThreadId: true },
         });
       }
@@ -92,7 +96,7 @@ export async function POST(req: NextRequest) {
             where: { id: conversationId },
             select: { id: true, status: true, telegramThreadId: true },
           });
-          if (byMarker && byMarker.status === "OPEN") {
+          if (byMarker) {
             conversation = { id: byMarker.id, telegramThreadId: byMarker.telegramThreadId };
           }
         }

@@ -8,7 +8,7 @@ import { BillingPanel } from "@/components/cabinet/billing-panel";
 import { RevealList } from "@/components/cabinet/reveal-list";
 import { auth } from "@/lib/auth";
 import { guardClientCabinet } from "@/lib/cabinet-access";
-import { creditsWord, getCreditWalletSnapshot } from "@/lib/credit-wallet";
+import { getCreditWalletSnapshot } from "@/lib/credit-wallet";
 import db from "@/lib/db";
 import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
 
@@ -106,11 +106,10 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
             <p className="mt-4 font-heading text-3xl font-semibold text-[var(--soft-bordeaux)]">
               {pack.amountRub} ₽
             </p>
-            <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">
+            {/* Round-5 #8: no «+N баллов…» caption — it duplicated the card
+                heading; the 12-month rule lives in the section lede above. */}
+            <p className="mt-1 flex-1 text-sm text-[var(--soft-ink-faint)]">
               {pack.pricePerCreditRub} ₽ за балл
-            </p>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              +{pack.credits} {creditsWord(pack.credits)} на продукты каталога.
             </p>
             <CreditPackPurchaseButton creditPackKey={pack.key} credits={pack.credits} />
           </article>
@@ -218,15 +217,10 @@ export default async function CabinetWalletPage() {
       <CreditPacksGrid packs={wallet.packs} />
 
       {/* B464 IB3 — subscription + saved cards + payment history, merged from the
-          retired «Подписка и оплата» page (/billing → /wallet). */}
+          retired «Подписка и оплата» page (/billing → /wallet). Round-5 #9: no
+          extra wrapper headings — the panel carries its own single header per
+          block (тариф · карты · история). */}
       <section className="mt-8" data-testid="wallet-billing">
-        <div className="mb-3">
-          <p className="soft-eyebrow">подписка и платежи</p>
-          <h2 className="soft-h2 mt-1">Подписка и карты</h2>
-          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
-            Подписочные баллы сгорают в конце оплаченного периода. Купленные пакеты действуют 12 месяцев.
-          </p>
-        </div>
         <BillingPanel />
       </section>
 

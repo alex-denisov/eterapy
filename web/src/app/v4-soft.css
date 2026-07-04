@@ -289,6 +289,25 @@
     font-size: 1rem;
   }
 
+  /* Round-5 #4: on product pages «Открыть … · N баллов» и «Картой» стоят в ОДИН
+     ряд; на телефонах обе кнопки компактнее, чтобы пара помещалась в вьюпорт. */
+  .soft-purchase-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  @media (max-width: 640px) {
+    .soft-purchase-row .soft-button {
+      min-height: 2.75rem;
+      padding: 0.6rem 0.95rem;
+      font-size: 0.88rem;
+      gap: 0.4rem;
+    }
+  }
+
   .soft-header {
     border-bottom-color: rgba(232, 220, 198, 0.72) !important;
     background: color-mix(in srgb, var(--soft-paper) 96%, white) !important;
@@ -3049,6 +3068,15 @@
     background: rgba(251, 246, 238, 0.92);
     box-shadow: 0 -18px 48px -30px rgba(60, 30, 20, 0.36);
     backdrop-filter: blur(16px);
+  }
+
+  /* Round-5 #1: with the landing bar truly fixed to the viewport bottom the
+     page needs clearance so the footer isn't hidden behind it (the cabinet
+     shell does the same via pb-20 on its <main>). */
+  @media (max-width: 767.98px) {
+    body:has([data-testid="landing-mobile-nav"]) {
+      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    }
   }
 
   /* B464 IB0 — «Ещё» bottom sheet (landing header + cabinet shell share it).

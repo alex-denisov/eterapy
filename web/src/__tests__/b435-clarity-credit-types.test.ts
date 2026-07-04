@@ -67,7 +67,7 @@ describe("B435 clarity credit point types and burn priority", () => {
     expect(wallet).toContain("pointTypeLabel");
     expect(wallet).toContain("buildOpenClarityCreditLots");
     expect(walletPage).toContain("item.pointTypeLabel");
-    expect(walletPage).toContain("Подписочные баллы сгорают в конце оплаченного периода");
+    // Round-5 #9: правило живёт ОДИН раз — в BillingPanel, который рендерится на /wallet.
     expect(billingPage).toContain("Подписочные баллы сгорают в конце периода");
   });
 });
