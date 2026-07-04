@@ -162,3 +162,17 @@ describe("R7 audit polish — B9 padding rhythm + B10 tap targets", () => {
     expect(billing).toContain('minHeight: "2.75rem"');
   });
 });
+
+// ── audit B7 — notification panel is viewport-bounded on mobile ───────────────
+describe("R7 audit B7 — notification popover fits the mobile viewport", () => {
+  it("the panel is a bounded flex column with an internally-scrolling list", () => {
+    const bell = read("components/notification-bell.tsx");
+    // whole panel capped to the viewport, flex column, clips its rounded corners
+    expect(bell).toContain("max-h-[min(70vh,34rem)]");
+    expect(bell).toContain("flex-col overflow-hidden");
+    // the list flexes + scrolls inside instead of a fixed pixel height that
+    // pushed the footer + bottom rounded corner off-screen behind the nav bar
+    expect(bell).toContain("min-h-0 flex-1 overflow-y-auto");
+    expect(bell).not.toContain("maxHeight: 420");
+  });
+});
