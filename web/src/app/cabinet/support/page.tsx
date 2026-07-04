@@ -39,11 +39,9 @@ export default async function CabinetSupportPage() {
           </p>
         </div>
 
-        <p className="mt-6 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
-          Прямой адрес: <a href="mailto:support@eterapy.com" className="soft-italic underline">support@eterapy.com</a>.
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-3">
+        {/* Round-6 #2: no bare support-email line — почта живёт ТОЛЬКО в
+            эскалационной карточке staged-флоу (после выбора категории). */}
+        <div className="mt-6 flex flex-wrap gap-3">
           <Link href={mainUrl("/help")} className="soft-button soft-button-ghost h-9 px-4 text-sm">
             Все частые вопросы
             <ArrowRight className="size-4" aria-hidden="true" />

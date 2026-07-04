@@ -41,13 +41,16 @@ describe("M21 clarity credits", () => {
     expect(route).toContain("INSUFFICIENT_CREDITS");
   });
 
-  it("marks referral rewards as pending credits instead of instant cash", () => {
+  // B464 round-6 #4: «pending до ревью» отменён — антифрод решает ДО начисления,
+  // награды сразу confirmed (спендабельны), возвраты закрываются clawback-ом.
+  it("grants referral rewards as confirmed credits, decided up-front by antifraud", () => {
     const share = source("src/lib/share-referral.ts");
 
-    expect(share).toContain("REWARD_PENDING");
-    expect(share).toContain('status: "pending"');
     expect(share).toContain('source: "referral"');
-    expect(share).toContain("meaningful_action_pending_review");
+    expect(share).toContain('status: "confirmed"');
+    expect(share).toContain("shouldBlockReward");
+    expect(share).not.toContain('status: "pending"');
+    expect(share).not.toContain("meaningful_action_pending_review");
   });
 });
 

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
+import { CLIENT_FINGERPRINT_COOKIE } from "@/lib/guest-fingerprint";
 
 const REFERRAL_DAILY_REWARD_LIMIT = 5;
 const HIGH_RISK_SCORE = 70;
@@ -20,7 +21,17 @@ export function requestFingerprint(request: NextRequest) {
       ?? request.headers.get("cf-connecting-ip"),
   );
   const ua = cleanHeader(request.headers.get("user-agent"));
-  const device = cleanHeader(request.headers.get("x-eterapy-device-id") ?? request.cookies.get("eterapy_device")?.value ?? null);
+  // B464 round-6 #4: the fingerprint beacon writes `eterapy_fp`
+  // (CLIENT_FINGERPRINT_COOKIE) — the old `eterapy_device` cookie never existed
+  // in the wild, so deviceHash was always null and every device-based referral
+  // risk check was dead. Read the real cookie, keep the legacy names as
+  // fallbacks for older clients/tests.
+  const device = cleanHeader(
+    request.headers.get("x-eterapy-device-id")
+      ?? request.cookies.get(CLIENT_FINGERPRINT_COOKIE)?.value
+      ?? request.cookies.get("eterapy_device")?.value
+      ?? null,
+  );
   return {
     ipHash: sha(`ip:${ip}`),
     userAgentHash: sha(`ua:${ua}`),
@@ -67,6 +78,12 @@ export async function assessReferralRisk(input: {
   referredUserId: string | null;
   visitorHash: string;
   fingerprint: ReturnType<typeof requestFingerprint>;
+  /**
+   * Round-6 #4: при повторной оценке риска по УЖЕ существующей атрибуции (этап
+   * «первая покупка») её собственный rewarded-статус не должен читаться как
+   * «дубликат» — исключаем эту атрибуцию из duplicate-проверки.
+   */
+  excludeAttributionId?: string | null;
 }) {
   const flags = new Set<string>();
   let score = 0;
@@ -113,7 +130,8 @@ export async function assessReferralRisk(input: {
       ? input.tx.referralAttribution.count({
           where: {
             referredUserId: input.referredUserId,
-            status: { in: ["REGISTERED", "REWARD_PENDING", "REWARDED", "REWARD_CONFIRMED"] },
+            status: { in: ["REWARD_PENDING", "REWARDED", "REWARD_CONFIRMED"] },
+            ...(input.excludeAttributionId ? { id: { not: input.excludeAttributionId } } : {}),
           },
         })
       : Promise.resolve(0),
@@ -143,6 +161,12 @@ export async function assessReferralRisk(input: {
   return {
     riskScore: Math.min(score, 100),
     riskFlags: [...flags],
-    shouldBlockReward: score >= HIGH_RISK_SCORE || flags.has("self_referral") || flags.has("daily_referral_reward_limit"),
+    // Round-6 #4: один и тот же приглашённый вознаграждается ОДИН раз — дубль
+    // по другой ссылке блокируется сам по себе, не только по сумме баллов.
+    shouldBlockReward:
+      score >= HIGH_RISK_SCORE
+      || flags.has("self_referral")
+      || flags.has("daily_referral_reward_limit")
+      || flags.has("duplicate_referred_user_reward"),
   };
 }

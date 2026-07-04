@@ -7,13 +7,16 @@ import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { guardClientCabinet } from "@/lib/cabinet-access";
 import { getReferralStats, getReferralCredits } from "@/lib/referral-stats";
+import { REFERRAL_REWARDS } from "@/lib/share-referral";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 import { InviteLinkCard } from "@/components/cabinet/invite-link-card";
 
+// B464 round-6 #4 — шаги озвучивают утверждённую staged-экономику; числа
+// берутся из контракта REFERRAL_REWARDS, чтобы копия не расходилась с кодом.
 const STEPS: { title: string; body: string }[] = [
   { title: "Поделитесь ссылкой", body: "Отправьте её тому, кому может пригодиться бережный разбор." },
-  { title: "Друг пробует разбор", body: "Он открывает свой первый разбор — спокойно и без обязательств." },
-  { title: "Баллы приходят вам обоим", body: "Когда друг попробует, баллы получаете и вы, и он." },
+  { title: "Друг пробует разбор", body: `За первый разбор друг получает +${REFERRAL_REWARDS.refereeFirstAnalysis} балла, а вы — +${REFERRAL_REWARDS.referrerFirstAnalysis} балл.` },
+  { title: "Друг остаётся", body: `Когда друг делает первую покупку, вам приходит ещё +${REFERRAL_REWARDS.referrerFirstPurchase} балла.` },
 ];
 
 export default async function CabinetInvitePage() {
@@ -73,7 +76,9 @@ export default async function CabinetInvitePage() {
           Подарите кому-то первый разбор — и пополните свой баланс
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed" style={{ color: "var(--soft-bordeaux)", opacity: 0.9 }}>
-          Когда тот, кого вы позвали, попробует разбор, баллы придут вам обоим.
+          Когда тот, кого вы позвали, попробует разбор, баллы придут вам обоим:
+          ему +{REFERRAL_REWARDS.refereeFirstAnalysis}, вам +{REFERRAL_REWARDS.referrerFirstAnalysis} —
+          и ещё +{REFERRAL_REWARDS.referrerFirstPurchase}, когда он сделает первую покупку.
         </p>
         <div className="mt-5">
           <InviteLinkCard />

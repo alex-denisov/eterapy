@@ -23,7 +23,7 @@ import {
   grantEntitlementForTransaction,
   revokeEntitlementsForTransaction,
 } from "./entitlements";
-import { clawbackReferralRewardsForUser } from "./share-referral";
+import { clawbackReferralRewardsForUser, markReferralFirstPurchase } from "./share-referral";
 import { trackServerEvent } from "./analytics";
 import { log } from "./logger";
 import {
@@ -87,10 +87,21 @@ export async function creditSucceededPayment(
 
     const entitlementGrant = await grantEntitlementForTransaction(tx, transaction);
     const newCard = await saveCardFromPaymentMethod(tx, transaction.userId, paymentMethod);
-    return { userId: transaction.userId, amount: transaction.amount, newCard, entitlementGrant };
+    return { userId: transaction.userId, transactionId: transaction.id, amount: transaction.amount, newCard, entitlementGrant };
   });
 
   if (!result) return false;
+
+  // B464 round-6 #4 · referral stage 2: первая РЕАЛЬНАЯ ₽-покупка друга даёт
+  // рефереру ещё +2 балла. Card-binding микро-платежи (kind "none") не считаются
+  // покупкой. Best-effort — сбой бухгалтерии не должен ломать сеттл платежа.
+  if (result.entitlementGrant.kind !== "none") {
+    markReferralFirstPurchase({
+      userId: result.userId,
+      transactionId: result.transactionId,
+      amountKopecks: result.amount,
+    }).catch((e) => log.error("billing.referral_purchase_hook_failed", { err: e }));
+  }
 
   const amountRub = (result.amount / 100).toFixed(2);
 

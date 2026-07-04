@@ -289,6 +289,115 @@
     font-size: 1rem;
   }
 
+  /* Round-6 #6: «ваши результаты» = redesigned разбор-list per the recovered
+     b464-home mockup (.row/.topic-chip/.acts). Each разбор is its own bordered
+     rounded card-row: a colour topic-chip anchors the left, title+date sit in
+     the middle, a compact icon-action cluster on the right. Replaces the flat
+     hairline-separated rows that read as the pre-redesign block. Viewport-
+     agnostic → top of layer, before any @media. */
+  .soft-result-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 14px;
+    background: var(--soft-paper-card);
+    transition: border-color var(--motion-base) var(--ease-standard),
+      box-shadow var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-result-row + .soft-result-row {
+    margin-top: 0.55rem;
+  }
+
+  .soft-result-row:hover {
+    border-color: color-mix(in srgb, var(--soft-terracotta) 42%, var(--soft-paper-edge));
+    box-shadow: 0 6px 20px -14px rgba(92, 42, 44, 0.4);
+  }
+
+  .soft-result-chip {
+    flex: none;
+    align-self: flex-start;
+    margin-top: 0.1rem;
+    background: #f3eadf;
+    border: 1px solid var(--soft-paper-edge);
+    color: var(--soft-ink-soft);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .soft-result-body {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .soft-result-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--soft-ink);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .soft-result-date {
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: var(--soft-ink-faint);
+  }
+
+  .soft-result-acts {
+    display: flex;
+    gap: 0.28rem;
+    margin-left: auto;
+  }
+
+  .soft-result-act {
+    width: 2rem;
+    height: 2rem;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    border: 1px solid var(--soft-paper-edge);
+    color: var(--soft-ink-faint);
+    background: var(--soft-paper);
+    transition: color var(--motion-base) var(--ease-standard),
+      border-color var(--motion-base) var(--ease-standard),
+      background var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-result-act:hover {
+    color: var(--soft-bordeaux);
+    border-color: color-mix(in srgb, var(--soft-terracotta) 50%, var(--soft-paper-edge));
+    background: var(--soft-surface);
+  }
+
+  .soft-result-act-primary {
+    color: var(--soft-bordeaux);
+    border-color: color-mix(in srgb, var(--soft-terracotta) 40%, var(--soft-paper-edge));
+  }
+
+  /* Round-6 #1: /settings hub rows per the approved b464 mockup — standalone
+     rounded rows (icon · title · subtitle · chevron), a section expands inside
+     its row. Viewport-agnostic → lives before any @media block. */
+  .soft-settings-hubrow {
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 14px;
+    background: var(--soft-paper-card);
+    overflow: hidden;
+  }
+
+  .soft-settings-hubrow > summary:hover {
+    background: var(--soft-surface);
+  }
+
   /* Round-5 #4: on product pages «Открыть … · N баллов» и «Картой» стоят в ОДИН
      ряд; на телефонах обе кнопки компактнее, чтобы пара помещалась в вьюпорт. */
   .soft-purchase-row {
