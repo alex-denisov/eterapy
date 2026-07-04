@@ -1391,7 +1391,14 @@ function RoutingChainModal({
   const providerConfigById = useMemo(() => new Map(providers.map((provider) => [provider.provider, provider])), [providers]);
   void draggedProvider;
   return (
-    <dialog open className="soft-admin-detail-dialog" aria-label={`Редактирование маршрута ${title}`}>
+    <dialog
+      open
+      role="dialog"
+      aria-modal="true"
+      className="soft-admin-detail-dialog"
+      data-testid="admin-ai-routing-modal"
+      aria-label={`Редактирование маршрута ${title}`}
+    >
       <div className="soft-admin-detail-dialog__panel max-h-[calc(100vh-48px)] w-[min(1040px,calc(100vw-32px))] overflow-y-auto">
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
