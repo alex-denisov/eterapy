@@ -1284,6 +1284,7 @@ function PolicyTableRow({
           type="button"
           className="soft-admin-icon-button"
           data-variant="primary"
+          data-testid="admin-ai-routing-edit"
           disabled={disabled}
           onClick={() => setOpenModal(true)}
           title="Изменить цепочку маршрутизации"
