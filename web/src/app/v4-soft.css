@@ -3353,7 +3353,8 @@
   .soft-admin-shell,
   .soft-admin-shell > main,
   .soft-admin-shell .admin-shell-main {
-    overflow-x: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .soft-admin-shell :where(main, section, .admin-shell-main, .premium-page) {

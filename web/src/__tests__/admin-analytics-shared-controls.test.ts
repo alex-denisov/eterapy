@@ -151,6 +151,8 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(stickyControlsCss).toContain(".soft-admin-sticky-controls");
     expect(stickyControlsCss).toContain("position: sticky");
     expect(stickyControlsCss).not.toContain("position: fixed");
+    expect(css).toContain("overflow-x: clip");
+    expect(css).toContain("overflow-y: visible");
     expect(css).toContain(".soft-chart-tooltip-layer .soft-chart-hit");
     expect(css).toContain("filter: drop-shadow");
     expect(css).toContain("font-size: 12px");
