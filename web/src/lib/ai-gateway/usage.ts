@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { AIProvider, Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { aiBudgetPeriod, normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
+import { getReferenceModelPricing, microsPerThousandFromUsdPerMillion } from "@/lib/ai-gateway/model-pricing-reference";
 
 export interface AICostRate {
   inputTokenCostMicros?: number | null;
@@ -74,9 +75,15 @@ export async function resolveAIModelCostRate(input: {
     select: { inputTokenCostMicros: true, outputTokenCostMicros: true },
   }).catch(() => null);
 
+  const reference = getReferenceModelPricing(input.provider, input.model);
+
   return {
-    inputTokenCostMicros: row?.inputTokenCostMicros ?? input.fallback?.inputTokenCostMicros ?? null,
-    outputTokenCostMicros: row?.outputTokenCostMicros ?? input.fallback?.outputTokenCostMicros ?? null,
+    inputTokenCostMicros: row?.inputTokenCostMicros
+      ?? input.fallback?.inputTokenCostMicros
+      ?? (reference ? microsPerThousandFromUsdPerMillion(reference.input) : null),
+    outputTokenCostMicros: row?.outputTokenCostMicros
+      ?? input.fallback?.outputTokenCostMicros
+      ?? (reference ? microsPerThousandFromUsdPerMillion(reference.output) : null),
   };
 }
 
@@ -134,6 +141,24 @@ function numberFromDb(value: unknown) {
   if (typeof value === "number") return value;
   if (typeof value === "string") return Number(value);
   return 0;
+}
+
+const AI_PROVIDER_VALUES = new Set<string>(Object.values(AIProvider));
+
+function providerFromDb(value: string): AIProvider | null {
+  return AI_PROVIDER_VALUES.has(value) ? value as AIProvider : null;
+}
+
+async function restoreMissingCost(row: AIUsageDetailRow, client = db): Promise<AIUsageDetailRow> {
+  if (row.costMicros > 0 || row.totalTokens <= 0) return row;
+  const provider = providerFromDb(row.provider);
+  if (!provider || row.model === "unknown") return row;
+  const rate = await resolveAIModelCostRate({ provider, model: row.model }, client).catch(() => null);
+  const restoredCost = estimateAICostMicros({
+    promptTokens: row.promptTokens,
+    completionTokens: row.completionTokens,
+  }, rate ?? {});
+  return restoredCost > 0 ? { ...row, costMicros: restoredCost } : row;
 }
 
 export async function getAIUsageLedger(period = aiBudgetPeriod(), client = db): Promise<AIUsageLedgerRow[]> {
@@ -208,7 +233,7 @@ async function queryAIUsageDetails(start: Date, end: Date, client = db): Promise
     ORDER BY cost_micros DESC, total_tokens DESC, request_count DESC
   `);
 
-  return rows.map((row) => ({
+  const normalizedRows = rows.map((row) => ({
     feature: row.feature,
     provider: row.provider,
     model: row.model,
@@ -222,6 +247,20 @@ async function queryAIUsageDetails(start: Date, end: Date, client = db): Promise
     costMicros: numberFromDb(row.cost_micros),
     avgLatencyMs: row.avg_latency_ms === null ? null : Math.round(numberFromDb(row.avg_latency_ms)),
   }));
+  const costRateCache = new Map<string, Promise<AIUsageDetailRow>>();
+  const restoredRows = await Promise.all(normalizedRows.map((row) => {
+    const cacheKey = `${row.provider}:${row.model}:${row.promptTokens}:${row.completionTokens}:${row.costMicros}`;
+    const cached = costRateCache.get(cacheKey);
+    if (cached) return cached;
+    const restored = restoreMissingCost(row, client);
+    costRateCache.set(cacheKey, restored);
+    return restored;
+  }));
+  return restoredRows.sort((a, b) => (
+    b.costMicros - a.costMicros
+    || b.totalTokens - a.totalTokens
+    || b.requestCount - a.requestCount
+  ));
 }
 
 export async function getAIUsageDetails(period = aiBudgetPeriod(), client = db): Promise<AIUsageDetailRow[]> {

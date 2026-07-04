@@ -2,6 +2,7 @@ import { BookingStatus, TransactionStatus } from "@prisma/client";
 import db from "@/lib/db";
 import { getProductLabel } from "@/lib/billing-labels";
 import { v5Products } from "@/lib/v5-products";
+import { ADMIN_ALL_TIME_START_ISO } from "./admin-period-utils";
 
 export const PRODUCT_NAMES: Record<string, string> = {
   reframe: "Переосмысление",
@@ -105,7 +106,9 @@ export function resolveAdminPeriod(params: SearchParams = {}): AdminPeriod {
   let start = new Date(now.getFullYear(), now.getMonth(), 1);
   let end = endOfDay(now);
 
-  if (period === "today") {
+  if (period === "all") {
+    start = parseInputDate(ADMIN_ALL_TIME_START_ISO, "start");
+  } else if (period === "today") {
     start = startOfDay(now);
   } else if (period === "week") {
     const day = now.getDay() || 7;
@@ -118,7 +121,7 @@ export function resolveAdminPeriod(params: SearchParams = {}): AdminPeriod {
 
   const explicitStart = firstParam(params.start);
   const explicitEnd = firstParam(params.end);
-  if (explicitStart) {
+  if (explicitStart && period !== "all") {
     const parsed = parseInputDate(explicitStart, "start");
     if (!Number.isNaN(parsed.getTime())) start = parsed;
   }
@@ -132,7 +135,7 @@ export function resolveAdminPeriod(params: SearchParams = {}): AdminPeriod {
   const cursor = startOfDay(start);
   const guard = new Date(end);
   let iterations = 0;
-  while (cursor <= guard && iterations < 370) {
+  while (cursor <= guard && iterations < 5000) {
     days.push(dayKey(cursor));
     cursor.setDate(cursor.getDate() + 1);
     iterations += 1;
@@ -170,7 +173,19 @@ export function chartDayLabel(day: string) {
 }
 
 export function chartBuckets(days: string[]) {
-  return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
+  if (days.length <= 370) return days.map((day) => ({ label: chartDayLabel(day), days: [day] }));
+
+  const byMonth = new Map<string, string[]>();
+  for (const day of days) {
+    const key = day.slice(0, 7);
+    const bucket = byMonth.get(key) ?? [];
+    bucket.push(day);
+    byMonth.set(key, bucket);
+  }
+  return [...byMonth.entries()].map(([month, bucketDays]) => ({
+    label: `${month.slice(5, 7)}.${month.slice(0, 4)}`,
+    days: bucketDays,
+  }));
 }
 
 function chartPlanBuckets(days: string[], map: Map<string, { free: number; plus: number; premium: number }>) {

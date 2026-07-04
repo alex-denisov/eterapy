@@ -76,11 +76,25 @@ const YANDEX_TEXT_MODELS: AIModelInfo[] = [
     modelId: "yandexgpt/latest",
     displayName: "YandexGPT Pro",
     isFree: false,
+    ...knownModelPricing(AIProvider.YANDEX, "yandexgpt/latest"),
   },
   {
     modelId: "yandexgpt-lite/latest",
     displayName: "YandexGPT Lite",
     isFree: false,
+    ...knownModelPricing(AIProvider.YANDEX, "yandexgpt-lite/latest"),
+  },
+  {
+    modelId: "yandex-vision-ocr",
+    displayName: "Yandex Vision OCR",
+    isFree: false,
+    ...knownModelPricing(AIProvider.YANDEX, "yandex-vision-ocr"),
+  },
+  {
+    modelId: "speechkit-stt-async",
+    displayName: "Yandex SpeechKit async STT",
+    isFree: false,
+    ...knownModelPricing(AIProvider.YANDEX, "speechkit-stt-async"),
   },
 ];
 

@@ -116,6 +116,7 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
         ["week", "Неделя"],
         ["month", "Месяц"],
         ["quarter", "Квартал"],
+        ["all", "Все время"],
       ].map(([period, label]) => (
         <button key={period} type="button" className="soft-admin-action" data-variant="subtle" onClick={() => applyPreset(period)}>
           {label}

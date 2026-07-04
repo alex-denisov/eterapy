@@ -16,6 +16,7 @@ describe("AI task taxonomy and default routing policy", () => {
       "product-deep-report",
       "product-chat-analysis-ocr",
       "product-chat-analysis",
+      "product-outside-questions",
       "product-tarot",
       "product-natal-chart",
       "product-numerology",
@@ -81,6 +82,11 @@ describe("AI task taxonomy and default routing policy", () => {
       [AIProvider.YANDEX]: "speechkit-stt-async",
     });
     expect(getDefaultAIRoutingPolicy("session-stt")?.fallbackNotes).toContain("Yandex SpeechKit");
+    expect(getDefaultAIRoutingPolicy("product-outside-questions")).toEqual(expect.objectContaining({
+      providerOrder: [AIProvider.YANDEX],
+      modelPreferences: { [AIProvider.YANDEX]: "yandexgpt-lite/latest" },
+      tier: "cheap",
+    }));
   });
 
   it("marks database policies while still showing default taxonomy metadata", () => {

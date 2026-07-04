@@ -135,6 +135,23 @@ describe("ai-gateway/models", () => {
     ).resolves.toBeDefined();
   });
 
+  it("returns Yandex models with built-in pricing so AI spend never defaults to zero silently", async () => {
+    const models = await fetchModelsFromProvider({
+      provider: AIProvider.YANDEX,
+      credential: baseCred({ provider: AIProvider.YANDEX }),
+    });
+
+    expect(models.map((model) => model.modelId)).toEqual(expect.arrayContaining([
+      "yandexgpt/latest",
+      "yandexgpt-lite/latest",
+      "yandex-vision-ocr",
+      "speechkit-stt-async",
+    ]));
+    for (const model of models) {
+      expect(model.inputTokenCostMicros ?? model.outputTokenCostMicros).not.toBeNull();
+    }
+  });
+
   it("adds Cloudflare AI Gateway auth header when refreshing OpenRouter models through gateway", async () => {
     const originalToken = process.env.CF_AI_GATEWAY_TOKEN;
     process.env.CF_AI_GATEWAY_TOKEN = "cf-test-token";

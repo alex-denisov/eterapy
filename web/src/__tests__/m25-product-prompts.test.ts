@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
+import { listDefaultAITaskPolicies } from "@/lib/ai-gateway/task-policy";
 
 function source(rel: string): string {
   return readFileSync(join(process.cwd(), rel), "utf8");
@@ -47,5 +48,19 @@ describe("B362 — per-product AI prompts", () => {
     const safety = source("src/lib/dialogue-safety.ts");
     expect(safety).toContain('feature: "safety-classification"');
     expect(safety).not.toContain('feature: "safety_classification"');
+  });
+
+  it("every default AI task has a specific superadmin-visible system prompt", () => {
+    const features = listDefaultAITaskPolicies().map((policy) => policy.feature);
+
+    for (const feature of features) {
+      const prompt = defaultPromptTextForFeature(feature);
+      expect(prompt).not.toContain("Use the current ETerapy system prompt from code.");
+      expect(prompt).not.toContain("{{defaultPrompt}}");
+      expect(prompt.length).toBeGreaterThan(350);
+    }
+
+    expect(defaultPromptTextForFeature("product-outside-questions")).toContain("Взгляд со стороны");
+    expect(defaultPromptTextForFeature("session-stt")).toContain("транскрип");
   });
 });

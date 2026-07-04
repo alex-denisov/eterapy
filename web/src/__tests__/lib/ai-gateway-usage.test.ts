@@ -2,9 +2,12 @@ import {
   AIBudgetExceededError,
   enforceAIBudget,
   estimateAICostMicros,
+  getAIUsageDetailsForRange,
   getAIUsageLedger,
+  resolveAIModelCostRate,
   recordAIUsageLedger,
 } from "@/lib/ai-gateway/usage";
+import { AIProvider } from "@prisma/client";
 
 describe("AI Gateway usage budgets", () => {
   it("estimates cost from per-1k token micro rates", () => {
@@ -84,5 +87,63 @@ describe("AI Gateway usage budgets", () => {
         requestCount: 2,
       },
     ]);
+  });
+
+  it("falls back to reference model pricing when database pricing is absent", async () => {
+    const client = {
+      aIProviderModel: {
+        findUnique: jest.fn().mockResolvedValue({
+          inputTokenCostMicros: null,
+          outputTokenCostMicros: null,
+        }),
+      },
+    };
+
+    await expect(resolveAIModelCostRate({
+      provider: AIProvider.YANDEX,
+      model: "yandexgpt-lite/latest",
+    }, client as never)).resolves.toEqual({
+      inputTokenCostMicros: expect.any(Number),
+      outputTokenCostMicros: expect.any(Number),
+    });
+  });
+
+  it("recalculates historical zero-cost usage rows from reference model pricing", async () => {
+    const client = {
+      $queryRaw: jest.fn().mockResolvedValue([
+        {
+          feature: "dialogue-primary-answer",
+          provider: "YANDEX",
+          model: "yandexgpt-lite/latest",
+          status: "SUCCEEDED",
+          request_count: 1,
+          attempt_count: 1,
+          success_count: 1,
+          prompt_tokens: 1200,
+          completion_tokens: 800,
+          total_tokens: 2000,
+          cost_micros: 0,
+          avg_latency_ms: 1100,
+        },
+      ]),
+      aIProviderModel: {
+        findUnique: jest.fn().mockResolvedValue({
+          inputTokenCostMicros: null,
+          outputTokenCostMicros: null,
+        }),
+      },
+    };
+
+    const rows = await getAIUsageDetailsForRange({
+      start: new Date("2026-07-01T00:00:00.000Z"),
+      end: new Date("2026-07-01T23:59:59.999Z"),
+    }, client as never);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(expect.objectContaining({
+      feature: "dialogue-primary-answer",
+      totalTokens: 2000,
+    }));
+    expect(rows[0].costMicros).toBeGreaterThan(0);
   });
 });

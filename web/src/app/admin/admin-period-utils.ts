@@ -4,6 +4,8 @@ export type AdminCalendarDay = {
   current: boolean;
 };
 
+export const ADMIN_ALL_TIME_START_ISO = "2020-01-01";
+
 export function adminPeriodParseIso(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [year, month, day] = value.split("-").map(Number);
@@ -47,7 +49,9 @@ export function adminStartOfToday() {
 export function adminPresetRange(period: string) {
   const end = adminStartOfToday();
   let start = new Date(end);
-  if (period === "week") {
+  if (period === "all") {
+    start = adminPeriodParseIso(ADMIN_ALL_TIME_START_ISO) ?? new Date(2020, 0, 1);
+  } else if (period === "week") {
     const weekday = end.getDay() || 7;
     start.setDate(end.getDate() - weekday + 1);
   } else if (period === "month") {

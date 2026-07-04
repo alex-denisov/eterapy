@@ -3,6 +3,7 @@ import {
   adminPeriodFromRuDate,
   adminPeriodToIsoDate,
   adminPeriodToRuDate,
+  adminPresetRange,
 } from "@/app/admin/admin-period-utils";
 
 describe("admin period date utilities", () => {
@@ -31,5 +32,12 @@ describe("admin period date utilities", () => {
       "2026-07-31",
     ]);
     expect(august.at(-1)).toMatchObject({ iso: "2026-09-06", current: false });
+  });
+
+  it("exposes an all-time preset for superadmin analytics", () => {
+    const allTime = adminPresetRange("all");
+
+    expect(allTime.start).toBe("2020-01-01");
+    expect(allTime.end).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

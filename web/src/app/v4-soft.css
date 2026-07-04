@@ -3354,6 +3354,7 @@
   .soft-chart-tooltip {
     opacity: 0;
     pointer-events: none;
+    filter: drop-shadow(0 12px 22px rgba(15, 23, 42, 0.22));
     transition: opacity 120ms ease;
     z-index: 40;
   }
@@ -3366,16 +3367,33 @@
   }
 
   .soft-chart-tooltip rect {
-    fill: rgba(76, 33, 38, 0.94);
-    stroke: rgba(255, 255, 255, 0.28);
+    fill: rgba(15, 23, 42, 0.96);
+    stroke: rgba(226, 232, 240, 0.32);
     stroke-width: 1px;
   }
 
   .soft-chart-tooltip text {
     fill: #fff;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 650;
     letter-spacing: 0;
+  }
+
+  .soft-chart-grid-line {
+    stroke-linecap: square;
+  }
+
+  .soft-chart-axis-line {
+    stroke-linecap: square;
+  }
+
+  .soft-chart-axis-label {
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .soft-chart-bar {
+    transition: opacity 120ms ease, filter 120ms ease;
   }
 
   .soft-admin-rendered-text {

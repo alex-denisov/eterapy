@@ -100,6 +100,12 @@ export const MODEL_PRICING_REFERENCE_USD_PER_MILLION: Partial<Record<AIProviderN
     "accounts/fireworks/models/kimi-k2p6": { input: 1.5, output: 6 },
     "accounts/fireworks/models/deepseek-v3": { input: 0.9, output: 0.9 },
   },
+  YANDEX: {
+    "yandexgpt/latest": { input: 6.557376, output: 6.557376, source: "reference/yandex-ai-studio" },
+    "yandexgpt-lite/latest": { input: 1.639344, output: 1.639344, source: "reference/yandex-ai-studio" },
+    "yandex-vision-ocr": { input: 1.0827867, output: 0, source: "reference/yandex-vision-ocr-unit" },
+    "speechkit-stt-async": { input: 1.2418035, output: 0, source: "reference/yandex-speechkit-unit" },
+  },
 };
 
 /**
@@ -118,6 +124,7 @@ export const PROVIDER_FALLBACK_PRICING_USD_PER_MILLION: Partial<Record<AIProvide
   CEREBRAS: { input: 0.25, output: 0.69, source: "reference/provider-estimate" },
   FIREWORKS: { input: 0.9, output: 0.9, source: "reference/provider-estimate" },
   OPENROUTER: { input: 0, output: 0, source: "reference/free" },
+  YANDEX: { input: 1.639344, output: 1.639344, source: "reference/yandex-ai-studio" },
 };
 
 function normalizeModelId(value: string) {

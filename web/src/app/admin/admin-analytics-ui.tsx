@@ -203,42 +203,44 @@ export function EmptyState({ children = "Нет данных за выбранн
 type ChartSeriesKey = "value" | "secondary" | "tertiary";
 type ChartSeries = { key: ChartSeriesKey; label: string; color: string };
 
-const CHART_PALETTE = ["#118DFF", "#12239E", "#E66C37", "#6B007B", "#E044A7", "#744EC2"];
+export const CHART_KIT_PALETTE = ["#2563EB", "#14B8A6", "#F59E0B", "#BE185D", "#7C3AED", "#64748B", "#0F766E", "#DC2626"];
+const CHART_KIT_GRID = "#E5EAF3";
+const CHART_KIT_AXIS = "#AAB6C8";
 
 function chartSeries(data: ChartPoint[], labels?: [string, string?, string?]): ChartSeries[] {
   return [
-    { key: "value", label: labels?.[0] ?? "Значение", color: CHART_PALETTE[0] },
+    { key: "value", label: labels?.[0] ?? "Значение", color: CHART_KIT_PALETTE[0] },
     ...(data.some((item) => item.secondary !== undefined)
-      ? [{ key: "secondary" as const, label: labels?.[1] ?? "Дополнительно", color: CHART_PALETTE[1] }]
+      ? [{ key: "secondary" as const, label: labels?.[1] ?? "Дополнительно", color: CHART_KIT_PALETTE[1] }]
       : []),
     ...(data.some((item) => item.tertiary !== undefined)
-      ? [{ key: "tertiary" as const, label: labels?.[2] ?? "Третий показатель", color: CHART_PALETTE[2] }]
+      ? [{ key: "tertiary" as const, label: labels?.[2] ?? "Третий показатель", color: CHART_KIT_PALETTE[2] }]
       : []),
   ];
 }
 
 function chartCardClass() {
-  return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D9E2F2] bg-gradient-to-b from-white to-[#F7FAFF] p-4 shadow-[0_18px_44px_-36px_rgba(17,24,39,0.55)]";
+  return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D6DEE9] bg-white p-4 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
 }
 
 function axisSlotWidth(labels: string[], baseWidth: number) {
   const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
-  return Math.max(baseWidth, Math.ceil(longest * 7.2) + 14);
+  return Math.max(baseWidth, Math.ceil(longest * 6.8) + 18);
 }
 
 function tooltipSize(text: string) {
   return {
-    width: Math.max(172, Math.ceil(text.length * 7.2) + 26),
-    height: 34,
+    width: Math.max(178, Math.ceil(text.length * 6.7) + 30),
+    height: 32,
   };
 }
 
 function axisLabelLayout(labels: string[], slotWidth: number) {
   const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
-  const requiredSlotWidth = Math.ceil(longest * 7.2) + 14;
+  const requiredSlotWidth = Math.ceil(longest * 6.8) + 18;
   return {
     vertical: false,
-    bottom: 24,
+    bottom: 26,
     slotWidth: Math.max(slotWidth, requiredSlotWidth),
   };
 }
@@ -328,9 +330,9 @@ export function VerticalBarChart({
   return (
     <div className={chartCardClass()} data-testid="admin-vertical-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#1F2937]">{label}</p> : <span />}
+        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#0F172A]">{label}</p> : <span />}
         {series.length > 1 ? (
-          <div className="flex flex-wrap gap-3 text-[10px] text-[#4B5563]">
+          <div className="flex flex-wrap gap-3 text-[10px] text-[#475569]">
             {series.map((item) => (
               <span key={item.key} className="inline-flex items-center gap-1">
                 <i className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />
@@ -349,21 +351,22 @@ export function VerticalBarChart({
           height={height}
           viewBox={`0 0 ${width} ${height}`}
           data-testid="admin-vertical-bar-chart-svg"
+          shapeRendering="geometricPrecision"
         >
-          <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" />
+          <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" pointerEvents="none" />
           {tickValues.map((tick) => {
             const y = yFor(tick);
             return (
               <g key={tick}>
-                <line x1={left} x2={width - right} y1={y} y2={y} stroke="#E5ECF6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[13px] tabular-nums">
+                <line className="soft-chart-grid-line" x1={left} x2={width - right} y1={y} y2={y} stroke={CHART_KIT_GRID} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <text x={left - 8} y={y + 4} textAnchor="end" className="soft-chart-axis-label fill-[#475569] text-[12px] tabular-nums">
                   {formatValue(tick)}
                 </text>
               </g>
             );
           })}
-          <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line className="soft-chart-axis-line" x1={left} x2={left} y1={top} y2={top + plotHeight} stroke={CHART_KIT_AXIS} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line className="soft-chart-axis-line" x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke={CHART_KIT_AXIS} strokeWidth="1" vectorEffect="non-scaling-stroke" />
           {data.map((item, index) => {
             const slotWidth = plotWidth / data.length;
             const groupX = left + index * slotWidth;
@@ -380,6 +383,7 @@ export function VerticalBarChart({
                   return (
                     <g key={seriesItem.key}>
                       <rect
+                        className="soft-chart-bar"
                         x={x}
                         y={y}
                         width={barWidth}
@@ -395,7 +399,7 @@ export function VerticalBarChart({
                   x={centerX}
                   y={axisLabelY}
                   textAnchor="middle"
-                  className="fill-[#667085] text-[11px] tabular-nums"
+                  className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
                 >
                   {item.label}
                 </text>
@@ -413,8 +417,8 @@ export function VerticalBarChart({
                   fill="transparent"
                 />
                 <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
-                  <rect x={-hit.tooltipWidth / 2} y="-34" width={hit.tooltipWidth} height="30" rx="7" />
-                  <text x="0" y="-15" textAnchor="middle">{hit.tooltip}</text>
+                  <rect x={-hit.tooltipWidth / 2} y="-32" width={hit.tooltipWidth} height="28" rx="7" />
+                  <text x="0" y="-14" textAnchor="middle">{hit.tooltip}</text>
                 </g>
               </g>
             ))}
@@ -447,7 +451,7 @@ export function StackedBarChart({
     ? [...new Set(data.flatMap((item) => (item.segments ?? []).map((segment) => segment.label)))]
     : [];
   const series = hasSegments
-    ? segmentLabels.map((segmentLabel, index) => ({ key: segmentLabel, label: segmentLabel, color: CHART_PALETTE[index % CHART_PALETTE.length] }))
+    ? segmentLabels.map((segmentLabel, index) => ({ key: segmentLabel, label: segmentLabel, color: CHART_KIT_PALETTE[index % CHART_KIT_PALETTE.length] }))
     : chartSeries(data, seriesLabels).map((item) => ({ ...item, key: item.key as string }));
   const totals = data.map((item) => {
     if (hasSegments) return (item.segments ?? []).reduce((sum, segment) => sum + Math.max(0, segment.value), 0);
@@ -525,8 +529,8 @@ export function StackedBarChart({
   return (
     <div className={chartCardClass()} data-testid="admin-stacked-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#1F2937]">{label}</p> : <span />}
-        <div className="flex flex-wrap gap-3 text-[10px] text-[#4B5563]">
+        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#0F172A]">{label}</p> : <span />}
+        <div className="flex flex-wrap gap-3 text-[10px] text-[#475569]">
           {series.map((item) => (
             <span key={item.key} className="inline-flex items-center gap-1">
               <i className="h-2 w-2 rounded-sm" style={{ backgroundColor: item.color }} />
@@ -544,21 +548,22 @@ export function StackedBarChart({
           height={height}
           viewBox={`0 0 ${width} ${height}`}
           data-testid="admin-stacked-bar-chart-svg"
+          shapeRendering="geometricPrecision"
         >
-          <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" />
+          <rect x="0" y="0" width={width} height={height} rx="8" fill="transparent" pointerEvents="none" />
           {tickValues.map((tick) => {
             const y = yFor(tick);
             return (
               <g key={tick}>
-                <line x1={left} x2={width - right} y1={y} y2={y} stroke="#E5ECF6" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-                <text x={left - 8} y={y + 4} textAnchor="end" className="fill-[#667085] text-[13px] tabular-nums">
+                <line className="soft-chart-grid-line" x1={left} x2={width - right} y1={y} y2={y} stroke={CHART_KIT_GRID} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <text x={left - 8} y={y + 4} textAnchor="end" className="soft-chart-axis-label fill-[#475569] text-[12px] tabular-nums">
                   {formatValue(tick)}
                 </text>
               </g>
             );
           })}
-          <line x1={left} x2={left} y1={top} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <line x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke="#CBD5E1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line className="soft-chart-axis-line" x1={left} x2={left} y1={top} y2={top + plotHeight} stroke={CHART_KIT_AXIS} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line className="soft-chart-axis-line" x1={left} x2={width - right} y1={top + plotHeight} y2={top + plotHeight} stroke={CHART_KIT_AXIS} strokeWidth="1" vectorEffect="non-scaling-stroke" />
           {data.map((item, index) => {
             const currentSlotWidth = plotWidth / data.length;
             const groupX = left + index * currentSlotWidth;
@@ -581,6 +586,7 @@ export function StackedBarChart({
                       return (
                     <g key={seriesItem.key}>
                       <rect
+                        className="soft-chart-bar"
                         x={x}
                         y={y}
                         width={barWidth}
@@ -596,7 +602,7 @@ export function StackedBarChart({
                   x={centerX}
                   y={top + plotHeight + 14}
                   textAnchor="middle"
-                  className="fill-[#667085] text-[11px] tabular-nums"
+                  className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
                 >
                   {item.label}
                 </text>
@@ -614,8 +620,8 @@ export function StackedBarChart({
                   fill="transparent"
                 />
                 <g className="soft-chart-tooltip" transform={`translate(${hit.tooltipX} ${hit.tooltipY})`}>
-                  <rect x={-hit.tooltipWidth / 2} y="-34" width={hit.tooltipWidth} height="30" rx="7" />
-                  <text x="0" y="-15" textAnchor="middle">{hit.tooltip}</text>
+                  <rect x={-hit.tooltipWidth / 2} y="-32" width={hit.tooltipWidth} height="28" rx="7" />
+                  <text x="0" y="-14" textAnchor="middle">{hit.tooltip}</text>
                 </g>
               </g>
             ))}
@@ -630,17 +636,17 @@ export function HorizontalBars({ data, unit }: { data: ChartPoint[]; unit?: stri
   const max = Math.max(...data.map((item) => item.value), 1);
   if (data.length === 0) return <EmptyState />;
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 rounded-lg border border-[#D6DEE9] bg-white p-4 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.45)]">
       {data.map((item) => (
         <div key={item.label}>
           <div className="mb-1 flex justify-between gap-3 text-xs">
-            <span className="truncate text-[var(--soft-ink)]">{item.label}</span>
-            <span className="tabular-nums text-[var(--soft-ink-soft)]">{formatNumber(item.value)}{unit ?? ""}</span>
+            <span className="truncate font-semibold text-[#0F172A]">{item.label}</span>
+            <span className="tabular-nums text-[#475569]">{formatNumber(item.value)}{unit ?? ""}</span>
           </div>
-          <div className="h-2 rounded-full bg-[var(--soft-paper-edge)]">
+          <div className="h-2.5 overflow-hidden rounded-full bg-[#EEF2F7]">
             <div
-              className="soft-chart-html-hit relative h-2 rounded-full bg-[var(--soft-bordeaux)]"
-              style={{ width: `${Math.max(2, (item.value / max) * 100)}%` }}
+              className="soft-chart-html-hit relative h-2.5 rounded-full"
+              style={{ width: `${Math.max(2, (item.value / max) * 100)}%`, backgroundColor: CHART_KIT_PALETTE[0] }}
               tabIndex={0}
               aria-label={`${item.label}: ${formatNumber(item.value)}${unit ?? ""}`}
             >
@@ -657,19 +663,20 @@ export function FunnelChart({ data }: { data: ChartPoint[] }) {
   const first = Math.max(data[0]?.value ?? 0, 1);
   if (data.length === 0) return <EmptyState />;
   return (
-    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
+    <div className="rounded-lg border border-[#D6DEE9] bg-white p-4 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.45)]">
       {data.map((item, index) => {
         const width = Math.max(18, Math.min(100, (item.value / first) * 100));
         const conversion = index === 0 ? 100 : (item.value / first) * 100;
         return (
           <div key={item.label} className="grid grid-cols-[9rem_1fr_4rem] items-center gap-3 py-1.5">
-            <div className="text-xs text-[var(--soft-ink-soft)]">{item.label}</div>
+            <div className="truncate text-xs font-semibold text-[#0F172A]">{item.label}</div>
             <div className="flex justify-center">
               <div
-                className="soft-chart-html-hit relative flex h-11 items-center justify-center rounded-sm bg-[var(--soft-bordeaux)] px-3 text-xs font-semibold text-white shadow-sm"
+                className="soft-chart-html-hit relative flex h-11 items-center justify-center rounded-sm px-3 text-xs font-semibold text-white shadow-sm"
                 style={{
                   width: `${width}%`,
                   clipPath: "polygon(4% 0, 96% 0, 100% 50%, 96% 100%, 4% 100%, 0 50%)",
+                  backgroundColor: CHART_KIT_PALETTE[index % CHART_KIT_PALETTE.length],
                   opacity: 1 - index * 0.07,
                 }}
                 tabIndex={0}
@@ -679,7 +686,7 @@ export function FunnelChart({ data }: { data: ChartPoint[] }) {
                 <span className="soft-chart-tooltip-html">{item.label}: {formatNumber(item.value)} · {formatPercent(conversion)}</span>
               </div>
             </div>
-            <div className="text-right text-xs tabular-nums text-[var(--soft-ink-faint)]">{formatPercent(conversion)}</div>
+            <div className="text-right text-xs font-semibold tabular-nums text-[#475569]">{formatPercent(conversion)}</div>
           </div>
         );
       })}

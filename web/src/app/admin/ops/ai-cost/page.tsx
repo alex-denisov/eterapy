@@ -12,7 +12,7 @@ import { AdminCompactDataTable, type AdminCompactColumn } from "@/components/adm
 import { PageContainer } from "@/components/ui/page-container";
 import { formatAdminAiCost, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
-import { PeriodToolbar, statusLabel } from "../../admin-analytics-ui";
+import { CHART_KIT_PALETTE, PeriodToolbar, statusLabel } from "../../admin-analytics-ui";
 import { productLabel, resolveAdminPeriod } from "../../admin-analytics-data";
 import { AdminOpsMetric, AdminOpsSection, formatDateTime, formatNumber, formatPercent } from "../ops-ui";
 
@@ -91,6 +91,10 @@ export default async function AdminOpsAICostPage(props: {
   const errors = Math.max(totals.attempts - totals.success, 0);
   const errorRate = totals.attempts > 0 ? (errors / totals.attempts) * 100 : 0;
   const avgLatency = totals.requests > 0 ? Math.round(totals.latencySum / totals.requests) : 0;
+  const unpricedRequests = usageDetails.reduce((sum, row) => {
+    if (row.totalTokens > 0 && row.costMicros <= 0) return sum + row.requestCount;
+    return sum;
+  }, 0);
 
   const byFeatureMap = usageDetails.reduce((map, row) => {
     const current = map.get(row.feature) ?? { feature: row.feature, requests: 0, tokens: 0, cost: 0, errors: 0 };
@@ -202,7 +206,13 @@ export default async function AdminOpsAICostPage(props: {
         </div>
       </div>
       <section className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-        <AdminOpsMetric icon={CircleDollarSign} label="Расход" value={formatAdminAiCost(totals.cost, currencyRates, currency)} hint="Факт по стоимости моделей AI-центра" tone={totals.cost > 0 ? "neutral" : "ok"} />
+        <AdminOpsMetric
+          icon={CircleDollarSign}
+          label="Расход"
+          value={formatAdminAiCost(totals.cost, currencyRates, currency)}
+          hint={unpricedRequests > 0 ? `${formatNumber(unpricedRequests)} запросов без ставки модели` : "Факт по стоимости моделей AI-центра"}
+          tone={unpricedRequests > 0 ? "warn" : totals.cost > 0 ? "neutral" : "ok"}
+        />
         <AdminOpsMetric icon={Hash} label="Токены" value={formatNumber(totals.tokens)} hint={`${formatNumber(totals.prompt)} входящих, ${formatNumber(totals.completion)} исходящих`} />
         <AdminOpsMetric icon={BrainCircuit} label="Запросы" value={formatNumber(totals.requests)} hint={`${formatNumber(totals.attempts)} попыток маршрутизации`} />
         <AdminOpsMetric icon={AlertTriangle} label="Ошибки" value={formatPercent(errorRate)} hint={`${formatNumber(errors)} неуспешных попыток`} tone={statusTone(errorRate)} />
@@ -214,21 +224,21 @@ export default async function AdminOpsAICostPage(props: {
         <AdminOpsSection title="Расход по продуктам" actionHref="/admin/ops/ai" actionLabel="Настроить маршруты">
           <div className="space-y-3">
             {byFeature.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный период расход не найден.</p>}
-            {byFeature.map((row) => (
+            {byFeature.map((row, index) => (
               <div key={row.feature}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">{featureTitle(row.feature)}</span>
-                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCost(row.cost, currencyRates, currency)}</span>
+                  <span className="font-medium text-[#0F172A]">{featureTitle(row.feature)}</span>
+                  <span className="tabular-nums text-[#0F172A]">{formatAdminAiCost(row.cost, currencyRates, currency)}</span>
                 </div>
-                <div className="h-8 overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
+                <div className="h-8 overflow-hidden rounded-md border border-[#D6DEE9] bg-[#EEF2F7]">
                   <div
-                    className="flex h-full items-center justify-end bg-[var(--soft-bordeaux)] px-2 text-xs font-semibold text-white"
-                    style={{ width: `${Math.max(5, Math.round((row.cost / maxFeatureCost) * 100))}%` }}
+                    className="flex h-full items-center justify-end px-2 text-xs font-semibold text-white shadow-[inset_0_-1px_0_rgba(15,23,42,0.1)]"
+                    style={{ width: `${Math.max(5, Math.round((row.cost / maxFeatureCost) * 100))}%`, backgroundColor: CHART_KIT_PALETTE[index % CHART_KIT_PALETTE.length] }}
                   >
                     {formatNumber(row.tokens)}
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{formatNumber(row.requests)} запросов · {formatNumber(row.errors)} ошибок</p>
+                <p className="mt-1 text-xs text-[#64748B]">{formatNumber(row.requests)} запросов · {formatNumber(row.errors)} ошибок</p>
               </div>
             ))}
           </div>
@@ -237,20 +247,20 @@ export default async function AdminOpsAICostPage(props: {
         <AdminOpsSection title="Расход по провайдерам" actionHref="/admin/ops/ai" actionLabel="Открыть AI-центр">
           <div className="space-y-3">
             {byProvider.length === 0 && <p className="text-sm text-[var(--soft-ink-soft)]">За выбранный период провайдеры не списывали токены.</p>}
-            {byProvider.map((row) => (
+            {byProvider.map((row, index) => (
               <div key={row.provider}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium">{row.provider}</span>
-                  <span className="tabular-nums text-[var(--soft-bordeaux)]">{formatAdminAiCost(row.cost, currencyRates, currency)}</span>
+                  <span className="font-medium text-[#0F172A]">{row.provider}</span>
+                  <span className="tabular-nums text-[#0F172A]">{formatAdminAiCost(row.cost, currencyRates, currency)}</span>
                 </div>
-                <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded-md border border-[var(--soft-paper-edge)] bg-white">
+                <div className="grid h-8 grid-cols-[1fr_auto] overflow-hidden rounded-md border border-[#D6DEE9] bg-[#EEF2F7]">
                   <div
-                    className="bg-[var(--soft-apricot)]"
-                    style={{ width: `${Math.max(5, Math.round((row.cost / maxProviderCost) * 100))}%` }}
+                    className="shadow-[inset_0_-1px_0_rgba(15,23,42,0.1)]"
+                    style={{ width: `${Math.max(5, Math.round((row.cost / maxProviderCost) * 100))}%`, backgroundColor: CHART_KIT_PALETTE[(index + 1) % CHART_KIT_PALETTE.length] }}
                   />
-                  <span className="flex items-center px-2 text-xs text-[var(--soft-ink-soft)]">{formatNumber(row.tokens)} токенов</span>
+                  <span className="flex items-center px-2 text-xs text-[#475569]">{formatNumber(row.tokens)} токенов</span>
                 </div>
-                <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{formatNumber(row.requests)} запросов · {formatNumber(row.errors)} ошибок</p>
+                <p className="mt-1 text-xs text-[#64748B]">{formatNumber(row.requests)} запросов · {formatNumber(row.errors)} ошибок</p>
               </div>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import { aiComplete } from "@/lib/ai";
+import { defaultPromptTextForFeature } from "@/lib/ai-gateway/prompts";
 import { log, serializeError } from "@/lib/logger";
 
 // B385 «Вместе» — three scenarios merged onto existing engines:
@@ -161,15 +162,7 @@ export async function generateOutsideViewQuestions(input: {
       messages: [
         {
           role: "system",
-          content: [
-            "You generate questions for ETerapy's «Взгляд со стороны» feature, in Russian.",
-            "A person described a private situation; you write 3–5 short, neutral questions",
-            "for a close friend to answer about it.",
-            "CRITICAL: the questions must be general and must NOT reveal any private detail,",
-            "name, place, or specific fact from the situation — the friend never sees the situation itself.",
-            "Address the responder informally (на «ты»). Be warm, non-judgmental, non-fatalistic.",
-            "Output ONLY the questions, one per line, no numbering, no preamble.",
-          ].join(" "),
+          content: defaultPromptTextForFeature("product-outside-questions"),
         },
         { role: "user", content: situation },
       ],

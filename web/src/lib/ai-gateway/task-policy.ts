@@ -220,6 +220,18 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Не выносит verdict по отношениям; показывает точки разговора и безопасные шаги.",
   },
   {
+    feature: "product-outside-questions",
+    enabled: true,
+    tier: "cheap",
+    title: "Взгляд со стороны — вопросы",
+    purpose: "Генерация 3–5 нейтральных вопросов для приглашенного близкого человека без раскрытия приватной ситуации пользователя.",
+    providerOrder: [...cheapStructuredOrder],
+    maxTokens: 400,
+    temperature: 0.6,
+    timeoutMs: 25_000,
+    fallbackNotes: "YandexGPT Lite; если вопросы раскрывают приватные детали, код откатывается на безопасный эвристический набор.",
+  },
+  {
     feature: "product-symbolic",
     enabled: true,
     tier: "premium",

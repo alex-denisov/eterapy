@@ -59,6 +59,28 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(chart.at(-1)).toEqual({ label: "10.07", value: 1 });
   });
 
+  it("resolves all-time periods without silently truncating days and uses monthly chart buckets", () => {
+    const period = resolveAdminPeriod({ period: "all" });
+
+    expect(period.startInput).toBe("2020-01-01");
+    expect(period.days.length).toBeGreaterThan(370);
+
+    const longDays = Array.from({ length: 430 }, (_, index) => {
+      const date = new Date(2025, 0, 1 + index);
+      return dayKey(date);
+    });
+    const values = new Map(longDays.map((day) => [day, 1]));
+    const buckets = chartBuckets(longDays);
+    const chart = chartFromMap(longDays, values);
+
+    expect(buckets.length).toBeLessThan(longDays.length);
+    expect(buckets[0]).toEqual(expect.objectContaining({
+      label: "01.2025",
+      days: expect.arrayContaining(["2025-01-01", "2025-01-31"]),
+    }));
+    expect(chart[0]).toEqual({ label: "01.2025", value: 31 });
+  });
+
   it("persists admin period and currency across sidebar navigation", () => {
     const shell = source("src/app/admin/admin-shell.tsx");
     const periodToolbar = source("src/app/admin/admin-period-toolbar.tsx");
@@ -69,14 +91,21 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(shell).toContain("ADMIN_CURRENCY_STORAGE_KEY");
     expect(periodToolbar).toContain("saveAdminPeriodPreference");
     expect(periodToolbar).toContain("restoreAdminPeriodPreference");
+    expect(periodToolbar).toContain('["all", "Все время"]');
     expect(currencySelector).toContain("saveAdminCurrencyPreference");
     expect(currencySelector).toContain("restoreAdminCurrencyPreference");
   });
 
-  it("renders chart hover tooltips from the top SVG layer with readable sizing", () => {
+  it("renders chart-kit charts with readable tooltips, PowerBI-like axes, and approved palette", () => {
     const ui = source("src/app/admin/admin-analytics-ui.tsx");
     const css = source("src/app/v4-soft.css");
 
+    expect(ui).toContain("CHART_KIT_PALETTE");
+    expect(ui).toContain("#2563EB");
+    expect(ui).toContain("#14B8A6");
+    expect(ui).toContain("soft-chart-grid-line");
+    expect(ui).toContain("soft-chart-axis-label");
+    expect(ui).toContain("shapeRendering=\"geometricPrecision\"");
     expect(ui).toContain("soft-chart-tooltip-layer");
     expect(ui).toContain("buildVerticalTooltipHits");
     expect(ui).toContain("buildStackedTooltipHits");
@@ -85,6 +114,7 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(ui).not.toContain("Math.min(280");
     expect(ui).not.toContain("Math.min(300");
     expect(css).toContain(".soft-chart-tooltip-layer .soft-chart-hit");
-    expect(css).toContain("font-size: 14px");
+    expect(css).toContain("filter: drop-shadow");
+    expect(css).toContain("font-size: 12px");
   });
 });
