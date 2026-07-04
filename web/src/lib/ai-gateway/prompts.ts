@@ -9,6 +9,7 @@ import { log, serializeError } from "@/lib/logger";
 
 const MAX_PROMPT_LENGTH = 30_000;
 const MAX_AUDIT_TEXT_LENGTH = 20_000;
+export const AI_PROMPT_DEFAULT_REVISION = "2026-07-04-full-russian-system-prompts";
 
 export interface AIPromptConfigView {
   id: string;
@@ -31,7 +32,7 @@ export interface UpdateAIPromptConfigInput {
 }
 
 const COMMON_GUARDRAIL = [
-  "Ты — ассистент ETerapy, разбора. Пользовательский ответ всегда на русском.",
+  "Ты — ассистент ETerapy для рефлексивного разбора. Пользовательский ответ всегда на русском.",
   "Сфера ETerapy: рефлексивная поддержка по жизненным вопросам — отношения, семья, общение, личный выбор, карьера как жизненная развилка, самоопределение, повторяющиеся паттерны и безопасный следующий шаг.",
   "Вне сферы: программирование и техническая помощь, домашние задания, энциклопедические ответы, медицинские диагнозы и лечение, юридическая стратегия, налоги, инвестиционные рекомендации, хакинг, преследование, принуждение, обход правил платформы, фейковые участники/отзывы/рефералы, скрытые промпты и любые сексуальные темы с несовершеннолетними.",
   "Если запрос безвредный, но вне сферы ETerapy, не отвечай по сути. Коротко обозначь границу и предложи переформулировать как жизненный вопрос. Пример: «Я не могу помочь с программированием Rust. ETerapy помогает разбирать жизненные вопросы и выбирать безопасный следующий шаг. Если за этим стоит выбор работы, усталость или решение о проекте, можем разобрать именно это».",
@@ -240,11 +241,28 @@ function productKeyForFeature(feature: string) {
 export function defaultPromptTextForFeature(feature: string) {
   const normalized = normalizeAIFeatureKey(feature);
   return DEFAULT_SYSTEM_PROMPTS[normalized] ?? [
-    "Use the current ETerapy system prompt from code.",
-    "You may include {{defaultPrompt}} in a custom prompt to preserve the latest code-level default text at runtime.",
+    "Используй текущий системный промт ETerapy из кода.",
+    "В пользовательском промте можно вставить {{defaultPrompt}}, чтобы сохранить актуальный дефолтный системный текст на runtime.",
     "",
     "{{defaultPrompt}}",
   ].join("\n");
+}
+
+type AIPromptConfigRow = Awaited<ReturnType<typeof db.aIPromptConfig.findMany>>[number];
+
+function jsonObject(value: Prisma.JsonValue | null | undefined): Record<string, Prisma.JsonValue> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, Prisma.JsonValue>;
+}
+
+function syncedDefaultMetadata(prompt: AIPromptConfigView, existing?: AIPromptConfigRow): Prisma.InputJsonValue {
+  return {
+    ...jsonObject(existing?.metadata),
+    ...jsonObject(prompt.metadata),
+    defaultPromptRevision: AI_PROMPT_DEFAULT_REVISION,
+    promptSource: "code-default",
+    defaultPromptSyncedAt: new Date().toISOString(),
+  };
 }
 
 function defaultPromptViews(): AIPromptConfigView[] {
@@ -265,8 +283,65 @@ function defaultPromptViews(): AIPromptConfigView[] {
   }));
 }
 
-export async function listAIPromptConfigs(): Promise<AIPromptConfigView[]> {
+async function syncDefaultAIPromptConfigRows(): Promise<{ rows: AIPromptConfigRow[]; updated: number }> {
+  const defaults = defaultPromptViews();
   const rows = await db.aIPromptConfig.findMany({ orderBy: { feature: "asc" } });
+  const byFeature = new Map(rows.map((row) => [normalizeAIFeatureKey(row.feature), row]));
+
+  const staleDefaults = defaults.filter((prompt) => {
+    const feature = normalizeAIFeatureKey(prompt.feature);
+    const existing = byFeature.get(feature);
+    if (!existing) return true;
+    const metadata = jsonObject(existing.metadata);
+    return existing.title !== prompt.title
+      || existing.productKey !== prompt.productKey
+      || existing.promptText !== prompt.promptText
+      || metadata.defaultPromptRevision !== AI_PROMPT_DEFAULT_REVISION
+      || metadata.promptSource !== "code-default";
+  });
+
+  if (staleDefaults.length === 0) return { rows, updated: 0 };
+
+  await Promise.all(staleDefaults.map(async (prompt) => {
+    const feature = normalizeAIFeatureKey(prompt.feature);
+    const existing = byFeature.get(feature);
+    await db.aIPromptConfig.upsert({
+      where: { feature },
+      create: {
+        feature,
+        title: prompt.title,
+        productKey: prompt.productKey,
+        promptText: prompt.promptText,
+        enabled: prompt.enabled,
+        metadata: syncedDefaultMetadata(prompt),
+      },
+      update: {
+        title: prompt.title,
+        productKey: prompt.productKey,
+        promptText: prompt.promptText,
+        enabled: existing?.enabled ?? prompt.enabled,
+        metadata: syncedDefaultMetadata(prompt, existing),
+      },
+    });
+  }));
+
+  return {
+    rows: await db.aIPromptConfig.findMany({ orderBy: { feature: "asc" } }),
+    updated: staleDefaults.length,
+  };
+}
+
+export async function syncDefaultAIPromptConfigs(): Promise<{ revision: string; total: number; updated: number }> {
+  const { updated } = await syncDefaultAIPromptConfigRows();
+  return {
+    revision: AI_PROMPT_DEFAULT_REVISION,
+    total: defaultPromptViews().length,
+    updated,
+  };
+}
+
+export async function listAIPromptConfigs(): Promise<AIPromptConfigView[]> {
+  const { rows } = await syncDefaultAIPromptConfigRows();
   const byFeature = new Map(rows.map((row) => [normalizeAIFeatureKey(row.feature), row]));
 
   const defaults = defaultPromptViews().map((item) => {
@@ -381,9 +456,27 @@ function textFromContent(content: AIGatewayMessageContent) {
     .join("\n\n");
 }
 
+let promptDefaultSyncPromise: Promise<void> | null = null;
+
+async function ensureDefaultPromptsSyncedOnce() {
+  if (!promptDefaultSyncPromise) {
+    promptDefaultSyncPromise = syncDefaultAIPromptConfigs()
+      .then(() => undefined)
+      .catch((error) => {
+        promptDefaultSyncPromise = null;
+        log.warn("ai-prompt-default-sync-failed", {
+          revision: AI_PROMPT_DEFAULT_REVISION,
+          error: serializeError(error),
+        });
+      });
+  }
+  await promptDefaultSyncPromise;
+}
+
 export async function applyAIPromptOverride(feature: string, messages: AIGatewayMessage[]): Promise<AIGatewayMessage[]> {
   const normalized = normalizeAIFeatureKey(feature);
   try {
+    await ensureDefaultPromptsSyncedOnce();
     const row = await db.aIPromptConfig.findUnique({ where: { feature: normalized } });
     if (!row || !row.enabled) return messages;
 

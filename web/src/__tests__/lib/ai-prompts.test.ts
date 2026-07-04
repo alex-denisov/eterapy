@@ -1,8 +1,10 @@
 import db from "@/lib/db";
 import {
   applyAIPromptOverride,
+  defaultPromptTextForFeature,
   listAIPromptConfigs,
   serializeAIMessagesForAdmin,
+  syncDefaultAIPromptConfigs,
 } from "@/lib/ai-gateway/prompts";
 
 jest.mock("@/lib/db", () => ({
@@ -11,6 +13,7 @@ jest.mock("@/lib/db", () => ({
     aIPromptConfig: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      upsert: jest.fn(),
     },
   },
 }));
@@ -28,6 +31,14 @@ describe("AI prompt configs", () => {
     jest.clearAllMocks();
     (mockDb.aIPromptConfig.findMany as jest.Mock).mockResolvedValue([]);
     (mockDb.aIPromptConfig.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockDb.aIPromptConfig.upsert as jest.Mock).mockImplementation(async ({ create, update, where }) => ({
+      id: `prompt-${where.feature}`,
+      ...create,
+      ...update,
+      metadata: update?.metadata ?? create.metadata,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
   });
 
   it("lists editable default prompts for product features", async () => {
@@ -76,6 +87,48 @@ describe("AI prompt configs", () => {
       role: "system",
       content: "Custom prompt\n\nDefault prompt\n\nExtra rule",
     });
+  });
+
+  it("syncs stale database prompts to the current Russian default revision without re-enabling disabled prompts", async () => {
+    const staleUpdatedAt = new Date("2026-06-01T00:00:00.000Z");
+    (mockDb.aIPromptConfig.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          id: "prompt-product-tarot",
+          feature: "product-tarot",
+          title: "Old Tarot",
+          productKey: "tarot",
+          promptText: "You are ETerapy. Return ONLY valid JSON.",
+          enabled: false,
+          metadata: { defaultPromptRevision: "old" },
+          createdAt: staleUpdatedAt,
+          updatedAt: staleUpdatedAt,
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    await syncDefaultAIPromptConfigs();
+
+    expect(mockDb.aIPromptConfig.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { feature: "product-tarot" },
+      update: expect.objectContaining({
+        title: "Расклад Таро",
+        productKey: "tarot",
+        promptText: defaultPromptTextForFeature("product-tarot"),
+        enabled: false,
+        metadata: expect.objectContaining({
+          defaultPromptRevision: expect.any(String),
+          promptSource: "code-default",
+        }),
+      }),
+    }));
+  });
+
+  it("uses a Russian fallback prompt for unknown custom features", () => {
+    const fallback = defaultPromptTextForFeature("custom-experimental-flow");
+
+    expect(fallback).toContain("текущий системный промт ETerapy");
+    expect(fallback).not.toMatch(/Use the current ETerapy|You may include/i);
   });
 
   it("serializes image messages without storing raw base64 screenshots", () => {
