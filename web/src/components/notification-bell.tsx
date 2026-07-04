@@ -288,7 +288,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
         <div
           role="dialog"
           aria-label="Уведомления"
-          className={`soft-notification-popover absolute z-50 mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-lg)] ${isHeader ? "right-0" : "left-0"}`}
+          className={`soft-notification-popover absolute z-50 mt-2 flex max-h-[min(70vh,34rem)] w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[1.25rem] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] shadow-[var(--soft-shadow-lg)] ${isHeader ? "right-0" : "left-0"}`}
           style={{ animation: "notificationSlideIn 0.15s ease-out" }}
           data-testid="notification-bell-dropdown"
         >
@@ -296,7 +296,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
               сюда, в email и Telegram" + "прочитать все" chip per
               docs/Design/v4.2/screens/user_nav.jsx NotifMenu spec. */}
           <div
-            className="flex items-start justify-between gap-3 border-b px-4 py-3"
+            className="flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3"
             style={{ borderColor: "var(--soft-paper-edge)" }}
           >
             <div className="min-w-0">
@@ -329,7 +329,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
           </div>
 
           {/* B331: filter chips Все / Непрочитанные {count}. */}
-          <div className="flex items-center gap-2 px-3 pt-2.5">
+          <div className="flex shrink-0 items-center gap-2 px-3 pt-2.5">
             <button
               type="button"
               onClick={() => setFilter("all")}
@@ -354,8 +354,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
           </div>
 
           <div
-            className="overflow-y-auto overscroll-contain p-2"
-            style={{ maxHeight: 420 }}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
             data-testid="notification-bell-list"
           >
             {loading && notifications.length === 0 ? (
@@ -405,7 +404,7 @@ export function NotificationBell({ variant = "header" }: NotificationBellProps) 
               v4.2 spec replaces the old "Очистить все" destructive action,
               which was off-pattern for an inbox. */}
           <div
-            className="border-t px-3 py-2.5"
+            className="shrink-0 border-t px-3 py-2.5"
             style={{ borderColor: "var(--soft-paper-edge)" }}
           >
             <a
