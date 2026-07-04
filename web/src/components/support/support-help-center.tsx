@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, ChevronDown, FileText, Mail, MessageCircle } from "lucide-react";
-import { Search } from "lucide-react";
+import { ChevronDown, FileText, Mail, MessageCircle, Search, Send } from "lucide-react";
 import {
   searchFaq,
   categoryAllowsChat,
@@ -98,7 +97,15 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
           <input
             id="support-search-input"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              // Round-6 #3: печать = режим поиска. Выбранная категория и открытый
+              // канал сбрасываются, чтобы на экране не смешивались два списка.
+              if (category) {
+                setCategory(null);
+                setChannel(null);
+              }
+            }}
             placeholder="Поиск по базе знаний: возврат, подписка, доступ…"
             className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none focus-visible:outline-none"
             aria-label="Поиск по базе знаний"
@@ -114,15 +121,18 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
           </button>
         </form>
 
-        {searched && results.length > 0 && (
+        {/* Результаты поиска видны, пока клиент не перешёл к ручному выбору —
+            выбранная категория показывает СВОЙ список (round-6 #3). */}
+        {searched && !category && results.length > 0 && (
           <div className="mt-4" data-testid="support-faq-results">
             <FaqAccordion items={results} testId="support-faq-results-list" />
           </div>
         )}
 
         {/* Stage 2 — категории появляются после поиска: сразу при промахе, а при
-            найденных статьях — ниже, для тех, кому ответ не подошёл. */}
-        {searched && (
+            найденных статьях — ниже, для тех, кому ответ не подошёл. Выбранная
+            категория держит блок видимым независимо от поля поиска. */}
+        {(searched || category) && (
           <div className="mt-5" data-testid="support-categories">
             <p className="text-sm font-medium" style={{ color: "var(--soft-ink)" }}>
               {results.length === 0
@@ -153,7 +163,7 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
 
         {/* Stage 3 — вопросы выбранной категории: аккордеон, «Показать ещё»
             ДОБАВЛЯЕТ следующие 5 (не перелистывает). */}
-        {searched && category && themeQuestions.length > 0 && (
+        {category && themeQuestions.length > 0 && (
           <div className="mt-4 grid gap-2" data-testid="support-theme-questions">
             <FaqAccordion items={themeQuestions} testId="support-theme-questions-list" />
             {themePool.length > visibleCount && (
@@ -173,14 +183,14 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
 
       {/* Stage 4 — эскалация ТОЛЬКО после того, как клиент прошёл категорию и
           не нашёл ответ (owner round-5 #13). */}
-      {searched && category && (
+      {category && (
         <div className="soft-card mt-4 p-6" data-testid="support-escalation">
           <h2 className="soft-h3">Не нашли ответ на свой вопрос?</h2>
           <p className="mt-2 text-sm" style={{ color: "var(--soft-ink-soft)" }}>
             Мы на связи — выберите удобный способ по теме «{activeCategory?.label}».
           </p>
 
-          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3" data-testid="support-escalation-actions">
+          <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2" data-testid="support-escalation-actions">
             <a
               href="mailto:support@eterapy.com"
               className="rounded-[12px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-left transition-colors hover:border-[var(--soft-bordeaux)]/40"
@@ -206,6 +216,22 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
               <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Заполнить форму</span>
               <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>категория + описание, ответ в чате</span>
             </button>
+
+            {/* Round-6 #2: Telegram — полноценная карточка с теми же условиями,
+                что и чат (только срочные/финансовые темы), и стоит ВЫШЕ него. */}
+            {allowsChat && (
+              <a
+                href={telegramSupportUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-[12px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 text-left transition-colors hover:border-[var(--soft-bordeaux)]/40"
+                data-testid="support-telegram"
+              >
+                <Send className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
+                <span className="mt-2 block text-sm font-medium text-[var(--soft-ink)]">Открыть в Telegram</span>
+                <span className="mt-1 block text-xs" style={{ color: "var(--soft-ink-faint)" }}>тот же чат поддержки — в мессенджере</span>
+              </a>
+            )}
 
             {allowsChat && (
               <button
@@ -242,9 +268,6 @@ export function SupportHelpCenter({ telegramSupportUrl, showChat }: { telegramSu
             showChat ? (
               <div className="mt-4" data-testid="support-live-chat">
                 <SupportChat />
-                <a href={telegramSupportUrl} target="_blank" rel="noopener noreferrer" className="soft-button soft-button-ghost mt-3" data-testid="support-telegram">
-                  Открыть в Telegram <ArrowRight className="size-4" aria-hidden="true" />
-                </a>
               </div>
             ) : (
               <p className="mt-4 text-sm" style={{ color: "var(--soft-ink-faint)" }}>

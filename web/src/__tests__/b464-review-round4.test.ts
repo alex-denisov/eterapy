@@ -186,7 +186,11 @@ describe("R6 items 2-5 — engine-driven Главная", () => {
     expect(home).toContain("PRODUCT_LABELS[r.productKey]");
     // datetime carries minutes and comes BEFORE the category label.
     expect(home).toContain('hour: "2-digit", minute: "2-digit"');
-    expect(home).toContain("{resultWhen(item.when)} · {item.label}");
+    // Round-6 #6: rows render through CabinetResultRow (topic-chip + card-row);
+    // the datetime feeds `when` and the category label feeds `topicLabel`.
+    expect(home).toContain("CabinetResultRow");
+    expect(home).toContain("when: resultWhen(item.when)");
+    expect(home).toContain("topicLabel: item.label");
   });
 
   it("the self topic label reads «Про себя», not «Я и опоры»", () => {
@@ -290,14 +294,12 @@ describe("R9 item 13 — wallet money hub", () => {
   });
 });
 
-// ── R10 · item 16 — Настройки: grouped rows on one scroll ──
-describe("R10 item 16 — settings grouped rows", () => {
-  it("replaces the tabs with anchored section groups", () => {
+// ── R10 · item 16 → R20 · item 1 — Настройки: hub of icon rows ──
+describe("R20 item 1 — settings hub", () => {
+  it("replaces the tabs with hub icon-rows", () => {
     const settings = read("app/cabinet/settings/settings-client.tsx");
     expect(settings).not.toContain("setActiveTab");
-    expect(settings).toContain('data-testid="settings-anchors"');
-    // Round-5 #11: groups render through <SettingsGroup testId=…> which sets
-    // data-testid at runtime — assert the id regardless of the prop spelling.
+    // Round-6 #1: hub rows via <SettingsHubRow testId=…> set data-testid at runtime.
     for (const id of ["settings-group-profile", "settings-group-about", "settings-group-security", "settings-group-notifications", "settings-group-danger"]) {
       expect(settings).toMatch(new RegExp(`(data-testid|testId)="${id}"`));
     }

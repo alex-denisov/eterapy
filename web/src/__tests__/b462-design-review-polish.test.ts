@@ -23,31 +23,27 @@ function source(relativePath: string): string {
 }
 
 describe("B462 — deep design-review polish batch", () => {
-  describe("§3.1 cabinet dashboard «недавние разборы» mobile overflow (HIGH)", () => {
-    const page = source("app/cabinet/page.tsx");
+  // B464 round-6 #6 superseded the flat rows with the redesigned CabinetResultRow
+  // (topic-chip + card-row + icon actions). The overflow guard now lives in that
+  // component + its CSS, not in the page markup.
+  describe("§3.1 cabinet dashboard «ваши результаты» mobile overflow (HIGH)", () => {
+    const row = source("components/cabinet/cabinet-result-row.tsx");
+    const css = source("app/v4-soft.css");
 
     it("lets the text column shrink and wrap instead of clipping", () => {
-      // The recent-dialogue row's text container must allow shrink (min-w-0) so a
-      // long title wraps rather than pushing «Открыть» out of the card.
-      const row = page.slice(page.indexOf("client-recent-questions"));
-      expect(row).toContain("min-w-0");
-      expect(row).toContain("break-words");
+      expect(row).toContain("soft-result-body");
+      expect(css).toMatch(/\.soft-result-body\s*\{[^}]*min-width:\s*0/);
+      expect(css).toMatch(/\.soft-result-title\s*\{[^}]*overflow-wrap:\s*anywhere/);
     });
 
-    it("keeps the meta line fluid on mobile rather than pinning a fixed 110px", () => {
-      const row = page.slice(page.indexOf("client-recent-questions"));
-      // The old fixed inline width:110 pushed the button out at 390px. Since
-      // B464 round-4 #3 the meta is a fluid full-width line (datetime first,
-      // category after) — no fixed column at any breakpoint.
+    it("keeps no fixed-width column that would push actions out at 390px", () => {
       expect(row).not.toMatch(/width:\s*110\b/);
       expect(row).not.toContain("w-[110px]");
-      expect(row).toContain("min-w-0");
     });
 
-    it("keeps «Открыть» inside the card with shrink-0", () => {
-      const row = page.slice(page.indexOf("client-recent-questions"));
-      expect(row).toContain("Открыть");
-      expect(row).toContain("soft-chip shrink-0");
+    it("keeps the action cluster pinned and non-shrinking (flex:none)", () => {
+      expect(row).toContain("soft-result-acts");
+      expect(css).toMatch(/\.soft-result-act\s*\{[^}]*flex:\s*none/);
     });
   });
 

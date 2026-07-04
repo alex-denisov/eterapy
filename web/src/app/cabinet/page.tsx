@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2, Sparkles, Gift, ArrowRight, LifeBuoy } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { DailyPracticeActions } from "@/components/cabinet/daily-practice-actions";
+import { CabinetResultRow } from "@/components/cabinet/cabinet-result-row";
 import db from "@/lib/db";
 import { dailyCardBeats, getOrCreateDailyCard } from "@/lib/daily-card";
 import { getClarityCreditBalance } from "@/lib/clarity-credits";
@@ -256,6 +257,8 @@ export default async function ClientCabinetPage() {
       .filter((d) => !isHiddenFromDiary(d.metadata))
       .map((d) => ({
         key: `dialogue:${d.id}`,
+        kind: "dialogue" as const,
+        id: d.id,
         title: d.title,
         when: d.updatedAt,
         label: dialogueTopicLabelRu(d.topic),
@@ -265,6 +268,8 @@ export default async function ClientCabinetPage() {
       .filter((r) => !isHiddenFromDiary(r.metadata))
       .map((r) => ({
         key: `product:${r.id}`,
+        kind: "product" as const,
+        id: r.id,
         title: r.title,
         when: r.updatedAt,
         label: PRODUCT_LABELS[r.productKey] ?? "Разбор",
@@ -356,26 +361,28 @@ export default async function ClientCabinetPage() {
             </Link>
           )}
         </div>
+        {/* Round-6 #6: redesigned разбор-list per the recovered b464-home
+            mockup — topic-chip anchor + bordered card-rows + icon-action
+            cluster (Открыть · Скрыть). Replaces the flat hairline rows. */}
         {resultItems.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--soft-ink-soft)" }}>Здесь появятся ваши разборы.</p>
-        ) : resultItems.map((item, i) => (
-          <div
-            key={item.key}
-            className="flex items-center justify-between gap-3"
-            style={{ padding: "12px 0", borderTop: i > 0 ? "1px solid var(--soft-paper-edge)" : "none" }}
-          >
-            {/* min-w-0 lets a long title wrap (break-words) instead of pushing
-                «Открыть» out of the card. Meta line: date+time first, category
-                after (round-4 #3): «2 июля, 14:32 · Отношения». */}
-            <div className="min-w-0">
-              <p className="break-words" style={{ fontWeight: 500 }}>{item.title}</p>
-              <p className="mt-0.5 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                {resultWhen(item.when)} · {item.label}
-              </p>
-            </div>
-            <Link href={item.href} className="soft-chip shrink-0">Открыть →</Link>
+        ) : (
+          <div>
+            {resultItems.map((item) => (
+              <CabinetResultRow
+                key={item.key}
+                item={{
+                  kind: item.kind,
+                  id: item.id,
+                  title: item.title,
+                  topicLabel: item.label,
+                  when: resultWhen(item.when),
+                  href: item.href,
+                }}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {/* «что дальше по вашей теме» — the cabinet→services lilac bridge, now a

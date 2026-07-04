@@ -171,21 +171,18 @@ describe("R13 item 12 — support inputs keep a calm focus", () => {
   });
 });
 
-// ── #11 · settings grouped rows ──────────────────────────────────────────────
-describe("R17 item 11 — settings are true grouped rows", () => {
-  it("groups render row lists with expandable editors", () => {
+// ── #11 · settings hub (superseded by round-6 #1) ────────────────────────────
+describe("R20 item 1 — settings hub of icon rows", () => {
+  it("renders the nudge + icon-row sections and keeps every handler", () => {
     const settings = read("app/cabinet/settings/settings-client.tsx");
-    expect(settings).toContain("function SettingsGroup(");
-    expect(settings).toContain("function SettingsRow(");
-    expect(settings).toContain('divide-y divide-[var(--soft-paper-edge)]');
-    // Rows get data-testid at runtime through the testId prop.
+    expect(settings).toContain("function SettingsHubRow(");
+    expect(settings).toContain('data-testid="settings-about-nudge"');
+    // Section ids preserved.
     for (const id of [
-      "settings-row-name",
-      "settings-row-password",
-      "settings-row-birth",
-      "settings-row-life",
-      "settings-row-goals",
-      "settings-row-delete",
+      "settings-group-profile",
+      "settings-group-security",
+      "settings-group-notifications",
+      "settings-group-danger",
     ]) {
       expect(settings).toMatch(new RegExp(`(data-testid|testId)="${id}"`));
     }
@@ -207,10 +204,12 @@ describe("R18 item 13 — staged support centre", () => {
   it("starts with ONLY the knowledge-base search; categories appear after a search", () => {
     const center = read("components/support/support-help-center.tsx");
     expect(center).toContain("Поиск по базе знаний");
-    expect(center).toContain("{searched && (");
+    // Round-6 #3: categories appear after a search AND stay while a category is
+    // picked (so the block survives an emptied query).
+    expect(center).toContain("{(searched || category) && (");
     expect(center).toContain("Не нашли нужный вопрос? Выберите из категории ниже");
-    // Escalation only after a category was explored.
-    expect(center).toContain("{searched && category && (");
+    // Escalation only once a category is chosen.
+    expect(center).toContain("{category && (");
     expect(center).toContain("Не нашли ответ на свой вопрос?");
     expect(center).not.toContain("Всё ещё остались вопросы?");
   });
