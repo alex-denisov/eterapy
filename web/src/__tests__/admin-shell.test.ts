@@ -36,6 +36,9 @@ describe("v5 admin shell", () => {
     expect(shell).toContain("ChevronDown");
     expect(shell).toContain("rotate-180");
     expect(shell).toContain("h-[calc(100vh-var(--header-height))]");
+    expect(shell).toContain("md:fixed");
+    expect(shell).toContain("md:top-[var(--header-height)]");
+    expect(shell).toContain("md:pl-64");
     expect(shell).toContain("overflow-hidden");
     expect(shell).toContain('data-testid="admin-shell-nav-scroll"');
     expect(shell).toContain("overflow-y-auto");

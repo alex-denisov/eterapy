@@ -12,6 +12,7 @@ import { ApplicationsManager } from "../../applications/applications-manager";
 import { AdminAntifraudPanel } from "../../antifraud/admin-antifraud-panel";
 import { ComplaintsManager } from "../../complaints/complaints-manager";
 import { ReviewsManager } from "../../reviews/reviews-manager";
+import { MetricCard as AdminMetricCard } from "../../admin-analytics-ui";
 import { LibraryRequestsManager, type LibraryRequestRow } from "./library-requests-manager";
 
 function formatNumber(value: number) {
@@ -29,16 +30,7 @@ function MetricCard({
   value: string;
   hint: string;
 }) {
-  return (
-    <div className="rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)]">
-      <div className="mb-1.5 flex items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">
-        <Icon className="h-3.5 w-3.5 text-[#2563EB]" />
-        {label}
-      </div>
-      <p className="font-heading text-xl font-semibold leading-tight text-[var(--soft-bordeaux)] tabular-nums">{value}</p>
-      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--soft-ink-soft)]">{hint}</p>
-    </div>
-  );
+  return <AdminMetricCard icon={<Icon className="h-3.5 w-3.5" aria-hidden="true" />} label={label} value={value} hint={hint} />;
 }
 
 function asSessionComplianceEvidence(value: unknown) {

@@ -1,14 +1,15 @@
 import Link from "next/link";
 import type { ComponentType, ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
+import { AnalyticsSection, MetricCard, type MetricTone } from "../admin-analytics-ui";
 
 type Tone = "ok" | "warn" | "danger" | "neutral";
 
-const TONE_CLASS: Record<Tone, string> = {
-  ok: "text-emerald-700",
-  warn: "text-[var(--soft-terracotta-dark)]",
-  danger: "text-red-700",
-  neutral: "text-[var(--soft-bordeaux)]",
+const TONE_MAP: Record<Tone, MetricTone> = {
+  ok: "ok",
+  warn: "warn",
+  danger: "danger",
+  neutral: "neutral",
 };
 
 export function formatNumber(value: number) {
@@ -40,16 +41,7 @@ export function AdminOpsMetric({
   hint: string;
   tone?: Tone;
 }) {
-  return (
-    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
-      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">
-        <Icon className="h-4 w-4 text-[var(--soft-bordeaux)]" />
-        {label}
-      </div>
-      <p className={`text-2xl font-semibold tabular-nums ${TONE_CLASS[tone]}`}>{value}</p>
-      <p className="mt-1 text-xs leading-relaxed text-[var(--soft-ink-soft)]">{hint}</p>
-    </div>
-  );
+  return <MetricCard icon={<Icon className="h-3.5 w-3.5" aria-hidden="true" />} label={label} value={value} hint={hint} tone={TONE_MAP[tone]} />;
 }
 
 export function AdminOpsSection({
@@ -63,19 +55,7 @@ export function AdminOpsSection({
   actionLabel?: string;
   children: ReactNode;
 }) {
-  return (
-    <section className="min-w-0 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)]">
-      <div className="flex flex-col gap-2 border-b border-[var(--soft-paper-edge)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-base font-semibold text-[var(--soft-ink)]">{title}</h2>
-        {actionHref && actionLabel && (
-          <Link className="soft-admin-action w-fit" href={actionHref}>
-            {actionLabel}
-          </Link>
-        )}
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  );
+  return <AnalyticsSection title={title} actionHref={actionHref} actionLabel={actionLabel}>{children}</AnalyticsSection>;
 }
 
 export function AdminOpsLinkCard({

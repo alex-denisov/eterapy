@@ -99,7 +99,11 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(periodToolbar).toContain('data-testid="admin-period-mode-quarter"');
     expect(periodToolbar).toContain('data-testid="admin-period-mode-all"');
     expect(periodToolbar).toContain('type="week"');
-    expect(periodToolbar).toContain("quarterOptions");
+    expect(periodToolbar).toContain("adminQuarterOptions");
+    expect(periodToolbar).toContain("adminPlatformWeekInputMin");
+    expect(periodToolbar).toContain("min={weekMin}");
+    expect(periodToolbar).toContain("max={weekMax}");
+    expect(periodToolbar).toContain("disabled={day.disabled}");
     expect(periodToolbar).not.toContain('["month", "Месяц"]');
     expect(currencySelector).toContain("saveAdminCurrencyPreference");
     expect(currencySelector).toContain("restoreAdminCurrencyPreference");

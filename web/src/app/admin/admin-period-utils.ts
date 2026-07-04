@@ -2,6 +2,7 @@ export type AdminCalendarDay = {
   iso: string;
   label: string;
   current: boolean;
+  disabled: boolean;
 };
 
 export const ADMIN_PLATFORM_FIRST_DEPLOY_ISO = "2026-04-03";
@@ -47,6 +48,26 @@ export function adminStartOfToday() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+export function adminTodayIso() {
+  return adminPeriodToIsoDate(adminStartOfToday());
+}
+
+export function adminClampIsoToPlatformRange(value: string) {
+  if (!adminPeriodParseIso(value)) return adminTodayIso();
+  if (value < ADMIN_PLATFORM_FIRST_DEPLOY_ISO) return ADMIN_PLATFORM_FIRST_DEPLOY_ISO;
+  const today = adminTodayIso();
+  if (value > today) return today;
+  return value;
+}
+
+export function adminPlatformWeekInputMin() {
+  return adminWeekInputFromIso(ADMIN_PLATFORM_FIRST_DEPLOY_ISO);
+}
+
+export function adminPlatformWeekInputMax() {
+  return adminWeekInputFromIso(adminTodayIso());
+}
+
 export function adminPresetRange(period: string) {
   const end = adminStartOfToday();
   let start = new Date(end);
@@ -83,7 +104,10 @@ export function adminRangeFromWeekInput(value: string) {
   monday.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (week - 1) * 7);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  return { start: adminPeriodToIsoDate(monday), end: adminPeriodToIsoDate(sunday) };
+  return {
+    start: adminClampIsoToPlatformRange(adminPeriodToIsoDate(monday)),
+    end: adminClampIsoToPlatformRange(adminPeriodToIsoDate(sunday)),
+  };
 }
 
 export function adminQuarterInputFromIso(value: string) {
@@ -99,7 +123,34 @@ export function adminRangeFromQuarterInput(value: string) {
   const quarter = Number(quarterRaw);
   const start = new Date(year, (quarter - 1) * 3, 1);
   const end = new Date(year, quarter * 3, 0);
-  return { start: adminPeriodToIsoDate(start), end: adminPeriodToIsoDate(end) };
+  return {
+    start: adminClampIsoToPlatformRange(adminPeriodToIsoDate(start)),
+    end: adminClampIsoToPlatformRange(adminPeriodToIsoDate(end)),
+  };
+}
+
+export function adminQuarterOptions() {
+  const first = adminPeriodParseIso(ADMIN_PLATFORM_FIRST_DEPLOY_ISO) ?? new Date(2026, 3, 3);
+  const today = adminStartOfToday();
+  const options: Array<{ value: string; label: string }> = [];
+  let year = first.getFullYear();
+  let quarter = Math.floor(first.getMonth() / 3) + 1;
+  const endYear = today.getFullYear();
+  const endQuarter = Math.floor(today.getMonth() / 3) + 1;
+
+  while (year < endYear || year === endYear && quarter <= endQuarter) {
+    options.push({
+      value: `${year}-Q${quarter}`,
+      label: `${year} · ${quarter} квартал`,
+    });
+    quarter += 1;
+    if (quarter > 4) {
+      quarter = 1;
+      year += 1;
+    }
+  }
+
+  return options;
 }
 
 export function adminMonthDays(anchorIso: string): AdminCalendarDay[] {
@@ -111,17 +162,20 @@ export function adminMonthDays(anchorIso: string): AdminCalendarDay[] {
   for (let i = lead; i > 0; i -= 1) {
     const date = new Date(first);
     date.setDate(first.getDate() - i);
-    days.push({ iso: adminPeriodToIsoDate(date), label: String(date.getDate()), current: false });
+    const iso = adminPeriodToIsoDate(date);
+    days.push({ iso, label: String(date.getDate()), current: false, disabled: iso < ADMIN_PLATFORM_FIRST_DEPLOY_ISO || iso > adminTodayIso() });
   }
   for (let day = 1; day <= last.getDate(); day += 1) {
     const date = new Date(anchor.getFullYear(), anchor.getMonth(), day);
-    days.push({ iso: adminPeriodToIsoDate(date), label: String(day), current: true });
+    const iso = adminPeriodToIsoDate(date);
+    days.push({ iso, label: String(day), current: true, disabled: iso < ADMIN_PLATFORM_FIRST_DEPLOY_ISO || iso > adminTodayIso() });
   }
   const trailing = 7 - (last.getDay() || 7);
   for (let i = 1; i <= trailing; i += 1) {
     const date = new Date(last);
     date.setDate(last.getDate() + i);
-    days.push({ iso: adminPeriodToIsoDate(date), label: String(date.getDate()), current: false });
+    const iso = adminPeriodToIsoDate(date);
+    days.push({ iso, label: String(date.getDate()), current: false, disabled: iso < ADMIN_PLATFORM_FIRST_DEPLOY_ISO || iso > adminTodayIso() });
   }
   return days;
 }

@@ -27,14 +27,20 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(shell).not.toContain("activePathname.startsWith(itemPath)");
   });
 
-  it("lets the admin sidebar stretch with long pages instead of pinning it to viewport height", () => {
+  it("pins the admin sidebar to the viewport and lets only its own navigation scroll", () => {
     const shell = source("src/app/admin/admin-shell.tsx");
     const sidebarMarkup = shell.slice(
       shell.indexOf('data-testid="admin-shell-sidebar"'),
       shell.indexOf('data-testid="admin-shell-user"'),
     );
 
-    expect(sidebarMarkup).toContain("self-stretch");
+    expect(sidebarMarkup).toContain("md:fixed");
+    expect(sidebarMarkup).toContain("md:top-[var(--header-height)]");
+    expect(sidebarMarkup).toContain("md:bottom-0");
+    expect(shell).toContain("md:pl-64");
+    expect(shell).toContain('data-testid="admin-shell-nav-scroll"');
+    expect(shell).toContain("overflow-y-auto");
+    expect(shell).toContain('data-testid="admin-shell-sidebar-footer"');
     expect(sidebarMarkup).not.toContain(" sticky ");
     expect(sidebarMarkup).not.toContain('style={{ top: "var(--header-height)" }}');
   });

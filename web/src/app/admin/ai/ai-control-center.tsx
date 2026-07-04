@@ -36,6 +36,7 @@ import {
   MODEL_PRICING_REFERENCE_USD_PER_MILLION,
   getReferenceModelPricing,
 } from "@/lib/ai-gateway/model-pricing-reference";
+import { MetricCard as AdminMetricCard } from "../admin-analytics-ui";
 
 const AIProvider = {
   OPENAI: "OPENAI",
@@ -730,16 +731,7 @@ function MetricCard({
   value: string;
   hint: string;
 }) {
-  return (
-    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-4">
-      <div className="flex items-center gap-2 text-[var(--soft-ink-soft)]">
-        <Icon className="h-4 w-4" aria-hidden="true" />
-        <span className="text-xs uppercase tracking-[0.12em]">{label}</span>
-      </div>
-      <p className="mt-3 text-2xl font-semibold text-[var(--soft-ink)]">{value}</p>
-      <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">{hint}</p>
-    </div>
-  );
+  return <AdminMetricCard icon={<Icon className="h-3.5 w-3.5" aria-hidden="true" />} label={label} value={value} hint={hint} />;
 }
 
 function ModelSelect({

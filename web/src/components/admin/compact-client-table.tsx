@@ -585,8 +585,9 @@ function DateHeaderFilter({
                   className={[
                     "h-6 rounded text-[10px] tabular-nums transition-colors",
                     day.current ? "text-[var(--soft-ink)]" : "text-[var(--soft-ink-faint)]",
-                    selected ? "bg-[var(--soft-bordeaux)] font-semibold text-white hover:bg-[var(--soft-bordeaux)]" : "hover:bg-[var(--soft-surface)]",
+                    day.disabled ? "cursor-not-allowed opacity-35" : selected ? "bg-[var(--soft-bordeaux)] font-semibold text-white hover:bg-[var(--soft-bordeaux)]" : "hover:bg-[var(--soft-surface)]",
                   ].filter(Boolean).join(" ")}
+                  disabled={day.disabled}
                   onClick={() => selectDay(day.iso)}
                 >
                   {day.label}

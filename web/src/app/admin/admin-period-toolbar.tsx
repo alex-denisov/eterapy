@@ -6,9 +6,13 @@ import { restoreAdminPeriodPreference, saveAdminPeriodPreference } from "./admin
 import {
   adminMonthDays,
   adminMonthTitle,
+  adminClampIsoToPlatformRange,
   adminPeriodFromRuDate,
   adminPeriodToRuDate,
+  adminPlatformWeekInputMax,
+  adminPlatformWeekInputMin,
   adminPresetRange,
+  adminQuarterOptions,
   adminQuarterInputFromIso,
   adminRangeFromQuarterInput,
   adminRangeFromWeekInput,
@@ -36,14 +40,9 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   const [quarterInput, setQuarterInput] = useState(adminQuarterInputFromIso(start));
 
   const days = useMemo(() => adminMonthDays(monthIso), [monthIso]);
-  const quarterOptions = useMemo(() => {
-    const now = new Date();
-    const years = Array.from({ length: 7 }, (_, index) => now.getFullYear() - 3 + index);
-    return years.flatMap((year) => [1, 2, 3, 4].map((quarter) => ({
-      value: `${year}-Q${quarter}`,
-      label: `${year} · ${quarter} квартал`,
-    })));
-  }, []);
+  const quarterOptions = useMemo(() => adminQuarterOptions(), []);
+  const weekMin = useMemo(() => adminPlatformWeekInputMin(), []);
+  const weekMax = useMemo(() => adminPlatformWeekInputMax(), []);
 
   function buildParams(nextStart: string, nextEnd: string, period?: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -60,19 +59,27 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   }
 
   function updateLocalRange(nextStart: string, nextEnd: string) {
-    setStartIso(nextStart);
-    setEndIso(nextEnd);
-    setStartText(adminPeriodToRuDate(nextStart));
-    setEndText(adminPeriodToRuDate(nextEnd));
-    setMonthIso(nextStart);
-    setDayIso(nextStart);
-    setWeekInput(adminWeekInputFromIso(nextStart));
-    setQuarterInput(adminQuarterInputFromIso(nextStart));
+    const clampedStart = adminClampIsoToPlatformRange(nextStart);
+    const clampedEnd = adminClampIsoToPlatformRange(nextEnd);
+    const safeStart = clampedStart <= clampedEnd ? clampedStart : clampedEnd;
+    const safeEnd = clampedStart <= clampedEnd ? clampedEnd : clampedStart;
+    setStartIso(safeStart);
+    setEndIso(safeEnd);
+    setStartText(adminPeriodToRuDate(safeStart));
+    setEndText(adminPeriodToRuDate(safeEnd));
+    setMonthIso(safeStart);
+    setDayIso(safeStart);
+    setWeekInput(adminWeekInputFromIso(safeStart));
+    setQuarterInput(adminQuarterInputFromIso(safeStart));
   }
 
   function navigate(nextStart = startIso, nextEnd = endIso, period?: string) {
-    const params = buildParams(nextStart, nextEnd, period);
-    saveAdminPeriodPreference({ start: nextStart, end: nextEnd, period: params.get("period") ?? undefined });
+    const clampedStart = adminClampIsoToPlatformRange(nextStart);
+    const clampedEnd = adminClampIsoToPlatformRange(nextEnd);
+    const safeStart = clampedStart <= clampedEnd ? clampedStart : clampedEnd;
+    const safeEnd = clampedStart <= clampedEnd ? clampedEnd : clampedStart;
+    const params = buildParams(safeStart, safeEnd, period);
+    saveAdminPeriodPreference({ start: safeStart, end: safeEnd, period: params.get("period") ?? undefined });
     navigateToParams(params);
   }
 
@@ -112,7 +119,8 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
   }, []);
 
   function commitText(field: "start" | "end", value: string) {
-    const iso = adminPeriodFromRuDate(value);
+    const parsedIso = adminPeriodFromRuDate(value);
+    const iso = parsedIso ? adminClampIsoToPlatformRange(parsedIso) : null;
     if (!iso) return;
     if (field === "start") {
       setStartIso(iso);
@@ -241,9 +249,10 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
                   className={[
                     "h-8 rounded-md text-xs tabular-nums transition-colors",
                     day.current ? "text-[var(--soft-ink)]" : "text-[var(--soft-ink-faint)]",
-                    inRange ? "bg-[var(--soft-surface)]" : "hover:bg-[var(--soft-surface)]",
-                    selected ? "bg-[var(--soft-bordeaux)] font-semibold text-white hover:bg-[var(--soft-bordeaux)]" : "",
+                    day.disabled ? "cursor-not-allowed opacity-35" : inRange ? "bg-[var(--soft-surface)]" : "hover:bg-[var(--soft-surface)]",
+                    selected && !day.disabled ? "bg-[var(--soft-bordeaux)] font-semibold text-white hover:bg-[var(--soft-bordeaux)]" : "",
                   ].filter(Boolean).join(" ")}
+                  disabled={day.disabled}
                   onClick={() => {
                     setDayIso(day.iso);
                     applyDay(day.iso);
@@ -269,6 +278,8 @@ function AdminPeriodToolbarInner({ basePath, start, end }: { basePath: string; s
             <input
               type="week"
               className="h-9 rounded-lg border border-[var(--soft-paper-edge)] bg-white px-2 text-sm text-[var(--soft-ink)]"
+              min={weekMin}
+              max={weekMax}
               value={weekInput}
               onChange={(event) => setWeekInput(event.target.value)}
             />

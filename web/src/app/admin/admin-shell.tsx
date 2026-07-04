@@ -252,7 +252,7 @@ export function AdminShell({
     <div data-testid="admin-shell" data-shell-role={role} className="soft-clarity-page soft-admin-shell flex min-h-screen">
       <aside
         data-testid="admin-shell-sidebar"
-        className="admin-shell-sidebar soft-admin-sidebar hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 self-stretch overflow-hidden px-3 py-5 md:flex md:flex-col"
+        className="admin-shell-sidebar soft-admin-sidebar hidden h-[calc(100vh-var(--header-height))] w-64 shrink-0 overflow-hidden px-3 py-5 md:fixed md:bottom-0 md:left-0 md:top-[var(--header-height)] md:z-30 md:flex md:flex-col"
       >
         {/* T10: logo intentionally omitted here — the public-shell-header
             already renders the brand mark, so a second copy in the sidebar
@@ -384,7 +384,7 @@ export function AdminShell({
         })}
       </div>
 
-      <main data-testid="admin-shell-main" className="min-w-0 flex-1 pb-20 md:pb-0">
+      <main data-testid="admin-shell-main" className="min-w-0 flex-1 pb-20 md:pl-64 md:pb-0">
         <div className="border-b border-[var(--soft-paper-edge)] bg-white/90 px-4 py-3 backdrop-blur md:hidden">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">

@@ -13,10 +13,17 @@ export type ChartPoint = {
 export type MetricTone = "neutral" | "ok" | "warn" | "danger";
 
 const toneClass: Record<MetricTone, string> = {
-  neutral: "text-[var(--soft-bordeaux)]",
+  neutral: "text-[#183B78]",
   ok: "text-emerald-700",
-  warn: "text-[var(--soft-terracotta-dark)]",
+  warn: "text-amber-700",
   danger: "text-red-700",
+};
+
+const toneAccentClass: Record<MetricTone, string> = {
+  neutral: "from-[#2563EB] to-[#14B8A6]",
+  ok: "from-emerald-500 to-teal-500",
+  warn: "from-amber-500 to-orange-500",
+  danger: "from-red-500 to-rose-500",
 };
 
 export function formatNumber(value: number) {
@@ -146,26 +153,39 @@ export function MetricCard({
   hint,
   href,
   tone = "neutral",
+  icon,
+  delta,
 }: {
   label: string;
   value: string;
   hint?: string;
   href?: string;
   tone?: MetricTone;
+  icon?: ReactNode;
+  delta?: string;
 }) {
   const body = (
-    <>
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-faint)]">{label}</p>
-      <p className={`mt-1 font-heading text-xl font-semibold leading-tight tabular-nums ${toneClass[tone]}`}>{value}</p>
-      {hint ? <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-[var(--soft-ink-soft)]">{hint}</p> : null}
-    </>
+    <div className="relative min-h-[5.25rem] overflow-hidden">
+      <div className={`absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r ${toneAccentClass[tone]}`} />
+      <div className="flex min-w-0 items-start justify-between gap-2 pt-2">
+        <div className="min-w-0">
+          <p className="truncate text-[0.62rem] font-bold uppercase tracking-[0.08em] text-[#64748B]" title={label}>{label}</p>
+          <p className={`mt-1.5 font-sans text-[1.28rem] font-semibold leading-none tabular-nums ${toneClass[tone]}`}>{value}</p>
+        </div>
+        {icon ? <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#EFF6FF] text-[#2563EB]">{icon}</span> : null}
+      </div>
+      <div className="mt-2 flex min-h-[1.6rem] items-end justify-between gap-2">
+        {hint ? <p className="line-clamp-2 text-[0.68rem] leading-snug text-[#475569]">{hint}</p> : <span />}
+        {delta ? <span className="shrink-0 rounded-full bg-[#EEF2FF] px-1.5 py-0.5 text-[0.62rem] font-bold tabular-nums text-[#2563EB]">{delta}</span> : null}
+      </div>
+    </div>
   );
-  const className = "block rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)] transition-colors hover:border-[#2563EB]";
+  const className = "soft-admin-kpi-card block min-w-0 rounded-lg border border-[#D6DEE9] bg-white px-3 py-2.5 shadow-[0_16px_36px_-30px_rgba(15,23,42,0.65)] transition hover:-translate-y-0.5 hover:border-[#2563EB] hover:shadow-[0_18px_42px_-30px_rgba(37,99,235,0.35)]";
   return href ? <Link className={className} href={href}>{body}</Link> : <div className={className}>{body}</div>;
 }
 
 export function MetricGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">{children}</div>;
+  return <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 2xl:grid-cols-6">{children}</div>;
 }
 
 export function AnalyticsSection({
@@ -182,9 +202,9 @@ export function AnalyticsSection({
   actionLabel?: string;
 }) {
   return (
-    <section id={id} className="min-w-0 scroll-mt-24 overflow-hidden rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-4 shadow-[var(--soft-shadow-sm)]">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-heading text-xl font-semibold text-[var(--soft-bordeaux)]">{title}</h2>
+    <section id={id} className="soft-admin-bi-section min-w-0 scroll-mt-24 overflow-hidden rounded-lg border border-[#D6DEE9] bg-white/95 p-3.5 shadow-[0_18px_48px_-38px_rgba(15,23,42,0.52)]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-sans text-[0.92rem] font-bold uppercase tracking-[0.04em] text-[#0F172A]">{title}</h2>
         {actionHref && actionLabel ? <Link className="soft-admin-action" href={actionHref}>{actionLabel}</Link> : null}
       </div>
       {children}
@@ -220,12 +240,11 @@ function chartSeries(data: ChartPoint[], labels?: [string, string?, string?]): C
 }
 
 function chartCardClass() {
-  return "min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
+  return "soft-admin-chart-card min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
 }
 
-function axisSlotWidth(labels: string[], baseWidth: number) {
-  const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
-  return Math.max(baseWidth, Math.ceil(longest * 6.8) + 18);
+function axisSlotWidth(_labels: string[], baseWidth: number) {
+  return Math.max(16, baseWidth);
 }
 
 function tooltipSize(text: string) {
@@ -236,17 +255,18 @@ function tooltipSize(text: string) {
 }
 
 function axisLabelStep(labels: string[], slotWidth: number) {
-  if (labels.length <= 31 || slotWidth >= 34) return 1;
-  return Math.max(1, Math.ceil(34 / Math.max(slotWidth, 1)));
+  if (labels.length <= 7) return 1;
+  const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
+  const requiredSlotWidth = Math.ceil(longest * 6.2) + 18;
+  if (requiredSlotWidth <= slotWidth) return 1;
+  return Math.max(1, Math.ceil(requiredSlotWidth / Math.max(slotWidth, 1)));
 }
 
 function axisLabelLayout(labels: string[], slotWidth: number) {
-  const longest = labels.reduce((max, label) => Math.max(max, label.length), 0);
-  const requiredSlotWidth = Math.ceil(longest * 6.8) + 18;
   return {
     vertical: false,
-    bottom: 22,
-    slotWidth: Math.max(slotWidth, requiredSlotWidth),
+    bottom: 20,
+    slotWidth,
   };
 }
 
@@ -274,15 +294,15 @@ export function VerticalBarChart({
   const hasValues = data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0);
   if (!hasValues) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
   const series = chartSeries(data, seriesLabels);
-  const left = 58;
-  const right = 16;
-  const top = 12;
-  const plotHeight = 212;
+  const left = 54;
+  const right = 12;
+  const top = 8;
+  const plotHeight = 176;
   const compactLabels = data.length > 18;
   const labels = data.map((item) => item.label);
   const groupWidth = axisSlotWidth(
     labels,
-    compactLabels ? (series.length > 1 ? 38 : 32) : (series.length > 1 ? 52 : 44),
+    data.length > 45 ? 18 : data.length > 31 ? 22 : compactLabels ? (series.length > 1 ? 28 : 24) : (series.length > 1 ? 42 : 34),
   );
   const labelLayout = axisLabelLayout(labels, groupWidth);
   const resolvedGroupWidth = labelLayout.slotWidth;
@@ -291,13 +311,13 @@ export function VerticalBarChart({
     const raw = Math.max(0, Number(item[seriesItem.key] ?? 0));
     return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)}`).width;
   })), 172);
-  const width = Math.max(760, left + right + data.length * resolvedGroupWidth, left + right + widestTooltip + 16);
+  const width = Math.max(680, left + right + data.length * resolvedGroupWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
   const innerGap = 2;
   const labelStep = axisLabelStep(labels, resolvedGroupWidth);
-  const barWidth = Math.max(3, Math.min(14, (resolvedGroupWidth - 8 - innerGap * (series.length - 1)) / series.length));
+  const barWidth = Math.max(3, Math.min(12, (resolvedGroupWidth - 6 - innerGap * (series.length - 1)) / series.length));
   const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
 
   function yFor(value: number) {
@@ -336,7 +356,7 @@ export function VerticalBarChart({
   return (
     <div className={chartCardClass()} data-testid="admin-vertical-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#0F172A]">{label}</p> : <span />}
+        {label ? <p className="text-xs font-bold uppercase tracking-[0.05em] text-[#0F172A]">{label}</p> : <span />}
         {series.length > 1 ? (
           <div className="flex flex-wrap gap-3 text-[10px] text-[#475569]">
             {series.map((item) => (
@@ -378,7 +398,7 @@ export function VerticalBarChart({
             const groupX = left + index * slotWidth;
             const centerX = groupX + slotWidth / 2;
             const startX = groupX + (slotWidth - totalBarsWidth) / 2;
-            const axisLabelY = top + plotHeight + 10;
+            const axisLabelY = top + plotHeight + 6;
             return (
               <g key={item.label}>
                 {series.map((seriesItem, seriesIndex) => {
@@ -407,7 +427,7 @@ export function VerticalBarChart({
                     y={axisLabelY}
                     textAnchor="middle"
                     dominantBaseline="hanging"
-                    className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
+                    className="soft-chart-axis-label fill-[#475569] text-[10px] tabular-nums"
                   >
                     {item.label}
                   </text>
@@ -472,12 +492,12 @@ export function StackedBarChart({
   if (data.length === 0) return <EmptyState />;
   if (!totals.some((value) => value > 0)) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
 
-  const left = 58;
-  const right = 16;
-  const top = 12;
-  const plotHeight = 212;
+  const left = 54;
+  const right = 12;
+  const top = 8;
+  const plotHeight = 176;
   const labels = data.map((item) => item.label);
-  const slotWidth = axisSlotWidth(labels, data.length > 18 ? 34 : 42);
+  const slotWidth = axisSlotWidth(labels, data.length > 45 ? 18 : data.length > 31 ? 22 : data.length > 18 ? 26 : 36);
   const labelLayout = axisLabelLayout(labels, slotWidth);
   const resolvedSlotWidth = labelLayout.slotWidth;
   const bottom = labelLayout.bottom;
@@ -487,12 +507,12 @@ export function StackedBarChart({
       : Number(item[seriesItem.key as ChartSeriesKey] ?? 0);
     return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(totals[index] ?? 0)}`).width;
   })), 172);
-  const width = Math.max(760, left + right + data.length * resolvedSlotWidth, left + right + widestTooltip + 16);
+  const width = Math.max(680, left + right + data.length * resolvedSlotWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
   const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
   const labelStep = axisLabelStep(labels, resolvedSlotWidth);
-  const barWidth = Math.max(7, Math.min(20, resolvedSlotWidth * 0.56));
+  const barWidth = Math.max(5, Math.min(15, resolvedSlotWidth * 0.58));
 
   function yFor(value: number) {
     return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
@@ -539,7 +559,7 @@ export function StackedBarChart({
   return (
     <div className={chartCardClass()} data-testid="admin-stacked-bar-chart">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        {label ? <p className="text-xs font-semibold uppercase tracking-[0.05em] text-[#0F172A]">{label}</p> : <span />}
+        {label ? <p className="text-xs font-bold uppercase tracking-[0.05em] text-[#0F172A]">{label}</p> : <span />}
         <div className="flex flex-wrap gap-3 text-[10px] text-[#475569]">
           {series.map((item) => (
             <span key={item.key} className="inline-flex items-center gap-1">
@@ -611,10 +631,10 @@ export function StackedBarChart({
                 {index % labelStep === 0 ? (
                   <text
                     x={centerX}
-                    y={top + plotHeight + 10}
+                    y={top + plotHeight + 6}
                     textAnchor="middle"
                     dominantBaseline="hanging"
-                    className="soft-chart-axis-label fill-[#475569] text-[11px] tabular-nums"
+                    className="soft-chart-axis-label fill-[#475569] text-[10px] tabular-nums"
                   >
                     {item.label}
                   </text>
@@ -665,9 +685,9 @@ export function SmallMultiplesBarGrid({
 }) {
   if (items.length === 0) return <EmptyState>{empty}</EmptyState>;
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="admin-small-multiples-grid">
+    <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" data-testid="admin-small-multiples-grid">
       {items.map((item) => (
-        <div key={item.key} className="min-w-0 rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_42px_-36px_rgba(15,23,42,0.5)]">
+        <div key={item.key} className="soft-admin-chart-card min-w-0 rounded-lg border border-[#D6DEE9] bg-white p-2.5 shadow-[0_16px_42px_-36px_rgba(15,23,42,0.5)]">
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold uppercase tracking-[0.04em] text-[#0F172A]" title={item.title}>{item.title}</p>
@@ -715,15 +735,15 @@ export function MiniBarSparkline({
   const max = integerTicks ? Math.max(1, Math.ceil(rawMax)) : rawMax;
   const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
   if (data.length === 0 || !data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0)) {
-    return <div className="grid h-32 place-items-center rounded-md bg-[#F8FAFC] text-xs text-[#64748B]">Нет событий</div>;
+    return <div className="grid h-28 place-items-center rounded-md bg-[#F8FAFC] text-xs text-[#64748B]">Нет событий</div>;
   }
 
   const width = 420;
-  const height = 138;
+  const height = 126;
   const left = 34;
   const right = 8;
   const top = 8;
-  const plotHeight = 96;
+  const plotHeight = 86;
   const plotWidth = width - left - right;
   const slotWidth = plotWidth / data.length;
   const innerGap = 1;
@@ -740,7 +760,7 @@ export function MiniBarSparkline({
     <svg
       role="img"
       aria-label="Компактная гистограмма"
-      className="block h-32 w-full overflow-visible"
+      className="block h-28 w-full overflow-visible"
       viewBox={`0 0 ${width} ${height}`}
       data-testid="admin-mini-bar-sparkline"
       shapeRendering="geometricPrecision"
@@ -799,7 +819,7 @@ export function HorizontalBars({ data, unit }: { data: ChartPoint[]; unit?: stri
   const max = Math.max(...data.map((item) => item.value), 1);
   if (data.length === 0) return <EmptyState />;
   return (
-    <div className="space-y-3 rounded-lg border border-[#D6DEE9] bg-white p-4 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.45)]">
+    <div className="soft-admin-chart-card space-y-3 rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.45)]">
       {data.map((item) => (
         <div key={item.label}>
           <div className="mb-1 flex justify-between gap-3 text-xs">
@@ -826,7 +846,7 @@ export function FunnelChart({ data }: { data: ChartPoint[] }) {
   const first = Math.max(data[0]?.value ?? 0, 1);
   if (data.length === 0) return <EmptyState />;
   return (
-    <div className="rounded-lg border border-[#D6DEE9] bg-white p-4 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.45)]">
+    <div className="soft-admin-chart-card rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.45)]">
       {data.map((item, index) => {
         const width = Math.max(18, Math.min(100, (item.value / first) * 100));
         const conversion = index === 0 ? 100 : (item.value / first) * 100;
