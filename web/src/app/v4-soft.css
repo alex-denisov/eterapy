@@ -395,6 +395,81 @@
     border-color: color-mix(in srgb, var(--soft-terracotta) 40%, var(--soft-paper-edge));
   }
 
+  /* Round-7 (item 1): the reversible «Скрыто · Вернуть» collapse state. Muted
+     dashed row so it reads as removed but recoverable in place. */
+  .soft-result-row-hidden {
+    justify-content: space-between;
+    border-style: dashed;
+    background: color-mix(in srgb, var(--soft-paper-card) 60%, transparent);
+  }
+
+  .soft-result-row-hidden:hover {
+    border-color: var(--soft-paper-edge);
+    box-shadow: none;
+  }
+
+  .soft-result-hidden-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    font-size: 0.82rem;
+    color: var(--soft-ink-faint);
+  }
+
+  .soft-result-undo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: none;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--soft-terracotta) 40%, var(--soft-paper-edge));
+    color: var(--soft-bordeaux);
+    background: var(--soft-paper);
+    font-size: 0.82rem;
+    font-weight: 600;
+    transition: background var(--motion-base) var(--ease-standard),
+      border-color var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-result-undo:hover {
+    background: var(--soft-surface);
+    border-color: color-mix(in srgb, var(--soft-terracotta) 60%, var(--soft-paper-edge));
+  }
+
+  .soft-result-undo:disabled {
+    opacity: 0.6;
+  }
+
+  /* B464 item 4: Дневник разбор card-row — same visual family as the Главная
+     result rows, but a card container that can carry an optional footer for the
+     product-save / library-consent secondary actions. */
+  .soft-diary-row {
+    border: 1px solid var(--soft-paper-edge);
+    border-radius: 14px;
+    background: var(--soft-paper-card);
+    padding: 0.75rem 0.85rem;
+    transition: border-color var(--motion-base) var(--ease-standard),
+      box-shadow var(--motion-base) var(--ease-standard);
+  }
+
+  .soft-diary-row:hover {
+    border-color: color-mix(in srgb, var(--soft-terracotta) 42%, var(--soft-paper-edge));
+    box-shadow: 0 6px 20px -14px rgba(92, 42, 44, 0.4);
+  }
+
+  .soft-diary-row-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--soft-paper-edge);
+  }
+
   /* Round-6 #1: /settings hub rows per the approved b464 mockup — standalone
      rounded rows (icon · title · subtitle · chevron), a section expands inside
      its row. Viewport-agnostic → lives before any @media block. */
@@ -3188,6 +3263,10 @@
     background: rgba(251, 246, 238, 0.92);
     box-shadow: 0 -18px 48px -30px rgba(60, 30, 20, 0.36);
     backdrop-filter: blur(16px);
+    /* B464 item 3 / audit A2: reserve the iPhone home-indicator inset so the
+       tab row never sits under the gesture bar. The frosted background fills
+       the inset; only the tappable content is pushed up. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   /* Round-5 #1: with the landing bar truly fixed to the viewport bottom the

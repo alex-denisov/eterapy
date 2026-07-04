@@ -20,7 +20,9 @@ describe("M11 client retention surfaces", () => {
     expect(page).toContain('data-testid="client-subscription-status"');
     expect(page).toContain("getSubscriptionPlanLabel");
     expect(page).toContain("db.clarityRoute.findMany");
-    expect(page).toContain('appUrl("/questions")');
+    // B464 item 1: «Все разборы» now points at /diary (the full разборы list +
+    // hidden-item restore live there), not the orphan /questions page.
+    expect(page).toContain('appUrl("/diary")');
     // B464 IB1: the cabinet home shows a single «ваши результаты» block with an
     // "Все разборы →" link to the history page. The previously duplicated
     // in-page "История разборов" card was removed (the sidebar nav keeps that

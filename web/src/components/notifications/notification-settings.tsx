@@ -302,8 +302,8 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
     <div className="space-y-6">
       {/* Telegram-привязка */}
       <div className="soft-card p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <h3 className="font-semibold flex items-center gap-2">
               <TelegramIcon className="text-[#229ED9]" /> Telegram
             </h3>
@@ -424,9 +424,9 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                       a `w-20` centred column inside a `flex gap-3` row, so this
                       header row mirrors that exact grid (w-20 + gap-3) instead of
                       the old free-flowing `gap-2` that drifted out of alignment. */}
-                  <div className="flex gap-3 shrink-0">
+                  <div className="flex shrink-0 gap-1.5 sm:gap-3">
                     {(["EMAIL", "TELEGRAM", "WEB"] as const).map(channel => (
-                      <div key={channel} className="w-20 flex justify-center">
+                      <div key={channel} className="flex w-12 justify-center sm:w-20">
                         <button
                           type="button"
                           onClick={() => {
@@ -437,7 +437,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                             }
                             setCategoryChannel(category, channel, !allEnabled);
                           }}
-                          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2.5 py-1 text-[11px] text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)]"
+                          className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] px-2 py-1 text-[10px] text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)] sm:px-2.5 sm:text-[11px]"
                         >
                           {channel === "EMAIL" ? "Email" : channel === "TELEGRAM" ? "Telegram" : "Web"}
                         </button>
@@ -459,7 +459,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                     const isReminder = event === "BOOKING_REMINDER";
 
                     return (
-                      <div key={event} className="flex items-center gap-4 px-4 py-3 hover:bg-white/2 transition-colors">
+                      <div key={event} className="flex items-center gap-2 px-4 py-3 transition-colors hover:bg-[var(--soft-paper-deep)]/40 sm:gap-4">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium">{meta.label}</p>
                           <p className="text-xs text-muted-foreground/70">{meta.description}</p>
@@ -482,8 +482,10 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                                         toggleReminder(event, "TELEGRAM", opt.value);
                                         toggleReminder(event, "WEB", opt.value);
                                       }}
-                                      className={`rounded px-2 py-0.5 text-[11px] transition-colors ${
-                                        isActive ? "bg-primary/20 text-primary font-medium" : "bg-card/40 text-muted-foreground hover:text-foreground"
+                                      className={`rounded-md border px-2 py-0.5 text-[11px] transition-colors ${
+                                        isActive
+                                          ? "border-[var(--soft-bordeaux)]/30 bg-[var(--soft-apricot)] font-medium text-[var(--soft-bordeaux)]"
+                                          : "border-[var(--soft-paper-edge)] text-[var(--soft-ink-soft)] hover:text-[var(--soft-bordeaux)]"
                                       }`}
                                     >
                                       {opt.label}
@@ -494,15 +496,15 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-3 shrink-0">
-                          <div className="w-20 flex items-center justify-center">
+                        <div className="flex shrink-0 gap-1.5 sm:gap-3">
+                          <div className="flex w-12 items-center justify-center sm:w-20">
                             <ToggleSwitch
                               enabled={emailEnabled}
                               onToggle={() => updatePref(event, "EMAIL", { enabled: !emailEnabled })}
                               label={`Email: ${meta.label}`}
                             />
                           </div>
-                          <div className="w-20 flex items-center justify-center">
+                          <div className="flex w-12 items-center justify-center sm:w-20">
                             <ToggleSwitch
                               enabled={tgEnabled}
                               disabled={!tgStatus.linked && !tgEnabled}
@@ -516,7 +518,7 @@ export function NotificationSettings({ telegramStatus, role }: { telegramStatus:
                               label={`Telegram: ${meta.label}`}
                             />
                           </div>
-                          <div className="w-20 flex items-center justify-center">
+                          <div className="flex w-12 items-center justify-center sm:w-20">
                             <ToggleSwitch
                               enabled={webEnabled}
                               onToggle={() => updatePref(event, "WEB", { enabled: !webEnabled })}

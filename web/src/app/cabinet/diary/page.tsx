@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { BookOpen, Eye, EyeOff, Globe, Share2, Trash2 } from "lucide-react";
+import { ArrowRight, Bookmark, BookOpen, Eye, EyeOff, Globe, Share2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -451,109 +451,103 @@ export default async function MyMapPage({ searchParams }: { searchParams: Promis
             )}
           </div>
         ) : (
-          <RevealList initial={4} step={4} className="divide-y divide-[var(--soft-paper-edge)]" moreLabel="Показать ещё">
+          <RevealList initial={4} step={4} className="grid gap-2.5" moreLabel="Показать ещё">
             {items.map((item) => {
+              // B464 item 4: разбор rows now match the approved b464-diary mockup
+              // — bordered card-rows with a topic-chip + a compact icon-action
+              // cluster (Открыть · Поделиться · Скрыть · Удалить), the same visual
+              // language as the Главная «ваши результаты» rows. Product-save and
+              // the library-consent controls tuck into a subtle footer row so the
+              // head stays clean.
+              const consent = item.kind === "dialogue"
+                ? { libraryConsentAt: item.libraryConsentAt ?? null, libraryStatus: item.libraryStatus ?? null }
+                : null;
+              const badge = consent ? consentBadge(consent) : null;
+              const canGrant = consent ? canGrantConsent(consent) : false;
+              const canWithdraw = consent ? canWithdrawConsent(consent) : false;
+              const hasFoot = item.kind === "product" || Boolean(consent && (canGrant || badge));
+              const chipLabel = item.topicLabel ?? item.eyebrow;
               return (
-                <article key={`${item.kind}:${item.id}`} className="flex flex-col gap-2.5 py-4 first:pt-0 last:pb-0" data-testid="diary-items">
-                  <div className="min-w-0">
-                    {/* Meta: datetime first, then category + status (round-4 #3 format). */}
-                    <p className="text-xs" style={{ color: "var(--soft-ink-faint)" }}>
-                      {item.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, {item.updatedAt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                      {" · "}{item.topicLabel ?? item.eyebrow}{" · "}{mapItemStatusRu(item.kind, item.status)}
-                    </p>
-                    <h2 className="mt-1 font-heading text-lg font-medium break-words" style={{ color: "var(--soft-ink)" }}>{item.title}</h2>
-                    {item.description && (
-                      <p className="mt-1 line-clamp-2 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: "var(--soft-ink-soft)" }}>{item.description}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={item.href} className="soft-button soft-button-primary"
-                      style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
-                      Открыть
+                <article key={`${item.kind}:${item.id}`} className="soft-diary-row" data-testid="diary-items">
+                  <div className="flex items-center gap-3">
+                    <Link href={item.href} className="soft-result-body">
+                      <span className="soft-result-chip" title={chipLabel}>{chipLabel}</span>
+                      <span className="soft-result-title">{item.title}</span>
+                      <span className="soft-result-date">
+                        {item.updatedAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, {item.updatedAt.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}{" · "}{mapItemStatusRu(item.kind, item.status)}
+                      </span>
                     </Link>
-                    {item.kind === "product" && (
-                      <form action={saveMapItem}>
+                    <div className="soft-result-acts">
+                      <Link href={item.href} className="soft-result-act soft-result-act-primary" aria-label={`Открыть: ${item.title}`} title="Открыть">
+                        <ArrowRight className="size-[18px]" aria-hidden="true" />
+                      </Link>
+                      <a href={shareHref(item.title, item.shareTopic)} className="soft-result-act" title="Поделиться"
+                        aria-label={`Поделиться: ${item.title}`}
+                        data-analytics-event="my_map_share_clicked" data-analytics-surface="my_map" data-analytics-target={item.kind}>
+                        <Share2 className="size-[18px]" aria-hidden="true" />
+                      </a>
+                      <form action={item.hidden ? unhideMapItem : hideMapItem}>
+                        <input type="hidden" name="kind" value={item.kind} />
                         <input type="hidden" name="id" value={item.id} />
-                        <button type="submit" className="soft-button soft-button-ghost"
-                          style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}>
-                          Сохранить
+                        <button type="submit" className="soft-result-act" title={item.hidden ? "Показать" : "Скрыть"}
+                          aria-label={item.hidden ? `Показать: ${item.title}` : `Скрыть: ${item.title}`}
+                          data-analytics-event={item.hidden ? "my_map_unhide_clicked" : "my_map_hide_clicked"} data-analytics-surface="my_map" data-analytics-target={item.kind}>
+                          {item.hidden ? <Eye className="size-[18px]" aria-hidden="true" /> : <EyeOff className="size-[18px]" aria-hidden="true" />}
                         </button>
                       </form>
-                    )}
-                    <a href={shareHref(item.title, item.shareTopic)} className="soft-button soft-button-ghost"
-                      style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
-                      data-analytics-event="my_map_share_clicked"
-                      data-analytics-surface="my_map"
-                      data-analytics-target={item.kind}>
-                      <Share2 className="size-4" />
-                      Поделиться
-                    </a>
-                    {item.kind === "dialogue" && (() => {
-                      const consent = { libraryConsentAt: item.libraryConsentAt ?? null, libraryStatus: item.libraryStatus ?? null };
-                      const badge = consentBadge(consent);
-                      if (canGrantConsent(consent)) {
-                        return (
-                          <form action={grantLibraryConsent}>
-                            <input type="hidden" name="id" value={item.id} />
-                            <button type="submit" className="soft-button soft-button-ghost"
-                              style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
-                              title="Анонимно опубликовать этот вопрос в библиотеке. Перед публикацией он проходит модерацию, согласие можно отозвать в любой момент."
-                              data-analytics-event="my_map_library_consent_granted"
-                              data-analytics-surface="my_map"
-                              data-analytics-target="dialogue">
-                              <BookOpen className="size-4" />
-                              Опубликовать в библиотеке
-                            </button>
-                          </form>
-                        );
-                      }
-                      return (
+                      <form action={deleteMapItem}>
+                        <input type="hidden" name="kind" value={item.kind} />
+                        <input type="hidden" name="id" value={item.id} />
+                        <button type="submit" className="soft-result-act" style={{ color: "var(--soft-bordeaux)" }} title="Удалить"
+                          aria-label={`Удалить: ${item.title}`}
+                          data-analytics-event="my_map_delete_clicked" data-analytics-surface="my_map" data-analytics-target={item.kind}>
+                          <Trash2 className="size-[18px]" aria-hidden="true" />
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                  {hasFoot && (
+                    <div className="soft-diary-row-foot">
+                      {item.kind === "product" && (
+                        <form action={saveMapItem}>
+                          <input type="hidden" name="id" value={item.id} />
+                          <button type="submit" className="soft-chip">
+                            <Bookmark className="size-3" aria-hidden="true" />
+                            Сохранить
+                          </button>
+                        </form>
+                      )}
+                      {consent && canGrant && (
+                        <form action={grantLibraryConsent}>
+                          <input type="hidden" name="id" value={item.id} />
+                          <button type="submit" className="soft-chip"
+                            title="Анонимно опубликовать этот вопрос в библиотеке. Перед публикацией он проходит модерацию, согласие можно отозвать в любой момент."
+                            data-analytics-event="my_map_library_consent_granted" data-analytics-surface="my_map" data-analytics-target="dialogue">
+                            <BookOpen className="size-3" aria-hidden="true" />
+                            Опубликовать в библиотеке
+                          </button>
+                        </form>
+                      )}
+                      {consent && badge && !canGrant && (
                         <span className="inline-flex items-center gap-2">
                           <span className={`soft-chip ${badge.tone === "published" ? "soft-chip-warm" : ""}`}>
                             <Globe className="size-3" aria-hidden="true" />
                             {badge.label}
                           </span>
-                          {canWithdrawConsent(consent) && (
+                          {canWithdraw && (
                             <form action={withdrawLibraryConsent}>
                               <input type="hidden" name="id" value={item.id} />
-                              <button type="submit" className="soft-button soft-button-ghost"
-                                style={{ minHeight: "2.25rem", padding: "0.5rem 0.75rem", fontSize: "0.8125rem" }}
+                              <button type="submit" className="soft-chip"
                                 title="Отозвать согласие — вопрос не будет опубликован."
-                                data-analytics-event="my_map_library_consent_withdrawn"
-                                data-analytics-surface="my_map"
-                                data-analytics-target="dialogue">
+                                data-analytics-event="my_map_library_consent_withdrawn" data-analytics-surface="my_map" data-analytics-target="dialogue">
                                 Убрать
                               </button>
                             </form>
                           )}
                         </span>
-                      );
-                    })()}
-                    <form action={item.hidden ? unhideMapItem : hideMapItem}>
-                      <input type="hidden" name="kind" value={item.kind} />
-                      <input type="hidden" name="id" value={item.id} />
-                      <button type="submit" className="soft-button soft-button-ghost"
-                        style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem" }}
-                        data-analytics-event={item.hidden ? "my_map_unhide_clicked" : "my_map_hide_clicked"}
-                        data-analytics-surface="my_map"
-                        data-analytics-target={item.kind}>
-                        {item.hidden ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
-                        {item.hidden ? "Показать" : "Скрыть"}
-                      </button>
-                    </form>
-                    <form action={deleteMapItem} className="ml-auto">
-                      <input type="hidden" name="kind" value={item.kind} />
-                      <input type="hidden" name="id" value={item.id} />
-                      <button type="submit" className="soft-button soft-button-ghost"
-                        style={{ minHeight: "2rem", padding: "0.375rem 0.75rem", fontSize: "0.8125rem", color: "var(--soft-bordeaux)" }}
-                        data-analytics-event="my_map_delete_clicked"
-                        data-analytics-surface="my_map"
-                        data-analytics-target={item.kind}>
-                        <Trash2 className="size-4" />
-                        Удалить
-                      </button>
-                    </form>
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })}

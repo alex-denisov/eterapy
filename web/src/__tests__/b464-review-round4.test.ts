@@ -264,11 +264,18 @@ describe("R8 item 12 — diary lists", () => {
     expect(diary).toContain('data-testid="diary-observation-cta"');
   });
 
-  it("items render as compact rows inside ONE card (no gappy card stack)", () => {
+  // B464 item 4: разбор rows were brought to the approved b464-diary mockup —
+  // bordered card-rows (`.soft-diary-row`) with a topic-chip + icon-action
+  // cluster, matching the Главная «ваши результаты» rows.
+  it("разбор rows match the mockup: bordered card-rows with a topic-chip + icon-action cluster", () => {
     const diary = read("app/cabinet/diary/page.tsx");
+    const css = read("app/v4-soft.css");
     expect(diary).toContain('data-testid="diary-items-section"');
-    expect(diary).toContain("divide-y divide-[var(--soft-paper-edge)]");
-    expect(diary).toContain("line-clamp-2");
+    expect(diary).toContain("soft-diary-row");
+    expect(diary).toContain("soft-result-chip");
+    expect(diary).toContain("soft-result-acts");
+    expect(diary).toContain('className="grid gap-2.5"');
+    expect(css).toContain(".soft-diary-row {");
     expect(diary).not.toContain("SoftMarkdown");
   });
 });

@@ -402,8 +402,9 @@ export function CabinetShell({
         })}
       </div>
 
-      {/* Main */}
-      <main data-testid="app-shell-main" className="soft-app-main min-w-0 pb-20 md:pb-0">
+      {/* Main — reserve the bottom bar height + the iPhone home-indicator inset
+          so no content hides behind the frosted tab bar (audit A2). */}
+      <main data-testid="app-shell-main" className="soft-app-main min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-0">
         {children}
       </main>
       </div>
