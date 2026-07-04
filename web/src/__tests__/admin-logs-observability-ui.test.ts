@@ -53,6 +53,13 @@ describe("admin logs observability UI", () => {
     expect(viewer).toContain("LOG_CENTER_FACETS");
     expect(viewer).toContain('data-testid="admin-log-center-summary"');
     expect(viewer).toContain('data-testid="admin-log-source-family-filter"');
+    expect(viewer).toContain('data-testid="admin-log-timeline"');
+    expect(viewer).toContain("buildLogTimeline");
+    expect(viewer).toContain("logTimelineBuckets");
+    expect(viewer).toContain("field:value");
+    expect(viewer).toContain("requestId");
+    expect(viewer).toContain("CSV");
+    expect(viewer).toContain("JSON");
     expect(viewer).toContain("runtimeSourceMatchesFamily");
     expect(viewer).toContain("Продуктовые события");
     expect(viewer).toContain("Security");

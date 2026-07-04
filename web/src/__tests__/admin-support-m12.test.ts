@@ -8,10 +8,10 @@ describe("M12 — moderator/admin support interface (same as client)", () => {
     const page = source("src/app/admin/support/page.tsx");
     expect(page).toContain('data-testid="admin-support-page"');
     // reuse the exact client-cabinet support building blocks
-    expect(page).toContain("SupportChat");
-    expect(page).toContain("ComplaintForm");
-    expect(page).toContain("admin-support-telegram");
-    expect(page).toContain("admin-support-chat-section");
+    expect(page).toContain("SupportHelpCenter");
+    expect(page).toContain("telegramSupportUrl");
+    expect(page).toContain("showChat");
+    expect(page).not.toContain("ComplaintForm");
     // moderators are allowed in
     expect(page).toContain('["ADMIN", "SUPERADMIN", "MODERATOR"]');
   });

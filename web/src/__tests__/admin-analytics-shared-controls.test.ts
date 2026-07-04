@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { chartBuckets, chartFromMap, dayKey, productLabel, resolveAdminPeriod } from "@/app/admin/admin-analytics-data";
+import { chartBuckets, chartFromMap, dayKey, isUnitEconomicsFeature, productLabel, resolveAdminPeriod } from "@/app/admin/admin-analytics-data";
 import { ADMIN_PLATFORM_FIRST_DEPLOY_ISO } from "@/app/admin/admin-period-utils";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -25,6 +25,14 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(productLabel("seven_days")).toBe("Недельное резюме");
     expect(productLabel("seven-days")).toBe("Недельное резюме");
     expect(productLabel("seven-days-report")).toBe("Недельное резюме");
+    expect(productLabel("legacy.ai-complete")).toBe("AI-запрос платформы");
+  });
+
+  it("keeps unit-economics focused on real user-facing services, not provider smoke checks", () => {
+    expect(isUnitEconomicsFeature("product-deep-report")).toBe(true);
+    expect(isUnitEconomicsFeature("legacy.ai-complete")).toBe(true);
+    expect(isUnitEconomicsFeature("ops.provider-smoke.anthropic")).toBe(false);
+    expect(isUnitEconomicsFeature("ai-healthcheck")).toBe(false);
   });
 
   it("keeps daily chart buckets for one month or less", () => {
@@ -124,12 +132,20 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(ui).toContain("buildStackedTooltipHits");
     expect(ui).toContain("axisSlotWidth");
     expect(ui).toContain("axisLabelStep");
+    expect(ui).toContain("formatChartAxisValue");
+    expect(ui).toContain("fixedChartWidth");
+    expect(ui).toContain("barWidth = Math.max(1.2");
     expect(ui).toContain("SmallMultiplesBarGrid");
     expect(ui).toContain("MiniBarSparkline");
     expect(ui).toContain("data-testid=\"admin-small-multiples-grid\"");
     expect(ui).toContain("tooltipSize");
+    expect(ui).toContain("soft-admin-sticky-controls");
+    expect(ui).not.toContain("<div className=\"overflow-x-auto\">");
+    expect(ui).not.toContain("max-w-none");
     expect(ui).not.toContain("Math.min(280");
     expect(ui).not.toContain("Math.min(300");
+    expect(css).toContain(".soft-admin-sticky-controls");
+    expect(css).toContain("position: fixed");
     expect(css).toContain(".soft-chart-tooltip-layer .soft-chart-hit");
     expect(css).toContain("filter: drop-shadow");
     expect(css).toContain("font-size: 12px");

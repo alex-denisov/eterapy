@@ -10,6 +10,7 @@ import { AdminHero, PeriodToolbar, formatDateTime } from "../../admin-analytics-
 import { formatAdminRub, formatCbrRateLabel, getAdminCurrencyRates, resolveAdminCurrency } from "../../admin-currency";
 import { AdminCurrencySelector } from "../../admin-currency-selector";
 import { FinanceExportMenu } from "../export-menu";
+import { PractitionerReportDownloadMenu } from "./practitioner-report-actions";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -37,6 +38,7 @@ const reportColumns: AdminCompactColumn[] = [
     ],
   },
   { key: "createdAt", label: "Создан", sortable: true, filterKind: "date" },
+  { key: "actions", label: "Действия", filterKind: "none", align: "center" },
 ];
 
 function reportStatusLabel(status: string) {
@@ -193,6 +195,17 @@ export default async function FinanceReportsPage({ searchParams }: PageProps) {
               payout: { value: formatAdminRub(report.payoutDueKopecks / 100, currency, currencyRates), sortValue: report.payoutDueKopecks },
               status: { kind: "status", label: reportStatusLabel(report.status), tone: report.status === "OBJECTED" ? "danger" : report.status === "CALCULATED" ? "warn" : "ok", filterValue: `${report.status} ${reportStatusLabel(report.status)}`, sortValue: reportStatusLabel(report.status) },
               createdAt: { value: formatDateTime(report.createdAt), sortValue: report.createdAt.getTime(), filterValue: formatDateTime(report.createdAt) },
+              actions: {
+                kind: "node",
+                filterValue: "",
+                sortValue: "",
+                node: (
+                  <PractitionerReportDownloadMenu
+                    previewHref={`${reportHref}&practitionerId=${encodeURIComponent(report.practitioner.id)}&reportId=${encodeURIComponent(report.id)}`}
+                    downloadHref={`${reportHref}&practitionerId=${encodeURIComponent(report.practitioner.id)}&reportId=${encodeURIComponent(report.id)}`}
+                  />
+                ),
+              },
             },
           };
         })}

@@ -56,11 +56,13 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(ui).not.toContain("rotate(90");
     expect(ui).toContain("width={width}");
     expect(ui).toContain("height={height}");
-    expect(ui).toContain("className=\"block max-w-none\"");
+    expect(ui).toContain("className=\"block h-auto w-full overflow-visible\"");
+    expect(ui).not.toContain("className=\"block max-w-none\"");
+    expect(ui).not.toContain("<div className=\"overflow-x-auto\">");
     expect(ui).toContain("soft-chart-tooltip");
     expect(ui).toContain("aria-label={hit.tooltip}");
     expect(ui).toContain("min-w-0 scroll-mt-24 overflow-hidden");
-    expect(ui).toContain("min-w-0 max-w-full overflow-hidden");
+    expect(ui).toContain("min-w-0 max-w-full overflow-visible");
     expect(css).toContain(".soft-chart-hit rect:hover + .soft-chart-tooltip");
   });
 
@@ -150,6 +152,7 @@ describe("Superadmin redesign regression guardrails", () => {
     const reviews = source("src/app/admin/reviews/reviews-manager.tsx");
     const payouts = source("src/app/admin/finance/payouts/page.tsx");
     const reports = source("src/app/admin/finance/reports/page.tsx");
+    const reportActions = source("src/app/admin/finance/reports/practitioner-report-actions.tsx");
     const ai = source("src/app/admin/ai/ai-control-center.tsx");
     const aiCost = source("src/app/admin/ops/ai-cost/page.tsx");
     const database = source("src/app/admin/database/admin-database-page.tsx");
@@ -162,6 +165,12 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(payouts).not.toContain("В таблице выводится 20 практиков на страницу");
     expect(reports).toContain("calculatedReports");
     expect(reports).toContain("booking.findMany");
+    expect(reports).toContain('key: "actions"');
+    expect(reports).toContain("PractitionerReportDownloadMenu");
+    expect(reportActions).toContain("format=html");
+    expect(reportActions).toContain("Просмотреть отчет");
+    expect(reportActions).toContain("Скачать XLSX");
+    expect(reportActions).toContain("Скачать CSV");
     expect(ai).toContain("RoutingChainModal");
     expect(ai).toContain("provider-logo-chain");
     expect(ai).not.toContain("<details>");

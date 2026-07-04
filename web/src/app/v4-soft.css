@@ -3566,6 +3566,40 @@
       linear-gradient(180deg, #fff 0%, rgba(248, 250, 252, 0.96) 100%) !important;
   }
 
+  .soft-admin-sticky-controls {
+    max-width: min(54rem, calc(100vw - 19rem));
+  }
+
+  @media (min-width: 768px) {
+    .soft-admin-sticky-controls {
+      position: fixed;
+      top: calc(var(--header-height, 64px) + 0.55rem);
+      right: clamp(0.75rem, 1.5vw, 1.35rem);
+      z-index: 35;
+      padding: 0.3rem;
+      border: 1px solid rgba(214, 222, 233, 0.86);
+      border-radius: 0.75rem;
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 18px 46px -34px rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(12px);
+    }
+
+    .soft-admin-sticky-controls .soft-admin-action,
+    .soft-admin-sticky-controls select,
+    .soft-admin-sticky-controls input {
+      min-height: 1.55rem;
+      height: 1.55rem;
+      font-size: 0.64rem;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .soft-admin-sticky-controls {
+      width: 100%;
+      padding: 0;
+    }
+  }
+
   .soft-chart-tooltip-layer .soft-chart-hit {
     pointer-events: auto;
     position: relative;

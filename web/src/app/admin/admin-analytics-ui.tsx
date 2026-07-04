@@ -48,6 +48,25 @@ export function formatPercent(value: number) {
   return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(value)}%`;
 }
 
+function formatCompactAxisNumber(value: number) {
+  const abs = Math.abs(value);
+  const fractionDigits = abs >= 10 ? 0 : 1;
+  if (abs >= 1_000_000_000) return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: fractionDigits }).format(value / 1_000_000_000)} млрд`;
+  if (abs >= 1_000_000) return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: fractionDigits }).format(value / 1_000_000)} млн`;
+  if (abs >= 10_000) return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: fractionDigits }).format(value / 1_000)} тыс`;
+  return formatNumber(value);
+}
+
+export function formatChartAxisValue(value: number, unit?: string, valueFormatter?: (value: number) => string) {
+  if (Math.abs(value) >= 10_000) {
+    const formatted = valueFormatter ? valueFormatter(value) : "";
+    const inferredUnit = unit?.trim()
+      ?? (formatted.includes("₽") ? "₽" : formatted.includes("$") ? "$" : formatted.includes("%") ? "%" : "");
+    return `${formatCompactAxisNumber(value)}${inferredUnit ? ` ${inferredUnit}` : ""}`;
+  }
+  return valueFormatter ? valueFormatter(value) : `${formatNumber(value)}${unit ?? ""}`;
+}
+
 function chartTickValues(maxValue: number, integerTicks: boolean) {
   const max = integerTicks ? Math.max(1, Math.ceil(maxValue)) : maxValue;
   if (!integerTicks) return [max, max * 0.75, max * 0.5, max * 0.25, 0];
@@ -130,7 +149,7 @@ export function AdminHero({
         <h1 className="premium-title mt-2 text-3xl md:text-4xl">{title}</h1>
         {children ? <div className="mt-2 text-sm text-[var(--soft-ink-soft)]">{children}</div> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="soft-admin-sticky-controls flex flex-wrap items-center gap-1.5">{actions}</div> : null}
     </div>
   );
 }
@@ -240,11 +259,15 @@ function chartSeries(data: ChartPoint[], labels?: [string, string?, string?]): C
 }
 
 function chartCardClass() {
-  return "soft-admin-chart-card min-w-0 max-w-full overflow-hidden rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
+  return "soft-admin-chart-card min-w-0 max-w-full overflow-visible rounded-lg border border-[#D6DEE9] bg-white p-3 shadow-[0_16px_46px_-36px_rgba(15,23,42,0.55)]";
 }
 
-function axisSlotWidth(_labels: string[], baseWidth: number) {
-  return Math.max(16, baseWidth);
+function fixedChartWidth() {
+  return 720;
+}
+
+function axisSlotWidth(labels: string[], plotWidth: number) {
+  return Math.max(1, plotWidth / Math.max(labels.length, 1));
 }
 
 function tooltipSize(text: string) {
@@ -294,31 +317,24 @@ export function VerticalBarChart({
   const hasValues = data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0);
   if (!hasValues) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
   const series = chartSeries(data, seriesLabels);
-  const left = 54;
-  const right = 12;
+  const left = 64;
+  const right = 14;
   const top = 8;
   const plotHeight = 176;
-  const compactLabels = data.length > 18;
   const labels = data.map((item) => item.label);
-  const groupWidth = axisSlotWidth(
-    labels,
-    data.length > 45 ? 18 : data.length > 31 ? 22 : compactLabels ? (series.length > 1 ? 28 : 24) : (series.length > 1 ? 42 : 34),
-  );
+  const width = fixedChartWidth();
+  const plotWidth = width - left - right;
+  const groupWidth = axisSlotWidth(labels, plotWidth);
   const labelLayout = axisLabelLayout(labels, groupWidth);
   const resolvedGroupWidth = labelLayout.slotWidth;
   const bottom = labelLayout.bottom;
-  const widestTooltip = Math.max(...data.flatMap((item) => series.map((seriesItem) => {
-    const raw = Math.max(0, Number(item[seriesItem.key] ?? 0));
-    return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)}`).width;
-  })), 172);
-  const width = Math.max(680, left + right + data.length * resolvedGroupWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
-  const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
-  const innerGap = 2;
+  const innerGap = data.length > 120 ? 0.25 : data.length > 60 ? 0.6 : 2;
   const labelStep = axisLabelStep(labels, resolvedGroupWidth);
-  const barWidth = Math.max(3, Math.min(12, (resolvedGroupWidth - 6 - innerGap * (series.length - 1)) / series.length));
+  const barWidth = Math.max(1.2, Math.min(12, (resolvedGroupWidth * 0.72 - innerGap * (series.length - 1)) / series.length));
   const totalBarsWidth = barWidth * series.length + innerGap * (series.length - 1);
+  const formatAxisValue = (value: number) => formatChartAxisValue(value, unit, valueFormatter);
 
   function yFor(value: number) {
     return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
@@ -368,11 +384,11 @@ export function VerticalBarChart({
           </div>
         ) : null}
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <svg
           role="img"
           aria-label={label ?? "Гистограмма"}
-          className="block max-w-none"
+          className="block h-auto w-full overflow-visible"
           width={width}
           height={height}
           viewBox={`0 0 ${width} ${height}`}
@@ -386,7 +402,7 @@ export function VerticalBarChart({
               <g key={tick}>
                 <line className="soft-chart-grid-line" x1={left} x2={width - right} y1={y} y2={y} stroke={CHART_KIT_GRID} strokeWidth="1" vectorEffect="non-scaling-stroke" />
                 <text x={left - 8} y={y + 4} textAnchor="end" className="soft-chart-axis-label fill-[#475569] text-[12px] tabular-nums">
-                  {formatValue(tick)}
+                  {formatAxisValue(tick)}
                 </text>
               </g>
             );
@@ -439,9 +455,9 @@ export function VerticalBarChart({
             {buildVerticalTooltipHits().map((hit) => (
               <g key={hit.key} className="soft-chart-hit" tabIndex={0} aria-label={hit.tooltip}>
                 <rect
-                  x={hit.x - 3}
+                  x={hit.x - Math.max(3, (plotWidth / data.length - barWidth) / 2)}
                   y={top}
-                  width={hit.barHeight > 0 ? barWidth + 6 : 0}
+                  width={hit.barHeight > 0 ? Math.max(barWidth + 6, plotWidth / data.length) : 0}
                   height={plotHeight}
                   fill="transparent"
                 />
@@ -492,27 +508,22 @@ export function StackedBarChart({
   if (data.length === 0) return <EmptyState />;
   if (!totals.some((value) => value > 0)) return <EmptyState>За выбранный период нет событий для графика</EmptyState>;
 
-  const left = 54;
-  const right = 12;
+  const left = 64;
+  const right = 14;
   const top = 8;
   const plotHeight = 176;
   const labels = data.map((item) => item.label);
-  const slotWidth = axisSlotWidth(labels, data.length > 45 ? 18 : data.length > 31 ? 22 : data.length > 18 ? 26 : 36);
+  const width = fixedChartWidth();
+  const plotWidth = width - left - right;
+  const slotWidth = axisSlotWidth(labels, plotWidth);
   const labelLayout = axisLabelLayout(labels, slotWidth);
   const resolvedSlotWidth = labelLayout.slotWidth;
   const bottom = labelLayout.bottom;
-  const widestTooltip = Math.max(...data.flatMap((item, index) => series.map((seriesItem) => {
-    const raw = hasSegments
-      ? (item.segments ?? []).find((segment) => segment.label === seriesItem.label)?.value ?? 0
-      : Number(item[seriesItem.key as ChartSeriesKey] ?? 0);
-    return tooltipSize(`${item.label} · ${seriesItem.label}: ${formatValue(raw)} · всего ${formatValue(totals[index] ?? 0)}`).width;
-  })), 172);
-  const width = Math.max(680, left + right + data.length * resolvedSlotWidth, left + right + widestTooltip + 16);
   const height = top + plotHeight + bottom;
-  const plotWidth = width - left - right;
   const tickValues = chartTickValues(max, integerTicks);
   const labelStep = axisLabelStep(labels, resolvedSlotWidth);
-  const barWidth = Math.max(5, Math.min(15, resolvedSlotWidth * 0.58));
+  const barWidth = Math.max(1.2, Math.min(15, resolvedSlotWidth * 0.58));
+  const formatAxisValue = (value: number) => formatChartAxisValue(value, unit, valueFormatter);
 
   function yFor(value: number) {
     return top + plotHeight - (Math.max(0, value) / max) * plotHeight;
@@ -569,11 +580,11 @@ export function StackedBarChart({
           ))}
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-visible">
         <svg
           role="img"
           aria-label={label ?? "Гистограмма с накоплением"}
-          className="block max-w-none"
+          className="block h-auto w-full overflow-visible"
           width={width}
           height={height}
           viewBox={`0 0 ${width} ${height}`}
@@ -587,7 +598,7 @@ export function StackedBarChart({
               <g key={tick}>
                 <line className="soft-chart-grid-line" x1={left} x2={width - right} y1={y} y2={y} stroke={CHART_KIT_GRID} strokeWidth="1" vectorEffect="non-scaling-stroke" />
                 <text x={left - 8} y={y + 4} textAnchor="end" className="soft-chart-axis-label fill-[#475569] text-[12px] tabular-nums">
-                  {formatValue(tick)}
+                  {formatAxisValue(tick)}
                 </text>
               </g>
             );
@@ -613,7 +624,7 @@ export function StackedBarChart({
                   const y = yFor(accumulated);
                   const previousY = yFor(from);
                   const segmentHeight = Math.max(2, previousY - y);
-                      return (
+                  return (
                     <g key={seriesItem.key}>
                       <rect
                         className="soft-chart-bar"
@@ -648,7 +659,7 @@ export function StackedBarChart({
                 <rect
                   x={hit.x - 4}
                   y={hit.y}
-                  width={barWidth + 8}
+                  width={Math.max(barWidth + 8, plotWidth / data.length)}
                   height={hit.segmentHeight}
                   fill="transparent"
                 />
@@ -734,6 +745,7 @@ export function MiniBarSparkline({
   const rawMax = Math.max(...data.flatMap((item) => [item.value, item.secondary ?? 0, item.tertiary ?? 0]), 1);
   const max = integerTicks ? Math.max(1, Math.ceil(rawMax)) : rawMax;
   const formatValue = valueFormatter ?? ((value: number) => `${formatNumber(value)}${unit ?? ""}`);
+  const formatAxisValue = (value: number) => formatChartAxisValue(value, unit, valueFormatter);
   if (data.length === 0 || !data.some((item) => item.value > 0 || (item.secondary ?? 0) > 0 || (item.tertiary ?? 0) > 0)) {
     return <div className="grid h-28 place-items-center rounded-md bg-[#F8FAFC] text-xs text-[#64748B]">Нет событий</div>;
   }
@@ -771,7 +783,7 @@ export function MiniBarSparkline({
           <g key={tick}>
             <line x1={left} x2={width - right} y1={y} y2={y} stroke={CHART_KIT_GRID} strokeWidth="1" vectorEffect="non-scaling-stroke" />
             <text x={left - 6} y={y + 3} textAnchor="end" className="fill-[#64748B] text-[9px] tabular-nums">
-              {formatValue(tick)}
+              {formatAxisValue(tick)}
             </text>
           </g>
         );

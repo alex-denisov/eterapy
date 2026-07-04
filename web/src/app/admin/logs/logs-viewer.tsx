@@ -198,6 +198,176 @@ function runtimeSourceMatchesFamily(source: Pick<RuntimeLogSource, "label" | "ke
   return true;
 }
 
+const LOG_LEVEL_COLORS: Record<RuntimeLogEntry["level"], string> = {
+  error: "#DC2626",
+  warn: "#F59E0B",
+  info: "#2563EB",
+  debug: "#64748B",
+  unknown: "#94A3B8",
+};
+
+type LogTimelineBucket = {
+  label: string;
+  total: number;
+  levels: Record<RuntimeLogEntry["level"], number>;
+};
+
+function runtimeEntryDate(entry: RuntimeLogEntry) {
+  const value = entry.timestamp ? new Date(entry.timestamp).getTime() : Number.NaN;
+  return Number.isFinite(value) ? value : null;
+}
+
+export function logTimelineBuckets(entries: RuntimeLogEntry[], bucketCount = 36): LogTimelineBucket[] {
+  const timestamps = entries.map(runtimeEntryDate).filter((value): value is number => value !== null);
+  if (timestamps.length === 0) return [];
+  const min = Math.min(...timestamps);
+  const max = Math.max(...timestamps);
+  const span = Math.max(60_000, max - min);
+  const bucketMs = Math.max(60_000, Math.ceil(span / bucketCount));
+  const actualCount = Math.min(bucketCount, Math.max(1, Math.ceil(span / bucketMs) + 1));
+  const buckets = Array.from({ length: actualCount }, (_, index): LogTimelineBucket => {
+    const start = min + index * bucketMs;
+    return {
+      label: new Date(start).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
+      total: 0,
+      levels: { debug: 0, info: 0, warn: 0, error: 0, unknown: 0 },
+    };
+  });
+  for (const entry of entries) {
+    const timestamp = runtimeEntryDate(entry);
+    if (timestamp === null) continue;
+    const index = Math.min(buckets.length - 1, Math.max(0, Math.floor((timestamp - min) / bucketMs)));
+    buckets[index].total += 1;
+    buckets[index].levels[entry.level] += 1;
+  }
+  return buckets;
+}
+
+export function buildLogTimeline(entries: RuntimeLogEntry[]) {
+  return logTimelineBuckets(entries);
+}
+
+function fieldValue(entry: RuntimeLogEntry, field: string) {
+  const normalized = field.toLowerCase();
+  if (normalized === "level") return entry.level;
+  if (normalized === "source") return `${entry.source} ${entry.sourceLabel}`;
+  if (normalized === "event") return entry.event;
+  if (normalized === "file" || normalized === "path") return entry.filePath;
+  if (normalized === "raw" || normalized === "message") return entry.raw;
+  const direct = entry.fields[field] ?? entry.fields[normalized] ?? entry.fields[normalized.replaceAll("-", "_")];
+  if (direct !== undefined) return String(direct);
+  if (normalized === "requestid" || normalized === "request_id") return String(entry.fields.requestId ?? entry.fields.request_id ?? "");
+  return "";
+}
+
+function runtimeEntrySearchText(entry: RuntimeLogEntry) {
+  return [
+    entry.id,
+    entry.level,
+    entry.source,
+    entry.sourceLabel,
+    entry.filePath,
+    entry.event,
+    entry.raw,
+    prettyJson(entry.fields),
+  ].join(" ").toLowerCase();
+}
+
+function runtimeEntryMatchesSearch(entry: RuntimeLogEntry, query: string) {
+  const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return true;
+  const haystack = runtimeEntrySearchText(entry);
+  return terms.every((term) => {
+    const fieldMatch = term.match(/^([a-zа-я0-9_.-]+):(.+)$/i);
+    if (!fieldMatch) return haystack.includes(term);
+    const [, field, expected] = fieldMatch;
+    return fieldValue(entry, field).toLowerCase().includes(expected);
+  });
+}
+
+function csvCell(value: unknown) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function runtimeEntriesCsv(entries: RuntimeLogEntry[]) {
+  const headers = ["timestamp", "level", "source", "event", "file", "raw"];
+  return [
+    headers.map(csvCell).join(","),
+    ...entries.map((entry) => headers.map((header) => {
+      if (header === "timestamp") return csvCell(formatDate(entry.timestamp));
+      if (header === "level") return csvCell(entry.level);
+      if (header === "source") return csvCell(entry.sourceLabel);
+      if (header === "event") return csvCell(entry.event);
+      if (header === "file") return csvCell(entry.filePath);
+      return csvCell(entry.raw);
+    }).join(",")),
+  ].join("\n");
+}
+
+function downloadRuntimeLogExport(format: "csv" | "json", entries: RuntimeLogEntry[]) {
+  const body = format === "json" ? JSON.stringify(entries, null, 2) : runtimeEntriesCsv(entries);
+  const type = format === "json" ? "application/json;charset=utf-8" : "text/csv;charset=utf-8";
+  const url = URL.createObjectURL(new Blob([body], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `eterapy-runtime-logs.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function LogTimeline({ buckets }: { buckets: LogTimelineBucket[] }) {
+  const max = Math.max(...buckets.map((bucket) => bucket.total), 1);
+  if (buckets.length === 0) {
+    return (
+      <div className="grid h-24 place-items-center rounded-lg border border-dashed border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] text-xs text-[var(--soft-ink-soft)]" data-testid="admin-log-timeline">
+        Нет временной шкалы для текущей выдачи
+      </div>
+    );
+  }
+  const levels: RuntimeLogEntry["level"][] = ["error", "warn", "info", "debug", "unknown"];
+  return (
+    <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[#F8FAFC] p-2" data-testid="admin-log-timeline">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Плотность событий</span>
+        <div className="flex flex-wrap gap-2 text-[10px] text-[var(--soft-ink-soft)]">
+          {levels.slice(0, 4).map((level) => (
+            <span key={level} className="inline-flex items-center gap-1">
+              <i className="h-2 w-2 rounded-sm" style={{ backgroundColor: LOG_LEVEL_COLORS[level] }} />
+              {level}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="grid h-24 items-end gap-0.5" style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0, 1fr))` }}>
+        {buckets.map((bucket, index) => {
+          const height = Math.max(2, (bucket.total / max) * 78);
+          return (
+            <div key={`${bucket.label}-${index}`} className="soft-chart-html-hit relative flex h-20 items-end" tabIndex={0} aria-label={`${bucket.label}: ${bucket.total}`}>
+              <div className="flex w-full flex-col overflow-hidden rounded-t-sm" style={{ height }}>
+                {levels.map((level) => {
+                  const value = bucket.levels[level];
+                  if (value <= 0) return null;
+                  return <span key={level} style={{ height: `${(value / bucket.total) * 100}%`, backgroundColor: LOG_LEVEL_COLORS[level] }} />;
+                })}
+              </div>
+              <span className="soft-chart-tooltip-html">{bucket.label}: {bucket.total}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1 grid gap-0.5 text-[9px] tabular-nums text-[var(--soft-ink-faint)]" style={{ gridTemplateColumns: `repeat(${buckets.length}, minmax(0, 1fr))` }}>
+        {buckets.map((bucket, index) => (
+          <span key={`${bucket.label}-axis-${index}`} className={index === 0 || index === buckets.length - 1 || index === Math.floor(buckets.length / 2) ? "truncate text-center" : "sr-only"}>
+            {bucket.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * T7: live infrastructure diagnostics rendered in the same soft-admin
  * data-table style as the audit log, so all observability surfaces share
@@ -323,17 +493,18 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
   const pausedRef = useRef(false);
   useEffect(() => { pausedRef.current = expandedId !== null; }, [expandedId]);
 
+  const serverSearch = useMemo(() => search.trim().includes(":") ? "" : search.trim(), [search]);
   const streamUrl = useMemo(() => {
     const params = new URLSearchParams({ limit: "1000", tailBytes: "2097152", level: "all", source: "all", intervalMs: "3000" });
-    if (search.trim()) params.set("q", search.trim());
+    if (serverSearch) params.set("q", serverSearch);
     return `/api/admin/logs/runtime/stream?${params.toString()}`;
-  }, [search]);
+  }, [serverSearch]);
 
   const snapshotUrl = useMemo(() => {
     const params = new URLSearchParams({ limit: "1000", tailBytes: "2097152", level: "all", source: "all" });
-    if (search.trim()) params.set("q", search.trim());
+    if (serverSearch) params.set("q", serverSearch);
     return `/api/admin/logs/runtime?${params.toString()}`;
-  }, [search]);
+  }, [serverSearch]);
 
   const fetchSnapshot = useCallback(async () => {
     if (pausedRef.current) return; // B5: don't overwrite while reading an expanded log
@@ -380,13 +551,15 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
 
   const sources = snapshot?.sources ?? [];
   const entries = snapshot?.entries ?? [];
+  const searchedEntries = entries.filter((entry) => runtimeEntryMatchesSearch(entry, search));
   const filteredSources = sources.filter((source) => runtimeSourceMatchesFamily(source, sourceFamily));
   const filteredSourceKeys = new Set(filteredSources.map((source) => source.key));
   const filteredEntries = sourceFamily === "all"
-    ? entries
-    : entries.filter((entry) => filteredSourceKeys.has(entry.source) || runtimeSourceMatchesFamily({ key: entry.source, label: entry.sourceLabel, path: entry.filePath }, sourceFamily));
+    ? searchedEntries
+    : searchedEntries.filter((entry) => filteredSourceKeys.has(entry.source) || runtimeSourceMatchesFamily({ key: entry.source, label: entry.sourceLabel, path: entry.filePath }, sourceFamily));
   const visibleErrors = filteredEntries.filter((entry) => entry.level === "error").length;
   const visibleWarnings = filteredEntries.filter((entry) => entry.level === "warn").length;
+  const timeline = buildLogTimeline(filteredEntries);
   const sourceRows: AdminCompactRow[] = filteredSources.map((source) => ({
     id: source.key,
     cells: {
@@ -534,12 +707,15 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
                 Полнотекстовый поиск в реальном времени
               </span>
               <input
-                placeholder="Событие, requestId, провайдер, текст..."
+                placeholder="текст, requestId, level:error, source:nginx"
                 value={search}
                 onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
                 className={`${COMPACT_INPUT_CLASS} max-w-sm`}
                 aria-label="Полнотекстовый поиск по runtime-логам"
               />
+              <span className="text-[11px] text-[var(--soft-ink-faint)]">field:value · requestId · source · level</span>
+              <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => downloadRuntimeLogExport("csv", filteredEntries)}>CSV</button>
+              <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => downloadRuntimeLogExport("json", filteredEntries)}>JSON</button>
               <span
                 className="soft-admin-status-pill ml-auto"
                 data-tone={expandedId ? "warn" : streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}
@@ -555,6 +731,7 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
             {snapshot?.warning && (
               <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700">{snapshot.warning}</div>
             )}
+            <LogTimeline buckets={timeline} />
             <AdminCompactDataTable
               columns={runtimeColumns(filteredSources)}
               rows={rows}

@@ -24,7 +24,7 @@ describe("N1 — cabinet support page fixes", () => {
   // card (support-help-center), reached after a category is picked.
   it("uses support@eterapy.com in the escalation card, not a bare page line (N1e)", () => {
     expect(source("src/components/support/support-help-center.tsx")).toContain("mailto:support@eterapy.com");
-    expect(source("src/app/admin/support/page.tsx")).toContain("mailto:support@eterapy.com");
+    expect(source("src/app/admin/support/page.tsx")).toContain("SupportHelpCenter");
     expect(source("src/app/cabinet/support/page.tsx")).not.toContain("hello@eterapy.com");
   });
 });

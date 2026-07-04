@@ -35,6 +35,8 @@ export const PRODUCT_NAMES: Record<string, string> = {
   "session-compliance": "Контроль сессий",
   "session-summary": "AI-резюме сессии",
   "session-stt": "Транскрипция сессии",
+  "legacy.ai-complete": "AI-запрос платформы",
+  "ai-complete": "AI-запрос платформы",
   symbolic: "Символические продукты",
   session: "Сессия с практиком",
   subscription: "Подписка",
@@ -233,6 +235,16 @@ export function productLabel(productKey: string | null | undefined) {
   if (!productKey) return "Не указан";
   const normalized = normalizeAdminProductKey(productKey);
   return PRODUCT_NAMES[normalized] ?? getProductLabel(normalized);
+}
+
+export function isUnitEconomicsFeature(featureKey: string | null | undefined) {
+  const normalized = normalizeAdminProductKey(featureKey);
+  if (!normalized || normalized === "unknown") return false;
+  if (normalized === "ai-healthcheck") return false;
+  if (normalized.startsWith("ops.provider-smoke")) return false;
+  if (normalized.startsWith("provider-smoke")) return false;
+  if (normalized.includes("healthcheck")) return false;
+  return true;
 }
 
 function analyticsIdentity(event: { userId?: string | null; sessionId?: string | null; dialogueId?: string | null }) {
@@ -672,6 +684,7 @@ export async function getUnitEconomicsData(period: AdminPeriod) {
   const byFeatureDay = new Map<string, Map<string, number>>();
   for (const request of aiRequests) {
     const feature = normalizeAdminProductKey(request.feature || "Не указан");
+    if (!isUnitEconomicsFeature(feature)) continue;
     const map = byFeatureDay.get(feature) ?? new Map<string, number>();
     addTo(map, dayKey(request.createdAt), request.estimatedCostMicros);
     byFeatureDay.set(feature, map);
