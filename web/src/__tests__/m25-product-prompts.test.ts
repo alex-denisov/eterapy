@@ -58,6 +58,11 @@ describe("B362 — per-product AI prompts", () => {
       expect(prompt).not.toContain("Use the current ETerapy system prompt from code.");
       expect(prompt).not.toContain("{{defaultPrompt}}");
       expect(prompt.length).toBeGreaterThan(350);
+      expect(prompt).toContain("Роль");
+      expect(prompt).toContain("Задача");
+      expect(prompt).toContain("Формат");
+      expect(prompt).toContain("Ограничения");
+      expect(prompt).not.toMatch(/\bClassify ETerapy\b|\bReturn only JSON\b|\bReturn ONLY valid JSON\b|\bWrite a Russian ETerapy\b|\bYou are ETerapy/i);
     }
 
     expect(defaultPromptTextForFeature("product-outside-questions")).toContain("Взгляд со стороны");

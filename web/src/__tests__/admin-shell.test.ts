@@ -18,4 +18,13 @@ describe("v5 admin shell", () => {
     expect(shell).toContain("text-[var(--soft-bordeaux)]");
     expect(shell).toContain("duration-[var(--motion-base)]");
   });
+
+  it("gives mobile superadmin users access to nested section pages, not only top-level tabs", () => {
+    expect(shell).toContain("mobileSectionNav");
+    expect(shell).toContain("mobilePageNav");
+    expect(shell).toContain('data-testid="admin-shell-mobile-section-select"');
+    expect(shell).toContain('data-testid="admin-shell-mobile-page-select"');
+    expect(shell).toContain("Текущий раздел");
+    expect(shell).toContain("Страница раздела");
+  });
 });

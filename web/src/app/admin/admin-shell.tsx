@@ -189,8 +189,7 @@ export function AdminShell({
   const nav = visibleNavEntries(NAV_ITEMS, permissions, isSuperAdmin);
   const navItems = nav;
 
-  // Для мобильной навигации — основные разделы, без вложенных страниц.
-  const mobileNav = navItems.filter((item) => (item.level ?? 0) === 0).slice(0, 4);
+  const mobileSectionNav = navItems.filter((item) => (item.level ?? 0) === 0);
 
   function isActive(href: string) {
     const itemPath = toPathname(href);
@@ -209,6 +208,12 @@ export function AdminShell({
   }
 
   const navLabelByPath = new Map(navItems.map((item) => [toPathname(item.href), item.label]));
+  const currentTopLevelItem = mobileSectionNav.find((item) => item.section !== "workspace" && isActive(item.href))
+    ?? mobileSectionNav.find((item) => isExactActive(item.href))
+    ?? mobileSectionNav[0];
+  const mobilePageNav = currentTopLevelItem
+    ? navItems.filter((item) => item.section === currentTopLevelItem.section)
+    : navItems.filter((item) => (item.level ?? 0) === 0);
   const breadcrumbItems = activePathname
     .split("/")
     .filter(Boolean)
@@ -308,7 +313,7 @@ export function AdminShell({
 
       {/* Mobile nav */}
       <div data-testid="admin-shell-mobile-nav" className="soft-admin-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
-        {mobileNav.map((item) => {
+        {mobileSectionNav.slice(0, 5).map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.href} href={hrefForNav(item.href)}
@@ -323,6 +328,46 @@ export function AdminShell({
       </div>
 
       <main data-testid="admin-shell-main" className="min-w-0 flex-1 pb-20 md:pb-0">
+        <div className="border-b border-[var(--soft-paper-edge)] bg-white/90 px-4 py-3 backdrop-blur md:hidden">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
+              <span>Текущий раздел</span>
+              <select
+                data-testid="admin-shell-mobile-section-select"
+                aria-label="Текущий раздел"
+                className="h-10 rounded-[var(--radius-control)] border border-[var(--soft-paper-edge)] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--soft-ink)] shadow-[var(--soft-shadow-sm)]"
+                value={currentTopLevelItem ? toPathname(currentTopLevelItem.href) : ""}
+                onChange={(event) => {
+                  if (event.target.value) window.location.href = hrefForNav(adminUrl(event.target.value));
+                }}
+              >
+                {mobileSectionNav.map((item) => (
+                  <option key={item.href} value={toPathname(item.href)}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
+              <span>Страница раздела</span>
+              <select
+                data-testid="admin-shell-mobile-page-select"
+                aria-label="Страница раздела"
+                className="h-10 rounded-[var(--radius-control)] border border-[var(--soft-paper-edge)] bg-white px-3 text-sm font-medium normal-case tracking-normal text-[var(--soft-ink)] shadow-[var(--soft-shadow-sm)]"
+                value={mobilePageNav.some((item) => isExactActive(item.href)) ? activePathname : (currentTopLevelItem ? toPathname(currentTopLevelItem.href) : "")}
+                onChange={(event) => {
+                  if (event.target.value) window.location.href = hrefForNav(adminUrl(event.target.value));
+                }}
+              >
+                {mobilePageNav.map((item) => (
+                  <option key={item.href} value={toPathname(item.href)}>
+                    {(item.level ?? 0) === 1 ? `- ${item.label}` : item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
         {breadcrumbItems.length > 0 && (
           <div className="px-4 pt-6 sm:px-6">
             <Breadcrumb homeHref={adminUrl("/admin")} items={breadcrumbItems} className="mb-0" />

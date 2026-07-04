@@ -63,6 +63,18 @@ const LOG_SOURCE_FAMILIES = [
   "audit_logs",
 ] as const;
 
+const LOG_CENTER_FACETS = [
+  { key: "all", label: "Все источники", hint: "runtime, access, audit, system" },
+  { key: "product", label: "Продуктовые события", hint: "продуктовые и AI-события" },
+  { key: "access", label: "Access", hint: "nginx/access и auth" },
+  { key: "security", label: "Security", hint: "auth, ufw, audit" },
+  { key: "jobs", label: "Jobs", hint: "worker, cron, очереди" },
+  { key: "database", label: "Database", hint: "postgresql, redis" },
+  { key: "system", label: "System", hint: "system, deploy, pm2" },
+] as const;
+
+type LogCenterFacetKey = typeof LOG_CENTER_FACETS[number]["key"];
+
 const diagnosticsColumns: AdminCompactColumn[] = [
   { key: "service", label: "Сервис", sortable: true },
   {
@@ -181,6 +193,18 @@ function sourceReadinessLabel(exists: boolean) {
   return exists ? "доступен" : "не найден";
 }
 
+function runtimeSourceMatchesFamily(source: Pick<RuntimeLogSource, "label" | "key" | "path">, family: LogCenterFacetKey) {
+  if (family === "all") return true;
+  const haystack = `${source.label} ${source.key} ${source.path}`.toLowerCase();
+  if (family === "product") return /eterapy|ai|dialogue|product|payment|yookassa|practitioner|session|worker/.test(haystack);
+  if (family === "access") return /nginx|access|auth\.log|auth/.test(haystack);
+  if (family === "security") return /auth|ufw|security|audit|error/.test(haystack);
+  if (family === "jobs") return /worker|cron|job|queue|pm2/.test(haystack);
+  if (family === "database") return /postgres|postgresql|redis|database/.test(haystack);
+  if (family === "system") return /system|syslog|kern|cloud-init|deploy|letsencrypt|pm2/.test(haystack);
+  return true;
+}
+
 /**
  * T7: live infrastructure diagnostics rendered in the same soft-admin
  * data-table style as the audit log, so all observability surfaces share
@@ -295,6 +319,7 @@ function DiagnosticsPanel() {
 function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
   const [snapshot, setSnapshot] = useState<RuntimeLogSnapshot | null>(null);
   const [search, setSearch] = useState("");
+  const [sourceFamily, setSourceFamily] = useState<LogCenterFacetKey>("all");
   const [streamState, setStreamState] = useState<"connecting" | "live" | "polling" | "error">("connecting");
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -362,7 +387,14 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
 
   const sources = snapshot?.sources ?? [];
   const entries = snapshot?.entries ?? [];
-  const sourceRows: AdminCompactRow[] = sources.map((source) => ({
+  const filteredSources = sources.filter((source) => runtimeSourceMatchesFamily(source, sourceFamily));
+  const filteredSourceKeys = new Set(filteredSources.map((source) => source.key));
+  const filteredEntries = sourceFamily === "all"
+    ? entries
+    : entries.filter((entry) => filteredSourceKeys.has(entry.source) || runtimeSourceMatchesFamily({ key: entry.source, label: entry.sourceLabel, path: entry.filePath }, sourceFamily));
+  const visibleErrors = filteredEntries.filter((entry) => entry.level === "error").length;
+  const visibleWarnings = filteredEntries.filter((entry) => entry.level === "warn").length;
+  const sourceRows: AdminCompactRow[] = filteredSources.map((source) => ({
     id: source.key,
     cells: {
       label: {
@@ -387,7 +419,7 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
       path: { value: source.path, title: source.path, filterValue: source.path, sortValue: source.path },
     },
   }));
-  const rows: AdminCompactRow[] = entries.map((entry) => {
+  const rows: AdminCompactRow[] = filteredEntries.map((entry) => {
     const isExpanded = expandedId === entry.id;
     const fieldsText = Object.keys(entry.fields).length > 0 ? prettyJson(entry.fields) : "нет дополнительных полей";
     const eventText = `${entry.event} ${entry.raw} ${fieldsText}`;
@@ -455,16 +487,46 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
     <div className="space-y-4" data-testid="admin-runtime-logs-panel">
       {unified ? (
         <div className="rounded-xl border border-[var(--soft-paper-edge)] bg-white p-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Kibana-like поиск</p>
-              <h3 className="mt-1 text-base font-semibold text-[var(--soft-ink)]">Единый поиск по инфраструктурным и runtime-логам</h3>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Kibana-like поиск</p>
+                <h3 className="mt-1 text-base font-semibold text-[var(--soft-ink)]">Единый поиск по инфраструктурным и runtime-логам</h3>
+              </div>
+              <div className="flex flex-wrap gap-1.5" aria-label="Семейства источников логов">
+                {LOG_SOURCE_FAMILIES.map((family) => (
+                  <span key={family} className="rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-mono text-[11px] text-[var(--soft-ink-soft)]">
+                    {family}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5" aria-label="Семейства источников логов">
-              {LOG_SOURCE_FAMILIES.map((family) => (
-                <span key={family} className="rounded-full border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-mono text-[11px] text-[var(--soft-ink-soft)]">
-                  {family}
-                </span>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-testid="admin-log-center-summary">
+              {[
+                ["Источники", filteredSources.length, "доступных и недоступных файлов"],
+                ["Записи", filteredEntries.length, "в текущем поиске и фасете"],
+                ["Ошибки", visibleErrors, "error за выбранный срез"],
+                ["Warnings", visibleWarnings, "warn за выбранный срез"],
+              ].map(([label, value, hint]) => (
+                <div key={label} className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">{label}</p>
+                  <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--soft-ink)]">{value}</p>
+                  <p className="text-[11px] text-[var(--soft-ink-faint)]">{hint}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2" data-testid="admin-log-source-family-filter" aria-label="Фильтр семейств источников">
+              {LOG_CENTER_FACETS.map((facet) => (
+                <button
+                  key={facet.key}
+                  type="button"
+                  className="soft-admin-action"
+                  data-variant={sourceFamily === facet.key ? "primary" : "subtle"}
+                  title={facet.hint}
+                  onClick={() => setSourceFamily(facet.key)}
+                >
+                  {facet.label}
+                </button>
               ))}
             </div>
           </div>
@@ -501,7 +563,7 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700">{snapshot.warning}</div>
       )}
 
-      {sources.length > 0 && (
+      {filteredSources.length > 0 && (
         <div>
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источники Runtime</h3>
           <AdminCompactDataTable
@@ -515,7 +577,7 @@ function RuntimeLogsPanel({ unified = false }: { unified?: boolean }) {
       )}
 
       <AdminCompactDataTable
-        columns={runtimeColumns(sources)}
+        columns={runtimeColumns(filteredSources)}
         rows={rows}
         empty="Нет Runtime-записей или источники логов не найдены"
         minWidth="1240px"

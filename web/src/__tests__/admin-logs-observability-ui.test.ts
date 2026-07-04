@@ -43,4 +43,19 @@ describe("admin logs observability UI", () => {
     expect(viewer).toContain("Runtime");
     expect(viewer).not.toContain("Рантайм");
   });
+
+  it("renders the logs page as a full log center with operational facets and source-family navigation", () => {
+    const viewer = source("src/app/admin/logs/logs-viewer.tsx");
+
+    expect(viewer).toContain("LOG_CENTER_FACETS");
+    expect(viewer).toContain('data-testid="admin-log-center-summary"');
+    expect(viewer).toContain('data-testid="admin-log-source-family-filter"');
+    expect(viewer).toContain("runtimeSourceMatchesFamily");
+    expect(viewer).toContain("Продуктовые события");
+    expect(viewer).toContain("Security");
+    expect(viewer).toContain("Access");
+    expect(viewer).toContain("Jobs");
+    expect(viewer).toContain("Database");
+    expect(viewer).toContain("System");
+  });
 });

@@ -78,7 +78,8 @@ describe("Z13 practitioner STT and summary subscription gates", () => {
     expect(room).toContain('sttSource: "browser_speech_recognition"');
     expect(controls).toContain("Создать AI резюме сессии");
     expect(prompts).toContain('"session-summary"');
-    expect(prompts).toContain("Return only JSON with practitionerNotesText");
+    expect(prompts).toContain("верни только JSON с полями practitionerNotesText");
+    expect(prompts).toContain("помощник практикующего специалиста ETerapy");
   });
 
   it("does not sell compliance as a Practitioner Pro perk", () => {
