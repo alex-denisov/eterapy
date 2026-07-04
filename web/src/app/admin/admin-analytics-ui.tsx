@@ -143,14 +143,14 @@ export function AdminHero({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div className="min-w-0">
+    <>
+      {actions ? <div className="soft-admin-sticky-controls mb-3 ml-auto flex w-fit flex-wrap items-center gap-1.5">{actions}</div> : null}
+      <div className="mb-6 min-w-0">
         <p className="premium-eyebrow">{eyebrow}</p>
         <h1 className="premium-title mt-2 text-3xl md:text-4xl">{title}</h1>
         {children ? <div className="mt-2 text-sm text-[var(--soft-ink-soft)]">{children}</div> : null}
       </div>
-      {actions ? <div className="soft-admin-sticky-controls flex flex-wrap items-center gap-1.5">{actions}</div> : null}
-    </div>
+    </>
   );
 }
 

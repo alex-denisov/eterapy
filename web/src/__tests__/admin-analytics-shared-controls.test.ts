@@ -159,7 +159,7 @@ describe("Admin analytics shared controls and chart data", () => {
   it("uses the same sticky header controls shell on finance pricing even when only currency is available", () => {
     const pricing = source("src/app/admin/finance/pricing/page.tsx");
 
-    expect(pricing).toContain("soft-admin-sticky-controls");
+    expect(pricing).toContain("AdminHero");
     expect(pricing).toContain("AdminCurrencySelector");
     expect(pricing).toContain("formatCbrRateLabel");
   });
