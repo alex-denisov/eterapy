@@ -769,11 +769,17 @@ export function MiniBarSparkline({
               const x = startX + seriesIndex * (barWidth + innerGap);
               const y = top + plotHeight - barHeight;
               const tooltip = `${item.label} · ${seriesItem.label}: ${formatValue(raw)}`;
+              const { width: tooltipWidth } = tooltipSize(tooltip);
+              const tooltipX = Math.max(left + tooltipWidth / 2 + 4, Math.min(width - right - tooltipWidth / 2 - 4, centerX));
+              const tooltipY = Math.max(top + 34, y - 6);
               return (
                 <g key={seriesItem.key} className="soft-chart-hit" tabIndex={0} aria-label={tooltip}>
                   <rect x={x} y={y} width={barWidth} height={barHeight} rx="1.5" fill={seriesItem.color} opacity={raw > 0 ? 0.96 : 0} />
                   <rect x={groupX} y={top} width={slotWidth} height={plotHeight} fill="transparent" />
-                  <title>{tooltip}</title>
+                  <g className="soft-chart-tooltip" transform={`translate(${tooltipX} ${tooltipY})`}>
+                    <rect x={-tooltipWidth / 2} y="-34" width={tooltipWidth} height="30" rx="7" />
+                    <text x="0" y="-15" textAnchor="middle">{tooltip}</text>
+                  </g>
                 </g>
               );
             })}
