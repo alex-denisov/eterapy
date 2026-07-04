@@ -144,10 +144,23 @@ describe("Admin analytics shared controls and chart data", () => {
     expect(ui).not.toContain("max-w-none");
     expect(ui).not.toContain("Math.min(280");
     expect(ui).not.toContain("Math.min(300");
-    expect(css).toContain(".soft-admin-sticky-controls");
-    expect(css).toContain("position: fixed");
+    const stickyControlsCss = css.slice(
+      css.indexOf(".soft-admin-sticky-controls"),
+      css.indexOf(".soft-chart-tooltip-layer"),
+    );
+    expect(stickyControlsCss).toContain(".soft-admin-sticky-controls");
+    expect(stickyControlsCss).toContain("position: sticky");
+    expect(stickyControlsCss).not.toContain("position: fixed");
     expect(css).toContain(".soft-chart-tooltip-layer .soft-chart-hit");
     expect(css).toContain("filter: drop-shadow");
     expect(css).toContain("font-size: 12px");
+  });
+
+  it("uses the same sticky header controls shell on finance pricing even when only currency is available", () => {
+    const pricing = source("src/app/admin/finance/pricing/page.tsx");
+
+    expect(pricing).toContain("soft-admin-sticky-controls");
+    expect(pricing).toContain("AdminCurrencySelector");
+    expect(pricing).toContain("formatCbrRateLabel");
   });
 });

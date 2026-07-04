@@ -70,7 +70,7 @@ function htmlReport(periodLabel: string, reportRows: Record<string, unknown>[], 
     <body>
       <main>
         <h1>Электронный отчет услуг практика</h1>
-        <p>${htmlEscape(periodLabel)} · управленческий и бухгалтерский контур РФ: период, тариф, комиссия, оказанные услуги и сумма к выплате.</p>
+        <p>Период отчета: ${htmlEscape(periodLabel)}.</p>
         ${htmlTable("Сводка отчета", reportRows)}
         ${htmlTable("Оказанные услуги за период", sessionRows)}
       </main>
@@ -93,6 +93,37 @@ type AgentReportExportRow = {
   payout_status: string;
   status: string;
 };
+
+function agentReportExportRows(reportRows: AgentReportExportRow[], sessionRows: Record<string, unknown>[]) {
+  if (sessionRows.length === 0) return reportRows;
+  return sessionRows.map((sessionRow) => {
+    const practitionerEmail = String(sessionRow.practitioner_email ?? "");
+    const report = reportRows.find((row) => row.practitioner_email === practitionerEmail);
+    return {
+      report_id: report?.report_id ?? "",
+      practitioner_name: sessionRow.practitioner_name ?? report?.practitioner_name ?? "",
+      practitioner_email: practitionerEmail || report?.practitioner_email || "",
+      tariff: report?.tariff ?? "",
+      commission_percent: sessionRow.commission_percent ?? report?.commission_percent ?? "",
+      period_start: report?.period_start ?? "",
+      period_end: report?.period_end ?? "",
+      report_sessions: report?.sessions ?? "",
+      report_gross_rub: report?.gross_rub ?? "",
+      report_commission_rub: report?.commission_rub ?? "",
+      report_payout_due_rub: report?.payout_due_rub ?? "",
+      payout_status: report?.payout_status ?? "",
+      report_status: report?.status ?? "",
+      service_booking_id: sessionRow.booking_id ?? "",
+      service_timestamp: sessionRow.timestamp ?? "",
+      client_name: sessionRow.client_name ?? "",
+      client_email: sessionRow.client_email ?? "",
+      duration_minutes: sessionRow.duration_minutes ?? "",
+      service_gross_rub: sessionRow.gross_rub ?? "",
+      service_commission_rub: sessionRow.commission_rub ?? "",
+      service_payout_due_rub: sessionRow.payout_due_rub ?? "",
+    };
+  });
+}
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -232,7 +263,8 @@ export async function GET(request: Request) {
     });
   }
 
-  const exportRows = scope === "agent-reports" ? reportRows : (transactionRows.length ? transactionRows : reportRows);
+  const agentExportRows = agentReportExportRows(reportRows, sessionRows);
+  const exportRows = scope === "agent-reports" ? agentExportRows : (transactionRows.length ? transactionRows : reportRows);
 
   if (format === "csv") {
     return new Response(csv(exportRows), {
@@ -244,9 +276,12 @@ export async function GET(request: Request) {
   }
 
   const workbook = XLSX.utils.book_new();
-  if (scope !== "agent-reports") XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(transactionRows), "Поступления");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(reportRows), "Отчеты практиков");
-  if (sessionRows.length > 0) XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sessionRows), "Оказанные услуги");
+  if (scope === "agent-reports") {
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(agentExportRows), "Электронный отчет");
+  } else {
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(transactionRows), "Поступления");
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(reportRows), "Отчеты практиков");
+  }
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
   return new Response(new Uint8Array(buffer), {
     headers: {

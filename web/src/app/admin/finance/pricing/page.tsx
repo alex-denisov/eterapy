@@ -41,7 +41,9 @@ export default async function FinancePricingPage({ searchParams }: PageProps) {
             Управление тарифными планами, комиссией и ценами практиков. Изменения применяются немедленно.
           </p>
         </div>
-        <AdminCurrencySelector basePath="/admin/finance/pricing" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
+        <div className="soft-admin-sticky-controls flex flex-wrap items-center gap-1.5">
+          <AdminCurrencySelector basePath="/admin/finance/pricing" currency={currency} rateLabel={formatCbrRateLabel(currencyRates)} />
+        </div>
       </div>
       <PricingEditor initialSettings={settings} practitioners={practitioners} />
     </PageContainer>

@@ -3567,14 +3567,15 @@
   }
 
   .soft-admin-sticky-controls {
+    align-self: flex-start;
+    margin-left: auto;
     max-width: min(54rem, calc(100vw - 19rem));
   }
 
   @media (min-width: 768px) {
     .soft-admin-sticky-controls {
-      position: fixed;
+      position: sticky;
       top: calc(var(--header-height, 64px) + 0.55rem);
-      right: clamp(0.75rem, 1.5vw, 1.35rem);
       z-index: 35;
       padding: 0.3rem;
       border: 1px solid rgba(214, 222, 233, 0.86);

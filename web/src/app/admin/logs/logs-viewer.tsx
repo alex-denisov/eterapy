@@ -66,6 +66,15 @@ const LOG_CENTER_FACETS = [
   { key: "system", label: "System", hint: "system, deploy, pm2" },
 ] as const;
 
+const LOG_SAVED_VIEWS = [
+  "Инциденты сейчас",
+  "Платежи и YooKassa",
+  "AI routing",
+  "LiveKit sessions",
+  "Jobs и cron",
+  "Security audit",
+] as const;
+
 type LogCenterFacetKey = typeof LOG_CENTER_FACETS[number]["key"];
 
 const diagnosticsColumns: AdminCompactColumn[] = [
@@ -315,6 +324,75 @@ function downloadRuntimeLogExport(format: "csv" | "json", entries: RuntimeLogEnt
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function fieldString(entry: RuntimeLogEntry, ...keys: string[]) {
+  for (const key of keys) {
+    const value = fieldValue(entry, key);
+    if (value) return value;
+  }
+  return "";
+}
+
+function uniqueLogFieldCount(entries: RuntimeLogEntry[], ...keys: string[]) {
+  const values = new Set(entries.map((entry) => fieldString(entry, ...keys)).filter(Boolean));
+  return values.size;
+}
+
+function sourceLevelHeatmap(entries: RuntimeLogEntry[]) {
+  const bySource = new Map<string, Record<RuntimeLogEntry["level"], number> & { total: number }>();
+  for (const entry of entries) {
+    const current = bySource.get(entry.sourceLabel) ?? { debug: 0, info: 0, warn: 0, error: 0, unknown: 0, total: 0 };
+    current[entry.level] += 1;
+    current.total += 1;
+    bySource.set(entry.sourceLabel, current);
+  }
+  return Array.from(bySource.entries())
+    .map(([source, counts]) => ({ source, ...counts }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+}
+
+function topLogEvents(entries: RuntimeLogEntry[], limit = 6) {
+  const map = new Map<string, { event: string; count: number; errors: number; warnings: number }>();
+  for (const entry of entries) {
+    const event = entry.event || entry.raw.slice(0, 80) || "unknown";
+    const current = map.get(event) ?? { event, count: 0, errors: 0, warnings: 0 };
+    current.count += 1;
+    if (entry.level === "error") current.errors += 1;
+    if (entry.level === "warn") current.warnings += 1;
+    map.set(event, current);
+  }
+  return Array.from(map.values()).sort((a, b) => b.count - a.count || b.errors - a.errors).slice(0, limit);
+}
+
+function correlatedLogEntries(entries: RuntimeLogEntry[], selectedEntry: RuntimeLogEntry | null, limit = 6) {
+  if (!selectedEntry) return entries.slice(0, limit);
+  const requestId = fieldString(selectedEntry, "requestId", "request_id");
+  const userId = fieldString(selectedEntry, "userId", "user_id", "targetId");
+  const selectedTime = runtimeEntryDate(selectedEntry);
+  return entries
+    .filter((entry) => {
+      if (entry.id === selectedEntry.id) return true;
+      if (requestId && fieldString(entry, "requestId", "request_id") === requestId) return true;
+      if (userId && fieldString(entry, "userId", "user_id", "targetId") === userId) return true;
+      if (entry.sourceLabel === selectedEntry.sourceLabel && selectedTime !== null) {
+        const entryTime = runtimeEntryDate(entry);
+        return entryTime !== null && Math.abs(entryTime - selectedTime) <= 10 * 60_000;
+      }
+      return false;
+    })
+    .slice(0, limit);
+}
+
+function freshnessLabel(entries: RuntimeLogEntry[]) {
+  const latest = Math.max(...entries.map((entry) => runtimeEntryDate(entry) ?? 0), 0);
+  if (!latest) return "нет данных";
+  const seconds = Math.max(0, Math.round((Date.now() - latest) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.round(minutes / 60)}h`;
 }
 
 function LogTimeline({ buckets }: { buckets: LogTimelineBucket[] }) {
@@ -639,28 +717,73 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
   const selectedFieldsText = selectedEntry && Object.keys(selectedEntry.fields).length > 0
     ? prettyJson(selectedEntry.fields)
     : "нет дополнительных полей";
+  const heatmap = sourceLevelHeatmap(filteredEntries);
+  const topEvents = topLogEvents(filteredEntries);
+  const correlatedEntries = correlatedLogEntries(filteredEntries, selectedEntry);
+  const affectedUsers = uniqueLogFieldCount(filteredEntries, "userId", "user_id", "targetId");
+  const paymentAlerts = filteredEntries.filter((entry) => /payment|yookassa|receipt|refund/i.test(`${entry.event} ${entry.raw}`)).length;
+  const jobAlerts = filteredEntries.filter((entry) => /job|queue|cron|worker/i.test(`${entry.event} ${entry.raw} ${entry.sourceLabel}`)).length;
+  const totalForErrorRate = Math.max(filteredEntries.length, 1);
+  const errorRate = `${((visibleErrors / totalForErrorRate) * 100).toLocaleString("ru-RU", { maximumFractionDigits: 1 })}%`;
+  const currentQuery = search.trim() || 'level:error OR level:warn requestId:"..."';
 
   return (
-    <div className="space-y-4" data-testid="admin-log-center">
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" data-testid="admin-log-center-summary">
+    <div className="space-y-3" data-testid="admin-log-center">
+      <section className="sticky top-[calc(var(--header-height,64px)+0.5rem)] z-20 rounded-xl border border-[#D6DEE9] bg-[rgba(255,255,255,0.92)] p-3 shadow-[0_20px_56px_-42px_rgba(15,23,42,0.7)] backdrop-blur" data-testid="admin-log-command-bar">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold tracking-tight text-[var(--soft-ink)]">Лог-центр</h2>
+            <p className="mt-1 text-xs text-[var(--soft-ink-soft)]">Единая точка поиска, корреляции и расследования событий платформы.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="soft-admin-status-pill" data-tone={streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}>В реальном времени</span>
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setExpandedId(selectedEntry?.id ?? null)}>Пауза</button>
+            <button type="button" className="soft-admin-action" data-variant="subtle">Последние 15 минут</button>
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => downloadRuntimeLogExport("csv", filteredEntries)}>Экспорт CSV</button>
+            <button type="button" className="soft-admin-action" data-variant="subtle">Сохранить вид</button>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto]" data-testid="admin-log-query-row">
+          <input
+            placeholder="level:error OR level:warn userId:&quot;...&quot; requestId:&quot;...&quot;"
+            value={search}
+            onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
+            className={`${COMPACT_INPUT_CLASS} h-9 w-full`}
+            aria-label="Поисковый запрос лог-центра"
+          />
+          <button type="button" className="soft-admin-action" data-variant="primary">Найти</button>
+          <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => setSearch("")}>Сбросить</button>
+        </div>
+              <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">Полнотекстовый поиск в реальном времени · пауза · читаете лог · синтаксис: {currentQuery} · field:value · requestId · source · level</p>
+      </section>
+
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8" data-testid="admin-log-center-summary">
         {[
-          ["Источники", filteredSources.length, "Runtime, pm2, nginx, system"],
-          ["Записи", filteredEntries.length, "в текущем поиске"],
-          ["Ошибки", visibleErrors, "level=error"],
-          ["Warnings", visibleWarnings, "level=warn"],
-        ].map(([label, value, hint]) => (
-          <div key={label} className="rounded-lg border border-[#D6DEE9] bg-white px-3 py-2 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">{label}</p>
+          ["Индекс инцидента", Math.min(100, visibleErrors * 12 + visibleWarnings * 4), "ошибки + warnings", visibleErrors > 0 ? "danger" : visibleWarnings > 0 ? "warn" : "ok"],
+          ["Затронутые пользователи", affectedUsers, "userId / targetId", affectedUsers > 0 ? "warn" : "ok"],
+          ["Платежные сигналы", paymentAlerts, "YooKassa / receipts", paymentAlerts > 0 ? "warn" : "ok"],
+          ["Доля ошибок", errorRate, `${visibleErrors} из ${filteredEntries.length}`, visibleErrors > 0 ? "danger" : "ok"],
+          ["Источники", filteredSources.length, "Runtime, pm2, nginx, system", "ok"],
+          ["AI и продукт", filteredEntries.filter((entry) => /ai|llm|product|dialogue/i.test(`${entry.event} ${entry.raw}`)).length, "продуктовые события", "ok"],
+          ["Очереди jobs", jobAlerts, "worker / cron / queue", jobAlerts > 0 ? "warn" : "ok"],
+          ["Свежесть", freshnessLabel(filteredEntries), "последнее событие", "ok"],
+        ].map(([label, value, hint, tone]) => (
+          <div key={label} className="relative min-h-20 overflow-hidden rounded-lg border border-[#D6DEE9] bg-white px-3 py-2 shadow-[0_14px_34px_-30px_rgba(15,23,42,0.65)]">
+            <span
+              className="absolute inset-x-0 top-0 h-0.5"
+              style={{ background: tone === "danger" ? "#DC2626" : tone === "warn" ? "#F59E0B" : "#14B8A6" }}
+            />
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">{label}</p>
             <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--soft-ink)]">{value}</p>
-            <p className="text-[11px] text-[var(--soft-ink-faint)]">{hint}</p>
+            <p className="truncate text-[11px] text-[var(--soft-ink-faint)]">{hint}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[17rem_minmax(0,1fr)_24rem]">
+      <div className="grid gap-3 xl:grid-cols-[17rem_minmax(0,1fr)_24rem]">
         <aside className="space-y-3 rounded-xl border border-[#D6DEE9] bg-white p-3" data-testid="admin-log-center-source-rail">
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Фасеты</p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источники</p>
             <div className="grid gap-1.5" data-testid="admin-log-source-family-filter" aria-label="Фильтр семейств источников">
               {LOG_CENTER_FACETS.map((facet) => (
                 <button
@@ -677,7 +800,29 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
             </div>
           </div>
           <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источники</p>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Уровень</p>
+            <div className="grid gap-1.5">
+              {(["error", "warn", "info", "debug"] as RuntimeLogEntry["level"][]).map((level) => (
+                <label key={level} className="flex min-h-7 items-center gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 text-xs text-[var(--soft-ink-soft)]">
+                  <input type="checkbox" checked readOnly className="accent-[#2563EB]" />
+                  <span className="font-mono">{level}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div data-testid="admin-log-saved-views">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Сохраненные виды</p>
+            <div className="grid gap-1.5">
+              {LOG_SAVED_VIEWS.map((view) => (
+                <label key={view} className="flex min-h-7 items-center gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 text-xs text-[var(--soft-ink-soft)]">
+                  <input type="checkbox" readOnly className="accent-[#2563EB]" />
+                  <span>{view}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Инфраструктура</p>
             <div className="grid gap-1.5" aria-label="Семейства источников логов">
               {LOG_SOURCE_FAMILIES.map((family) => (
                 <span key={family} className="rounded-md border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] px-2 py-1 font-mono text-[11px] text-[var(--soft-ink-soft)]">
@@ -702,28 +847,13 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
 
         <section className="min-w-0 space-y-3" data-testid="admin-log-center-stream">
           <div className="rounded-xl border border-[#D6DEE9] bg-white p-3">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">
-                Полнотекстовый поиск в реальном времени
-              </span>
-              <input
-                placeholder="текст, requestId, level:error, source:nginx"
-                value={search}
-                onChange={(event) => { setStreamState("connecting"); setError(""); setSearch(event.target.value); }}
-                className={`${COMPACT_INPUT_CLASS} max-w-sm`}
-                aria-label="Полнотекстовый поиск по runtime-логам"
-              />
-              <span className="text-[11px] text-[var(--soft-ink-faint)]">field:value · requestId · source · level</span>
-              <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => downloadRuntimeLogExport("csv", filteredEntries)}>CSV</button>
-              <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => downloadRuntimeLogExport("json", filteredEntries)}>JSON</button>
-              <span
-                className="soft-admin-status-pill ml-auto"
-                data-tone={expandedId ? "warn" : streamState === "live" ? "ok" : streamState === "error" ? "danger" : "warn"}
-              >
-                {expandedId
-                  ? "пауза · читаете лог"
-                  : streamState === "live" ? "онлайн" : streamState === "polling" ? "опрос" : streamState === "connecting" ? "подключение" : "ошибка"}
-              </span>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">События по времени</h3>
+              <div className="flex flex-wrap gap-2 text-[11px] text-[var(--soft-ink-soft)]">
+                <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#DC2626]" />error</span>
+                <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#F59E0B]" />warn</span>
+                <span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-[#2563EB]" />info</span>
+              </div>
             </div>
             {error && (
               <div className="mb-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-700">{error}</div>
@@ -732,6 +862,51 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
               <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700">{snapshot.warning}</div>
             )}
             <LogTimeline buckets={timeline} />
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3" data-testid="admin-log-source-level-heatmap">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Источник × уровень</h4>
+                  <span className="text-[10px] text-[var(--soft-ink-faint)]">по текущей выдаче</span>
+                </div>
+                <div className="grid grid-cols-[6.5rem_repeat(4,minmax(0,1fr))] gap-1 text-[10px] text-[var(--soft-ink-soft)]">
+                  <span />
+                  {(["error", "warn", "info", "debug"] as RuntimeLogEntry["level"][]).map((level) => <strong key={level} className="text-center font-mono">{level}</strong>)}
+                  {(heatmap.length ? heatmap : [{ source: "нет данных", error: 0, warn: 0, info: 0, debug: 0, unknown: 0, total: 0 }]).map((row) => (
+                    <div key={row.source} className="contents">
+                      <strong className="truncate py-1 font-medium" title={row.source}>{row.source}</strong>
+                      {(["error", "warn", "info", "debug"] as RuntimeLogEntry["level"][]).map((level) => {
+                        const value = row[level];
+                        const opacity = value > 0 ? Math.min(0.9, 0.18 + value / Math.max(row.total, 1)) : 0.08;
+                        return (
+                          <span
+                            key={`${row.source}-${level}`}
+                            className="grid h-6 place-items-center rounded"
+                            style={{ backgroundColor: LOG_LEVEL_COLORS[level], opacity }}
+                            title={`${row.source} · ${level}: ${value}`}
+                          >
+                            <span className="font-mono text-[9px] text-slate-950">{value || ""}</span>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-3" data-testid="admin-log-top-events">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h4 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Топ событий</h4>
+                  <span className="text-[10px] text-[var(--soft-ink-faint)]">частота</span>
+                </div>
+                <div className="grid gap-1 text-xs">
+                  {(topEvents.length ? topEvents : [{ event: "нет событий", count: 0, errors: 0, warnings: 0 }]).map((item) => (
+                    <div key={item.event} className="grid grid-cols-[minmax(0,1fr)_4rem] items-center gap-2 rounded-md border border-white/80 bg-white px-2 py-1">
+                      <span className="truncate font-mono text-[11px]" title={item.event}>{item.event}</span>
+                      <span className="text-right font-semibold tabular-nums text-[var(--soft-ink)]">{item.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
             <AdminCompactDataTable
               columns={runtimeColumns(filteredSources)}
               rows={rows}
@@ -745,7 +920,7 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
         <aside className="min-w-0 rounded-xl border border-[#D6DEE9] bg-white p-3" data-testid="admin-log-center-detail">
           <div className="mb-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Детали записи</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Детали выбранного события</p>
               <h3 className="mt-1 truncate text-sm font-semibold text-[var(--soft-ink)]" title={selectedEntry?.event ?? undefined}>
                 {selectedEntry?.event ?? "Выберите запись"}
               </h3>
@@ -754,20 +929,40 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
           </div>
           {selectedEntry ? (
             <div className="grid gap-3 text-xs text-[var(--soft-ink)]">
-              <div className="grid gap-1">
-                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Время</span>
-                <span>{formatDate(selectedEntry.timestamp)}</span>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ["timestamp", formatDate(selectedEntry.timestamp)],
+                  ["source", selectedEntry.sourceLabel],
+                  ["requestId", fieldString(selectedEntry, "requestId", "request_id") || "—"],
+                  ["userId", fieldString(selectedEntry, "userId", "user_id", "targetId") || "—"],
+                  ["file", selectedEntry.filePath],
+                  ["event", selectedEntry.event],
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0 rounded-lg border border-[var(--soft-paper-edge)] bg-[var(--soft-surface)] p-2">
+                    <span className="block text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">{label}</span>
+                    <span className="mt-1 block truncate font-mono text-[11px]" title={value}>{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="grid gap-1" data-testid="admin-log-correlation">
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Корреляция</span>
+                <div className="grid gap-1">
+                  {correlatedEntries.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className="grid grid-cols-[4.5rem_5rem_minmax(0,1fr)] gap-2 rounded-md border border-[var(--soft-paper-edge)] bg-white px-2 py-1 text-left text-[11px]"
+                      onClick={() => setExpandedId(entry.id)}
+                    >
+                      <span className="tabular-nums text-[var(--soft-ink-faint)]">{entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"}</span>
+                      <span className="font-mono text-[var(--soft-ink-soft)]">{entry.sourceLabel}</span>
+                      <span className="truncate font-mono">{entry.event}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="grid gap-1">
-                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Источник</span>
-                <span className="break-all font-mono">{selectedEntry.sourceLabel}</span>
-              </div>
-              <div className="grid gap-1">
-                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Файл</span>
-                <span className="break-all font-mono">{selectedEntry.filePath}</span>
-              </div>
-              <div className="grid gap-1">
-                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Исходная запись</span>
+                <span className="font-semibold uppercase tracking-[0.05em] text-[var(--soft-ink-soft)]">Raw</span>
                 <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words rounded-md bg-[var(--soft-surface)] p-2">{selectedEntry.raw}</pre>
               </div>
               <div className="grid gap-1">
@@ -782,6 +977,18 @@ function RuntimeLogsPanel({ auditTable }: { auditTable: React.ReactNode }) {
           )}
         </aside>
       </div>
+
+      <section className="rounded-xl border border-[#D6DEE9] bg-white p-3" data-testid="admin-log-operations">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Операции</h3>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="soft-admin-action" data-variant="subtle">Создать сохраненный вид</button>
+            <button type="button" className="soft-admin-action" data-variant="subtle" onClick={() => downloadRuntimeLogExport("json", filteredEntries)}>Экспорт расследования</button>
+            <a className="soft-admin-action" data-variant="subtle" href="/admin/ops/system">Открыть runbook</a>
+            <a className="soft-admin-action" data-variant="subtle" href="/admin/ops/security">Связанные объекты</a>
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-xl border border-[#D6DEE9] bg-white p-3" aria-label="Диагностика">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--soft-ink-soft)]">Диагностика</h3>

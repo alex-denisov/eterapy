@@ -178,6 +178,20 @@ describe("Superadmin redesign regression guardrails", () => {
     expect(database).toContain("const MAX_ROWS = 2000");
   });
 
+  it("keeps practitioner service reports client-safe and exports agent reports on one workbook sheet", () => {
+    const route = source("src/app/api/admin/finance/management-report/route.ts");
+
+    expect(route).not.toContain("управленческий и бухгалтерский контур");
+    expect(route).not.toContain("внутрен");
+    expect(route).toContain("Электронный отчет услуг практика");
+    expect(route).toContain("agentReportExportRows");
+    expect(route).toContain("agentExportRows");
+    expect(route).toContain("Оказанные услуги");
+    expect(route).toContain('scope === "agent-reports"');
+    expect(route).toContain("XLSX.utils.json_to_sheet(agentExportRows)");
+    expect(route).not.toContain('XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(sessionRows), "Оказанные услуги")');
+  });
+
   it("updates practitioner rights labels for the redesigned practitioner operations", () => {
     const display = source("src/app/admin/users/user-display.ts");
     const perms = source("src/lib/moderator-permissions.ts");
