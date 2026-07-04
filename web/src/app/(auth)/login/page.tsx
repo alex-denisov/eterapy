@@ -100,11 +100,11 @@ export default function LoginPage() {
   return (
     <main className="soft-clarity-page soft-public-page min-h-screen" data-testid="auth-v41-login">
       <section className="grid min-h-screen lg:grid-cols-[1.08fr_0.92fr]">
-        <div className="flex items-center px-4 py-10 sm:px-8 lg:justify-end lg:px-16">
-          <div className="w-full max-w-[520px] space-y-4">
+        <div className="flex items-start px-4 pt-5 pb-10 sm:items-center sm:px-8 sm:py-10 lg:justify-end lg:px-16">
+          <div className="w-full max-w-[520px] space-y-3 sm:space-y-4">
             <Link href="/" className="soft-chip inline-flex">← На главную</Link>
-            <div className="soft-card" style={{ padding: "2rem" }}>
-              <div className="mb-6">
+            <div className="soft-card p-6 sm:p-8">
+              <div className="mb-5 sm:mb-6">
                 <p className="soft-eyebrow">войти</p>
                 <h1 className="soft-h1 mt-2">
                   С возвращением.<br />

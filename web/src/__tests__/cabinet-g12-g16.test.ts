@@ -21,13 +21,15 @@ describe("G16 — practitioner header hides «Новый разбор»", () => 
   });
 });
 
-describe("G12 — diary «ваши разборы» readable rows (superseded by B464 round-4 #12)", () => {
-  it("renders compact break-words rows with a clamped description", () => {
+describe("G12 — diary «ваши разборы» readable rows (superseded by B464 round-7 item 4)", () => {
+  it("renders bordered card-rows with a topic-chip + icon-action cluster (mockup parity)", () => {
     const page = source("src/app/cabinet/diary/page.tsx");
-    expect(page).toContain("[overflow-wrap:anywhere]");
-    // one card of divide-y rows instead of a gappy card stack
     expect(page).toContain('data-testid="diary-items-section"');
-    expect(page).toContain("line-clamp-2");
+    // B464 item 4: card-rows (.soft-diary-row) with a topic-chip + icon cluster,
+    // matching the Главная result rows — replaces the old divide-y text-button list.
+    expect(page).toContain("soft-diary-row");
+    expect(page).toContain("soft-result-chip");
+    expect(page).toContain("soft-result-acts");
   });
 });
 

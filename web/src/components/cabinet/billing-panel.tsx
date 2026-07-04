@@ -329,7 +329,7 @@ export function BillingPanel() {
                 <div className="flex items-baseline justify-between gap-3">
                   <div>
                     <div className="soft-eyebrow">{isCurrent ? "ваш тариф" : plan.eyebrow}</div>
-                    <div className="mt-2" style={{ fontFamily: "var(--font-heading)", fontSize: 28, color: "var(--soft-bordeaux)", fontWeight: 600 }}>{plan.name}</div>
+                    <div className="soft-h3 mt-2">{plan.name}</div>
                   </div>
                   <div className="shrink-0 text-right">
                     {/* Round-5 #10: цена всегда одной строкой — NBSP перед ₽ + nowrap. */}
@@ -372,7 +372,7 @@ export function BillingPanel() {
       {/* Карты и платежи — saved cards (delete bottom-right) + history (round-3 #3) */}
       <div className="soft-card p-6" data-testid="client-saved-cards">
         <div className="mb-3">
-          <div className="soft-eyebrow">карты и платежи</div>
+          <h3 className="soft-h3">Карты и платежи</h3>
           <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">Карты для оплаты сессий и подписки</p>
         </div>
 
@@ -452,7 +452,7 @@ export function BillingPanel() {
       {/* Payment history */}
       <div className="soft-card p-6" data-testid="client-billing-history">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <span className="soft-eyebrow">история платежей</span>
+          <h3 className="soft-h3">История платежей</h3>
           {transactions.some(t => t.status === "PENDING") && (
             <button
               onClick={() => {

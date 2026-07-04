@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, EyeOff, Loader2 } from "lucide-react";
+import { ArrowRight, EyeOff, Loader2, Undo2 } from "lucide-react";
 
 // B464 round-6 #6 — redesigned разбор row per the recovered b464-home mockup
 // (.row/.topic-chip/.acts): colour topic-chip anchor + title/date + a compact
@@ -25,25 +25,48 @@ export function CabinetResultRow({ item }: { item: CabinetResultRowItem }) {
   const [hiding, setHiding] = useState(false);
   const [hidden, setHidden] = useState(false);
 
-  async function hide() {
-    if (hiding) return;
+  async function setVisibility(nextHidden: boolean) {
     setHiding(true);
     try {
       const res = await fetch("/api/cabinet/diary/visibility", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: item.kind, id: item.id, hidden: true }),
+        body: JSON.stringify({ kind: item.kind, id: item.id, hidden: nextHidden }),
       });
       if (!res.ok) throw new Error();
-      setHidden(true);
-      // Refetch the server-rendered preview so the slot backfills with the next разбор.
+      setHidden(nextHidden);
+      // Refetch the server-rendered preview so the slot backfills / restores.
       router.refresh();
     } catch {
+      // leave state unchanged on failure so the user can retry
+    } finally {
       setHiding(false);
     }
   }
 
-  if (hidden) return null;
+  // Round-7 (item 1): hiding no longer makes the разбор vanish silently — it
+  // collapses to a reversible «Скрыто · Вернуть» row so restore is obvious
+  // right here, without hunting for it on the Дневник.
+  if (hidden) {
+    return (
+      <div className="soft-result-row soft-result-row-hidden" data-testid="cabinet-result-row-hidden">
+        <span className="soft-result-hidden-label">
+          <EyeOff className="size-[15px] shrink-0" aria-hidden="true" />
+          Скрыто из ленты
+        </span>
+        <button
+          type="button"
+          onClick={() => void setVisibility(false)}
+          disabled={hiding}
+          className="soft-result-undo"
+          data-testid="cabinet-result-undo"
+        >
+          {hiding ? <Loader2 className="size-[15px] animate-spin" aria-hidden="true" /> : <Undo2 className="size-[15px]" aria-hidden="true" />}
+          Вернуть
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="soft-result-row" data-testid="cabinet-result-row">
@@ -66,7 +89,7 @@ export function CabinetResultRow({ item }: { item: CabinetResultRowItem }) {
         </Link>
         <button
           type="button"
-          onClick={hide}
+          onClick={() => void setVisibility(true)}
           disabled={hiding}
           className="soft-result-act"
           aria-label={`Скрыть из ленты: ${item.title}`}

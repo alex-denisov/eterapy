@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Clock, History, Wallet } from "lucide-react";
+import { ArrowRight, Clock, History } from "lucide-react";
 import { CreditPackPurchaseButton } from "@/components/cabinet/credit-pack-purchase-button";
 import { BillingPanel } from "@/components/cabinet/billing-panel";
 import { RevealList } from "@/components/cabinet/reveal-list";
@@ -26,28 +26,42 @@ function daysUntil(date: Date, now: Date): number {
   return Math.max(0, Math.ceil((date.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
 }
 
+// Russian pluralisation for «балл / балла / баллов».
+function pointsWord(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "балл";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "балла";
+  return "баллов";
+}
+
+// B464 item 5: the balance hero rebuilt per the b464-wallet mockup — no
+// icon-beside-number (that read crooked/oversized), just a clean left-aligned
+// serif figure + caption + the primary top-up CTA. The marketing H1 + lede are
+// dropped; the sidebar already labels the section «Кошелёк».
 function WalletBalanceHeader({ balance }: { balance: number }) {
   return (
-    <section className="mb-5 grid gap-4 lg:grid-cols-[1fr_18rem]">
-      <div>
-        <p className="soft-eyebrow">кошелёк кабинета</p>
-        <h1 className="soft-h1 mt-2">Кошелёк баллов</h1>
-        <p className="soft-lede mt-3 max-w-3xl">
-          Здесь видно, сколько баллов доступно сейчас, какие начисления сгорают
-          раньше, какие пакеты можно докупить и на что потратить баллы.
-        </p>
-      </div>
-      <div className="soft-card p-5">
-        <div className="flex items-center gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--soft-apricot)] text-[var(--soft-bordeaux)]">
-            <Wallet className="size-5" aria-hidden="true" />
-          </span>
-          <div>
+    <section className="mb-5" data-testid="wallet-balance-header">
+      <h1 className="sr-only">Кошелёк баллов</h1>
+      <div
+        className="soft-card p-5 sm:p-6"
+        style={{ background: "linear-gradient(155deg, #FFFCF5, var(--soft-apricot))", border: "1px solid transparent" }}
+      >
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
             <p className="soft-eyebrow">доступно</p>
-            <p className="font-heading text-4xl font-semibold text-[var(--soft-bordeaux)]">
-              {balance}
+            <p className="mt-1.5 font-heading font-medium leading-none text-[var(--soft-bordeaux)]">
+              <span style={{ fontSize: "clamp(2rem, 6vw, 2.5rem)" }}>{balance}</span>
+              <span className="ml-1.5 text-base font-normal text-[var(--soft-ink-soft)]">{pointsWord(balance)}</span>
+            </p>
+            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
+              1 балл ≈ один разбор · списываются при открытии услуги
             </p>
           </div>
+          <Link href="#wallet-topup" className="soft-button soft-button-primary shrink-0">
+            Пополнить кошелёк
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </section>
@@ -87,7 +101,7 @@ function CreditPacksGrid({ packs }: { packs: WalletPack[] }) {
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="soft-eyebrow">пакеты баллов</p>
-          <h2 className="soft-h2 mt-1">Дозаправить кошелёк</h2>
+          <h2 className="soft-h3 mt-1">Дозаправить кошелёк</h2>
         </div>
         <p className="max-w-md text-sm text-[var(--soft-ink-soft)]">
           Купленные баллы действуют 12 месяцев с даты покупки. Ими можно открыть цифровые продукты, но не живые сессии.

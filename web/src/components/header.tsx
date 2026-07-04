@@ -175,7 +175,7 @@ function MoneyBalanceLink({
   );
 }
 
-function UserMenu({ session, cabinetDoor }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string } }) {
+function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<ReturnType<typeof useSession>["data"]>; cabinetDoor?: { href: string }; className?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -291,7 +291,7 @@ function UserMenu({ session, cabinetDoor }: { session: NonNullable<ReturnType<ty
   }
 
   return (
-    <div ref={ref} className="relative flex items-center gap-1" onKeyDown={handleKeyDown}>
+    <div ref={ref} className={cn("relative flex items-center gap-1", className)} onKeyDown={handleKeyDown}>
       {/* B464 IB0: on the landing a client gets a labeled «Кабинет» DOOR (click →
           cabinet) plus a chevron that opens the quick-jump dropdown. Elsewhere
           (inside the cabinet, or for practitioner/staff) the pill keeps the
@@ -494,6 +494,11 @@ export function Header() {
   const showHelpIcon = isAuthenticated && !isStaff;
   // G16: «Новый разбор» is a client-only action. Hide it for practitioners and staff.
   const showNewDialogueCta = isAuthenticated && !isStaff && !isPractitioner;
+  // B464 item 3 / audit A3: inside the cabinet on mobile the top header is
+  // slimmed to brand + bell only. The account pill is redundant for clients —
+  // the bottom bar's «Ещё» sheet already carries Настройки/Поддержка/Выйти.
+  // Practitioners/staff keep the pill (their mobile bar has no «Ещё» sheet).
+  const slimCabinetHeaderMobile = isAppArea && isAuthenticated && !isStaff && !isPractitioner;
 
   return (
     <>
@@ -597,6 +602,7 @@ export function Header() {
               <UserMenu
                 session={session}
                 cabinetDoor={showPublicNav && !isStaff && !isPractitioner ? { href: cabinetHref } : undefined}
+                className={slimCabinetHeaderMobile ? "hidden md:flex" : undefined}
               />
               {/* B321: ALL header items at canonical v4.2 user-pill height —
                   h-7 (28px), text-[13px], px-3 (12px). Matches

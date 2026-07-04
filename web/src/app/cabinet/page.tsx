@@ -351,12 +351,13 @@ export default async function ClientCabinetPage() {
       {/* ═══════ ZONE 2 · RESULTS + SERVICES ═══════ */}
 
       {/* «ваши результаты» — dialogues + product разборы merged (round-4 #3),
-          recent 4, meta = «дата, время · категория», «все» → /questions. */}
+          recent 4, meta = «дата, время · категория», «все» → /diary (the full
+          разборы list + hidden-item restore live in the Дневник). */}
       <div className="soft-card mb-4 p-5" data-testid="client-recent-questions">
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="soft-eyebrow">ваши результаты</p>
           {resultItems.length > 0 && (
-            <Link href={appUrl("/questions")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+            <Link href={appUrl("/diary")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
               Все разборы →
             </Link>
           )}

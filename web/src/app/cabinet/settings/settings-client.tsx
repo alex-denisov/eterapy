@@ -9,7 +9,7 @@
 import { useState, useRef, useEffect, useMemo, type ComponentType } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronRight, History, Lock, User } from "lucide-react";
+import { Bell, ChevronRight, History, Lock, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -95,22 +95,28 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteConfirmError, setDeleteConfirmError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  // Round-6 #1: «О себе» открывается из nudge-баннера, не из строки-раздела.
-  const [aboutOpen, setAboutOpen] = useState(false);
+  // Round-7 (item 7): «О себе» is now a collapsible hub row like every other
+  // section. The apricot nudge only appears while the personalization profile
+  // is still empty. `null` = not yet loaded (render nothing), `false` = empty
+  // (show the nudge), `true` = filled (hide it).
+  const [aboutFilled, setAboutFilled] = useState<boolean | null>(null);
 
-  // Deep-links (#settings-notifications и т.п.) открывают свою секцию хаба.
+  // Deep-links (#settings-notifications, #settings-about, …) open their hub row.
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (!hash) return;
-    if (hash === "settings-about") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAboutOpen(true);
-      return;
-    }
     const el = document.getElementById(hash);
     if (el instanceof HTMLDetailsElement) el.open = true;
     el?.scrollIntoView({ block: "start" });
   }, []);
+
+  function openAboutSection() {
+    const el = document.getElementById("settings-about");
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }
 
   if (status === "loading") return null;
   if (!session) { router.push("/login"); return null; }
@@ -233,10 +239,11 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
   return (
     <div className="max-w-3xl px-6 py-8" data-testid="settings-page">
       <p className="soft-eyebrow">настройки</p>
-      <h1 className="soft-h2 mt-2">Аккаунт</h1>
+      <h1 className="soft-h1 mt-2">Аккаунт</h1>
 
-      {/* «О себе» nudge — the personalization store, surfaced per the mockup. */}
-      {isClient && (
+      {/* «О себе» nudge — shown only while the personalization profile is still
+          empty (item 7). «Заполнить» opens the «О себе» hub row below. */}
+      {isClient && aboutFilled === false && (
         <section
           className="mt-5 flex flex-wrap items-center gap-4 rounded-[var(--soft-radius-lg)] p-5"
           style={{ background: "linear-gradient(155deg, #FFFCF5, var(--soft-apricot))" }}
@@ -253,23 +260,32 @@ export function SettingsClient({ telegramStatus, hasPassword, linkedProviders = 
           </div>
           <button
             type="button"
-            onClick={() => setAboutOpen((value) => !value)}
+            onClick={openAboutSection}
             className="soft-button soft-button-primary shrink-0"
-            aria-expanded={aboutOpen}
             data-testid="settings-about-toggle"
           >
-            {aboutOpen ? "Свернуть" : "Заполнить"}
+            Заполнить
           </button>
-        </section>
-      )}
-      {isClient && aboutOpen && (
-        <section id="settings-about" className="soft-card mt-3 scroll-mt-24 p-5" data-testid="settings-group-about">
-          <ExtendedProfileFields />
         </section>
       )}
 
       <p className="soft-eyebrow mb-2.5 mt-7">разделы</p>
       <div className="grid gap-2.5">
+        {/* ── О себе (персонализация) — collapsible hub row (item 7). Always
+            mounted for clients so it can report profile completeness up to the
+            nudge; renders nothing extra when collapsed. ── */}
+        {isClient && (
+          <SettingsHubRow
+            id="settings-about"
+            icon={Sparkles}
+            title="О себе"
+            subtitle="дата рождения, цели и темы · только для точности результатов"
+            testId="settings-group-about"
+          >
+            <ExtendedProfileFields onLoaded={setAboutFilled} />
+          </SettingsHubRow>
+        )}
+
         {/* ── Профиль ── */}
         <SettingsHubRow id="settings-profile" icon={User} title="Профиль" subtitle="имя, фото, email" testId="settings-group-profile">
           <form onSubmit={handleSaveProfile} className="space-y-5">
@@ -448,8 +464,9 @@ const MARITAL_OPTIONS = [
   { value: "widowed",   label: "Вдовец/вдова" },
 ];
 
-// The «О себе» fields, rendered inside the grouped section (no own card).
-function ExtendedProfileFields() {
+// The «О себе» fields, rendered inside the grouped hub row. `onLoaded` reports
+// whether the personalization profile is filled so the parent can gate the nudge.
+function ExtendedProfileFields({ onLoaded }: { onLoaded?: (filled: boolean) => void }) {
   const [birthDate, setBirthDate] = useState("");
   const [birthTime, setBirthTime] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
@@ -475,6 +492,11 @@ function ExtendedProfileFields() {
       .then(r => r.json())
       .then(d => {
         const p = d.profile;
+        setLoaded(true);
+        // «Filled» = the two fields the nudge asks for: a birth date and at
+        // least one goal. Reported up regardless of profile presence.
+        const filled = Boolean(p?.birthDate) && Array.isArray(p?.aiGoals) && p.aiGoals.length > 0;
+        onLoaded?.(filled);
         if (!p) return;
         if (p.birthDate) {
           // birthDate from API should be "YYYY-MM-DD", but handle full ISO too.
@@ -511,10 +533,9 @@ function ExtendedProfileFields() {
         if (p.maritalStatus) setMaritalStatus(p.maritalStatus);
         if (p.occupation) setOccupation(p.occupation);
         if (p.aiGoals) setAiGoals(p.aiGoals);
-        setLoaded(true);
       })
       .catch(() => setLoaded(true));
-  }, [detectedTimezone]);
+  }, [detectedTimezone, onLoaded]);
 
   function toggleGoal(v: string) {
     setAiGoals(prev => prev.includes(v) ? prev.filter(g => g !== v) : [...prev, v]);
