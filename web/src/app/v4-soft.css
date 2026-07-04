@@ -316,29 +316,31 @@
     box-shadow: 0 6px 20px -14px rgba(92, 42, 44, 0.4);
   }
 
-  .soft-result-chip {
-    flex: none;
-    align-self: flex-start;
-    margin-top: 0.1rem;
-    background: #f3eadf;
-    border: 1px solid var(--soft-paper-edge);
-    color: var(--soft-ink-soft);
-    border-radius: 999px;
-    padding: 0.2rem 0.6rem;
-    font-size: 0.72rem;
-    font-weight: 500;
-    white-space: nowrap;
-    max-width: 8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .soft-result-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.18rem;
     min-width: 0;
     flex: 1;
   }
 
+  .soft-result-chip {
+    max-width: 100%;
+    background: #f3eadf;
+    border: 1px solid var(--soft-paper-edge);
+    color: var(--soft-ink-soft);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .soft-result-title {
+    width: 100%;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--soft-ink);
@@ -347,30 +349,39 @@
   }
 
   .soft-result-date {
-    margin-top: 0.15rem;
+    width: 100%;
     font-size: 0.75rem;
     color: var(--soft-ink-faint);
   }
 
   .soft-result-acts {
     display: flex;
-    gap: 0.28rem;
+    gap: 0.35rem;
     margin-left: auto;
+    align-self: center;
   }
 
+  /* 36px base, bumped to a comfortable 40px touch target on coarse pointers. */
   .soft-result-act {
-    width: 2rem;
-    height: 2rem;
+    width: 2.25rem;
+    height: 2.25rem;
     flex: none;
     display: grid;
     place-items: center;
-    border-radius: 9px;
+    border-radius: 10px;
     border: 1px solid var(--soft-paper-edge);
     color: var(--soft-ink-faint);
     background: var(--soft-paper);
     transition: color var(--motion-base) var(--ease-standard),
       border-color var(--motion-base) var(--ease-standard),
       background var(--motion-base) var(--ease-standard);
+  }
+
+  @media (pointer: coarse) {
+    .soft-result-act {
+      width: 2.5rem;
+      height: 2.5rem;
+    }
   }
 
   .soft-result-act:hover {
