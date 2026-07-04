@@ -143,3 +143,22 @@ describe("R7 item 7 — «О себе» is a hub row with a conditional nudge", 
     expect(settings).not.toContain("const [aboutOpen, setAboutOpen]");
   });
 });
+
+// ── audit polish B9 (card-padding rhythm) + B10 (44px tap targets) ────────────
+describe("R7 audit polish — B9 padding rhythm + B10 tap targets", () => {
+  it("client home primary links carry a 44px (min-h-11) tap target", () => {
+    const home = read("app/cabinet/page.tsx");
+    // «Все разборы», «Сравнить тарифы», «Управлять» links
+    expect(home).toContain("inline-flex min-h-11 items-center text-sm font-semibold");
+    expect(home).toContain('className="soft-chip mt-4 min-h-11"');
+    // primary p-6 card normalised to p-5 md:p-6 (mobile rhythm)
+    expect(home).toContain("soft-card mb-4 p-5 md:p-6");
+  });
+
+  it("billing cards use p-5 md:p-6 and «Сравнить тарифы» is 44px", () => {
+    const billing = read("components/cabinet/billing-panel.tsx");
+    expect(billing).toContain("soft-card p-5 md:p-6");
+    expect(billing).not.toContain('className="soft-card p-6"');
+    expect(billing).toContain('minHeight: "2.75rem"');
+  });
+});

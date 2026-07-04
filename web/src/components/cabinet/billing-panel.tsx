@@ -278,7 +278,7 @@ export function BillingPanel() {
       <div className="space-y-6" data-testid="billing-loading" aria-busy="true">
         <div className="grid gap-4 md:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="soft-card p-6">
+            <div key={i} className="soft-card p-5 md:p-6">
               <div className="h-3.5 w-24 animate-pulse rounded bg-[var(--soft-paper-edge)]" />
               <div className="mt-4 h-8 w-32 animate-pulse rounded bg-[var(--soft-paper-edge)]" />
               <div className="mt-6 h-10 w-full animate-pulse rounded bg-[var(--soft-paper-edge)]" />
@@ -311,7 +311,7 @@ export function BillingPanel() {
               {activeSub?.currentPeriodEnd ? ` · ${activeSub.cancelAtPeriodEnd ? "доступ до" : "следующее списание"} ${new Date(activeSub.currentPeriodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : ""}
             </p>
           </div>
-          <Link href={mainUrl("/pricing")} className="soft-button soft-button-ghost" style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
+          <Link href={mainUrl("/pricing")} className="soft-button soft-button-ghost" style={{ minHeight: "2.75rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}>
             Сравнить тарифы
           </Link>
         </div>
@@ -322,7 +322,7 @@ export function BillingPanel() {
             return (
               <div
                 key={plan.key}
-                className="soft-card p-6"
+                className="soft-card p-5 md:p-6"
                 data-testid={plan.key === "free" ? "client-billing-subscription" : `client-billing-plan-${plan.key}`}
                 style={isCurrent ? { background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)", border: "1px solid var(--soft-terracotta)" } : undefined}
               >
@@ -370,7 +370,7 @@ export function BillingPanel() {
       </div>
 
       {/* Карты и платежи — saved cards (delete bottom-right) + history (round-3 #3) */}
-      <div className="soft-card p-6" data-testid="client-saved-cards">
+      <div className="soft-card p-5 md:p-6" data-testid="client-saved-cards">
         <div className="mb-3">
           <h3 className="soft-h3">Карты и платежи</h3>
           <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">Карты для оплаты сессий и подписки</p>
@@ -450,7 +450,7 @@ export function BillingPanel() {
       </div>
 
       {/* Payment history */}
-      <div className="soft-card p-6" data-testid="client-billing-history">
+      <div className="soft-card p-5 md:p-6" data-testid="client-billing-history">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="soft-h3">История платежей</h3>
           {transactions.some(t => t.status === "PENDING") && (
