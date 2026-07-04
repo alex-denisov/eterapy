@@ -293,7 +293,7 @@ export default async function ClientCabinetPage() {
 
       {/* ═══════ ZONE 1 · ACT — resume your thread ═══════ */}
       <section
-        className="soft-card mb-4 p-6"
+        className="soft-card mb-4 p-5 md:p-6"
         data-testid="client-primary-action"
         style={{ background: "linear-gradient(155deg, var(--soft-paper-card) 0%, var(--soft-apricot) 100%)", border: "1px solid transparent" }}
       >
@@ -357,7 +357,7 @@ export default async function ClientCabinetPage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <p className="soft-eyebrow">ваши результаты</p>
           {resultItems.length > 0 && (
-            <Link href={appUrl("/diary")} className="text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+            <Link href={appUrl("/diary")} className="inline-flex min-h-11 items-center text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
               Все разборы →
             </Link>
           )}
@@ -592,7 +592,7 @@ export default async function ClientCabinetPage() {
               <p className="mt-2 text-[13.5px] leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
                 В подписке — больше баллов каждый месяц и расширенный дневник. Спокойно сравните, без спешки.
               </p>
-              <Link href={appUrl("/wallet")} className="mt-3 inline-block text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
+              <Link href={appUrl("/wallet")} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold" style={{ color: "var(--soft-bordeaux)" }}>
                 Сравнить тарифы →
               </Link>
             </>
@@ -606,7 +606,7 @@ export default async function ClientCabinetPage() {
                   ? ` · до ${activeSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
                   : ""}
               </p>
-              <Link href={appUrl("/wallet")} className="soft-chip mt-4 inline-block">Управлять →</Link>
+              <Link href={appUrl("/wallet")} className="soft-chip mt-4 min-h-11">Управлять →</Link>
             </>
           )}
         </section>
