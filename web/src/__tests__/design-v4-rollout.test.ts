@@ -48,6 +48,8 @@ describe("design v4 rollout", () => {
     expect(softCss).toContain(".soft-email-banner");
     expect(pricing).not.toMatch(/Скидк[аи][^"]*встреч/i);
     expect(pricing).not.toMatch(/от 299 ₽|от 490 ₽|от 590 ₽|от 790 ₽/);
-    expect(pricing).toContain("Встречи со специалистами оплачиваются отдельно по полной цене");
+    // B396: the «разовые форматы» subtitle was removed with the block; the hero
+    // still carries the honest «встречи … оплачиваются отдельно» line.
+    expect(pricing).toContain("оплачиваются отдельно по полной цене");
   });
 });

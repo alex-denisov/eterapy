@@ -2,10 +2,6 @@
 
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { getProductPriceLabel } from "@/lib/product-prices";
-
-// B366: à-la-carte prices derive from the single billing source.
-const price = (slug: string): string => getProductPriceLabel(slug) ?? "—";
 
 const plans = [
   {
@@ -71,46 +67,12 @@ const plans = [
   },
 ];
 
-// B366/B371: prices derive from the single billing source (no hand-typed ₽).
-// B371 cleanup: «Маршруты и карта» категория убрана целиком (Ежедневная практика
-// бесплатна и живёт в кабинете; «7 дней» и «Расширенная карта» закрыты,
-// роуты выпиливаются в B373); «Круг» закрыт (→ «Вместе» в B385).
-const oneOff = [
-  { cat: "Бесплатный вход", t: "Первичный разбор", d: "С уточнениями + основной ответ", price: "Бесплатно", href: "/checkin", cta: "Начать" },
-  { cat: "Цифровые углубления", t: "Переосмысление", d: "Когнитивный рефрейминг · Мысли · Чувства · Другой взгляд · Шаг", price: price("reframe"), href: "/products/reframe", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Подробный разбор", d: "Документ-разбор · 6–10 страниц", price: price("deep-report"), href: "/products/deep-report", cta: "Заказать" },
-  { cat: "Цифровые углубления", t: "Разбор переписки", d: "Тон, динамика, варианты ответа", price: price("chat-analysis"), href: "/products/chat-analysis", cta: "Разобрать" },
-  { cat: "Для двоих", t: "Вместе", d: "Взгляд со стороны, сверить взгляды или совместимость — начало бесплатно", price: price("pair"), href: "/products/pair", cta: "Пригласить" },
-  { cat: "Эзотерика", t: "Расклад Таро", d: "Символический разбор развилки", price: price("tarot"), href: "/products/tarot", cta: "Купить" },
-  { cat: "Эзотерика", t: "Натальная карта", d: `Базовый разбор · совместимость по звёздам с партнёром ${price("synastry")}`, price: price("natal-chart"), href: "/products/natal-chart", cta: "Купить" },
-  { cat: "Эзотерика", t: "Совместимость по звёздам", d: "Две натальные карты · карта пары", price: price("synastry"), href: "/products/synastry", cta: "Собрать" },
-  { cat: "Эзотерика", t: "Числовой портрет", d: "Имя, дата и цикл года", price: price("numerology"), href: "/products/numerology", cta: "Купить" },
-];
-
-const oneOffCats = ["Бесплатный вход", "Цифровые углубления", "Для двоих", "Эзотерика", "Встречи"];
-
-// W19: session prices come from the real PriceRate floor (passed from the
-// server), never a hardcoded fiction. Specialties without a published rate show
-// "по записи" — the exact price is always visible in the specialist's profile.
-function buildSessionRows(minSessionPriceRub: number | null) {
-  const floor = minSessionPriceRub ? `от ${minSessionPriceRub.toLocaleString("ru-RU")} ₽` : "по записи";
-  return [
-    { cat: "Встречи", t: "Встреча с психологом", d: "60 минут онлайн", price: floor, href: "/practitioners?format=psychology", cta: "Записаться" },
-    { cat: "Встречи", t: "Коуч-сессия", d: "Карьера · переход · призвание", price: "по записи", href: "/practitioners?format=coaching", cta: "Записаться" },
-    { cat: "Встречи", t: "Юрист", d: "Семейное право, развод, опека", price: "по записи", href: "/practitioners?format=legal", cta: "Записаться" },
-    { cat: "Встречи", t: "Финансовый консультант", d: "Бюджет, долги, инвестиции", price: "по записи", href: "/practitioners?format=finance", cta: "Записаться" },
-  ];
-}
-
 function formatPrice(n: number): string {
   if (n === 0) return "Бесплатно";
   return n.toLocaleString("ru-RU") + " ₽";
 }
 
-export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub?: number | null }) {
-  const sessionRows = buildSessionRows(minSessionPriceRub);
-  const itemsForCat = (cat: string) => (cat === "Встречи" ? sessionRows : oneOff.filter((item) => item.cat === cat));
-
+export function PricingPlans() {
   return (
     <>
       {/* Hero — B454/B396: tightened so the plan cards + their CTAs reach the
@@ -264,43 +226,19 @@ export function PricingPlans({ minSessionPriceRub = null }: { minSessionPriceRub
         </p>
       </section>
 
-      {/* One-off prices */}
-      <section className="soft-shell soft-public-section">
-        <div className="soft-card" style={{ padding: "clamp(1.25rem, 3vw, 2rem)" }}>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="soft-eyebrow">разовые форматы</p>
-              <h2 className="soft-h2 mt-2">Если подписка не нужна</h2>
-            </div>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-faint)", maxWidth: "18rem", textAlign: "right" }}>
-              Каждый цифровой формат можно купить без подписки. Встречи со специалистами оплачиваются отдельно по полной цене.
-            </p>
-          </div>
-
-          <div className="mt-7 grid gap-4">
-            {oneOffCats.map((cat) => (
-              <div key={cat} className="overflow-hidden rounded-[var(--soft-radius-lg)] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
-                <div className="flex items-center justify-between gap-3 bg-[var(--soft-paper-deep)] px-5 py-3">
-                  <p className="soft-eyebrow text-[var(--soft-bordeaux)]">{cat}</p>
-                  <span className="text-xs text-[var(--soft-ink-faint)]">{itemsForCat(cat).length} формата</span>
-                </div>
-                <div className="divide-y divide-[var(--soft-paper-edge)]">
-                  {itemsForCat(cat).map((item) => (
-                    <div key={`${cat}-${item.t}`} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center">
-                      <div>
-                        <p className="text-sm font-semibold text-[var(--soft-ink)]">{item.t}</p>
-                        <p className="mt-0.5 text-xs leading-relaxed text-[var(--soft-ink-faint)]">{item.d}</p>
-                      </div>
-                      <span className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)] md:text-right">{item.price}</span>
-                      <Link href={item.href} className="soft-chip justify-center md:min-w-28">
-                        {item.cta}
-                        <ArrowRight className="size-3.5" aria-hidden="true" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+      {/* B396: the long à-la-carte catalog table was removed — it duplicated the
+          /products catalog and /pricing/compare (already linked under the plans).
+          A slim bridge to the catalog replaces it; no second compare button. */}
+      <section className="soft-shell soft-public-section" style={{ paddingBlock: "clamp(1rem, 2.5vw, 1.5rem)" }}>
+        <div style={{ maxWidth: "34rem", marginInline: "auto", textAlign: "center" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--soft-ink-soft)" }}>
+            Не нужна подписка? Любой формат покупается разово — все они собраны в каталоге услуг.
+          </p>
+          <div className="mt-5 flex justify-center">
+            <Link href="/products" className="soft-button soft-button-primary" data-testid="pricing-catalog-cta">
+              Смотреть все форматы
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </section>

@@ -24,11 +24,15 @@ describe("v5 pricing page", () => {
     const combined = page + "\n" + plans;
 
     expect(page).toContain('data-testid="pricing-page"');
-    expect(combined).toContain("Первичный");
+    expect(combined).toContain("Первый разбор");
     expect(combined).toContain("Переосмысление");
-    // B366: prices derive from the single billing source instead of ₽ literals.
-    expect(combined).toContain('price("reframe")');
-    expect(combined).toContain("getProductPriceLabel");
+    // B396: the long «разовые форматы» à-la-carte table was removed — a slim link
+    // to the /products catalog replaces it (no per-format price literals here).
+    expect(combined).not.toContain("разовые форматы");
+    expect(combined).not.toContain("buildSessionRows");
+    expect(combined).toContain("Смотреть все форматы");
+    expect(combined).toContain('data-testid="pricing-catalog-cta"');
+    expect(combined).toContain('href="/products"');
     // B348/Механика 1: подписки только месячные — годовых планов и тумблера «на год» нет.
     expect(combined).toContain("590");
     expect(combined).not.toContain("5900");
@@ -45,13 +49,10 @@ describe("v5 pricing page", () => {
     expect(combined).not.toContain('id: "practitioner"');
     expect(source("app/practitioners/apply/page.tsx")).toContain("Pro+");
     expect(source("app/practitioners/apply/page.tsx")).toContain("комиссия");
-    // W19: session prices are now derived from the real PriceRate floor (passed
-    // from the server) instead of hardcoded fictions; specialties without a
-    // published rate show "по записи".
-    expect(combined).toContain("minSessionPriceRub");
-    expect(combined).toContain("buildSessionRows");
-    expect(combined).toContain("по записи");
-    expect(page).toContain("getMinSessionPriceRub");
+    // B396: /pricing no longer does a DB round-trip for the «Встречи» floor — the
+    // session-pricing helper is gone from this page (it still powers other surfaces).
+    expect(page).not.toContain("getMinSessionPriceRub");
+    expect(page).not.toContain("await");
     expect(combined).toContain("Углублённые отчёты открываются");
   });
 

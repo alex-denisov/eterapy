@@ -79,11 +79,11 @@ describe("Y5 — verification: documents + non-empty guard", () => {
   });
 });
 
-describe("Y9 — pricing «Встречи» reflects the base 60-minute tariff", () => {
+describe("Y9 — the session-pricing source reflects the base 60-minute tariff", () => {
   it("queries the minimum enabled 60-minute PriceRate first", () => {
-    // B366: the DB floor getter moved to the single session-pricing source.
-    const page = src("app/pricing/page.tsx");
-    expect(page).toContain("getMinSessionPriceRub");
+    // B366: the DB floor getter is the single session-pricing source.
+    // B396: /pricing no longer consumes it (the «разовые форматы» table was
+    // removed), but the helper still lives in the lib and powers other surfaces.
     const server = src("lib/session-pricing-server.ts");
     expect(server).toContain("durationMin: SESSION_BASE_DURATION_MIN");
     expect(src("lib/session-pricing.ts")).toContain("SESSION_BASE_DURATION_MIN = 60");
