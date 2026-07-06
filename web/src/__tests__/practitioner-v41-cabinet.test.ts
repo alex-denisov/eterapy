@@ -52,7 +52,8 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
   });
 
   it("surfaces requests and reviews with risk/compliance state", () => {
-    const requests = source("src/app/cabinet/practitioner/requests/page.tsx");
+    // B466: заявки живут на «Календарь → Заявки» (requests-tab).
+    const requests = source("src/app/cabinet/practitioner/calendar/requests-tab.tsx");
     const reviews = source("src/app/cabinet/practitioner/reviews/page.tsx");
 
     expect(requests).toContain('data-testid="practitioner-requests-page"');

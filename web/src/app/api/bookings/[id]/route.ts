@@ -10,6 +10,7 @@ import {
 } from "@/lib/email";
 import { notify } from "@/lib/notifications";
 import { completeBookingAtSessionEnd } from "@/lib/session-complete";
+import { cancelSessionHold, refundSessionForBooking } from "@/lib/session-payment";
 import { log } from "@/lib/logger";
 import { promoteWaitlistForReleasedSlot } from "@/lib/priority-booking";
 
@@ -27,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!session) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
 
   const { id } = await params;
-  const { status } = await req.json() as { status: BookingStatus };
+  const { status, reason } = await req.json() as { status: BookingStatus; reason?: string };
 
   const booking = await db.booking.findUnique({
     where: { id },
@@ -91,6 +92,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         { error: `Нельзя завершить сессию из статуса ${outcome.currentStatus}` },
         { status: 409 },
       );
+    }
+  } else if (status === "CANCELLED") {
+    // B481/B484: фиксируем, КТО отменил (для правил штрафов и метрики
+    // надёжности практика) + причину.
+    await db.booking.update({
+      where: { id },
+      data: {
+        status,
+        cancelledBy: isClient ? "CLIENT" : userRole === "PRACTITIONER" ? "PRACTITIONER" : "ADMIN",
+        cancelledAt: new Date(),
+        cancelReason: typeof reason === "string" ? reason.trim().slice(0, 500) || null : null,
+      },
+    });
+    // B484: деньги клиента освобождаются ВСЕГДА (отмена практиком/админом —
+    // полный возврат; клиентская отмена PENDING >24ч — тоже без удержаний).
+    const hold = await cancelSessionHold(id)
+      .catch((e: unknown) => { log.error("booking.cancel_hold_failed", { bookingId: id, err: e }); return null; });
+    if (hold?.status === "already_captured") {
+      await refundSessionForBooking(id, booking.priceRub * 100)
+        .catch((e: unknown) => log.error("booking.cancel_refund_failed", { bookingId: id, err: e }));
     }
   } else {
     await db.booking.update({ where: { id }, data: { status } });

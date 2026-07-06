@@ -51,6 +51,17 @@ function formatBooking(b: any) {
     sessionUrl: showVideo ? `${appUrl}/session/${b.id}` : null,
     client:      b.client      ? { name: b.client.name,           email: b.client.email }           : undefined,
     practitioner: b.practitioner ? { name: b.practitioner.user?.name, id: b.practitioner.id }       : undefined,
+    // B481: открытые запросы переноса/отмены по этой брони.
+    changeRequests: Array.isArray(b.changeRequests)
+      ? b.changeRequests.map((r: { id: string; initiatedBy: string; type: string; proposedStartAt: Date | null; penaltyApplies: boolean; reason: string | null }) => ({
+          id: r.id,
+          initiatedBy: r.initiatedBy,
+          type: r.type,
+          proposedStartAt: r.proposedStartAt?.toISOString?.() ?? r.proposedStartAt ?? null,
+          penaltyApplies: r.penaltyApplies,
+          reason: r.reason,
+        }))
+      : undefined,
   };
 }
 
@@ -99,6 +110,19 @@ export async function GET(req: NextRequest) {
         include: {
           practitioner: { include: { user: { select: { name: true } } } },
           slot: true,
+          // B481: открытые запросы переноса/отмены — клиент видит статус и
+          // отвечает на предложения практика прямо в «Записях».
+          changeRequests: {
+            where: { status: "PENDING" },
+            select: {
+              id: true,
+              initiatedBy: true,
+              type: true,
+              proposedStartAt: true,
+              penaltyApplies: true,
+              reason: true,
+            },
+          },
         },
         orderBy: [
           { slot: { startAt: "asc" } },
@@ -127,7 +151,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { practitionerId, slotId, slotStartAt, slotEndAt, priceOverride, meetingContext } = await req.json();
+    const { practitionerId, slotId, slotStartAt, slotEndAt, priceOverride, meetingContext, proposalId } = await req.json();
     if (!practitionerId) return NextResponse.json({ error: "practitionerId обязателен" }, { status: 400 });
 
     const practitioner = await db.practitioner.findUnique({
@@ -135,6 +159,29 @@ export async function POST(req: NextRequest) {
       include: { user: { select: { name: true, email: true } } },
     });
     if (!practitioner) return NextResponse.json({ error: "Практик не найден" }, { status: 404 });
+
+    // B480: принятие предложения специалиста («Записать») — время и цена
+    // берутся ИЗ предложения (серверные данные, клиентские не доверяем).
+    let proposal: { id: string; startAt: Date; durationMin: number; priceRub: number } | null = null;
+    if (proposalId) {
+      const found = await db.bookingProposal.findUnique({
+        where: { id: String(proposalId) },
+        select: { id: true, clientId: true, practitionerId: true, status: true, startAt: true, durationMin: true, priceRub: true },
+      });
+      if (!found || found.clientId !== session.user.id || found.practitionerId !== practitionerId || found.status !== "PENDING") {
+        return NextResponse.json({ error: "Предложение не найдено или уже неактуально" }, { status: 409 });
+      }
+      if (found.startAt.getTime() <= Date.now()) {
+        await db.bookingProposal.update({ where: { id: found.id }, data: { status: "EXPIRED", resolvedAt: new Date() } });
+        return NextResponse.json({ error: "Время предложения уже прошло" }, { status: 409 });
+      }
+      proposal = found;
+    }
+    const effectiveSlotStartAt = proposal ? proposal.startAt.toISOString() : slotStartAt;
+    const effectiveSlotEndAt = proposal
+      ? new Date(proposal.startAt.getTime() + proposal.durationMin * 60000).toISOString()
+      : slotEndAt;
+    const effectivePriceOverride = proposal ? proposal.priceRub : priceOverride;
     if (practitioner.status !== "ACTIVE") {
       return NextResponse.json({ error: "Практик временно недоступен" }, { status: 409 });
     }
@@ -210,9 +257,9 @@ export async function POST(req: NextRequest) {
       resolvedSlotId = slotId;
     }
     // Вариант 2: клиент выбрал сгенерированный слот — создаём TimeSlot на сервере
-    else if (slotStartAt && slotEndAt) {
-      const requestedStartAt = new Date(slotStartAt);
-      const requestedEndAt = new Date(slotEndAt);
+    else if (effectiveSlotStartAt && effectiveSlotEndAt) {
+      const requestedStartAt = new Date(effectiveSlotStartAt);
+      const requestedEndAt = new Date(effectiveSlotEndAt);
       const overlappingAvailableSlot = await db.timeSlot.findFirst({
         where: {
           practitionerId,
@@ -277,9 +324,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Цена: priceOverride (из тарифной сетки) или базовая цена практика
+    // Цена: предложение (B480) → priceOverride (из тарифной сетки) → базовая
     const testMode = await getSetting("session.test_mode") === "true";
-    let priceRub = priceOverride ?? practitioner.pricePerSession;
+    let priceRub = effectivePriceOverride ?? practitioner.pricePerSession;
     if (testMode) priceRub = 0;
 
     const booking = await db.$transaction(async (tx) => {
@@ -311,6 +358,13 @@ export async function POST(req: NextRequest) {
         source: byocCommission.source,
         firstTouchInviteId: byocCommission.firstTouchInviteId,
       });
+      // B480: помечаем предложение принятым и связываем с бронью.
+      if (proposal) {
+        await tx.bookingProposal.update({
+          where: { id: proposal.id },
+          data: { status: "ACCEPTED", bookingId: created.id, resolvedAt: new Date() },
+        });
+      }
       return created;
     });
 

@@ -63,6 +63,11 @@ const ICON_MAP: Record<NotifEvent, React.ElementType> = {
   MOMENT_OF_NEED: Sparkles,
   WELCOME_CREDITS: Wallet,
   WELCOME_CREDITS_REMINDER: Wallet,
+  // B466 practitioner platform
+  PRACTITIONER_MESSAGE: Info,
+  BOOKING_PROPOSED: Calendar,
+  BOOKING_CHANGE_REQUESTED: Calendar,
+  BOOKING_CHANGE_RESOLVED: Calendar,
 };
 
 // B331: short relative time per v4.2 ("12 мин" / "2 ч" / "сегодня" /

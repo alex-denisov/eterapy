@@ -281,6 +281,45 @@ export async function cancelSessionHold(
   return { status: "cancelled" };
 }
 
+/**
+ * B481 — штраф за позднюю отмену клиентом (<24ч), согласованную практиком БЕЗ
+ * прощения. Если платёж ещё на холде — частичный capture на сумму штрафа
+ * (остаток авторизации YooKassa освобождает автоматически); если уже захвачен —
+ * возврат (цена − штраф). Полное прощение/возврат идут обычными путями
+ * (cancelSessionHold / refundSessionForBooking).
+ */
+export async function chargeCancellationPenalty(
+  bookingId: string,
+  penaltyKopecks: number,
+): Promise<{ status: "charged" | "refund_issued" | "noop" }> {
+  if (penaltyKopecks <= 0) return { status: "noop" };
+  const payment = await db.payment.findUnique({
+    where: { bookingId },
+    select: { externalId: true, status: true, amountKopecks: true },
+  });
+  if (!payment?.externalId) return { status: "noop" };
+
+  if (payment.status === "PAID") {
+    const refundKopecks = Math.max(0, payment.amountKopecks - penaltyKopecks);
+    if (refundKopecks > 0) {
+      await createRefund({ paymentId: payment.externalId, amountKopecks: refundKopecks });
+      await db.payment.update({
+        where: { bookingId },
+        data: { status: "REFUNDED", refundedAt: new Date() },
+      }).catch(() => {});
+    }
+    return { status: "refund_issued" };
+  }
+
+  const capped = Math.min(penaltyKopecks, payment.amountKopecks);
+  await capturePayment(payment.externalId, capped);
+  await db.payment.update({
+    where: { bookingId },
+    data: { status: "PAID", amountKopecks: capped },
+  }).catch(() => {});
+  return { status: "charged" };
+}
+
 /** Возврат на карту за уже захваченную сессию (по жалобе/споре). */
 export async function refundSessionForBooking(
   bookingId: string,
