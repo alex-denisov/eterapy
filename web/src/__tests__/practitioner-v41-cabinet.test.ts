@@ -5,20 +5,17 @@ const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 describe("B207/B229 practitioner v4.2 cabinet", () => {
-  it("uses real practitioner payout balance on the dashboard", () => {
+  it("uses real practitioner money/AI data on the cockpit surfaces", () => {
+    // B466: «Сегодня» показывает реальный доход месяца из завершённых сессий с
+    // применённой комиссией; канонический баланс живёт в «Финансы» (earnings).
     const page = source("src/app/cabinet/practitioner/page.tsx");
-
-    expect(page).toContain("computePractitionerBalance");
-    expect(page).toContain('data-testid="practitioner-pro-usage"');
-    expect(page).toContain('data-testid="practitioner-compliance-notices"');
-    expect(page).toContain("db.userSubscription.findFirst");
-    expect(page).toContain("db.videoSession.count");
-    expect(page).toContain("complianceRiskScore");
-    expect(page).toContain("db.payout.count");
-    expect(page).toContain("currentBalance.toLocaleString");
-    expect(page).toContain("pendingPayout.toLocaleString");
-    expect(page).toContain("открыть выплаты");
+    expect(page).toContain("commissionPercentApplied");
+    expect(page).toContain("getPractitionerAiQuota");
+    expect(page).toContain("monthIncome.toLocaleString");
     expect(page).not.toContain("выплата в разработке");
+
+    const earnings = source("src/app/cabinet/practitioner/earnings/page.tsx");
+    expect(earnings).toContain("computePractitionerBalance");
   });
 
   it("renders services and prices from practitioner rates instead of a placeholder", () => {

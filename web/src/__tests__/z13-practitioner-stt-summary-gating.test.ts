@@ -86,9 +86,10 @@ describe("Z13 practitioner STT and summary subscription gates", () => {
     const dashboard = source("src/app/cabinet/practitioner/page.tsx");
     const subscriptionPage = source("src/app/cabinet/practitioner/subscription/page.tsx");
 
-    expect(dashboard).toContain('data-testid="practitioner-compliance-notices"');
-    expect(dashboard).toContain("complianceReviewCount");
-    expect(dashboard).not.toContain('["Compliance", complianceReviewCount');
+    // B466: комплаенс/безопасность — платформенный процесс (запись включена на
+    // каждой сессии), а не перк тарифа; «Сегодня» не продаёт его вовсе.
+    expect(dashboard).toContain("запись включена");
+    expect(dashboard).not.toContain("Комплаенс");
     expect(subscriptionPage).not.toContain("Комплаенс-подсказки");
     expect(subscriptionPage).not.toContain("compliance-проверки");
     expect(subscriptionPage).toContain("безопасность сессий работает для всех");

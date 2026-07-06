@@ -3,13 +3,14 @@ import path from "node:path";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-describe("M9 — practitioner subscription CTA on Сводка", () => {
-  it("shows a subscribe CTA when Pro is not connected", () => {
+describe("M9 — practitioner subscription purchase flow stays reachable", () => {
+  // B466: тариф/подписка живут в «Финансы» (таб «Тариф»), не на «Сегодня».
+  it("keeps the Pro purchase flow alive and routed through Финансы", () => {
+    const subscription = source("src/app/cabinet/practitioner/subscription/subscription-client.tsx");
+    expect(subscription).toContain("Оплатить с баланса");
+    const navModel = source("src/lib/nav-model.ts");
+    expect(navModel).toContain('appUrl("/practitioner/finance")');
     const page = source("src/app/cabinet/practitioner/page.tsx");
-    expect(page).toContain('data-testid="practitioner-subscribe-cta"');
-    expect(page).toContain("Подключить Practitioner Pro");
-    expect(page).toContain("Управлять подпиской");
-    expect(page).toContain('href={appUrl("/practitioner/subscription")}');
     expect(page).not.toContain('href={appUrl("/billing")}');
   });
 });

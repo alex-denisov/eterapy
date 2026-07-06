@@ -1,44 +1,122 @@
 export const dynamic = "force-dynamic";
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ChevronRight, Inbox, ShieldAlert, Sparkles, Video } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
-import { computePractitionerBalance } from "@/lib/practitioner-balance";
-import { getSubscriptionPlanLabel, getSubscriptionStatusLabel } from "@/lib/billing-labels";
-import { PRACTITIONER_VERIFICATION_PREFIX } from "@/lib/practitioner-verification";
-import { appUrl, loginUrl, mainUrl } from "@/lib/subdomain";
-import { VerificationRequestCard } from "./verification-request-card";
+import { canJoinBooking, bookingDurationMin } from "@/lib/booking-actions";
+import { getPractitionerAiQuota } from "@/lib/practitioner-ai-quota-db";
+import { practitionerTierBadge, practitionerTierFromPlanKey } from "@/lib/practitioner-tier";
+import { getActivePractitionerPlanKey } from "@/lib/practitioner-entitlements";
+import {
+  formatMskDayLong,
+  formatMskDayMonth,
+  formatMskMonthName,
+  formatMskTime,
+  mskDayRange,
+  mskHour,
+} from "@/lib/msk-time";
+import { mskMonthRange } from "@/lib/practitioner-ai-quota";
+import { appUrl, loginUrl } from "@/lib/subdomain";
 
-async function getPractitionerData(userId: string) {
-  return db.practitioner.findUnique({
-    where: { userId },
-    include: {
-      user: { select: { name: true, email: true } },
-      reviews: { where: { status: "PUBLISHED" }, orderBy: { createdAt: "desc" }, take: 3 },
-      slots: {
-        where: { available: true, startAt: { gte: new Date() } },
-        orderBy: { startAt: "asc" },
-        take: 5,
-      },
-    },
-  });
-}
+// B466 — «Сегодня»: the Practice-cockpit home. Hero = ближайшая сессия
+// (T-30 join gate), затем «требует внимания», расписание дня и метрики.
+// Approved mockups: practitioner-cabinet-today.html / practitioner-desktop-today.html.
 
-const STATUS_LABELS = {
-  ACTIVE:    { label: "Активен",       bg: "rgba(155,174,148,.22)", color: "#3a4a36" },
-  PENDING:   { label: "На проверке",   bg: "rgba(244,217,193,.8)", color: "var(--soft-bordeaux)" },
-  SUSPENDED: { label: "Приостановлен", bg: "rgba(220,60,60,.08)",   color: "#b02020" },
-  BLOCKED:   { label: "Заблокирован",  bg: "rgba(220,60,60,.15)",   color: "#b02020" },
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: "Профиль на проверке",
+  SUSPENDED: "Профиль приостановлен",
+  BLOCKED: "Профиль заблокирован",
 };
 
-export default async function PractitionerCabinetPage() {
+function greetingFor(hour: number): string {
+  if (hour >= 5 && hour < 12) return "Доброе утро";
+  if (hour >= 12 && hour < 18) return "Добрый день";
+  if (hour >= 18 && hour < 23) return "Добрый вечер";
+  return "Доброй ночи";
+}
+
+function clientLabel(client: { name: string | null; email: string | null }): string {
+  return client.name ?? client.email ?? "Клиент";
+}
+
+function initialsOf(label: string): string {
+  return label
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+}
+
+function startsInLabel(startAt: Date, now: Date): string {
+  const diffMin = Math.round((startAt.getTime() - now.getTime()) / 60000);
+  if (diffMin <= 0) return "идёт сейчас";
+  if (diffMin < 60) return `через ${diffMin} мин`;
+  if (diffMin < 24 * 60) return `сегодня в ${formatMskTime(startAt)}`;
+  return formatMskDayMonth(startAt);
+}
+
+function AttentionRow({
+  href,
+  icon,
+  tone,
+  title,
+  badge,
+  subtitle,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  tone: "warm" | "amber" | "calm";
+  title: string;
+  badge?: string;
+  subtitle: string;
+}) {
+  const toneStyle =
+    tone === "warm"
+      ? { background: "#F6E7DD", color: "var(--soft-terracotta-dark)" }
+      : tone === "amber"
+        ? { background: "var(--soft-amber-bg, #F2E2C2)", color: "var(--soft-amber-ink, #6E5114)" }
+        : { background: "var(--soft-paper-deep)", color: "var(--soft-ink-soft)" };
+  return (
+    <Link href={href} data-testid="practitioner-attention-row" className="flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-[var(--soft-paper-deep)]/40">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]" style={toneStyle}>
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
+          <span className="truncate">{title}</span>
+          {badge && (
+            <span className="shrink-0 rounded-md px-1.5 py-px text-[10px] font-semibold" style={{ background: "var(--soft-amber-bg, #F2E2C2)", color: "var(--soft-amber-ink, #6E5114)" }}>
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className="mt-0.5 block truncate text-xs text-[var(--soft-ink-faint)]">{subtitle}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--soft-ink-faint)]" />
+    </Link>
+  );
+}
+
+export default async function PractitionerTodayPage() {
   const session = await auth();
   if (!session) redirect(loginUrl());
   if (session.user?.role !== "PRACTITIONER") redirect("/cabinet");
 
   const userId = session.user!.id!;
-  const practitioner = await getPractitionerData(userId);
+  const practitioner = await db.practitioner.findUnique({
+    where: { userId },
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      verified: true,
+      ratingSum: true,
+      reviewCount: true,
+      user: { select: { name: true, email: true } },
+    },
+  });
   if (!practitioner) {
     return (
       <div className="px-6 py-8 text-center">
@@ -48,430 +126,354 @@ export default async function PractitionerCabinetPage() {
     );
   }
 
-  const rating = practitioner.reviewCount > 0 ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1) : "—";
-  const st = STATUS_LABELS[practitioner.status as keyof typeof STATUS_LABELS] ?? STATUS_LABELS.ACTIVE;
+  const now = new Date();
+  const day = mskDayRange(now);
+  const month = mskMonthRange(now);
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const [nextBooking, todayBookings, pendingRequests, freshAnalyses, monthCompleted, weekSessionCount, planKey, quota] =
+    await Promise.all([
+      db.booking.findFirst({
+        where: {
+          practitionerId: practitioner.id,
+          status: { in: ["CONFIRMED", "IN_PROGRESS"] },
+          slot: { endAt: { gte: now } },
+        },
+        include: { client: { select: { id: true, name: true, email: true } }, slot: true },
+        orderBy: { slot: { startAt: "asc" } },
+      }),
+      db.booking.findMany({
+        where: {
+          practitionerId: practitioner.id,
+          status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED"] },
+          slot: { startAt: { gte: day.start, lt: day.end } },
+        },
+        include: { client: { select: { id: true, name: true, email: true } }, slot: true },
+        orderBy: { slot: { startAt: "asc" } },
+      }),
+      db.booking.findMany({
+        where: { practitionerId: practitioner.id, status: "PENDING" },
+        include: { client: { select: { name: true, email: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+      }),
+      db.videoSession.findMany({
+        where: {
+          summaryText: { not: null },
+          createdAt: { gte: weekAgo },
+          booking: { practitionerId: practitioner.id },
+        },
+        select: {
+          bookingId: true,
+          booking: { select: { client: { select: { name: true, email: true } } } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+      }),
+      db.booking.findMany({
+        where: {
+          practitionerId: practitioner.id,
+          status: "COMPLETED",
+          slot: { startAt: { gte: month.start, lt: month.end } },
+        },
+        select: { priceRub: true, commissionPercentApplied: true },
+      }),
+      db.booking.count({
+        where: {
+          practitionerId: practitioner.id,
+          status: "COMPLETED",
+          slot: { startAt: { gte: weekAgo } },
+        },
+      }),
+      getActivePractitionerPlanKey(userId),
+      getPractitionerAiQuota(practitioner.id, userId),
+    ]);
+
+  const heroSessionNumber = nextBooking
+    ? (await db.booking.count({
+        where: { practitionerId: practitioner.id, clientId: nextBooking.clientId, status: "COMPLETED" },
+      })) + 1
+    : 0;
+
+  const tier = practitionerTierFromPlanKey(planKey);
   const firstName = practitioner.user.name?.split(" ")[0] ?? "Специалист";
-  const balance = await computePractitionerBalance(practitioner.id);
-  const currentBalance = Math.max(0, balance?.currentBalance ?? 0);
-  const pendingPayout = Math.max(0, balance?.pendingPayout ?? 0);
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  const rating = practitioner.reviewCount > 0
+    ? (practitioner.ratingSum / practitioner.reviewCount).toFixed(1).replace(".", ",")
+    : "—";
+  const monthIncome = monthCompleted.reduce((sum, b) => {
+    const commission = b.commissionPercentApplied ?? 35;
+    return sum + (b.priceRub - Math.round(b.priceRub * (commission / 100)));
+  }, 0);
+  const statusNote = STATUS_LABELS[practitioner.status];
+  const canJoinNext = nextBooking
+    ? canJoinBooking(
+        {
+          status: nextBooking.status,
+          slot: nextBooking.slot
+            ? { startAt: nextBooking.slot.startAt.toISOString(), endAt: nextBooking.slot.endAt.toISOString() }
+            : null,
+        },
+        now.getTime(),
+      )
+    : false;
+  const nextClientLabel = nextBooking ? clientLabel(nextBooking.client) : "";
+  const requestNames = pendingRequests.map((b) => clientLabel(b.client).split(" ")[0]).slice(0, 2);
+  const freshAnalysisNames = freshAnalyses.map((s) => clientLabel(s.booking.client).split(" ")[0]);
+  const quotaPct = quota.included > 0 ? Math.min(100, Math.round((quota.usedThisMonth / quota.included) * 100)) : 0;
 
-  const [
-    pendingBookings,
-    upcomingBookings,
-    proSubscription,
-    transcriptCount,
-    summaryCount,
-    complianceReviewCount,
-    complianceFlagCount,
-    heldPayoutCount,
-    riskyBookingCount,
-    verificationRequest,
-  ] = await Promise.all([
-    db.booking.findMany({
-      where: { practitionerId: practitioner.id, status: "PENDING" },
-      include: { client: { select: { name: true, email: true } }, slot: true },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    db.booking.findMany({
-      where: { practitionerId: practitioner.id, status: { in: ["CONFIRMED", "IN_PROGRESS"] } },
-      include: { client: { select: { name: true, email: true } }, slot: true },
-      orderBy: { createdAt: "asc" },
-      take: 5,
-    }),
-    db.userSubscription.findFirst({
-      where: {
-        userId,
-        planKey: { in: ["practitioner_pro", "practitioner_pro_plus"] },
-        status: { in: ["TRIALING", "ACTIVE", "PAST_DUE"] },
-        OR: [{ currentPeriodEnd: null }, { currentPeriodEnd: { gt: new Date() } }],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { planKey: true, status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true },
-    }),
-    db.videoSession.count({
-      where: { createdAt: { gte: monthStart }, transcriptText: { not: null }, booking: { practitionerId: practitioner.id } },
-    }),
-    db.videoSession.count({
-      where: { createdAt: { gte: monthStart }, summaryText: { not: null }, booking: { practitionerId: practitioner.id } },
-    }),
-    db.videoSession.count({
-      where: { createdAt: { gte: monthStart }, complianceReviewedAt: { not: null }, booking: { practitionerId: practitioner.id } },
-    }),
-    db.videoSession.count({
-      where: { complianceRiskScore: { gte: 50 }, booking: { practitionerId: practitioner.id } },
-    }),
-    db.payout.count({
-      where: { practitionerId: practitioner.id, status: "HELD" },
-    }),
-    db.booking.count({
-      where: { practitionerId: practitioner.id, OR: [{ riskScore: { gte: 50 } }, { riskFlags: { isEmpty: false } }] },
-    }),
-    db.practitionerApplication.findFirst({
-      where: {
-        email: practitioner.user.email,
-        why: { startsWith: PRACTITIONER_VERIFICATION_PREFIX },
-        status: { in: ["PENDING", "REVIEWING"] },
-      },
-      select: { status: true },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
-
-  const proPlanLabel = getSubscriptionPlanLabel(proSubscription?.planKey);
-  const proStatusLabel = proSubscription
-    ? proSubscription.cancelAtPeriodEnd
-      ? "Отменяется в конце периода"
-      : getSubscriptionStatusLabel(proSubscription.status)
-    : "Базовые инструменты";
+  const attentionRows = [
+    ...(pendingRequests.length > 0
+      ? [
+          {
+            key: "requests",
+            node: (
+              <AttentionRow
+                key="requests"
+                href={appUrl("/practitioner/calendar?tab=requests")}
+                icon={<Inbox className="h-[18px] w-[18px]" />}
+                tone="warm"
+                title={`${pendingRequests.length} ${pendingRequests.length === 1 ? "новая заявка" : pendingRequests.length < 5 ? "новые заявки" : "новых заявок"}`}
+                subtitle={requestNames.join(" · ") + (pendingRequests.length > 2 ? " · и ещё" : "")}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(freshAnalyses.length > 0
+      ? [
+          {
+            key: "analyses",
+            node: (
+              <AttentionRow
+                key="analyses"
+                href={appUrl(`/practitioner/sessions/${freshAnalyses[0].bookingId}`)}
+                icon={<Sparkles className="h-[18px] w-[18px]" />}
+                tone="amber"
+                title="AI-разбор готов"
+                badge="AI"
+                subtitle={`${freshAnalysisNames.join(" · ")} · резюме и заметки`}
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(!practitioner.verified
+      ? [
+          {
+            key: "verification",
+            node: (
+              <AttentionRow
+                key="verification"
+                href={appUrl("/practitioner/verification")}
+                icon={<ShieldAlert className="h-[18px] w-[18px]" />}
+                tone="calm"
+                title="Верификация не пройдена"
+                subtitle="подтвердите личность и образование"
+              />
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }}>
-      {/* v4 header: eyebrow "сводка" + h1 + action buttons */}
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-today-page">
+      {/* Greeting */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="soft-eyebrow">сводка</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
+          <p className="soft-eyebrow">{formatMskDayLong(now)}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
             <h1 className="soft-h1">
-              Здравствуйте, <span className="soft-italic">{firstName}</span>
+              {greetingFor(mskHour(now))}, <span className="soft-italic">{firstName}</span>
             </h1>
             <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                borderRadius: 999,
-                padding: "3px 12px",
-                fontSize: "0.72rem",
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                background: st.bg,
-                color: st.color,
-              }}
+              className="rounded-full px-2 py-px text-[11px] font-semibold tracking-wide"
+              style={{ background: "var(--soft-amber-bg, #F2E2C2)", color: "var(--soft-amber-ink, #6E5114)" }}
             >
-              {st.label}
+              {practitionerTierBadge(tier)}
             </span>
           </div>
           <p className="mt-1 text-sm text-[var(--soft-ink-faint)]">{practitioner.title}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href={appUrl("/practitioner/schedule")} className="soft-button soft-button-ghost">
-            Открыть расписание
-          </Link>
-          <Link href={appUrl("/practitioner/services")} className="soft-button soft-button-primary">
-            Добавить услугу
-          </Link>
-        </div>
-      </div>
-
-      {/* v4 4-col stat grid — first card with gradient */}
-      <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div
-          className="soft-card p-5"
-          style={{ background: "linear-gradient(140deg, #E8C4B8, #F4D5C8)" }}
-        >
-          <p className="soft-eyebrow">заявок на неделю</p>
-          <p
-            style={{
-              fontFamily: "var(--font-heading, serif)",
-              fontSize: 32,
-              color: "var(--soft-bordeaux)",
-              fontWeight: 600,
-              marginTop: 8,
-            }}
-          >
-            {pendingBookings.length}
-          </p>
-          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">ожидают подтверждения</p>
-        </div>
-
-        <div className="soft-card p-5">
-          <p className="soft-eyebrow">встреч проведено</p>
-          <p
-            style={{
-              fontFamily: "var(--font-heading, serif)",
-              fontSize: 32,
-              color: "var(--soft-bordeaux)",
-              fontWeight: 600,
-              marginTop: 8,
-            }}
-          >
-            {practitioner.sessionCount}
-          </p>
-          <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">за всё время</p>
-        </div>
-
-        <div className="soft-card p-5">
-          <p className="soft-eyebrow">рейтинг</p>
-          <p
-            style={{
-              fontFamily: "var(--font-heading, serif)",
-              fontSize: 32,
-              color: "var(--soft-bordeaux)",
-              fontWeight: 600,
-              marginTop: 8,
-            }}
-          >
-            {rating}
-          </p>
-          <Link
-            href={appUrl("/practitioner/reviews")}
-            className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
-          >
-            {practitioner.reviewCount} отзывов →
-          </Link>
-        </div>
-
-        <div
-          className="soft-card p-5"
-          style={{ background: "linear-gradient(160deg, #F4D9C1, #F8E6D1)" }}
-        >
-          <p className="soft-eyebrow">к выплате</p>
-          <p
-            style={{
-              fontFamily: "var(--font-heading, serif)",
-              fontSize: 32,
-              color: "var(--soft-bordeaux)",
-              fontWeight: 600,
-              marginTop: 8,
-            }}
-          >
-            {currentBalance.toLocaleString("ru")} ₽
-          </p>
-          <Link
-            href={appUrl("/practitioner/earnings")}
-            className="mt-1 block text-xs text-[var(--soft-terracotta-dark)]"
-          >
-            открыть выплаты →
-          </Link>
-          {pendingPayout > 0 && (
-            <p className="mt-1 text-xs text-[var(--soft-ink-faint)]">
-              {pendingPayout.toLocaleString("ru")} ₽ уже в обработке
-            </p>
+          {statusNote && (
+            <p className="mt-1.5 text-sm font-medium" style={{ color: "var(--soft-bordeaux)" }}>{statusNote}</p>
           )}
         </div>
       </div>
 
-      <div className="mb-4 grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <section className="soft-card p-5" data-testid="practitioner-pro-usage">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="soft-eyebrow">Practitioner Pro</p>
-              <h2 className="soft-h3 mt-2">{proSubscription ? proPlanLabel : "Pro не подключён"}</h2>
-              <p className="mt-1 text-sm text-[var(--soft-ink-soft)]">
-                {proStatusLabel}
-                {proSubscription?.currentPeriodEnd
-                  ? ` · до ${proSubscription.currentPeriodEnd.toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
-                  : ""}
-              </p>
-            </div>
-            {/* M9: subscription CTA — mirror the client cabinet. Primary
-                "Подключить Pro" when not subscribed; manage link otherwise. */}
-            {proSubscription ? (
-              <div className="flex flex-col items-end gap-2">
-                <Link href={appUrl("/practitioner/services")} className="soft-chip">
-                  Ссылки и widget →
-                </Link>
-                <Link href={appUrl("/practitioner/subscription")} className="soft-chip">
-                  Управлять подпиской →
-                </Link>
-              </div>
-            ) : (
-              <Link
-                href={appUrl("/practitioner/subscription")}
-                className="soft-button soft-button-primary"
-                data-testid="practitioner-subscribe-cta"
-              >
-                Подключить Practitioner Pro
-              </Link>
-            )}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              ["STT", transcriptCount, "транскриптов"],
-              ["Summary", summaryCount, "конспектов"],
-            ].map(([label, value, hint]) => (
-              <div key={label} className="soft-card-flat p-3">
-                <p className="text-xs text-[var(--soft-ink-faint)]">{label}</p>
-                <p className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">{value}</p>
-                <p className="text-xs text-[var(--soft-ink-soft)]">{hint} за месяц</p>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Metrics */}
+      <div className="mt-6 grid grid-cols-3 gap-2.5 lg:grid-cols-4">
+        <div className="soft-card p-3.5">
+          <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">
+            {monthIncome.toLocaleString("ru")} <span className="text-xs text-[var(--soft-ink-faint)]">₽</span>
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">доход · {formatMskMonthName(now)}</p>
+        </div>
+        <div className="soft-card p-3.5">
+          <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">{weekSessionCount}</p>
+          <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
+            {weekSessionCount === 1 ? "сессия" : weekSessionCount < 5 && weekSessionCount > 0 ? "сессии" : "сессий"} · неделя
+          </p>
+        </div>
+        <div className="soft-card p-3.5">
+          <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">
+            {rating} <span className="text-xs text-[var(--soft-ink-faint)]">★</span>
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">рейтинг · {practitioner.reviewCount}</p>
+        </div>
+        <div className="soft-card hidden p-3.5 lg:block">
+          <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">
+            {quota.usedThisMonth} <span className="text-xs text-[var(--soft-ink-faint)]">из {quota.included}</span>
+          </p>
+          <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">AI-разборов в месяце</p>
+        </div>
+      </div>
 
-        <section className="soft-card p-5" data-testid="practitioner-compliance-notices">
-          <p className="soft-eyebrow">комплаенс и выплаты</p>
-          <h2 className="soft-h3 mt-2">Рабочий статус</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="soft-card-flat p-3">
-              <p className="text-xs text-[var(--soft-ink-faint)]">Верификация</p>
-              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
-                {practitioner.verified ? "Подтверждена" : "Нужна проверка"}
-              </p>
-              {practitioner.verified && practitioner.verifiedAt && (
-                <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
-                  с {new Date(practitioner.verifiedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        {/* Left column: hero + timeline */}
+        <div className="flex flex-col gap-4">
+          {/* Next session hero */}
+          {nextBooking?.slot ? (
+            <section
+              className="soft-card relative overflow-hidden p-4 sm:p-5"
+              data-testid="practitioner-next-session"
+            >
+              <span aria-hidden className="absolute inset-y-0 left-0 w-1" style={{ background: "var(--soft-terracotta)" }} />
+              <div className="flex items-center justify-between gap-2">
+                <p className="soft-eyebrow">Следующая сессия</p>
+                <span className="rounded-full px-2.5 py-1 text-[11.5px] font-semibold" style={{ background: "#F6E7DD", color: "var(--soft-bordeaux)" }}>
+                  {startsInLabel(nextBooking.slot.startAt, now)}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--soft-paper-deep)] text-[13px] font-semibold text-[var(--soft-bordeaux)]">
+                  {initialsOf(nextClientLabel)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-[15.5px] font-semibold">{nextClientLabel}</p>
+                  <p className="mt-0.5 text-[12.5px] text-[var(--soft-ink-faint)]">
+                    Индивидуальная сессия · {bookingDurationMin({ status: nextBooking.status, slot: { startAt: nextBooking.slot.startAt.toISOString(), endAt: nextBooking.slot.endAt.toISOString() } }) ?? 50}{" "}
+                    мин · {heroSessionNumber}-я сессия
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3.5 flex items-center justify-between gap-2">
+                <p className="font-heading text-[19px]">
+                  {formatMskTime(nextBooking.slot.startAt)} – {formatMskTime(nextBooking.slot.endAt)}
                 </p>
-              )}
-              {!practitioner.verified && (
-                <VerificationRequestCard pendingStatus={verificationRequest?.status ?? null} />
-              )}
-            </div>
-            <div className="soft-card-flat p-3">
-              <p className="text-xs text-[var(--soft-ink-faint)]">Риск-профиль</p>
-              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">
-                {practitioner.riskScore > 0 ? `${practitioner.riskScore}/100` : "без сигналов"}
-              </p>
-            </div>
-            <div className="soft-card-flat p-3">
-              <p className="text-xs text-[var(--soft-ink-faint)]">Проверено сессий</p>
-              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">{complianceReviewCount}</p>
-            </div>
-            <div className="soft-card-flat p-3">
-              <p className="text-xs text-[var(--soft-ink-faint)]">Сессии на проверке</p>
-              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">{complianceFlagCount}</p>
-            </div>
-            <div className="soft-card-flat p-3">
-              <p className="text-xs text-[var(--soft-ink-faint)]">Удержания выплат</p>
-              <p className="mt-1 font-medium text-[var(--soft-bordeaux)]">{heldPayoutCount}</p>
-            </div>
-          </div>
-          {(practitioner.riskFlags.length > 0 || riskyBookingCount > 0) && (
-            <p className="mt-4 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              Есть сигналы для ручной проверки: {practitioner.riskFlags.slice(0, 3).join(", ") || `${riskyBookingCount} риск-записей`}.
-              До решения модератора часть выплат может оставаться в hold.
-            </p>
-          )}
-        </section>
-      </div>
-
-      {/* v4: schedule + requests side-by-side (1.4fr / 1fr) */}
-      <div className="grid gap-4 md:grid-cols-[1.4fr_1fr] mb-4">
-        {/* Расписание / подтверждённые сессии */}
-        <div className="soft-card p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="soft-eyebrow">расписание · ближайшее</p>
-            <Link href={appUrl("/practitioner/schedule")} className="soft-chip text-xs">
-              Все слоты →
-            </Link>
-          </div>
-          {upcomingBookings.length === 0 ? (
-            <p className="text-sm text-[var(--soft-ink-faint)]">Нет подтверждённых сессий</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {upcomingBookings.map((b) => {
-                const clientName = b.client.name ?? b.client.email ?? "Клиент";
-                const timeStr = b.slot
-                  ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                  : "Время не указано";
-                const durationMin = b.slot
-                  ? Math.round((new Date(b.slot.endAt).getTime() - new Date(b.slot.startAt).getTime()) / 60000)
-                  : 50;
-                const isPending = b.status === "PENDING";
-                return (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between"
-                    style={{ padding: "12px 14px", background: "var(--soft-paper-card)", borderRadius: 12 }}
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px]" style={{ background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" }}>
+                  <Video className="h-3 w-3" />
+                  запись включена
+                </span>
+              </div>
+              <div className="mt-4 flex gap-2.5">
+                {canJoinNext ? (
+                  <a href={`/session/${nextBooking.id}`} className="soft-button soft-button-primary flex-1 justify-center" data-testid="practitioner-join-session">
+                    Войти в сессию
+                  </a>
+                ) : (
+                  <span
+                    className="soft-button flex-1 cursor-default justify-center opacity-70"
+                    style={{ background: "var(--soft-paper-deep)", color: "var(--soft-ink-faint)" }}
+                    data-testid="practitioner-join-gated"
+                    title="«Войти» откроется за 30 минут до начала"
                   >
-                    <div className="flex items-start gap-4">
-                      <span
-                        style={{
-                          fontFamily: "var(--font-heading, serif)",
-                          color: "var(--soft-bordeaux)",
-                          fontWeight: 500,
-                          fontSize: 13,
-                          width: 130,
-                        }}
-                      >
-                        {timeStr}
-                      </span>
-                      <div>
-                        <p style={{ fontWeight: 500, fontSize: 14 }}>{clientName}</p>
-                        <p className="text-xs text-[var(--soft-ink-faint)]">Индивидуальная · {durationMin} мин</p>
-                      </div>
-                    </div>
-                    <span
-                      className="soft-badge"
-                      style={{
-                        fontSize: 11,
-                        background: isPending ? "var(--soft-rose)" : "var(--soft-sage, #d6decc)",
-                        color: "var(--soft-bordeaux)",
-                      }}
-                    >
-                      {isPending ? "ждёт согласования" : "подтверждено"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Новые заявки */}
-        <div className="soft-card p-5">
-          <p className="soft-eyebrow mb-4">новые заявки</p>
-          {pendingBookings.length === 0 ? (
-            <p className="text-sm text-[var(--soft-ink-faint)]">Нет новых запросов</p>
+                    Войти — за 30 мин до начала
+                  </span>
+                )}
+                <Link href={appUrl(`/practitioner/clients/${nextBooking.client.id}`)} className="soft-button soft-button-ghost shrink-0">
+                  Карточка
+                </Link>
+              </div>
+            </section>
           ) : (
-            <div className="flex flex-col gap-3">
-              {pendingBookings.slice(0, 3).map((b) => {
-                const clientName = b.client.name ?? b.client.email ?? "Клиент";
-                return (
-                  <div key={b.id} className="soft-card-flat p-3.5">
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>
-                        {clientName[0]}. {clientName.split(" ")[1]?.[0] ? `${clientName.split(" ")[1][0]}.` : ""}
-                      </span>
-                      <span className="soft-badge soft-badge-lilac" style={{ fontSize: 10 }}>новая</span>
-                    </div>
-                    <p className="text-xs text-[var(--soft-ink-soft)] leading-relaxed mb-2">
-                      {b.slot
-                        ? new Date(b.slot.startAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                        : "Время не указано"}{" "}
-                      · {b.priceRub.toLocaleString("ru")} ₽
-                    </p>
-                    <div className="flex gap-2">
-                      <PendingActions bookingId={b.id} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <section className="soft-card p-5" data-testid="practitioner-next-session-empty">
+              <p className="soft-eyebrow">Следующая сессия</p>
+              <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
+                Подтверждённых сессий впереди нет. Проверьте доступность в календаре — клиенты записываются только в открытые часы.
+              </p>
+              <Link href={appUrl("/practitioner/calendar?tab=availability")} className="soft-button soft-button-ghost mt-4 inline-flex">
+                Открыть доступность
+              </Link>
+            </section>
           )}
-        </div>
-      </div>
 
-      {/* v4: lilac gradient "новый формат" banner */}
-      <div className="soft-card p-5" style={{ background: "linear-gradient(140deg, #DBD3EA, #E8E1F2)" }}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div style={{ maxWidth: 520 }}>
-            <p className="soft-eyebrow">новый формат</p>
-            <h3 className="soft-h3 mt-2">Совместные сессии: парные встречи специалистов</h3>
-            <p className="mt-2 text-sm text-[var(--soft-ink-soft)]">
-              Запускаем парные встречи. Если интересно работать в паре с другим практиком — заполните короткую форму.
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Link href={appUrl("/practitioner/profile")} className="soft-button soft-button-primary">
-              Заполнить интерес
-            </Link>
-            <Link href={mainUrl("/how-it-works")} className="soft-chip text-sm">
-              Узнать подробнее
-            </Link>
-          </div>
+          {/* Today timeline */}
+          <section className="soft-card p-4 sm:p-5" data-testid="practitioner-today-timeline">
+            <div className="mb-3 flex items-baseline justify-between">
+              <p className="soft-eyebrow">
+                Сегодня · {todayBookings.length}{" "}
+                {todayBookings.length === 1 ? "сессия" : todayBookings.length > 0 && todayBookings.length < 5 ? "сессии" : "сессий"}
+              </p>
+              <Link href={appUrl("/practitioner/calendar")} className="text-xs text-[var(--soft-ink-soft)]">
+                весь день →
+              </Link>
+            </div>
+            {todayBookings.length === 0 ? (
+              <p className="text-sm text-[var(--soft-ink-faint)]">На сегодня сессий нет</p>
+            ) : (
+              <div className="divide-y divide-[var(--soft-paper-deep)]">
+                {todayBookings.map((b) => {
+                  const isNext = nextBooking?.id === b.id;
+                  const tag = b.status === "COMPLETED"
+                    ? { label: "завершена", style: { background: "var(--soft-paper-deep)", color: "var(--soft-ink-soft)" } }
+                    : b.status === "IN_PROGRESS"
+                      ? { label: "идёт", style: { background: "var(--soft-terracotta)", color: "#FBF1E4" } }
+                      : isNext
+                        ? { label: "следующая", style: { background: "#F6E7DD", color: "var(--soft-bordeaux)", fontWeight: 600 } }
+                        : { label: "подтверждена", style: { background: "var(--soft-sage, #E4EADF)", color: "var(--soft-sage-ink, #4B6146)" } };
+                  return (
+                    <div key={b.id} className="flex items-center gap-3 py-3">
+                      <span className="w-12 shrink-0 font-heading text-[15px]">
+                        {b.slot ? formatMskTime(b.slot.startAt) : "—"}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13.5px] font-medium">{clientLabel(b.client)}</p>
+                        <p className="mt-0.5 text-xs text-[var(--soft-ink-faint)]">
+                          Индивидуальная сессия{b.slot ? ` · ${Math.round((b.slot.endAt.getTime() - b.slot.startAt.getTime()) / 60000)} мин` : ""}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full px-2.5 py-1 text-[10.5px]" style={tag.style}>
+                        {tag.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Right column: attention + AI quota */}
+        <div className="flex flex-col gap-4">
+          {attentionRows.length > 0 && (
+            <section data-testid="practitioner-attention">
+              <p className="soft-eyebrow mb-2.5">Требует внимания</p>
+              <div className="divide-y divide-[var(--soft-paper-deep)] overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
+                {attentionRows.map((row) => row.node)}
+              </div>
+            </section>
+          )}
+
+          <section className="soft-card p-4 sm:p-5" data-testid="practitioner-ai-quota-card">
+            <p className="soft-eyebrow">Разборы и AI</p>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-heading text-2xl font-semibold text-[var(--soft-bordeaux)]">{quota.usedThisMonth}</span>
+              <span className="text-[13px] text-[var(--soft-ink-soft)]">из {quota.included} в этом месяце</span>
+            </div>
+            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[var(--soft-paper-deep)]">
+              <div className="h-full rounded-full" style={{ width: `${quotaPct}%`, background: "var(--soft-bordeaux)" }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-[11.5px] text-[var(--soft-ink-faint)]">
+                Осталось {quota.remaining} · обновится {formatMskDayMonth(quota.periodResetAt)}
+              </p>
+              <Link href={appUrl("/practitioner/ai-usage")} className="shrink-0 text-xs font-medium text-[var(--soft-terracotta-dark)]">
+                Управлять →
+              </Link>
+            </div>
+          </section>
         </div>
       </div>
     </div>
-  );
-}
-
-function PendingActions({ bookingId: _bookingId }: { bookingId: string }) {
-  void _bookingId;
-  return (
-    <span className="soft-chip text-xs" style={{ color: "var(--soft-ink-faint)" }}>Ожидает</span>
   );
 }

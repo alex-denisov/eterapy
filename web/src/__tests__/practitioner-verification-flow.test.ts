@@ -6,12 +6,16 @@ const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "
 describe("Practitioner verification flow", () => {
   it("lets practitioners submit verification requests into the applications queue", () => {
     const api = source("src/app/api/practitioner/verification/route.ts");
+    // B466: the request flow lives on the dedicated «Верификация» page
+    // (Ещё → Профиль → Верификация); «Сегодня» links to it while unverified.
+    const verificationPage = source("src/app/cabinet/practitioner/verification/page.tsx");
     const dashboard = source("src/app/cabinet/practitioner/page.tsx");
     const card = source("src/app/cabinet/practitioner/verification-request-card.tsx");
     expect(api).toContain("makePractitionerVerificationMarker");
     expect(api).toContain("db.practitionerApplication.create");
     expect(api).toContain("PRACTITIONER_VERIFICATION_REQUEST");
-    expect(dashboard).toContain("VerificationRequestCard");
+    expect(verificationPage).toContain("VerificationRequestCard");
+    expect(dashboard).toContain("/practitioner/verification");
     expect(card).toContain("/api/practitioner/verification");
   });
 
@@ -32,7 +36,8 @@ describe("Practitioner verification flow", () => {
 
   it("V9 — records and surfaces the verification timestamp", () => {
     const schema = source("prisma/schema.prisma");
-    const card = source("src/app/cabinet/practitioner/page.tsx");
+    // B466: the verified-since timestamp renders on the «Верификация» page.
+    const card = source("src/app/cabinet/practitioner/verification/page.tsx");
     const modal = source("src/app/admin/users/user-edit-modal.tsx");
     // schema + migration add the verifiedAt column
     expect(schema).toMatch(/verifiedAt\s+DateTime\?/);
