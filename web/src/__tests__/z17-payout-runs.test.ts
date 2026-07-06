@@ -28,13 +28,15 @@ describe("Z17 payout holds and payout runs", () => {
     expect(payoutAvailableAt("practitioner_pro_plus", now).toISOString()).toBe("2026-06-07T10:00:00.000Z");
   });
 
-  it("keeps chargeback reserve for paid practitioner plans only", () => {
+  it("holds NO chargeback reserve from practitioners (B466 owner decision 2026-07-06)", () => {
+    // «Резерв chargeback — внутренняя проблема платформы, у практика нельзя
+    // холдировать эти деньги» → reserve rate is 0 on every plan.
     expect(payoutReserveKopecks("base", 100_000)).toBe(0);
-    expect(payoutReserveKopecks("practitioner_pro", 100_000)).toBe(5_000);
-    expect(payoutReserveKopecks("practitioner_pro_plus", 100_001)).toBe(5_000);
+    expect(payoutReserveKopecks("practitioner_pro", 100_000)).toBe(0);
+    expect(payoutReserveKopecks("practitioner_pro_plus", 100_001)).toBe(0);
   });
 
-  it("classifies due payouts into processing vs held with KYC/risk reasons and reserve withheld", () => {
+  it("classifies due payouts into processing vs held with KYC/risk reasons, disbursing in full", () => {
     const result = classifyPayoutRunCandidates([
       {
         id: "ok-card",
@@ -63,7 +65,9 @@ describe("Z17 payout holds and payout runs", () => {
     ]);
 
     expect(result.processing.map((p) => p.id)).toEqual(["ok-card"]);
-    expect(result.processing[0]?.disbursedKopecks).toBe(95_000);
+    // B466: legacy reserve rows disburse the FULL amount — nothing is withheld
+    // from the practitioner for chargeback risk.
+    expect(result.processing[0]?.disbursedKopecks).toBe(100_000);
     expect(result.held).toEqual([
       { id: "entity-no-kyc", holdReason: "kyc_required", riskFlags: ["entity_kyc_required"] },
       { id: "risk-held", holdReason: "risk_review", riskFlags: ["open_complaints"] },
@@ -73,7 +77,7 @@ describe("Z17 payout holds and payout runs", () => {
       processingCount: 1,
       heldCount: 2,
       totalAmountKopecks: 280_000,
-      totalDisbursedKopecks: 95_000,
+      totalDisbursedKopecks: 100_000,
       totalReserveKopecks: 10_000,
     });
   });
@@ -88,7 +92,8 @@ describe("Z17 payout holds and payout runs", () => {
     const sessionComplete = source("src/lib/session-complete.ts");
     const cronRoute = source("src/app/api/cron/payouts/route.ts");
     const cronJobs = source("src/lib/cron-jobs.ts");
-    const earningsPage = source("src/app/cabinet/practitioner/earnings/page.tsx");
+    // B466: практик видит баланс/удержания на «Финансы → Баланс».
+    const earningsPage = source("src/app/cabinet/practitioner/finance/balance-tab.tsx");
     const adminPayments = source("src/app/admin/finance/payouts/page.tsx");
     const adminPaymentsPanel = source("src/app/admin/payments/payments-panel.tsx");
     const adminPayouts = source("src/app/admin/finance/payouts/page.tsx");

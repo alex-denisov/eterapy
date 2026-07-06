@@ -81,17 +81,19 @@ export const V5_SUBSCRIPTION_PLANS: Record<string, SubscriptionPlanDefinition> =
     includedProducts: ["reframe", "deep-report", "chat-analysis", "pair", "tarot", "natal-chart", "synastry", "numerology"],
     creditsPerPeriod: 0,
   },
+  // B466 (owner, 2026-07-06): «мы не даём нигде бесплатный период тарифа» —
+  // practitioner plans have NO free trial.
   practitioner_pro: {
     name: "Practitioner Pro",
     amountKopecks: 149000,
-    trialDays: 7,
+    trialDays: 0,
     includedProducts: [],
     creditsPerPeriod: 0,
   },
   practitioner_pro_plus: {
     name: "Practitioner Pro+",
     amountKopecks: 299000,
-    trialDays: 7,
+    trialDays: 0,
     includedProducts: [],
     creditsPerPeriod: 0,
   },

@@ -32,12 +32,13 @@ describe("V7 — unreadable terracotta buttons/avatars replaced with readable tr
     expect(css).toContain(".soft-select-pill");
   });
 
-  it("practitioner schedule/earnings/calendar use the readable pill, not text-primary on tint", () => {
+  it("practitioner schedule/finance/calendar use the readable pill, not text-primary on tint", () => {
     expect(read("src/app/cabinet/practitioner/schedule/schedule-tabs.tsx")).toContain("soft-select-pill");
     expect(read("src/components/schedule/week-calendar.tsx")).toContain("soft-select-pill");
-    const earnings = read("src/app/cabinet/practitioner/earnings/page.tsx");
-    expect(earnings).toContain("soft-select-pill");
-    expect(earnings).not.toContain("bg-primary/15 text-primary");
+    // B466: финансовая поверхность — «Финансы» (4-tab switcher).
+    const finance = read("src/app/cabinet/practitioner/finance/finance-tabs.tsx");
+    expect(finance).toContain("soft-select-pill");
+    expect(finance).not.toContain("bg-primary/15 text-primary");
   });
 
   it("avatar fallbacks use the elegant gradient across cabinets", () => {

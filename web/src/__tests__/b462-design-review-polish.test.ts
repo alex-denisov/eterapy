@@ -70,14 +70,15 @@ describe("B462 — deep design-review polish batch", () => {
     });
   });
 
-  describe("§4.1 practitioner earnings table collapses to cards < 640px", () => {
-    const table = source("app/cabinet/practitioner/earnings/earnings-movements-table.tsx");
+  describe("§4.1 practitioner money history never renders a horizontal-scroll table", () => {
+    // B466: «Движение средств» — stacked list-rows на всех вьюпортах (mockup
+    // -movements), таблица с горизонтальным скроллом исключена вовсе.
+    const movements = source("app/cabinet/practitioner/finance/movements/page.tsx");
 
-    it("hides the real <table> below sm and shows a stacked card list instead", () => {
-      // Desktop keeps the table; mobile gets vertical list-cards (no horizontal scroll).
-      expect(table).toContain("hidden sm:block");
-      expect(table).toContain("sm:hidden");
-      expect(table).toContain("practitioner-earnings-card");
+    it("renders stacked card rows with no <table> at any width", () => {
+      expect(movements).not.toContain("<table");
+      expect(movements).toContain("divide-y");
+      expect(movements).toContain("Движение средств");
     });
   });
 

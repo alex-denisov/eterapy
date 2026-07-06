@@ -3,27 +3,34 @@ import path from "node:path";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-describe("Practitioner earnings balance UX", () => {
-  it("renames earnings to a balance page; the client ₽ cabinet wallet is gone (Z1-Ф2)", () => {
+// B466: «Баланс и доходы» живёт в «Финансы → Баланс»; старый /earnings
+// редиректит туда. Канонический баланс — общий с шапкой/админкой.
+
+describe("Practitioner finance balance UX (B466)", () => {
+  it("redirects the legacy earnings page into «Финансы»", () => {
     const page = source("src/app/cabinet/practitioner/earnings/page.tsx");
-    expect(page).toContain("Баланс и доходы");
-    // Z1-Ф1/Ф2: the client ₽ balance rail is removed — only the practitioner
-    // payout balance («Доступно к выплате») remains; the «Кошелёк кабинета» is gone.
-    expect(page).not.toContain("Кошелёк кабинета");
-    expect(page).toContain("Доступно к выплате");
-    // X5: the page must use the CANONICAL balance (incl. internalCharges) so its
-    // «к выплате» matches the header/admin — not the local accruedNet formula.
-    expect(page).toContain("computePractitionerBalances");
-    expect(page).not.toContain("Баланс, движение средств и предстоящие выплаты. Комиссия платформы");
+    expect(page).toContain('redirect(appUrl("/practitioner/finance"))');
   });
 
-  it("renders movement history as a searchable sortable paginated table", () => {
-    const table = source("src/app/cabinet/practitioner/earnings/earnings-movements-table.tsx");
-    expect(table).toContain("const PAGE_SIZE = 25");
-    expect(table).toContain("practitioner-earnings-movements-table");
-    expect(table).toContain("practitioner-earnings-search");
-    expect(table).toContain("practitioner-earnings-sort");
-    expect(table).toContain("practitioner-earnings-filter-");
+  it("uses the CANONICAL balance on the Баланс tab (matches header/admin)", () => {
+    const data = source("src/app/cabinet/practitioner/finance/finance-data.ts");
+    expect(data).toContain("computePractitionerBalances");
+    const tab = source("src/app/cabinet/practitioner/finance/balance-tab.tsx");
+    expect(tab).toContain("Доступно к выплате");
+    expect(tab).not.toContain("Кошелёк кабинета");
+  });
+
+  it("keeps «Удержано» = session hold only, leading into «Движение средств»", () => {
+    const tab = source("src/app/cabinet/practitioner/finance/balance-tab.tsx");
+    expect(tab).toContain("Удержано");
+    expect(tab).toContain("Hold по сессиям");
+    expect(tab).toContain("/practitioner/finance/movements");
+    expect(tab).not.toContain("chargeback");
+    const movements = source("src/app/cabinet/practitioner/finance/movements/page.tsx");
+    expect(movements).toContain("Удержания");
+    const data = source("src/app/cabinet/practitioner/finance/finance-data.ts");
+    expect(data).toContain("Удержание по сессии");
+    expect(data).toContain("снимется");
   });
 
   it("exposes the same available practitioner balance to the cabinet header", () => {

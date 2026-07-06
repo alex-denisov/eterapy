@@ -14,8 +14,8 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(page).toContain("monthIncome.toLocaleString");
     expect(page).not.toContain("выплата в разработке");
 
-    const earnings = source("src/app/cabinet/practitioner/earnings/page.tsx");
-    expect(earnings).toContain("computePractitionerBalance");
+    const financeData = source("src/app/cabinet/practitioner/finance/finance-data.ts");
+    expect(financeData).toContain("computePractitionerBalances");
   });
 
   it("renders services and prices from practitioner rates instead of a placeholder", () => {

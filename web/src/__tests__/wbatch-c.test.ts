@@ -4,10 +4,9 @@ import path from "node:path";
 const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 describe("W8 — practitioner earnings labels disambiguate wallet vs earnings", () => {
-  const page = read("src/app/cabinet/practitioner/earnings/page.tsx");
+  // B466: балансовая поверхность практика — «Финансы → Баланс».
+  const page = read("src/app/cabinet/practitioner/finance/balance-tab.tsx");
   it("shows the payout balance; the client ₽ cabinet wallet is gone (Z1-Ф2)", () => {
-    // Z1-Ф1/Ф2: the client ₽ balance rail is removed — the «Кошелёк кабинета»
-    // card no longer exists. Practitioner earnings («Доступно к выплате») stays.
     expect(page).not.toContain("Кошелёк кабинета");
     expect(page).not.toContain("cabinetBalanceRub");
     expect(page).toContain("Доступно к выплате");

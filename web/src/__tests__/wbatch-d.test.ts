@@ -4,9 +4,10 @@ import path from "node:path";
 const read = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 describe("W6 — practitioner subscription: 2 pay buttons + working purchase", () => {
-  const client = read("src/app/cabinet/practitioner/subscription/subscription-client.tsx");
-  it("offers exactly «Оплатить с баланса» (with insufficient error) and «Картой»", () => {
-    expect(client).toContain("Оплатить с баланса");
+  // B466: покупка тарифа живёт на «Финансы → Тариф» (tariff-plans).
+  const client = read("src/app/cabinet/practitioner/finance/tariff-plans.tsx");
+  it("offers exactly «С баланса» (with insufficient error) and «Картой»", () => {
+    expect(client).toContain("С баланса");
     expect(client).toContain("Картой");
     expect(client).toContain("Недостаточно средств на балансе");
     // the confusing third «Баланс кабинета» button is gone
