@@ -6,6 +6,7 @@ import {
   Compass,
   Gift,
   LayoutDashboard,
+  LayoutGrid,
   LibraryBig,
   LogIn,
   LogOut,
@@ -13,6 +14,7 @@ import {
   MoreHorizontal,
   Settings,
   Sparkles,
+  Sun,
   Tag,
   Users,
   Wallet,
@@ -40,4 +42,10 @@ export const NAV_ICONS: Record<NavIconKey, React.ElementType> = {
   library: LibraryBig,
   how: Compass,
   pricing: Tag,
+  // B466 — practitioner «Practice cockpit» tabs.
+  today: Sun,
+  clients: Users,
+  calendar: CalendarDays,
+  finance: Wallet,
+  grid: LayoutGrid,
 };

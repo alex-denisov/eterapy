@@ -40,13 +40,18 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(page).not.toContain("будет доступно в следующем обновлении");
   });
 
-  it("keeps cabinet navigation aligned with v4.2 labels", () => {
+  it("keeps cabinet navigation aligned with the approved IA", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
     expect(shell).toContain('"Дневник"');
-    expect(shell).toContain('"Услуги и цены"');
-    expect(shell).toContain('"Этический кодекс"');
     expect(shell).toContain("soft-app-sidebar-card");
+    // B466: the practitioner nav is sourced from the shared «Practice cockpit»
+    // model; «Услуги и цены»/«Этический кодекс» live on under the «Ещё» hub.
+    expect(shell).toContain("PRACTITIONER_TABS.map");
+    const navModel = source("src/lib/nav-model.ts");
+    expect(navModel).toContain('label: "Сегодня"');
+    expect(navModel).toContain('appUrl("/practitioner/services")');
+    expect(navModel).toContain('appUrl("/practitioner/ethics")');
   });
 
   it("surfaces requests and reviews with risk/compliance state", () => {

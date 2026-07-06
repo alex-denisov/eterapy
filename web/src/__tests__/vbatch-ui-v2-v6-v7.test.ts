@@ -13,11 +13,15 @@ describe("V2 — admin user modal stacks above the public-shell-header (z-50)", 
   });
 });
 
-describe("V6 — practitioner subscription appears in the app sidebar nav", () => {
-  it("cabinet-shell lists /practitioner/subscription", () => {
+describe("V6 — practitioner subscription is reachable from the cockpit nav", () => {
+  // B466: the flat «Подписка» sidebar item merged into «Финансы» (Тариф tab);
+  // the sidebar itself is sourced from the shared PRACTITIONER_TABS model.
+  it("cabinet-shell routes practitioners to «Финансы» (subscription lives on its Тариф tab)", () => {
     const shell = read("src/components/cabinet/cabinet-shell.tsx");
-    expect(shell).toContain('appUrl("/practitioner/subscription")');
-    expect(shell).toContain('label: "Подписка"');
+    expect(shell).toContain("PRACTITIONER_TABS.map");
+    const navModel = read("src/lib/nav-model.ts");
+    expect(navModel).toContain('appUrl("/practitioner/finance")');
+    expect(navModel).toContain('label: "Финансы"');
   });
 });
 
