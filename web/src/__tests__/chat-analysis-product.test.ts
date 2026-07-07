@@ -1,5 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import React from "react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import {
   ChatAnalysisInputError,
   buildChatAnalysisTeaser,
@@ -247,5 +250,45 @@ describe("B087/B088 chat analysis product", () => {
     // Privacy is now a quiet muted cue in the product hero, not a loud notice.
     expect(shell).toContain("spec.trustLine");
     expect(redesign).toContain("Приватно — видно только вам");
+  });
+
+  it("B485 restores ?analysis= results without blanking on incomplete structured JSON and uses the tarot result shell", async () => {
+    const originalFetch = global.fetch;
+    window.history.pushState({}, "", "/products/chat-analysis?analysis=analysis-1");
+    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/products/chat-analysis") {
+        return new Response(JSON.stringify({ hasEntitlement: false, results: [] }), { status: 200 });
+      }
+      if (path === "/api/products/chat-analysis/analysis-1") {
+        return new Response(JSON.stringify({
+          result: {
+            id: "analysis-1",
+            status: "READY",
+            title: "Разбор переписки",
+            previewText: null,
+            resultText: JSON.stringify({
+              insight: "Здесь есть попытка сблизиться без ясной договоренности.",
+              replies: [{ style: "мягкий", text: "Давай спокойно уточним, что происходит." }],
+              safetyNote: "Если есть угрозы, лучше обратиться за живой помощью.",
+            }),
+            saved: true,
+            metadata: { sourceText: "Я: привет\nОн: потом" },
+          },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }) as typeof fetch;
+
+    try {
+      const { container } = render(React.createElement(ChatAnalysisActions));
+      expect(await screen.findByTestId("chat-analysis-result")).toBeInTheDocument();
+      expect(screen.getByText("Здесь есть попытка сблизиться без ясной договоренности.")).toBeInTheDocument();
+      expect(container.querySelector('[data-testid="chat-analysis-result-shell"]')).toHaveClass("tarot-order-surface");
+      await waitFor(() => expect(global.fetch).toHaveBeenCalledWith("/api/products/chat-analysis/analysis-1", expect.anything()));
+    } finally {
+      global.fetch = originalFetch;
+      window.history.pushState({}, "", "/");
+    }
   });
 });

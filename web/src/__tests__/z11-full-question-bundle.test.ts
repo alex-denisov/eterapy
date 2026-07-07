@@ -31,11 +31,11 @@ describe("Z11 — full-question bundle", () => {
 
   // B366: the decoy ladder prices now derive from the single billing source
   // (getProductPriceLabel) instead of hardcoded ₽ literals.
-  it("shows the deep-report decoy ladder derived from the single price source", () => {
+  it("keeps the full-question decoy ladder price wiring outside the deep-report result", () => {
     const deepActions = source("components/products/deep-report-actions.tsx");
     const bundleOffer = source("components/products/full-question-bundle-offer.tsx");
 
-    expect(deepActions).toContain("FullQuestionBundleOffer");
+    expect(deepActions).not.toContain("FullQuestionBundleOffer");
     expect(bundleOffer).toContain('data-testid="full-question-bundle-offer"');
     expect(bundleOffer).toContain('getProductPriceLabel("deep-report")');
     expect(bundleOffer).toContain('getProductPriceLabel("full-question")');

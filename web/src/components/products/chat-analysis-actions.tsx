@@ -9,6 +9,7 @@ import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
+import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { pointsWord } from "@/lib/points";
 import { appUrl, loginUrl } from "@/lib/subdomain";
 
@@ -48,13 +49,36 @@ type ChatAnalysisStructured = {
 
 function tryParseChatAnalysis(text: string): ChatAnalysisStructured | null {
   if (!text) return null;
-  try {
-    const raw = JSON.parse(text) as Partial<ChatAnalysisStructured>;
-    if (!raw.insight || !Array.isArray(raw.replies)) return null;
-    return raw as ChatAnalysisStructured;
-  } catch {
-    return null;
+  const trimmed = text.trim();
+  const candidates = [trimmed];
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    const sliced = trimmed.slice(start, end + 1);
+    if (sliced !== trimmed) candidates.push(sliced);
   }
+  for (const candidate of candidates) {
+    try {
+      const raw = JSON.parse(candidate) as Partial<ChatAnalysisStructured>;
+      if (typeof raw.insight !== "string" || !Array.isArray(raw.replies)) continue;
+      return {
+        insight: raw.insight,
+        assessment: typeof raw.assessment === "string" ? raw.assessment : undefined,
+        tonesThem: Array.isArray(raw.tonesThem) ? raw.tonesThem : [],
+        tonesMe: Array.isArray(raw.tonesMe) ? raw.tonesMe : [],
+        replies: raw.replies.filter((reply): reply is ReplyVariant => (
+          reply != null
+          && typeof reply === "object"
+          && typeof (reply as ReplyVariant).style === "string"
+          && typeof (reply as ReplyVariant).text === "string"
+        )),
+        safetyNote: typeof raw.safetyNote === "string" ? raw.safetyNote : "",
+      };
+    } catch {
+      // try the next candidate
+    }
+  }
+  return null;
 }
 
 type ChatAnalysisResult = {
@@ -141,8 +165,8 @@ const EMOTIONS = ["растерянность", "злость", "вина", "г�
 // B395: тон разговора — сегментированная лента + ЛЕГЕНДА (точка того же оттенка
 // + название + %), чтобы было видно, какой сегмент к какой характеристике
 // относится. Доли нормируем к 100% (pct тонов в сумме ≈ 200%, см. lib/chat-analysis).
-function ToneRow({ who, tones, hue }: { who: string; tones: ToneEntry[]; hue: "them" | "me" }) {
-  const items = tones.filter((t) => t.pct > 0).slice(0, 4);
+function ToneRow({ who, tones, hue }: { who: string; tones: ToneEntry[] | null | undefined; hue: "them" | "me" }) {
+  const items = (tones ?? []).filter((t) => t.pct > 0).slice(0, 4);
   const total = items.reduce((sum, t) => sum + t.pct, 0) || 1;
   const base = hue === "them" ? "var(--soft-terracotta-dark)" : "var(--soft-bordeaux)";
   const shade = (i: number) => ({ background: base, opacity: 1 - i * 0.2 });
@@ -232,7 +256,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
   loading: boolean;
 }) {
   return (
-    <div className="mt-4 flex flex-col gap-3.5" data-testid="chat-analysis-result">
+    <div className="flex flex-col gap-3.5" data-testid="chat-analysis-result">
       {/* главное — один спокойный тёплый блок. Issue #6: insight = крупная мысль,
           под ней развёрнутая оценка ситуации (ответ на вопрос клиента), а не одна
           холодная строка. assessment может быть в два коротких абзаца. */}
@@ -251,7 +275,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
       </div>
 
       {/* тон разговора — один блок, две ленты, две приглушённые гаммы */}
-      <div className="soft-card p-5">
+      <div className="rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
         <p className="soft-eyebrow mb-4">тон разговора</p>
         <div className="flex flex-col gap-4">
           <ToneRow who="Собеседник" tones={data.tonesThem} hue="them" />
@@ -261,7 +285,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
       </div>
 
       {/* что можно ответить — черновики через тонкие разделители + копирование */}
-      <div className="soft-card p-5">
+      <div className="rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
         <p className="soft-eyebrow mb-1">что можно ответить</p>
         <p className="text-xs text-[var(--soft-ink-faint)]">Готовый текст — можно скопировать и отправить как есть.</p>
         <div className="mt-2 flex flex-col">
@@ -294,12 +318,15 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
       <NextStepCard primary={triagePrimary} secondary={triageSecondary} onStartNew={onStartNew} loading={loading} />
 
       {/* разбор уже в дневнике — тихая строка-напоминание (вместо кнопок) */}
-      <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
-        <BookOpen className="size-3.5" aria-hidden="true" />
-        <span>Разбор сохранён в</span>
-        <Link href={appUrl("/diary")} className="font-medium text-[var(--soft-ink-soft)] underline-offset-2 hover:underline">дневнике</Link>
-        <span>— там его можно перечитать или удалить.</span>
-      </p>
+      <div className="tarot-followup">
+        <AutosavedNote testId="chat-analysis-autosaved" />
+        <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
+          <BookOpen className="size-3.5" aria-hidden="true" />
+          <span>Разбор сохранён в</span>
+          <Link href={appUrl("/diary")} className="font-medium text-[var(--soft-ink-soft)] underline-offset-2 hover:underline">дневнике</Link>
+          <span>— там его можно перечитать или удалить.</span>
+        </p>
+      </div>
     </div>
   );
 }
@@ -1051,22 +1078,43 @@ export function ChatAnalysisActions() {
 
       {/* tab 3: result */}
       {tab === "result" && result && (
-        <>
-          {parsed ? (
-            <StructuredResult
-              data={parsed}
-              triagePrimary={triagePrimary}
-              triageSecondary={triageSecondary}
-              onStartNew={startNewAnalysis}
-              loading={status === "loading"}
-            />
-          ) : (
-            <SoftMarkdown
-              content={result.resultText}
-              className="soft-card mt-4 p-5 font-heading text-[1.08rem] text-[var(--soft-ink)]"
-            />
+        <div className="soft-card tarot-order-surface" data-testid="chat-analysis-result-shell">
+          <div className="tarot-head">
+            <p className="soft-eyebrow">разбор готов</p>
+          </div>
+
+          {sourceText.trim() && (
+            <details className="tarot-controls-collapsed" data-testid="chat-analysis-recap">
+              <summary>
+                <span className="tarot-collapsed-q">Переписка и контекст</span>
+                <span className="tarot-collapsed-hint">показать</span>
+              </summary>
+              <dl className="tarot-recap">
+                <div>
+                  <dt>Источник</dt>
+                  <dd>{sourceText.trim().slice(0, 220)}{sourceText.trim().length > 220 ? "..." : ""}</dd>
+                </div>
+              </dl>
+            </details>
           )}
-        </>
+
+          <div className="tarot-reveal" data-testid="chat-analysis-reveal">
+            {parsed ? (
+              <StructuredResult
+                data={parsed}
+                triagePrimary={triagePrimary}
+                triageSecondary={triageSecondary}
+                onStartNew={startNewAnalysis}
+                loading={status === "loading"}
+              />
+            ) : (
+              <SoftMarkdown
+                content={result.resultText}
+                className="font-heading text-[1.08rem] text-[var(--soft-ink)]"
+              />
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -7,7 +7,6 @@ import { ArrowRight, BookOpen, MessageSquareText, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { FullQuestionBundleOffer } from "@/components/products/full-question-bundle-offer";
 import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
 import { SectionAccordion } from "@/components/products/section-accordion";
@@ -305,10 +304,6 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
           secondary={triageSecondary}
           specialistHref="/practitioners"
         />
-
-        {/* Round-5 #5: decoy-ладдер (отчёт / бандл / Premium) живёт ТОЛЬКО на
-            результирующем экране — после ценности, не перед разбором. */}
-        <FullQuestionBundleOffer />
 
         <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
           <BookOpen className="size-3.5" aria-hidden="true" />
