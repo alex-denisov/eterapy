@@ -25,6 +25,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (result.partnerId && result.partnerId !== userId) {
     return errorWithRequestContext("FORBIDDEN", "Invite already claimed", 403, context);
   }
+  const viewerRole =
+    result.creatorId === userId ? "creator" : result.partnerId === userId ? "partner" : "invitee";
 
-  return jsonWithRequestContext({ result }, { status: 200 }, context);
+  return jsonWithRequestContext({ result: { ...result, viewerRole } }, { status: 200 }, context);
 }

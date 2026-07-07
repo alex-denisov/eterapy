@@ -1,17 +1,15 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { ArrowRight, BookOpen, Check, Compass, Copy, FileText, ImageIcon, LockKeyhole, MessageSquareText, PenLine, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, Check, Compass, Copy, FileText, ImageIcon, LockKeyhole, MessageSquareText, PenLine, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
 import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { ServiceTriage, type TriagePrimary, type TriageProduct } from "@/components/products/service-triage";
-import { AutosavedNote } from "@/components/ui/autosaved-note";
 import { pointsWord } from "@/lib/points";
-import { appUrl, loginUrl } from "@/lib/subdomain";
+import { loginUrl } from "@/lib/subdomain";
 
 // B415: the login modal was retired platform-wide — the guest gate now routes to
 // the full /login page with a return path. The typed source text is stashed so it
@@ -41,11 +39,66 @@ type ChatAnalysisStructured = {
   // Issue #6: fuller «главное» — a direct answer + situation read. Optional so
   // разборы saved before this field still render (insight-only).
   assessment?: string;
-  tonesThem: ToneEntry[];
-  tonesMe: ToneEntry[];
-  replies: ReplyVariant[];
+  tonesThem: Array<ToneEntry | string>;
+  tonesMe: Array<ToneEntry | string>;
+  replies: Array<ReplyVariant | string>;
+  uncertainZones?: string[];
+  conflictPoints?: string[];
+  dontSend?: string[];
   safetyNote: string;
 };
+
+const LEGACY_TONE_PCTS = [72, 52, 36, 24];
+const REPLY_STYLE_FALLBACK = ["мягкий", "прямой", "границы"];
+
+function normalizeToneEntries(tones: Array<ToneEntry | string> | null | undefined): ToneEntry[] {
+  return (tones ?? [])
+    .map((tone, index) => {
+      if (typeof tone === "string") {
+        const label = tone.trim();
+        return label ? { label, pct: LEGACY_TONE_PCTS[index] ?? 20 } : null;
+      }
+      if (tone && typeof tone === "object" && typeof tone.label === "string") {
+        const label = tone.label.trim();
+        if (!label) return null;
+        const pct = Number.isFinite(tone.pct) && tone.pct > 0 ? Math.round(tone.pct) : (LEGACY_TONE_PCTS[index] ?? 20);
+        return { label, pct };
+      }
+      return null;
+    })
+    .filter((item): item is ToneEntry => Boolean(item))
+    .slice(0, 4);
+}
+
+function normalizeReplyVariants(replies: Array<ReplyVariant | string> | null | undefined): ReplyVariant[] {
+  return (replies ?? [])
+    .map((reply, index) => {
+      if (typeof reply === "string") {
+        const text = reply.trim();
+        return text ? { style: REPLY_STYLE_FALLBACK[index] ?? "вариант", text } : null;
+      }
+      if (reply && typeof reply === "object" && typeof reply.text === "string") {
+        const text = reply.text.trim();
+        if (!text) return null;
+        const style = typeof reply.style === "string" && reply.style.trim()
+          ? reply.style.trim()
+          : (REPLY_STYLE_FALLBACK[index] ?? "вариант");
+        const hint = typeof reply.hint === "string" && reply.hint.trim() ? reply.hint.trim() : undefined;
+        return { style, text, hint };
+      }
+      return null;
+    })
+    .filter((item): item is ReplyVariant => Boolean(item))
+    .slice(0, 3);
+}
+
+function normalizeStringList(items: unknown): string[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    .map((item) => item.trim())
+    .slice(0, 4);
+}
 
 function tryParseChatAnalysis(text: string): ChatAnalysisStructured | null {
   if (!text) return null;
@@ -66,12 +119,10 @@ function tryParseChatAnalysis(text: string): ChatAnalysisStructured | null {
         assessment: typeof raw.assessment === "string" ? raw.assessment : undefined,
         tonesThem: Array.isArray(raw.tonesThem) ? raw.tonesThem : [],
         tonesMe: Array.isArray(raw.tonesMe) ? raw.tonesMe : [],
-        replies: raw.replies.filter((reply): reply is ReplyVariant => (
-          reply != null
-          && typeof reply === "object"
-          && typeof (reply as ReplyVariant).style === "string"
-          && typeof (reply as ReplyVariant).text === "string"
-        )),
+        replies: Array.isArray(raw.replies) ? raw.replies : [],
+        uncertainZones: normalizeStringList((raw as { uncertainZones?: unknown }).uncertainZones),
+        conflictPoints: normalizeStringList((raw as { conflictPoints?: unknown }).conflictPoints),
+        dontSend: normalizeStringList((raw as { dontSend?: unknown }).dontSend),
         safetyNote: typeof raw.safetyNote === "string" ? raw.safetyNote : "",
       };
     } catch {
@@ -97,6 +148,7 @@ type ChatAnalysisResult = {
     screenshotStored?: boolean | null;
     screenshotCount?: number | null;
     recognizedScreenshotCount?: number | null;
+    analysisContextNote?: string | null;
     // B395: эмоции-подсказки, которые ИИ считал в диалоге (ваш тон) — ими
     // динамически наполняется блок «что вы сейчас чувствуете».
     suggestedEmotions?: string[] | null;
@@ -173,20 +225,28 @@ function ToneRow({ who, tones, hue }: { who: string; tones: ToneEntry[] | null |
   return (
     <div>
       <span className="text-[13.5px] font-medium text-[var(--soft-ink)]">{who}</span>
-      <div className="mt-2 flex h-2.5 gap-px overflow-hidden rounded-full" style={{ background: "var(--soft-paper-edge)" }}>
-        {items.map((t, i) => (
-          <div key={t.label} title={`${t.label} · ${t.pct}%`} style={{ width: `${(t.pct / total) * 100}%`, ...shade(i) }} />
-        ))}
-      </div>
-      <div className="mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1.5">
-        {items.map((t, i) => (
-          <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[var(--soft-ink-soft)]">
-            <span className="size-2 shrink-0 rounded-full" style={shade(i)} />
-            {t.label}
-            <span className="text-[var(--soft-ink-faint)]">{t.pct}%</span>
-          </span>
-        ))}
-      </div>
+      {items.length > 0 ? (
+        <>
+          <div className="mt-2 flex h-2.5 gap-px overflow-hidden rounded-full" style={{ background: "var(--soft-paper-edge)" }}>
+            {items.map((t, i) => (
+              <div key={t.label} title={`${t.label} · ${t.pct}%`} style={{ width: `${(t.pct / total) * 100}%`, ...shade(i) }} />
+            ))}
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-x-3.5 gap-y-1.5">
+            {items.map((t, i) => (
+              <span key={t.label} className="inline-flex items-center gap-1.5 text-[12px] text-[var(--soft-ink-soft)]">
+                <span className="size-2 shrink-0 rounded-full" style={shade(i)} />
+                {t.label}
+                <span className="text-[var(--soft-ink-faint)]">{t.pct}%</span>
+              </span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="mt-2 rounded-2xl bg-[var(--soft-paper-deep)] px-3 py-2 text-xs leading-relaxed text-[var(--soft-ink-faint)]">
+          В сохранённом результате не хватило данных для шкалы тона.
+        </p>
+      )}
     </div>
   );
 }
@@ -216,45 +276,50 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-// #11: «следующий шаг» заменён на рекомендации в дизайне triage как у checkin —
-// блок «что вам подойдет» + «другие форматы». «Начать новый разбор» остаётся
-// тихой ghost-кнопкой под рекомендациями.
-function NextStepCard({ primary, secondary, onStartNew, loading }: {
-  primary: TriagePrimary[];
-  secondary: TriageProduct[];
-  onStartNew: () => void;
-  loading: boolean;
-}) {
+function formatSourceTranscript(text: string): Array<{ speaker: string | null; text: string }> {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = /^([^:：]{1,36})[:：]\s*(.+)$/.exec(line);
+      if (!match) return { speaker: null, text: line };
+      return { speaker: match[1].trim(), text: match[2].trim() };
+    });
+}
+
+function SourceTranscript({ text }: { text: string }) {
+  const lines = formatSourceTranscript(text);
   return (
-    <div>
-      <ServiceTriage
-        eyebrow="что вам подойдет"
-        testId="chat-analysis-triage"
-        primary={primary}
-        secondary={secondary}
-        specialistHref="/practitioners"
-      />
-      <button
-        type="button"
-        onClick={onStartNew}
-        disabled={loading}
-        data-testid="chat-analysis-start-new"
-        className="mt-3 inline-flex items-center justify-center gap-2 rounded-full border border-[var(--soft-paper-edge)] px-5 py-2.5 text-sm font-medium text-[var(--soft-ink-soft)] transition hover:bg-[var(--soft-paper-card)] disabled:opacity-50"
-      >
-        <RotateCcw className="size-4" aria-hidden="true" />
-        Начать новый разбор
-      </button>
+    <div className="mt-3 max-h-[28rem] overflow-y-auto rounded-[18px] bg-[var(--soft-paper-card)] p-3" data-testid="chat-analysis-source-transcript">
+      {lines.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {lines.map((line, index) => (
+            <div key={`${line.speaker ?? "line"}-${index}`} className="rounded-2xl bg-[var(--soft-paper)] px-3 py-2" data-testid="chat-analysis-source-line">
+              {line.speaker && (
+                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--soft-terracotta-dark)]">{line.speaker}</p>
+              )}
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--soft-ink)]">{line.text}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--soft-ink)]">{text}</p>
+      )}
     </div>
   );
 }
 
-function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, loading }: {
+function StructuredResult({ data, triagePrimary, triageSecondary }: {
   data: ChatAnalysisStructured;
   triagePrimary: TriagePrimary[];
   triageSecondary: TriageProduct[];
-  onStartNew: () => void;
-  loading: boolean;
 }) {
+  const tonesThem = normalizeToneEntries(data.tonesThem);
+  const tonesMe = normalizeToneEntries(data.tonesMe);
+  const replies = normalizeReplyVariants(data.replies);
+  const hasSignals = data.uncertainZones?.length || data.conflictPoints?.length || data.dontSend?.length;
+
   return (
     <div className="flex flex-col gap-3.5" data-testid="chat-analysis-result">
       {/* главное — один спокойный тёплый блок. Issue #6: insight = крупная мысль,
@@ -278,18 +343,47 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
       <div className="rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
         <p className="soft-eyebrow mb-4">тон разговора</p>
         <div className="flex flex-col gap-4">
-          <ToneRow who="Собеседник" tones={data.tonesThem} hue="them" />
+          <ToneRow who="Собеседник" tones={tonesThem} hue="them" />
           <div className="h-px bg-[var(--soft-paper-edge)]" />
-          <ToneRow who="Вы" tones={data.tonesMe} hue="me" />
+          <ToneRow who="Вы" tones={tonesMe} hue="me" />
         </div>
       </div>
+
+      {hasSignals ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {data.conflictPoints && data.conflictPoints.length > 0 && (
+            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4">
+              <p className="soft-eyebrow mb-2">где застревает</p>
+              <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                {data.conflictPoints.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+          {data.uncertainZones && data.uncertainZones.length > 0 && (
+            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4">
+              <p className="soft-eyebrow mb-2">что неясно</p>
+              <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                {data.uncertainZones.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+          {data.dontSend && data.dontSend.length > 0 && (
+            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4">
+              <p className="soft-eyebrow mb-2">лучше не писать</p>
+              <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+                {data.dontSend.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* что можно ответить — черновики через тонкие разделители + копирование */}
       <div className="rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] p-5">
         <p className="soft-eyebrow mb-1">что можно ответить</p>
         <p className="text-xs text-[var(--soft-ink-faint)]">Готовый текст — можно скопировать и отправить как есть.</p>
         <div className="mt-2 flex flex-col">
-          {data.replies.map((r, i) => (
+          {replies.length > 0 ? replies.map((r, i) => (
             <div key={i} className={`flex items-start gap-3 py-3.5 ${i > 0 ? "border-t border-[var(--soft-paper-edge)]" : ""}`}>
               <div className="min-w-0 flex-1">
                 <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">{r.style}</span>
@@ -302,7 +396,11 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
               </div>
               <CopyButton text={r.text} />
             </div>
-          ))}
+          )) : (
+            <p className="py-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+              В сохранённом результате нет готовых формулировок. Можно продолжить разбор в чате ниже.
+            </p>
+          )}
         </div>
       </div>
 
@@ -314,18 +412,15 @@ function StructuredResult({ data, triagePrimary, triageSecondary, onStartNew, lo
         </p>
       )}
 
-      {/* следующий шаг (CTA) + «начать новый разбор» — одна поверхность */}
-      <NextStepCard primary={triagePrimary} secondary={triageSecondary} onStartNew={onStartNew} loading={loading} />
-
-      {/* разбор уже в дневнике — тихая строка-напоминание (вместо кнопок) */}
+      {/* следующий шаг — стандартный рекомендательный блок, как на result-экранах */}
       <div className="tarot-followup">
-        <AutosavedNote testId="chat-analysis-autosaved" />
-        <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-center text-xs text-[var(--soft-ink-faint)]">
-          <BookOpen className="size-3.5" aria-hidden="true" />
-          <span>Разбор сохранён в</span>
-          <Link href={appUrl("/diary")} className="font-medium text-[var(--soft-ink-soft)] underline-offset-2 hover:underline">дневнике</Link>
-          <span>— там его можно перечитать или удалить.</span>
-        </p>
+        <ServiceTriage
+          eyebrow="что дальше"
+          testId="chat-analysis-triage"
+          primary={triagePrimary}
+          secondary={triageSecondary}
+          specialistHref="/practitioners"
+        />
       </div>
     </div>
   );
@@ -657,29 +752,9 @@ export function ChatAnalysisActions() {
     }
   }
 
-  // B395: убраны кнопки «Сохранить / Экспорт / Удалить исходник / Удалить
-  // разбор» — разбор автосохраняется в Дневник при генерации (route.ts), а
-  // удаление/скрытие живёт в самом Дневнике. Поэтому saveReport/deleteSource/
-  // deleteReport больше не нужны на экране результата.
-
-  // B330: "Начать новый разбор" — clear local form state and go to input
-  // tab. We deliberately do NOT delete the saved result from the cabinet;
-  // it stays in the diary. The entitlement is also dropped from local state
-  // so the next analysis triggers a fresh purchase / credit deduction.
-  function startNewAnalysis() {
-    setResult(null);
-    setHasEntitlement(false);
-    setSourceText("");
-    setAttachments([]);
-    setContact(null);
-    setEmotion(null);
-    setGoal("");
-    setExtraText("");
-    setMessage(null);
-    setStatus("idle");
-    setTab("input");
-    setAnalysisParam(null);
-  }
+  // B395/B489: результат читается как готовый документ. Управление сохранением,
+  // удалением источника и новым разбором живёт вне нижнего follow-up блока, чтобы
+  // он совпадал с общей result-механикой услуг.
 
   const parsed: ChatAnalysisStructured | null = result?.resultText
     ? tryParseChatAnalysis(result.resultText)
@@ -1092,8 +1167,16 @@ export function ChatAnalysisActions() {
               <dl className="tarot-recap">
                 <div>
                   <dt>Источник</dt>
-                  <dd>{sourceText.trim().slice(0, 220)}{sourceText.trim().length > 220 ? "..." : ""}</dd>
+                  <dd>
+                    <SourceTranscript text={sourceText.trim()} />
+                  </dd>
                 </div>
+                {result.metadata?.analysisContextNote && (
+                  <div>
+                    <dt>Контекст</dt>
+                    <dd>{result.metadata.analysisContextNote}</dd>
+                  </div>
+                )}
               </dl>
             </details>
           )}
@@ -1104,8 +1187,6 @@ export function ChatAnalysisActions() {
                 data={parsed}
                 triagePrimary={triagePrimary}
                 triageSecondary={triageSecondary}
-                onStartNew={startNewAnalysis}
-                loading={status === "loading"}
               />
             ) : (
               <SoftMarkdown

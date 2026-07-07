@@ -32,6 +32,7 @@ type CompatibilityResult = {
   creatorId: string;
   partnerId: string | null;
   reportId: string | null;
+  viewerRole?: "creator" | "partner" | "invitee";
 };
 
 type ApiPayload = {
@@ -93,16 +94,18 @@ export function CompatibilityActions({
   useEffect(() => {
     if (!inviteToken && authStatus !== "authenticated") return;
     let cancelled = false;
-    // ?reading=<id> pins the active session (creator flow only — the partner arrives
-    // via ?invite=). Restore that exact compatibility by id; otherwise fall back to the
-    // dialogue-scoped / latest-incomplete lookup.
+    // ?reading=<id> pins the active session. In the pair compare flow it can also
+    // be the logged-in client's invite entry, so the API returns the viewer role.
+    const currentSearch = typeof window !== "undefined" ? window.location.search : "";
+    const searchParams = new URLSearchParams(currentSearch);
     const readingId = inviteToken
       ? null
-      : readingIdFromSearch(typeof window !== "undefined" ? window.location.search : "");
+      : readingIdFromSearch(searchParams);
+    const isReadingInvite = Boolean(readingId && productKey === "pair" && searchParams.get("scenario") === "compare");
     const url = inviteToken
       ? `/api/products/compatibility/invite/${encodeURIComponent(inviteToken)}`
       : readingId
-        ? `/api/products/compatibility/${encodeURIComponent(readingId)}?productKey=${productKey}`
+        ? `/api/products/compatibility/${encodeURIComponent(readingId)}?productKey=${productKey}${isReadingInvite ? "&asInvite=1" : ""}`
         : dialogueId
           ? `/api/products/compatibility?dialogueId=${encodeURIComponent(dialogueId)}&productKey=${productKey}`
           : `/api/products/compatibility?productKey=${productKey}`;
@@ -155,7 +158,7 @@ export function CompatibilityActions({
     try {
       const payload = await jsonRequest<ApiPayload>(`/api/products/compatibility/${result.id}/partner-part`, {
         method: "POST",
-        body: JSON.stringify({ dialogueId: partnerDialogueId, partnerConsent: true }),
+        body: JSON.stringify({ dialogueId: partnerDialogueId, partnerConsent: true, viaReading: !inviteToken }),
       });
       setHasEntitlement(Boolean(payload.hasEntitlement));
       setResult(payload.result ?? null);
@@ -226,8 +229,13 @@ export function CompatibilityActions({
     });
   }
 
+  const viewerRole = result?.viewerRole ?? (inviteToken ? "invitee" : "creator");
+  const isPartnerEntry = Boolean(
+    result && (result.viewerRole === "invitee" || result.viewerRole === "partner" || (inviteToken && viewerRole !== "creator")),
+  );
+
   // Partner view — invited to fill their part
-  if (inviteToken && result && result.status === "INVITED") {
+  if (isPartnerEntry && result && (result.status === "INVITED" || result.status === "CREATED")) {
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-actions-partner">
         <p className="soft-eyebrow">приглашение</p>
@@ -270,6 +278,34 @@ export function CompatibilityActions({
             </Button>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (isPartnerEntry && result?.status === "PARTNER_COMPLETED") {
+    return (
+      <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-actions-partner-done">
+        <p className="soft-eyebrow">ваша часть сохранена</p>
+        <h2 className="soft-h3 mt-2">Ответы приняты</h2>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Теперь владелец разбора сможет открыть совместный отчёт. Ваш исходный текст останется скрытым, в отчёте появится только общая картина.
+        </p>
+      </div>
+    );
+  }
+
+  if (isPartnerEntry && result?.status === "READY") {
+    return (
+      <div className="soft-card soft-form-panel mt-8" data-testid="compatibility-actions-partner-ready">
+        <p className="soft-eyebrow">разбор готов</p>
+        <h2 className="soft-h3 mt-2">Совместный отчёт открыт</h2>
+        <p className="mt-2 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
+          Отчёт доступен в личном кабинете. Вы увидите только итоговый разбор, без приватных ответов друг друга.
+        </p>
+        <Link href="/cabinet/diary" className="soft-button soft-button-primary mt-4 flex w-full justify-center">
+          Посмотреть разбор
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
       </div>
     );
   }
@@ -347,7 +383,7 @@ export function CompatibilityActions({
         )}
 
         {/* Not started — create invite */}
-        {!result && (
+        {!result && viewerRole === "creator" && (
           <>
             <Button
               onClick={createInvite}
@@ -364,7 +400,7 @@ export function CompatibilityActions({
         )}
 
         {/* Invite created — show link */}
-        {result?.status === "INVITED" && (
+        {result?.status === "INVITED" && viewerRole === "creator" && (
           <>
             <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Ссылка для партнёра готова. Как только он ответит — статус обновится.</p>
             <div className="mt-3 flex items-center gap-2">
@@ -385,7 +421,7 @@ export function CompatibilityActions({
         )}
 
         {/* Partner completed — generate */}
-        {result?.status === "PARTNER_COMPLETED" && (
+        {result?.status === "PARTNER_COMPLETED" && viewerRole === "creator" && (
           <>
             <p className="mt-4 text-sm text-[var(--soft-ink-soft)]">Партнер заполнил свою часть и дал согласие. Теперь вы можете получить разбор.</p>
             <Button

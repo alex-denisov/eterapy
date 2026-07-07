@@ -77,6 +77,20 @@ describe("B465 — pair scenarios wire ?reading= session pinning", () => {
     const route = source("src/app/api/products/compatibility/[id]/route.ts");
     expect(route).toContain("export async function GET");
   });
+
+  it("B488 treats pair compare ?reading= links as the logged-in client's invite entry", () => {
+    const route = source("src/app/api/products/compatibility/[id]/route.ts");
+    const partnerRoute = source("src/app/api/products/compatibility/[id]/partner-part/route.ts");
+
+    expect(compatibility).toContain("asInvite=1");
+    expect(compatibility).toContain('viewerRole?: "creator" | "partner" | "invitee"');
+    expect(compatibility).toContain("result.viewerRole === \"invitee\"");
+    expect(compatibility).toContain("viaReading");
+    expect(route).toContain('request.nextUrl.searchParams.get("asInvite") === "1"');
+    expect(route).toContain(': "invitee"');
+    expect(partnerRoute).toContain('viewerRole: "partner"');
+    expect(partnerRoute).toContain("viaReading");
+  });
 });
 
 describe("B465 — product input font unified up to tarot-question-input (no 14px)", () => {
