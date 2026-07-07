@@ -300,32 +300,48 @@ export default async function PractitionerTodayPage() {
         </div>
       </div>
 
-      {/* Metrics */}
+      {/* Metrics — each card links into its screen (B466 round-8 #3). */}
       <div className="mt-6 grid grid-cols-3 gap-2.5 lg:grid-cols-4">
-        <div className="soft-card p-3.5">
+        <Link
+          href={appUrl("/practitioner/finance")}
+          className="soft-card p-3.5 transition-shadow hover:shadow-[0_10px_24px_rgba(60,40,25,.07)]"
+          data-testid="practitioner-metric-income"
+        >
           <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">
             {monthIncome.toLocaleString("ru")} <span className="text-xs text-[var(--soft-ink-faint)]">₽</span>
           </p>
           <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">доход · {formatMskMonthName(now)}</p>
-        </div>
-        <div className="soft-card p-3.5">
+        </Link>
+        <Link
+          href={appUrl("/practitioner/calendar")}
+          className="soft-card p-3.5 transition-shadow hover:shadow-[0_10px_24px_rgba(60,40,25,.07)]"
+          data-testid="practitioner-metric-sessions"
+        >
           <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">{weekSessionCount}</p>
           <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
             {weekSessionCount === 1 ? "сессия" : weekSessionCount < 5 && weekSessionCount > 0 ? "сессии" : "сессий"} · неделя
           </p>
-        </div>
-        <div className="soft-card p-3.5">
+        </Link>
+        <Link
+          href={appUrl("/practitioner/reviews")}
+          className="soft-card p-3.5 transition-shadow hover:shadow-[0_10px_24px_rgba(60,40,25,.07)]"
+          data-testid="practitioner-metric-rating"
+        >
           <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">
             {rating} <span className="text-xs text-[var(--soft-ink-faint)]">★</span>
           </p>
           <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">рейтинг · {practitioner.reviewCount}</p>
-        </div>
-        <div className="soft-card hidden p-3.5 lg:block">
+        </Link>
+        <Link
+          href={appUrl("/practitioner/ai-usage")}
+          className="soft-card hidden p-3.5 transition-shadow hover:shadow-[0_10px_24px_rgba(60,40,25,.07)] lg:block"
+          data-testid="practitioner-metric-ai"
+        >
           <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">
             {quota.usedThisMonth} <span className="text-xs text-[var(--soft-ink-faint)]">из {quota.included}</span>
           </p>
           <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">AI-разборов в месяце</p>
-        </div>
+        </Link>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -452,6 +468,38 @@ export default async function PractitionerTodayPage() {
                 {attentionRows.map((row) => row.node)}
               </div>
             </section>
+          )}
+
+          {/* Subscription CTA — upgrade nudge shown until the top tier
+              (B466 round-8 #2, parity with the prod cabinet CTA). */}
+          {tier !== "pro_plus" && (
+            <Link
+              href={appUrl("/practitioner/finance?tab=tariff")}
+              data-testid="practitioner-subscription-cta"
+              className="block overflow-hidden rounded-[18px] p-4 text-[#FBF1E4] transition-shadow hover:shadow-[0_14px_30px_rgba(60,30,20,0.16)] sm:p-5"
+              style={{ background: "linear-gradient(135deg, var(--soft-bordeaux), #8a3d3d)" }}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-[0.12em] opacity-80">
+                  {tier === "free" ? "Тариф · Базовый" : "Тариф · Pro"}
+                </p>
+                <Sparkles className="h-4 w-4 opacity-90" aria-hidden="true" />
+              </div>
+              <p className="mt-2 font-heading text-[17px] font-semibold leading-snug">
+                {tier === "free"
+                  ? "Подключите Pro — AI-разборы и ниже комиссия"
+                  : "Перейдите на Pro+ — 50 разборов, комиссия 25%"}
+              </p>
+              <p className="mt-1.5 text-[12.5px] leading-relaxed opacity-85">
+                {tier === "free"
+                  ? "AI-заметки, план сопровождения, комиссия от 30% и приоритет в каталоге."
+                  : "Больше AI-разборов в месяц, приоритет в каталоге и бейдж Pro+."}
+              </p>
+              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#FBF1E4] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--soft-bordeaux)]">
+                {tier === "free" ? "Подключить Pro" : "Перейти на Pro+"}
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </span>
+            </Link>
           )}
 
           <section className="soft-card p-4 sm:p-5" data-testid="practitioner-ai-quota-card">

@@ -487,11 +487,13 @@ export function Header() {
   const showHelpIcon = isAuthenticated && !isStaff;
   // G16: «Новый разбор» is a client-only action. Hide it for practitioners and staff.
   const showNewDialogueCta = isAuthenticated && !isStaff && !isPractitioner;
-  // B464 item 3 / audit A3: inside the cabinet on mobile the top header is
-  // slimmed to brand + bell only. The account pill is redundant for clients —
-  // the bottom bar's «Ещё» sheet already carries Настройки/Поддержка/Выйти.
-  // Practitioners/staff keep the pill (their mobile bar has no «Ещё» sheet).
-  const slimCabinetHeaderMobile = isAppArea && isAuthenticated && !isStaff && !isPractitioner;
+  // B466 round-8 #7: inside the cabinet on mobile the top NAV header is removed —
+  // the «top» collapses to ONLY the notification bell (owner: макеты на мобильной
+  // без верхнего хедера навигации; одинаковый «верх» у клиента и практика).
+  // Brand + account pill + balance are hidden below md; navigation lives in the
+  // bottom bar (+ «Ещё» sheet for clients / hub for practitioners, which carry
+  // Настройки/Поддержка/Выйти). Desktop (md+) is unchanged. Never for staff/admin.
+  const cabinetMobileBellOnly = isAppArea && isAuthenticated && !isStaff;
 
   return (
     <>
@@ -509,7 +511,7 @@ export function Header() {
           so login/logout never shifts the bar. */}
       <div className="mx-auto grid h-16 max-w-6xl grid-cols-[auto_1fr_auto] items-center gap-4 px-4 md:grid-cols-[auto_1fr_minmax(0,440px)]">
         <Link href={mainUrl("/")}
-          className="flex shrink-0 items-center">
+          className={cn("flex shrink-0 items-center", cabinetMobileBellOnly && "hidden md:flex")}>
           <VectorBrandLogo height={28} theme={softPublicHeader ? "light" : "dark"} />
         </Link>
 
@@ -564,14 +566,14 @@ export function Header() {
                   balance also hidden for PRACTITIONER (they don't buy via credits).
                   bell + dropdown remain on every authenticated surface. */}
               {showBalanceSummary && (
-                <BalanceSummaryLink clarityCredits={clarityCredits} className="sm:flex" />
+                <BalanceSummaryLink clarityCredits={clarityCredits} className={cabinetMobileBellOnly ? "md:flex" : "sm:flex"} />
               )}
               {showPractitionerMoneyBalance && (
                 <MoneyBalanceLink
                   balanceKopecks={practitionerBalanceKopecks}
                   href={appUrl("/practitioner/earnings")}
                   label="Баланс практика"
-                  className="sm:flex"
+                  className={cabinetMobileBellOnly ? "md:flex" : "sm:flex"}
                 />
               )}
               {showHelpIcon && (
@@ -595,7 +597,7 @@ export function Header() {
               <UserMenu
                 session={session}
                 cabinetDoor={showPublicNav && !isStaff && !isPractitioner ? { href: cabinetHref } : undefined}
-                className={slimCabinetHeaderMobile ? "hidden md:flex" : undefined}
+                className={cabinetMobileBellOnly ? "hidden md:flex" : undefined}
               />
               {/* B321: ALL header items at canonical v4.2 user-pill height —
                   h-7 (28px), text-[13px], px-3 (12px). Matches

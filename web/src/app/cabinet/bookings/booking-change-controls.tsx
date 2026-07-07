@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -151,12 +151,27 @@ export function BookingChangeControls({ bookingId, status, slotStartAt, changeRe
             <DialogTitle>{modal === "cancel" ? "Отменить сессию?" : "Перенести сессию?"}</DialogTitle>
             <DialogDescription>
               {modal === "cancel"
-                ? late
-                  ? `До сессии меньше 24 часов — по правилам отмена проходит со штрафом ${DEFAULT_LATE_CANCEL_PENALTY_PERCENT}% (специалист может его простить). Запрос уйдёт специалисту на согласование.`
-                  : "Запрос на отмену уйдёт специалисту на согласование. При отмене более чем за 24 часа возврат полный."
+                ? "Запрос на отмену уйдёт специалисту на согласование. При отмене более чем за 24 часа — полный возврат."
                 : "Предложите новое время — специалист подтвердит перенос. Перенос бесплатный."}
             </DialogDescription>
           </DialogHeader>
+          {/* B466 round-8 #8: explicit late-cancel penalty warning (owner: показывать
+              явно). 50% удержание, специалист может простить; распределяется как
+              оплаченная сессия (доля специалиста + комиссия платформы). */}
+          {modal === "cancel" && late && (
+            <div
+              className="flex gap-2.5 rounded-xl border p-3"
+              style={{ borderColor: "rgba(184,124,42,0.4)", background: "var(--soft-amber-bg, #F2E2C2)" }}
+              data-testid="booking-late-cancel-warning"
+            >
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: "var(--soft-amber-ink, #6E5114)" }} aria-hidden="true" />
+              <p className="text-[13px] leading-relaxed" style={{ color: "var(--soft-amber-ink, #6E5114)" }}>
+                До начала меньше 24 часов. По правилам поздней отмены удерживается{" "}
+                <span className="font-semibold">{DEFAULT_LATE_CANCEL_PENALTY_PERCENT}% стоимости сессии</span> — специалист
+                может простить штраф. Отмена более чем за 24 часа — полный возврат.
+              </p>
+            </div>
+          )}
           {modal === "reschedule" && (
             <div>
               <label className="block text-xs font-semibold text-[var(--soft-bordeaux)]" htmlFor="client-reschedule-when">

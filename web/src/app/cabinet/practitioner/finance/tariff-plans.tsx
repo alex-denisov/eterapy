@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { Check, CreditCard, Wallet, X } from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { PractitionerTier } from "@/lib/practitioner-tier";
 
 // B466 — «Тариф» plan cards (client): current plan marked, Pro+ = highlighted
@@ -43,9 +51,30 @@ function fmtDate(iso: string | null): string | null {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
 }
 
+interface PendingPurchase {
+  planKey: string;
+  planName: string;
+  priceRub: number;
+  method: "earnings" | "card";
+}
+
 export function TariffPlans({ tier, earningsBalanceRub, subscription, prices, aiIncluded }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
+  // B466 round-8 #6: confirm before starting a paid subscription (accidental-tap guard).
+  const [pending, setPending] = useState<PendingPurchase | null>(null);
+
+  function planNameOf(planKey: string): string {
+    return planKey === "practitioner_pro_plus" ? "Pro+" : "Pro";
+  }
+
+  function confirmPurchase() {
+    if (!pending) return;
+    const { planKey, priceRub, method } = pending;
+    setPending(null);
+    if (method === "earnings") void startFromEarnings(planKey, priceRub);
+    else void startByCard(planKey);
+  }
 
   async function startFromEarnings(planKey: string, priceRub: number) {
     if (earningsBalanceRub < priceRub) {
@@ -160,7 +189,7 @@ export function TariffPlans({ tier, earningsBalanceRub, subscription, prices, ai
           className={`soft-button ${primary ? "soft-button-primary" : "soft-button-ghost"}`}
           style={{ minHeight: "2.2rem", padding: "0.45rem 0.95rem", fontSize: "0.8125rem" }}
           disabled={busy !== null}
-          onClick={() => startFromEarnings(planKey, priceRub)}
+          onClick={() => setPending({ planKey, planName: planNameOf(planKey), priceRub, method: "earnings" })}
           data-testid="practitioner-subscribe-cta"
         >
           <Wallet className="size-3.5" aria-hidden="true" />
@@ -171,7 +200,7 @@ export function TariffPlans({ tier, earningsBalanceRub, subscription, prices, ai
           className="soft-button soft-button-ghost"
           style={{ minHeight: "2.2rem", padding: "0.45rem 0.95rem", fontSize: "0.8125rem" }}
           disabled={busy !== null}
-          onClick={() => startByCard(planKey)}
+          onClick={() => setPending({ planKey, planName: planNameOf(planKey), priceRub, method: "card" })}
         >
           <CreditCard className="size-3.5" aria-hidden="true" />
           Картой
@@ -279,6 +308,54 @@ export function TariffPlans({ tier, earningsBalanceRub, subscription, prices, ai
           renderPayButtons({ planKey: "practitioner_pro_plus", priceRub: prices.proPlus, primary: true })
         )}
       </section>
+
+      {/* Purchase confirmation — B466 round-8 #6. */}
+      <Dialog open={pending !== null} onOpenChange={(open) => { if (!open) setPending(null); }}>
+        <DialogContent className="max-w-sm" showCloseButton={false} data-testid="practitioner-tariff-confirm">
+          <DialogHeader>
+            <DialogTitle>Подключить тариф {pending?.planName ?? ""}?</DialogTitle>
+            <DialogDescription>
+              {pending?.method === "earnings" ? (
+                <>
+                  С баланса практика спишется{" "}
+                  <span className="font-semibold text-[var(--soft-bordeaux)]">
+                    {pending ? pending.priceRub.toLocaleString("ru") : ""} ₽
+                  </span>
+                  . Тариф активируется сразу и продлевается ежемесячно.
+                </>
+              ) : (
+                <>
+                  Оплата картой —{" "}
+                  <span className="font-semibold text-[var(--soft-bordeaux)]">
+                    {pending ? pending.priceRub.toLocaleString("ru") : ""} ₽
+                  </span>
+                  /мес. Откроется страница оплаты; тариф активируется после оплаты.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setPending(null)}
+              className="soft-button soft-button-ghost"
+              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={confirmPurchase}
+              className="soft-button soft-button-primary"
+              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+              data-testid="practitioner-tariff-confirm-cta"
+            >
+              {pending?.method === "earnings" ? "Оплатить с баланса" : "Перейти к оплате"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
