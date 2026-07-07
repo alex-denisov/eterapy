@@ -291,4 +291,77 @@ describe("B087/B088 chat analysis product", () => {
       window.history.pushState({}, "", "/");
     }
   });
+
+  it("B489 renders legacy string-based tones/replies and the full structured source recap", () => {
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    expect(actions).toContain("normalizeToneEntries");
+    expect(actions).toContain("normalizeReplyVariants");
+    expect(actions).toContain("formatSourceTranscript");
+    expect(actions).toContain("chat-analysis-source-line");
+    expect(actions).not.toContain(".slice(0, 220)");
+    expect(actions).not.toContain("chat-analysis-start-new");
+    expect(actions).not.toContain("chat-analysis-autosaved");
+
+    const legacy = JSON.stringify({
+      insight: "В переписке есть напряжение.",
+      tonesThem: ["защитный", "отстраненный"],
+      tonesMe: ["тревожный", "ищущий"],
+      replies: ["Давай спокойно обсудим это завтра.", "Мне важно не спорить, а понять тебя."],
+      safetyNote: "Если есть угрозы, обратитесь за живой помощью.",
+    });
+    const parsed = tryParseChatAnalysis(legacy);
+    expect(parsed?.tonesThem).toEqual(["защитный", "отстраненный"]);
+    expect(parsed?.replies).toEqual(["Давай спокойно обсудим это завтра.", "Мне важно не спорить, а понять тебя."]);
+  });
+
+  it("B489 restores an old generated result with string tones/replies without empty result blocks", async () => {
+    const originalFetch = global.fetch;
+    window.history.pushState({}, "", "/products/chat-analysis?analysis=legacy-1");
+    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/products/chat-analysis") {
+        return new Response(JSON.stringify({ hasEntitlement: false, results: [] }), { status: 200 });
+      }
+      if (path === "/api/products/chat-analysis/legacy-1") {
+        return new Response(JSON.stringify({
+          result: {
+            id: "legacy-1",
+            status: "READY",
+            title: "Разбор переписки",
+            previewText: null,
+            resultText: JSON.stringify({
+              insight: "В разговоре много попыток договориться, но мало ясных границ.",
+              tonesThem: ["защитный", "отстраненный"],
+              tonesMe: ["тревожный", "ищущий"],
+              replies: ["Давай спокойно обсудим это завтра.", "Мне важно не спорить, а понять тебя."],
+              uncertainZones: ["что именно человек готов обсуждать"],
+              conflictPoints: ["разговор быстро уходит в защиту"],
+              dontSend: ["не писать длинное объяснение сразу"],
+              safetyNote: "Если есть угрозы, лучше обратиться за живой помощью.",
+            }),
+            saved: true,
+            metadata: {
+              sourceText: "Я: привет, хочу понять что происходит\nОн: не начинай опять\nЯ: мне важно договориться",
+              analysisContextNote: "Кто собеседник: партнёр",
+            },
+          },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }) as typeof fetch;
+
+    try {
+      render(React.createElement(ChatAnalysisActions));
+      expect(await screen.findByText("защитный")).toBeInTheDocument();
+      expect(screen.getByText("Давай спокойно обсудим это завтра.")).toBeInTheDocument();
+      expect(screen.getByTestId("chat-analysis-source-transcript")).toBeInTheDocument();
+      expect(screen.getAllByTestId("chat-analysis-source-line")).toHaveLength(3);
+      expect(screen.queryByTestId("chat-analysis-start-new")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("chat-analysis-autosaved")).not.toBeInTheDocument();
+    } finally {
+      global.fetch = originalFetch;
+      window.history.pushState({}, "", "/");
+    }
+  });
 });

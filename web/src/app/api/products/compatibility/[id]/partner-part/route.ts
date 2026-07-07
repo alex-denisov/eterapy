@@ -11,6 +11,7 @@ import { assessPairPartnerRisk, socialRiskMetadata } from "@/lib/social-antiabus
 const postSchema = z.object({
   partnerConsent: z.literal(true),
   dialogueId: z.string(),
+  viaReading: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 
   if (!compatibility) return errorWithRequestContext("NOT_FOUND", "Not found", 404, context);
-  if (compatibility.inviteExpiresAt && compatibility.inviteExpiresAt <= new Date()) {
+  if (compatibility.inviteExpiresAt && compatibility.inviteExpiresAt <= new Date() && !parsed.data.viaReading) {
     return errorWithRequestContext("GONE", "Invite expired", 410, context);
   }
   if (compatibility.creatorId === userId) {
@@ -97,5 +98,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return row;
   });
 
-  return jsonWithRequestContext({ result: updated }, { status: 200 }, context);
+  return jsonWithRequestContext({ result: { ...updated, viewerRole: "partner" } }, { status: 200 }, context);
 }

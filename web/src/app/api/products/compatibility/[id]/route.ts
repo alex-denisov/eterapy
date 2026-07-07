@@ -16,12 +16,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const userId = session?.user?.id;
   if (!userId) return errorWithRequestContext("UNAUTHORIZED", "Unauthorized", 401, context);
   const { id } = await params;
+  const productKey = request.nextUrl.searchParams.get("productKey");
+  const asInvite = request.nextUrl.searchParams.get("asInvite") === "1" && productKey === "pair";
 
   const result = await db.compatibility.findFirst({
     where: {
       id,
       status: { not: "DELETED" },
-      OR: [{ creatorId: userId }, { partnerId: userId }],
+      OR: [
+        { creatorId: userId },
+        { partnerId: userId },
+        ...(asInvite ? [{ partnerId: null, status: { in: ["CREATED", "INVITED"] } }] : []),
+      ],
     },
   });
   if (!result) return errorWithRequestContext("NOT_FOUND", "Compatibility not found", 404, context);
@@ -30,8 +36,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     PRODUCT_KEYS.map((key) => userHasActiveEntitlement(userId, key)),
   );
   const hasEntitlement = entitlementChecks.some(Boolean);
+  const viewerRole =
+    result.creatorId === userId ? "creator" : result.partnerId === userId ? "partner" : "invitee";
 
-  return jsonWithRequestContext({ hasEntitlement, result }, { status: 200 }, context);
+  return jsonWithRequestContext({ hasEntitlement, result: { ...result, viewerRole } }, { status: 200 }, context);
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
