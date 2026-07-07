@@ -558,8 +558,12 @@ export function Header() {
         {/* Right side: authenticated actions or guest auth buttons.
             justify-end keeps the cluster pinned to the right edge of
             the grid track, which itself has a stable width (see the
-            grid-template-columns on the outer container). */}
-        <div className="flex items-center justify-end gap-1.5">
+            grid-template-columns on the outer container).
+            B466 round-8 #7: when the mobile cabinet header collapses to
+            bell-only, the brand + nav grid items are display:none, so
+            auto-placement would drop this cluster into column 1 (left).
+            Pin it to column 3 below md so the lone bell stays right-aligned. */}
+        <div className={cn("flex items-center justify-end gap-1.5", cabinetMobileBellOnly && "col-start-3 md:col-start-auto")}>
           {isAuthenticated && session ? (
             <>
               {/* B314: balance + help hidden for staff (ADMIN/SUPERADMIN/MODERATOR);
