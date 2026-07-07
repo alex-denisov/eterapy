@@ -32,7 +32,9 @@ export type NavIconKey =
   | "clients"
   | "calendar"
   | "finance"
-  | "grid";
+  | "grid"
+  // B478 — клиентские «Сообщения» (материалы от специалиста).
+  | "messages";
 
 export interface NavLink {
   /** Empty for action items handled by the component (e.g. «Ещё», «Выйти»). */
@@ -91,6 +93,9 @@ export const GUEST_MOBILE_TABS: MobileTab[] = [
 //    primary tabs; «Подписка» is merged into «Кошелёк» (IB3). ─────────────────
 export const CLIENT_MORE_ITEMS: MobileTab[] = [
   { href: appUrl("/bookings"), label: "Записи", iconKey: "bookings" },
+  // B478: односторонние материалы от специалиста — под «Ещё», НЕ центральный
+  // таб (owner: «не мессенджер»).
+  { href: appUrl("/messages"), label: "Сообщения", iconKey: "messages" },
   { href: appUrl("/wallet"), label: "Кошелёк", iconKey: "wallet" },
   { href: appUrl("/invite"), label: "Приглашения", iconKey: "invite" },
   { href: appUrl("/settings"), label: "Настройки", iconKey: "settings" },

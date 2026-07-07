@@ -10,6 +10,7 @@ import {
   LibraryBig,
   LogIn,
   LogOut,
+  Mail,
   MessageCircle,
   MoreHorizontal,
   Settings,
@@ -48,4 +49,6 @@ export const NAV_ICONS: Record<NavIconKey, React.ElementType> = {
   calendar: CalendarDays,
   finance: Wallet,
   grid: LayoutGrid,
+  // B478 — клиентские «Сообщения» (материалы от специалиста).
+  messages: Mail,
 };

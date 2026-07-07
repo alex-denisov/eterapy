@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   BookOpen,
   LayoutDashboard,
+  Mail,
   Wallet,
   Settings,
   CalendarDays,
@@ -52,6 +53,8 @@ const CLIENT_NAV: NavItem[] = [
   // B349/Механика 2: /credits merged into /wallet — one «Кошелёк» nav item.
   { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
   { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
+  // B478: односторонние материалы от специалиста (после «Записей»).
+  { href: appUrl("/messages"), icon: Mail, label: "Сообщения" },
   { href: appUrl("/invite"), icon: Gift, label: "Приглашения" },
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];
