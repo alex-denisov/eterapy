@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { PractitionerTier } from "@/lib/practitioner-tier";
 
 // B434 — клиентская часть «Разборы и AI»: квота, глобальный/per-session
@@ -37,6 +45,9 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
   const [autoTopup, setAutoTopup] = useState(aiAutoTopup);
   const [sessions, setSessions] = useState(upcoming);
   const [busy, setBusy] = useState<string | null>(null);
+  // B466 round-8 #6: confirm before charging the balance (guards accidental taps).
+  const [confirmUnits, setConfirmUnits] = useState<number | null>(null);
+  const confirmPack = confirmUnits === null ? null : packs.find((p) => p.units === confirmUnits) ?? null;
 
   const pct = quota.included > 0 ? Math.min(100, Math.round((quota.used / quota.included) * 100)) : 0;
 
@@ -158,27 +169,49 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
         </div>
       </section>
 
-      {/* Top-up packs */}
+      {/* Top-up packs — B466 round-8 #5: explicit BUY CTAs (price rendered as a
+          filled action button); best pack carries the «выгодно» badge (mockup). */}
       <section data-testid="practitioner-ai-topup">
         <p className="soft-eyebrow mb-2.5">Докупить разборы</p>
         <div className="grid grid-cols-3 gap-2.5">
-          {packs.map((pack) => (
-            <button
-              key={pack.units}
-              type="button"
-              className="soft-card flex flex-col items-center gap-1 p-3.5 text-center transition-shadow hover:shadow-[0_10px_24px_rgba(60,40,25,.07)] disabled:opacity-60"
-              disabled={busy !== null}
-              onClick={() => buyPack(pack.units)}
-            >
-              {busy === `pack:${pack.units}` ? (
-                <Loader2 className="size-4 animate-spin text-[var(--soft-bordeaux)]" aria-hidden="true" />
-              ) : (
-                <Sparkles className="size-4 text-[var(--soft-terracotta-dark)]" aria-hidden="true" />
-              )}
-              <span className="font-heading text-lg font-semibold text-[var(--soft-bordeaux)]">+{pack.units}</span>
-              <span className="text-xs text-[var(--soft-ink-faint)]">{pack.priceRub.toLocaleString("ru")} ₽</span>
-            </button>
-          ))}
+          {packs.map((pack, i) => {
+            const best = i === packs.length - 1;
+            return (
+              <button
+                key={pack.units}
+                type="button"
+                data-testid={`practitioner-ai-pack-${pack.units}`}
+                className={`relative flex flex-col items-center gap-2 rounded-[14px] border p-3.5 pt-4 text-center transition-all disabled:opacity-60 ${
+                  best
+                    ? "border-[var(--soft-terracotta)] bg-[color-mix(in_srgb,var(--soft-terracotta)_9%,var(--soft-paper-card))]"
+                    : "border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)] hover:border-[var(--soft-terracotta)]"
+                }`}
+                disabled={busy !== null}
+                onClick={() => setConfirmUnits(pack.units)}
+              >
+                {best && (
+                  <span
+                    className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-px text-[9px] font-bold text-[#FBF1E4]"
+                    style={{ background: "var(--soft-terracotta)" }}
+                  >
+                    выгодно
+                  </span>
+                )}
+                <span className="font-heading text-xl font-semibold leading-none text-[var(--soft-bordeaux)]">+{pack.units}</span>
+                <span className="text-[10.5px] leading-none text-[var(--soft-ink-faint)]">разборов</span>
+                <span
+                  className="mt-0.5 inline-flex w-full items-center justify-center gap-1 rounded-full px-2 py-1.5 text-[12px] font-semibold text-[#FBF1E4]"
+                  style={{ background: best ? "var(--soft-terracotta)" : "var(--soft-bordeaux)" }}
+                >
+                  {busy === `pack:${pack.units}` ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    `${pack.priceRub.toLocaleString("ru")} ₽`
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
         <p className="mt-2 text-xs text-[var(--soft-ink-faint)]">
           Оплата с баланса практика. Докупленные разборы не сгорают в конце месяца.
@@ -195,6 +228,46 @@ export function AiUsageClient({ quota, aiAutoAnalyze, aiAutoTopup, packs, upcomi
         </div>
         <ToggleSwitch enabled={autoTopup} onToggle={() => toggleAutoTopup(!autoTopup)} label="Авто-докупка" />
       </section>
+
+      {/* Purchase confirmation — B466 round-8 #6. */}
+      <Dialog open={confirmPack !== null} onOpenChange={(open) => { if (!open) setConfirmUnits(null); }}>
+        <DialogContent className="max-w-sm" showCloseButton={false} data-testid="practitioner-ai-pack-confirm">
+          <DialogHeader>
+            <DialogTitle>Докупить {confirmPack ? `+${confirmPack.units}` : ""} разборов?</DialogTitle>
+            <DialogDescription>
+              С баланса практика спишется{" "}
+              <span className="font-semibold text-[var(--soft-bordeaux)]">
+                {confirmPack ? confirmPack.priceRub.toLocaleString("ru") : ""} ₽
+              </span>
+              . Докупленные разборы не сгорают в конце месяца.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setConfirmUnits(null)}
+              className="soft-button soft-button-ghost"
+              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => {
+                const units = confirmUnits;
+                setConfirmUnits(null);
+                if (units !== null) void buyPack(units);
+              }}
+              className="soft-button soft-button-primary"
+              style={{ minHeight: "2.25rem", padding: "0.5rem 1rem", fontSize: "0.875rem" }}
+              data-testid="practitioner-ai-pack-confirm-buy"
+            >
+              Купить{confirmPack ? ` · ${confirmPack.priceRub.toLocaleString("ru")} ₽` : ""}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -55,10 +55,13 @@ describe("R7 item 3 — mobile bottom bar respects the safe-area inset", () => {
     expect(shell).toContain("pb-[calc(5rem+env(safe-area-inset-bottom,0px))]");
   });
 
-  it("the cabinet mobile top header is slimmed to brand + bell (account pill hidden below md)", () => {
+  it("the cabinet mobile top collapses to bell-only for client + practitioner (B466 round-8 #7)", () => {
     const header = read("components/header.tsx");
-    expect(header).toContain("const slimCabinetHeaderMobile = isAppArea && isAuthenticated && !isStaff && !isPractitioner");
-    expect(header).toContain('className={slimCabinetHeaderMobile ? "hidden md:flex" : undefined}');
+    expect(header).toContain("const cabinetMobileBellOnly = isAppArea && isAuthenticated && !isStaff");
+    // brand logo hidden below md inside the cabinet
+    expect(header).toContain('cabinetMobileBellOnly && "hidden md:flex"');
+    // account pill hidden below md inside the cabinet (both roles)
+    expect(header).toContain('className={cabinetMobileBellOnly ? "hidden md:flex" : undefined}');
   });
 });
 

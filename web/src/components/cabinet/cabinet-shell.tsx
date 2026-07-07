@@ -384,6 +384,25 @@ export function CabinetShell({
           const Icon = item.Icon;
           const activeClass = isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]";
           const base = `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${activeClass}`;
+          // X10/B466 round-8 #4: surface «требует внимания» counters on the mobile
+          // bar too (e.g. new booking request on «Календарь») — same source as the
+          // desktop sidebar badges so they can't drift.
+          const countKey = navCountKey(item.href);
+          const count = countKey ? (counts?.[countKey] ?? 0) : 0;
+          const iconWithBadge = (
+            <span className="relative">
+              <Icon className="h-5 w-5" />
+              {count > 0 && (
+                <span
+                  data-testid="app-mobile-nav-counter"
+                  aria-label={`${count} новых`}
+                  className="absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--soft-terracotta)] px-1 text-[9px] font-bold leading-none text-[#FBF1E4] tabular-nums"
+                >
+                  {count > 9 ? "9+" : count}
+                </span>
+              )}
+            </span>
+          );
           if (item.isMore) {
             return (
               <button
@@ -394,7 +413,7 @@ export function CabinetShell({
                 onClick={() => setMoreOpen((v) => !v)}
                 className={base}
               >
-                <Icon className="h-5 w-5" />
+                {iconWithBadge}
                 {item.label}
               </button>
             );
@@ -407,7 +426,7 @@ export function CabinetShell({
               onClick={() => setMoreOpen(false)}
               className={base}
             >
-              <Icon className="h-5 w-5" />
+              {iconWithBadge}
               {item.label.split(" ")[0]}
             </Link>
           );
