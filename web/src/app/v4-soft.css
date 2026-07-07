@@ -180,6 +180,11 @@
     box-shadow: 0 0 0 3px rgba(214, 117, 88, 0.14);
   }
 
+  .chat-analysis-result-shell:focus-within {
+    border-color: var(--soft-paper-edge);
+    box-shadow: var(--soft-shadow-sm);
+  }
+
   .soft-chip {
     display: inline-flex;
     min-height: 2rem;

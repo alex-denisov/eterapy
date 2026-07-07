@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import type { AIGatewayMessage, AIGatewayMessageContent } from "@/lib/ai-gateway/domain";
 import { normalizeAIFeatureKey } from "@/lib/ai-gateway/domain";
 import { listDefaultAITaskPolicies } from "@/lib/ai-gateway/task-policy";
+import { CHAT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/chat-analysis-prompt";
 import { log, serializeError } from "@/lib/logger";
 
 const MAX_PROMPT_LENGTH = 30_000;
@@ -116,12 +117,7 @@ const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
     format: "верни plain text: строки сообщений в исходном порядке; если текст не читается, верни пустую строку.",
     restrictions: "не додумывай скрытый контент, не анализируй отношения, не сохраняй приватные данные в ответе, не добавляй комментарии от себя.",
   }),
-  "product-chat-analysis": promptSections({
-    role: "коммуникационный аналитик ETerapy: читает переписку как материал общения, а не как доказательство скрытых намерений.",
-    task: "выделить тональность сторон, зоны неопределенности, точки конфликта, безопасные варианты ответа и то, чего лучше не отправлять.",
-    format: "верни только валидный JSON: {\"insight\":\"\",\"tonesThem\":[],\"tonesMe\":[],\"uncertainZones\":[],\"conflictPoints\":[],\"replies\":[],\"dontSend\":[],\"safetyNote\":\"\"}.",
-    restrictions: "не называй человека «нарцисс», «абьюзер» или «манипулятор» как диагноз/факт; не предсказывай скрытые намерения. Варианты ответа не должны манипулировать, угрожать, давить на вину или эскалировать конфликт. Угрозы/насилие/coercive control — safetyNote про безопасность, не texting strategy.",
-  }),
+  "product-chat-analysis": CHAT_ANALYSIS_SYSTEM_PROMPT,
   "product-compatibility": promptSections({
     role: "фасилитатор парной рефлексии ETerapy, который работает только с согласованным input обоих участников.",
     task: "собрать общий отчет о точках пересечения, различиях ожиданий, зонах напряжения и вопросах для разговора.",

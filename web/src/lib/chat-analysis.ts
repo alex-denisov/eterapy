@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { aiComplete } from "@/lib/ai";
+import { CHAT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/chat-analysis-prompt";
 import { log, serializeError } from "@/lib/logger";
 
 const MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024;
@@ -22,7 +23,10 @@ export type ChatAnalysisStructured = {
   assessment?: string;
   tonesThem: ToneEntry[];
   tonesMe: ToneEntry[];
+  uncertainZones?: string[];
+  conflictPoints?: string[];
   replies: ReplyVariant[];
+  dontSend?: string[];
   safetyNote: string;
 };
 
@@ -261,23 +265,7 @@ export async function generateChatAnalysis(input: {
   // "коллега" and wrote a workplace-themed goal, because heated chat logs
   // bias the prior. The context block is now MANDATORY framing for the
   // analysis rather than a soft hint.
-  const systemPrompt = [
-    "You are ETerapy. Analyze the chat conversation in Russian.",
-    "CRITICAL: the user provides a CONTEXT block describing (1) who the other person is in their life (партнёр, бывший(ая), родитель, друг, коллега, начальник, другой), (2) their current feeling, and (3) what they want from the analysis.",
-    "You MUST respect the relationship label literally. If the context says начальник or коллега, this is a WORKPLACE conversation — do NOT frame it as a romantic or family conflict. If the context says родитель, frame it as parent-child dynamics. If партнёр or бывший(ая), frame it as romantic.",
-    "If the user's goal is stated, the insight, tone analysis, and reply variants must all align with that goal.",
-    "Return ONLY valid JSON — no markdown, no code fences — with this exact structure:",
-    '{"insight":"one meaningful insight sentence","assessment":"a fuller, warm assessment in Russian","tonesThem":[{"label":"...","pct":78},{"label":"...","pct":42},{"label":"...","pct":31},{"label":"...","pct":12}],"tonesMe":[{"label":"...","pct":56},{"label":"...","pct":48},{"label":"...","pct":44},{"label":"...","pct":30}],"replies":[{"style":"мягкий","text":"...","hint":"..."},{"style":"прямой","text":"...","hint":"..."},{"style":"границы","text":"...","hint":"..."}],"safetyNote":"..."}',
-    "Rules: tonesThem and tonesMe each have exactly 4 items with realistic percentages summing to roughly 200%.",
-    "replies has exactly 3 items. insight is ONE crisp sentence (the emotional crux).",
-    // Issue #6: «главное» must actually answer the user — not one cold neutral line.
-    "assessment is the heart of «главное»: 3–6 живых предложений на русском (можно двумя короткими абзацами, разделёнными пустой строкой) — это прямой, тёплый ответ на вопрос/цель пользователя из CONTEXT и оценка ситуации платформой. Объясни, что, судя по переписке, на самом деле происходит между этими людьми, почему так выходит, что это значит для пользователя и на что опереться дальше. Опирайся на конкретные детали переписки. Не пересказывай переписку и не повторяй insight дословно — добавляй смысл, а не воду.",
-    "Be warm, non-diagnostic, non-fatalistic. No markdown inside string values (plain text; separate paragraphs in assessment with a blank line).",
-    // INC-022: replies[].text must be a COPY-READY message, not advice.
-    "CRITICAL — replies[].text MUST be the literal message the user can copy and send AS-IS to the other person. Write it in first person («я…»), addressed directly to собеседник, in the user's natural everyday voice, in Russian. It is the reply itself, NOT advice about replying. NEVER put meta-commentary inside text — no «Похоже, что…», «возможно, стоит…», «попробуйте…», «дайте ему время», «рекомендую…», no third-person description of the situation. Do NOT wrap text in quotes («»).",
-    "replies[].hint is a SHORT note FOR THE USER (≤90 chars, Russian) — когда/зачем выбрать этот вариант. Every recommendation, suggestion or situational comment belongs ONLY in hint, never in text.",
-    "Do not state the other person's intent as fact. Never state psychological diagnoses as facts. Never label anyone as narcissist or manipulator as fact.",
-  ].join(" ");
+  const systemPrompt = CHAT_ANALYSIS_SYSTEM_PROMPT;
 
   try {
     const response = await aiComplete({
