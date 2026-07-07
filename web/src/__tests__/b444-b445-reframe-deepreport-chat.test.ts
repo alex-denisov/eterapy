@@ -100,11 +100,12 @@ describe("B445 chat session — lazy creation + 5-minute decision window", () =>
     expect(CHAT_SESSION_GRACE_MINUTES).toBe(5);
   });
 
-  it("server creates the session only on start (not on page view)", () => {
+  it("server creates the session only on start and continues the same session after completion", () => {
     const server = source("src/lib/companion-chat-server.ts");
     // getSessionState: standalone заход возвращает виртуальное состояние без create
     expect(server).toContain("virtualSessionState");
-    expect(server).toContain("isWithinExtendGrace");
+    expect(server).toContain("История остаётся в том же");
+    expect(server).not.toContain("grace_expired");
     // start умеет создать строку, если sessionId не передан
     expect(server).toContain("await getOrCreateSession({");
     // окончание окна отдаётся клиенту всегда (для расчёта grace)

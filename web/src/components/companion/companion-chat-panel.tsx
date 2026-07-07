@@ -12,7 +12,6 @@ import { dispatchBalanceChanged } from "@/lib/balance-events";
 import { dispatchCompanionSession } from "@/lib/companion-session-events";
 import { recommendPrimaryProduct, recommendSecondaryProducts } from "@/lib/product-format-recommendations";
 import { pointsWord } from "@/lib/points";
-import { CHAT_SESSION_COST_CREDITS, CHAT_SESSION_PRICE_KOPECKS, FREE_CHAT_MESSAGE_LIMIT } from "@/lib/chat-session";
 import { loginUrl } from "@/lib/subdomain";
 
 type Msg = { role: "user" | "companion"; text: string; at: string };
@@ -340,9 +339,7 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
       if (e.status === 402) {
         setNotice("Недостаточно баллов для продления.");
       } else if (e.status === 409) {
-        // Grace истёк — сессия закрыта на сервере; фиксируем блокировку и на клиенте.
-        setLocked(true);
-        setNotice(e.message || "Сессия завершена — начните новый диалог.");
+        setNotice(e.message || "Сначала откройте сеанс, затем его можно продолжить.");
       } else {
         setNotice(e.message || "Не удалось продлить");
       }
@@ -350,40 +347,6 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
       setSending(false);
     }
   }
-
-  // B449: «Начать новый диалог» с экрана завершённой сессии — мягкий сброс к
-  // стартовому гейту (приглашению), БЕЗ немедленного списания. Чистим sessionId из
-  // URL и возвращаем виртуальное состояние; оплата произойдёт уже по «Начать диалог».
-  const startNewSession = useCallback(() => {
-    endedNotifiedRef.current = false;
-    autoStartAttemptedRef.current = false;
-    setSessionOpen(false);
-    setMessages([]);
-    setInput("");
-    setLocked(false);
-    setNeedsCredits(false);
-    setCrisis(false);
-    setNotice(null);
-    setRemainingMs(0);
-    setGraceMs(GRACE_WINDOW_MS);
-    setState({
-      id: "",
-      messages: [],
-      freeRemaining: FREE_CHAT_MESSAGE_LIMIT,
-      started: false,
-      paidActive: false,
-      minutesRemaining: 0,
-      expiresAt: null,
-      windowExpiresAt: null,
-      cost: { credits: CHAT_SESSION_COST_CREDITS, kopecks: CHAT_SESSION_PRICE_KOPECKS },
-    });
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("sessionId");
-      window.history.replaceState(null, "", url.toString());
-    }
-    dispatchCompanionSession({ started: false, expiresAt: null });
-  }, []);
 
   // ── Start gate (paid-only): shown until a paid window is active. ────────────
   const startGate = (
@@ -429,23 +392,20 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
     );
   }
 
-  // B449: когда сессия завершена (locked) — под композером показываем рекомендательный
-  // блок услуг в дизайне Таро/checkin: «что дальше» = начать новый диалог + подобранный
-  // формат, затем «другие форматы» и карточка специалиста. Тема диалога заранее не
-  // известна → берём общий подбор ("other"), как делает chat-analysis.
+  // B487: когда сессия завершена (locked), история остаётся в том же чат-дизайне,
+  // но сворачивается, а основное действие продолжает именно этот sessionId.
   const followupRec = recommendPrimaryProduct("other");
   const followupPrimary: TriagePrimary[] = [
     {
-      key: "new-dialog",
-      testId: "companion-new-dialog",
-      ribbon: "новая сессия",
+      key: "continue-dialog",
+      testId: "companion-continue-dialog",
+      ribbon: "вернуться в чат",
       icon: MessageSquareText,
-      title: "Начать новый диалог",
-      description: "Свежий разговор в своём темпе — 45 минут, чтобы разобрать новый вопрос.",
-      priceMain: "790 ₽",
-      priceSub: "45 мин · или 4 балла",
-      ctaLabel: "Начать",
-      onClick: startNewSession,
+      title: "Продолжить диалог",
+      description: "Открыть ещё 30 минут в этой же переписке — история останется на месте.",
+      priceSub: "30 мин · 2 балла",
+      ctaLabel: "Продолжить",
+      onClick: extendSession,
     },
     {
       key: followupRec.slug,
@@ -465,45 +425,57 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
     .slice(0, 3)
     .map((item) => ({ slug: item.slug, name: item.name, href: item.href, price: item.price, creditCost: item.creditCost }));
 
+  const messageThread = (autoScroll: boolean) => (
+    <div ref={autoScroll ? listRef : undefined} className="soft-dialogue-chat soft-chat-thread" data-testid="companion-messages">
+      {messages.length === 0 && (
+        <p className="font-heading text-lg italic leading-relaxed text-[var(--soft-ink-soft)]">
+          Напишите, что сейчас занимает вас больше всего. Можно начать с малого.
+        </p>
+      )}
+      {messages.map((m, i) => {
+        const isUser = m.role === "user";
+        return (
+          <div
+            key={i}
+            className={`soft-msg-row ${isUser ? "soft-msg-row-user" : "soft-msg-row-assistant"}`}
+            data-role={m.role}
+          >
+            {isUser ? <UserMsgAvatar /> : <div className="soft-msg-avatar" aria-hidden="true" />}
+            <div
+              className={`soft-msg-bubble ${isUser ? "soft-msg-bubble-user" : "soft-msg-bubble-assistant"}`}
+              style={{ whiteSpace: "pre-wrap" }}
+            >
+              {m.text}
+            </div>
+          </div>
+        );
+      })}
+      {typing && (
+        <div className="soft-msg-row soft-msg-row-assistant" data-testid="companion-typing">
+          <div className="soft-msg-avatar" aria-hidden="true" />
+          <div className="soft-msg-bubble soft-msg-bubble-assistant">
+            <div className="soft-typing"><span /><span /><span /></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     // Issue #2/#3: Telegram-like surface — bounded height, the thread scrolls and
     // the composer is pinned to the bottom of the first screen. Issues #4/#5/#8: no
     // live-dialogue eyebrow, no in-panel timer (it lives in the hero now) and no
     // companion-mode chips — it is one chat that reads the mood on its own.
-    <div data-testid="companion-chat-panel" className="soft-chat-screen">
-      <div ref={listRef} className="soft-dialogue-chat soft-chat-thread" data-testid="companion-messages">
-        {messages.length === 0 && (
-          <p className="font-heading text-lg italic leading-relaxed text-[var(--soft-ink-soft)]">
-            Напишите, что сейчас занимает вас больше всего. Можно начать с малого.
-          </p>
-        )}
-        {messages.map((m, i) => {
-          const isUser = m.role === "user";
-          return (
-            <div
-              key={i}
-              className={`soft-msg-row ${isUser ? "soft-msg-row-user" : "soft-msg-row-assistant"}`}
-              data-role={m.role}
-            >
-              {isUser ? <UserMsgAvatar /> : <div className="soft-msg-avatar" aria-hidden="true" />}
-              <div
-                className={`soft-msg-bubble ${isUser ? "soft-msg-bubble-user" : "soft-msg-bubble-assistant"}`}
-                style={{ whiteSpace: "pre-wrap" }}
-              >
-                {m.text}
-              </div>
-            </div>
-          );
-        })}
-        {typing && (
-          <div className="soft-msg-row soft-msg-row-assistant" data-testid="companion-typing">
-            <div className="soft-msg-avatar" aria-hidden="true" />
-            <div className="soft-msg-bubble soft-msg-bubble-assistant">
-              <div className="soft-typing"><span /><span /><span /></div>
-            </div>
-          </div>
-        )}
-      </div>
+    <div data-testid="companion-chat-panel" className="soft-chat-screen" data-state={locked ? "completed" : "active"}>
+      {locked ? (
+        <details className="soft-chat-history-collapsed" data-testid="companion-history-collapsed">
+          <summary>
+            <span>История переписки</span>
+            <span>{messages.length} сообщений</span>
+          </summary>
+          {messageThread(false)}
+        </details>
+      ) : messageThread(true)}
 
       {notice && <p className="mt-2 rounded-[14px] bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{notice}</p>}
 
@@ -514,15 +486,15 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
         </Link>
       )}
 
-      {/* Composer in the same soft-ask-card surface as /checkin. B445: после
-          истечения «окна решения» весь блок блокируется (pointer-events: none) и
-          защищён от ввода/нажатия — в сессию уже нельзя зайти для продолжения. */}
+      {/* Composer in the same soft-ask-card surface as /checkin. In the completed
+          result state it is removed entirely: the user continues through the CTA
+          below, which reopens the same session and restores sending. */}
+      {!locked && (
       <div
         className="soft-ask-card soft-dialogue-composer"
         data-testid="companion-composer"
         data-locked={locked}
         aria-disabled={locked}
-        style={locked ? { opacity: 0.55, pointerEvents: "none" } : undefined}
       >
         <label htmlFor="companion-input" className="sr-only">Сообщение</label>
         <textarea
@@ -543,11 +515,6 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
           disabled={sending || expired || locked}
           data-testid="companion-input"
         />
-        {/* B449: когда сессия завершена (locked) — низ композера не показываем
-            вовсе: дубль «Сессия завершена» убран (он остаётся плейсхолдером инпута),
-            а мёртвая кнопка «Продлить» бессмысленна (продление уже невозможно). Дальше
-            под композером идёт рекомендательный блок «что дальше». */}
-        {!locked && (
           <div className="soft-ask-foot">
             {/* Issue #6 / B445: «Продлить» появляется только на 00:00 и стоит вместе с
                 дисклеймером об автозавершении сессии при бездействии (таймер 5 минут). */}
@@ -591,12 +558,9 @@ export function CompanionChatPanel({ dialogueId, analysisId, onSessionEnd, login
               </>
             )}
           </div>
-        )}
       </div>
+      )}
 
-      {/* B449: сессия завершена — рекомендательный блок услуг как в Таро: начать
-          новый диалог + подобранный формат, «другие форматы» и карточка специалиста.
-          Стоит ниже композера и остаётся интерактивным (композер выше — приглушён). */}
       {locked && (
         <ServiceTriage
           eyebrow="что дальше"

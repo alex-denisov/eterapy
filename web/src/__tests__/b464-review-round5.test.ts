@@ -64,17 +64,13 @@ describe("R13 item 4 — purchase controls one-row layout", () => {
   });
 });
 
-// ── #5 · deep-report decoy ladder only on the result screen ──────────────────
+// ── #5 · deep-report result footer follows the tarot-style triage only ───────
 describe("R13 item 5 — deep-report recommendations moved to the result view", () => {
-  it("renders FullQuestionBundleOffer after the triage on the result view only", () => {
+  it("renders the shared triage on the result view and does not show the stale depth ladder", () => {
     const actions = read("components/products/deep-report-actions.tsx");
-    // Not on the intake anymore.
-    expect(actions).not.toContain("{!hasEntitlement && (");
-    // Present on the result view, after «что дальше».
-    const triage = actions.indexOf('testId="deep-report-triage"');
-    const ladder = actions.indexOf("<FullQuestionBundleOffer />");
-    expect(triage).toBeGreaterThan(-1);
-    expect(ladder).toBeGreaterThan(triage);
+    expect(actions).toContain('testId="deep-report-triage"');
+    expect(actions).not.toContain("<FullQuestionBundleOffer");
+    expect(actions).not.toContain("Выберите глубину");
   });
 });
 

@@ -31,7 +31,6 @@ import {
   decideChatSend,
   freeMessagesRemaining,
   isPaidSessionActive,
-  isWithinExtendGrace,
   paidMinutesRemaining,
   premiumIncludedRemaining,
   sessionWindowOnExtend,
@@ -352,7 +351,7 @@ async function generateCompanionReply(input: {
 
 export type StartSessionResult =
   | { ok: true; includedByPremium: boolean; state: PublicSessionState }
-  | { ok: false; reason: "insufficient_credits" | "not_found" | "needs_active_session" | "grace_expired" };
+  | { ok: false; reason: "insufficient_credits" | "not_found" | "needs_active_session" };
 
 // Старт оплаченного сеанса: сперва квота Premium (2/мес), иначе списание 4 баллов.
 // B445: строка сессии создаётся ИМЕННО здесь (при «Начать диалог»), а не на заходе
@@ -412,19 +411,14 @@ export async function startPaidSession(input: {
   return { ok: true, includedByPremium: false, state: publicState(updated as SessionRow, now) };
 }
 
-// Продление активного сеанса на +30 мин за 2 балла.
+// Продолжение начатого сеанса на +30 мин за 2 балла. История остаётся в том же
+// sessionId, даже если короткое окно решения на клиенте уже истекло.
 export async function extendPaidSession(input: { userId: string; sessionId: string }): Promise<StartSessionResult> {
   const row = await loadSession(input.userId, input.sessionId);
   if (!row) return { ok: false, reason: "not_found" };
   const now = new Date();
-  // B445: продлить можно, пока сессия активна ИЛИ пока не истекло «окно решения»
-  // (grace) после 00:00. Не начатую сессию продлевать нельзя (обход старта), и
-  // после grace — тоже (сессия закрыта, в неё уже нельзя зайти для продолжения).
   if (toState(row).paidStartedAt == null) {
     return { ok: false, reason: "needs_active_session" };
-  }
-  if (!isWithinExtendGrace(toState(row), now)) {
-    return { ok: false, reason: "grace_expired" };
   }
 
   try {

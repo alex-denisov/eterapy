@@ -39,7 +39,7 @@ describe("B449 standalone chat invites a new session instead of resuming a finis
   });
 });
 
-describe("B449 finished chat shows a tarot-style recommendations block + no duplicate «Сессия завершена»", () => {
+describe("B487 finished chat keeps history collapsed and continues the same session", () => {
   const panel = source("src/components/companion/companion-chat-panel.tsx");
 
   it("renders the shared ServiceTriage recommendations when the session is finished (locked)", () => {
@@ -51,8 +51,18 @@ describe("B449 finished chat shows a tarot-style recommendations block + no dupl
     expect(panel).toContain("recommendSecondaryProducts");
     // блок появляется только когда сессия завершена (locked), не во время grace
     expect(panel).toContain("locked && (");
-    // первичный CTA — начать новый диалог
-    expect(panel).toContain("Начать новый диалог");
+    // первичный CTA — продолжить эту же сессию, не сбрасывать sessionId
+    expect(panel).toContain("Продолжить диалог");
+    expect(panel).toContain('ctaLabel: "Продолжить"');
+    expect(panel).toContain("onClick: extendSession");
+    expect(panel).not.toContain("startNewSession");
+  });
+
+  it("keeps completed messages in a collapsible chat-history block using the same message styles", () => {
+    expect(panel).toContain('data-testid="companion-history-collapsed"');
+    expect(panel).toContain('className="soft-chat-history-collapsed"');
+    expect(panel).toContain('className="soft-dialogue-chat soft-chat-thread"');
+    expect(panel).toContain('soft-msg-row');
   });
 
   it("does not duplicate «Сессия завершена» — it stays only in the composer-input placeholder", () => {

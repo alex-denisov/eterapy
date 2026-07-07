@@ -54,9 +54,6 @@ export async function POST(request: NextRequest) {
     if (result.reason === "needs_active_session") {
       return errorWithRequestContext("NO_ACTIVE_SESSION", "Сначала откройте сеанс, затем его можно продлить.", 409, context);
     }
-    if (result.reason === "grace_expired") {
-      return errorWithRequestContext("SESSION_CLOSED", "Сессия завершена — её больше нельзя продлить. Начните новый диалог.", 409, context);
-    }
     return jsonWithRequestContext(
       { ok: false, error: "Недостаточно баллов. Пополните кошелёк, чтобы продолжить разговор.", code: "INSUFFICIENT_CREDITS" },
       { status: 402, headers: {} },
