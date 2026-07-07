@@ -28,9 +28,9 @@ describe("B443 recommendations parity (#4 tarot, #11 chat-analysis)", () => {
     expect(route).toContain("secondaryProducts");
   });
 
-  it("#11 chat-analysis replaces «следующий шаг» with the «что вам подойдет» triage", () => {
+  it("#11 chat-analysis uses the same «что дальше» triage as tarot", () => {
     expect(chat).toContain("<ServiceTriage");
-    expect(chat).toContain('eyebrow="что вам подойдет"');
+    expect(chat).toContain('eyebrow="что дальше"');
     expect(chat).toContain("recommendPrimaryProduct");
     expect(chat).toContain("recommendSecondaryProducts");
     // the old bordeaux single-rec card copy is gone
