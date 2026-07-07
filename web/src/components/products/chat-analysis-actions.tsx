@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Check, Compass, Copy, FileText, ImageIcon, LockKeyhole, MessageSquareText, PenLine, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, Check, CheckCheck, Compass, Copy, FileText, ImageIcon, LockKeyhole, MessageSquareText, PenLine, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -50,6 +50,23 @@ type ChatAnalysisStructured = {
 
 const LEGACY_TONE_PCTS = [72, 52, 36, 24];
 const REPLY_STYLE_FALLBACK = ["мягкий", "прямой", "границы"];
+const REPLY_COMPLETION_FALLBACKS: ReplyVariant[] = [
+  {
+    style: "мягкий",
+    text: "Я хочу спокойно понять, что между нами происходит. Можем поговорить без обвинений?",
+    hint: "Если нужно снизить напряжение и оставить контакт открытым.",
+  },
+  {
+    style: "прямой",
+    text: "Мне важно получить ясный ответ, а не продолжать угадывать. Скажи, пожалуйста, как ты это видишь?",
+    hint: "Если нужна конкретика без длинного объяснения.",
+  },
+  {
+    style: "границы",
+    text: "Я могу обсуждать это спокойно, но не хочу продолжать разговор в таком тоне. Давай вернемся позже.",
+    hint: "Если разговор уже заходит в давление или спор по кругу.",
+  },
+];
 
 function normalizeToneEntries(tones: Array<ToneEntry | string> | null | undefined): ToneEntry[] {
   return (tones ?? [])
@@ -90,6 +107,16 @@ function normalizeReplyVariants(replies: Array<ReplyVariant | string> | null | u
     })
     .filter((item): item is ReplyVariant => Boolean(item))
     .slice(0, 3);
+}
+
+function completeReplyVariants(replies: ReplyVariant[]): ReplyVariant[] {
+  const next = replies.slice(0, 3);
+  for (const fallback of REPLY_COMPLETION_FALLBACKS) {
+    if (next.length >= 3) break;
+    const hasStyle = next.some((reply) => reply.style.toLowerCase() === fallback.style.toLowerCase());
+    next.push(hasStyle ? { ...fallback, style: REPLY_STYLE_FALLBACK[next.length] ?? fallback.style } : fallback);
+  }
+  return next.slice(0, 3);
 }
 
 function normalizeStringList(items: unknown): string[] {
@@ -276,32 +303,189 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function formatSourceTranscript(text: string): Array<{ speaker: string | null; text: string }> {
-  return text
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const match = /^([^:：]{1,36})[:：]\s*(.+)$/.exec(line);
-      if (!match) return { speaker: null, text: line };
-      return { speaker: match[1].trim(), text: match[2].trim() };
-    });
+type MessengerStatus = "read" | "unread" | "delivered" | "sent";
+type MessengerTranscriptItem =
+  | { kind: "date"; label: string }
+  | { kind: "message"; speaker: string | null; text: string; time: string | null; status: MessengerStatus | null; mine: boolean };
+
+const TIME_PATTERN = /(?:^|\s)([01]?\d|2[0-3])[:.][0-5]\d(?:\s|$)/;
+const DATE_PATTERN = /(?:сегодня|вчера|позавчера|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?|\d{1,2}\s+[а-яё]{3,})/i;
+
+function normalizeMessageTime(value: string) {
+  const match = value.match(/([01]?\d|2[0-3])[:.][0-5]\d/);
+  return match ? match[0].replace(".", ":") : null;
+}
+
+function parseMessageStatus(value: string): MessengerStatus | null {
+  const lower = value.toLowerCase();
+  if (/не\s*прочитан|unread/.test(lower)) return "unread";
+  if (/прочитан|просмотрен|read|seen|✓✓|✔✔/.test(lower)) return "read";
+  if (/доставлен|delivered|✓|✔/.test(lower)) return "delivered";
+  if (/отправлен|sent/.test(lower)) return "sent";
+  return null;
+}
+
+function isDateSeparatorLine(line: string) {
+  if (line.length > 42) return false;
+  if (TIME_PATTERN.test(line)) return false;
+  return DATE_PATTERN.test(line);
+}
+
+function isMetaLine(line: string) {
+  if (line.length > 36) return false;
+  return Boolean(normalizeMessageTime(line) || parseMessageStatus(line));
+}
+
+function splitSpeakerLine(line: string): { speaker: string; text: string } | null {
+  if (isMetaLine(line)) return null;
+  const match = /^([^:：]{1,36})[:：]\s*(.+)$/.exec(line);
+  if (!match) return null;
+  const speaker = match[1].trim();
+  const text = match[2].trim();
+  if (!speaker || !text) return null;
+  if (/^\d{1,2}$/.test(speaker) && /^\d{2}\b/.test(text)) return null;
+  return { speaker, text };
+}
+
+function isMineSpeaker(speaker: string | null) {
+  return Boolean(speaker && /^(я|вы|you|me)$/i.test(speaker.trim()));
+}
+
+function appendMessageText(base: string, next: string) {
+  if (!base) return next;
+  if (/^[,.;:!?)]/.test(next)) return `${base}${next}`;
+  return `${base} ${next}`;
+}
+
+function formatMessengerTranscript(text: string): MessengerTranscriptItem[] {
+  const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const items: MessengerTranscriptItem[] = [];
+  let pendingTime: string | null = null;
+  let pendingStatus: MessengerStatus | null = null;
+  let current: Extract<MessengerTranscriptItem, { kind: "message" }> | null = null;
+
+  const flush = () => {
+    if (!current) return;
+    items.push(current);
+    current = null;
+  };
+
+  for (const line of lines) {
+    if (isDateSeparatorLine(line)) {
+      flush();
+      items.push({ kind: "date", label: line });
+      continue;
+    }
+
+    if (isMetaLine(line)) {
+      const lineTime = normalizeMessageTime(line);
+      const lineStatus = parseMessageStatus(line);
+      if (current) {
+        current.time = current.time ?? lineTime;
+        current.status = current.status ?? lineStatus;
+        flush();
+        continue;
+      }
+      flush();
+      pendingTime = lineTime ?? pendingTime;
+      pendingStatus = lineStatus ?? pendingStatus;
+      continue;
+    }
+
+    const speakerLine = splitSpeakerLine(line);
+    if (speakerLine) {
+      flush();
+      current = {
+        kind: "message",
+        speaker: speakerLine.speaker,
+        text: speakerLine.text,
+        time: pendingTime,
+        status: pendingStatus,
+        mine: isMineSpeaker(speakerLine.speaker),
+      };
+      pendingTime = null;
+      pendingStatus = null;
+      continue;
+    }
+
+    if (!current) {
+      current = {
+        kind: "message",
+        speaker: null,
+        text: line,
+        time: pendingTime,
+        status: pendingStatus,
+        mine: false,
+      };
+      pendingTime = null;
+      pendingStatus = null;
+    } else {
+      current.text = appendMessageText(current.text, line);
+    }
+  }
+
+  flush();
+  return items;
+}
+
+function statusLabel(status: MessengerStatus | null) {
+  if (status === "read") return "прочитано";
+  if (status === "unread") return "не прочитано";
+  if (status === "delivered") return "доставлено";
+  if (status === "sent") return "отправлено";
+  return null;
 }
 
 function SourceTranscript({ text }: { text: string }) {
-  const lines = formatSourceTranscript(text);
+  const items = formatMessengerTranscript(text);
   return (
-    <div className="mt-3 max-h-[28rem] overflow-y-auto rounded-[18px] bg-[var(--soft-paper-card)] p-3" data-testid="chat-analysis-source-transcript">
-      {lines.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {lines.map((line, index) => (
-            <div key={`${line.speaker ?? "line"}-${index}`} className="rounded-2xl bg-[var(--soft-paper)] px-3 py-2" data-testid="chat-analysis-source-line">
-              {line.speaker && (
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--soft-terracotta-dark)]">{line.speaker}</p>
-              )}
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--soft-ink)]">{line.text}</p>
-            </div>
-          ))}
+    <div className="mt-3 max-h-[32rem] overflow-y-auto rounded-[22px] bg-[linear-gradient(180deg,var(--soft-paper-card),var(--soft-paper-deep))] px-3 py-4 sm:px-4" data-testid="chat-analysis-source-transcript">
+      {items.length > 0 ? (
+        <div className="flex flex-col gap-2.5">
+          {items.map((item, index) => {
+            if (item.kind === "date") {
+              return (
+                <div key={`date-${item.label}-${index}`} className="flex justify-center" data-testid="chat-analysis-source-date">
+                  <span className="rounded-full bg-[var(--soft-paper)] px-3 py-1 text-[11px] font-medium text-[var(--soft-ink-faint)] shadow-[var(--soft-shadow-sm)]">
+                    {item.label}
+                  </span>
+                </div>
+              );
+            }
+            const status = statusLabel(item.status);
+            return (
+              <div
+                key={`${item.speaker ?? "message"}-${index}`}
+                className={`flex ${item.mine ? "justify-end" : "justify-start"}`}
+                data-testid="chat-analysis-source-line"
+              >
+                <div
+                  className={`max-w-[82%] rounded-[20px] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(60,30,20,0.06)] ${
+                    item.mine
+                      ? "rounded-br-md bg-[color-mix(in_srgb,var(--soft-lilac-soft)_76%,white)]"
+                      : "rounded-bl-md bg-[var(--soft-paper)]"
+                  }`}
+                  data-testid="chat-analysis-source-message"
+                >
+                  {item.speaker && (
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--soft-terracotta-dark)]">{item.speaker}</p>
+                  )}
+                  <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--soft-ink)]">{item.text}</p>
+                  {(item.time || status) && (
+                    <div className="mt-1.5 flex items-center justify-end gap-1.5 text-[11px] leading-none text-[var(--soft-ink-faint)]">
+                      {item.time && <span className="tabular-nums">{item.time}</span>}
+                      {status && (
+                        <span className="inline-flex items-center gap-0.5" title={status}>
+                          {item.status === "read" ? <CheckCheck className="size-3" aria-hidden="true" /> : <Check className="size-3" aria-hidden="true" />}
+                          <span>{status}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--soft-ink)]">{text}</p>
@@ -317,7 +501,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary }: {
 }) {
   const tonesThem = normalizeToneEntries(data.tonesThem);
   const tonesMe = normalizeToneEntries(data.tonesMe);
-  const replies = normalizeReplyVariants(data.replies);
+  const replies = completeReplyVariants(normalizeReplyVariants(data.replies));
   const hasSignals = data.uncertainZones?.length || data.conflictPoints?.length || data.dontSend?.length;
 
   return (
@@ -350,9 +534,9 @@ function StructuredResult({ data, triagePrimary, triageSecondary }: {
       </div>
 
       {hasSignals ? (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3">
           {data.conflictPoints && data.conflictPoints.length > 0 && (
-            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4">
+            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4" data-testid="chat-analysis-signal-card">
               <p className="soft-eyebrow mb-2">где застревает</p>
               <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 {data.conflictPoints.map((item) => <li key={item}>{item}</li>)}
@@ -360,7 +544,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary }: {
             </div>
           )}
           {data.uncertainZones && data.uncertainZones.length > 0 && (
-            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4">
+            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4" data-testid="chat-analysis-signal-card">
               <p className="soft-eyebrow mb-2">что неясно</p>
               <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 {data.uncertainZones.map((item) => <li key={item}>{item}</li>)}
@@ -368,7 +552,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary }: {
             </div>
           )}
           {data.dontSend && data.dontSend.length > 0 && (
-            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4">
+            <div className="rounded-[18px] bg-[var(--soft-paper-card)] p-4" data-testid="chat-analysis-signal-card">
               <p className="soft-eyebrow mb-2">лучше не писать</p>
               <ul className="space-y-1.5 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
                 {data.dontSend.map((item) => <li key={item}>{item}</li>)}
@@ -383,8 +567,8 @@ function StructuredResult({ data, triagePrimary, triageSecondary }: {
         <p className="soft-eyebrow mb-1">что можно ответить</p>
         <p className="text-xs text-[var(--soft-ink-faint)]">Готовый текст — можно скопировать и отправить как есть.</p>
         <div className="mt-2 flex flex-col">
-          {replies.length > 0 ? replies.map((r, i) => (
-            <div key={i} className={`flex items-start gap-3 py-3.5 ${i > 0 ? "border-t border-[var(--soft-paper-edge)]" : ""}`}>
+          {replies.map((r, i) => (
+            <div key={i} className={`flex items-start gap-3 py-3.5 ${i > 0 ? "border-t border-[var(--soft-paper-edge)]" : ""}`} data-testid="chat-analysis-reply">
               <div className="min-w-0 flex-1">
                 <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--soft-ink-faint)]">{r.style}</span>
                 {/* INC-022: copy-ready message (this is what CopyButton copies) */}
@@ -396,11 +580,7 @@ function StructuredResult({ data, triagePrimary, triageSecondary }: {
               </div>
               <CopyButton text={r.text} />
             </div>
-          )) : (
-            <p className="py-3 text-sm leading-relaxed text-[var(--soft-ink-soft)]">
-              В сохранённом результате нет готовых формулировок. Можно продолжить разбор в чате ниже.
-            </p>
-          )}
+          ))}
         </div>
       </div>
 
@@ -434,6 +614,7 @@ export function ChatAnalysisActions() {
   const [message, setMessage] = useState<string | null>(null);
 
   const [tab, setTab] = useState<"input" | "context" | "result">("input");
+  const [showResultSource, setShowResultSource] = useState(false);
   const [sourceText, setSourceText] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   // B404: распознавание скриншотов идёт по одному с понятным прогрессом
@@ -1153,32 +1334,40 @@ export function ChatAnalysisActions() {
 
       {/* tab 3: result */}
       {tab === "result" && result && (
-        <div className="soft-card tarot-order-surface" data-testid="chat-analysis-result-shell">
+        <div className="soft-card tarot-order-surface chat-analysis-result-shell" data-testid="chat-analysis-result-shell">
           <div className="tarot-head">
             <p className="soft-eyebrow">разбор готов</p>
           </div>
 
           {sourceText.trim() && (
-            <details className="tarot-controls-collapsed" data-testid="chat-analysis-recap">
-              <summary>
+            <section className="tarot-controls-collapsed" data-testid="chat-analysis-recap" data-state={showResultSource ? "open" : "closed"}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-[0.9rem] px-[0.85rem] py-[0.6rem] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--soft-terracotta)]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--soft-paper-card)]"
+                aria-expanded={showResultSource}
+                data-testid="chat-analysis-recap-toggle"
+                onClick={() => setShowResultSource((open) => !open)}
+              >
                 <span className="tarot-collapsed-q">Переписка и контекст</span>
-                <span className="tarot-collapsed-hint">показать</span>
-              </summary>
-              <dl className="tarot-recap">
-                <div>
-                  <dt>Источник</dt>
-                  <dd>
-                    <SourceTranscript text={sourceText.trim()} />
-                  </dd>
-                </div>
-                {result.metadata?.analysisContextNote && (
+                <span className="tarot-collapsed-hint">{showResultSource ? "скрыть" : "показать"}</span>
+              </button>
+              {showResultSource && (
+                <dl className="tarot-recap">
                   <div>
-                    <dt>Контекст</dt>
-                    <dd>{result.metadata.analysisContextNote}</dd>
+                    <dt>Источник</dt>
+                    <dd>
+                      <SourceTranscript text={sourceText.trim()} />
+                    </dd>
                   </div>
-                )}
-              </dl>
-            </details>
+                  {result.metadata?.analysisContextNote && (
+                    <div>
+                      <dt>Контекст</dt>
+                      <dd>{result.metadata.analysisContextNote}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+            </section>
           )}
 
           <div className="tarot-reveal" data-testid="chat-analysis-reveal">

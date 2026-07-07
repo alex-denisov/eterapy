@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ChatAnalysisActions } from "@/components/products/chat-analysis-actions";
 import {
   ChatAnalysisInputError,
@@ -30,7 +30,7 @@ describe("B087/B088 chat analysis product", () => {
 
   it("implements chat source upload, preview, and safe data handling", () => {
     const route = source("src/app/api/products/chat-analysis/route.ts");
-    const helper = source("src/lib/chat-analysis.ts");
+    const prompt = source("src/lib/chat-analysis-prompt.ts");
     
     // B087
     expect(route).toContain("z.literal(\"upload_preview\")");
@@ -41,7 +41,7 @@ describe("B087/B088 chat analysis product", () => {
     // Generates anonymized version
     expect(route).toContain("buildChatAnalysisPreview");
     expect(route).toContain("maskChatAnalysisPii");
-    expect(helper).toContain("Do not state the other person's intent as fact");
+    expect(prompt).toContain("Не утверждай намерения другого человека как факт");
   });
 
   it("passes the user context note into generation and records it in metadata", () => {
@@ -171,12 +171,13 @@ describe("B087/B088 chat analysis product", () => {
   it("B406/INC-022 makes reply variants copy-ready and keeps recommendations outside the copyable text", () => {
     const helper = source("src/lib/chat-analysis.ts");
     const actions = source("src/components/products/chat-analysis-actions.tsx");
+    const prompt = source("src/lib/chat-analysis-prompt.ts");
 
     // Schema carries a separate `hint` (recommendation) alongside the copy-ready `text`.
     expect(helper).toContain("hint?: string");
     // Prompt forces text to be a literal, sendable message — not advice.
-    expect(helper).toContain("replies[].text MUST be the literal message");
-    expect(helper).toContain("belongs ONLY in hint, never in text");
+    expect(prompt).toContain("буквальный текст сообщения");
+    expect(prompt).toContain("Не добавляй кавычки, советы, комментарии");
     // UI renders the hint OUTSIDE the copyable text; CopyButton still copies only r.text.
     expect(actions).toContain("{r.hint && (");
     expect(actions).toContain("<CopyButton text={r.text} />");
@@ -297,8 +298,9 @@ describe("B087/B088 chat analysis product", () => {
 
     expect(actions).toContain("normalizeToneEntries");
     expect(actions).toContain("normalizeReplyVariants");
-    expect(actions).toContain("formatSourceTranscript");
+    expect(actions).toContain("formatMessengerTranscript");
     expect(actions).toContain("chat-analysis-source-line");
+    expect(actions).toContain("chat-analysis-source-message");
     expect(actions).not.toContain(".slice(0, 220)");
     expect(actions).not.toContain("chat-analysis-start-new");
     expect(actions).not.toContain("chat-analysis-autosaved");
@@ -355,6 +357,7 @@ describe("B087/B088 chat analysis product", () => {
       render(React.createElement(ChatAnalysisActions));
       expect(await screen.findByText("защитный")).toBeInTheDocument();
       expect(screen.getByText("Давай спокойно обсудим это завтра.")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("chat-analysis-recap-toggle"));
       expect(screen.getByTestId("chat-analysis-source-transcript")).toBeInTheDocument();
       expect(screen.getAllByTestId("chat-analysis-source-line")).toHaveLength(3);
       expect(screen.queryByTestId("chat-analysis-start-new")).not.toBeInTheDocument();
@@ -363,5 +366,79 @@ describe("B087/B088 chat analysis product", () => {
       global.fetch = originalFetch;
       window.history.pushState({}, "", "/");
     }
+  });
+
+  it("B490 renders the source as a messenger transcript with toggle label and no shell focus tint", async () => {
+    const css = source("src/app/v4-soft.css");
+    expect(css).toContain(".chat-analysis-result-shell:focus-within");
+    expect(css).toContain("box-shadow: var(--soft-shadow-sm)");
+
+    const originalFetch = global.fetch;
+    window.history.pushState({}, "", "/products/chat-analysis?analysis=messenger-1");
+    global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+      const path = String(url);
+      if (path === "/api/products/chat-analysis") {
+        return new Response(JSON.stringify({ hasEntitlement: false, results: [] }), { status: 200 });
+      }
+      if (path === "/api/products/chat-analysis/messenger-1") {
+        return new Response(JSON.stringify({
+          result: {
+            id: "messenger-1",
+            status: "READY",
+            title: "Разбор переписки",
+            previewText: null,
+            resultText: JSON.stringify({
+              insight: "В разговоре есть напряжение.",
+              tonesThem: ["защитный", "отстраненный"],
+              tonesMe: ["собранный", "уточняющий"],
+              replies: ["Давай спокойно проясним это.", "Мне нужен прямой ответ."],
+              uncertainZones: ["почему собеседник отвечает коротко"],
+              dontSend: ["не отправлять длинное обвинение"],
+              safetyNote: "Если есть угрозы, важнее безопасность.",
+            }),
+            saved: true,
+            metadata: {
+              sourceText: "Сегодня\nЯ: Привет, хочу понять что происходит\n12:31 прочитано\nОн: Потом отвечу",
+              analysisContextNote: "Кто собеседник: партнёр",
+            },
+          },
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected" }), { status: 500 });
+    }) as typeof fetch;
+
+    try {
+      render(React.createElement(ChatAnalysisActions));
+      const toggle = await screen.findByTestId("chat-analysis-recap-toggle");
+      expect(toggle).toHaveTextContent("показать");
+      fireEvent.click(toggle);
+      expect(toggle).toHaveTextContent("скрыть");
+      expect(screen.getByTestId("chat-analysis-source-transcript")).toBeInTheDocument();
+      expect(screen.getByTestId("chat-analysis-source-date")).toHaveTextContent("Сегодня");
+      expect(screen.getAllByTestId("chat-analysis-source-message")).toHaveLength(2);
+      expect(screen.getByText("12:31")).toBeInTheDocument();
+      expect(screen.getByText("прочитано")).toBeInTheDocument();
+      expect(screen.getAllByTestId("chat-analysis-reply")).toHaveLength(3);
+      expect(screen.getByText("границы")).toBeInTheDocument();
+      expect(screen.getAllByTestId("chat-analysis-signal-card")).toHaveLength(2);
+    } finally {
+      global.fetch = originalFetch;
+      window.history.pushState({}, "", "/");
+    }
+  });
+
+  it("B490 keeps the chat-analysis prompt decisive, admin-managed, and locked to exactly 3 reply objects", () => {
+    const prompt = source("src/lib/chat-analysis-prompt.ts");
+    const helper = source("src/lib/chat-analysis.ts");
+    const defaults = source("src/lib/ai-gateway/prompts.ts");
+
+    expect(helper).toContain("CHAT_ANALYSIS_SYSTEM_PROMPT");
+    expect(defaults).toContain('"product-chat-analysis": CHAT_ANALYSIS_SYSTEM_PROMPT');
+    expect(prompt).toContain("ясный, прозрачный и практически полезный результат");
+    expect(prompt).toContain("Не уходи в чрезмерную нейтральность");
+    expect(prompt).toContain("replies: всегда ровно 3 объекта");
+    expect(prompt).toContain("Стратегии строго разные");
+    expect(prompt).toContain("как быть дальше и что можно ответить");
+    expect(prompt).toContain("Не обещай результата");
   });
 });
