@@ -127,6 +127,7 @@ export const PRACTITIONER_MORE_HREFS: string[] = [
   appUrl("/practitioner/reviews"),
   appUrl("/practitioner/invite"),
   appUrl("/practitioner/ethics"),
+  appUrl("/practitioner/crisis"),
   appUrl("/practitioner/profile"),
   appUrl("/practitioner/settings"),
   appUrl("/practitioner/verification"),
