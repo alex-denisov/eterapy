@@ -137,7 +137,8 @@ export const PURCHASED_CREDIT_VALIDITY_MONTHS = 12;
 // Z1-Ф1: the client ₽ balance rail is removed — a paid purchase is always a
 // product (digital), a subscription, or a clarity-credit pack. "balance" top-ups
 // no longer exist.
-export type BillingPurchaseKind = "product" | "subscription" | "credits";
+// B434: practitioner_ai_topup — докупка пакета AI-разборов практиком.
+export type BillingPurchaseKind = "product" | "subscription" | "credits" | "practitioner_ai_topup";
 
 export type BillingTransactionMetadata = {
   purchaseKind?: BillingPurchaseKind;

@@ -332,11 +332,45 @@ export async function handleServerSttJob(job: Job, options: { now?: Date } = {})
     userId: requestedByUserId,
     requestId: job.id,
   });
-  const summary = await generateSessionSummary({
-    transcriptText: stt.transcriptText,
-    userId: practitionerUserId,
-    requestId: job.id,
+  // B434: AI-разбор метерится (Pro 20 / Pro+ 50 в месяц + докупка) и может
+  // быть выключен глобально или на конкретной сессии. Транскрипт и комплаенс
+  // выше — платформенные и создаются всегда.
+  const { resolveAnalysisEligibility, consumeAnalysis, attemptAutoTopup } = await import("@/lib/practitioner-ai-metering");
+  let eligibility = await resolveAnalysisEligibility({
+    practitionerId: videoSession.booking.practitionerId,
+    practitionerUserId,
+    bookingId: videoSession.booking.id,
+    videoSessionId: videoSession.id,
+    now,
   });
+  // B434: авто-докупка минимального пакета при исчерпанной квоте (opt-in).
+  if (!eligibility.allowed && eligibility.reason === "quota") {
+    const topupOk = await attemptAutoTopup(videoSession.booking.practitionerId).catch(() => false);
+    if (topupOk) {
+      eligibility = await resolveAnalysisEligibility({
+        practitionerId: videoSession.booking.practitionerId,
+        practitionerUserId,
+        bookingId: videoSession.booking.id,
+        videoSessionId: videoSession.id,
+        now,
+      });
+    }
+  }
+  const summary = eligibility.allowed
+    ? await generateSessionSummary({
+        transcriptText: stt.transcriptText,
+        userId: practitionerUserId,
+        requestId: job.id,
+      })
+    : null;
+  if (eligibility.allowed && eligibility.source) {
+    await consumeAnalysis({
+      practitionerId: videoSession.booking.practitionerId,
+      videoSessionId: videoSession.id,
+      source: eligibility.source,
+      now,
+    });
+  }
   const retention = await resolveSessionAiRetentionDates({ practitionerUserId, now });
   const { deleteLocalRecording } = await import("@/lib/livekit-egress");
   const audioDeleted = await deleteLocalRecording(audioUrl);
@@ -364,11 +398,13 @@ export async function handleServerSttJob(job: Job, options: { now?: Date } = {})
       transcriptText: stt.transcriptText,
       transcriptMetadata,
       transcriptExpiresAt: retention.transcriptExpiresAt,
-      summaryText: summary.summaryText,
-      practitionerNotesText: summary.practitionerNotesText,
-      clientFollowupDraft: summary.clientFollowupDraft,
-      summaryMetadata: summary.metadata,
-      summaryExpiresAt: retention.summaryExpiresAt,
+      // B434: без права на разбор поля разбора остаются пустыми (транскрипт
+      // и комплаенс сохраняются всегда).
+      summaryText: summary?.summaryText ?? null,
+      practitionerNotesText: summary?.practitionerNotesText ?? null,
+      clientFollowupDraft: summary?.clientFollowupDraft ?? null,
+      summaryMetadata: summary?.metadata ?? undefined,
+      summaryExpiresAt: summary ? retention.summaryExpiresAt : null,
       complianceStatus: compliance.status,
       complianceRiskScore: compliance.riskScore,
       complianceEvidence: {

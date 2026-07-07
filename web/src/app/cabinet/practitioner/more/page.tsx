@@ -11,11 +11,13 @@ import {
   Settings,
   Shield,
   SlidersHorizontal,
+  Sparkles,
   Star,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import db from "@/lib/db";
 import { getActivePractitionerPlanKey } from "@/lib/practitioner-entitlements";
+import { getPractitionerAiQuota } from "@/lib/practitioner-ai-quota-db";
 import { practitionerTierBadge, practitionerTierFromPlanKey } from "@/lib/practitioner-tier";
 import { categoryLabel } from "@/lib/practitioner-taxonomy";
 import { appUrl, loginUrl, logoutUrl } from "@/lib/subdomain";
@@ -75,7 +77,11 @@ export default async function PractitionerMorePage() {
   });
   if (!practitioner) redirect(appUrl("/practitioner"));
 
-  const planKey = await getActivePractitionerPlanKey(userId);
+  const practitionerRow = await db.practitioner.findUnique({ where: { userId }, select: { id: true } });
+  const [planKey, quota] = await Promise.all([
+    getActivePractitionerPlanKey(userId),
+    practitionerRow ? getPractitionerAiQuota(practitionerRow.id, userId) : Promise.resolve(null),
+  ]);
   const tier = practitionerTierFromPlanKey(planKey);
   const name = practitioner.user.name ?? practitioner.user.email ?? "Специалист";
   const initials = name
@@ -136,6 +142,13 @@ export default async function PractitionerMorePage() {
       <section className="mt-6">
         <p className="soft-eyebrow mb-2.5">Практика</p>
         <div className="divide-y divide-[var(--soft-paper-deep)] overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
+          <HubRow
+            href={appUrl("/practitioner/ai-usage")}
+            icon={<Sparkles className="h-[18px] w-[18px]" />}
+            tone="warm"
+            label="Разборы и AI"
+            meta={quota ? `${quota.usedThisMonth} из ${quota.included}` : undefined}
+          />
           <HubRow
             href={appUrl("/practitioner/services")}
             icon={<SlidersHorizontal className="h-[18px] w-[18px]" />}

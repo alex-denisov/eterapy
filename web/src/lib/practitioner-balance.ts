@@ -94,12 +94,16 @@ export async function computePractitionerBalances(
 
   for (const transaction of internalChargeTransactions) {
     const metadata = getBillingTransactionMetadata(transaction);
-    if (
+    const isSubscriptionCharge =
       metadata.purchaseKind === "subscription"
       && typeof metadata.planKey === "string"
       && metadata.planKey.startsWith("practitioner_pro")
-      && metadata.checkoutSource === "practitioner_earnings_balance"
-    ) {
+      && metadata.checkoutSource === "practitioner_earnings_balance";
+    // B434: докупка пакетов AI-разборов тоже списывается из дохода практика.
+    const isAiTopupCharge =
+      metadata.purchaseKind === "practitioner_ai_topup"
+      && metadata.checkoutSource === "practitioner_earnings_balance";
+    if (isSubscriptionCharge || isAiTopupCharge) {
       internalChargesByUser.set(
         transaction.userId,
         (internalChargesByUser.get(transaction.userId) ?? 0) + Math.abs(transaction.amount),

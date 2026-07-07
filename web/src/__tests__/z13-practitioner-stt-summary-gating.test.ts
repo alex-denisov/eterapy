@@ -35,7 +35,12 @@ describe("Z13 practitioner STT and summary subscription gates", () => {
   it("maps browser STT and session summary to active Practitioner Pro tiers", async () => {
     expect(getPractitionerFeaturePlanKeys("browser_stt")).toEqual(["practitioner_pro", "practitioner_pro_plus"]);
     expect(getPractitionerFeaturePlanKeys("session_summary")).toEqual(["practitioner_pro", "practitioner_pro_plus"]);
-    expect(getPractitionerFeaturePlanKeys("server_stt")).toEqual(["practitioner_pro_plus"]);
+
+    // B466 (матрица 23 июня): расшифровка (server-STT) — платформенная, для
+    // ВСЕХ тарифов; без обращения к подписке.
+    await expect(practitionerHasFeature("user-1", "server_stt", mockDb as never, new Date("2026-06-06T00:00:00.000Z")))
+      .resolves.toBe(true);
+    expect(mockDb.userSubscription.findFirst).not.toHaveBeenCalled();
 
     mockDb.userSubscription.findFirst.mockResolvedValueOnce({ id: "sub-1", planKey: "practitioner_pro" });
 
