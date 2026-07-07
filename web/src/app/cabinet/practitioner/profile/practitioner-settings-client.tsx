@@ -1,30 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { NotificationSettings } from "@/components/notifications/notification-settings";
-import { logoutUrl } from "@/lib/subdomain";
-import { PractitionerProfileEditor } from "./profile-editor";
+import { appUrl, logoutUrl } from "@/lib/subdomain";
 
-// B347 / Интерфейс 14: настройки практика должны быть устроены как у клиента —
-// разделение на вкладки с переключателем, чтобы сохранение профиля больше не
-// показывало тост «Настройки уведомлений сохранены».
-type Tab = "profile" | "security" | "notifications" | "danger";
-
-interface ProfileInitialData {
-  name: string;
-  email: string;
-  avatarUrl: string | null;
-  title: string;
-  bio: string;
-  experience: string;
-  categories: string[];
-  directions: string[];
-  specialties: string[];
-  tags: string[];
-  languages: string[];
-}
+// B347 / Интерфейс 14 → B466: аккаунт-настройки практика (mockup
+// -more-settings). Публичный профиль вынесен на /practitioner/profile —
+// здесь остаются Уведомления (матрица событие × Email/Telegram/В приложении +
+// привязка Telegram через NotificationSettings role="PRACTITIONER"),
+// Безопасность и Деактивация.
+type Tab = "notifications" | "security" | "danger";
 
 interface TelegramStatus {
   linked: boolean;
@@ -32,24 +20,21 @@ interface TelegramStatus {
 }
 
 const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "profile", label: "Профиль" },
-  { id: "security", label: "Безопасность" },
   { id: "notifications", label: "Уведомления" },
+  { id: "security", label: "Безопасность" },
   { id: "danger", label: "Удаление" },
 ];
 
 export function PractitionerSettingsClient({
-  initialData,
-  practitionerId,
+  email,
   telegramStatus,
   hasPassword,
 }: {
-  initialData: ProfileInitialData;
-  practitionerId: string;
+  email: string;
   telegramStatus: TelegramStatus;
   hasPassword: boolean;
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>("profile");
+  const [activeTab, setActiveTab] = useState<Tab>("notifications");
 
   const [currentPwd, setCurrentPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -59,8 +44,6 @@ export function PractitionerSettingsClient({
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteConfirmError, setDeleteConfirmError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  const email = initialData.email;
 
   async function handleSavePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -107,7 +90,10 @@ export function PractitionerSettingsClient({
       <div className="soft-eyebrow">настройки практика</div>
       <h1 className="soft-h1 mt-2 mb-2">Настройки</h1>
       <p className="text-sm mb-6" style={{ color: "var(--soft-ink-soft)" }}>
-        Профиль виден клиентам в каталоге; уведомления и Telegram — только для вас.
+        Уведомления, Telegram и безопасность аккаунта. Публичный профиль — в разделе{" "}
+        <Link href={appUrl("/practitioner/profile")} className="text-[var(--soft-terracotta-dark)] underline-offset-2 hover:underline">
+          «Профиль»
+        </Link>.
       </p>
 
       {/* Табы — переключатель как в кабинете клиента */}
@@ -122,9 +108,9 @@ export function PractitionerSettingsClient({
         ))}
       </div>
 
-      {/* Профиль */}
-      {activeTab === "profile" && (
-        <PractitionerProfileEditor initialData={initialData} practitionerId={practitionerId} />
+      {/* Уведомления — матрица событие × Email/Telegram/В приложении + Telegram */}
+      {activeTab === "notifications" && (
+        <NotificationSettings telegramStatus={telegramStatus} role="PRACTITIONER" />
       )}
 
       {/* Безопасность */}
@@ -155,11 +141,6 @@ export function PractitionerSettingsClient({
             </form>
           )}
         </div>
-      )}
-
-      {/* Уведомления */}
-      {activeTab === "notifications" && (
-        <NotificationSettings telegramStatus={telegramStatus} role="PRACTITIONER" />
       )}
 
       {/* Деактивация */}

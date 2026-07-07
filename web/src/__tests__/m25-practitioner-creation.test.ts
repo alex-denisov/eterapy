@@ -122,12 +122,14 @@ describe("B347 — practitioner settings tabs", () => {
     const client = source("src/app/cabinet/practitioner/profile/practitioner-settings-client.tsx");
     expect(client).toContain('"use client"');
     expect(client).toContain("setActiveTab");
-    for (const label of ["Профиль", "Безопасность", "Уведомления"]) {
+    // B466: «Профиль» вынесен на собственную страницу (/practitioner/profile);
+    // настройки держат аккаунт-вкладки.
+    for (const label of ["Безопасность", "Уведомления", "Удаление"]) {
       expect(client).toContain(label);
     }
-    // Profile editing is isolated in its own tab and keeps its own save toast.
-    expect(client).toContain("PractitionerProfileEditor");
     expect(client).toContain("soft-chip-warm");
+    const profilePage = source("src/app/cabinet/practitioner/profile/page.tsx");
+    expect(profilePage).toContain("PractitionerProfileEditor");
   });
 
   it("profile save shows «Профиль обновлён», not the notifications toast", () => {

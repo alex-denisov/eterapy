@@ -13,11 +13,15 @@ describe("V2 — admin user modal stacks above the public-shell-header (z-50)", 
   });
 });
 
-describe("V6 — practitioner subscription appears in the app sidebar nav", () => {
-  it("cabinet-shell lists /practitioner/subscription", () => {
+describe("V6 — practitioner subscription is reachable from the cockpit nav", () => {
+  // B466: the flat «Подписка» sidebar item merged into «Финансы» (Тариф tab);
+  // the sidebar itself is sourced from the shared PRACTITIONER_TABS model.
+  it("cabinet-shell routes practitioners to «Финансы» (subscription lives on its Тариф tab)", () => {
     const shell = read("src/components/cabinet/cabinet-shell.tsx");
-    expect(shell).toContain('appUrl("/practitioner/subscription")');
-    expect(shell).toContain('label: "Подписка"');
+    expect(shell).toContain("PRACTITIONER_TABS.map");
+    const navModel = read("src/lib/nav-model.ts");
+    expect(navModel).toContain('appUrl("/practitioner/finance")');
+    expect(navModel).toContain('label: "Финансы"');
   });
 });
 
@@ -28,12 +32,13 @@ describe("V7 — unreadable terracotta buttons/avatars replaced with readable tr
     expect(css).toContain(".soft-select-pill");
   });
 
-  it("practitioner schedule/earnings/calendar use the readable pill, not text-primary on tint", () => {
-    expect(read("src/app/cabinet/practitioner/schedule/schedule-tabs.tsx")).toContain("soft-select-pill");
+  it("practitioner calendar/finance switchers use the readable pill, not text-primary on tint", () => {
+    // B466: расписание живёт в «Календарь» (3-tab), финансы — в «Финансы» (4-tab).
+    expect(read("src/app/cabinet/practitioner/calendar/calendar-tabs.tsx")).toContain("soft-select-pill");
     expect(read("src/components/schedule/week-calendar.tsx")).toContain("soft-select-pill");
-    const earnings = read("src/app/cabinet/practitioner/earnings/page.tsx");
-    expect(earnings).toContain("soft-select-pill");
-    expect(earnings).not.toContain("bg-primary/15 text-primary");
+    const finance = read("src/app/cabinet/practitioner/finance/finance-tabs.tsx");
+    expect(finance).toContain("soft-select-pill");
+    expect(finance).not.toContain("bg-primary/15 text-primary");
   });
 
   it("avatar fallbacks use the elegant gradient across cabinets", () => {

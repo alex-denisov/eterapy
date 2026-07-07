@@ -3,16 +3,24 @@ import path from "node:path";
 
 const source = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
-describe("Practitioner subscription balance flow", () => {
-  it("adds a dedicated practitioner subscription page instead of client billing", () => {
+// B466: подписка практика живёт на «Финансы → Тариф»; старый /subscription
+// редиректит туда. Оплата — с баланса практика ИЛИ картой (без trial).
+
+describe("Practitioner subscription balance flow (B466 Тариф tab)", () => {
+  it("redirects the legacy subscription page into «Финансы → Тариф»", () => {
     const page = source("src/app/cabinet/practitioner/subscription/page.tsx");
-    const client = source("src/app/cabinet/practitioner/subscription/subscription-client.tsx");
-    expect(page).toContain("Подписка практика");
-    expect(page).toContain("PractitionerSubscriptionClient");
-    expect(client).toContain("/api/practitioner/subscriptions/start-from-earnings");
-    // W6: consolidated to «Оплатить с баланса» + «Картой».
-    expect(client).toContain("practitioner-subscribe-from-balance");
-    expect(client).toContain("checkoutSource: \"practitioner_subscription_card\"");
+    expect(page).toContain('redirect(appUrl("/practitioner/finance?tab=tariff"))');
+  });
+
+  it("keeps both payment paths on the Тариф tab (balance + card)", () => {
+    const plans = source("src/app/cabinet/practitioner/finance/tariff-plans.tsx");
+    expect(plans).toContain("/api/practitioner/subscriptions/start-from-earnings");
+    expect(plans).toContain('checkoutSource: "practitioner_subscription_card"');
+    expect(plans).toContain("С баланса");
+    expect(plans).toContain("Картой");
+    // Owner 2026-07-06: no free trial anywhere on practitioner plans.
+    expect(plans).not.toContain("дней теста");
+    expect(plans).not.toContain("бесплатно");
   });
 
   it("deducts internal subscription charges from practitioner earnings balance", () => {
@@ -20,5 +28,12 @@ describe("Practitioner subscription balance flow", () => {
     expect(balance).toContain("internalCharges");
     expect(balance).toContain("practitioner_earnings_balance");
     expect(balance).toContain("currentBalance = accruedNet - paidOut - pendingPayout - internalCharges");
+  });
+
+  it("drops trialDays from practitioner plans (owner: нет бесплатного периода)", () => {
+    const entitlements = source("src/lib/entitlements.ts");
+    const practitionerBlock = entitlements.slice(entitlements.indexOf("practitioner_pro:"));
+    expect(practitionerBlock).toContain("trialDays: 0");
+    expect(practitionerBlock).not.toContain("trialDays: 7");
   });
 });

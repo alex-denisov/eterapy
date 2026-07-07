@@ -38,6 +38,13 @@ jest.mock("@/lib/practitioner-entitlements", () => ({
   practitionerHasFeature: jest.fn(),
 }));
 
+// B434: метеринг разборов покрыт собственными тестами — здесь всегда allowed.
+jest.mock("@/lib/practitioner-ai-metering", () => ({
+  resolveAnalysisEligibility: jest.fn().mockResolvedValue({ allowed: true, source: "included" }),
+  consumeAnalysis: jest.fn().mockResolvedValue(undefined),
+  attemptAutoTopup: jest.fn().mockResolvedValue(false),
+}));
+
 jest.mock("@/lib/session-ai-pipeline", () => ({
   buildSessionTranscript: jest.fn(),
   generateSessionSummary: jest.fn(),

@@ -26,7 +26,15 @@ export type NavIconKey =
   | "logout"
   | "library"
   | "how"
-  | "pricing";
+  | "pricing"
+  // B466 — practitioner «Practice cockpit» tabs.
+  | "today"
+  | "clients"
+  | "calendar"
+  | "finance"
+  | "grid"
+  // B478 — клиентские «Сообщения» (материалы от специалиста).
+  | "messages";
 
 export interface NavLink {
   /** Empty for action items handled by the component (e.g. «Ещё», «Выйти»). */
@@ -85,6 +93,9 @@ export const GUEST_MOBILE_TABS: MobileTab[] = [
 //    primary tabs; «Подписка» is merged into «Кошелёк» (IB3). ─────────────────
 export const CLIENT_MORE_ITEMS: MobileTab[] = [
   { href: appUrl("/bookings"), label: "Записи", iconKey: "bookings" },
+  // B478: односторонние материалы от специалиста — под «Ещё», НЕ центральный
+  // таб (owner: «не мессенджер»).
+  { href: appUrl("/messages"), label: "Сообщения", iconKey: "messages" },
   { href: appUrl("/wallet"), label: "Кошелёк", iconKey: "wallet" },
   { href: appUrl("/invite"), label: "Приглашения", iconKey: "invite" },
   { href: appUrl("/settings"), label: "Настройки", iconKey: "settings" },
@@ -98,4 +109,32 @@ export const GUEST_MORE_ITEMS: MobileTab[] = [
   { href: mainUrl("/how-it-works"), label: "Как работает", iconKey: "how" },
   { href: mainUrl("/library"), label: "Библиотека", iconKey: "library" },
   { href: mainUrl("/pricing"), label: "Тарифы", iconKey: "pricing" },
+];
+
+// ── B466 — practitioner «Practice cockpit» IA. One 5-item model drives BOTH
+//    the desktop sidebar and the mobile bottom bar (owner caveat: the
+//    practitioner sidebar must stay as polished as the client's — same shell,
+//    same model). «Ещё» is a real hub page (/practitioner/more), not a sheet:
+//    the approved mockup shows a full screen with profile card + groups. ─────
+export const PRACTITIONER_TABS: MobileTab[] = [
+  { href: appUrl("/practitioner"), label: "Сегодня", iconKey: "today" },
+  { href: appUrl("/practitioner/clients"), label: "Клиенты", iconKey: "clients" },
+  { href: appUrl("/practitioner/calendar"), label: "Календарь", iconKey: "calendar" },
+  { href: appUrl("/practitioner/finance"), label: "Финансы", iconKey: "finance" },
+  { href: appUrl("/practitioner/more"), label: MORE_LABEL, iconKey: "grid" },
+];
+
+// Sub-routes that live under the «Ещё» umbrella — the tab/sidebar item lights
+// up when any of these is active. Kept in sync with the hub page rows.
+export const PRACTITIONER_MORE_HREFS: string[] = [
+  appUrl("/practitioner/more"),
+  appUrl("/practitioner/services"),
+  appUrl("/practitioner/reviews"),
+  appUrl("/practitioner/invite"),
+  appUrl("/practitioner/ethics"),
+  appUrl("/practitioner/crisis"),
+  appUrl("/practitioner/profile"),
+  appUrl("/practitioner/settings"),
+  appUrl("/practitioner/verification"),
+  appUrl("/practitioner/ai-usage"),
 ];

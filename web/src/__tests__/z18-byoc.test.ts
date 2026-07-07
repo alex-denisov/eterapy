@@ -54,8 +54,11 @@ describe("Z18 BYOC practitioner client source axis", () => {
     const visitRoute = source("src/app/api/practitioner/invites/visit/route.ts");
     const invitePage = source("src/app/cabinet/practitioner/invite/page.tsx");
     const publicLanding = source("src/app/p/[slug]/page.tsx");
-    const practitionerNav = source("src/components/cabinet/cabinet-shell.tsx");
-    const earningsPage = source("src/app/cabinet/practitioner/earnings/page.tsx");
+    // B466: the practitioner nav moved into the shared nav-model («Приглашения»
+    // lives under the «Ещё» umbrella + hub page).
+    const practitionerNav = source("src/lib/nav-model.ts");
+    // B466: BYOC-«свой клиент» строки живут в данных «Финансов».
+    const earningsPage = source("src/app/cabinet/practitioner/finance/finance-data.ts");
     const adminBookings = source("src/app/admin/product/sessions/page.tsx");
 
     expect(schema).toContain("enum ClientSource");

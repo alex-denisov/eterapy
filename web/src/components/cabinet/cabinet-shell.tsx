@@ -6,28 +6,23 @@ import { useEffect, useState } from "react";
 import {
   BookOpen,
   LayoutDashboard,
-  Users,
-  CalendarDays,
-  MessageCircle,
+  Mail,
   Wallet,
   Settings,
-  UserPen,
-  Star,
-  Banknote,
-  Bookmark,
+  CalendarDays,
   Lock,
   LockOpen,
   LogOut,
   CircleHelp,
   Gift,
-  Crown,
-  Handshake,
 } from "lucide-react";
 import { appUrl, logoutUrl, toCabinetPathname, toPathname } from "@/lib/subdomain";
 import { DIARY_PIN_CHANGED_EVENT, hasDiaryPinStored } from "@/lib/diary-pin";
 import {
   CLIENT_MOBILE_TABS,
   CLIENT_MORE_ITEMS,
+  PRACTITIONER_TABS,
+  PRACTITIONER_MORE_HREFS,
   MORE_LABEL,
   LOGOUT_LABEL,
 } from "@/lib/nav-model";
@@ -58,24 +53,21 @@ const CLIENT_NAV: NavItem[] = [
   // B349/Механика 2: /credits merged into /wallet — one «Кошелёк» nav item.
   { href: appUrl("/wallet"), icon: Wallet, label: "Кошелёк" },
   { href: appUrl("/bookings"), icon: CalendarDays, label: "Записи" },
+  // B478: односторонние материалы от специалиста (после «Записей»).
+  { href: appUrl("/messages"), icon: Mail, label: "Сообщения" },
   { href: appUrl("/invite"), icon: Gift, label: "Приглашения" },
   { href: appUrl("/settings"), icon: Settings, label: "Настройки" },
 ];
 
-const PRACTITIONER_NAV: NavItem[] = [
-  { href: appUrl("/practitioner"), icon: LayoutDashboard, label: "Сводка" },
-  { href: appUrl("/practitioner/services"), icon: Bookmark, label: "Услуги и цены" },
-  { href: appUrl("/practitioner/schedule"), icon: CalendarDays, label: "Расписание" },
-  { href: appUrl("/practitioner/requests"), icon: MessageCircle, label: "Заявки" },
-  { href: appUrl("/practitioner/clients"), icon: Users, label: "Клиенты" },
-  { href: appUrl("/practitioner/earnings"), icon: Banknote, label: "Баланс" },
-  { href: appUrl("/practitioner/invite"), icon: Handshake, label: "Приведите клиента" },
-  { href: appUrl("/practitioner/subscription"), icon: Crown, label: "Подписка" },
-  { href: appUrl("/practitioner/reviews"), icon: Star, label: "Отзывы" },
-  { href: appUrl("/practitioner/ethics"), icon: Lock, label: "Этический кодекс" },
-  // X7: «Настройки» sits at the bottom of the nav, matching the client cabinet.
-  { href: appUrl("/practitioner/profile"), icon: UserPen, label: "Настройки" },
-];
+// B466 — «Practice cockpit» IA: the practitioner sidebar mirrors the 5-tab
+// model (Сегодня · Клиенты · Календарь · Финансы · Ещё) from nav-model, the
+// same source that drives the mobile bar, so desktop and mobile can't drift.
+// Every former flat page lives on under «Ещё» (hub page + sub-routes).
+const PRACTITIONER_NAV: NavItem[] = PRACTITIONER_TABS.map((tab) => ({
+  href: tab.href,
+  icon: NAV_ICONS[tab.iconKey],
+  label: tab.label,
+}));
 
 const ROLE_LABELS: Record<string, string> = {
   CLIENT: "Клиент",
@@ -84,10 +76,11 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 // X10: section key for the practitioner sidebar «непрочитанные» badge.
+// B466: заявки live inside «Календарь», new reviews surface on «Ещё» (hub row).
 function navCountKey(href: string): string | null {
-  if (href.endsWith("/practitioner/requests")) return "requests";
+  if (href.endsWith("/practitioner/calendar")) return "requests";
   if (href.endsWith("/practitioner/clients")) return "clients";
-  if (href.endsWith("/practitioner/reviews")) return "reviews";
+  if (href.endsWith("/practitioner/more")) return "reviews";
   return null;
 }
 
@@ -187,9 +180,19 @@ export function CabinetShell({
     return normActive.startsWith(normItem);
   }
 
+  // B466: the practitioner «Ещё» sidebar item is an umbrella — it lights up on
+  // the hub page and on every sub-section that lives under it.
+  function isNavActive(item: { href: string; label: string }) {
+    if (role === "PRACTITIONER" && item.label === MORE_LABEL) {
+      return PRACTITIONER_MORE_HREFS.some((href) => isActive(href));
+    }
+    return isActive(item.href);
+  }
+
   // B464 IB0 — the client mobile bar is sourced from the shared nav-model so it
-  // is byte-identical to the landing bar; practitioner/admin keep their first-4
-  // nav items. The «Ещё» tab opens a bottom sheet instead of navigating.
+  // is byte-identical to the landing bar. B466 — the practitioner bar carries
+  // the full 5-tab «Practice cockpit» model; its «Ещё» navigates to the hub
+  // page (with umbrella active-state) instead of opening a sheet.
   const mobileTabs: MobileRenderTab[] = isClient
     ? CLIENT_MOBILE_TABS.map((t) => ({
         href: t.href,
@@ -201,6 +204,14 @@ export function CabinetShell({
             ? CLIENT_MORE_ITEMS.map((m) => m.href).filter(Boolean)
             : undefined,
       }))
+    : role === "PRACTITIONER"
+    ? PRACTITIONER_TABS.map((t) => ({
+        href: t.href,
+        label: t.label,
+        Icon: NAV_ICONS[t.iconKey],
+        isMore: false,
+        activeHrefs: t.label === MORE_LABEL ? PRACTITIONER_MORE_HREFS : undefined,
+      }))
     : nav.filter((_, index) => index < 4).map((n) => ({
         href: n.href,
         label: n.label,
@@ -209,8 +220,8 @@ export function CabinetShell({
       }));
 
   function isMobileActive(item: MobileRenderTab) {
-    if (item.isMore) return (item.activeHrefs ?? []).some((href) => isActive(href));
-    if (!item.href) return false;
+    if (item.activeHrefs?.length) return item.activeHrefs.some((href) => isActive(href));
+    if (item.isMore || !item.href) return false;
     return isActive(item.href);
   }
 
@@ -277,7 +288,7 @@ export function CabinetShell({
                 <Link key={item.href} href={item.href}
                   data-testid="app-shell-nav-item"
                   className={`soft-app-nav-link flex min-h-11 items-center gap-2.5 rounded-[var(--soft-radius-md)] px-3 py-2 text-sm transition-colors duration-[var(--motion-base)] ${
-                    isActive(item.href)
+                    isNavActive(item)
                       ? "is-active font-medium"
                       : ""
                   }`}>
@@ -297,9 +308,10 @@ export function CabinetShell({
             })}
           </nav>
 
-          {/* Utility rows — Помощь + Выйти, present on every cabinet page (B464 #9/#10) */}
+          {/* Utility rows — Помощь + Выйти, present on every cabinet page (B464 #9/#10).
+              B466: the practitioner sidebar carries Помощь too (approved desktop mockup). */}
           <div className="mt-2 space-y-1 border-t border-border/20 pt-2">
-            {isClient && (
+            {(isClient || role === "PRACTITIONER") && (
               <Link
                 href={supportHref}
                 data-testid="app-shell-nav-help"

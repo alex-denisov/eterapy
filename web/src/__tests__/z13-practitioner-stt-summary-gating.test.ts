@@ -35,7 +35,12 @@ describe("Z13 practitioner STT and summary subscription gates", () => {
   it("maps browser STT and session summary to active Practitioner Pro tiers", async () => {
     expect(getPractitionerFeaturePlanKeys("browser_stt")).toEqual(["practitioner_pro", "practitioner_pro_plus"]);
     expect(getPractitionerFeaturePlanKeys("session_summary")).toEqual(["practitioner_pro", "practitioner_pro_plus"]);
-    expect(getPractitionerFeaturePlanKeys("server_stt")).toEqual(["practitioner_pro_plus"]);
+
+    // B466 (матрица 23 июня): расшифровка (server-STT) — платформенная, для
+    // ВСЕХ тарифов; без обращения к подписке.
+    await expect(practitionerHasFeature("user-1", "server_stt", mockDb as never, new Date("2026-06-06T00:00:00.000Z")))
+      .resolves.toBe(true);
+    expect(mockDb.userSubscription.findFirst).not.toHaveBeenCalled();
 
     mockDb.userSubscription.findFirst.mockResolvedValueOnce({ id: "sub-1", planKey: "practitioner_pro" });
 
@@ -84,13 +89,14 @@ describe("Z13 practitioner STT and summary subscription gates", () => {
 
   it("does not sell compliance as a Practitioner Pro perk", () => {
     const dashboard = source("src/app/cabinet/practitioner/page.tsx");
-    const subscriptionPage = source("src/app/cabinet/practitioner/subscription/page.tsx");
+    const tariffTab = source("src/app/cabinet/practitioner/finance/tariff-tab.tsx");
 
-    expect(dashboard).toContain('data-testid="practitioner-compliance-notices"');
-    expect(dashboard).toContain("complianceReviewCount");
-    expect(dashboard).not.toContain('["Compliance", complianceReviewCount');
-    expect(subscriptionPage).not.toContain("Комплаенс-подсказки");
-    expect(subscriptionPage).not.toContain("compliance-проверки");
-    expect(subscriptionPage).toContain("безопасность сессий работает для всех");
+    // B466: комплаенс/безопасность — платформенный процесс (запись включена на
+    // каждой сессии), а не перк тарифа; «Тариф» прямо говорит об этом.
+    expect(dashboard).toContain("запись включена");
+    expect(dashboard).not.toContain("Комплаенс");
+    expect(tariffTab).not.toContain("Комплаенс-подсказки");
+    expect(tariffTab).not.toContain("compliance-проверки");
+    expect(tariffTab).toContain("Расшифровка и комплаенс — за счёт платформы на всех тарифах");
   });
 });

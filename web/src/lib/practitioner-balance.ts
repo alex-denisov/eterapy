@@ -7,8 +7,9 @@
  *   accruedNet     = sum(COMPLETED booking.priceRub) − commission
  *   paidOut        = sum(Payout.amountKopecks / 100) where status = DONE
  *   pendingPayout  = sum(Payout.amountKopecks / 100) where status in (PENDING, PROCESSING, HELD)
- *   availablePayout = due PENDING payouts minus chargeback reserve
- *   heldPayout     = not-yet-due PENDING + HELD + reserve
+ *   availablePayout = due PENDING payouts (in full — B466: no chargeback
+ *                     reserve is withheld from the practitioner)
+ *   heldPayout     = not-yet-due PENDING (session hold) + HELD/PROCESSING
  *   internalCharges = practitioner-only charges paid from accrued earnings
  *   currentBalance = accruedNet − paidOut − pendingPayout − internalCharges
  *
@@ -93,12 +94,16 @@ export async function computePractitionerBalances(
 
   for (const transaction of internalChargeTransactions) {
     const metadata = getBillingTransactionMetadata(transaction);
-    if (
+    const isSubscriptionCharge =
       metadata.purchaseKind === "subscription"
       && typeof metadata.planKey === "string"
       && metadata.planKey.startsWith("practitioner_pro")
-      && metadata.checkoutSource === "practitioner_earnings_balance"
-    ) {
+      && metadata.checkoutSource === "practitioner_earnings_balance";
+    // B434: докупка пакетов AI-разборов тоже списывается из дохода практика.
+    const isAiTopupCharge =
+      metadata.purchaseKind === "practitioner_ai_topup"
+      && metadata.checkoutSource === "practitioner_earnings_balance";
+    if (isSubscriptionCharge || isAiTopupCharge) {
       internalChargesByUser.set(
         transaction.userId,
         (internalChargesByUser.get(transaction.userId) ?? 0) + Math.abs(transaction.amount),
@@ -129,12 +134,16 @@ export async function computePractitionerBalances(
     let heldPayoutKopecks = 0;
     let reservePayoutKopecks = 0;
     for (const payout of myPayouts) {
+      // B466 (owner, 2026-07-06): «Удержано» = ТОЛЬКО hold по сессии (пока не
+      // истёк период удержания) + споры/KYC. Резерв chargeback — внутренний
+      // риск платформы и из денег практика не вычитается; legacy reserve
+      // остаётся видимым админам через reservePayout, но на available/held
+      // практика не влияет.
       const reserve = Math.max(0, payout.reserveKopecks ?? 0);
       if (payout.status === "PENDING") {
         const due = !payout.availableAt || new Date(payout.availableAt).getTime() <= now;
         if (due) {
-          availablePayoutKopecks += Math.max(0, payout.amountKopecks - reserve);
-          heldPayoutKopecks += reserve;
+          availablePayoutKopecks += payout.amountKopecks;
         } else {
           heldPayoutKopecks += payout.amountKopecks;
         }

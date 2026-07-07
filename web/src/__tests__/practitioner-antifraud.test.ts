@@ -76,9 +76,9 @@ describe("B219 practitioner anti-fraud and payout holds", () => {
     const publicProfile = source("src/app/practitioners/[slug]/page.tsx");
     const cabinetProfile = source("src/app/cabinet/practitioners/[slug]/page.tsx");
     const apiProfile = source("src/app/api/practitioners/[id]/route.ts");
-    const dashboard = source("src/app/cabinet/practitioner/page.tsx");
-
-    for (const file of [publicProfile, cabinetProfile, apiProfile, dashboard]) {
+    // B466: the practitioner home («Сегодня») no longer renders reviews at all,
+    // so the PUBLISHED-only guarantee applies to the public/client surfaces.
+    for (const file of [publicProfile, cabinetProfile, apiProfile]) {
       expect(file).toContain('where: { status: "PUBLISHED" }');
     }
   });

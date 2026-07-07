@@ -7,8 +7,13 @@ export type PractitionerFeaturePlanKey = "practitioner_pro" | "practitioner_pro_
 const PRACTITIONER_FEATURE_PLANS: Record<PractitionerFeature, PractitionerFeaturePlanKey[]> = {
   browser_stt: ["practitioner_pro", "practitioner_pro_plus"],
   session_summary: ["practitioner_pro", "practitioner_pro_plus"],
-  server_stt: ["practitioner_pro_plus"],
+  server_stt: ["practitioner_pro", "practitioner_pro_plus"],
 };
+
+// B466 (утверждённая матрица 23 июня): «Расшифровка + комплаенс (платформа)» —
+// ✓ на ВСЕХ тарифах; стоимость STT покрывается комиссией, а не тариф-гейтом.
+// Метерится только AI-разбор (см. practitioner-ai-metering).
+const FEATURES_FOR_ALL_TIERS: ReadonlySet<PractitionerFeature> = new Set(["server_stt"]);
 
 type PractitionerEntitlementTx = Pick<Prisma.TransactionClient, "userSubscription">;
 
@@ -22,6 +27,7 @@ export async function practitionerHasFeature(
   tx: PractitionerEntitlementTx = db,
   now = new Date(),
 ) {
+  if (FEATURES_FOR_ALL_TIERS.has(feature)) return true;
   const subscription = await tx.userSubscription.findFirst({
     where: {
       userId,

@@ -12,22 +12,18 @@ import { NotificationBell } from "@/components/notification-bell";
 import { useMiniApp } from "@/components/miniapp-provider";
 import {
   ArrowLeft,
-  Banknote,
   BookOpen,
-  Bookmark,
   CalendarDays,
   ChevronDown,
   CircleHelp,
   CreditCard,
   Gift,
   LayoutDashboard,
-  Lock,
+  LayoutGrid,
   LogOut,
-  MessageCircle,
   Settings,
   Sparkles,
-  Star,
-  UserPen,
+  Sun,
   Users,
   Wallet,
 } from "lucide-react";
@@ -193,15 +189,12 @@ function UserMenu({ session, cabinetDoor, className }: { session: NonNullable<Re
   // one-to-one, including order, labels and icons. Admin/superadmin use a
   // curated subset of the admin shell entry points.
   const menuItems = role === "PRACTITIONER" ? [
-    { href: appUrl("/practitioner"), label: "Сводка", icon: LayoutDashboard },
-    { href: appUrl("/practitioner/profile"), label: "Мой профиль", icon: UserPen },
-    { href: appUrl("/practitioner/services"), label: "Услуги и цены", icon: Bookmark },
-    { href: appUrl("/practitioner/schedule"), label: "Расписание", icon: CalendarDays },
-    { href: appUrl("/practitioner/requests"), label: "Заявки", icon: MessageCircle },
+    // B466: mirrors the «Practice cockpit» sidebar (PRACTITIONER_TABS) one-to-one.
+    { href: appUrl("/practitioner"), label: "Сегодня", icon: Sun },
     { href: appUrl("/practitioner/clients"), label: "Клиенты", icon: Users },
-    { href: appUrl("/practitioner/earnings"), label: "Баланс", icon: Banknote },
-    { href: appUrl("/practitioner/reviews"), label: "Отзывы", icon: Star },
-    { href: appUrl("/practitioner/ethics"), label: "Этический кодекс", icon: Lock },
+    { href: appUrl("/practitioner/calendar"), label: "Календарь", icon: CalendarDays },
+    { href: appUrl("/practitioner/finance"), label: "Финансы", icon: Wallet },
+    { href: appUrl("/practitioner/more"), label: "Ещё", icon: LayoutGrid },
   ] : role === "SUPERADMIN" ? [
     { href: adminUrl("/admin"), label: "Обзор", icon: LayoutDashboard },
     { href: adminUrl("/admin/product/users"), label: "Все пользователи", icon: Users },

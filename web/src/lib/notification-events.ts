@@ -35,7 +35,12 @@ export type NotifEvent =
   | "STREAK_AT_RISK"
   | "MOMENT_OF_NEED"
   | "WELCOME_CREDITS"
-  | "WELCOME_CREDITS_REMINDER";
+  | "WELCOME_CREDITS_REMINDER"
+  // B466 practitioner platform
+  | "PRACTITIONER_MESSAGE"
+  | "BOOKING_PROPOSED"
+  | "BOOKING_CHANGE_REQUESTED"
+  | "BOOKING_CHANGE_RESOLVED";
 
 export type UserRole = "CLIENT" | "PRACTITIONER" | "ADMIN" | "SUPERADMIN" | "MODERATOR";
 export type NotificationCategory = "booking" | "session" | "reviews" | "payments" | "retention" | "system";
@@ -101,6 +106,37 @@ export const ALL_EVENTS: Array<{
     label: "Напоминание о сессии",
     description: "До начала сессии",
     roles: ["CLIENT", "PRACTITIONER"],
+  },
+  // B480: специалист предложил клиенту время сессии.
+  {
+    event: "BOOKING_PROPOSED",
+    category: "booking",
+    label: "Специалист предложил время",
+    description: "Когда специалист предложил вам слот для сессии",
+    roles: ["CLIENT"],
+  },
+  // B481: запрос переноса/отмены и его решение.
+  {
+    event: "BOOKING_CHANGE_REQUESTED",
+    category: "booking",
+    label: "Запрос переноса или отмены",
+    description: "Когда другая сторона просит перенести или отменить сессию",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  {
+    event: "BOOKING_CHANGE_RESOLVED",
+    category: "booking",
+    label: "Решение по переносу/отмене",
+    description: "Когда запрос переноса или отмены согласован либо отклонён",
+    roles: ["CLIENT", "PRACTITIONER"],
+  },
+  // B478: одностороннее сообщение/материал от специалиста.
+  {
+    event: "PRACTITIONER_MESSAGE",
+    category: "session",
+    label: "Сообщение от специалиста",
+    description: "Материал или задание от вашего специалиста после сессии",
+    roles: ["CLIENT"],
   },
   {
     event: "SESSION_STARTED",

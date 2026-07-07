@@ -5,20 +5,17 @@ const root = process.cwd();
 const source = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), "utf8");
 
 describe("B207/B229 practitioner v4.2 cabinet", () => {
-  it("uses real practitioner payout balance on the dashboard", () => {
+  it("uses real practitioner money/AI data on the cockpit surfaces", () => {
+    // B466: «Сегодня» показывает реальный доход месяца из завершённых сессий с
+    // применённой комиссией; канонический баланс живёт в «Финансы» (earnings).
     const page = source("src/app/cabinet/practitioner/page.tsx");
-
-    expect(page).toContain("computePractitionerBalance");
-    expect(page).toContain('data-testid="practitioner-pro-usage"');
-    expect(page).toContain('data-testid="practitioner-compliance-notices"');
-    expect(page).toContain("db.userSubscription.findFirst");
-    expect(page).toContain("db.videoSession.count");
-    expect(page).toContain("complianceRiskScore");
-    expect(page).toContain("db.payout.count");
-    expect(page).toContain("currentBalance.toLocaleString");
-    expect(page).toContain("pendingPayout.toLocaleString");
-    expect(page).toContain("открыть выплаты");
+    expect(page).toContain("commissionPercentApplied");
+    expect(page).toContain("getPractitionerAiQuota");
+    expect(page).toContain("monthIncome.toLocaleString");
     expect(page).not.toContain("выплата в разработке");
+
+    const financeData = source("src/app/cabinet/practitioner/finance/finance-data.ts");
+    expect(financeData).toContain("computePractitionerBalances");
   });
 
   it("renders services and prices from practitioner rates instead of a placeholder", () => {
@@ -40,17 +37,23 @@ describe("B207/B229 practitioner v4.2 cabinet", () => {
     expect(page).not.toContain("будет доступно в следующем обновлении");
   });
 
-  it("keeps cabinet navigation aligned with v4.2 labels", () => {
+  it("keeps cabinet navigation aligned with the approved IA", () => {
     const shell = source("src/components/cabinet/cabinet-shell.tsx");
 
     expect(shell).toContain('"Дневник"');
-    expect(shell).toContain('"Услуги и цены"');
-    expect(shell).toContain('"Этический кодекс"');
     expect(shell).toContain("soft-app-sidebar-card");
+    // B466: the practitioner nav is sourced from the shared «Practice cockpit»
+    // model; «Услуги и цены»/«Этический кодекс» live on under the «Ещё» hub.
+    expect(shell).toContain("PRACTITIONER_TABS.map");
+    const navModel = source("src/lib/nav-model.ts");
+    expect(navModel).toContain('label: "Сегодня"');
+    expect(navModel).toContain('appUrl("/practitioner/services")');
+    expect(navModel).toContain('appUrl("/practitioner/ethics")');
   });
 
   it("surfaces requests and reviews with risk/compliance state", () => {
-    const requests = source("src/app/cabinet/practitioner/requests/page.tsx");
+    // B466: заявки живут на «Календарь → Заявки» (requests-tab).
+    const requests = source("src/app/cabinet/practitioner/calendar/requests-tab.tsx");
     const reviews = source("src/app/cabinet/practitioner/reviews/page.tsx");
 
     expect(requests).toContain('data-testid="practitioner-requests-page"');

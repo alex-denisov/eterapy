@@ -50,9 +50,10 @@ describe("Y3 — payout details: card / СБП / legal entity", () => {
     expect(route).toContain("БИК банка — 9 цифр");
   });
 
-  it("form offers the three payout modes", () => {
-    const form = src("app/cabinet/practitioner/earnings/payout-details-form.tsx");
-    expect(form).toContain("Юр. лицо / ИП");
+  it("form offers the payout modes bound to the tax status (B466)", () => {
+    // Самозанятый → Карта/СБП; ИП/юр. лицо → расчётный счёт.
+    const form = src("app/cabinet/practitioner/finance/requisites/edit/requisites-edit-form.tsx");
+    expect(form).toContain("Юр. название / ИП");
     expect(form).toContain("Расчётный счёт");
     expect(form).toContain('"CARD" | "SBP" | "ENTITY"');
   });

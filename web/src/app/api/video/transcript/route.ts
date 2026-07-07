@@ -146,13 +146,31 @@ export async function POST(req: NextRequest) {
     complianceReviewedAt: new Date(),
   };
 
+  // B434: разбор метерится (Pro 20 / Pro+ 50 + докупка) и может быть выключен
+  // глобально/на сессии. Регенерация уже разобранной сессии бесплатна.
+  const { resolveAnalysisEligibility, consumeAnalysis } = await import("@/lib/practitioner-ai-metering");
+  const eligibility = summaryAllowed && !videoSession.summaryText
+    ? await resolveAnalysisEligibility({
+        practitionerId: videoSession.booking.practitionerId,
+        practitionerUserId,
+        bookingId: videoSession.bookingId,
+        videoSessionId: videoSession.id,
+      })
+    : { allowed: false as const };
   let summaryResult: Awaited<ReturnType<typeof generateSessionSummary>> | null = null;
-  if (summaryAllowed && !videoSession.summaryText) {
+  if (eligibility.allowed) {
     summaryResult = await generateSessionSummary({
       transcriptText,
       userId: practitionerUserId,
       requestId: context.requestId,
     });
+    if (eligibility.source) {
+      await consumeAnalysis({
+        practitionerId: videoSession.booking.practitionerId,
+        videoSessionId: videoSession.id,
+        source: eligibility.source,
+      });
+    }
   }
 
   await db.videoSession.update({
@@ -273,9 +291,27 @@ export async function PUT(req: NextRequest) {
       id: parsed.data.videoSessionId,
       booking: { practitioner: { userId } },
     },
+    include: { booking: { select: { id: true, practitionerId: true } } },
   });
   if (!videoSession?.transcriptText) {
     return NextResponse.json({ error: "Транскрипт недоступен", requestId: context.requestId }, { status: 404 });
+  }
+
+  // B434: первый разбор сессии тратит единицу квоты; регенерация — бесплатна.
+  const { resolveAnalysisEligibility, consumeAnalysis } = await import("@/lib/practitioner-ai-metering");
+  const eligibility = await resolveAnalysisEligibility({
+    practitionerId: videoSession.booking.practitionerId,
+    practitionerUserId: userId,
+    bookingId: videoSession.booking.id,
+    videoSessionId: videoSession.id,
+  });
+  if (!eligibility.allowed) {
+    const message = eligibility.reason === "quota"
+      ? "Лимит AI-разборов на месяц исчерпан — докупите пакет в «Разборы и AI»"
+      : eligibility.reason === "toggle"
+        ? "AI-разбор выключен для этой сессии"
+        : "AI-разборы доступны на тарифах Pro и Pro+";
+    return NextResponse.json({ error: message, requestId: context.requestId }, { status: 403 });
   }
 
   const result = await generateSessionSummary({
@@ -283,6 +319,13 @@ export async function PUT(req: NextRequest) {
     userId,
     requestId: context.requestId,
   });
+  if (eligibility.source) {
+    await consumeAnalysis({
+      practitionerId: videoSession.booking.practitionerId,
+      videoSessionId: videoSession.id,
+      source: eligibility.source,
+    });
+  }
   const retention = await resolveSessionAiRetentionDates({
     practitionerUserId: userId,
     now: new Date(),

@@ -129,6 +129,15 @@ export default async function PractitionerServicesPage() {
             commissionPercent={commissionPercent}
             readOnly={practitioner.priceRates.length === 0}
           />
+          {/* B466: включение/отключение длительностей дублируется в
+              «Календарь → Доступность» рядом с рабочими часами. */}
+          <p className="mt-4 border-t border-[var(--soft-paper-deep)] pt-3 text-xs text-[var(--soft-ink-faint)]">
+            Включать и отключать длительности удобно также в{" "}
+            <Link href={appUrl("/practitioner/calendar?tab=availability")} className="text-[var(--soft-terracotta-dark)] underline-offset-2 hover:underline">
+              «Календарь → Доступность»
+            </Link>{" "}
+            — рядом с рабочими часами.
+          </p>
         </section>
 
         <aside className="grid gap-4">

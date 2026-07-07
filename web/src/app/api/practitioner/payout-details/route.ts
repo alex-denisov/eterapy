@@ -2,9 +2,11 @@
  * X13/Y3: practitioner payout requisites (реквизиты для выплат).
  * GET   — current PayoutDetails for the signed-in practitioner.
  * PATCH — upsert one of three payout methods:
- *   • CARD   — банковская карта (самозанятые): accountNumber = номер карты + ИНН.
- *   • SBP    — СБП по телефону: accountNumber = номер телефона + ИНН.
- *   • ENTITY — реквизиты юр. лица (ИП/ООО): расчётный счёт + ИНН/БИК/КПП/банк.
+ *   • CARD   — банковская карта (самозанятые): accountNumber = номер карты.
+ *   • SBP    — СБП по телефону: accountNumber = номер телефона.
+ *   • ENTITY — реквизиты юр. лица (ИП/ООО): расчётный счёт + БИК/КПП/банк.
+ * B466/B483: ИНН клиентом НЕ передаётся — берётся из подтверждённого
+ * налогового статуса (Practitioner.inn); без подтверждения PATCH запрещён.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
@@ -56,14 +58,33 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Выберите способ выплаты: карта, СБП или реквизиты юр. лица" }, { status: 400 });
   }
 
-  const bankName = str(body.bankName, 120);
-  const accountNumberRaw = str(body.accountNumber, 64);
-  const inn = str(body.inn, 12).replace(/\D/g, "");
-  if (!/^(\d{10}|\d{12})$/.test(inn)) {
-    return NextResponse.json({ error: "ИНН — 10 цифр (организация) или 12 (ИП/самозанятый)" }, { status: 400 });
+  // B466/B483: ИНН вводится и проверяется ТОЛЬКО на «Налоговый статус» —
+  // реквизиты можно добавить лишь после подтверждения; ИНН берём из профиля.
+  const gate = await db.practitioner.findUnique({
+    where: { userId: session.user.id },
+    select: { inn: true, taxStatus: true, taxReviewStatus: true },
+  });
+  if (!gate) return NextResponse.json({ error: "Профиль не найден" }, { status: 404 });
+  if (!gate.inn || gate.taxReviewStatus !== "VERIFIED") {
+    return NextResponse.json(
+      { error: "Добавление платёжного средства недоступно. Сначала заполните ИНН и подтвердите налоговый статус." },
+      { status: 409 },
+    );
+  }
+  // Способ выплаты соответствует статусу: самозанятый — карта/СБП,
+  // ИП/юр. лицо — расчётный счёт.
+  if (gate.taxStatus === "SELF_EMPLOYED" && type === "ENTITY") {
+    return NextResponse.json({ error: "Для самозанятых доступны карта или СБП" }, { status: 400 });
+  }
+  if ((gate.taxStatus === "INDIVIDUAL_ENTREPRENEUR" || gate.taxStatus === "LEGAL_ENTITY") && type !== "ENTITY") {
+    return NextResponse.json({ error: "Для ИП и юр. лиц выплаты идут на расчётный счёт" }, { status: 400 });
   }
 
-  // CARD / SBP — самозанятые: способ выплаты + ИНН для налогового статуса.
+  const bankName = str(body.bankName, 120);
+  const accountNumberRaw = str(body.accountNumber, 64);
+  const inn = gate.inn;
+
+  // CARD / SBP — самозанятые: способ выплаты (ИНН уже подтверждён).
   if (type === "CARD" || type === "SBP") {
     const accountNumber = accountNumberRaw.replace(/(?!^\+)[^\d]/g, "");
     if (type === "CARD" && !/^\d{16,19}$/.test(accountNumber)) {
@@ -95,9 +116,6 @@ export async function PATCH(req: NextRequest) {
 
   if (legalName.length < 3) {
     return NextResponse.json({ error: "Укажите наименование организации или ИП" }, { status: 400 });
-  }
-  if (!/^(\d{10}|\d{12})$/.test(inn)) {
-    return NextResponse.json({ error: "ИНН — 10 цифр (организация) или 12 (ИП)" }, { status: 400 });
   }
   if (!/^\d{20}$/.test(account)) {
     return NextResponse.json({ error: "Расчётный счёт — 20 цифр" }, { status: 400 });

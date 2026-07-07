@@ -81,6 +81,11 @@ const SUBJECTS: Record<NotifEvent, string> = {
   MOMENT_OF_NEED:     "Можно вернуться к своей теме — ETerapy",
   WELCOME_CREDITS:    "Приветственные баллы начислены — ETerapy",
   WELCOME_CREDITS_REMINDER: "Приветственные баллы ждут — ETerapy",
+  // B466 practitioner platform
+  BOOKING_PROPOSED:         "Специалист предложил время сессии — ETerapy",
+  BOOKING_CHANGE_REQUESTED: "Запрос переноса или отмены сессии — ETerapy",
+  BOOKING_CHANGE_RESOLVED:  "Решение по переносу/отмене — ETerapy",
+  PRACTITIONER_MESSAGE:     "Сообщение от вашего специалиста — ETerapy",
 };
 
 function buildBody(event: NotifEvent, name: string, data: Record<string, string>): string {
@@ -289,6 +294,15 @@ function buildBody(event: NotifEvent, name: string, data: Record<string, string>
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные баллы начислены</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.credits ?? "3"} балла уже в кошельке. Они помогут попробовать первый небольшой формат.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
     case "WELCOME_CREDITS_REMINDER":
       return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Приветственные баллы ждут</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Если хотите попробовать первый разбор, приветственные баллы еще доступны.</p>${btn(data.walletUrl ?? `${BASE_URL}/cabinet/wallet`, "Открыть кошелёк")}`;
+    // B466 practitioner platform
+    case "BOOKING_PROPOSED":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Специалист предложил время сессии</h1>${infoBox(row("Специалист", data.practitionerName ?? "—") + row("Дата", data.date ?? "—") + row("Время", data.time ?? "—").replace("margin:0 0 16px", "margin:0"))}<p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Подтвердите предложение и оплатите сессию — или отклоните, если время не подходит.</p>${btn(`${BASE_URL}/cabinet/bookings`, "Открыть записи")}`;
+    case "BOOKING_CHANGE_REQUESTED":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">${data.type === "CANCEL" ? "Запрос на отмену сессии" : "Запрос на перенос сессии"}</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.byName ?? "Другая сторона"} просит ${data.type === "CANCEL" ? "отменить" : "перенести"} сессию ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` на ${data.proposed}` : ""}. Ответьте в кабинете.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Ответить")}`;
+    case "BOOKING_CHANGE_RESOLVED":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">${data.approved === "1" ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован") : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано")}</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">Сессия ${data.date ?? ""} в ${data.time ?? ""}${data.proposed ? ` → ${data.proposed}` : ""}.</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/bookings"}`, "Открыть записи")}`;
+    case "PRACTITIONER_MESSAGE":
+      return `${greeting}<h1 style="margin:0 0 16px;font-size:22px;font-weight:700;color:#f8fafc">Сообщение от вашего специалиста</h1><p style="margin:0 0 28px;color:#94a3b8;line-height:1.6">${data.practitionerName ?? "Специалист"} отправил вам материал к сессии.${data.preview ? ` «${data.preview}»` : ""}</p>${btn(`${BASE_URL}${data.href ?? "/cabinet/messages"}`, "Прочитать")}`;
     default:
       return `<p style="color:#94a3b8">Уведомление от ETerapy.</p>`;
   }

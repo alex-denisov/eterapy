@@ -10,6 +10,8 @@ import { mainUrl } from "@/lib/subdomain";
 import { ComplaintModal } from "@/components/complaint-modal";
 import { getBookingStatus } from "@/lib/booking-status";
 import { canJoinBooking, canCancelBooking, bookingDurationMin } from "@/lib/booking-actions";
+import { BookingsProposals } from "./bookings-proposals";
+import { BookingChangeControls, type ChangeRequestInfo } from "./booking-change-controls";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +30,8 @@ interface Booking {
   sessionUrl: string | null;
   practitioner?: { name: string; id: string };
   review?: { id: string } | null;
+  // B481: открытые запросы переноса/отмены.
+  changeRequests?: ChangeRequestInfo[];
 }
 
 type FilterTab = "upcoming" | "past" | "cancelled" | "all";
@@ -226,6 +230,13 @@ export default function ClientBookingsPage() {
           </div>
         </div>
         <JoinRail b={b} />
+        {/* B481: перенос/отмена подтверждённой сессии — через запрос практику. */}
+        <BookingChangeControls
+          bookingId={b.id}
+          status={b.status}
+          slotStartAt={b.slot?.startAt ?? null}
+          changeRequests={b.changeRequests ?? []}
+        />
       </div>
     );
   }
@@ -286,6 +297,9 @@ export default function ClientBookingsPage() {
         </p>
       </div>
 
+      {/* B480: предложения времени от специалистов — подтвердить и оплатить. */}
+      <BookingsProposals />
+
       {bookings.length === 0 ? (
         <div className="soft-card soft-empty-stage py-12 text-center">
           <p className="soft-h3" style={{ color: "var(--soft-bordeaux)" }}>Пока нет записей</p>
@@ -318,6 +332,12 @@ export default function ClientBookingsPage() {
                 )}
               </div>
               <JoinRail b={nextUpcoming} />
+              <BookingChangeControls
+                bookingId={nextUpcoming.id}
+                status={nextUpcoming.status}
+                slotStartAt={nextUpcoming.slot?.startAt ?? null}
+                changeRequests={nextUpcoming.changeRequests ?? []}
+              />
               {!canJoinBooking(nextUpcoming) && (
                 <p className="mt-3 text-xs" style={{ color: "var(--soft-ink-faint)" }}>
                   Кнопка входа появится за 30 минут до начала.

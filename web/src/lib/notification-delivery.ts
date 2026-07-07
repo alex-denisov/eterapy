@@ -136,11 +136,33 @@ export function logNotificationDeliveryQueueFailure(input: QueueNotificationDeli
 function formatWebNotification(event: NotifEvent, data: Record<string, string>): { title: string; body: string; href?: string } {
   switch (event) {
     case "BOOKING_REQUESTED":
-      return { title: "Новая запись", body: `${data.clientName} — ${data.date}, ${data.time}`, href: "/cabinet/practitioner/clients" };
+      // B466: заявки живут в «Календарь → Заявки».
+      return { title: "Новая запись", body: `${data.clientName} — ${data.date}, ${data.time}`, href: "/cabinet/practitioner/calendar?tab=requests" };
     case "BOOKING_CONFIRMED":
       return { title: "Запись подтверждена", body: `${data.date} в ${data.time}`, href: data.sessionUrl ?? "/cabinet/bookings" };
     case "BOOKING_CANCELLED":
       return { title: "Запись отменена", body: `${data.date}${data.reason ? ` — ${data.reason}` : ""}`, href: "/cabinet/bookings" };
+    case "BOOKING_PROPOSED":
+      // B480: специалист предложил слот — клиент подтверждает и оплачивает.
+      return { title: "Специалист предложил время", body: `${data.practitionerName} — ${data.date}, ${data.time}`, href: "/cabinet/bookings" };
+    case "BOOKING_CHANGE_REQUESTED":
+      // B481: запрос переноса/отмены — согласование другой стороной.
+      return {
+        title: data.type === "CANCEL" ? "Запрос на отмену сессии" : "Запрос на перенос сессии",
+        body: `${data.byName} · сессия ${data.date} в ${data.time}${data.proposed ? ` → ${data.proposed}` : ""}`,
+        href: data.href ?? "/cabinet/bookings",
+      };
+    case "BOOKING_CHANGE_RESOLVED":
+      return {
+        title: data.approved === "1"
+          ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован")
+          : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано"),
+        body: `Сессия ${data.date} в ${data.time}${data.proposed ? ` → ${data.proposed}` : ""}`,
+        href: data.href ?? "/cabinet/bookings",
+      };
+    case "PRACTITIONER_MESSAGE":
+      // B478: односторонний материал от специалиста (клиент читает в «Ещё → Сообщения»).
+      return { title: "Сообщение от специалиста", body: `${data.practitionerName}${data.preview ? ` — ${data.preview}` : ""}`, href: data.href ?? "/cabinet/messages" };
     case "BOOKING_REMINDER":
       return { title: "Напоминание о сессии", body: `Через ${data.in}`, href: data.bookingId ? `/session/${data.bookingId}` : "/cabinet/bookings" };
     case "SESSION_STARTED":
@@ -219,6 +241,14 @@ function formatTelegramMessage(event: NotifEvent, name: string, data: Record<str
       return `🎥 Сессия началась\n<a href="${baseUrl}/session/${data.bookingId}">Войти в видеочат →</a>`;
     case "SESSION_COMPLETED":
       return `🏁 Сессия завершена\nСпасибо за сессию! ${data.reviewUrl ? `<a href="${data.reviewUrl}">Оставить отзыв →</a>` : ""}`;
+    case "BOOKING_PROPOSED":
+      return `📅 Специалист предложил время\n${data.practitionerName} предлагает сессию ${data.date} в ${data.time}.\n<a href="${baseUrl}/cabinet/bookings">Подтвердить и оплатить →</a>`;
+    case "BOOKING_CHANGE_REQUESTED":
+      return `${data.type === "CANCEL" ? "❌ Запрос на отмену" : "🔁 Запрос на перенос"}\n${data.byName} просит ${data.type === "CANCEL" ? "отменить" : "перенести"} сессию ${data.date} в ${data.time}${data.proposed ? ` → ${data.proposed}` : ""}.\n<a href="${baseUrl}${data.href ?? "/cabinet/bookings"}">Ответить →</a>`;
+    case "BOOKING_CHANGE_RESOLVED":
+      return `${data.approved === "1" ? "✅" : "🚫"} ${data.approved === "1" ? (data.type === "CANCEL" ? "Отмена согласована" : "Перенос согласован") : (data.type === "CANCEL" ? "В отмене отказано" : "В переносе отказано")}\nСессия ${data.date} в ${data.time}${data.proposed ? ` → ${data.proposed}` : ""}.\n<a href="${baseUrl}${data.href ?? "/cabinet/bookings"}">Открыть записи →</a>`;
+    case "PRACTITIONER_MESSAGE":
+      return `💬 Сообщение от специалиста\n${data.practitionerName}${data.preview ? `: ${data.preview}` : ""}\n<a href="${baseUrl}${data.href ?? "/cabinet/messages"}">Прочитать →</a>`;
     case "REVIEW_REQUESTED":
       return `⭐ Оставьте отзыв\nКак прошла сессия с ${data.practitionerName}?\n<a href="${data.reviewUrl}">Написать отзыв →</a>`;
     case "NEW_REVIEW":

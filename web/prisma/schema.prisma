@@ -91,6 +91,10 @@ model User {
   companionChatSessions           CompanionChatSession[]
   approvedManagementSpecialOrders ManagementSpecialOrder[]
   consentLogs                     ConsentLog[]
+  // B466 practitioner platform (B478/B480 + план сопровождения)
+  practitionerMessages            PractitionerClientMessage[] @relation("PractitionerMessageClient")
+  carePlansAsClient               ClientCarePlan[]            @relation("CarePlanClient")
+  bookingProposals                BookingProposal[]           @relation("BookingProposalClient")
 
   @@index([provider, providerId])
   @@index([email, provider])
@@ -164,6 +168,14 @@ model Practitioner {
   taxReviewStatus         PractitionerTaxReviewStatus @default(PENDING) @map("tax_review_status")
   taxStatusVerifiedAt     DateTime?                   @map("tax_status_verified_at")
   taxStatusRejectedReason String?                     @map("tax_status_rejected_reason")
+  // B466/B483: ИНН вводится и проверяется ТОЛЬКО на «Налоговый статус»
+  // (12 цифр самозанятый/ИП · 10 юр.лицо); показывается полностью.
+  inn                     String?                     @map("inn")
+  // B466/B434: делать AI-разбор сессии автоматически (per-session override
+  // живёт на Booking.aiAnalysisEnabled).
+  aiAutoAnalyze           Boolean                     @default(true) @map("ai_auto_analyze")
+  // B434: авто-докупка минимального пакета при исчерпании квоты (default OFF).
+  aiAutoTopup             Boolean                     @default(false) @map("ai_auto_topup")
   founding                Boolean                     @default(false)
   riskScore               Int                         @default(0) @map("risk_score")
   riskFlags               String[]                    @default([]) @map("risk_flags")
@@ -201,8 +213,135 @@ model Practitioner {
   clientAttributions     ClientAttribution[]      @relation("ClientAttributionPractitioner")
   referredBookings       Booking[]                @relation("BookingReferrerPractitioner")
   bookingWaitlistEntries BookingWaitlistEntry[]
+  // B466 practitioner platform
+  aiAnalyses             PractitionerAiAnalysis[]
+  aiTopups               PractitionerAiTopup[]
+  clientMessages         PractitionerClientMessage[]
+  carePlans              ClientCarePlan[]
+  bookingProposals       BookingProposal[]
 
   @@map("practitioners")
+}
+
+// ─── B466 practitioner platform ──────────────────────────────────────────────
+
+// B434 — метеринг AI-разборов: одна строка на разобранную сессию. source =
+// "included" (из месячной квоты тарифа) | "topup" (из докупленного пула).
+// periodKey = МСК-месяц "2026-07".
+model PractitionerAiAnalysis {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  videoSessionId String       @unique @map("video_session_id")
+  source         String       @default("included")
+  periodKey      String       @map("period_key")
+  createdAt      DateTime     @default(now())
+
+  @@index([practitionerId, periodKey])
+  @@map("practitioner_ai_analyses")
+}
+
+// B434 — покупка пакета разборов (+10/+25/+50 = 790/1790/2990 ₽).
+model PractitionerAiTopup {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  units          Int
+  amountKopecks  Int          @map("amount_kopecks")
+  transactionId  String?      @unique @map("transaction_id")
+  createdAt      DateTime     @default(now())
+
+  @@index([practitionerId, createdAt])
+  @@map("practitioner_ai_topups")
+}
+
+// B478 — одностороннее «Сообщение клиенту»: сервисный АРТЕФАКТ, привязанный к
+// клиенту (и опционально к сессии), НЕ инбокс/чат (ОРИ-safe: без ответной
+// ветки; ответ клиента — на следующей сессии). Персистентно (не каскад с
+// видеосессией). Клиент читает в «Сообщения» под «Ещё» и отмечает readAt.
+model PractitionerClientMessage {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         User         @relation("PractitionerMessageClient", fields: [clientId], references: [id], onDelete: Cascade)
+  bookingId      String?      @map("booking_id") // сессия-контекст (без FK-каскада)
+  text           String
+  attachmentUrl  String?      @map("attachment_url")
+  attachmentName String?      @map("attachment_name")
+  sentAt         DateTime     @default(now()) @map("sent_at")
+  readAt         DateTime?    @map("read_at")
+
+  @@index([practitionerId, clientId, sentAt])
+  @@index([clientId, readAt])
+  @@map("practitioner_client_messages")
+}
+
+// B466 — «План сопровождения» (client-level CRM). goals = [{id, title,
+// progress 0–100, status "new"|"active"|"done"}]. AI после сессии предлагает
+// дельты в aiSuggestion — практик подтверждает/правит (owner: не авто).
+model ClientCarePlan {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         User         @relation("CarePlanClient", fields: [clientId], references: [id], onDelete: Cascade)
+  goals          Json         @default("[]")
+  methods        String[]     @default([])
+  nextFocus      String[]     @default([]) @map("next_focus")
+  aiSuggestion   Json?        @map("ai_suggestion")
+  aiSuggestedAt  DateTime?    @map("ai_suggested_at")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([practitionerId, clientId])
+  @@map("client_care_plans")
+}
+
+// B480 — «Записать»: практик предлагает клиенту слот → клиент получает
+// уведомление, подтверждает и оплачивает (создаётся обычный Booking).
+model BookingProposal {
+  id             String       @id @default(cuid())
+  practitionerId String
+  practitioner   Practitioner @relation(fields: [practitionerId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         User         @relation("BookingProposalClient", fields: [clientId], references: [id], onDelete: Cascade)
+  startAt        DateTime     @map("start_at")
+  durationMin    Int          @map("duration_min")
+  priceRub       Int          @map("price_rub")
+  message        String?
+  status         String       @default("PENDING") // PENDING|ACCEPTED|DECLINED|EXPIRED|CANCELLED
+  bookingId      String?      @unique @map("booking_id")
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?    @map("resolved_at")
+
+  @@index([practitionerId, status])
+  @@index([clientId, status, createdAt])
+  @@map("booking_proposals")
+}
+
+// B481 — запрос клиента/практика на перенос или отмену подтверждённой сессии.
+// Перенос и отмена <24ч требуют согласования другой стороной; штраф <24ч может
+// быть прощён практиком (penaltyWaived). Отмена практиком — без штрафа клиенту
+// (B484: полный возврат + метрика надёжности).
+model BookingChangeRequest {
+  id                  String    @id @default(cuid())
+  bookingId           String    @map("booking_id")
+  booking             Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  initiatedBy         String    @map("initiated_by") // CLIENT|PRACTITIONER
+  type                String // RESCHEDULE|CANCEL
+  proposedStartAt     DateTime? @map("proposed_start_at")
+  proposedDurationMin Int?      @map("proposed_duration_min")
+  reason              String?
+  penaltyApplies      Boolean   @default(false) @map("penalty_applies")
+  penaltyWaived       Boolean   @default(false) @map("penalty_waived")
+  status              String    @default("PENDING") // PENDING|APPROVED|DECLINED|EXPIRED|WITHDRAWN
+  createdAt           DateTime  @default(now())
+  resolvedAt          DateTime? @map("resolved_at")
+
+  @@index([bookingId, status])
+  @@index([status, createdAt])
+  @@map("booking_change_requests")
 }
 
 // ─── Practitioner Schedule ────────────────────────────────────────────────────
@@ -343,6 +482,13 @@ model Booking {
   reminder24hSent Boolean @default(false)
   reminder1hSent  Boolean @default(false)
 
+  // B466/B434: per-session разбор on/off (null → practitioner.aiAutoAnalyze).
+  aiAnalysisEnabled Boolean?  @map("ai_analysis_enabled")
+  // B481/B484: кто и почему отменил (для правил штрафов и метрики надёжности).
+  cancelledBy       String?   @map("cancelled_by") // CLIENT|PRACTITIONER|ADMIN
+  cancelledAt       DateTime? @map("cancelled_at")
+  cancelReason      String?   @map("cancel_reason")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -352,6 +498,7 @@ model Booking {
   payment                 Payment?
   payouts                 Payout[]
   promotedWaitlistEntries BookingWaitlistEntry[] @relation("WaitlistPromotedBooking")
+  changeRequests          BookingChangeRequest[]
 
   @@index([clientId])
   @@index([practitionerId])
@@ -760,6 +907,10 @@ enum NotificationEvent {
   MOMENT_OF_NEED // Мягкое возвращение в момент нужды
   WELCOME_CREDITS // Приветственные кредиты начислены
   WELCOME_CREDITS_REMINDER // Напоминание о приветственных кредитах
+  PRACTITIONER_MESSAGE // B478: сообщение/материал от специалиста (для клиента)
+  BOOKING_PROPOSED // B480: специалист предложил время сессии (для клиента)
+  BOOKING_CHANGE_REQUESTED // B481: запрос переноса/отмены (для другой стороны)
+  BOOKING_CHANGE_RESOLVED // B481: запрос переноса/отмены согласован/отклонён
 }
 
 enum NotificationChannel {

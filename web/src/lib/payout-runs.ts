@@ -27,10 +27,13 @@ export interface PayoutRunInput {
   initiatedBy?: string | null;
 }
 
+// B466 (owner, 2026-07-06): резерв chargeback — внутренний риск платформы;
+// у практика эти деньги НЕ холдируются. Ставка 0 на всех тарифах; legacy-строки
+// с ненулевым reserveKopecks выплачиваются полностью (см. classify ниже).
 const RESERVE_RATE_BY_PLAN: Record<PractitionerPayoutPlanKey, number> = {
   base: 0,
-  practitioner_pro: 0.05,
-  practitioner_pro_plus: 0.05,
+  practitioner_pro: 0,
+  practitioner_pro_plus: 0,
 };
 
 function addDays(date: Date, days: number) {
@@ -130,7 +133,9 @@ export function classifyPayoutRunCandidates(candidates: PayoutRunCandidate[]) {
 
     processing.push({
       ...candidate,
-      disbursedKopecks: Math.max(0, candidate.amountKopecks - candidate.reserveKopecks),
+      // B466: disburse the FULL amount — chargeback risk is platform-internal,
+      // so legacy reserveKopecks rows are no longer withheld from the payout.
+      disbursedKopecks: candidate.amountKopecks,
     });
   }
 
