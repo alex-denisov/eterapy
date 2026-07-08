@@ -82,24 +82,21 @@ describe("B462 — deep design-review polish batch", () => {
     });
   });
 
-  describe("§4.2 product order-surface has a visible terracotta focus ring", () => {
+  describe("§4.2 product order-surface keeps neutral chrome on focus", () => {
     const css = source("app/v4-soft.css");
 
-    it("adds a focus-within ring to the tarot/natal/HD order surface", () => {
-      // The big editorial .soft-question-input strips its own outline, so the
-      // visible focus indicator lives on the card (mirrors landing-question-surface).
+    it("keeps the tarot/natal/HD order surface from looking like a validation error", () => {
       expect(css).toMatch(/\.tarot-order-surface:focus-within\s*\{/);
-      // The ring uses the Soft-Clarity terracotta, not the default browser outline.
       const block = css.slice(css.indexOf(".tarot-order-surface:focus-within"));
-      expect(block.slice(0, 220)).toContain("--soft-terracotta");
+      expect(block.slice(0, 220)).not.toContain("--soft-terracotta");
+      expect(block.slice(0, 220)).toContain("--soft-paper-edge");
+      expect(block.slice(0, 220)).toContain("--soft-shadow-sm");
     });
 
-    it("keeps the focus ring viewport-unconditional (not behind a min-width media)", () => {
+    it("keeps the neutral focus handling viewport-unconditional (not behind a min-width media)", () => {
       // Regression guard: the surface's base styles live inside min-width:768 /
-      // max-width:760 media blocks. The focus ring must sit BEFORE the first
-      // @media so it shows at every viewport — mobile users tab into the field
-      // too, and the review was mobile-centric. (Caught live: a desktop-gated
-      // version left 390px with no ring.)
+      // max-width:760 media blocks. The focus-within override must sit BEFORE
+      // the first @media so mobile product forms do not get the old red tint.
       expect(css.indexOf(".tarot-order-surface:focus-within")).toBeLessThan(css.indexOf("@media"));
     });
   });

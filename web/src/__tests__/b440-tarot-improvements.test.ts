@@ -56,10 +56,11 @@ describe("B440 tarot page fixes (#1–#6)", () => {
   });
 
   describe("#6 reading text + recommendations", () => {
-    it("the tarot prompt ends on a synthesis, not a templated next step", () => {
+    it("the tarot prompt ends on professional synthesis and action, not a templated next step", () => {
       const prompt = defaultPromptTextForFeature("product-tarot");
-      expect(prompt).toContain("Общий смысл");
-      expect(prompt).toContain("отдельным блоком после расклада");
+      expect(prompt).toContain("## Картина расклада");
+      expect(prompt).toContain("## Связь карт между собой");
+      expect(prompt).toContain("## Как действовать по раскладу");
       // #5: personal-context guidance
       expect(prompt).toContain("на кого делается расклад");
     });
@@ -67,7 +68,7 @@ describe("B440 tarot page fixes (#1–#6)", () => {
     it("the deterministic fallback reading no longer appends a 'next step'", () => {
       const lib = source("src/lib/symbolic-products.ts");
       expect(lib).not.toContain("## Бережный следующий шаг");
-      expect(lib).toContain("## Общий смысл");
+      expect(lib).toContain("## Картина расклада");
     });
 
     it("raises the tarot token budget for a fuller reading", () => {

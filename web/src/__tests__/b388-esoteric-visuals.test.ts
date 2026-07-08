@@ -57,12 +57,14 @@ describe("B388 natal wheel", () => {
     expect(wheel.kind).toBe("natal");
   });
 
-  it("produces 5 luminary placements with angles inside the circle", () => {
+  it("produces 10 planet placements with angles and sign degrees inside the circle", () => {
     const wheel = buildNatalWheel("01.09.1985");
-    expect(wheel.placements).toHaveLength(5);
+    expect(wheel.placements).toHaveLength(10);
     for (const p of wheel.placements) {
       expect(p.angle).toBeGreaterThanOrEqual(0);
       expect(p.angle).toBeLessThan(360);
+      expect(p.degreeInSign).toBeGreaterThanOrEqual(0);
+      expect(p.degreeInSign).toBeLessThan(30);
     }
   });
 });

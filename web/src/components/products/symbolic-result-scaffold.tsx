@@ -16,6 +16,24 @@ import { appUrl } from "@/lib/subdomain";
 
 export type RecapRow = { label: string; value: string };
 
+const LEGACY_FINAL_SECTION_TITLES: Record<string, string> = {
+  tarot: "Как действовать по раскладу",
+  numerology: "Практический ориентир на ближайшее время",
+  "natal-chart": "Как работать с этой картой дальше",
+  synastry: "Что проверить в реальном разговоре",
+  "human-design": "Как применять дизайн",
+  "surname-story": "Что проверить в семейной истории",
+};
+
+function normalizeLegacySymbolicHeadings(productKey: string, text: string): string {
+  const replacement = LEGACY_FINAL_SECTION_TITLES[productKey];
+  if (!replacement) return text;
+  return text
+    .replace(/^##\s+Бережный шаг\s*$/gim, `## ${replacement}`)
+    .replace(/^##\s+Бережные шаги(?:\s+на\s+ближайшее\s+время)?\s*$/gim, `## ${replacement}`)
+    .replace(/^##\s+Бережные шаги\s+для\s+пары\s*$/gim, `## ${replacement}`);
+}
+
 export function SymbolicResultScaffold({
   productKey,
   eyebrow,
@@ -42,7 +60,8 @@ export function SymbolicResultScaffold({
   onStartNew: () => void;
 }) {
   const [recapOpen, setRecapOpen] = useState(false);
-  const sections = splitSections(resultText);
+  const normalizedResultText = normalizeLegacySymbolicHeadings(productKey, resultText);
+  const sections = splitSections(normalizedResultText);
 
   const topicKey = dialogueTopicFromChip(topic);
   const triagePrimary: TriagePrimary[] = [
@@ -110,7 +129,7 @@ export function SymbolicResultScaffold({
           <SectionAccordion sections={sections} testId={`${productKey}-accordion`} itemTestId={`${productKey}-section`} />
         ) : (
           <article className="soft-card rounded-[16px] p-6 font-heading text-[1.05rem] leading-relaxed text-[var(--soft-ink)]">
-            <SoftMarkdown content={resultText} />
+            <SoftMarkdown content={normalizedResultText} />
           </article>
         )}
       </div>

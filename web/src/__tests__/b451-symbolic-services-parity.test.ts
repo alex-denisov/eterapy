@@ -25,15 +25,20 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
       expect(noYear.hasYear).toBe(false);
       expect([1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 22, 33]).toContain(noYear.lifePath);
     });
+
+    it("keeps the standard digit-sum life path for 03.03.1988", () => {
+      // 0+3+0+3+1+9+8+8 = 32 → 5. Expression/soul depend on the supplied name.
+      expect(computeNumerology("Имя: Анна\nДата рождения: 03.03.1988").lifePath).toBe(5);
+    });
   });
 
   describe("expert prompts with mandatory ## chapters", () => {
     const cases: Array<[string, string[]]> = [
-      ["product-numerology", ["опытный нумеролог", "## Число пути", "## Бережные шаги на ближайшее время"]],
-      ["product-human-design", ["Human Design", "## Ваш тип", "## Бережные шаги на ближайшее время"]],
-      ["product-surname-story", ["ономастик", "## Что говорит форма фамилии", "## Бережные шаги на ближайшее время"]],
+      ["product-numerology", ["опытный нумеролог", "## Карта чисел", "## Практический ориентир на ближайшее время"]],
+      ["product-human-design", ["Дизайна человека", "## Тип и стратегия", "## Как применять дизайн"]],
+      ["product-surname-story", ["ономастик", "## Что говорит форма фамилии", "## Что проверить в семейной истории"]],
       ["product-family-scenarios", ["системной семейной терапии", "## Что вы описали — узор повторов", "## Бережные шаги на ближайшее время"]],
-      ["product-synastry", ["астролог по отношениям", "## Общий ритм пары", "## Бережные шаги для пары"]],
+      ["product-synastry", ["астролог по синастрии", "## Общий рисунок связи", "## Что проверить в реальном разговоре"]],
     ];
     it.each(cases)("%s is expert-level and structured", (feature, markers) => {
       const prompt = defaultPromptTextForFeature(feature);
@@ -48,6 +53,7 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
 
   describe("symbolic route covers all reworked products", () => {
     const route = source("src/app/api/products/symbolic/route.ts");
+    const idRoute = source("src/app/api/products/symbolic/[id]/route.ts");
     it("includes surname-story in the enum and product keys (fixes latent gap)", () => {
       expect(route).toContain('"surname-story"');
       expect(route).toMatch(/z\.enum\(\[[^\]]*"surname-story"/);
@@ -55,6 +61,11 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
     it("paywall/autosave/mandatory-LLM sets cover all five services", () => {
       for (const key of ["natal-chart", "numerology", "human-design", "surname-story", "family-scenarios"]) {
         expect(route).toContain(`"${key}"`);
+      }
+    });
+    it("restores human-design and surname-story saved readings by ?reading=", () => {
+      for (const key of ["human-design", "surname-story"]) {
+        expect(idRoute).toContain(`"${key}"`);
       }
     });
   });
@@ -107,6 +118,16 @@ describe("B451 — numerology/human-design/synastry/surname/family tarot-parity"
       expect(src).not.toContain("бесплатный фрагмент");
       expect(src).not.toContain("Сначала бесплатный");
       expect(src).not.toContain("soft-badge");
+    });
+
+    it("removes generic topic chips from human-design and surname-story intake", () => {
+      expect(source("src/components/products/human-design-actions.tsx")).not.toContain("OptionScrollStrip");
+      expect(source("src/components/products/surname-story-actions.tsx")).not.toContain("OptionScrollStrip");
+    });
+
+    it("uses compact one-line inputs for numerology and surname fields", () => {
+      expect(source("src/components/products/numerology-actions.tsx")).toContain("tarot-line-input");
+      expect(source("src/components/products/surname-story-actions.tsx")).toContain("tarot-line-input");
     });
   });
 

@@ -42,27 +42,28 @@ describe("B450 — natal-chart tarot-parity rework", () => {
     const natal = defaultPromptTextForFeature("product-natal-chart");
 
     it("speaks as a practicing humanistic astrologer, language-of-themes not fate", () => {
-      expect(natal).toContain("практикующий астролог");
-      expect(natal).toContain("ЯЗЫК ТЕМ");
-      expect(natal).toContain("Без фатализма");
+      expect(natal).toContain("астролог ETerapy с 20+ годами практики");
+      expect(natal).toContain("дома, аспекты, стихии, модальности");
+      expect(natal).toContain("не выноси приговор судьбы");
     });
 
     it("anchors strictly on the real Sun sign and forbids inventing Moon/Ascendant signs", () => {
       expect(natal).toContain("знак Солнца");
-      expect(natal).toContain("НЕ выдумывай конкретные знаки Луны");
+      expect(natal).toContain("не называй конкретный знак Луны/Асцендента/домов как факт");
     });
 
-    it("mandates the exact six ## chapters the accordion renders", () => {
-      expect(natal).toContain("## Солнце в <знак> — ядро личности");
-      expect(natal).toContain("## Луна — чувства и внутренняя опора");
-      expect(natal).toContain("## Восходящий знак — как вас видят");
-      expect(natal).toContain("## Стихия и ритм характера");
-      expect(natal).toContain("## Зоны роста и напряжения");
-      expect(natal).toContain("## Бережные шаги на ближайшее время");
+    it("mandates the exact astrology ## chapters the accordion renders", () => {
+      expect(natal).toContain("## Главная конфигурация карты");
+      expect(natal).toContain("## Солнце, стихия и модальность");
+      expect(natal).toContain("## Луна, Асцендент и личные планеты как темы");
+      expect(natal).toContain("## Дома и сферы жизни");
+      expect(natal).toContain("## Аспекты: где напряжение и где ресурс");
+      expect(natal).toContain("## Как работать с этой картой дальше");
     });
 
-    it("forbids code fences / echoing instructions (fence-tolerant downstream parse)", () => {
-      expect(natal).toContain("не оборачивай ответ в тройные кавычки");
+    it("forbids fate promises and preserves calculated facts", () => {
+      expect(natal).toContain("Не меняй расчетные факты");
+      expect(natal).toContain("Не обещай события");
     });
   });
 

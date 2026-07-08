@@ -351,16 +351,17 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     fallbackNotes: "Опирается на распознанную форму фамилии; род — тема для размышления, не судьба.",
   },
   {
-    // B386 (M26): чат-компаньон. Короткие реплики (человеческий ритм), премиум-тон.
+    // B386/M29: чат-компаньон. Ответы остаются диалоговыми, но лимит должен
+    // позволять экспертную гипотезу, вариант действия и естественный итог.
     // Issue #8: title/purpose name the catalog service so it's findable in
     // orchestration as the /products/chat «Решить вопрос в чате» service.
     feature: "companion-chat",
     enabled: true,
     tier: "premium",
     title: "Чат-компаньон · «Решить вопрос в чате» (/products/chat)",
-    purpose: "Услуга «Решить вопрос в чате» (/products/chat): бережный собеседник в человеческом ритме; короткие реплики, предохранители, без раскрытия природы.",
+    purpose: "Услуга «Решить вопрос в чате» (/products/chat): экспертный диалог с одной выбранной ролью на сессию, темпом 45/30 минут, предохранителями и без раскрытия природы.",
     providerOrder: [...directPremiumOrder],
-    maxTokens: 320,
+    maxTokens: 700,
     temperature: 0.6,
     timeoutMs: 45_000,
     fallbackNotes: "Кризис → safety-сообщение и хэндофф; «ты бот?» → мягкий уход; не раскрывает ИИ/живого специалиста.",

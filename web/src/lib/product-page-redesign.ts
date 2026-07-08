@@ -25,7 +25,7 @@ export const PRODUCT_PAGE_FAMILY_SPECS: Record<ProductPageFamily, ProductPageFam
     family: "symbolic",
     label: "Символические продукты",
     aboveFoldRule: "На первом экране: что узнаю, цена, один primary CTA, живой символический preview без фатализма.",
-    benchmarkPattern: "Co-Star берёт точность/данные, CHANI — self-discovery и birth-chart doorway; ETerapy добавляет бережный вывод и понятный следующий шаг.",
+    benchmarkPattern: "Co-Star берёт точность/данные, CHANI — self-discovery и birth-chart doorway; ETerapy добавляет ясную интерпретацию и понятный следующий шаг.",
     previewPrinciple: "Показывать карту, расклад, бодиграф или родовую карточку как рабочий артефакт, а не декоративную иллюстрацию.",
   },
   relationship: {
@@ -50,7 +50,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     primaryPromise: "Поймёте тон переписки и получите варианты ответа.",
     heroVisual: "conversation-scan",
     previewTitle: "Что увидите в разборе",
-    previewBullets: ["тон собеседника", "ваши эмоции", "бережные варианты ответа"],
+    previewBullets: ["тон собеседника", "ваши эмоции", "варианты ответа"],
     trustLine: "Приватно — видно только вам. Источник можно удалить после разбора.",
   },
   pair: {
@@ -106,7 +106,7 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
     primaryPromise: "Узнаете тип, стратегию и бодиграф по данным рождения.",
     heroVisual: "interactive-chart",
     previewTitle: "Бодиграф как рабочая схема",
-    previewBullets: ["тип бесплатно", "центры и каналы", "бережный полный разбор"],
+    previewBullets: ["тип и стратегия", "центры и каналы", "полный разбор"],
     trustLine: "Тип — подсказка к решениям, не ярлык.",
   },
   "surname-story": {
@@ -127,9 +127,9 @@ export const PRODUCT_PAGE_SPECS: Record<V5ProductSlug, ProductPageSpec> = {
   },
   "deep-report": {
     family: "synthesis",
-    primaryPromise: "Получите структурный разбор-документ на 6–10 страниц.",
+    primaryPromise: "Получите структурный разбор-документ на 5–10 страниц.",
     heroVisual: "document-outline",
-    previewTitle: "Документ 6–10 страниц",
+    previewTitle: "Документ 5–10 страниц",
     previewBullets: ["карта ситуации", "что удерживает и опоры", "сценарии и маршрут шагов"],
     trustLine: "Разбор виден только владельцу, PDF — в кабинете.",
   },

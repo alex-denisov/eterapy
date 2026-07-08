@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { SymbolicResultScaffold } from "@/components/products/symbolic-result-scaffold";
 import { HumanDesignBodygraph } from "@/components/products/human-design-bodygraph";
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
@@ -18,25 +17,10 @@ import type { HumanDesignChart } from "@/lib/human-design-data";
 
 export type HumanDesignResult = SymbolicResult;
 
-const TOPICS = ["самопознание", "работа", "отношения", "энергия", "решения", "отдых", "перемены", "предназначение"];
-
-const EXAMPLES_BY_TOPIC: Record<string, string[]> = {
-  "самопознание": ["Хочу понять, как устроен я и почему действую именно так."],
-  "работа": ["Как мне работать по своей природе, а не на износ?"],
-  "отношения": ["Как я вхожу в близость и что мне в ней важно?"],
-  "энергия": ["Почему я быстро выгораю — как восполнять силы?"],
-  "решения": ["Как мне принимать решения, чтобы потом не жалеть?"],
-  "отдых": ["Как я по-настоящему восстанавливаюсь?"],
-  "перемены": ["Сейчас момент действовать или ждать приглашения?"],
-  "предназначение": ["В чём моя естественная роль и сила?"],
-};
 const EXAMPLES_DEFAULT = [
   "Например: как мне жить и решать по своей природе?",
   "Опишите, что хотите прояснить — разбор свяжет ваш дизайн с вопросом.",
 ];
-function examplesForTopic(topic: string | null): string[] {
-  return (topic && EXAMPLES_BY_TOPIC[topic]) || EXAMPLES_DEFAULT;
-}
 
 export function extractHumanDesignChart(result: SymbolicResult | null): HumanDesignChart | null {
   const md = result?.metadata;
@@ -211,8 +195,7 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
     );
   }
 
-  const placeholderExamples = examplesForTopic(topic);
-  const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
+  const placeholder = EXAMPLES_DEFAULT[exampleIdx % EXAMPLES_DEFAULT.length];
 
   return (
     <div className="soft-card tarot-order-surface" data-testid="human-design-actions">
@@ -223,15 +206,6 @@ export function HumanDesignActions({ creditCost }: { creditCost: number }) {
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
       <div className="tarot-controls">
-        <OptionScrollStrip ariaLabel="О чём хотите понять">
-          {TOPICS.map((t) => (
-            <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
-              onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
-              {t}
-            </OptionChoice>
-          ))}
-        </OptionScrollStrip>
-
         <label className="soft-eyebrow tarot-question-label" htmlFor="hd-birth-input">дата, время и место рождения</label>
         <textarea
           id="hd-birth-input"

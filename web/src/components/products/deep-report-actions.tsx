@@ -17,7 +17,7 @@ import { appUrl, loginUrl } from "@/lib/subdomain";
 // B442/B444 (M28): «Подробный разбор» — самодостаточная услуга (клиническая
 // формулировка случая «5 P» + problem-solving). Контекст собирается ВНУТРИ услуги
 // (textarea + ленты темы/цели в дизайне Таро), без первичного диалога и без
-// предпросмотра/оглавления. Один платный шаг сразу даёт полный документ 6–10 страниц.
+// предпросмотра/оглавления. Один платный шаг сразу даёт полный документ 5–10 страниц.
 // Результат — аккордеон по главам; автосейв в Дневник; сессионность по ?resultId=.
 
 const TOPICS = ["работа", "отношения", "семья", "сам(а) с собой", "здоровье", "деньги", "другое"];
@@ -79,6 +79,12 @@ function parseContextNote(note?: string | null): { topic: string | null; goal: s
   const topic = note.match(/О чём:\s*(.+)/)?.[1]?.trim() ?? null;
   const goal = note.match(/Цель разбора:\s*(.+)/)?.[1]?.trim() ?? null;
   return { topic, goal };
+}
+
+function normalizeDeepReportHeadings(text: string): string {
+  return text
+    .replace(/^##\s+Бережное резюме(?:\s+и\s+с\s+кем\s+продолжить)?\s*$/gim, "## Когда подключать специалиста")
+    .replace(/^##\s+Бережные шаги(?:\s+на\s+ближайшее\s+время)?\s*$/gim, "## План действий на 7–14 дней");
 }
 
 type ApiPayload = {
@@ -247,7 +253,8 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
 
   // ── Result view: заголовок + recap + аккордеон по главам + воронка ──────
   if (result?.resultText) {
-    const sections = splitSections(result.resultText);
+    const normalizedResultText = normalizeDeepReportHeadings(result.resultText);
+    const sections = splitSections(normalizedResultText);
     const cat = [topic, goal].filter(Boolean).join(" · ");
     return (
       <div className="soft-card soft-form-panel mt-8" data-testid="deep-report-actions">
@@ -292,7 +299,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
             <SectionAccordion sections={sections} testId="deep-report-accordion" itemTestId="deep-report-section" />
           ) : (
             <article className="soft-card rounded-[16px] p-6 font-heading text-[1.05rem] leading-relaxed text-[var(--soft-ink)]">
-              <SoftMarkdown content={result.resultText} />
+              <SoftMarkdown content={normalizedResultText} />
             </article>
           )}
         </div>
@@ -322,7 +329,7 @@ export function DeepReportActions({ resultId }: { resultId?: string | null }) {
   return (
     <div className="soft-card tarot-order-surface" data-testid="deep-report-actions">
       <div className="tarot-head">
-        <p className="soft-eyebrow">структурный разбор · 6–10 страниц</p>
+        <p className="soft-eyebrow">структурный разбор · 5–10 страниц</p>
       </div>
 
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}

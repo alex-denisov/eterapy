@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
-import { OptionScrollStrip, OptionChoice } from "@/components/products/option-scroll-strip";
 import { SymbolicResultScaffold } from "@/components/products/symbolic-result-scaffold";
 import { useSymbolicService, type SymbolicResult } from "@/components/products/use-symbolic-service";
 import { useInputDraft } from "@/lib/use-input-draft";
@@ -16,24 +15,10 @@ import type { SurnameStory } from "@/lib/surname-story";
 
 export type SurnameResult = SymbolicResult;
 
-const TOPICS = ["род", "семья", "самопознание", "отношения", "предназначение", "опора", "перемены"];
-
-const EXAMPLES_BY_TOPIC: Record<string, string[]> = {
-  "род": ["Что мне важно понять про свой род и его историю?"],
-  "семья": ["Какие семейные темы я несу по фамилии?"],
-  "самопознание": ["Как история рода связана с тем, какой я сегодня?"],
-  "отношения": ["Что из родовых сценариев влияет на мои отношения?"],
-  "предназначение": ["Есть ли в роду тема, которая ищет продолжения во мне?"],
-  "опора": ["Где в истории рода моя опора и сила?"],
-  "перемены": ["Что из родового я хочу бережно оставить в прошлом?"],
-};
 const EXAMPLES_DEFAULT = [
-  "Например: что из истории рода откликается во мне сегодня?",
-  "Опишите, что хотите прояснить — разбор свяжет фамилию с вашим вопросом.",
+  "Например: откуда могла прийти моя фамилия и что она говорит о роде?",
+  "Опишите, что хотите проверить: происхождение, географию, занятие предков или семейную легенду.",
 ];
-function examplesForTopic(topic: string | null): string[] {
-  return (topic && EXAMPLES_BY_TOPIC[topic]) || EXAMPLES_DEFAULT;
-}
 
 export function extractSurnameStory(result: SymbolicResult | null): SurnameStory | null {
   const md = result?.metadata;
@@ -65,20 +50,35 @@ function parseInput(userInput?: string | null): { surname: string; question: str
 }
 
 function SurnameLineageVisual({ story }: { story: SurnameStory }) {
+  const nodes: Array<{ x: number; y: number; label: string; value: string }> = [
+    { x: 70, y: 146, label: "форма", value: story.originLabel },
+    { x: 160, y: 68, label: "фамилия", value: story.surname },
+    { x: 250, y: 146, label: "тема", value: story.rootHint ?? story.regionHint ?? "родовая версия" },
+    { x: 160, y: 206, label: "проверка", value: "метрики · архивы · память" },
+  ];
+
   return (
     <figure data-testid="surname-lineage">
-      <svg viewBox="0 0 320 190" role="img" aria-label={`Карта происхождения фамилии ${story.surname}`} className="mx-auto block w-full max-w-[320px]">
-        <path d="M54 142 C98 78, 137 76, 160 42 C185 77, 224 78, 266 142" fill="none" stroke="var(--soft-terracotta-dark)" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M160 42 L160 152" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="4 5" />
-        {([[54, 142, "корень"], [160, 42, "фамилия"], [266, 142, "тема"], [160, 152, "род"]] as Array<[number, number, string]>).map(([x, y, label]) => (
-          <g key={label}>
-            <circle cx={x} cy={y} r="22" fill="var(--soft-paper-card)" stroke="var(--soft-terracotta-dark)" strokeWidth="1.5" />
-            <text x={x} y={y + 4} textAnchor="middle" fontSize="10" fill="var(--soft-bordeaux)">{label}</text>
+      <svg viewBox="0 0 320 245" role="img" aria-label={`Карта происхождения фамилии ${story.surname}`} className="mx-auto block w-full max-w-[340px]">
+        <rect x="20" y="18" width="280" height="206" rx="18" fill="var(--soft-paper-card)" stroke="var(--soft-paper-edge)" />
+        <path d="M160 68 C128 94, 98 110, 70 146" fill="none" stroke="var(--soft-terracotta-dark)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M160 68 C192 94, 222 110, 250 146" fill="none" stroke="var(--soft-sage)" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M160 68 L160 206" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.4" strokeDasharray="5 5" />
+        <path d="M70 146 C98 190, 128 206, 160 206 C192 206, 222 190, 250 146" fill="none" stroke="var(--soft-paper-edge)" strokeWidth="1.2" strokeDasharray="4 5" />
+        {nodes.map((node) => (
+          <g key={node.label}>
+            <circle cx={node.x} cy={node.y} r={node.label === "фамилия" ? 31 : 27} fill="var(--soft-paper-deep)" stroke="var(--soft-terracotta-dark)" strokeWidth="1.5" />
+            <text x={node.x} y={node.y - 4} textAnchor="middle" fontSize="8" fill="var(--soft-muted)" className="soft-eyebrow">{node.label}</text>
+            <text x={node.x} y={node.y + 9} textAnchor="middle" fontSize={node.label === "фамилия" ? "12" : "8.5"} fontWeight="600" fill="var(--soft-bordeaux)">
+              {node.value.length > 18 ? `${node.value.slice(0, 16)}…` : node.value}
+            </text>
           </g>
         ))}
+        <text x="34" y="38" fontSize="9" fill="var(--soft-muted)">версии происхождения</text>
+        <text x="286" y="216" textAnchor="end" fontSize="9" fill="var(--soft-muted)">следы для проверки</text>
       </svg>
       <figcaption className="mt-2 text-center text-xs text-[var(--soft-ink-faint)]">
-        {story.surname} · {story.originLabel.toLowerCase()} · родовая тема для размышления
+        {story.surname} · {story.originLabel.toLowerCase()} · форма, версия, география и проверка
       </figcaption>
       <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3" data-testid="surname-facts">
         <div className="rounded-[12px] bg-[var(--soft-paper-deep)] px-3 py-2">
@@ -215,8 +215,7 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
     );
   }
 
-  const placeholderExamples = examplesForTopic(topic);
-  const placeholder = placeholderExamples[exampleIdx % placeholderExamples.length];
+  const placeholder = EXAMPLES_DEFAULT[exampleIdx % EXAMPLES_DEFAULT.length];
 
   return (
     <div className="soft-card tarot-order-surface" data-testid="surname-story-actions">
@@ -227,22 +226,13 @@ export function SurnameStoryActions({ creditCost }: { creditCost: number }) {
       {message && <p className="mt-4 rounded-2xl bg-[var(--soft-paper-deep)] p-3 text-sm text-[var(--soft-bordeaux)]">{message}</p>}
 
       <div className="tarot-controls">
-        <OptionScrollStrip ariaLabel="О чём хотите понять">
-          {TOPICS.map((t) => (
-            <OptionChoice key={t} active={topic === t} disabled={status === "loading"}
-              onClick={() => { setTopic(topic === t ? null : t); setExampleIdx(0); }}>
-              {t}
-            </OptionChoice>
-          ))}
-        </OptionScrollStrip>
-
         <label className="soft-eyebrow tarot-question-label" htmlFor="surname-input">ваша фамилия</label>
         <input
           id="surname-input"
           value={surname}
           onChange={(e) => setSurname(e.target.value.slice(0, 80))}
           placeholder="Кузнецов, Ковальчук, Соколова…"
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-line-input"
           disabled={status === "loading"}
           data-testid="surname-input"
         />

@@ -10,7 +10,7 @@ function source(relativePath: string) {
 
 // B442 (M28): «Подробный разбор» — самодостаточная услуга на методе клинической
 // формулировки случая (5P + problem-solving). Контекст собирается ВНУТРИ услуги
-// (sourceText), без первичного диалога; результат — документ 6–10 страниц; автосейв.
+// (sourceText), без первичного диалога; результат — документ 5–10 страниц; автосейв.
 describe("B442 deep report product (Подробный разбор)", () => {
   const sourceText = "Стоит ли менять работу сейчас? Нет ощущения роста, но страшно потерять стабильность.";
 
@@ -51,7 +51,7 @@ describe("B442 deep report product (Подробный разбор)", () => {
     expect(exportRoute).toContain("Content-Disposition");
   });
 
-  it("raises the token budget so the document can really be 8–12 pages", () => {
+  it("raises the token budget so the document can really be 5–10 pages", () => {
     const lib = source("src/lib/deep-report.ts");
     const policy = source("src/lib/ai-gateway/task-policy.ts");
     // B446: bumped 9000 → 11000 for a richer (≥3500-word) document

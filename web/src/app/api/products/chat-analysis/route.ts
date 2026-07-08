@@ -21,6 +21,55 @@ import {
 
 const PRODUCT_KEY = "chat-analysis";
 
+const DEFAULT_FEELING_CHIPS = [
+  "тревога",
+  "обида",
+  "растерянность",
+  "злость",
+  "разочарование",
+  "усталость",
+  "неуверенность",
+] as const;
+
+function feelingFromToneLabel(label: string): string | null {
+  const value = label.trim().toLowerCase();
+  if (!value) return null;
+  if (/тревож|обеспоко|волн/.test(value)) return "тревога";
+  if (/обид/.test(value)) return "обида";
+  if (/зл|раздраж|агресс/.test(value)) return "злость";
+  if (/растер|смущ|непон|потер/.test(value)) return "растерянность";
+  if (/разочар/.test(value)) return "разочарование";
+  if (/устал|выгор/.test(value)) return "усталость";
+  if (/груст|печал|тоск/.test(value)) return "грусть";
+  if (/стыд|вин/.test(value)) return "стыд";
+  if (/страх|пуга/.test(value)) return "страх";
+  if (/ревн/.test(value)) return "ревность";
+  if (/одиноч/.test(value)) return "одиночество";
+  if (/удив/.test(value)) return "удивление";
+  if (/интерес|тепл|нежн|рад/.test(value)) return "интерес";
+  if (/споко|увер/.test(value)) return "спокойствие";
+  // These are conversational tones or work-style labels, not answers to
+  // «что вы сейчас чувствуете».
+  if (/делов|инициатив|защит|отстран|ищущ|прям|мягк|границ|рацион|контрол|актив|пассив/.test(value)) return null;
+  const normalized = value.replace(/\s+/g, " ").slice(0, 24);
+  return normalized.length >= 3 ? normalized : null;
+}
+
+function suggestedFeelingChipsFromAnalysis(text: string): string[] {
+  const parsed = tryParseChatAnalysis(text);
+  const chips = new Set<string>();
+  for (const tone of parsed?.tonesMe ?? []) {
+    const feeling = feelingFromToneLabel(tone.label);
+    if (feeling) chips.add(feeling);
+    if (chips.size >= 7) break;
+  }
+  for (const fallback of DEFAULT_FEELING_CHIPS) {
+    if (chips.size >= 7) break;
+    chips.add(fallback);
+  }
+  return [...chips];
+}
+
 const postSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("upload_preview"),
@@ -150,13 +199,9 @@ export async function POST(request: NextRequest) {
     });
     const previewText = buildChatAnalysisTeaser(maskedSourceText, generated.text) || buildChatAnalysisPreview(maskedSourceText);
 
-    // B395: динамические эмоции-подсказки для шага «контекст» берём из тонов,
-    // которые ИИ уже считал в диалоге (ваш тон / tonesMe) — без отдельного
-    // AI-вызова. Клиент наполнит ими блок «что вы сейчас чувствуете».
-    const suggestedEmotions = (tryParseChatAnalysis(generated.text)?.tonesMe ?? [])
-      .map((t) => t.label)
-      .filter((label): label is string => Boolean(label && label.trim()))
-      .slice(0, 7);
+    // B395/B493: подсказки для шага «контекст» выводим из tonesMe, но
+    // нормализуем в реальные чувства — не conversational/work-style labels.
+    const suggestedEmotions = suggestedFeelingChipsFromAnalysis(generated.text);
 
     const previewMetadata = {
       sourceKind: "text",
@@ -228,6 +273,7 @@ export async function POST(request: NextRequest) {
         uploadPreviewedAt: new Date().toISOString(),
         ocr: extraction.metadata,
         previewGenerationMetadata: generated.metadata,
+        suggestedEmotions: suggestedFeelingChipsFromAnalysis(generated.text),
       };
 
       const result = existing
@@ -375,6 +421,7 @@ export async function POST(request: NextRequest) {
       uploadPreviewedAt: new Date().toISOString(),
       ocrItems,
       previewGenerationMetadata: generated.metadata,
+      suggestedEmotions: suggestedFeelingChipsFromAnalysis(generated.text),
     };
 
     const result = existing

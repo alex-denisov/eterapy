@@ -334,7 +334,7 @@ async function generateCompanionReply(input: {
       feature: "companion-chat",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 320,
+      maxTokens: 700,
       temperature: 0.6,
       messages: [
         { role: "system", content: buildCompanionSystemPrompt(input.mode) },

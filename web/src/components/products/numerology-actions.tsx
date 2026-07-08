@@ -235,7 +235,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, 120))}
           placeholder="Анна"
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-line-input"
           disabled={status === "loading"}
           data-testid="numerology-name-input"
         />
@@ -246,7 +246,7 @@ export function NumerologyActions({ creditCost }: { creditCost: number }) {
           value={birth}
           onChange={(e) => setBirth(e.target.value.slice(0, 60))}
           placeholder="12.04.1992"
-          className="soft-question-input tarot-question-input"
+          className="soft-question-input tarot-question-input tarot-line-input"
           disabled={status === "loading"}
           data-testid="numerology-birth-input"
         />

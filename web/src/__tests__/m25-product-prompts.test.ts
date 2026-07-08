@@ -21,16 +21,9 @@ describe("B362 — per-product AI prompts", () => {
     expect(unique.size).toBe(4);
     // The product-specific instruction is present (not just the shared guardrail).
     expect(tarot).toContain("Таро");
-    expect(tarot).toContain("Прошлое / Настоящее / Будущее");
-    // #7: отказывается от тем вне рефлексии (математика, программирование,
-    // кулинария…), но РАБОТА/карьера остаётся в сфере, а тема — лишь мягкий
-    // фокус, не повод для отказа.
-    expect(tarot).toContain("математика");
-    expect(tarot).toContain("программирование");
-    expect(tarot).toContain("кулинария");
-    expect(tarot).toContain("РАБОТА и карьера");
-    expect(tarot).toContain("ограничение сферы вопроса");
-    // Интерпретирует строго переданные карты, без подмены выпавших.
+    expect(tarot).toContain("профессиональный таролог");
+    expect(tarot).toContain("## Связь карт между собой");
+    expect(tarot).toContain("## Как действовать по раскладу");
     expect(tarot).toContain("которые переданы в запросе");
     expect(natal).toContain("натальную карту");
     expect(numerology).toContain("числовой портрет");

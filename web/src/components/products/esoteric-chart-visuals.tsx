@@ -7,6 +7,8 @@ import { ZODIAC_SIGNS, type NatalWheel, type SynastryWheel, type ChartPlacement 
 import { tarotDeckCardByName, type TarotCard } from "@/lib/tarot-deck";
 
 const TWO_PI = Math.PI * 2;
+const WHEEL_CX = 210;
+const WHEEL_CY = 210;
 
 function pointOnCircle(cx: number, cy: number, r: number, angleDeg: number) {
   // 0° = верх, по часовой стрелке
@@ -14,23 +16,91 @@ function pointOnCircle(cx: number, cy: number, r: number, angleDeg: number) {
   return { x: cx + r * Math.sin(a), y: cy - r * Math.cos(a) };
 }
 
-function PlacementGlyphs({ placements, radius, color }: { placements: ChartPlacement[]; radius: number; color: string }) {
+const ELEMENT_FILL: Record<string, string> = {
+  "огонь": "rgba(181, 98, 63, 0.12)",
+  "земля": "rgba(125, 155, 122, 0.13)",
+  "воздух": "rgba(111, 136, 169, 0.13)",
+  "вода": "rgba(122, 112, 157, 0.13)",
+};
+
+type AspectKind = "conjunction" | "sextile" | "square" | "trine" | "opposition";
+
+const ASPECTS: Array<{ kind: AspectKind; angle: number; orb: number; color: string; dash?: string }> = [
+  { kind: "conjunction", angle: 0, orb: 7, color: "var(--soft-bordeaux, #7a1f3d)" },
+  { kind: "sextile", angle: 60, orb: 5, color: "var(--soft-sage, #7d9b7a)" },
+  { kind: "square", angle: 90, orb: 6, color: "var(--soft-terracotta-dark, #b5623f)", dash: "4 4" },
+  { kind: "trine", angle: 120, orb: 6, color: "var(--soft-sage, #7d9b7a)" },
+  { kind: "opposition", angle: 180, orb: 7, color: "var(--soft-bordeaux, #7a1f3d)", dash: "2 4" },
+];
+
+function angleDelta(a: number, b: number) {
+  const raw = Math.abs((((a - b) % 360) + 360) % 360);
+  return raw > 180 ? 360 - raw : raw;
+}
+
+function aspectFor(a: number, b: number) {
+  const delta = angleDelta(a, b);
+  const candidates = ASPECTS
+    .map((aspect) => ({ ...aspect, diff: Math.abs(delta - aspect.angle) }))
+    .filter((aspect) => aspect.diff <= aspect.orb)
+    .sort((left, right) => left.diff - right.diff);
+  return candidates[0] ?? null;
+}
+
+function natalAspectLines(placements: ChartPlacement[]) {
+  const lines: Array<{ a: ChartPlacement; b: ChartPlacement; aspect: NonNullable<ReturnType<typeof aspectFor>> }> = [];
+  for (let i = 0; i < placements.length; i += 1) {
+    for (let j = i + 1; j < placements.length; j += 1) {
+      const aspect = aspectFor(placements[i].angle, placements[j].angle);
+      if (aspect) lines.push({ a: placements[i], b: placements[j], aspect });
+    }
+  }
+  return lines.sort((left, right) => left.aspect.diff - right.aspect.diff).slice(0, 22);
+}
+
+function synastryAspectLines(a: ChartPlacement[], b: ChartPlacement[]) {
+  const lines: Array<{ a: ChartPlacement; b: ChartPlacement; aspect: NonNullable<ReturnType<typeof aspectFor>> }> = [];
+  for (const from of a) {
+    for (const to of b) {
+      const aspect = aspectFor(from.angle, to.angle);
+      if (aspect) lines.push({ a: from, b: to, aspect });
+    }
+  }
+  return lines.sort((left, right) => left.aspect.diff - right.aspect.diff).slice(0, 28);
+}
+
+function formatDegree(p: ChartPlacement) {
+  return `${Math.round(p.degreeInSign).toString().padStart(2, "0")}°${p.signGlyph}`;
+}
+
+function PlacementGlyphs({
+  placements,
+  radius,
+  color,
+  labelRadius = radius + 18,
+  markerFill = "var(--soft-paper-card, #fbf5ea)",
+}: {
+  placements: ChartPlacement[];
+  radius: number;
+  color: string;
+  labelRadius?: number;
+  markerFill?: string;
+}) {
   return (
     <>
       {placements.map((p, i) => {
-        const { x, y } = pointOnCircle(180, 180, radius, p.angle);
+        const { x, y } = pointOnCircle(WHEEL_CX, WHEEL_CY, radius, p.angle);
+        const label = pointOnCircle(WHEEL_CX, WHEEL_CY, labelRadius, p.angle);
         return (
-          <text
-            key={`${p.luminary}-${i}`}
-            x={x}
-            y={y}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize="13"
-            fill={color}
-          >
-            {p.glyph}
-          </text>
+          <g key={`${p.luminary}-${i}`}>
+            <circle cx={x} cy={y} r="10" fill={markerFill} stroke={color} strokeWidth="1" />
+            <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize="13" fill={color}>
+              {p.glyph}
+            </text>
+            <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize="7.5" fill="var(--soft-muted,#7a7068)">
+              {formatDegree(p)}
+            </text>
+          </g>
         );
       })}
     </>
@@ -41,15 +111,21 @@ function ZodiacRing({ innerR, outerR }: { innerR: number; outerR: number }) {
   const labelR = (innerR + outerR) / 2;
   return (
     <g>
-      <circle cx={180} cy={180} r={outerR} fill="none" stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={1.2} />
-      <circle cx={180} cy={180} r={innerR} fill="none" stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={1} />
+      <circle cx={WHEEL_CX} cy={WHEEL_CY} r={outerR} fill="var(--soft-paper-card, #fbf5ea)" stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={1.2} />
+      <circle cx={WHEEL_CX} cy={WHEEL_CY} r={innerR} fill="var(--soft-paper-deep, #f6ecd9)" stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={1} />
       {ZODIAC_SIGNS.map((sign, i) => {
         const sectorStart = i * 30;
-        const edge = pointOnCircle(180, 180, outerR, sectorStart);
-        const innerEdge = pointOnCircle(180, 180, innerR, sectorStart);
-        const label = pointOnCircle(180, 180, labelR, sectorStart + 15);
+        const edge = pointOnCircle(WHEEL_CX, WHEEL_CY, outerR, sectorStart);
+        const innerEdge = pointOnCircle(WHEEL_CX, WHEEL_CY, innerR, sectorStart);
+        const label = pointOnCircle(WHEEL_CX, WHEEL_CY, labelR, sectorStart + 15);
         return (
           <g key={sign.key}>
+            <path
+              d={`M ${innerEdge.x} ${innerEdge.y} L ${edge.x} ${edge.y}`}
+              stroke="var(--soft-paper-edge, #e7dccb)"
+              strokeWidth={0.8}
+            />
+            <circle cx={label.x} cy={label.y} r="14" fill={ELEMENT_FILL[sign.element]} />
             <line x1={innerEdge.x} y1={innerEdge.y} x2={edge.x} y2={edge.y} stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={0.8} />
             <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize="14" fill="var(--soft-terracotta-dark, #b5623f)">
               {sign.glyph}
@@ -61,22 +137,95 @@ function ZodiacRing({ innerR, outerR }: { innerR: number; outerR: number }) {
   );
 }
 
+function HouseLines({ radius }: { radius: number }) {
+  return (
+    <g>
+      {Array.from({ length: 12 }, (_, i) => i * 30).map((angle, i) => {
+        const edge = pointOnCircle(WHEEL_CX, WHEEL_CY, radius, angle);
+        const label = pointOnCircle(WHEEL_CX, WHEEL_CY, radius - 16, angle + 15);
+        return (
+          <g key={angle}>
+            <line x1={WHEEL_CX} y1={WHEEL_CY} x2={edge.x} y2={edge.y} stroke="var(--soft-paper-edge, #d9cdb8)" strokeWidth={i % 3 === 0 ? 1.05 : 0.65} opacity={0.85} />
+            <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="central" fontSize="7" fill="var(--soft-ink-faint,#9a8f83)">
+              {i + 1}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function NatalAspectWeb({ placements, radius }: { placements: ChartPlacement[]; radius: number }) {
+  return (
+    <g>
+      {natalAspectLines(placements).map((line, i) => {
+        const from = pointOnCircle(WHEEL_CX, WHEEL_CY, radius, line.a.angle);
+        const to = pointOnCircle(WHEEL_CX, WHEEL_CY, radius, line.b.angle);
+        return (
+          <line
+            key={`${line.a.luminary}-${line.b.luminary}-${i}`}
+            x1={from.x}
+            y1={from.y}
+            x2={to.x}
+            y2={to.y}
+            stroke={line.aspect.color}
+            strokeWidth={line.aspect.kind === "conjunction" ? 1.7 : 1}
+            strokeDasharray={line.aspect.dash}
+            opacity={0.58}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function SynastryAspectWeb({ wheel }: { wheel: SynastryWheel }) {
+  return (
+    <g>
+      {synastryAspectLines(wheel.a.placements, wheel.b.placements).map((line, i) => {
+        const from = pointOnCircle(WHEEL_CX, WHEEL_CY, 132, line.a.angle);
+        const to = pointOnCircle(WHEEL_CX, WHEEL_CY, 104, line.b.angle);
+        return (
+          <line
+            key={`${line.a.luminary}-${line.b.luminary}-${i}`}
+            x1={from.x}
+            y1={from.y}
+            x2={to.x}
+            y2={to.y}
+            stroke={line.aspect.color}
+            strokeWidth={1.05}
+            strokeDasharray={line.aspect.dash}
+            opacity={0.5}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
 export function ZodiacWheel({ wheel }: { wheel: NatalWheel }) {
   return (
     <figure className="esoteric-wheel" data-testid="natal-wheel">
-      <svg viewBox="0 0 360 360" role="img" aria-label={`Колесо карты: Солнце в знаке ${wheel.sunSign.name}`} className="mx-auto block w-full max-w-[320px]">
-        <ZodiacRing innerR={108} outerR={158} />
-        <circle cx={180} cy={180} r={88} fill="none" stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={0.8} strokeDasharray="2 4" />
-        <PlacementGlyphs placements={wheel.placements} radius={88} color="var(--soft-ink, #2d2a26)" />
-        <text x={180} y={172} textAnchor="middle" fontSize="26" fill="var(--soft-terracotta-dark, #b5623f)">
+      <svg viewBox="0 0 420 420" role="img" aria-label={`Колесо карты: Солнце в знаке ${wheel.sunSign.name}`} className="mx-auto block w-full max-w-[390px]">
+        <ZodiacRing innerR={154} outerR={198} />
+        <HouseLines radius={154} />
+        <circle cx={WHEEL_CX} cy={WHEEL_CY} r={112} fill="none" stroke="var(--soft-paper-edge, #e7dccb)" strokeWidth={0.8} strokeDasharray="2 4" />
+        <NatalAspectWeb placements={wheel.placements} radius={112} />
+        <PlacementGlyphs placements={wheel.placements} radius={134} color="var(--soft-ink, #2d2a26)" labelRadius={146} />
+        <circle cx={WHEEL_CX} cy={WHEEL_CY} r={48} fill="var(--soft-paper-card, #fbf5ea)" stroke="var(--soft-paper-edge, #e7dccb)" />
+        <text x={WHEEL_CX} y={WHEEL_CY - 9} textAnchor="middle" fontSize="27" fill="var(--soft-terracotta-dark, #b5623f)">
           {wheel.sunSign.glyph}
         </text>
-        <text x={180} y={196} textAnchor="middle" fontSize="11" fill="var(--soft-ink, #2d2a26)">
+        <text x={WHEEL_CX} y={WHEEL_CY + 12} textAnchor="middle" fontSize="10" fill="var(--soft-ink, #2d2a26)">
           {wheel.sunSign.name}
+        </text>
+        <text x={WHEEL_CX} y={WHEEL_CY + 27} textAnchor="middle" fontSize="8" fill="var(--soft-muted,#7a7068)">
+          ASC {wheel.ascendant.glyph} {wheel.ascendant.name}
         </text>
       </svg>
       <figcaption className="mt-2 text-center text-xs text-[var(--soft-muted,#7a7068)]">
-        Солнце в знаке {wheel.sunSign.name} · асцендент {wheel.ascendant.name} · структура тем, не прогноз
+        12 домов · 10 планет · аспекты · Солнце в {wheel.sunSign.name} · ASC {wheel.ascendant.name}
       </figcaption>
     </figure>
   );
@@ -85,32 +234,21 @@ export function ZodiacWheel({ wheel }: { wheel: NatalWheel }) {
 export function SynastryWheel({ wheel }: { wheel: SynastryWheel }) {
   return (
     <figure className="esoteric-wheel" data-testid="synastry-wheel">
-      <svg viewBox="0 0 360 360" role="img" aria-label={`Колесо совместимости: ${wheel.a.sunSign.name} и ${wheel.b.sunSign.name}`} className="mx-auto block w-full max-w-[320px]">
-        <ZodiacRing innerR={120} outerR={158} />
-        {wheel.aspects.map((aspect, i) => {
-          const from = pointOnCircle(180, 180, 96, aspect.from);
-          const to = pointOnCircle(180, 180, 96, aspect.to);
-          return (
-            <line
-              key={i}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke={aspect.harmony === "flow" ? "var(--soft-sage, #7d9b7a)" : "var(--soft-terracotta-dark, #b5623f)"}
-              strokeWidth={1.1}
-              strokeDasharray={aspect.harmony === "tension" ? "3 3" : undefined}
-            />
-          );
-        })}
-        <PlacementGlyphs placements={wheel.a.placements} radius={104} color="var(--soft-terracotta-dark, #b5623f)" />
-        <PlacementGlyphs placements={wheel.b.placements} radius={80} color="var(--soft-ink, #2d2a26)" />
-        <text x={180} y={184} textAnchor="middle" fontSize="13" fill="var(--soft-muted,#7a7068)">
+      <svg viewBox="0 0 420 420" role="img" aria-label={`Колесо совместимости: ${wheel.a.sunSign.name} и ${wheel.b.sunSign.name}`} className="mx-auto block w-full max-w-[390px]">
+        <ZodiacRing innerR={162} outerR={198} />
+        <circle cx={WHEEL_CX} cy={WHEEL_CY} r={145} fill="none" stroke="var(--soft-paper-edge, #d9cdb8)" strokeWidth={1.1} />
+        <circle cx={WHEEL_CX} cy={WHEEL_CY} r={116} fill="none" stroke="var(--soft-paper-edge, #d9cdb8)" strokeWidth={1.1} strokeDasharray="4 4" />
+        <HouseLines radius={145} />
+        <SynastryAspectWeb wheel={wheel} />
+        <PlacementGlyphs placements={wheel.a.placements} radius={136} color="var(--soft-terracotta-dark, #b5623f)" labelRadius={151} markerFill="var(--soft-paper-card, #fbf5ea)" />
+        <PlacementGlyphs placements={wheel.b.placements} radius={104} color="var(--soft-ink, #2d2a26)" labelRadius={90} markerFill="var(--soft-paper-deep, #f6ecd9)" />
+        <circle cx={WHEEL_CX} cy={WHEEL_CY} r={42} fill="var(--soft-paper-card, #fbf5ea)" stroke="var(--soft-paper-edge, #e7dccb)" />
+        <text x={WHEEL_CX} y={WHEEL_CY + 4} textAnchor="middle" fontSize="15" fill="var(--soft-muted,#7a7068)">
           {wheel.a.sunSign.glyph} · {wheel.b.sunSign.glyph}
         </text>
       </svg>
       <figcaption className="mt-2 text-center text-xs text-[var(--soft-muted,#7a7068)]">
-        {wheel.a.sunSign.name} + {wheel.b.sunSign.name} · сплошные линии — где течёт, пунктир — где трение
+        bi-wheel: внешний круг — первый человек, внутренний — второй · зелёные линии ресурс, пунктир/бордо — напряжение
       </figcaption>
     </figure>
   );

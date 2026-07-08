@@ -241,6 +241,39 @@ function IosSpinner({ className }: { className?: string }) {
 const CONTACTS = ["партнёр", "бывший(ая)", "родитель", "друг", "коллега", "начальник", "другой"];
 const EMOTIONS = ["растерянность", "злость", "вина", "грусть", "страх", "пустота", "стыд"];
 
+function normalizeEmotionChip(label: string): string | null {
+  const value = label.trim().toLowerCase();
+  if (!value) return null;
+  if (/тревож|обеспоко|волн/.test(value)) return "тревога";
+  if (/обид/.test(value)) return "обида";
+  if (/зл|раздраж|агресс/.test(value)) return "злость";
+  if (/растер|смущ|непон|потер/.test(value)) return "растерянность";
+  if (/разочар/.test(value)) return "разочарование";
+  if (/устал|выгор/.test(value)) return "усталость";
+  if (/груст|печал|тоск/.test(value)) return "грусть";
+  if (/стыд|вин/.test(value)) return "стыд";
+  if (/страх|пуга/.test(value)) return "страх";
+  if (/ревн/.test(value)) return "ревность";
+  if (/одиноч/.test(value)) return "одиночество";
+  if (/удив/.test(value)) return "удивление";
+  if (/делов|инициатив|защит|отстран|ищущ|прям|мягк|границ|рацион|контрол|актив|пассив/.test(value)) return null;
+  return value.length >= 3 ? value.slice(0, 24) : null;
+}
+
+function normalizeEmotionOptions(raw?: string[] | null): string[] {
+  const chips = new Set<string>();
+  for (const item of raw ?? []) {
+    const chip = normalizeEmotionChip(item);
+    if (chip) chips.add(chip);
+    if (chips.size >= 7) break;
+  }
+  for (const fallback of EMOTIONS) {
+    if (chips.size >= 7) break;
+    chips.add(fallback);
+  }
+  return [...chips];
+}
+
 // B395: тон разговора — сегментированная лента + ЛЕГЕНДА (точка того же оттенка
 // + название + %), чтобы было видно, какой сегмент к какой характеристике
 // относится. Доли нормируем к 100% (pct тонов в сумме ≈ 200%, см. lib/chat-analysis).
@@ -1183,9 +1216,7 @@ export function ChatAnalysisActions() {
   // B395: кнопки «что вы сейчас чувствуете» наполняются динамически — из тонов,
   // которые ИИ считал в диалоге (ваш тон, приходит в metadata.suggestedEmotions
   // на шаге предпросмотра). Фолбэк на статический список, если их нет.
-  const emotionOptions = result?.metadata?.suggestedEmotions?.length
-    ? result.metadata.suggestedEmotions
-    : EMOTIONS;
+  const emotionOptions = normalizeEmotionOptions(result?.metadata?.suggestedEmotions);
 
   // B395: компактный одно-рядный степпер (раньше — pills с переносом на мобиле).
   // Кружок-индекс + короткая подпись, связаны гибкой тонкой линией; три шага

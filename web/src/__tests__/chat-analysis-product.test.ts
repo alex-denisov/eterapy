@@ -449,6 +449,20 @@ describe("B087/B088 chat analysis product", () => {
     }
   });
 
+  it("B493 maps tone labels into real feeling chips for the context step", () => {
+    const route = source("src/app/api/products/chat-analysis/route.ts");
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    expect(route).toContain("DEFAULT_FEELING_CHIPS");
+    expect(route).toContain("suggestedFeelingChipsFromAnalysis");
+    expect(route).toContain("feelingFromToneLabel");
+    expect(route).toContain("инициатив");
+    expect(actions).toContain("normalizeEmotionOptions");
+    expect(actions).toContain("normalizeEmotionChip");
+    expect(actions).toContain("тревога");
+    expect(actions).toContain("растерянность");
+  });
+
   it("B490 keeps the chat-analysis prompt decisive, admin-managed, and locked to exactly 3 reply objects", () => {
     const prompt = source("src/lib/chat-analysis-prompt.ts");
     const helper = source("src/lib/chat-analysis.ts");

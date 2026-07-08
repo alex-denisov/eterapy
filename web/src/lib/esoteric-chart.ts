@@ -34,6 +34,11 @@ export const CHART_LUMINARIES: ReadonlyArray<{ key: string; glyph: string; label
   { key: "mercury", glyph: "☿", label: "Меркурий — речь" },
   { key: "venus", glyph: "♀", label: "Венера — близость" },
   { key: "mars", glyph: "♂", label: "Марс — действие" },
+  { key: "jupiter", glyph: "♃", label: "Юпитер — рост" },
+  { key: "saturn", glyph: "♄", label: "Сатурн — структура" },
+  { key: "uranus", glyph: "♅", label: "Уран — свобода" },
+  { key: "neptune", glyph: "♆", label: "Нептун — образ" },
+  { key: "pluto", glyph: "♇", label: "Плутон — глубина" },
 ] as const;
 
 function seededHash(seed: string): number {
@@ -148,6 +153,7 @@ export type ChartPlacement = {
   signGlyph: string;
   // угол на колесе в градусах (0 = верх, по часовой стрелке)
   angle: number;
+  degreeInSign: number;
 };
 
 export type NatalWheel = {
@@ -181,6 +187,7 @@ export function buildNatalWheel(birthData: string): NatalWheel {
       signName: sign.name,
       signGlyph: sign.glyph,
       angle,
+      degreeInSign: withinSign,
     };
   });
 

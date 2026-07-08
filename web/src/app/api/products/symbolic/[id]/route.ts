@@ -5,7 +5,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import db from "@/lib/db";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
-const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology"] as const;
+const SYMBOLIC_PRODUCT_KEYS = ["tarot", "natal-chart", "numerology", "family-scenarios", "human-design", "surname-story"] as const;
 
 const patchSchema = z.object({ action: z.enum(["save"]) });
 
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   );
 }
 
-// B308: PATCH /api/products/symbolic/[id] — "save to diary" affordance for
-// tarot / natal-chart / numerology. Spec (04_UI_UX_Mechanics §10) requires
+// B308/B451/B500: PATCH /api/products/symbolic/[id] — "save to diary" affordance for
+// tarot / natal-chart / numerology / HD / surname / family. Spec requires
 // every symbolic result to be saveable into the user's personal diary.
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const context = requestContextFromHeaders(request.headers);
