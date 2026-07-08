@@ -29,9 +29,11 @@
 
 /* Экран, который сам владеет мобильным «верхом» (рендерит pcab-appbar или
    свой заголовок по макету), помечается data-pcab-top — глобальный хедер
-   (bell-only полоска из round-8) на мобиле убирается целиком. */
+   (bell-only полоска из round-8) и публичный футер на мобиле убираются
+   целиком: в макетах экран заканчивается таббаром. */
 @media (max-width: 767px) {
-  body:has([data-pcab-top]) header[data-site-chrome="header"] {
+  body:has([data-pcab-top]) header[data-site-chrome="header"],
+  body:has([data-pcab-top]) [data-site-chrome="footer"] {
     display: none;
   }
 }
@@ -324,10 +326,14 @@
   color: var(--pc-ink-soft);
 }
 .pcab-row-main {
+  display: block;
   flex: 1;
   min-width: 0;
 }
+/* В макете титул/подзаголовок — блочные div; в ссылочных строках это span-ы
+   (валидный HTML внутри <a>), блочность возвращаем стилем. */
 .pcab-row-t {
+  display: block;
   font-size: 13.5px;
   font-weight: 500;
 }
@@ -341,6 +347,7 @@
   margin-left: 6px;
 }
 .pcab-row-s {
+  display: block;
   font-size: 12px;
   color: var(--pc-ink-faint);
   margin-top: 1px;
