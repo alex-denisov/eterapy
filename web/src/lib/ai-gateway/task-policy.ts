@@ -157,7 +157,7 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     // model, which used to silently fail with "Не удалось распознать скриншот".
     providerOrder: [...directVisionOrder],
     modelPreferences: { ...visionModelPreferences },
-    maxTokens: 1600,
+    maxTokens: 3000,
     temperature: 0,
     timeoutMs: 45_000,
     // INC-026: NO per-user daily token budget. chat-analysis is a paid, per-use-billed
@@ -169,6 +169,19 @@ const DEFAULT_AI_TASK_POLICY_DEFINITIONS: AITaskPolicyDefinition[] = [
     // OCR now matches them. Abuse stays bounded by auth + IP rate-limit (15/5 min,
     // batch-aware) + the per-use баллы charge at generate — never a daily token cap.
     fallbackNotes: "Yandex Vision OCR only; image is not persisted after OCR.",
+  },
+  {
+    feature: "product-chat-analysis-ocr-structure",
+    enabled: true,
+    tier: "sensitive",
+    title: "Структурирование OCR переписки",
+    purpose: "YandexGPT step that converts Yandex Vision OCR lines with coordinates into a messenger transcript with sender side, time/status and visible media markers.",
+    providerOrder: [...directSensitiveOrder],
+    modelPreferences: { [AIProvider.YANDEX]: YANDEX_PRO_MODEL },
+    maxTokens: 3000,
+    temperature: 0,
+    timeoutMs: 45_000,
+    fallbackNotes: "Yandex-only text structuring over OCR coordinates; no foreign provider and no image persistence.",
   },
   {
     feature: "product-chat-analysis",

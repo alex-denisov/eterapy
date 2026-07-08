@@ -1,11 +1,17 @@
 import type { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 import { aiComplete } from "@/lib/ai";
+import { CHAT_ANALYSIS_OCR_STRUCTURE_SYSTEM_PROMPT, CHAT_ANALYSIS_OCR_SYSTEM_PROMPT } from "@/lib/chat-analysis-ocr-prompt";
 import { CHAT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/chat-analysis-prompt";
 import { log, serializeError } from "@/lib/logger";
 
 const MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024;
 const CHAT_SCREENSHOT_DATA_URL = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/;
+const OCR_LINE_PATTERN = /^\[ocr_line\s+([^\]]+)\]\s*(.*)$/i;
+const OCR_PAGE_PATTERN = /^\[ocr_page\s+([^\]]+)\]/im;
+const OCR_ATTR_PATTERN = /([a-zA-Z_][\w-]*)="([^"]*)"/g;
+const OCR_DATE_PATTERN = /^(сегодня|вчера|позавчера|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?|\d{1,2}\s+[а-яё]{3,})$/i;
+const OCR_TIME_ONLY_PATTERN = /^([01]?\d|2[0-3])[:.][0-5]\d(?:\s*(?:✓✓|✓|✔✔|✔|прочитано|не\s*прочитано|read|seen|delivered|sent))?$/i;
 
 export type ToneEntry = { label: string; pct: number };
 // INC-022: `text` is the literal, ready-to-send message the user copies AS-IS.
@@ -80,7 +86,11 @@ export function maskChatAnalysisPii(sourceText: string) {
 }
 
 export function buildChatAnalysisTitle(sourceText: string) {
-  return `Разбор переписки: ${sourceText.slice(0, 30).replace(/\n/g, " ")}...`;
+  const firstMeaningfulLine = sourceText
+    .split(/\n+/)
+    .map((line) => line.replace(/^\[(?:date|me|them|unknown|system|unreadable)[^\]]*\]\s*/i, "").trim())
+    .find((line) => line.length > 0);
+  return `Разбор переписки: ${(firstMeaningfulLine || sourceText).slice(0, 30).replace(/\n/g, " ")}...`;
 }
 
 // INC-021: the «первый взгляд» preview is an ASSESSMENT, not a reprint of the
@@ -136,13 +146,153 @@ export function validateChatScreenshotDataUrl(imageDataUrl: string) {
 
 function cleanOcrText(text: string) {
   return text
-    .replace(/^```(?:text)?/i, "")
+    .replace(/^```(?:text|txt|plain)?/i, "")
     .replace(/```$/i, "")
     .replace(/\r/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, 10000);
+}
+
+function parseOcrAttrs(raw: string) {
+  const attrs: Record<string, string> = {};
+  for (const match of raw.matchAll(OCR_ATTR_PATTERN)) {
+    attrs[match[1].toLowerCase()] = match[2];
+  }
+  return attrs;
+}
+
+function numericAttr(attrs: Record<string, string>, key: string) {
+  const parsed = Number(attrs[key] ?? NaN);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function ocrPageWidth(text: string) {
+  const match = OCR_PAGE_PATTERN.exec(text);
+  if (!match) return null;
+  return numericAttr(parseOcrAttrs(match[1]), "width");
+}
+
+function inferOcrRole(cx: number | null, pageWidth: number | null): "me" | "them" | "unknown" {
+  if (cx == null || pageWidth == null || pageWidth <= 0) return "unknown";
+  if (cx >= pageWidth * 0.56) return "me";
+  if (cx <= pageWidth * 0.46) return "them";
+  return "unknown";
+}
+
+function fallbackStructuredOcrTranscript(ocrText: string) {
+  const pageWidth = ocrPageWidth(ocrText);
+  const lines = ocrText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const out: string[] = [];
+
+  for (const line of lines) {
+    const match = OCR_LINE_PATTERN.exec(line);
+    if (!match) continue;
+    const attrs = parseOcrAttrs(match[1]);
+    const body = match[2].trim();
+    if (!body) continue;
+
+    if (OCR_DATE_PATTERN.test(body)) {
+      out.push(`[date label="${body.replace(/"/g, "'")}"]`);
+      continue;
+    }
+
+    const cx = numericAttr(attrs, "cx");
+    const role = inferOcrRole(cx, pageWidth);
+    const timeMatch = body.match(/([01]?\d|2[0-3])[:.][0-5]\d/);
+    const status = /✓✓|✔✔|прочитано|read|seen/i.test(body)
+      ? "read"
+      : /✓|✔|не\s*прочитано|unread/i.test(body)
+        ? "unread"
+        : null;
+    const tag = role === "me" ? "me" : role === "them" ? "them" : "unknown";
+
+    if (OCR_TIME_ONLY_PATTERN.test(body) && out.length > 0) {
+      const previous = out[out.length - 1];
+      if (/^\[(me|them|unknown)\b/i.test(previous)) {
+        out[out.length - 1] = previous.replace(/\]\s*/, `${timeMatch ? ` time="${timeMatch[0].replace(".", ":")}"` : ""}${status ? ` status="${status}"` : ""}] `);
+        continue;
+      }
+    }
+
+    out.push(`[${tag}${timeMatch && body.length <= 18 ? ` time="${timeMatch[0].replace(".", ":")}"` : ""}${status ? ` status="${status}"` : ""}] ${body}`);
+  }
+
+  return cleanOcrText(out.join("\n") || ocrText);
+}
+
+function hasAnnotatedTranscript(text: string) {
+  return /^\[(?:date|me|them|unknown|system|unreadable)\b/im.test(text);
+}
+
+async function structureRecognizedChatOcr(input: {
+  ocrText: string;
+  userId: string;
+  requestId?: string;
+}): Promise<{
+  recognizedText: string;
+  metadata: Prisma.InputJsonObject;
+}> {
+  const fallback = fallbackStructuredOcrTranscript(input.ocrText);
+
+  try {
+    const response = await aiComplete({
+      feature: "product-chat-analysis-ocr-structure",
+      userId: input.userId,
+      requestId: input.requestId,
+      maxTokens: 3000,
+      temperature: 0,
+      messages: [
+        { role: "system", content: CHAT_ANALYSIS_OCR_STRUCTURE_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            "Структурируй этот OCR с координатами в финальную аннотированную переписку.",
+            input.ocrText.slice(0, 9000),
+          ].join("\n\n"),
+        },
+      ],
+    });
+    const recognizedText = cleanOcrText(response.text);
+    if (!hasAnnotatedTranscript(recognizedText)) {
+      return {
+        recognizedText: fallback,
+        metadata: {
+          source: "fallback_spatial_heuristic",
+          fallbackReason: "structure_missing_annotations",
+          provider: response.provider,
+          model: response.model,
+          tokensIn: response.tokensIn,
+          tokensOut: response.tokensOut,
+          latencyMs: response.latencyMs,
+        },
+      };
+    }
+    return {
+      recognizedText,
+      metadata: {
+        source: "ai_spatial_structure",
+        provider: response.provider,
+        model: response.model,
+        tokensIn: response.tokensIn,
+        tokensOut: response.tokensOut,
+        latencyMs: response.latencyMs,
+      },
+    };
+  } catch (error) {
+    log.warn("chat-analysis-ocr-structure-failed", {
+      requestId: input.requestId,
+      error: serializeError(error),
+    });
+    return {
+      recognizedText: fallback,
+      metadata: {
+        source: "fallback_spatial_heuristic",
+        fallbackReason: "structure_ai_error",
+      },
+    };
+  }
 }
 
 export function combineRecognizedChatTexts(fragments: string[]) {
@@ -170,28 +320,33 @@ export async function extractChatTextFromScreenshot(input: {
       feature: "product-chat-analysis-ocr",
       userId: input.userId,
       requestId: input.requestId,
-      maxTokens: 1600,
+      maxTokens: 3000,
       temperature: 0,
       messages: [
         {
           role: "system",
-          content: [
-            "Extract chat text from a screenshot for ETerapy.",
-            "Return only the recognized conversation text, preserving message order and speaker labels when visible.",
-            "Do not analyze the conversation. Do not infer hidden content. If text is unreadable, return an empty string.",
-          ].join(" "),
+          content: CHAT_ANALYSIS_OCR_SYSTEM_PROMPT,
         },
         {
           role: "user",
           content: [
-            { type: "text", text: "Recognize the chat messages in this screenshot. Output plain text only." },
+            { type: "text", text: "Распознай этот скриншот переписки и верни только аннотированную расшифровку в заданном формате." },
             { type: "image_url", image_url: { url: input.imageDataUrl } },
           ],
         },
       ],
     });
 
-    const recognizedText = cleanOcrText(response.text);
+    const rawOcrText = cleanOcrText(response.text);
+    if (rawOcrText.length < 10) {
+      throw new ChatAnalysisInputError("OCR_TEXT_TOO_SHORT", "Не удалось распознать достаточно текста. Попробуйте другой скриншот или вставьте текст вручную");
+    }
+    const structured = await structureRecognizedChatOcr({
+      ocrText: rawOcrText,
+      userId: input.userId,
+      requestId: input.requestId,
+    });
+    const recognizedText = cleanOcrText(structured.recognizedText);
     if (recognizedText.length < 10) {
       throw new ChatAnalysisInputError("OCR_TEXT_TOO_SHORT", "Не удалось распознать достаточно текста. Попробуйте другой скриншот или вставьте текст вручную");
     }
@@ -199,7 +354,7 @@ export async function extractChatTextFromScreenshot(input: {
     return {
       recognizedText,
       metadata: {
-        ocrSource: "ai_vision",
+        ocrSource: "yandex_vision_spatial_structure",
         provider: response.provider,
         model: response.model,
         tokensIn: response.tokensIn,
@@ -211,6 +366,7 @@ export async function extractChatTextFromScreenshot(input: {
           sha256: screenshot.sha256,
           stored: false,
         },
+        structuring: structured.metadata,
       },
     };
   } catch (error) {

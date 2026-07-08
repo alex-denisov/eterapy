@@ -1,8 +1,10 @@
 import type { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-response";
 import db from "@/lib/db";
+import { reframeResultForDisplay } from "@/lib/reframe";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 const patchSchema = z.object({ action: z.enum(["save"]) });
@@ -17,9 +19,16 @@ function serialize(result: {
   resultText: string | null;
   savedAt: Date | null;
   deletedAt: Date | null;
+  metadata: Prisma.JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
+  const metadata = result.metadata as { sourceText?: string | null; contextNote?: string | null } | null;
+  const resultText = reframeResultForDisplay(
+    result.resultText,
+    metadata?.sourceText ?? null,
+    metadata?.contextNote ?? null,
+  );
   return {
     id: result.id,
     dialogueId: result.dialogueId,
@@ -27,7 +36,7 @@ function serialize(result: {
     status: result.status,
     title: result.title,
     previewText: result.previewText,
-    resultText: result.resultText,
+    resultText,
     saved: Boolean(result.savedAt),
     deletedAt: result.deletedAt?.toISOString() ?? null,
     createdAt: result.createdAt.toISOString(),

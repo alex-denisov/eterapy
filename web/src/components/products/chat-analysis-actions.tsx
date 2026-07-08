@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { ArrowRight, Check, CheckCheck, Compass, Copy, FileText, ImageIcon, LockKeyhole, MessageSquareText, PenLine, ShieldCheck, X } from "lucide-react";
+import { ArrowRight, Check, CheckCheck, CircleHelp, Compass, Copy, FileText, Film, ImageIcon, LockKeyhole, MessageSquareText, Mic, PenLine, Phone, PlayCircle, ShieldCheck, Smile, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SoftMarkdown } from "@/components/ui/soft-markdown";
 import { ProductPurchaseControls } from "@/components/products/product-purchase-controls";
@@ -303,26 +303,70 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-type MessengerStatus = "read" | "unread" | "delivered" | "sent";
+type MessengerStatus = "read" | "unread" | "delivered" | "sent" | "unknown";
+type MessengerRole = "me" | "them" | "unknown";
+type MessengerMediaKind = "emoji" | "sticker" | "gif" | "photo" | "video" | "video_message" | "voice" | "audio" | "file" | "call" | "reaction" | "unknown_media";
 type MessengerTranscriptItem =
   | { kind: "date"; label: string }
-  | { kind: "message"; speaker: string | null; text: string; time: string | null; status: MessengerStatus | null; mine: boolean };
+  | { kind: "system"; text: string; time: string | null }
+  | {
+      kind: "message";
+      speaker: string | null;
+      text: string;
+      time: string | null;
+      status: MessengerStatus | null;
+      mine: boolean;
+      role: MessengerRole;
+      media: MessengerMediaKind | null;
+      duration: string | null;
+      alt: string | null;
+      reaction: string | null;
+      replyTo: string | null;
+      unreadable: boolean;
+    };
 
 const TIME_PATTERN = /(?:^|\s)([01]?\d|2[0-3])[:.][0-5]\d(?:\s|$)/;
 const DATE_PATTERN = /(?:сегодня|вчера|позавчера|понедельник|вторник|среда|четверг|пятница|суббота|воскресенье|\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?|\d{1,2}\s+[а-яё]{3,})/i;
+const ANNOTATED_LINE_PATTERN = /^\[(date|me|them|unknown|system|unreadable)([^\]]*)\]\s*(.*)$/i;
+const ATTRIBUTE_PATTERN = /([a-zA-Z_][\w-]*)=(?:"([^"]*)"|'([^']*)'|([^\s]+))/g;
 
-function normalizeMessageTime(value: string) {
+function normalizeMessageTime(value: string | null | undefined) {
+  if (!value) return null;
   const match = value.match(/([01]?\d|2[0-3])[:.][0-5]\d/);
   return match ? match[0].replace(".", ":") : null;
 }
 
-function parseMessageStatus(value: string): MessengerStatus | null {
-  const lower = value.toLowerCase();
+function normalizeMessengerStatus(value: string | null | undefined): MessengerStatus | null {
+  if (!value) return null;
+  const lower = value.toLowerCase().trim();
+  if (/^(unknown|неясно|не\s*видно)$/.test(lower)) return "unknown";
   if (/не\s*прочитан|unread/.test(lower)) return "unread";
   if (/прочитан|просмотрен|read|seen|✓✓|✔✔/.test(lower)) return "read";
   if (/доставлен|delivered|✓|✔/.test(lower)) return "delivered";
   if (/отправлен|sent/.test(lower)) return "sent";
   return null;
+}
+
+function parseMessageStatus(value: string): MessengerStatus | null {
+  return normalizeMessengerStatus(value);
+}
+
+function normalizeMediaKind(value: string | null | undefined): MessengerMediaKind | null {
+  if (!value) return null;
+  const lower = value.toLowerCase().trim().replace(/-/g, "_");
+  if (lower === "emoji" || lower === "эмодзи") return "emoji";
+  if (lower === "sticker" || lower === "стикер") return "sticker";
+  if (lower === "gif" || lower === "гиф" || lower === "гифка") return "gif";
+  if (lower === "photo" || lower === "image" || lower === "фото" || lower === "картинка") return "photo";
+  if (lower === "video" || lower === "видео") return "video";
+  if (lower === "video_message" || lower === "circle" || lower === "кружок" || lower === "видеосообщение") return "video_message";
+  if (lower === "voice" || lower === "voice_message" || lower === "голосовое") return "voice";
+  if (lower === "audio" || lower === "аудио") return "audio";
+  if (lower === "file" || lower === "document" || lower === "файл" || lower === "документ") return "file";
+  if (lower === "call" || lower === "звонок") return "call";
+  if (lower === "reaction" || lower === "реакция") return "reaction";
+  if (lower === "unknown_media" || lower === "media" || lower === "медиа") return "unknown_media";
+  return "unknown_media";
 }
 
 function isDateSeparatorLine(line: string) {
@@ -357,6 +401,63 @@ function appendMessageText(base: string, next: string) {
   return `${base} ${next}`;
 }
 
+function parseAnnotatedAttributes(raw: string) {
+  const attrs: Record<string, string> = {};
+  for (const match of raw.matchAll(ATTRIBUTE_PATTERN)) {
+    attrs[match[1].toLowerCase()] = (match[2] ?? match[3] ?? match[4] ?? "").trim();
+  }
+  return attrs;
+}
+
+function cleanAnnotatedBody(value: string) {
+  return value.trim().replace(/^[:;,–—-]\s*/, "").trim();
+}
+
+function annotatedRole(tag: string): MessengerRole {
+  if (tag === "me") return "me";
+  if (tag === "them") return "them";
+  return "unknown";
+}
+
+function annotatedMessageFromLine(line: string): MessengerTranscriptItem | null {
+  const match = ANNOTATED_LINE_PATTERN.exec(line);
+  if (!match) return null;
+  const tag = match[1].toLowerCase();
+  const attrs = parseAnnotatedAttributes(match[2]);
+  const body = cleanAnnotatedBody(match[3]);
+
+  if (tag === "date") {
+    const label = attrs.label || attrs.value || body;
+    return label ? { kind: "date", label } : null;
+  }
+
+  if (tag === "system") {
+    const text = body || attrs.alt || attrs.reason || "Системное событие";
+    return { kind: "system", text, time: normalizeMessageTime(attrs.time) };
+  }
+
+  const role = annotatedRole(tag);
+  const media = normalizeMediaKind(attrs.media ?? (tag === "unreadable" ? "unknown_media" : null));
+  const text = body || attrs.alt || (tag === "unreadable" ? "Фрагмент не распознан" : "");
+  const speaker = attrs.name || attrs.speaker || (role === "me" ? "Вы" : null);
+
+  return {
+    kind: "message",
+    speaker,
+    text,
+    time: normalizeMessageTime(attrs.time),
+    status: normalizeMessengerStatus(attrs.status),
+    mine: role === "me",
+    role,
+    media,
+    duration: attrs.duration || null,
+    alt: attrs.alt || null,
+    reaction: attrs.reaction || null,
+    replyTo: attrs.reply_to || attrs.replyto || null,
+    unreadable: tag === "unreadable",
+  };
+}
+
 function formatMessengerTranscript(text: string): MessengerTranscriptItem[] {
   const lines = text.split(/\n+/).map((line) => line.trim()).filter(Boolean);
   const items: MessengerTranscriptItem[] = [];
@@ -371,6 +472,15 @@ function formatMessengerTranscript(text: string): MessengerTranscriptItem[] {
   };
 
   for (const line of lines) {
+    const annotated = annotatedMessageFromLine(line);
+    if (annotated) {
+      flush();
+      items.push(annotated);
+      pendingTime = null;
+      pendingStatus = null;
+      continue;
+    }
+
     if (isDateSeparatorLine(line)) {
       flush();
       items.push({ kind: "date", label: line });
@@ -402,6 +512,13 @@ function formatMessengerTranscript(text: string): MessengerTranscriptItem[] {
         time: pendingTime,
         status: pendingStatus,
         mine: isMineSpeaker(speakerLine.speaker),
+        role: isMineSpeaker(speakerLine.speaker) ? "me" : "them",
+        media: null,
+        duration: null,
+        alt: null,
+        reaction: null,
+        replyTo: null,
+        unreadable: false,
       };
       pendingTime = null;
       pendingStatus = null;
@@ -416,6 +533,13 @@ function formatMessengerTranscript(text: string): MessengerTranscriptItem[] {
         time: pendingTime,
         status: pendingStatus,
         mine: false,
+        role: "unknown",
+        media: null,
+        duration: null,
+        alt: null,
+        reaction: null,
+        replyTo: null,
+        unreadable: false,
       };
       pendingTime = null;
       pendingStatus = null;
@@ -436,6 +560,54 @@ function statusLabel(status: MessengerStatus | null) {
   return null;
 }
 
+function mediaLabel(media: MessengerMediaKind | null) {
+  if (media === "emoji") return "Эмодзи";
+  if (media === "sticker") return "Стикер";
+  if (media === "gif") return "GIF";
+  if (media === "photo") return "Фото";
+  if (media === "video") return "Видео";
+  if (media === "video_message") return "Видеосообщение";
+  if (media === "voice") return "Голосовое сообщение";
+  if (media === "audio") return "Аудиосообщение";
+  if (media === "file") return "Файл";
+  if (media === "call") return "Звонок";
+  if (media === "reaction") return "Реакция";
+  if (media === "unknown_media") return "Медиа";
+  return null;
+}
+
+function MediaIcon({ media }: { media: MessengerMediaKind | null }) {
+  const className = "size-3.5 shrink-0";
+  if (media === "emoji" || media === "sticker" || media === "reaction") return <Smile className={className} aria-hidden="true" />;
+  if (media === "gif" || media === "video_message") return <PlayCircle className={className} aria-hidden="true" />;
+  if (media === "photo") return <ImageIcon className={className} aria-hidden="true" />;
+  if (media === "video") return <Film className={className} aria-hidden="true" />;
+  if (media === "voice") return <Mic className={className} aria-hidden="true" />;
+  if (media === "audio") return <Volume2 className={className} aria-hidden="true" />;
+  if (media === "file") return <FileText className={className} aria-hidden="true" />;
+  if (media === "call") return <Phone className={className} aria-hidden="true" />;
+  return <CircleHelp className={className} aria-hidden="true" />;
+}
+
+function mediaSummary(item: Extract<MessengerTranscriptItem, { kind: "message" }>) {
+  const label = mediaLabel(item.media);
+  if (!label) return null;
+  const parts = [label];
+  if (item.duration) parts.push(item.duration);
+  if (item.alt && item.alt !== item.text) parts.push(item.alt);
+  if (item.reaction) parts.push(`реакция: ${item.reaction}`);
+  return parts.join(" · ");
+}
+
+function isGenericMediaBody(item: Extract<MessengerTranscriptItem, { kind: "message" }>) {
+  if (item.unreadable) return false;
+  if (!item.media || item.media === "emoji") return false;
+  const label = mediaLabel(item.media)?.toLowerCase();
+  const body = item.text.trim().toLowerCase();
+  if (!label || !body) return true;
+  return body === label || body === "медиа" || body === "фрагмент не распознан" || body.includes(label);
+}
+
 function SourceTranscript({ text }: { text: string }) {
   const items = formatMessengerTranscript(text);
   return (
@@ -452,7 +624,19 @@ function SourceTranscript({ text }: { text: string }) {
                 </div>
               );
             }
+            if (item.kind === "system") {
+              return (
+                <div key={`system-${item.text}-${index}`} className="flex justify-center" data-testid="chat-analysis-source-system">
+                  <span className="max-w-[84%] rounded-full bg-[var(--soft-paper-deep)] px-3 py-1.5 text-center text-[11.5px] leading-snug text-[var(--soft-ink-faint)]">
+                    {item.time && <span className="mr-1 tabular-nums">{item.time}</span>}
+                    {item.text}
+                  </span>
+                </div>
+              );
+            }
             const status = statusLabel(item.status);
+            const media = mediaSummary(item);
+            const speaker = item.speaker ?? (item.role === "me" ? "Вы" : item.role === "unknown" ? "Неясно" : null);
             return (
               <div
                 key={`${item.speaker ?? "message"}-${index}`}
@@ -463,14 +647,31 @@ function SourceTranscript({ text }: { text: string }) {
                   className={`max-w-[82%] rounded-[20px] px-3.5 py-2.5 shadow-[0_1px_2px_rgba(60,30,20,0.06)] ${
                     item.mine
                       ? "rounded-br-md bg-[color-mix(in_srgb,var(--soft-lilac-soft)_76%,white)]"
-                      : "rounded-bl-md bg-[var(--soft-paper)]"
+                      : item.role === "unknown"
+                        ? "rounded-bl-md border border-dashed border-[var(--soft-paper-edge)] bg-[color-mix(in_srgb,var(--soft-paper)_72%,white)]"
+                        : "rounded-bl-md bg-[var(--soft-paper)]"
                   }`}
                   data-testid="chat-analysis-source-message"
                 >
-                  {item.speaker && (
-                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--soft-terracotta-dark)]">{item.speaker}</p>
+                  {speaker && (
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--soft-terracotta-dark)]">{speaker}</p>
                   )}
-                  <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--soft-ink)]">{item.text}</p>
+                  {item.replyTo && (
+                    <p className="mb-1.5 rounded-xl border-l-2 border-[var(--soft-terracotta)] bg-[var(--soft-paper-deep)] px-2 py-1 text-[11px] leading-snug text-[var(--soft-ink-faint)]">
+                      Ответ на: {item.replyTo}
+                    </p>
+                  )}
+                  {media && (
+                    <div className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--soft-paper-deep)_82%,white)] px-2.5 py-1 text-[12px] font-medium text-[var(--soft-ink-soft)]" data-testid="chat-analysis-source-media">
+                      <MediaIcon media={item.media} />
+                      <span className="min-w-0 truncate">{media}</span>
+                    </div>
+                  )}
+                  {item.text && !isGenericMediaBody(item) && (
+                    <p className={`whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--soft-ink)] ${item.media === "emoji" ? "text-[1.45rem] leading-snug" : ""}`}>
+                      {item.text}
+                    </p>
+                  )}
                   {(item.time || status) && (
                     <div className="mt-1.5 flex items-center justify-end gap-1.5 text-[11px] leading-none text-[var(--soft-ink-faint)]">
                       {item.time && <span className="tabular-nums">{item.time}</span>}
@@ -1195,14 +1396,12 @@ export function ChatAnalysisActions() {
       {tab === "context" && (
         <div className="mt-4 flex flex-col gap-3" data-testid="chat-analysis-context">
           {/* распознанный текст со скриншота — тихий сворачиваемый блок */}
-          {result?.metadata?.sourceKind === "screenshot" && result.metadata?.recognizedText && (
+          {result && sourceText.trim() && (
             <details className="rounded-2xl border border-[var(--soft-paper-edge)] bg-[var(--soft-paper)] px-4 py-2.5">
               <summary className="cursor-pointer select-none text-[13px] font-medium text-[var(--soft-ink-soft)]">
-                Распознанный текст
+                Источник после распознавания
               </summary>
-              <p className="mt-2 max-h-36 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-[var(--soft-ink)]">
-                {result.metadata.recognizedText}
-              </p>
+              <SourceTranscript text={sourceText.trim()} />
             </details>
           )}
 

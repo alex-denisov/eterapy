@@ -41,12 +41,28 @@ interface YandexCompletionResponse {
 interface YandexOcrResponse {
   result?: {
     textAnnotation?: {
+      width?: string | number;
+      height?: string | number;
       fullText?: string;
+      pictures?: Array<{
+        boundingBox?: YandexOcrPolygon;
+      }>;
       blocks?: Array<{
-        lines?: Array<{ text?: string }>;
+        boundingBox?: YandexOcrPolygon;
+        lines?: Array<{
+          text?: string;
+          boundingBox?: YandexOcrPolygon;
+        }>;
       }>;
     };
   };
+}
+
+interface YandexOcrPolygon {
+  vertices?: Array<{
+    x?: string | number;
+    y?: string | number;
+  }>;
 }
 
 export interface YandexAdapterOptions {
@@ -133,6 +149,71 @@ function yandexModelUri(folderId: string, model: string) {
   return `gpt://${folderId}/${model}`;
 }
 
+function coordinate(value: string | number | undefined): number | null {
+  const parsed = Number(value ?? NaN);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function polygonBounds(polygon: YandexOcrPolygon | null | undefined) {
+  const points = polygon?.vertices
+    ?.map((vertex) => ({ x: coordinate(vertex.x), y: coordinate(vertex.y) }))
+    .filter((point): point is { x: number; y: number } => point.x != null && point.y != null) ?? [];
+  if (points.length === 0) return null;
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return {
+    x: Math.round(minX),
+    y: Math.round(minY),
+    w: Math.round(maxX - minX),
+    h: Math.round(maxY - minY),
+    cx: Math.round((minX + maxX) / 2),
+    cy: Math.round((minY + maxY) / 2),
+  };
+}
+
+function compactOcrText(text: string) {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function spatialAttrs(bounds: NonNullable<ReturnType<typeof polygonBounds>>) {
+  return `x="${bounds.x}" y="${bounds.y}" w="${bounds.w}" h="${bounds.h}" cx="${bounds.cx}" cy="${bounds.cy}"`;
+}
+
+function formatChatAnalysisSpatialOcr(annotation: NonNullable<YandexOcrResponse["result"]>["textAnnotation"] | undefined) {
+  if (!annotation) return "";
+  const width = coordinate(annotation.width);
+  const height = coordinate(annotation.height);
+  const lines = (annotation.blocks ?? [])
+    .flatMap((block) => (block.lines ?? []).map((line) => ({
+      text: compactOcrText(line.text ?? ""),
+      bounds: polygonBounds(line.boundingBox ?? block.boundingBox),
+    })))
+    .filter((line): line is { text: string; bounds: NonNullable<ReturnType<typeof polygonBounds>> } => Boolean(line.text && line.bounds))
+    .sort((a, b) => (a.bounds.y - b.bounds.y) || (a.bounds.x - b.bounds.x));
+
+  if (lines.length === 0) return annotation.fullText?.trim() ?? "";
+
+  const page = [
+    "[ocr_page",
+    width != null ? `width="${Math.round(width)}"` : "",
+    height != null ? `height="${Math.round(height)}"` : "",
+    "]",
+  ].filter(Boolean).join(" ").replace(" ]", "]");
+
+  const ocrLines = lines.map((line) => `[ocr_line ${spatialAttrs(line.bounds)}] ${line.text}`);
+  const pictures = (annotation.pictures ?? [])
+    .map((picture) => polygonBounds(picture.boundingBox))
+    .filter((bounds): bounds is NonNullable<ReturnType<typeof polygonBounds>> => Boolean(bounds))
+    .sort((a, b) => (a.y - b.y) || (a.x - b.x))
+    .map((bounds) => `[ocr_picture ${spatialAttrs(bounds)}]`);
+
+  return [page, ...ocrLines, ...pictures].join("\n").trim();
+}
+
 export function createYandexAdapter(options: YandexAdapterOptions = {}): AIGatewayAdapter {
   const apiKey = options.apiKey?.trim() ?? "";
   const folderId = options.folderId?.trim() ?? "";
@@ -196,7 +277,10 @@ export function createYandexAdapter(options: YandexAdapterOptions = {}): AIGatew
           }
 
           const data = await response.json() as YandexOcrResponse;
-          const text = data.result?.textAnnotation?.fullText?.trim()
+          const annotation = data.result?.textAnnotation;
+          const text = request.feature === "product-chat-analysis-ocr"
+            ? formatChatAnalysisSpatialOcr(annotation)
+            : annotation?.fullText?.trim()
             || data.result?.textAnnotation?.blocks
               ?.flatMap((block) => block.lines ?? [])
               .map((line) => line.text?.trim())

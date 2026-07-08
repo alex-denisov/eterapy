@@ -1,6 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { aiComplete } from "@/lib/ai";
 import { log, serializeError } from "@/lib/logger";
+import { REFRAME_SYSTEM_PROMPT } from "@/lib/reframe-prompt";
+
+export { REFRAME_SYSTEM_PROMPT };
 
 // B441 (M28): «Переосмысление» (reframe) — самодостаточная услуга на методе
 // КОГНИТИВНОГО РЕФРЕЙМИНГА (CBT cognitive reframing / restructuring +
@@ -39,9 +42,79 @@ export type ReframeInput = {
 };
 
 const ANGLE_ORDER: ReframeAngleId[] = ["thoughts", "feelings", "reframe", "step"];
+const REFRAME_STOP_WORDS = new Set([
+  "была",
+  "были",
+  "было",
+  "быть",
+  "ваша",
+  "ваше",
+  "ваши",
+  "весь",
+  "всего",
+  "где",
+  "даже",
+  "если",
+  "здесь",
+  "именно",
+  "когда",
+  "которые",
+  "который",
+  "меня",
+  "может",
+  "можно",
+  "нужно",
+  "очень",
+  "перед",
+  "после",
+  "почему",
+  "просто",
+  "сейчас",
+  "себе",
+  "себя",
+  "свою",
+  "ситуация",
+  "ситуации",
+  "такая",
+  "такое",
+  "теперь",
+  "того",
+  "тоже",
+  "только",
+  "чего",
+  "человек",
+  "чтобы",
+  "этому",
+]);
 
 function firstLine(sourceText: string): string {
   return sourceText.trim().split(/\n+/)[0]?.trim() || "ваша ситуация";
+}
+
+function compactText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function situationLine(sourceText: string, contextNote?: string | null): string {
+  const source = firstLine(sourceText).slice(0, 220);
+  const context = contextNote ? compactText(contextNote).slice(0, 140) : "";
+  return context ? `${source} (${context})` : source;
+}
+
+function normalizeForMatch(value: string): string {
+  return value.toLowerCase().replace(/ё/g, "е");
+}
+
+function sourceKeywords(sourceText: string, contextNote?: string | null): string[] {
+  const words = normalizeForMatch(`${sourceText} ${contextNote ?? ""}`).match(/[a-zа-я][a-zа-я0-9-]{4,}/gi) ?? [];
+  const unique: string[] = [];
+  for (const word of words) {
+    if (REFRAME_STOP_WORDS.has(word)) continue;
+    if (unique.includes(word)) continue;
+    unique.push(word);
+    if (unique.length >= 14) break;
+  }
+  return unique;
 }
 
 export function buildReframeTitle(sourceText: string): string {
@@ -120,10 +193,127 @@ export function tryParseReframe(text: string): ReframeStructured | null {
   return null;
 }
 
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? compactText(value) : "";
+}
+
+function stringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(stringValue).filter(Boolean).slice(0, 5);
+}
+
+function normalizeCandidateAngle(raw: unknown, expectedId: ReframeAngleId, fallback: ReframeAngle): ReframeAngle | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const angle = raw as Partial<Record<keyof ReframeAngle, unknown>>;
+  if (angle.id !== expectedId) return null;
+  return {
+    id: expectedId,
+    title: stringValue(angle.title) || fallback.title,
+    subtitle: stringValue(angle.subtitle) || fallback.subtitle,
+    facts: stringList(angle.facts),
+    unknowns: stringList(angle.unknowns),
+    options: stringList(angle.options),
+    ask: stringValue(angle.ask),
+    step: stringValue(angle.step),
+  };
+}
+
+function angleText(angle: ReframeAngle): string {
+  return normalizeForMatch([
+    angle.title,
+    angle.subtitle,
+    ...angle.facts,
+    ...angle.unknowns,
+    ...angle.options,
+    angle.ask,
+    angle.step,
+  ].join(" "));
+}
+
+function qualityIssuesForAngle(angle: ReframeAngle, keywords: string[]): string[] {
+  const issues: string[] = [];
+  if (angle.facts.length < 2) issues.push("facts_missing");
+  if (angle.unknowns.length < 1) issues.push("unknowns_missing");
+  if (angle.options.length < 1) issues.push("options_missing");
+  if (!angle.ask) issues.push("ask_missing");
+  if (!angle.step) issues.push("step_missing");
+
+  if (keywords.length >= 2) {
+    const text = angleText(angle);
+    if (!keywords.some((keyword) => text.includes(keyword))) issues.push("source_anchor_missing");
+  }
+
+  return issues;
+}
+
+function fallbackStructured(sourceText: string, contextNote?: string | null): ReframeStructured {
+  return tryParseReframe(heuristicReframe(sourceText, contextNote ?? undefined).text) ?? { angles: [] };
+}
+
+export function personalizeReframeResult(
+  parsed: ReframeStructured,
+  sourceText: string,
+  contextNote?: string | null,
+): { structured: ReframeStructured; repairedAngleIds: ReframeAngleId[]; qualityIssues: string[] } {
+  const fallback = fallbackStructured(sourceText, contextNote);
+  const fallbackById = new Map(fallback.angles.map((angle) => [angle.id, angle]));
+  const rawById = new Map((parsed.angles ?? []).map((angle) => [(angle as ReframeAngle | undefined)?.id, angle]));
+  const keywords = sourceKeywords(sourceText, contextNote);
+  const repairedAngleIds: ReframeAngleId[] = [];
+  const qualityIssues: string[] = [];
+
+  const angles = ANGLE_ORDER.map((id) => {
+    const fallbackAngle = fallbackById.get(id);
+    if (!fallbackAngle) {
+      repairedAngleIds.push(id);
+      qualityIssues.push(`${id}:fallback_missing`);
+      return {
+        id,
+        title: id,
+        subtitle: "",
+        facts: [firstLine(sourceText)],
+        unknowns: ["Что здесь важно уточнить, прежде чем делать вывод?"],
+        options: ["Проверьте один факт из ситуации, прежде чем действовать."],
+        ask: "Какой факт я могу проверить прямо сейчас?",
+        step: "Запишите один проверяемый факт и один вывод, который пока остается гипотезой.",
+      };
+    }
+
+    const candidate = normalizeCandidateAngle(rawById.get(id), id, fallbackAngle);
+    if (!candidate) {
+      repairedAngleIds.push(id);
+      qualityIssues.push(`${id}:missing_or_wrong_id`);
+      return fallbackAngle;
+    }
+
+    const issues = qualityIssuesForAngle(candidate, keywords);
+    if (issues.length > 0) {
+      repairedAngleIds.push(id);
+      qualityIssues.push(...issues.map((issue) => `${id}:${issue}`));
+      return fallbackAngle;
+    }
+
+    return candidate;
+  });
+
+  return { structured: { angles }, repairedAngleIds, qualityIssues };
+}
+
+export function reframeResultForDisplay(
+  resultText: string | null | undefined,
+  sourceText: string | null | undefined,
+  contextNote?: string | null,
+): string | null {
+  if (!resultText) return resultText ?? null;
+  const parsed = tryParseReframe(resultText);
+  if (!parsed || !sourceText?.trim()) return resultText;
+  return JSON.stringify(personalizeReframeResult(parsed, sourceText, contextNote).structured);
+}
+
 // Честный (не generic) фолбэк: заземляем на первую строку запроса, но без
 // диагнозов и обещаний. Используется только если ИИ недоступен.
-export function heuristicReframe(sourceText: string): { text: string; metadata: Prisma.InputJsonObject } {
-  const situation = firstLine(sourceText).slice(0, 160);
+export function heuristicReframe(sourceText: string, contextNote?: string): { text: string; metadata: Prisma.InputJsonObject } {
+  const situation = situationLine(sourceText, contextNote).slice(0, 260);
   const structured: ReframeStructured = {
     angles: [
       {
@@ -131,105 +321,88 @@ export function heuristicReframe(sourceText: string): { text: string; metadata: 
         title: "Мысли",
         subtitle: "что я себе говорю — и что из этого факт",
         facts: [
-          `Вы описали это так: «${situation}».`,
-          "В мыслях обычно смешаны факты и их оценка — их полезно разделить.",
+          `В центре запроса — «${situation}». Это факт входа: именно с этой сцены начинается напряжение.`,
+          "Автоматическая мысль, похоже, пытается быстро достроить вывод о том, что это значит для вас или отношений.",
+          "Самый полезный разворот здесь — отделить наблюдаемое событие от вывода, который пока остается гипотезой.",
         ],
         unknowns: [
-          "Что здесь проверяемый факт, а что — ваша трактовка?",
-          "Какие детали вы могли додумать из тревоги?",
+          `Что в «${situation}» точно произошло, а что вы уже объяснили за другого человека или за будущее?`,
+          "Какие детали подтверждают тревожный вывод, а какие ему противоречат?",
         ],
         options: [
-          "Выпишите ситуацию в двух колонках: «факты» и «мои выводы».",
-          "Найдите хотя бы одно объяснение, кроме самого тревожного.",
+          "Запишите две колонки: «что я видел(а)/слышал(а)» и «какой вывод я сделал(а)».",
+          "Найдите одну альтернативную причину произошедшего, которая не обвиняет вас автоматически.",
         ],
-        ask: "Если убрать оценку и оставить только факты — что останется?",
-        step: "Запишите одно предложение, начиная со слов «Я точно знаю, что…».",
+        ask: "Как звучит моя главная мысль, если честно назвать ее гипотезой, а не фактом?",
+        step: "Сформулируйте одну фразу: «Я точно знаю, что...», и отдельно одну фразу: «Я пока предполагаю, что...».",
       },
       {
         id: "feelings",
         title: "Чувства",
         subtitle: "на какую потребность они указывают",
         facts: [
-          "Сильное чувство здесь — нормальная реакция, а не ошибка.",
-          "Чувство почти всегда указывает на потребность, которой сейчас мало.",
+          `Реакция на «${situation}» может быть сильной не из-за слабости, а потому что задеты важные потребности.`,
+          "Под чувством может быть потребность в уважении, предсказуемости, признании или праве не быть обесцененным(ой).",
+          "Чувство здесь сообщает: «для меня это значимо», а не автоматически говорит, что худший вывод верен.",
         ],
         unknowns: [
-          "Какое чувство сейчас самое сильное — и оно точно про эту ситуацию?",
-          "Чего вам не хватает в этой истории — опоры, понимания, признания?",
+          "Какое чувство самое громкое: злость, стыд, тревога, обида, растерянность, одиночество?",
+          "Какая потребность под ним сейчас не получила места: уважение, понятные правила, поддержка, безопасность, близость?",
         ],
         options: [
-          "Назовите чувство вслух или письменно, не объясняя его.",
-          "Разрешите себе не решать всё прямо сейчас.",
+          "Назовите чувство и потребность одной короткой фразой: «я чувствую..., потому что мне важно...».",
+          "Перед действием проверьте: вы хотите защитить границу, получить объяснение, восстановить контакт или снизить тревогу?",
         ],
-        ask: "Что вы пытаетесь не чувствовать, оставаясь в этой мысли?",
-        step: "Назовите одну потребность, которой сейчас мало.",
+        ask: "Какую потребность я пытаюсь защитить, когда снова возвращаюсь мыслями к этой ситуации?",
+        step: "Запишите одно чувство и одну потребность, прежде чем выбирать ответ или действие.",
       },
       {
         id: "reframe",
         title: "Другой взгляд",
         subtitle: "как ещё можно честно на это посмотреть",
         facts: [
-          "У этой ситуации есть как минимум ещё одна правдивая трактовка.",
-          "Более сбалансированный взгляд — не «позитивное мышление», а честность к фактам.",
+          `Другой взгляд на «${situation}» не обязан оправдывать происходящее, но может убрать туннельный вывод.`,
+          "Сейчас у вас есть часть картины, а не вся картина: этого достаточно для заботы о себе, но мало для окончательного вердикта.",
+          "Более точная мысль может звучать так: «это неприятно и важно, но мне нужно проверить факты, прежде чем решать за всех».",
         ],
         unknowns: [
-          "Что бы вы сказали близкому человеку в такой же ситуации?",
-          "Как вы посмотрите на это через год?",
+          "Какая трактовка объясняет ситуацию без самоунижения и без чтения мыслей другого человека?",
+          "Что бы изменилось, если рассматривать это как сигнал к уточнению, а не как окончательное доказательство?",
         ],
         options: [
-          "Сформулируйте мысль мягче, но без самообмана.",
-          "Допустите, что вы видите только часть картины.",
+          "Перепишите тревожный вывод в форму проверяемого вопроса.",
+          "Составьте одну нейтральную фразу для уточнения фактов, если разговор уместен.",
         ],
-        ask: "Какая трактовка ближе к фактам и при этом меньше ранит?",
-        step: "Перепишите тревожную мысль в более сбалансированную формулировку.",
+        ask: "Какая формулировка одновременно честна к фактам и не превращает меня в виноватого(ую) заранее?",
+        step: "Запишите новую мысль по шаблону: «Возможно..., но я проверю это через...».",
       },
       {
         id: "step",
         title: "Шаг",
-        subtitle: "одно маленькое безопасное действие",
+        subtitle: "одно маленькое действие",
         facts: [
-          "Не нужно решать всё за один день.",
-          "Маленький шаг лучше большого, но откладываемого.",
+          `Для «${situation}» хороший следующий шаг должен проверять один факт или защищать одну границу, а не решать всю историю сразу.`,
+          "Большое решение сейчас может быть реакцией на напряжение; маленькое действие даст больше информации.",
         ],
         unknowns: [
-          "Какой минимальный шаг добавит понимания, не увеличив давление?",
+          "Какой факт можно уточнить без давления и без попытки немедленно поставить точку?",
+          "Какой шаг уменьшит хаос: разговор, пауза, черновик ответа, граница или наблюдение за триггером?",
         ],
         options: [
-          "Назначьте конкретное время для разговора или размышления.",
-          "Сделайте паузу на 24 часа и понаблюдайте за собой.",
+          "Если нужен разговор, подготовьте одну спокойную фразу с вопросом, а не обвинением.",
+          "Если сейчас много эмоций, сделайте паузу и вернитесь к решению в конкретное время.",
+          "Если речь о границе, сформулируйте ее коротко: что для вас неприемлемо и что вы просите вместо этого.",
         ],
-        ask: "Какой шаг в ближайшие 48 часов ничего не разрушит, но добавит понимания?",
-        step: "Выберите один пункт и поставьте дату, когда вы его сделаете.",
+        ask: "Какое одно действие в ближайшие 48 часов даст мне больше фактов или опоры, а не просто снимет напряжение на минуту?",
+        step: "Выберите один вариант и запишите конкретное время, когда вы его сделаете или отправите черновик.",
       },
     ],
   };
   return { text: JSON.stringify(structured), metadata: { source: "heuristic" } };
 }
 
-// Системный промпт когнитивного рефрейминга. Вынесен в экспорт, чтобы суперадминка
-// (DEFAULT_SYSTEM_PROMPTS["product-reframe"]) и реальная генерация не разъезжались.
-export const REFRAME_SYSTEM_PROMPT = [
-  "Ты — практикующий психотерапевт ETerapy уровня супервизора: профильное образование (клиническая психология), 20+ лет частной практики, тысячи проведённых сессий. Твои методы — КОГНИТИВНО-ПОВЕДЕНЧЕСКАЯ ТЕРАПИЯ (когнитивный рефрейминг / когнитивное реструктурирование), элементы схема-терапии и перспектива-тейкинг (децентрация).",
-  "Тебе принесли ОДНУ конкретную жизненную ситуацию, и человек хочет увидеть её иначе. Сделай разбор так, как сделал бы его опытный специалист на сессии: точно, тепло, профессионально и по сути. Не переубеждай и не давай готовых указаний — расширь взгляд и верни человеку авторство решения. Это не гадание и не мотивационные лозунги, а грамотная клиническая работа с мышлением.",
-  "Формат ответа: верни ТОЛЬКО валидный JSON-объект и НИЧЕГО больше. Запрещены markdown-блоки (```), обрамляющие кавычки, заголовки, любые пояснения до или после JSON. Первый символ ответа — «{», последний — «}». Структура РОВНО с четырьмя углами в таком порядке:",
-  '{"angles":[',
-  '{"id":"thoughts","title":"Мысли","subtitle":"что я себе говорю — и что из этого факт","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."},',
-  '{"id":"feelings","title":"Чувства","subtitle":"на какую потребность они указывают","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."},',
-  '{"id":"reframe","title":"Другой взгляд","subtitle":"как ещё можно честно на это посмотреть","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."},',
-  '{"id":"step","title":"Шаг","subtitle":"одно маленькое безопасное действие","facts":["..."],"unknowns":["..."],"options":["..."],"ask":"...","step":"..."}',
-  "]}",
-  "ГЛАВНОЕ ПРАВИЛО КАЧЕСТВА: все четыре угла обязательны и должны быть глубоко привязаны ИМЕННО к этой ситуации — к реальным словам, людям, деталям и формулировкам человека. НЕЛЬЗЯ просто пересказывать или копировать его текст обратно — это не разбор. НЕЛЬЗЯ писать шаблонные общие фразы, одинаково подходящие к любому случаю. Каждый угол должен звучать так, будто его написали лично про этого человека и эту историю; если получается универсальная вода или пересказ запроса — перепиши под конкретику.",
-  "Содержание каждой линзы (как у опытного КПТ-терапевта):",
-  "- thoughts: извлеки 1–2 автоматические мысли человека и переформулируй их как гипотезы, а не пересказ; чётко раздели проверяемый факт и оценку/интерпретацию; профессионально и мягко назови конкретные когнитивные искажения, которые тут работают (катастрофизация, чтение мыслей, всё-или-ничего, сверхобобщение, навешивание ярлыков, долженствования), показывая ИХ механизм в этой ситуации, но НЕ ставя диагноз.",
-  "- feelings: назови вероятные чувства именно в этой ситуации и потребность под ними (опора, признание, безопасность, близость, контроль, справедливость и т.п.); покажи, о чём это чувство сигнализирует и как связано с мыслями выше. Чувство — это информация, а не ошибка и не слабость.",
-  "- reframe: дай 2–3 АЛЬТЕРНАТИВНЫЕ, более сбалансированные и при этом честные к фактам трактовки именно этой ситуации — это сам рефрейм. Не «позитивное мышление» и не обесценивание боли, а более полная и реалистичная картина. Без мистики, без предсказаний.",
-  "- step: 2–3 маленьких, безопасных, предельно конкретных действия на ближайшие 24–72 часа, прямо вытекающих из деталей ситуации (поведенческий эксперимент, проверка мысли, разговор, пауза) — не «подумайте об этом» и не общие советы.",
-  "Правила оформления: facts — 2–4 пункта; unknowns — 2–3 пункта (что стоит уточнить/проверить, чтобы не достраивать из тревоги); options — 2–3 пункта (что можно сделать в этом угле); ask — один сильный, точный вопрос к себе; step — одно действие. Все строки — живыми, простыми русскими фразами от лица заботливого профессионала, БЕЗ markdown внутри строк и без нумерации.",
-  "Тон: тёплый, уважительный, профессиональный — как опытный терапевт, который уважает человека и его чувства. Без диагнозов, без фатализма, без обещаний результата; ты не заменяешь медицинскую/юридическую/финансовую помощь. Если в тексте есть признаки острого риска для жизни — мягко и прямо верни человека к живой/экстренной помощи внутри JSON.",
-].join("\n");
-
 export async function generateReframe(input: ReframeInput): Promise<{ text: string; metadata: Prisma.InputJsonObject }> {
-  const fallback = heuristicReframe(input.sourceText);
+  const fallback = heuristicReframe(input.sourceText, input.contextNote);
 
   try {
     const response = await aiComplete({
@@ -257,17 +430,18 @@ export async function generateReframe(input: ReframeInput): Promise<{ text: stri
     if (!parsed) {
       return { ...fallback, metadata: { ...fallback.metadata, fallbackReason: "json_parse_failed" } };
     }
-    // Нормализуем порядок линз на случай, если модель переставила их.
-    parsed.angles.sort((a, b) => ANGLE_ORDER.indexOf(a.id) - ANGLE_ORDER.indexOf(b.id));
+    const personalized = personalizeReframeResult(parsed, input.sourceText, input.contextNote);
     return {
-      text: JSON.stringify(parsed),
+      text: JSON.stringify(personalized.structured),
       metadata: {
-        source: "ai",
+        source: personalized.repairedAngleIds.length ? "ai_repaired" : "ai",
         provider: response.provider,
         model: response.model,
         tokensIn: response.tokensIn,
         tokensOut: response.tokensOut,
         latencyMs: response.latencyMs,
+        repairedAngleIds: personalized.repairedAngleIds,
+        qualityIssues: personalized.qualityIssues,
       },
     };
   } catch (error) {

@@ -76,12 +76,34 @@ describe("B087/B088 chat analysis product", () => {
     expect(route).toContain("extractChatTextFromScreenshot");
     expect(route).toContain("recognizedText: maskedSourceText");
     expect(route).toContain("imageStored: false");
-    expect(actions).toContain("Распознанный текст");
+    expect(actions).toContain("Источник после распознавания");
     expect(actions).toContain("accept=\"image/png,image/jpeg,image/webp\"");
     expect(helper).toContain("feature: \"product-chat-analysis-ocr\"");
+    expect(helper).toContain("feature: \"product-chat-analysis-ocr-structure\"");
+    expect(helper).toContain("CHAT_ANALYSIS_OCR_STRUCTURE_SYSTEM_PROMPT");
     expect(helper).toContain("{ type: \"image_url\"");
     expect(taskPolicy).toContain("product-chat-analysis-ocr");
+    expect(taskPolicy).toContain("product-chat-analysis-ocr-structure");
     expect(domain).toContain("AIGatewayContentBlock");
+  });
+
+  it("structures screenshot OCR into messenger annotations before exposing the source", () => {
+    const helper = source("src/lib/chat-analysis.ts");
+    const prompts = source("src/lib/chat-analysis-ocr-prompt.ts");
+    const defaults = source("src/lib/ai-gateway/prompts.ts");
+    const yandex = source("src/lib/ai-gateway/yandex-adapter.ts");
+    const actions = source("src/components/products/chat-analysis-actions.tsx");
+
+    expect(prompts).toContain("[me]");
+    expect(prompts).toContain("[them]");
+    expect(prompts).toContain("Значения status: read, unread, delivered, sent, unknown");
+    expect(prompts).toContain("[ocr_line");
+    expect(helper).toContain("fallbackStructuredOcrTranscript");
+    expect(helper).toContain("ocrSource: \"yandex_vision_spatial_structure\"");
+    expect(defaults).toContain('"product-chat-analysis-ocr-structure": CHAT_ANALYSIS_OCR_STRUCTURE_SYSTEM_PROMPT');
+    expect(yandex).toContain("formatChatAnalysisSpatialOcr");
+    expect(yandex).toContain("[ocr_line");
+    expect(actions).toContain("chat-analysis-source-media");
   });
 
   it("B378 accepts screenshot batches as one ordered OCR preview without storing raw images", () => {

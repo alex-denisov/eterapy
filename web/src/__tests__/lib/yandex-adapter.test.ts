@@ -120,6 +120,22 @@ describe("Yandex AI Studio adapter", () => {
       result: {
         textAnnotation: {
           fullText: "Клиент: привет\nСобеседник: я рядом",
+          width: "1000",
+          height: "1800",
+          blocks: [
+            {
+              lines: [
+                {
+                  text: "Клиент: привет",
+                  boundingBox: { vertices: [{ x: "620", y: "120" }, { x: "900", y: "120" }, { x: "900", y: "170" }, { x: "620", y: "170" }] },
+                },
+                {
+                  text: "Собеседник: я рядом",
+                  boundingBox: { vertices: [{ x: "80", y: "220" }, { x: "460", y: "220" }, { x: "460", y: "270" }, { x: "80", y: "270" }] },
+                },
+              ],
+            },
+          ],
         },
       },
     }));
@@ -164,7 +180,11 @@ describe("Yandex AI Studio adapter", () => {
       }),
     );
     expect(response).toEqual(expect.objectContaining({
-      text: "Клиент: привет\nСобеседник: я рядом",
+      text: [
+        '[ocr_page width="1000" height="1800"]',
+        '[ocr_line x="620" y="120" w="280" h="50" cx="760" cy="145"] Клиент: привет',
+        '[ocr_line x="80" y="220" w="380" h="50" cx="270" cy="245"] Собеседник: я рядом',
+      ].join("\n"),
       provider: AIProvider.YANDEX,
       model: "yandex-vision-ocr",
       promptTokens: 0,

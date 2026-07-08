@@ -6,7 +6,7 @@ import { errorWithRequestContext, jsonWithRequestContext } from "@/lib/api-respo
 import { checkRequestAuthRateLimit } from "@/lib/auth-rate-limit";
 import db from "@/lib/db";
 import { consumeProductEntitlementForUse, userHasActiveEntitlement } from "@/lib/entitlements";
-import { buildReframePreview, buildReframeTitle, generateReframe } from "@/lib/reframe";
+import { buildReframePreview, buildReframeTitle, generateReframe, reframeResultForDisplay } from "@/lib/reframe";
 import { requestContextFromHeaders } from "@/lib/request-context";
 
 const PRODUCT_KEY = "reframe";
@@ -37,13 +37,18 @@ function serializeResult(result: {
   updatedAt: Date;
 }) {
   const metadata = result.metadata as { sourceText?: string | null; contextNote?: string | null } | null;
+  const resultText = reframeResultForDisplay(
+    result.resultText,
+    metadata?.sourceText ?? null,
+    metadata?.contextNote ?? null,
+  );
   return {
     id: result.id,
     productKey: result.productKey,
     status: result.status,
     title: result.title,
     previewText: result.previewText,
-    resultText: result.resultText,
+    resultText,
     saved: Boolean(result.savedAt),
     exportedAt: result.exportedAt?.toISOString() ?? null,
     deletedAt: result.deletedAt?.toISOString() ?? null,
