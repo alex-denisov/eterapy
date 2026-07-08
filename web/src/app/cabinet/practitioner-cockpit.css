@@ -105,13 +105,17 @@
   place-items: center;
   padding: 0;
 }
-/* v4-soft.css (~4011) красит триггер в платформенные цвета с !important —
-   перебиваем той же силой с большей специфичностью: радиус/цвета из макета. */
-.soft-app-shell .pcab-iconbtn-slot .soft-notification-trigger {
-  border-radius: 12px !important;
-  border-color: var(--pc-paper-edge) !important;
-  background: var(--pc-paper-card) !important;
-  color: var(--pc-ink-soft) !important;
+/* v4-soft.css (~4011, внутри @layer components) красит триггер в платформенные
+   цвета с !important. Внеслойный !important ПРОИГРЫВАЕТ слоёному (инверсия
+   каскада для important), поэтому переопределение живёт в ТОМ ЖЕ слое — там
+   решает специфичность: (0,3,0) > (0,2,0). Радиус/цвета — из макета. */
+@layer components {
+  .soft-app-shell .pcab-iconbtn-slot .soft-notification-trigger {
+    border-radius: 12px !important;
+    border-color: var(--pc-paper-edge) !important;
+    background: var(--pc-paper-card) !important;
+    color: var(--pc-ink-soft) !important;
+  }
 }
 .pcab-iconbtn-slot .soft-notification-trigger svg {
   width: 19px;
