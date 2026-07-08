@@ -99,6 +99,7 @@ export function CabinetShell({
 }) {
   const pathname = usePathname();
   const isClient = role === "CLIENT";
+  const isPractitionerBar = role === "PRACTITIONER";
   const nav = (role === "ADMIN" || role === "SUPERADMIN")
     ? []
     : role === "PRACTITIONER" ? PRACTITIONER_NAV : CLIENT_NAV;
@@ -378,12 +379,20 @@ export function CabinetShell({
         </>
       )}
 
-      {/* Mobile nav */}
-      <div data-testid="app-shell-mobile-nav" className="soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden">
+      {/* Mobile nav. B466 R9-4: у практика бар получает pcab-tabbar — вид
+          1-в-1 из мобильных макетов (непрозрачная карточка, edge-бордер,
+          10.5px подписи, активная вкладка бордо); клиентский бар не тронут. */}
+      <div
+        data-testid="app-shell-mobile-nav"
+        className={`soft-app-mobile-nav fixed bottom-0 left-0 right-0 z-40 flex md:hidden${isPractitionerBar ? " pcab-tabbar" : ""}`}
+      >
         {mobileTabs.map((item) => {
           const Icon = item.Icon;
-          const activeClass = isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]";
-          const base = `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${activeClass}`;
+          const base = isPractitionerBar
+            ? `pcab-tab${isMobileActive(item) ? " is-active" : ""}`
+            : `flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-2 text-[10px] transition-colors duration-[var(--motion-base)] ${
+                isMobileActive(item) ? "text-[var(--soft-bordeaux)]" : "text-[var(--soft-ink-faint)]"
+              }`;
           // X10/B466 round-8 #4: surface «требует внимания» counters on the mobile
           // bar too (e.g. new booking request on «Календарь») — same source as the
           // desktop sidebar badges so they can't drift.
@@ -391,12 +400,12 @@ export function CabinetShell({
           const count = countKey ? (counts?.[countKey] ?? 0) : 0;
           const iconWithBadge = (
             <span className="relative">
-              <Icon className="h-5 w-5" />
+              <Icon className={isPractitionerBar ? "h-[22px] w-[22px]" : "h-5 w-5"} />
               {count > 0 && (
                 <span
                   data-testid="app-mobile-nav-counter"
                   aria-label={`${count} новых`}
-                  className="absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--soft-terracotta)] px-1 text-[9px] font-bold leading-none text-[#FBF1E4] tabular-nums"
+                  className={`absolute -right-2.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--soft-terracotta)] px-1 text-[9px] font-bold leading-none text-[#FBF1E4] tabular-nums${isPractitionerBar ? " pcab-count" : ""}`}
                 >
                   {count > 9 ? "9+" : count}
                 </span>

@@ -7,6 +7,11 @@ import { loginUrl, logoutUrl } from "@/lib/subdomain";
 import { noIndexRobots } from "@/lib/seo";
 import { getSessionAccountAccessState, inactiveAccountReason } from "@/lib/account-state";
 import { getSubscriptionPlan } from "@/lib/entitlements";
+// B466 R9-4 — токены и pcab-компоненты мобильного кокпита практика. Импорт на
+// уровне всего кабинета: нижний таббар рендерится cabinet-shell'ом и на
+// маршрутах вне /practitioner/* (например /support), а классы затрагивают
+// только pcab-* (клиентские поверхности не задеты).
+import "./practitioner-cockpit.css";
 
 const RU_MONTHS_SHORT = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 

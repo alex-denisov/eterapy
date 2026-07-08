@@ -1,0 +1,489 @@
+/* B466 R9-4 — «Practice cockpit», мобильный ЛК практика 1-в-1 по макетам.
+   Источник значений: docs/Design/mockups/practitioner-*.html (общий mockup-CSS).
+   Owner: цвета/радиусы/бордеры/тени/чипы ровно из макетов; переиспользуются
+   только платформенные шрифты (var(--font-heading) / body-шрифт приложения).
+   Токены живут в СВОЁМ неймспейсе --pc-* — палитра макетов отличается от
+   платформенной soft-* (bordeaux #6E2B2B vs #5c2a2c и т.д.) и не должна
+   протекать в остальной кабинет. Десктоп не трогаем до R9-5. */
+
+:root {
+  --pc-paper: #FBF6EC;
+  --pc-paper-card: #FFFFFF;
+  --pc-paper-deep: #F3E9D7;
+  --pc-paper-edge: #E7DCCB;
+  --pc-ink: #2D2A26;
+  --pc-ink-soft: #6B6258;
+  --pc-ink-faint: #9A9085;
+  --pc-bordeaux: #6E2B2B;
+  --pc-terracotta: #C2724B;
+  --pc-terracotta-dark: #B5623F;
+  --pc-amber-bg: #F2E2C2;
+  --pc-amber-ink: #6E5114;
+  --pc-sage: #E4EADF;
+  --pc-sage-ink: #4B6146;
+  /* Производные литералы макета (btn-primary text / pill-soon bg). */
+  --pc-cream: #FBF1E4;
+  --pc-warm: #F6E7DD;
+  --pc-card-shadow: 0 10px 24px rgba(60, 40, 25, 0.07);
+}
+
+/* Экран, который сам владеет мобильным «верхом» (рендерит pcab-appbar или
+   свой заголовок по макету), помечается data-pcab-top — глобальный хедер
+   (bell-only полоска из round-8) на мобиле убирается целиком. */
+@media (max-width: 767px) {
+  body:has([data-pcab-top]) header[data-site-chrome="header"] {
+    display: none;
+  }
+}
+
+/* ── screen ─────────────────────────────────────────────────────────── */
+/* Горизонтальный inset даёт .soft-app-main (clamp ≥1rem = 16px на мобиле,
+   как в макете); здесь только вертикальный ритм экрана. */
+.pcab-screen {
+  padding-block: 14px 18px;
+  color: var(--pc-ink);
+}
+.pcab-screen a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ── appbar ─────────────────────────────────────────────────────────── */
+.pcab-appbar {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.pcab-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pc-terracotta), var(--pc-bordeaux));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex: none;
+}
+.pcab-appbar-id {
+  min-width: 0;
+  flex: 1;
+}
+.pcab-appbar-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.pcab-appbar-sub {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-tier {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+/* Колокольчик = platform NotificationBell, пере-обёрнутый в iconbtn макета
+   (40×40, radius 12, edge-бордер) с точкой 7px terracotta вместо счётчика. */
+.pcab-iconbtn-slot .soft-notification-trigger {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--pc-paper-edge);
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.pcab-iconbtn-slot .soft-notification-trigger svg {
+  width: 19px;
+  height: 19px;
+}
+.pcab-iconbtn-slot .soft-dot-badge {
+  top: 9px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  border-radius: 50%;
+  background: var(--pc-terracotta);
+  border: 1.5px solid var(--pc-paper-card);
+  padding: 0;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+}
+
+/* ── greeting / sections ────────────────────────────────────────────── */
+.pcab-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pc-terracotta-dark);
+}
+.pcab-greeting {
+  font-family: var(--font-heading);
+  font-size: 23px;
+  font-weight: 500;
+  margin: 5px 0 0;
+  color: var(--pc-ink);
+}
+.pcab-section {
+  margin-top: 20px;
+}
+.pcab-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.pcab-link {
+  font-size: 12px;
+  color: var(--pc-ink-soft);
+  text-decoration: none;
+}
+.pcab-screen a.pcab-link {
+  color: var(--pc-ink-soft);
+}
+
+/* ── hero (следующая сессия) ────────────────────────────────────────── */
+.pcab-hero {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: var(--pc-card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.pcab-hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--pc-terracotta);
+}
+.pcab-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pcab-hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pc-ink-faint);
+}
+.pcab-pill-soon {
+  background: var(--pc-warm);
+  color: var(--pc-bordeaux);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+}
+.pcab-hero-client {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 12px;
+}
+.pcab-avatar-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--pc-paper-deep);
+  color: var(--pc-bordeaux);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex: none;
+}
+.pcab-hero-name {
+  font-size: 15.5px;
+  font-weight: 600;
+}
+.pcab-hero-modality {
+  font-size: 12.5px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+}
+.pcab-hero-time {
+  font-family: var(--font-heading);
+  font-size: 19px;
+}
+.pcab-rec-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--pc-sage-ink);
+  background: var(--pc-sage);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.pcab-hero-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+/* ── buttons ────────────────────────────────────────────────────────── */
+.pcab-btn {
+  border-radius: 13px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+}
+.pcab-btn-primary {
+  background: var(--pc-bordeaux);
+  color: var(--pc-cream);
+  flex: 1;
+}
+.pcab-screen a.pcab-btn-primary {
+  color: var(--pc-cream);
+}
+.pcab-btn-ghost {
+  background: var(--pc-paper-card);
+  color: var(--pc-ink-soft);
+  border: 1px solid var(--pc-paper-edge);
+  padding: 12px 15px;
+  flex: none;
+}
+.pcab-screen a.pcab-btn-ghost {
+  color: var(--pc-ink-soft);
+}
+.pcab-btn[aria-disabled="true"] {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-faint);
+  cursor: default;
+}
+
+/* ── card list (требует внимания) ───────────────────────────────────── */
+.pcab-list {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.pcab-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+}
+.pcab-row + .pcab-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-row-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pcab-row-ic.warm {
+  background: var(--pc-warm);
+  color: var(--pc-terracotta-dark);
+}
+.pcab-row-ic.amber {
+  background: var(--pc-amber-bg);
+  color: var(--pc-amber-ink);
+}
+.pcab-row-ic.calm {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+.pcab-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-row-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-row-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--pc-amber-ink);
+  background: var(--pc-amber-bg);
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+}
+.pcab-row-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pcab-chev {
+  color: var(--pc-ink-faint);
+  flex: none;
+}
+
+/* ── timeline (расписание дня) ──────────────────────────────────────── */
+.pcab-tl-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+}
+.pcab-tl-row + .pcab-tl-row {
+  border-top: 1px solid var(--pc-paper-deep);
+}
+.pcab-tl-time {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--pc-ink);
+  width: 46px;
+  flex: none;
+}
+.pcab-tl-main {
+  flex: 1;
+  min-width: 0;
+}
+.pcab-tl-t {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.pcab-tl-s {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+  margin-top: 1px;
+}
+.pcab-tag {
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex: none;
+}
+.pcab-tag.next {
+  background: var(--pc-warm);
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+.pcab-tag.ok {
+  background: var(--pc-paper-deep);
+  color: var(--pc-ink-soft);
+}
+/* Идущая прямо сейчас сессия — статуса нет в статичном макете, тон живой. */
+.pcab-tag.live {
+  background: var(--pc-terracotta);
+  color: var(--pc-cream);
+  font-weight: 600;
+}
+
+/* ── stats ──────────────────────────────────────────────────────────── */
+.pcab-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+.pcab-stat {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 15px;
+  padding: 12px 11px;
+}
+.pcab-stat-v {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  line-height: 1.1;
+  color: var(--pc-ink);
+}
+.pcab-stat-v small {
+  font-size: 12px;
+  color: var(--pc-ink-faint);
+}
+.pcab-stat-k {
+  font-size: 11px;
+  color: var(--pc-ink-faint);
+  margin-top: 4px;
+}
+
+/* ── generic card + progress (квота «Разборы и AI», будущие фазы) ───── */
+.pcab-card {
+  background: var(--pc-paper-card);
+  border: 1px solid var(--pc-paper-edge);
+  border-radius: 18px;
+  padding: 14px;
+}
+.pcab-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pc-paper-deep);
+  overflow: hidden;
+}
+.pcab-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pc-bordeaux);
+}
+
+/* ── tab bar (нижняя навигация практика) ────────────────────────────── */
+/* Вешается на shared .soft-app-mobile-nav только для роли PRACTITIONER:
+   непрозрачная карточка + edge-бордер вместо frosted-стекла клиента. */
+.pcab-tabbar {
+  background: var(--pc-paper-card);
+  border-top: 1px solid var(--pc-paper-edge);
+  box-shadow: none;
+  backdrop-filter: none;
+  padding: 9px 6px calc(4px + env(safe-area-inset-bottom, 0px));
+}
+.pcab-tab {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 4px;
+  flex: 1;
+  padding: 0 2px;
+  font-size: 10.5px;
+  color: var(--pc-ink-faint);
+}
+.pcab-tab svg {
+  width: 22px;
+  height: 22px;
+}
+.pcab-tab.is-active {
+  color: var(--pc-bordeaux);
+  font-weight: 600;
+}
+/* r8 #4 счётчики: остаются, но в палитре макета. */
+.pcab-tabbar .pcab-count {
+  background: var(--pc-terracotta);
+  color: var(--pc-cream);
+}
