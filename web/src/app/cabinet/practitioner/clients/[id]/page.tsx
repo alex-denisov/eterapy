@@ -101,11 +101,13 @@ export default async function PractitionerClientCardPage({
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div className="mt-4 grid grid-cols-2 gap-2.5">
+      {/* Quick actions — mockup .btn: compact 13.5px / ~40px tall; half-width on
+          mobile (grid), hug-content on desktop (R9-2: не растягивать на max-w-3xl). */}
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:flex sm:w-fit">
         <Link
           href={appUrl(`/practitioner/calendar/propose?client=${client.id}`)}
-          className="soft-button soft-button-primary justify-center"
+          className="soft-button soft-button-primary justify-center gap-2 sm:px-5"
+          style={{ minHeight: "2.5rem", padding: "0.55rem 1.15rem", fontSize: "13.5px" }}
           data-testid="client-card-propose"
         >
           <CalendarPlus className="size-4" aria-hidden="true" />
@@ -113,7 +115,8 @@ export default async function PractitionerClientCardPage({
         </Link>
         <Link
           href={appUrl(`/practitioner/clients/${client.id}?tab=messages`)}
-          className="soft-button soft-button-ghost justify-center"
+          className="soft-button soft-button-ghost justify-center gap-2 sm:px-5"
+          style={{ minHeight: "2.5rem", padding: "0.55rem 1.15rem", fontSize: "13.5px" }}
           data-testid="client-card-message"
         >
           <MessageSquare className="size-4" aria-hidden="true" />
