@@ -101,13 +101,17 @@
   height: 40px;
   min-width: 40px;
   min-height: 40px;
-  border-radius: 12px;
-  border: 1px solid var(--pc-paper-edge);
-  background: var(--pc-paper-card);
-  color: var(--pc-ink-soft);
   display: grid;
   place-items: center;
   padding: 0;
+}
+/* v4-soft.css (~4011) красит триггер в платформенные цвета с !important —
+   перебиваем той же силой с большей специфичностью: радиус/цвета из макета. */
+.soft-app-shell .pcab-iconbtn-slot .soft-notification-trigger {
+  border-radius: 12px !important;
+  border-color: var(--pc-paper-edge) !important;
+  background: var(--pc-paper-card) !important;
+  color: var(--pc-ink-soft) !important;
 }
 .pcab-iconbtn-slot .soft-notification-trigger svg {
   width: 19px;
