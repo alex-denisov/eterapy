@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,7 +103,18 @@ export default function LoginPage() {
       <section className="grid min-h-screen lg:grid-cols-[1.08fr_0.92fr]">
         <div className="flex items-start px-4 pt-5 pb-10 sm:items-center sm:px-8 sm:py-10 lg:justify-end lg:px-16">
           <div className="w-full max-w-[520px] space-y-3 sm:space-y-4">
-            <Link href="/" className="soft-chip inline-flex">← На главную</Link>
+            {/* R9-3: on mobile the back control matches the services back-arrow
+                (round icon-only, see products/[slug] product-hero-back); the
+                labelled chip stays on md+. */}
+            <Link
+              href="/"
+              aria-label="На главную"
+              data-testid="login-back-mobile"
+              className="-ml-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--soft-ink-soft)] transition-colors hover:bg-[var(--soft-paper-card)] hover:text-[var(--soft-bordeaux)] md:hidden"
+            >
+              <ChevronLeft className="size-5" aria-hidden="true" />
+            </Link>
+            <Link href="/" className="soft-chip hidden md:inline-flex">← На главную</Link>
             <div className="soft-card p-6 sm:p-8">
               <div className="mb-5 sm:mb-6">
                 <p className="soft-eyebrow">войти</p>

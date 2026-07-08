@@ -471,31 +471,37 @@ export default async function PractitionerTodayPage() {
           )}
 
           {/* Subscription CTA — upgrade nudge shown until the top tier
-              (B466 round-8 #2, parity with the prod cabinet CTA). */}
+              (B466 round-8 #2). R9-1: styled after the mockup `.comm` card
+              (practitioner-finance-tariff): FLAT bordeaux, explicit #FBF1E4 /
+              #E9C9B6 text (font-heading inherits a dark ink colour — never rely
+              on inheritance over the dark card). */}
           {tier !== "pro_plus" && (
             <Link
               href={appUrl("/practitioner/finance?tab=tariff")}
               data-testid="practitioner-subscription-cta"
-              className="block overflow-hidden rounded-[18px] p-4 text-[#FBF1E4] transition-shadow hover:shadow-[0_14px_30px_rgba(60,30,20,0.16)] sm:p-5"
-              style={{ background: "linear-gradient(135deg, var(--soft-bordeaux), #8a3d3d)" }}
+              className="block overflow-hidden rounded-[18px] p-4 transition-shadow hover:shadow-[0_14px_30px_rgba(60,30,20,0.16)] sm:p-5"
+              style={{ background: "var(--soft-bordeaux)", color: "#FBF1E4" }}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] uppercase tracking-[0.12em] opacity-80">
+                <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: "#E9C9B6" }}>
                   {tier === "free" ? "Тариф · Базовый" : "Тариф · Pro"}
                 </p>
-                <Sparkles className="h-4 w-4 opacity-90" aria-hidden="true" />
+                <Sparkles className="h-4 w-4" style={{ color: "#E9C9B6" }} aria-hidden="true" />
               </div>
-              <p className="mt-2 font-heading text-[17px] font-semibold leading-snug">
+              <p className="mt-2 font-heading text-[17px] font-semibold leading-snug" style={{ color: "#FBF1E4" }}>
                 {tier === "free"
                   ? "Подключите Pro — AI-разборы и ниже комиссия"
                   : "Перейдите на Pro+ — 50 разборов, комиссия 25%"}
               </p>
-              <p className="mt-1.5 text-[12.5px] leading-relaxed opacity-85">
+              <p className="mt-1.5 text-[12.5px] leading-relaxed" style={{ color: "rgba(251,241,228,0.82)" }}>
                 {tier === "free"
                   ? "AI-заметки, план сопровождения, комиссия от 30% и приоритет в каталоге."
                   : "Больше AI-разборов в месяц, приоритет в каталоге и бейдж Pro+."}
               </p>
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#FBF1E4] px-3.5 py-1.5 text-[13px] font-semibold text-[var(--soft-bordeaux)]">
+              <span
+                className="mt-3.5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold"
+                style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)" }}
+              >
                 {tier === "free" ? "Подключить Pro" : "Перейти на Pro+"}
                 <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
               </span>
