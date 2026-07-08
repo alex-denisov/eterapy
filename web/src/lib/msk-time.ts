@@ -32,6 +32,15 @@ const DAY_FMT = new Intl.DateTimeFormat("ru-RU", {
   weekday: "long",
 });
 
+/** «воскресенье, 6 июля» — порядок даты из мобильных макетов кокпита (R9-4). */
+export function formatMskDayLongWeekdayFirst(date: Date): string {
+  const parts = DAY_FMT.formatToParts(date);
+  const day = parts.find((p) => p.type === "day")?.value ?? "";
+  const month = parts.find((p) => p.type === "month")?.value ?? "";
+  const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
+  return `${weekday}, ${day} ${month}`;
+}
+
 /** «6 июля, воскресенье» */
 export function formatMskDayLong(date: Date): string {
   const parts = DAY_FMT.formatToParts(date);

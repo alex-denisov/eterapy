@@ -11,6 +11,7 @@ import { practitionerTierBadge, practitionerTierFromPlanKey } from "@/lib/practi
 import { getActivePractitionerPlanKey } from "@/lib/practitioner-entitlements";
 import {
   formatMskDayLong,
+  formatMskDayLongWeekdayFirst,
   formatMskDayMonth,
   formatMskMonthName,
   formatMskTime,
@@ -19,6 +20,10 @@ import {
 } from "@/lib/msk-time";
 import { mskMonthRange } from "@/lib/practitioner-ai-quota";
 import { appUrl, loginUrl } from "@/lib/subdomain";
+import {
+  PractitionerTodayMobile,
+  type TodayMobileAttentionRow,
+} from "./practitioner-today-mobile";
 
 // B466 — «Сегодня»: the Practice-cockpit home. Hero = ближайшая сессия
 // (T-30 join gate), затем «требует внимания», расписание дня и метрики.
@@ -221,21 +226,18 @@ export default async function PractitionerTodayPage() {
   const freshAnalysisNames = freshAnalyses.map((s) => clientLabel(s.booking.client).split(" ")[0]);
   const quotaPct = quota.included > 0 ? Math.min(100, Math.round((quota.usedThisMonth / quota.included) * 100)) : 0;
 
-  const attentionRows = [
+  // R9-4 P1: «требует внимания» описывается данными — десктоп рендерит их
+  // прежними AttentionRow, мобильный кокпит получает этот же массив как пропсы.
+  const attentionData: TodayMobileAttentionRow[] = [
     ...(pendingRequests.length > 0
       ? [
           {
             key: "requests",
-            node: (
-              <AttentionRow
-                key="requests"
-                href={appUrl("/practitioner/calendar?tab=requests")}
-                icon={<Inbox className="h-[18px] w-[18px]" />}
-                tone="warm"
-                title={`${pendingRequests.length} ${pendingRequests.length === 1 ? "новая заявка" : pendingRequests.length < 5 ? "новые заявки" : "новых заявок"}`}
-                subtitle={requestNames.join(" · ") + (pendingRequests.length > 2 ? " · и ещё" : "")}
-              />
-            ),
+            href: appUrl("/practitioner/calendar?tab=requests"),
+            tone: "warm" as const,
+            icon: "inbox" as const,
+            title: `${pendingRequests.length} ${pendingRequests.length === 1 ? "новая заявка" : pendingRequests.length < 5 ? "новые заявки" : "новых заявок"}`,
+            subtitle: requestNames.join(" · ") + (pendingRequests.length > 2 ? " · и ещё" : ""),
           },
         ]
       : []),
@@ -243,17 +245,12 @@ export default async function PractitionerTodayPage() {
       ? [
           {
             key: "analyses",
-            node: (
-              <AttentionRow
-                key="analyses"
-                href={appUrl(`/practitioner/sessions/${freshAnalyses[0].bookingId}`)}
-                icon={<Sparkles className="h-[18px] w-[18px]" />}
-                tone="amber"
-                title="AI-разбор готов"
-                badge="AI"
-                subtitle={`${freshAnalysisNames.join(" · ")} · резюме и заметки`}
-              />
-            ),
+            href: appUrl(`/practitioner/sessions/${freshAnalyses[0].bookingId}`),
+            tone: "amber" as const,
+            icon: "spark" as const,
+            title: "AI-разбор готов",
+            badge: "AI",
+            subtitle: `${freshAnalysisNames.join(" · ")} · резюме и заметки`,
           },
         ]
       : []),
@@ -261,23 +258,134 @@ export default async function PractitionerTodayPage() {
       ? [
           {
             key: "verification",
-            node: (
-              <AttentionRow
-                key="verification"
-                href={appUrl("/practitioner/verification")}
-                icon={<ShieldAlert className="h-[18px] w-[18px]" />}
-                tone="calm"
-                title="Верификация не пройдена"
-                subtitle="подтвердите личность и образование"
-              />
-            ),
+            href: appUrl("/practitioner/verification"),
+            tone: "calm" as const,
+            icon: "shield" as const,
+            title: "Верификация не пройдена",
+            subtitle: "подтвердите личность и образование",
           },
         ]
       : []),
   ];
+  const desktopAttentionIcons: Record<TodayMobileAttentionRow["icon"], React.ReactNode> = {
+    inbox: <Inbox className="h-[18px] w-[18px]" />,
+    spark: <Sparkles className="h-[18px] w-[18px]" />,
+    shield: <ShieldAlert className="h-[18px] w-[18px]" />,
+  };
+
+  // Общие для мобайла и десктопа подписи/значения.
+  const tierLabel = practitionerTierBadge(tier);
+  const displayName = practitioner.user.name ?? practitioner.user.email ?? "Специалист";
+  const heroDurationMin = nextBooking?.slot
+    ? bookingDurationMin({
+        status: nextBooking.status,
+        slot: { startAt: nextBooking.slot.startAt.toISOString(), endAt: nextBooking.slot.endAt.toISOString() },
+      }) ?? 50
+    : 50;
+  const todaySessionsLabel = `Сегодня · ${todayBookings.length} ${
+    todayBookings.length === 1 ? "сессия" : todayBookings.length > 0 && todayBookings.length < 5 ? "сессии" : "сессий"
+  }`;
+  const weekSessionsLabel = `${
+    weekSessionCount === 1 ? "сессия" : weekSessionCount < 5 && weekSessionCount > 0 ? "сессии" : "сессий"
+  } · неделя`;
+
+  const heroMobile = nextBooking?.slot
+    ? {
+        startsIn: startsInLabel(nextBooking.slot.startAt, now),
+        clientInitials: initialsOf(nextClientLabel),
+        clientName: nextClientLabel,
+        modalityLine: `Индивидуальная сессия · ${heroDurationMin} мин · ${heroSessionNumber}-я сессия`,
+        timeRange: `${formatMskTime(nextBooking.slot.startAt)} – ${formatMskTime(nextBooking.slot.endAt)}`,
+        canJoin: canJoinNext,
+        joinHref: `/session/${nextBooking.id}`,
+        cardHref: appUrl(`/practitioner/clients/${nextBooking.client.id}`),
+      }
+    : null;
+
+  // Мобильные теги расписания — словарь макета: «следующая» / «подтверждено».
+  const scheduleMobile = todayBookings.map((b) => {
+    const isNext = nextBooking?.id === b.id;
+    const kind = b.status === "COMPLETED" ? ("ok" as const) : b.status === "IN_PROGRESS" ? ("live" as const) : isNext ? ("next" as const) : ("ok" as const);
+    const label = b.status === "COMPLETED" ? "завершена" : b.status === "IN_PROGRESS" ? "идёт" : isNext ? "следующая" : "подтверждено";
+    return {
+      id: b.id,
+      time: b.slot ? formatMskTime(b.slot.startAt) : "—",
+      title: clientLabel(b.client),
+      subtitle: `Индивидуальная сессия${b.slot ? ` · ${Math.round((b.slot.endAt.getTime() - b.slot.startAt.getTime()) / 60000)} мин` : ""}`,
+      tag: { label, kind },
+    };
+  });
+
+  const statsMobile = [
+    {
+      key: "income",
+      href: appUrl("/practitioner/finance"),
+      value: monthIncome.toLocaleString("ru"),
+      unit: "₽",
+      label: `доход · ${formatMskMonthName(now)}`,
+    },
+    {
+      key: "sessions",
+      href: appUrl("/practitioner/calendar"),
+      value: String(weekSessionCount),
+      label: weekSessionsLabel,
+    },
+    {
+      key: "rating",
+      href: appUrl("/practitioner/reviews"),
+      value: rating,
+      unit: "★",
+      label: `рейтинг · ${practitioner.reviewCount}`,
+    },
+  ];
+
+  const ctaData =
+    tier !== "pro_plus"
+      ? {
+          href: appUrl("/practitioner/finance?tab=tariff"),
+          eyebrow: tier === "free" ? "Тариф · Базовый" : "Тариф · Pro",
+          title:
+            tier === "free"
+              ? "Подключите Pro — AI-разборы и ниже комиссия"
+              : "Перейдите на Pro+ — 50 разборов, комиссия 25%",
+          body:
+            tier === "free"
+              ? "AI-заметки, план сопровождения, комиссия от 30% и приоритет в каталоге."
+              : "Больше AI-разборов в месяц, приоритет в каталоге и бейдж Pro+.",
+          button: tier === "free" ? "Подключить Pro" : "Перейти на Pro+",
+        }
+      : null;
+
+  const quotaMobile = {
+    used: quota.usedThisMonth,
+    included: quota.included,
+    pct: quotaPct,
+    remaining: quota.remaining,
+    resetLabel: formatMskDayMonth(quota.periodResetAt),
+    manageHref: appUrl("/practitioner/ai-usage"),
+  };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6" style={{ paddingBottom: 80 }} data-testid="practitioner-today-page">
+    <>
+      {/* R9-4 P1 — мобильный кокпит 1-в-1 по макету; десктоп ниже остаётся
+          прежним до утверждения новых десктоп-макетов (R9-5). */}
+      <PractitionerTodayMobile
+        appbar={{ initials: initialsOf(displayName), name: displayName, tierLabel, subtitle: practitioner.title }}
+        dateLabel={formatMskDayLongWeekdayFirst(now)}
+        greeting={`${greetingFor(mskHour(now))}, ${firstName}`}
+        statusNote={statusNote}
+        hero={heroMobile}
+        availabilityHref={appUrl("/practitioner/calendar?tab=availability")}
+        attention={attentionData}
+        scheduleCountLabel={todaySessionsLabel}
+        calendarHref={appUrl("/practitioner/calendar")}
+        schedule={scheduleMobile}
+        stats={statsMobile}
+        cta={ctaData}
+        quota={quotaMobile}
+      />
+
+    <div className="mx-auto hidden w-full max-w-6xl px-4 py-8 sm:px-6 md:block" style={{ paddingBottom: 80 }} data-testid="practitioner-today-page">
       {/* Greeting */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -318,9 +426,7 @@ export default async function PractitionerTodayPage() {
           data-testid="practitioner-metric-sessions"
         >
           <p className="font-heading text-lg leading-tight text-[var(--soft-bordeaux)]">{weekSessionCount}</p>
-          <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">
-            {weekSessionCount === 1 ? "сессия" : weekSessionCount < 5 && weekSessionCount > 0 ? "сессии" : "сессий"} · неделя
-          </p>
+          <p className="mt-1 text-[11px] text-[var(--soft-ink-faint)]">{weekSessionsLabel}</p>
         </Link>
         <Link
           href={appUrl("/practitioner/reviews")}
@@ -367,8 +473,7 @@ export default async function PractitionerTodayPage() {
                 <div className="min-w-0">
                   <p className="truncate text-[15.5px] font-semibold">{nextClientLabel}</p>
                   <p className="mt-0.5 text-[12.5px] text-[var(--soft-ink-faint)]">
-                    Индивидуальная сессия · {bookingDurationMin({ status: nextBooking.status, slot: { startAt: nextBooking.slot.startAt.toISOString(), endAt: nextBooking.slot.endAt.toISOString() } }) ?? 50}{" "}
-                    мин · {heroSessionNumber}-я сессия
+                    Индивидуальная сессия · {heroDurationMin} мин · {heroSessionNumber}-я сессия
                   </p>
                 </div>
               </div>
@@ -416,10 +521,7 @@ export default async function PractitionerTodayPage() {
           {/* Today timeline */}
           <section className="soft-card p-4 sm:p-5" data-testid="practitioner-today-timeline">
             <div className="mb-3 flex items-baseline justify-between">
-              <p className="soft-eyebrow">
-                Сегодня · {todayBookings.length}{" "}
-                {todayBookings.length === 1 ? "сессия" : todayBookings.length > 0 && todayBookings.length < 5 ? "сессии" : "сессий"}
-              </p>
+              <p className="soft-eyebrow">{todaySessionsLabel}</p>
               <Link href={appUrl("/practitioner/calendar")} className="text-xs text-[var(--soft-ink-soft)]">
                 весь день →
               </Link>
@@ -461,11 +563,21 @@ export default async function PractitionerTodayPage() {
 
         {/* Right column: attention + AI quota */}
         <div className="flex flex-col gap-4">
-          {attentionRows.length > 0 && (
+          {attentionData.length > 0 && (
             <section data-testid="practitioner-attention">
               <p className="soft-eyebrow mb-2.5">Требует внимания</p>
               <div className="divide-y divide-[var(--soft-paper-deep)] overflow-hidden rounded-[18px] border border-[var(--soft-paper-edge)] bg-[var(--soft-paper-card)]">
-                {attentionRows.map((row) => row.node)}
+                {attentionData.map((row) => (
+                  <AttentionRow
+                    key={row.key}
+                    href={row.href}
+                    icon={desktopAttentionIcons[row.icon]}
+                    tone={row.tone}
+                    title={row.title}
+                    badge={row.badge}
+                    subtitle={row.subtitle}
+                  />
+                ))}
               </div>
             </section>
           )}
@@ -475,34 +587,30 @@ export default async function PractitionerTodayPage() {
               (practitioner-finance-tariff): FLAT bordeaux, explicit #FBF1E4 /
               #E9C9B6 text (font-heading inherits a dark ink colour — never rely
               on inheritance over the dark card). */}
-          {tier !== "pro_plus" && (
+          {ctaData && (
             <Link
-              href={appUrl("/practitioner/finance?tab=tariff")}
+              href={ctaData.href}
               data-testid="practitioner-subscription-cta"
               className="block overflow-hidden rounded-[18px] p-4 transition-shadow hover:shadow-[0_14px_30px_rgba(60,30,20,0.16)] sm:p-5"
               style={{ background: "var(--soft-bordeaux)", color: "#FBF1E4" }}
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: "#E9C9B6" }}>
-                  {tier === "free" ? "Тариф · Базовый" : "Тариф · Pro"}
+                  {ctaData.eyebrow}
                 </p>
                 <Sparkles className="h-4 w-4" style={{ color: "#E9C9B6" }} aria-hidden="true" />
               </div>
               <p className="mt-2 font-heading text-[17px] font-semibold leading-snug" style={{ color: "#FBF1E4" }}>
-                {tier === "free"
-                  ? "Подключите Pro — AI-разборы и ниже комиссия"
-                  : "Перейдите на Pro+ — 50 разборов, комиссия 25%"}
+                {ctaData.title}
               </p>
               <p className="mt-1.5 text-[12.5px] leading-relaxed" style={{ color: "rgba(251,241,228,0.82)" }}>
-                {tier === "free"
-                  ? "AI-заметки, план сопровождения, комиссия от 30% и приоритет в каталоге."
-                  : "Больше AI-разборов в месяц, приоритет в каталоге и бейдж Pro+."}
+                {ctaData.body}
               </p>
               <span
                 className="mt-3.5 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold"
                 style={{ background: "#FBF1E4", color: "var(--soft-bordeaux)" }}
               >
-                {tier === "free" ? "Подключить Pro" : "Перейти на Pro+"}
+                {ctaData.button}
                 <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
               </span>
             </Link>
@@ -529,5 +637,6 @@ export default async function PractitionerTodayPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
